@@ -63,17 +63,17 @@ public class NewFeedback extends VoltProcedure{
         "  FROM " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + " " + 
         " WHERE uf_i_id = ? AND uf_u_id = ?"
     );
-	
+    
     public final SQLStmt insertFeedback = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + "( " +
-        	"uf_id," +
-        	"uf_u_id," +
-        	"uf_i_id," +
-        	"uf_i_u_id," +
-        	"uf_from_id," +
-        	"uf_rating," +
-        	"uf_date," +
-        	"uf_sattr0" +
+            "uf_id," +
+            "uf_u_id," +
+            "uf_i_id," +
+            "uf_i_u_id," +
+            "uf_from_id," +
+            "uf_rating," +
+            "uf_date," +
+            "uf_sattr0" +
         ") VALUES (" +
             "?," + // UF_ID
             "?," + // UF_U_ID

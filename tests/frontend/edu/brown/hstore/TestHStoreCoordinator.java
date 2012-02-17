@@ -56,7 +56,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
             
             // We have to make our fake ExecutionSites for each Partition at this site
             for (Partition catalog_part : catalog_site.getPartitions()) {
-                MockExecutionSite es = new MockExecutionSite(catalog_part.getId(), catalog, p_estimator);
+                MockPartitionExecutor es = new MockPartitionExecutor(catalog_part.getId(), catalog, p_estimator);
                 this.hstore_sites[i].addPartitionExecutor(catalog_part.getId(), es);
                 es.initHStoreSite(this.hstore_sites[i]);
             } // FOR
@@ -148,25 +148,25 @@ public class TestHStoreCoordinator extends BaseTestCase {
     }
     
     /**
-	 * testStartConnection
-	 */
-	@Test
-	public void testStartConnection() throws Exception {
-	    System.err.println("testStartConnection()");
-		for (final HStoreCoordinator m : this.coordinators) {
-			// Check that the messenger state is correct
-			assert (m.isStarted());
+     * testStartConnection
+     */
+    @Test
+    public void testStartConnection() throws Exception {
+        System.err.println("testStartConnection()");
+        for (final HStoreCoordinator m : this.coordinators) {
+            // Check that the messenger state is correct
+            assert (m.isStarted());
 
-			// Check that the messenger's listener thread is running
-			assert (m.getListenerThread().isAlive());
+            // Check that the messenger's listener thread is running
+            assert (m.getListenerThread().isAlive());
 
-			// Check that we can connect to the messenger's listening port
-			int port = m.getLocalMessengerPort();
-			SocketChannel channel = SocketChannel.open();
-			channel.connect(new InetSocketAddress(port));
-			assert (channel.isConnected());
-		} // FOR
-	}
+            // Check that we can connect to the messenger's listening port
+            int port = m.getLocalMessengerPort();
+            SocketChannel channel = SocketChannel.open();
+            channel.connect(new InetSocketAddress(port));
+            assert (channel.isConnected());
+        } // FOR
+    }
 
     /**
      * testStopConnection
@@ -184,13 +184,13 @@ public class TestHStoreCoordinator extends BaseTestCase {
         //      Note that I don't know what happens to the other messengers when you kill one of them
         //      so you test whether they are alive or not. It's not a big deal either way, since 
         //      HStore isn't a production database, but it would be nice to know.
-		for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
-			HStoreCoordinator m = this.coordinators[i];
-			// stop messenger
-			m.shutdown();
-			assertEquals(m.getListenerThread().getState(), State.TERMINATED);
-			// check that the socket is closed
-			int port = this.hstore_sites[i].getSite().getMessenger_port();
+        for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
+            HStoreCoordinator m = this.coordinators[i];
+            // stop messenger
+            m.shutdown();
+            assertEquals(m.getListenerThread().getState(), State.TERMINATED);
+            // check that the socket is closed
+            int port = this.hstore_sites[i].getSite().getMessenger_port();
             ServerSocketChannel channel = ServerSocketChannel.open();
             try {
                 channel.socket().bind(new InetSocketAddress(port));
@@ -201,9 +201,9 @@ public class TestHStoreCoordinator extends BaseTestCase {
                 channel.close();
                 Thread.yield();
             }
-//			break;
-		}
-    	
+//          break;
+        }
+        
     }
 
 //    /**
@@ -216,27 +216,27 @@ public class TestHStoreCoordinator extends BaseTestCase {
 //        //       You can cast the destination ExecutionSite to a MockExecutionSite and use getDependency()
 //        //       to get back the VoltTable stored by HStoreMessenger. You can check that there is no
 //        //       HStoreService for target partition and thus it couldn't possibly use the network to send the message.
-//    	Integer sender_partition_id;
-//    	Integer dest_partition_id;
-//    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
-//    	{
-//    		Object[] testarray = new Object[]{"test", 10};
-//    		fragment.addRow(testarray);
-//    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
-//    		sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
-//    		dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
-//    		messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
-//    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
-//    		VoltTable vt = executor.getDependency(0);
-//    		// Verify row expected
-//    		for (int j = 0; j < vt.getRowCount(); j++)
-//    		{
-//    			assertEquals(vt.fetchRow(j).get(0, VoltType.STRING), "test");
-//				assertEquals(vt.fetchRow(j).get(1, VoltType.BIGINT), new Long("10"));
-//				break;
-//    		}
-////    		break;
-//    	}
+//      Integer sender_partition_id;
+//      Integer dest_partition_id;
+//      for (int i = 0; i < NUM_SITES_PER_HOST; i++)
+//      {
+//          Object[] testarray = new Object[]{"test", 10};
+//          fragment.addRow(testarray);
+//          Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
+//          sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
+//          dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
+//          messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
+//          MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
+//          VoltTable vt = executor.getDependency(0);
+//          // Verify row expected
+//          for (int j = 0; j < vt.getRowCount(); j++)
+//          {
+//              assertEquals(vt.fetchRow(j).get(0, VoltType.STRING), "test");
+//              assertEquals(vt.fetchRow(j).get(1, VoltType.BIGINT), new Long("10"));
+//              break;
+//          }
+////            break;
+//      }
 //    }
 
 //    /**
@@ -249,41 +249,41 @@ public class TestHStoreCoordinator extends BaseTestCase {
 //        //       HStoreMessenger.sendFragment() can properly discern that a partition is remote and should use
 //        //       a network message to send the data. You can stuff some data into the fragment
 //        //       and make sure that it arrives on the other side with the proper values.
-//    	Integer sender_partition_id;
-//    	Integer dest_partition_id;
-//    	int txn_id = 0;
-//    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
-//    	{
-//    		Object[] testarray = new Object[]{"test", 10};
-//    		fragment.addRow(testarray);
-//    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
-//    		sender_partition_id = CollectionUtil.first(sets);
-//    		for (int j = i+1; j < NUM_SITES_PER_HOST; j++)
-//    		{
-//        		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
-//        		dest_partition_id = CollectionUtil.first(sets2);
-//        		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
-//        		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
-//        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
-//        		assertNotNull(executor);
-//        		
-//        		VoltTable vt = null; // executor.waitForDependency(txn_id);
-//        		while (vt == null) {
-//        			vt = executor.getDependency(txn_id);
-//        		}
-//        		assertNotNull(String.format("Site #%d -> Site #%d", i, j), vt);
-//        		
-//        		// Verify row expected
-//        		for (int k = 0; k < vt.getRowCount(); k++)
-//        		{
-//        			assertEquals(vt.fetchRow(k).get(0, VoltType.STRING), "test");
-//    				assertEquals(vt.fetchRow(k).get(1, VoltType.BIGINT), new Long("10"));
-//    				break;
-//        		}
-//        		txn_id++;
-////        		break;
-//    		}
-//    	}
+//      Integer sender_partition_id;
+//      Integer dest_partition_id;
+//      int txn_id = 0;
+//      for (int i = 0; i < NUM_SITES_PER_HOST; i++)
+//      {
+//          Object[] testarray = new Object[]{"test", 10};
+//          fragment.addRow(testarray);
+//          Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
+//          sender_partition_id = CollectionUtil.first(sets);
+//          for (int j = i+1; j < NUM_SITES_PER_HOST; j++)
+//          {
+//              Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
+//              dest_partition_id = CollectionUtil.first(sets2);
+//              messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
+//              System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
+//              MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
+//              assertNotNull(executor);
+//              
+//              VoltTable vt = null; // executor.waitForDependency(txn_id);
+//              while (vt == null) {
+//                  vt = executor.getDependency(txn_id);
+//              }
+//              assertNotNull(String.format("Site #%d -> Site #%d", i, j), vt);
+//              
+//              // Verify row expected
+//              for (int k = 0; k < vt.getRowCount(); k++)
+//              {
+//                  assertEquals(vt.fetchRow(k).get(0, VoltType.STRING), "test");
+//                  assertEquals(vt.fetchRow(k).get(1, VoltType.BIGINT), new Long("10"));
+//                  break;
+//              }
+//              txn_id++;
+////                break;
+//          }
+//      }
 //    }
     
 //    /**

@@ -291,49 +291,49 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             for (final Method m : methods) {
                 String name = m.getName();
                 // TODO: Change procMethod to point to VoltMapReduceProcedure.runMap() if this is
-                // 		 a MR stored procedure
+                //       a MR stored procedure
                 if (name.equals("run")) {
                     //inspect(m);
                     tempProcMethod = m;
                     
                     // We can only do this if it's not a MapReduce procedure
                     if (procIsMapReduce == false) {
-                    	tempParamTypes = tempProcMethod.getParameterTypes();
+                        tempParamTypes = tempProcMethod.getParameterTypes();
                         tempParamTypesLength = tempParamTypes.length;
                         tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
                         tempParamTypeIsArray = new boolean[tempParamTypesLength];
                         tempParamTypeComponentType = new Class<?>[tempParamTypesLength];
-                    	
-	                    for (int ii = 0; ii < tempParamTypesLength; ii++) {
-	                        tempParamTypeIsPrimitive[ii] = tempParamTypes[ii].isPrimitive();
-	                        tempParamTypeIsArray[ii] = tempParamTypes[ii].isArray();
-	                        tempParamTypeComponentType[ii] = tempParamTypes[ii].getComponentType();
-	                    }
+                        
+                        for (int ii = 0; ii < tempParamTypesLength; ii++) {
+                            tempParamTypeIsPrimitive[ii] = tempParamTypes[ii].isPrimitive();
+                            tempParamTypeIsArray[ii] = tempParamTypes[ii].isArray();
+                            tempParamTypeComponentType[ii] = tempParamTypes[ii].getComponentType();
+                        }
                     }
                     // Otherwise everything must come from the catalog
                     else {
-                    	CatalogMap<ProcParameter> params = catalog_proc.getParameters();
-                    	tempParamTypesLength = params.size();
-                    	tempParamTypes = new Class<?>[tempParamTypesLength];
-                    	tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
+                        CatalogMap<ProcParameter> params = catalog_proc.getParameters();
+                        tempParamTypesLength = params.size();
+                        tempParamTypes = new Class<?>[tempParamTypesLength];
+                        tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
                         tempParamTypeIsArray = new boolean[tempParamTypesLength];
                         tempParamTypeComponentType = new Class<?>[tempParamTypesLength];
 
                         for (int i = 0; i < tempParamTypesLength; i++) {
-                        	ProcParameter catalog_param = params.get(i);
-                        	VoltType vtype = VoltType.get(catalog_param.getType());
-                        	assert(vtype != null);
-                        	tempParamTypes[i] = vtype.classFromType(); 
+                            ProcParameter catalog_param = params.get(i);
+                            VoltType vtype = VoltType.get(catalog_param.getType());
+                            assert(vtype != null);
+                            tempParamTypes[i] = vtype.classFromType(); 
                         } // FOR
                         
                         // We'll try to cast everything as a primitive
                         Arrays.fill(tempParamTypeIsPrimitive, true);
                         
-                    	// At this point we don't support arrays as inputs to Statements
+                        // At this point we don't support arrays as inputs to Statements
                         Arrays.fill(tempParamTypeIsArray, false);
                     }
                 } else if(name.equals("map")){
-                	hasMap = true;
+                    hasMap = true;
                 } else if (name.equals("reduce")) {
                     hasReduce = true;
                 } 
@@ -427,7 +427,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
     
     protected SQLStmt getSQLStmt(String name) {
-    	return (this.stmts.get(name));
+        return (this.stmts.get(name));
     }
     
     final void initSQLStmt(SQLStmt stmt) {
@@ -590,12 +590,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         // Fix for MapReduce transactions
 //        if (m_localTxnState.isMapReduce()) {
-//        	assert(this.procParams.length == 1);
-//        	this.procParams = (Object[])this.procParams[0];
+//          assert(this.procParams.length == 1);
+//          this.procParams = (Object[])this.procParams[0];
 //        }
         
         for (int i = 0; i < paramTypesLength; i++) {
-//        	String orig = (this.procParams[i] != null ? this.procParams[i].getClass().getSimpleName() : null);
+//          String orig = (this.procParams[i] != null ? this.procParams[i].getClass().getSimpleName() : null);
             try {
                 this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
 //                if (trace.get()) LOG.trace(String.format("[%02d] ORIG:%s -> NEW:%s", i, orig, this.procParams[i].getClass().getSimpleName()));
@@ -741,6 +741,17 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             System.exit(1);
         }
         
+//        if(debug.get()) {
+//            LOG.debug(String.format("Client_Response, 1:%d,2:%d,3:%d,4:%s,5:%s,6:%s,7:%s", 
+//                    this.m_currentTxnState.getTransactionId().longValue(),
+//                    this.client_handle,
+//                    this.partitionId,
+//                    this.status,
+//                    this.results,
+//                    this.status_msg,
+//                    this.error));
+//        }
+        
         response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId().longValue(),
                                           this.client_handle,
                                           this.partitionId,
@@ -811,8 +822,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         Class<?> pclass = param.getClass();
         boolean slotIsArray = paramTypeIsArray[paramTypeIndex];
         if (slotIsArray != pclass.isArray()) {
-        	LOG.warn(String.format("Param #%d -> %s [class=%s, isArray=%s, slotIsArray=%s]",
-        						   paramTypeIndex, param, pclass.getSimpleName(), pclass.isArray(), slotIsArray));
+            LOG.warn(String.format("Param #%d -> %s [class=%s, isArray=%s, slotIsArray=%s]",
+                                   paramTypeIndex, param, pclass.getSimpleName(), pclass.isArray(), slotIsArray));
             throw new Exception("Array / Scalar parameter mismatch");
         }
 

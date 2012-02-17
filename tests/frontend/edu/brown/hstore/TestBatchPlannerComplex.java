@@ -34,7 +34,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private SQLStmt batch[];
     private ParameterSet args[];
     
-    private MockExecutionSite executor;
+    private MockPartitionExecutor executor;
     private Histogram<Integer> touched_partitions;
     private Procedure catalog_proc;
     private BatchPlanner planner;
@@ -58,7 +58,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
-        this.executor = new MockExecutionSite(BASE_PARTITION, catalog, p_estimator);
+        this.executor = new MockPartitionExecutor(BASE_PARTITION, catalog, p_estimator);
         volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
         
         this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);

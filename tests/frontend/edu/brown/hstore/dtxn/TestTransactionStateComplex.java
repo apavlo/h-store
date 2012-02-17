@@ -39,7 +39,7 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.MockExecutionSite;
+import edu.brown.hstore.MockPartitionExecutor;
 
 /**
  * @author pavlo
@@ -89,7 +89,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         
         if (executor == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
-            executor = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
+            executor = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
             p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here

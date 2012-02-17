@@ -56,37 +56,37 @@ public class NewItem extends VoltProcedure {
     // STATIC MEMBERS
     // -----------------------------------------------------------------
     
-	private static final VoltTable.ColumnInfo RESULT_COLS[] = {
+    private static final VoltTable.ColumnInfo RESULT_COLS[] = {
         new VoltTable.ColumnInfo("i_id", VoltType.BIGINT),
         new VoltTable.ColumnInfo("i_u_id", VoltType.BIGINT),
         new VoltTable.ColumnInfo("i_num_bids", VoltType.BIGINT),
         new VoltTable.ColumnInfo("i_current_price", VoltType.FLOAT),
         new VoltTable.ColumnInfo("i_end_date", VoltType.TIMESTAMP),
         new VoltTable.ColumnInfo("i_status", VoltType.BIGINT),
-	};
-	
-	// -----------------------------------------------------------------
+    };
+    
+    // -----------------------------------------------------------------
     // STATEMENTS
     // -----------------------------------------------------------------
-	
+    
     public final SQLStmt insertItem = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM + "(" +
-        	"i_id," + 
-        	"i_u_id," + 
-        	"i_c_id," + 
-        	"i_name," + 
-        	"i_description," + 
-        	"i_user_attributes," + 
-        	"i_initial_price," +
-        	"i_current_price," + 
-        	"i_num_bids," + 
-        	"i_num_images," + 
-        	"i_num_global_attrs," + 
-        	"i_start_date," + 
-        	"i_end_date," +
-        	"i_status, " +
-        	"i_updated," +
-        	"i_iattr0" + 
+            "i_id," + 
+            "i_u_id," + 
+            "i_c_id," + 
+            "i_name," + 
+            "i_description," + 
+            "i_user_attributes," + 
+            "i_initial_price," +
+            "i_current_price," + 
+            "i_num_bids," + 
+            "i_num_images," + 
+            "i_num_global_attrs," + 
+            "i_start_date," + 
+            "i_end_date," +
+            "i_status, " +
+            "i_updated," +
+            "i_iattr0" + 
         ") VALUES (" +
             "?," +  // i_id
             "?," +  // i_u_id
@@ -124,49 +124,49 @@ public class NewItem extends VoltProcedure {
     );
     
     public final SQLStmt insertItemAttribute = new SQLStmt(
-		"INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE + "(" +
-			"ia_id," + 
-			"ia_i_id," + 
-			"ia_u_id," + 
-			"ia_gav_id," + 
-			"ia_gag_id" + 
-		") VALUES(?, ?, ?, ?, ?)"
-	);
+        "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE + "(" +
+            "ia_id," + 
+            "ia_i_id," + 
+            "ia_u_id," + 
+            "ia_gav_id," + 
+            "ia_gag_id" + 
+        ") VALUES(?, ?, ?, ?, ?)"
+    );
 
     public final SQLStmt insertImage = new SQLStmt(
-		"INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_IMAGE + "(" +
-			"ii_id," + 
-			"ii_i_id," + 
-			"ii_u_id," + 
-			"ii_sattr0" + 
-		") VALUES(?, ?, ?, ?)"
-	);
+        "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_IMAGE + "(" +
+            "ii_id," + 
+            "ii_i_id," + 
+            "ii_u_id," + 
+            "ii_sattr0" + 
+        ") VALUES(?, ?, ?, ?)"
+    );
     
     public final SQLStmt updateUserBalance = new SQLStmt(
-		"UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
-		   "SET u_balance = u_balance - 1, " +
-		   "    u_updated = ? " +
-		" WHERE u_id = ?"
-	);
+        "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
+           "SET u_balance = u_balance - 1, " +
+           "    u_updated = ? " +
+        " WHERE u_id = ?"
+    );
     
     // -----------------------------------------------------------------
     // RUN METHOD
     // -----------------------------------------------------------------
     
-	/**
-	 * Insert a new ITEM record for a user.
-	 * The benchmark client provides all of the preliminary information 
-	 * required for the new item, as well as optional information to create
-	 * derivative image and attribute records. After inserting the new ITEM
-	 * record, the transaction then inserts any GLOBAL ATTRIBUTE VALUE and
-	 * ITEM IMAGE. The unique identifer for each of these records is a
-	 * composite 64-bit key where the lower 60-bits are the i id parameter and the
-	 * upper 4-bits are used to represent the index of the image/attribute.
-	 * For example, if the i id is 100 and there are four items, then the
-	 * composite key will be 0 100 for the first image, 1 100 for the second,
-	 * and so on. After these records are inserted, the transaction then updates
-	 * the USER record to add the listing fee to the seller's balance.
-	 */
+    /**
+     * Insert a new ITEM record for a user.
+     * The benchmark client provides all of the preliminary information 
+     * required for the new item, as well as optional information to create
+     * derivative image and attribute records. After inserting the new ITEM
+     * record, the transaction then inserts any GLOBAL ATTRIBUTE VALUE and
+     * ITEM IMAGE. The unique identifer for each of these records is a
+     * composite 64-bit key where the lower 60-bits are the i id parameter and the
+     * upper 4-bits are used to represent the index of the image/attribute.
+     * For example, if the i id is 100 and there are four items, then the
+     * composite key will be 0 100 for the first image, 1 100 for the second,
+     * and so on. After these records are inserted, the transaction then updates
+     * the USER record to add the listing fee to the seller's balance.
+     */
     public VoltTable run(TimestampType benchmarkTimes[],
                          long item_id, long seller_id, long category_id,
                          String name, String description, long duration, double initial_price, String attributes,

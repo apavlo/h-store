@@ -21,7 +21,7 @@ public class GetLocal extends VoltProcedure {
         "SELECT * FROM TABLEA WHERE A_ID = ? ");
     
     public final SQLStmt GetB = new SQLStmt(
-		"SELECT * FROM TABLEB WHERE B_A_ID = ? LIMIT " + LocalityConstants.GET_TABLEB_LIMIT);
+        "SELECT * FROM TABLEB WHERE B_A_ID = ? LIMIT " + LocalityConstants.GET_TABLEB_LIMIT);
 
     /**
      * 

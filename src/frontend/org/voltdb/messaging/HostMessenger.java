@@ -114,7 +114,7 @@ public class HostMessenger implements Messenger {
         m_localHostId = m_joiner.getLocalHostId();
         Map<Integer, SocketChannel> sockets = m_joiner.getHostsAndSockets();
         for (Entry<Integer, SocketChannel> entry : sockets.entrySet()) {
-        	int hostId = entry.getKey();
+            int hostId = entry.getKey();
             SocketChannel socket = entry.getValue();
             
             try {

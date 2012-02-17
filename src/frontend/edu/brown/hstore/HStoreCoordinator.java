@@ -447,16 +447,16 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void transactionMap(RpcController controller, TransactionMapRequest request,
-        		RpcCallback<TransactionMapResponse> callback) {
-        	
-        	transactionMap_handler.remoteQueue(controller, request, callback);
+                RpcCallback<TransactionMapResponse> callback) {
+            
+            transactionMap_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
         public void transactionReduce(RpcController controller, TransactionReduceRequest request,
-        		RpcCallback<TransactionReduceResponse> callback) {
+                RpcCallback<TransactionReduceResponse> callback) {
             
-        	transactionReduce_handler.remoteQueue(controller, request, callback);
+            transactionReduce_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
@@ -505,11 +505,11 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void sendData(RpcController controller, SendDataRequest request,
-        		RpcCallback<SendDataResponse> done) {
-        	// Take the SendDataRequest and pass it to the sendData_handler, which
+                RpcCallback<SendDataResponse> done) {
+            // Take the SendDataRequest and pass it to the sendData_handler, which
             // will deserialize the embedded VoltTable and wrap it in something that we can
             // then pass down into the underlying ExecutionEngine
-        	sendData_handler.remoteQueue(controller, request, done);
+            sendData_handler.remoteQueue(controller, request, done);
           
         }
         
@@ -690,27 +690,27 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      */
     public void transactionMap(LocalTransaction ts, RpcCallback<TransactionMapResponse> callback) {
-    	ByteString invocation = null;
-    	try {
-    		ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
-    		invocation = ByteString.copyFrom(b.array()); 
-    	} catch (Exception ex) {
-    		throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
-    	}
-    	
-    	TransactionMapRequest request = TransactionMapRequest.newBuilder()
-    												 .setTransactionId(ts.getTransactionId())
-    												 .setBasePartition(ts.getBasePartition())
-    												 .setInvocation(invocation)
-    												 .build();
-    	
-    	Collection<Integer> partitions = ts.getPredictTouchedPartitions();
-    	if (debug.get())
+        ByteString invocation = null;
+        try {
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
+            invocation = ByteString.copyFrom(b.array()); 
+        } catch (Exception ex) {
+            throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
+        }
+        
+        TransactionMapRequest request = TransactionMapRequest.newBuilder()
+                                                     .setTransactionId(ts.getTransactionId())
+                                                     .setBasePartition(ts.getBasePartition())
+                                                     .setInvocation(invocation)
+                                                     .build();
+        
+        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        if (debug.get())
              LOG.debug(String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
-    	//assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
-    	
-    	LOG.info("<HStoreCoordinator.TransactionMap> is executing to sendMessages to all partitions\n");
-    	this.transactionMap_handler.sendMessages(ts, request, callback, partitions);
+        //assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
+        
+        LOG.info("<HStoreCoordinator.TransactionMap> is executing to sendMessages to all partitions\n");
+        this.transactionMap_handler.sendMessages(ts, request, callback, partitions);
     }
     
     /**
@@ -789,7 +789,7 @@ public class HStoreCoordinator implements Shutdownable {
             // Loop through and get all the data for this site
             if (debug.get())
                 LOG.debug(String.format("CatalogUtil.getAllSites : " + CatalogUtil.getAllSites(this.catalog_site).size() +
-                		"     Remote_site partitions: " + remote_site.getPartitions().size()));
+                        "     Remote_site partitions: " + remote_site.getPartitions().size()));
             for (Partition catalog_part : remote_site.getPartitions()) {
                 VoltTable vt = data.get(catalog_part.getId());
                 if (vt == null) {

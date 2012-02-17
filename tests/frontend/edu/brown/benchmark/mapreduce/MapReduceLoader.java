@@ -79,7 +79,7 @@ public class MapReduceLoader extends BenchmarkComponent {
                 scaleFactor = Double.parseDouble(value);
             }
         } // FOR
-        m_scalefactor = scaleFactor;  	
+        m_scalefactor = scaleFactor;    
         LOG.debug("m_scalefactor = " + m_scalefactor + "\n" + StringUtil.formatMaps(m_extraParams));
         
         // Histograms + Table Sizes + Generators
@@ -243,8 +243,8 @@ public class MapReduceLoader extends BenchmarkComponent {
      */
     protected class TABLEAGenerator extends AbstractTableGenerator {
         
-    	final Random rand = new Random();
-    	
+        final Random rand = new Random();
+        
         public TABLEAGenerator() {
             super(MapReduceConstants.TABLENAME_TABLEA);
         }
@@ -271,32 +271,32 @@ public class MapReduceLoader extends BenchmarkComponent {
      * TABLEB Generator
      */
     protected class TABLEBGenerator extends AbstractTableGenerator {
-    	private long current_a_id = 0;
-    	private long current_b_id = 0;
-    	
+        private long current_a_id = 0;
+        private long current_b_id = 0;
+        
         public TABLEBGenerator() {
             super(MapReduceConstants.TABLENAME_TABLEB);
         }
         
         @Override
         protected void populateRow() {
-        	int col = 0;
-        	
+            int col = 0;
+            
             // B_ID
             row[col++] = new Integer((int)this.current_b_id);
-        	
+            
             // B_A_ID
             row[col++] = new Integer((int)this.current_a_id);
 
             // B_VALUE
             row[col++] = "DEF456"; // FIXME
             
-        	assert (col == this.table.getColumnCount());
-        	
-        	if (++this.current_b_id > MapReduceConstants.TABLESIZE_TABLEB_MULTIPLIER) {
-        		this.current_b_id = 0;
-        		this.current_a_id++;
-        	}
+            assert (col == this.table.getColumnCount());
+            
+            if (++this.current_b_id > MapReduceConstants.TABLESIZE_TABLEB_MULTIPLIER) {
+                this.current_b_id = 0;
+                this.current_a_id++;
+            }
         }
     } // END CLASS
 }

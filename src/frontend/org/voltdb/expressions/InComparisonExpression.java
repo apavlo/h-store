@@ -79,8 +79,8 @@ public class InComparisonExpression extends ComparisonExpression {
 
     @Override
     public boolean equals(Object obj) {
-    	if (this == obj) return true;
-    	
+        if (this == obj) return true;
+        
         if (obj instanceof InComparisonExpression == false) return false;
         InComparisonExpression expr = (InComparisonExpression) obj;
 

@@ -52,99 +52,99 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
         MAP,
         SIGMA,
     }
-	
-	/**
-	 * Table Name -> Affinity Record
-	 */
-	protected final SortedMap<Pair<String, String>, AffinityRecord> affinity_map = new TreeMap<Pair<String, String>, AffinityRecord>();
-	protected final transient SortedMap<String, Set<Pair<String, String>>> table_pair_xref = new TreeMap<String, Set<Pair<String,String>>>();
-	
-	/**
-	 * 
-	 */
-	protected class AffinityRecord {
-	    private final SortedMap<Integer, Integer> map = new TreeMap<Integer, Integer>(); 
-	    private final transient SortedMap<Integer, RandomDistribution.Zipf> distributions = new TreeMap<Integer, RandomDistribution.Zipf>();
-	    private double zipf_sigma = 1.01d;
-	    private int minimum;
-	    private int maximum;
-	    private transient int range;
-	    private final transient SortedMap<Integer, Histogram> histograms = new TreeMap<Integer, Histogram>();
-	    
-	    public AffinityRecord() {
-	        // For serialization...
-	    }
-	    
-	    public AffinityRecord(int minimum, int maximum) {
-	        this.minimum = minimum;
-	        this.maximum = maximum;
-	        this.range = this.maximum - this.minimum;
-	    }
-	    
-	    public double getZipfSigma() {
-	         return (this.zipf_sigma);
-	    }
-	    
-	    public void setZipfSigma(double zipf_sigma) {
-	        // We have to regenerate all the random number generators
-	        if (this.zipf_sigma != zipf_sigma) {
-	            this.zipf_sigma = zipf_sigma;
-	            for (int source : this.map.keySet()) {
-	                int target = this.map.get(source);
-	                this.distributions.put(source, new RandomDistribution.Zipf(RandomGenerator.this, target, target + this.range, this.zipf_sigma));
-	            } // FOR
-	        }
-	    }
-	    
-	    public int getMinimum() {
+    
+    /**
+     * Table Name -> Affinity Record
+     */
+    protected final SortedMap<Pair<String, String>, AffinityRecord> affinity_map = new TreeMap<Pair<String, String>, AffinityRecord>();
+    protected final transient SortedMap<String, Set<Pair<String, String>>> table_pair_xref = new TreeMap<String, Set<Pair<String,String>>>();
+    
+    /**
+     * 
+     */
+    protected class AffinityRecord {
+        private final SortedMap<Integer, Integer> map = new TreeMap<Integer, Integer>(); 
+        private final transient SortedMap<Integer, RandomDistribution.Zipf> distributions = new TreeMap<Integer, RandomDistribution.Zipf>();
+        private double zipf_sigma = 1.01d;
+        private int minimum;
+        private int maximum;
+        private transient int range;
+        private final transient SortedMap<Integer, Histogram> histograms = new TreeMap<Integer, Histogram>();
+        
+        public AffinityRecord() {
+            // For serialization...
+        }
+        
+        public AffinityRecord(int minimum, int maximum) {
+            this.minimum = minimum;
+            this.maximum = maximum;
+            this.range = this.maximum - this.minimum;
+        }
+        
+        public double getZipfSigma() {
+             return (this.zipf_sigma);
+        }
+        
+        public void setZipfSigma(double zipf_sigma) {
+            // We have to regenerate all the random number generators
+            if (this.zipf_sigma != zipf_sigma) {
+                this.zipf_sigma = zipf_sigma;
+                for (int source : this.map.keySet()) {
+                    int target = this.map.get(source);
+                    this.distributions.put(source, new RandomDistribution.Zipf(RandomGenerator.this, target, target + this.range, this.zipf_sigma));
+                } // FOR
+            }
+        }
+        
+        public int getMinimum() {
             return (this.minimum);
         }
-	    
-	    public int getMaximum() {
+        
+        public int getMaximum() {
             return (this.maximum);
         }
-	    
-	    public Set<Integer> getSources() {
-	        return (this.map.keySet());
-	    }
-	    
-	    public int getTarget(int source) {
-	        return (this.map.get(source));
-	    }
-	    
-	    public RandomDistribution.Zipf getDistribution(int source) {
-	        return (this.distributions.get(source));
-	    }
-	    
-	    public Histogram getHistogram(int source) {
-	        return (this.histograms.get(source));
-	    }
-	    
-	    public void add(int source, int target) {
-	        this.map.put(source, target);
-	        this.distributions.put(source, new RandomDistribution.Zipf(RandomGenerator.this, target, target + this.range, this.zipf_sigma));
-	        this.histograms.put(source, new Histogram());
-	    }
-	    
-	    public void toJSONString(JSONStringer stringer) throws JSONException {
-	        stringer.key(AffinityRecordMembers.SIGMA.name()).value(this.zipf_sigma);
-	        stringer.key(AffinityRecordMembers.MINIMUM.name()).value(this.minimum);
-	        stringer.key(AffinityRecordMembers.MAXIMUM.name()).value(this.maximum);
-	        
-	        stringer.key(AffinityRecordMembers.MAP.name()).object();
+        
+        public Set<Integer> getSources() {
+            return (this.map.keySet());
+        }
+        
+        public int getTarget(int source) {
+            return (this.map.get(source));
+        }
+        
+        public RandomDistribution.Zipf getDistribution(int source) {
+            return (this.distributions.get(source));
+        }
+        
+        public Histogram getHistogram(int source) {
+            return (this.histograms.get(source));
+        }
+        
+        public void add(int source, int target) {
+            this.map.put(source, target);
+            this.distributions.put(source, new RandomDistribution.Zipf(RandomGenerator.this, target, target + this.range, this.zipf_sigma));
+            this.histograms.put(source, new Histogram());
+        }
+        
+        public void toJSONString(JSONStringer stringer) throws JSONException {
+            stringer.key(AffinityRecordMembers.SIGMA.name()).value(this.zipf_sigma);
+            stringer.key(AffinityRecordMembers.MINIMUM.name()).value(this.minimum);
+            stringer.key(AffinityRecordMembers.MAXIMUM.name()).value(this.maximum);
+            
+            stringer.key(AffinityRecordMembers.MAP.name()).object();
             for (Integer source_id : this.map.keySet()) {
                 stringer.key(source_id.toString()).value(this.map.get(source_id));
             } // FOR
             stringer.endObject();
-	    }
-	    
-	    public void fromJSONObject(JSONObject object) throws JSONException {
-	        this.zipf_sigma = object.getDouble(AffinityRecordMembers.SIGMA.name());
-	        this.minimum = object.getInt(AffinityRecordMembers.MINIMUM.name());
-	        this.maximum = object.getInt(AffinityRecordMembers.MAXIMUM.name());
-	        this.range = this.maximum - this.minimum;
-	     
-	        JSONObject jsonMap = object.getJSONObject(AffinityRecordMembers.MAP.name());
+        }
+        
+        public void fromJSONObject(JSONObject object) throws JSONException {
+            this.zipf_sigma = object.getDouble(AffinityRecordMembers.SIGMA.name());
+            this.minimum = object.getInt(AffinityRecordMembers.MINIMUM.name());
+            this.maximum = object.getInt(AffinityRecordMembers.MAXIMUM.name());
+            this.range = this.maximum - this.minimum;
+         
+            JSONObject jsonMap = object.getJSONObject(AffinityRecordMembers.MAP.name());
             Iterator<String> i = jsonMap.keys();
             while (i.hasNext()) {
                 String key = i.next();
@@ -154,34 +154,34 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
                 assert(target != null);
                 this.add(source, target);
             } // WHILE
-	    }
-	    
-	    @Override
-	    public String toString() {
-	        StringBuilder buffer = new StringBuilder();
-	        for (int source : this.map.keySet()) {
-	            int target = this.map.get(source);
-	            buffer.append(source).append(" => ").append(target).append("\n");
-	            buffer.append(this.histograms.get(source)).append("\n-------------\n");
-	        } // FOR
-	        return (buffer.toString());
-	    }
-	} // END CLASS
-	
-	/**
-	 * Seeds the random number generator using the default Random() constructor.
-	 */
+        }
+        
+        @Override
+        public String toString() {
+            StringBuilder buffer = new StringBuilder();
+            for (int source : this.map.keySet()) {
+                int target = this.map.get(source);
+                buffer.append(source).append(" => ").append(target).append("\n");
+                buffer.append(this.histograms.get(source)).append("\n-------------\n");
+            } // FOR
+            return (buffer.toString());
+        }
+    } // END CLASS
+    
+    /**
+     * Seeds the random number generator using the default Random() constructor.
+     */
     public RandomGenerator() {
         super(0);
-	}
-	
+    }
+    
     /**
      * Seeds the random number generator with seed.
      * @param seed
      */
     public RandomGenerator(Integer seed) {
-    	super(seed);
-	}
+        super(seed);
+    }
     
     /**
      * Set the Zipfian distribution sigma factor
@@ -288,7 +288,7 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
         } else {
             value = super.number(minimum, maximum);
         }
-    	return (value);
+        return (value);
     }
     
     /**
@@ -316,7 +316,7 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
      */
     @Override
     public void loadProfile(String input_path) throws Exception {
-    	String contents = FileUtil.readFile(input_path);
+        String contents = FileUtil.readFile(input_path);
         if (contents.isEmpty()) {
             throw new Exception("The partition plan file '" + input_path + "' is empty");
         }
@@ -369,16 +369,16 @@ public class RandomGenerator extends AbstractRandomGenerator implements JSONStri
     public void fromJSONObject(JSONObject object) throws JSONException {
         Iterator<String> i = object.keys();
         while (i.hasNext()) {
-        	String source_table = i.next();
-        	JSONObject innerObject = object.getJSONObject(source_table);
-        	Iterator<String> j = innerObject.keys();
-        	while (j.hasNext()) {
-        	    String target_table = j.next();
-        	    Pair<String, String> pair = Pair.of(source_table, target_table);
-        	    AffinityRecord record = new AffinityRecord();
+            String source_table = i.next();
+            JSONObject innerObject = object.getJSONObject(source_table);
+            Iterator<String> j = innerObject.keys();
+            while (j.hasNext()) {
+                String target_table = j.next();
+                Pair<String, String> pair = Pair.of(source_table, target_table);
+                AffinityRecord record = new AffinityRecord();
                 record.fromJSONObject(innerObject.getJSONObject(target_table));
                 this.addAffinityRecord(pair, record);
-        	} // WHILE
+            } // WHILE
         } // WHILE
     }
     

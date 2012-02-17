@@ -112,6 +112,8 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     public void addDefaultProcedures() {
         addProcedures(PROCEDURES);
         addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) FROM order_line GROUP BY ol_number order by ol_number");
+        addStmtProcedure("Test",
+                         "SELECT DISTINCT ol_number FROM order_line");
         
         addStmtProcedure("Query19","select ol_number, sum(ol_amount) from order_line " +
                                    "where ( ol_o_id >= 20 and ol_o_id <= 100  )" +
@@ -126,10 +128,10 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
                                     );
         
         addStmtProcedure("JoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount), AVG(I_PRICE) " +
-        		"FROM order_line, item " +
-        		"WHERE order_line.ol_i_id = item.i_id " +
-        		"GROUP BY ol_number " +
-        		"ORDER BY ol_number");
+                "FROM order_line, item " +
+                "WHERE order_line.ol_i_id = item.i_id " +
+                "GROUP BY ol_number " +
+                "ORDER BY ol_number");
         
         
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
