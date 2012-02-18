@@ -145,9 +145,7 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         // TODO(mainak): Pass this into ServerThread
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         
-        if (HStore.instance() == null) {
-            HStore.initialize(catalog_site, hstore_conf);
-        }
+        HStore.initialize(catalog_site, hstore_conf);
         
         m_server = new ServerThread(hstore_conf, catalog_site);
         m_server.start();
