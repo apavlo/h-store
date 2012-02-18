@@ -26,11 +26,13 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
@@ -38,6 +40,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
@@ -66,6 +69,81 @@ public abstract class HStore {
      */
     public synchronized static HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
         singleton = new HStoreSite(catalog_site, hstore_conf);
+        
+        // For every partition in our local site, we want to setup a new ExecutionSite
+        // Thankfully I had enough sense to have PartitionEstimator take in the local partition
+        // as a parameter, so we can share a single instance across all ExecutionSites
+        PartitionEstimator p_estimator = singleton.getPartitionEstimator();
+        
+        // ----------------------------------------------------------------------------
+        // MarkovGraphs
+        // ----------------------------------------------------------------------------
+        Map<Integer, MarkovGraphsContainer> markovs = null;
+        if (hstore_conf.site.markov_path != null) {
+            File path = new File(hstore_conf.site.markov_path);
+            if (path.exists()) {
+                Database catalog_db = CatalogUtil.getDatabase(catalog_site);
+                try {
+                    markovs = MarkovGraphContainersUtil.loadIds(catalog_db,
+                                                                path.getAbsolutePath(), 
+                                                                CatalogUtil.getLocalPartitionIds(catalog_site));
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+                MarkovGraphContainersUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
+                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
+            } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+        }
+        
+        // ----------------------------------------------------------------------------
+        // ParameterMappings
+        // ----------------------------------------------------------------------------
+        ParameterMappingsSet mappings = new ParameterMappingsSet(); 
+        if (hstore_conf.site.mappings_path != null) {
+            File path = new File(hstore_conf.site.mappings_path);
+            if (path.exists()) {
+                Database catalog_db = CatalogUtil.getDatabase(catalog_site);
+                try {
+                    mappings.load(path.getAbsolutePath(), catalog_db);
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            } else if (debug.get()) LOG.warn("The ParameterMappings file '" + path + "' does not exist");
+        }
+        
+        // ----------------------------------------------------------------------------
+        // PartitionExecutor Initialization
+        // ----------------------------------------------------------------------------
+        for (Partition catalog_part : catalog_site.getPartitions()) {
+            int local_partition = catalog_part.getId();
+            MarkovGraphsContainer local_markovs = null;
+            if (markovs != null) {
+                if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {
+                    local_markovs = markovs.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
+                } else {
+                    local_markovs = markovs.get(local_partition);
+                }
+                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
+            }
+
+            // Initialize TransactionEstimator stuff
+            // Load the Markov models if we were given an input path and pass them to t_estimator
+            // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
+            // stick them into the HStoreSite
+            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(catalog_site.getId()));
+            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
+
+            // setup the EE
+            if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            PartitionExecutor executor = new PartitionExecutor(
+                    local_partition,
+                    catalog_site.getCatalog(),
+                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
+                    p_estimator,
+                    t_estimator);
+            singleton.addPartitionExecutor(local_partition, executor);
+        } // FOR
+        
         return (singleton);
     }
     
@@ -79,7 +157,6 @@ public abstract class HStore {
     public static HStoreSite instance() {
         return singleton;
     }
-    
     
     /**
      * Main Start-up Method
@@ -106,24 +183,6 @@ public abstract class HStore {
             LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         
         HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
-        
-        // For every partition in our local site, we want to setup a new ExecutionSite
-        // Thankfully I had enough sense to have PartitionEstimator take in the local partition
-        // as a parameter, so we can share a single instance across all ExecutionSites
-        PartitionEstimator p_estimator = hstore_site.getPartitionEstimator();
-
-        // ----------------------------------------------------------------------------
-        // MarkovGraphs
-        // ----------------------------------------------------------------------------
-        Map<Integer, MarkovGraphsContainer> markovs = null;
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
-            File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
-            if (path.exists()) {
-                markovs = MarkovGraphContainersUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
-                MarkovGraphContainersUtil.setHasher(markovs, p_estimator.getHasher());
-                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
-            } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
-        }
 
         // ----------------------------------------------------------------------------
         // Workload Trace Output
@@ -136,43 +195,6 @@ public abstract class HStore {
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
             LOG.info("Enabled workload logging '" + tracePath + "'");
         }
-        
-        // ----------------------------------------------------------------------------
-        // Partition Initialization
-        // ----------------------------------------------------------------------------
-        for (Partition catalog_part : catalog_site.getPartitions()) {
-            int local_partition = catalog_part.getId();
-            MarkovGraphsContainer local_markovs = null;
-            if (markovs != null) {
-                if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {
-                    local_markovs = markovs.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
-                } else {
-                    local_markovs = markovs.get(local_partition);
-                }
-                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
-            }
-
-            // Initialize TransactionEstimator stuff
-            // Load the Markov models if we were given an input path and pass them to t_estimator
-            // HACK: For now we have to create a TransactionEstimator for all partitions, since
-            // it is written under the assumption that it was going to be running at just a single partition
-            // I'm not proud of this...
-            // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
-            // stick them into the HStoreSite
-            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(site_id));
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, local_markovs);
-
-            // setup the EE
-            if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
-            PartitionExecutor executor = new PartitionExecutor(
-                    local_partition,
-                    args.catalog,
-                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                    p_estimator,
-                    t_estimator);
-            hstore_site.addPartitionExecutor(local_partition, executor);
-        } // FOR
-        
         
         if (args.thresholds != null) hstore_site.setThresholds(args.thresholds);
         

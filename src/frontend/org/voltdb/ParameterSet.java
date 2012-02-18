@@ -30,9 +30,8 @@ import org.voltdb.types.VoltDecimalHelper;
 /**
  * The ordered set of parameters of the proper types that is passed into
  * a stored procedure OR a plan fragment.
- *
  */
- public class ParameterSet implements FastSerializable {
+public class ParameterSet implements FastSerializable {
 
     static final byte ARRAY = -99;
     public static final ParameterSet EMPTY = new ParameterSet();

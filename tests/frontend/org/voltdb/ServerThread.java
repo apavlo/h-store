@@ -23,29 +23,27 @@
 
 package org.voltdb;
 
-import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Site;
 
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Wraps VoltDB in a Thread
  */
 public class ServerThread extends Thread {
-    final VoltDB.Configuration m_config;
     final HStoreConf hstore_conf;
     boolean initialized = false;
 
     // TODO(mainak) Pass this in as an argument to the constructor
-    // final Site catalog_site;
+    final Site catalog_site;
 
-    public ServerThread(VoltDB.Configuration config) {
-        m_config = config;
+    public ServerThread(HStoreConf hstore_conf, Site catalog_site) {
         setName("ServerThread");
-        
         // Use the default HStoreConf
         // TODO(mainak) Pass this as an argument to the constructor
-        this.hstore_conf = HStoreConf.singleton();
+        this.hstore_conf = hstore_conf;
+        this.catalog_site = catalog_site;
 
         // Load the catalog
         // TODO(mainak) Move out of here
@@ -53,13 +51,14 @@ public class ServerThread extends Thread {
     }
 
     public ServerThread(String jarfile, BackendTarget target) {
-        m_config = new VoltDB.Configuration();
-        m_config.m_pathToCatalog = jarfile;
-        m_config.m_backend = target;
+//        m_config = new VoltDB.Configuration();
+//        m_config.m_pathToCatalog = jarfile;
+//        m_config.m_backend = target;
         
         // Use the default HStoreConf
         // TODO(mainak) Pass this as an argument to the constructor
         this.hstore_conf = HStoreConf.singleton();
+        this.catalog_site = null;
         
         // Load the catalog
         // TODO(mainak) Move out of here
@@ -68,25 +67,20 @@ public class ServerThread extends Thread {
 
     @Override
     public void run() {
-        VoltDB.initialize(m_config);
-        VoltDB.instance().run();
-        
-        // FIXME(mainak) HStore.initialize(catalog_site, hstore_conf);
-        // FIXME(mainak) HStore.instance().run();
+        HStore.initialize(catalog_site, hstore_conf);
+        HStore.instance().run();
     }
 
     public void waitForInitialization() {
         // Wait until the server has actually started running.
-        while (!VoltDB.instance().isRunning()) {
-        // FIXME(mainak) while (!HStore.instance().isRunning()) {
+        while (!HStore.instance().isRunning()) {
             Thread.yield();
         }
     }
 
     public void shutdown() throws InterruptedException {
         assert Thread.currentThread() != this;
-        VoltDB.instance().shutdown(this);
-        // FIXME(mainak) HStore.instance().shutdown();
+        HStore.instance().shutdown();
         this.join();
     }
 }

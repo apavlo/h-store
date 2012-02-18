@@ -214,13 +214,13 @@ public class LocalCluster implements VoltServerConfig {
 
         // create the in-process server
         Configuration config = new Configuration();
-        config.m_backend = m_target;
-        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
-        config.m_pathToCatalog = m_jarFileName;
-        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
-        config.m_port = HStoreConstants.DEFAULT_PORT;
+//        config.m_backend = m_target;
+//        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
+//        config.m_pathToCatalog = m_jarFileName;
+//        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
+//        config.m_port = HStoreConstants.DEFAULT_PORT;
 
-        m_localServer = new ServerThread(config);
+        m_localServer = null;//new ServerThread(config);
         m_localServer.start();
 
         // create all the out-of-process servers

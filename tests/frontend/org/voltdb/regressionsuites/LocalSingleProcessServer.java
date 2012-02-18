@@ -35,6 +35,7 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -129,12 +130,12 @@ public class LocalSingleProcessServer implements VoltServerConfig {
 
     @Override
     public void startUp() {
-        Configuration config = new Configuration();
-        config.m_backend = m_target;
-        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
-        // m_jarFileName is already prefixed with test output path.
-        config.m_pathToCatalog = m_jarFileName;
-        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
+//        Configuration config = new Configuration();
+//        config.m_backend = m_target;
+//        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
+//        // m_jarFileName is already prefixed with test output path.
+//        config.m_pathToCatalog = m_jarFileName;
+//        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 
         // TODO(mainak): Pass this into ServerThread 
         Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
@@ -142,9 +143,13 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         assert(catalog_site != null);
         
         // TODO(mainak): Pass this into ServerThread
-        HStoreConf hstore_conf = HStoreConf.singleton();
+        HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         
-        m_server = new ServerThread(config);
+        if (HStore.instance() == null) {
+            HStore.initialize(catalog_site, hstore_conf);
+        }
+        
+        m_server = new ServerThread(hstore_conf, catalog_site);
         m_server.start();
         m_server.waitForInitialization();
     }
