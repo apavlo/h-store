@@ -844,12 +844,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Tell all of our event loops to stop
         if (t) LOG.trace("Telling Procedure Listener event loops to exit");
         this.procEventLoop.exitLoop();
+        this.voltListener.close();
         
-        // if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
-        // this.engineEventLoop.exitLoop();
+        this.hstore_coordinator.shutdown();
         
-//        if (d) 
-            LOG.info("Completed shutdown process at " + this.getSiteName());
+        LOG.info("Completed shutdown process at " + this.getSiteName());
     }
     
     /**
