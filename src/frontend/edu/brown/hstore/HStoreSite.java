@@ -869,21 +869,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
         
-        // The serializedRequest is a StoredProcedureInvocation object
-//        StoredProcedureInvocation request = null;
-//        FastDeserializer fds = new FastDeserializer(serializedRequest); // this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
-//        try {
-//            request = fds.readObject(StoredProcedureInvocation.class);
-//        } catch (IOException e) {
-//            throw new RuntimeException("Failed to deserialize incoming StoredProcedureInvocation", e);
-//        } finally {
-//            if (request == null)
-//                throw new RuntimeException("Failed to get ProcedureInvocation object from request bytes");
-//        }
-
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
-        assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
+        assert(request.getParams() != null) :
+            "The parameters object is null for new txn from client #" + request.getClientHandle();
         final Object args[] = request.getParams().toArray(); 
         Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
         if (catalog_proc == null) {

@@ -151,7 +151,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
         while (true) {
             synchronized (this) {
                 try {
-                    wait(this.wait_time);
+                    wait(this.wait_time * 10);
                 } catch (InterruptedException e) {
                     // Nothing...
                 }

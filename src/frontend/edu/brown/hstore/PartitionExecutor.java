@@ -339,58 +339,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * The entries may be either InitiateTaskMessages (i.e., start a stored procedure) or
      * FragmentTaskMessage (i.e., execute some fragments on behalf of another transaction)
      */
-    private final PriorityBlockingQueue<TransactionInfoBaseMessage> work_queue = new PriorityBlockingQueue<TransactionInfoBaseMessage>(10000, work_comparator) {
-        private static final long serialVersionUID = 1L;
-        private final List<TransactionInfoBaseMessage> swap = new ArrayList<TransactionInfoBaseMessage>();
+    private final PartitionExecutorQueue work_queue = new PartitionExecutorQueue();
         
-        @Override
-        public int drainTo(Collection<? super TransactionInfoBaseMessage> c) {
-            assert(c != null);
-            TransactionInfoBaseMessage msg = null;
-            int ctr = 0;
-            this.swap.clear();
-            while ((msg = this.poll()) != null) {
-                // All new transaction requests must be put in the new collection
-                if (msg instanceof InitiateTaskMessage) {
-                    c.add(msg);
-                    ctr++;
-                // Everything else will get added back in afterwards 
-                } else {
-                    this.swap.add(msg);
-                }
-            } // WHILE
-            if (this.swap.isEmpty() == false) this.addAll(this.swap);
-            return (ctr);
-        }
-    };
+    /**
+     * Special wrapper around the PartitionExecutorQueue that can determine whether this
+     * partition is overloaded and therefore new requests should be throttled
+     */
     private final ThrottlingQueue<TransactionInfoBaseMessage> work_throttler;
     
-    private static final Comparator<TransactionInfoBaseMessage> work_comparator = new Comparator<TransactionInfoBaseMessage>() {
-        @Override
-        public int compare(TransactionInfoBaseMessage msg0, TransactionInfoBaseMessage msg1) {
-            assert(msg0 != null);
-            assert(msg1 != null);
-            
-            Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
-            Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
-            
-            if (class0.equals(class1)) return (msg0.getTxnId().compareTo(msg1.getTxnId()));
-
-            boolean isFinish0 = class0.equals(FinishTaskMessage.class);
-            boolean isFinish1 = class1.equals(FinishTaskMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
-            
-            boolean isWork0 = class0.equals(FragmentTaskMessage.class);
-            boolean isWork1 = class1.equals(FragmentTaskMessage.class);
-            if (isWork0 && !isWork1) return (-1);
-            else if (!isWork0 && isWork1) return (1);
-            
-            assert(false) : String.format("%s <-> %s", class0, class1);
-            return 0;
-        }
-    };
-
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
     // ----------------------------------------------------------------------------
