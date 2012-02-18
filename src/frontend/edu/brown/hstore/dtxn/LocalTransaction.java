@@ -52,6 +52,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.InitiateTaskMessage;
 
 import com.google.protobuf.RpcCallback;
@@ -99,7 +100,15 @@ public class LocalTransaction extends AbstractTransaction {
      */
     protected StoredProcedureInvocation invocation;
     
-    private final InitiateTaskMessage itask;
+    /**
+     * 
+     */
+    protected Procedure catalog_proc;
+
+    /**
+     * The queued up ClientResponse that we need to send back for this txn
+     */
+    private ClientResponseImpl cresponse;
 
     /**
      * The set of partitions that we expected this partition to touch.
@@ -118,23 +127,16 @@ public class LocalTransaction extends AbstractTransaction {
     protected ExecutionState state;
     
     /**
-     * 
+     * If this transaction was restarted, then this field will have the
+     * original transaction id
      */
     private Long orig_txn_id;
     
-    private short restart_ctr = 0;
-    
     /**
-     * 
+     * The number of times that this transaction has been restarted 
      */
-    protected Procedure catalog_proc;
-
-    /**
-     * The queued up ClientResponse that we need to send back for this txn
-     */
-    private ClientResponseImpl cresponse;
+    private int restart_ctr = 0;
     
-
     /**
      * Whether this txn is being executed specutatively
      */
@@ -158,6 +160,11 @@ public class LocalTransaction extends AbstractTransaction {
     public final ProtoRpcController rpc_transactionPrepare[];
     public final ProtoRpcController rpc_transactionFinish[];
     
+    private final InitiateTaskMessage itask;
+    
+    private final FastSerializer cresponse_serializer = new FastSerializer();
+    
+    
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
@@ -176,6 +183,11 @@ public class LocalTransaction extends AbstractTransaction {
      */
     protected TransactionPrepareCallback prepare_callback; 
     
+    /**
+     * This callback will keep track of whether we have gotten all the 2PC acknowledgments
+     * from the remote partitions. Once this is finished, we can then invoke
+     * HStoreSite.deleteTransaction()
+     */
     private TransactionFinishCallback finish_callback;
     
     /**
@@ -577,6 +589,9 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.cresponse != null);
         return (this.cresponse);
     }
+    public FastSerializer getClientResponseSerializer() {
+        return (this.cresponse_serializer);
+    }
     
     public void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
@@ -596,7 +611,7 @@ public class LocalTransaction extends AbstractTransaction {
     public Long getOriginalTransactionId() {
         return (this.orig_txn_id);
     }
-    public short getRestartCounter() {
+    public int getRestartCounter() {
         return (this.restart_ctr);
     }
     public void setRestartCounter(int val) {
