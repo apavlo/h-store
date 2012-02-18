@@ -121,7 +121,7 @@ public class FastSerializer implements DataOutput {
         return buffer.b.position();
     }
 
-    /** Clears the contents of the underlying buffer, making iteady for more writes. */
+    /** Clears the contents of the underlying buffer, making it ready for more writes. */
     public void clear() {
         buffer.b.clear();
     }

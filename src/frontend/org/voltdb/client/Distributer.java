@@ -263,7 +263,7 @@ class Distributer {
             final long clientHandle = response.getClientHandle();
             final boolean should_throttle = response.getThrottleFlag();
             final Hstoreservice.Status status = response.getStatus();
-            final int timestamp = response.getServerTimestamp();
+            final int timestamp = response.getRequestCounter();
             
             boolean abort = false;
             boolean error = false;

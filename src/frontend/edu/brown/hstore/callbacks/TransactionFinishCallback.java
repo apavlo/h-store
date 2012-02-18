@@ -66,7 +66,7 @@ public class TransactionFinishCallback extends BlockingCallback<TransactionFinis
         if (this.can_complete) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
             
-            hstore_site.completeTransaction(this.getTransactionId(), status);
+            hstore_site.deleteTransaction(this.getTransactionId(), status);
         }
     }
     

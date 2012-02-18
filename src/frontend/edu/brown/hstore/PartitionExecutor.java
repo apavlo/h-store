@@ -227,7 +227,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Procedure Name -> VoltProcedure
      */
-    private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>();
+    private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>(16, (float) .1);
     
     /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
@@ -269,7 +269,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
     private final HsqlBackend hsql;
-    public static final DBBPool buffer_pool = new DBBPool(true, false);
+    private final DBBPool buffer_pool = new DBBPool(false, false);
 
     /**
      * Runtime Estimators
@@ -986,6 +986,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
+    }
+    
+    protected DBBPool getDBBPool() {
+        return (this.buffer_pool);
     }
     
     /**
@@ -2587,7 +2591,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
                 hstore_site.sendClientResponse(ts, cresponse);
-                hstore_site.completeTransaction(ts.getTransactionId(), status);
+                hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 
         // COMMIT: Distributed Transaction
