@@ -326,6 +326,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
+        
         this.single_partition_sets = new Collection[num_partitions];
         
         // Offset Hack
@@ -584,11 +585,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected HStoreSite init() {
         if (d) LOG.debug("Initializing HStoreSite " + this.getSiteName());
 
-        List<PartitionExecutor> executor_list = new ArrayList<PartitionExecutor>();
-        for (int partition : this.local_partitions) {
-            executor_list.add(this.getPartitionExecutor(partition));
-        } // FOR
-        
         this.hstore_coordinator = this.initHStoreCoordinator();
         
         EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
@@ -599,8 +595,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Throwable error = arg.getSecond();
                 LOG.error(String.format("Thread %s had an Exception. Halting H-Store Cluster", thread.getName()),
                           error);
-//                if (debug.get()) 
-                LOG.error("Is error null? " + (error == null));
+                if (d) LOG.error("Is error null? " + (error == null));
                 error.printStackTrace();
                 hstore_coordinator.shutdownCluster(error, true);
             }
@@ -664,7 +659,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : this.local_partitions) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
-
+            
             t = new Thread(executor);
             t.setDaemon(true);
             t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
@@ -734,15 +729,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Returns true if this HStoreSite is throttling incoming transactions
      */
-//    protected boolean isIncomingThrottled(int partition) {
-//        return (this.incoming_throttle[partition]);
-//    }
-//    protected int getIncomingQueueMax(int partition) {
-//        return (this.incoming_queue_max[partition]);
-//    }
-//    protected int getIncomingQueueRelease(int partition) {
-//        return (this.incoming_queue_release[partition]);
-//    }
     protected Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
@@ -855,9 +841,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
         
-        // Stop the helper
-//        this.helper_pool.shutdown();
-        
         // Tell all of our event loops to stop
         if (t) LOG.trace("Telling Procedure Listener event loops to exit");
         this.procEventLoop.exitLoop();
@@ -886,21 +869,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
         
-        // The serializedRequest is a StoredProcedureInvocation object
-//        StoredProcedureInvocation request = null;
-//        FastDeserializer fds = new FastDeserializer(serializedRequest); // this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
-//        try {
-//            request = fds.readObject(StoredProcedureInvocation.class);
-//        } catch (IOException e) {
-//            throw new RuntimeException("Failed to deserialize incoming StoredProcedureInvocation", e);
-//        } finally {
-//            if (request == null)
-//                throw new RuntimeException("Failed to get ProcedureInvocation object from request bytes");
-//        }
-
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
-        assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
+        assert(request.getParams() != null) :
+            "The parameters object is null for new txn from client #" + request.getClientHandle();
         final Object args[] = request.getParams().toArray(); 
         Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
         if (catalog_proc == null) {
@@ -925,13 +897,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
                 ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
-                FastSerializer out = new FastSerializer();
+                FastSerializer fs = new FastSerializer();
                 try {
-                    out.writeObject(cresponse);
+                    fs.writeObject(cresponse);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                done.run(out.getBytes());
+                done.run(fs.getBytes());
                 // Non-blocking....
                 this.hstore_coordinator.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
                 return;
@@ -1457,64 +1429,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR            
     }
 
-    /**
-     * 
-     * @param ts
-     * @param cresponse
-     * @return
-     */
-    private ByteBuffer serializeClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        FastSerializer out = new FastSerializer(PartitionExecutor.buffer_pool);
-        try {
-            out.writeObject(cresponse);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        
-        // Check whether we should disable throttling
-        boolean throttle = (cresponse.getStatus() == Status.ABORT_THROTTLED);
-        int timestamp = this.getNextRequestCounter();
-        
-        ByteBuffer buffer = ByteBuffer.wrap(out.getBytes());
-        ClientResponseImpl.setThrottleFlag(buffer, throttle);
-        ClientResponseImpl.setServerTimestamp(buffer, timestamp);
-        
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
-                                       ts, throttle, timestamp));
-        return (buffer);
-    }
-    
-    /**
-     * 
-     * At this point the transaction should been properly committed or aborted at
-     * the PartitionExecutor, including if it was mispredicted.
-     * @param ts
-     * @param cresponse
-     */
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        assert(cresponse != null) : "Missing ClientResponse for " + ts;
-        Status status = cresponse.getStatus();
-        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
-        
-        // Don't send anything back if it's a mispredict because it's as waste of time...
-        // If the txn committed/aborted, then we can send the response directly back to the
-        // client here. Note that we don't even need to call HStoreSite.finishTransaction()
-        // since that doesn't do anything that we haven't already done!
-        if (status != Status.ABORT_MISPREDICT) {
-            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
-
-            // Send result back to client!
-            ts.getClientCallback().run(this.serializeClientResponse(ts, cresponse).array());
-        }
-        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
-        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
-        // as soon as possible...
-        else {
-            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
-            this.transactionRestart(ts, status);
-        }
-    }
-    
     // ----------------------------------------------------------------------------
     // FAILED TRANSACTIONS (REQUEUE / REJECT / RESTART)
     // ----------------------------------------------------------------------------
@@ -1767,6 +1681,57 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
 
     /**
+     * At this point the transaction should been properly committed or aborted at
+     * the PartitionExecutor, including if it was mispredicted.
+     * @param ts
+     * @param cresponse
+     */
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        assert(cresponse != null) : "Missing ClientResponse for " + ts;
+        Status status = cresponse.getStatus();
+        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
+        
+        // Don't send anything back if it's a mispredict because it's as waste of time...
+        // If the txn committed/aborted, then we can send the response directly back to the
+        // client here. Note that we don't even need to call HStoreSite.finishTransaction()
+        // since that doesn't do anything that we haven't already done!
+        if (status != Status.ABORT_MISPREDICT) {
+            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
+
+            // Check whether we should disable throttling
+            cresponse.setRequestCounter(this.getNextRequestCounter());
+            cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+            
+            // Serialize the ClientResponse into a ByteBuffer so that it can
+            // be shipped back to the client
+            FastSerializer out = ts.getClientResponseSerializer();
+            out.clear();
+            try {
+                out.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            
+            if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+                                           ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+            
+            // Send result back to client!
+            ByteBuffer buffer = out.getBBContainer().b;
+            assert(buffer.hasArray()) :
+                "Unable to get byte array from FastSerializer ByteBuffer";
+            ts.getClientCallback().run(buffer.array());
+            
+        }
+        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
+        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
+        // as soon as possible...
+        else {
+            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
+            this.transactionRestart(ts, status);
+        }
+    }
+    
+    /**
      * 
      * @param es
      * @param ts
@@ -1781,9 +1746,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * Perform final cleanup and book keeping for a completed txn
+     * If you call this, you can never access anything in this txn's AbstractTransaction again
      * @param txn_id
      */
-    public void completeTransaction(final Long txn_id, final Status status) {
+    public void deleteTransaction(final Long txn_id, final Status status) {
         if (d) LOG.debug("Cleaning up internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         

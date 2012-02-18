@@ -63,7 +63,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
     
     @Override
     protected void unblockCallback() {
-        hstore_site.completeTransaction(this.getTransactionId(), status);
+        hstore_site.deleteTransaction(this.getTransactionId(), status);
     }
     
     @Override

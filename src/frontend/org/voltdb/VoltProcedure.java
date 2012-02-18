@@ -1021,10 +1021,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
     
     private VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
-        if (!isNative) {
+        if (isNative == false) {
             VoltTable[] batch_results = queryResults.toArray(new VoltTable[queryResults.size()]);
             queryResults.clear();
-            return batch_results;
+            return (batch_results);
         }
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
@@ -1044,7 +1044,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         // Execute the queries and return the VoltTable results
         last_batchQueryStmtIndex = batchQueryStmtIndex;
-        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL, forceSinglePartition);
+        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex,
+                                                         batchQueryStmts,
+                                                         batchQueryArgs,
+                                                         isFinalSQL,
+                                                         forceSinglePartition);
 
         // Workload Trace - Stop Query
         if (this.enable_tracing && m_workloadXactHandle != null) {
@@ -1110,8 +1114,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         this.planner = this.executor.POOL_BATCH_PLANNERS.get(batchHashCode);
         if (this.planner == null) { // Assume fast case
-            this.planner = new BatchPlanner(batchStmts, batchSize, this.catalog_proc, this.p_estimator, forceSinglePartition);
-            this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, planner);
+            this.planner = new BatchPlanner(batchStmts,
+                                            batchSize,
+                                            this.catalog_proc,
+                                            this.p_estimator,
+                                            forceSinglePartition);
+            this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, this.planner);
         }
         assert(this.planner != null);
 
@@ -1119,7 +1127,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
         assert(this.predict_singlepartition == this.m_currentTxnState.isPredictSinglePartition()) :
-            String.format("%s != %s\n%s", this.predict_singlepartition, this.m_currentTxnState.isPredictSinglePartition(), this.m_currentTxnState.debug());
+            String.format("%s != %s\n%s",
+                          this.predict_singlepartition,
+                          this.m_currentTxnState.isPredictSinglePartition(),
+                          this.m_currentTxnState.debug());
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(),
                                       this.client_handle,
                                       this.partitionIdObj, 

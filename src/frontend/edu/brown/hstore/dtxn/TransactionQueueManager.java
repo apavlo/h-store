@@ -18,6 +18,7 @@ import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
@@ -35,6 +36,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
     private final HStoreSite hstore_site;
     
     private final Collection<Integer> localPartitions;
+    private final int localPartitionsArray[];
     
     private final long wait_time;
     
@@ -92,8 +94,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
         this.hstore_site = hstore_site;
         this.localPartitions = hstore_site.getLocalPartitionIds();
         assert(this.localPartitions.isEmpty() == false);
-        
-        
+        this.localPartitionsArray = CollectionUtil.toIntArray(this.localPartitions);
         
         Collection<Integer> allPartitions = hstore_site.getAllPartitionIds();
         int num_ids = allPartitions.size();
@@ -150,7 +151,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
         while (true) {
             synchronized (this) {
                 try {
-                    wait(this.wait_time*10);
+                    wait(this.wait_time * 10);
                 } catch (InterruptedException e) {
                     // Nothing...
                 }
@@ -174,49 +175,46 @@ public class TransactionQueueManager implements Runnable, Loggable {
      * @return
      */
     protected boolean checkQueues() {
-        if (t)
-            LOG.trace("Checking queues");
+        if (t) LOG.trace("Checking queues");
         
         boolean txn_released = false;
-        
-        for (int partition : this.localPartitions) {
+        for (int partition : this.localPartitionsArray) {
             TransactionInitWrapperCallback callback = null;
             Long next_id = null;
             int counter = -1;
             
-//            synchronized (this.txn_queues[partition]) {
-                if (working_partitions[partition]) {
-                    if (t) LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
-                    continue;
-                }
-                TransactionInitPriorityQueue queue = txn_queues[partition];
-                next_id = queue.poll();
-                // If null, then there is nothing that is ready to run at this partition,
-                // so we'll just skip to the next one
-                if (next_id == null) {
-                    if (t)
-                        LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping... [queueSize=%d]",
-                                                partition, txn_queues[partition].size()));
-                    continue;
-                }
-                
-                callback = txn_callbacks.get(next_id);
-                assert(callback != null) : "Unexpected null callback for txn #" + next_id;
-                
-                if (next_id < last_txns[partition]) {
-                    if (t) LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
-                                                partition, next_id, last_txns[partition], txn_queues[partition].size()));
-                    this.rejectTransaction(next_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, last_txns[partition]);
-                    continue;
-                }
-    
-                // otherwise send the init request to the specified partition
-                if (t) LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
-                last_txns[partition] = next_id;
-                working_partitions[partition] = true;
-                callback.run(partition);
-                counter = callback.getCounter();
-//            } // SYNCH
+            if (this.working_partitions[partition]) {
+                if (t) LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
+                continue;
+            }
+            TransactionInitPriorityQueue queue = this.txn_queues[partition];
+            next_id = queue.poll();
+            // If null, then there is nothing that is ready to run at this partition,
+            // so we'll just skip to the next one
+            if (next_id == null) {
+                if (t) LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping... [queueSize=%d]",
+                                               partition, txn_queues[partition].size()));
+                continue;
+            }
+            
+            callback = this.txn_callbacks.get(next_id);
+            assert(callback != null) : "Unexpected null callback for txn #" + next_id;
+            
+            if (next_id < this.last_txns[partition]) {
+                if (t) LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
+                                               partition, next_id, last_txns[partition], txn_queues[partition].size()));
+                this.rejectTransaction(next_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, last_txns[partition]);
+                continue;
+            }
+
+            // otherwise send the init request to the specified partition
+            if (t) LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
+                                           partition, next_id));
+            this.last_txns[partition] = next_id;
+            this.working_partitions[partition] = true;
+            callback.run(partition);
+            counter = callback.getCounter();
+            
             txn_released = true;
                 
             // remove the callback when this partition is the last one to start the job
@@ -238,11 +236,11 @@ public class TransactionQueueManager implements Runnable, Loggable {
         TransactionInitWrapperCallback callback = this.txn_callbacks.remove(txn_id);
         
         if (callback != null) {
-            for (int partition : callback.getPartitions()) {
+            for (Integer partition : callback.getPartitions()) {
                 if (this.localPartitions.contains(partition) == false &&
-                    this.last_txns[partition] < txn_id) {
-                    if (d)
-                        LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
+                    this.last_txns[partition.intValue()] < txn_id) {
+                    if (d) LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d",
+                                                   txn_id, partition));
                     this.last_txns[partition] = txn_id;
                 }
             } // FOR
@@ -261,13 +259,13 @@ public class TransactionQueueManager implements Runnable, Loggable {
         
         // Then mark the txn as done at all the partitions that we set as
         // as the current txn. Not sure how this will work...
-        for (int partition : callback.getPartitions()) {
+        for (Integer partition : callback.getPartitions()) {
             if (this.localPartitions.contains(partition) == false) continue;
-            txn_queues[partition].remove(txn_id);
+            txn_queues[partition.intValue()].remove(txn_id);
             if (txn_id == last_txns[partition]) {
                 this.finished(txn_id, status, partition);
             }
-        }
+        } // FOR
         
         this.cleanupTransaction(txn_id);
     }
@@ -291,8 +289,8 @@ public class TransactionQueueManager implements Runnable, Loggable {
      * @return
      */
     public boolean insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback, boolean force) {
-        if (d)
-            LOG.debug(String.format("Adding new distributed txn #%d into queue [force=%s, partitions=%s]", txn_id, force, partitions));
+        if (d) LOG.debug(String.format("Adding new distributed txn #%d into queue [force=%s, partitions=%s]",
+                                       txn_id, force, partitions));
         
         txn_callbacks.put(txn_id, callback);
         boolean should_notify = false;
@@ -302,9 +300,9 @@ public class TransactionQueueManager implements Runnable, Loggable {
                 // We can pre-emptively check whether this txnId is greater than
                 // the largest one that we know about at a remote partition
                 if (this.localPartitions.contains(partition) == false) {
-                    if (this.last_txns[partition] > txn_id) {
+                    if (this.last_txns[partition.intValue()] > txn_id) {
                         if (t) LOG.trace(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
-                                                    partition, this.last_txns[partition], txn_id));
+                                                       partition, this.last_txns[partition], txn_id));
                         this.rejectTransaction(txn_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, this.last_txns[partition]);
                         ret = false;
                         break;
@@ -312,7 +310,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
                     continue;
                 }
                 
-                long next_safe = txn_queues[partition].noteTransactionRecievedAndReturnLastSeen(txn_id);
+                long next_safe = txn_queues[partition.intValue()].noteTransactionRecievedAndReturnLastSeen(txn_id);
                 if (next_safe > txn_id) {
                     if (t) LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
                                                 partition, next_safe, txn_id));

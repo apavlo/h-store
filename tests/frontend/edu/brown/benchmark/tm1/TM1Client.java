@@ -33,6 +33,7 @@
 package edu.brown.benchmark.tm1;
 
 import java.io.IOException;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
@@ -40,6 +41,8 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.rand.RandomDistribution.FlatHistogram;
+import edu.brown.statistics.Histogram;
 
 /**
  * TM1Client
@@ -77,14 +80,16 @@ public class TM1Client extends TM1BaseClient {
                         8 * TM1Util.number(0, 2) // start_time
                 };
             }
-        }), GET_ACCESS_DATA("Get Access Data", TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
+        }),
+        GET_ACCESS_DATA("Get Access Data", TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
                         TM1Util.number(1, 4) // ai_type
                 };
             }
-        }), GET_NEW_DESTINATION("Get New Destination", TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
+        }),
+        GET_NEW_DESTINATION("Get New Destination", TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
@@ -93,13 +98,15 @@ public class TM1Client extends TM1BaseClient {
                         TM1Util.number(1, 24) // end_time
                 };
             }
-        }), GET_SUBSCRIBER_DATA("Get Subscriber Data", TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
+        }),
+        GET_SUBSCRIBER_DATA("Get Subscriber Data", TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id // s_id
                 };
             }
-        }), INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
+        }),
+        INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { TM1Util.padWithZero(s_id), // sub_nbr
@@ -109,14 +116,16 @@ public class TM1Client extends TM1BaseClient {
                         TM1Util.padWithZero(s_id) // numberx
                 };
             }
-        }), UPDATE_LOCATION("Update Location", TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
+        }),
+        UPDATE_LOCATION("Update Location", TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { TM1Util.number(0, Integer.MAX_VALUE), // vlr_location
                         TM1Util.padWithZero(s_id) // sub_nbr
                 };
             }
-        }), UPDATE_SUBSCRIBER_DATA("Update Subscriber Data", TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
+        }),
+        UPDATE_SUBSCRIBER_DATA("Update Subscriber Data", TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
                 return new Object[] { s_id, // s_id
@@ -167,7 +176,8 @@ public class TM1Client extends TM1BaseClient {
      */
 
     // Storing the ordinals of transaction per tm1 probability distribution
-    private final int[] SAMPLE_TABLE = new int[100];
+    private final FlatHistogram<Transaction> txnWeights;
+//    private final int[] txnWeights = new int[100];
 
     // Callbacks
     protected final TM1Callback callbacks[];
@@ -188,7 +198,19 @@ public class TM1Client extends TM1BaseClient {
      */
     public TM1Client(String args[]) {
         super(args);
-        this.initSampleTable();
+        
+        // Initialize the sampling table
+        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        for (Transaction t : Transaction.values()) {
+            Integer weight = this.getTransactionWeight(t.callName);
+            if (weight == null) weight = t.weight;
+            txns.put(t, weight);
+        } // FOR
+        assert(txns.getSampleCount() == 100) : txns;
+        Random rand = new Random(); // FIXME
+        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
+        if (LOG.isDebugEnabled())
+            LOG.debug("Transaction Workload Distribution:\n" + txns);
 
         // Setup callbacks
         int num_txns = Transaction.values().length;
@@ -198,20 +220,6 @@ public class TM1Client extends TM1BaseClient {
         } // FOR
     }
 
-    /**
-     * Initialize the sampling table
-     */
-    private void initSampleTable() {
-        int i = 0;
-        int sum = 0;
-        for (Transaction t : Transaction.values()) {
-            for (int ii = 0; ii < t.weight; ii++) {
-                SAMPLE_TABLE[i++] = t.ordinal();
-            }
-            sum += t.weight;
-        }
-        assert (100 == sum);
-    }
 
     /**
      * Return a transaction randomly selected per TM1 probability specs
@@ -222,7 +230,7 @@ public class TM1Client extends TM1BaseClient {
         // Transaction.GET_SUBSCRIBER_DATA); //
         // Transaction.INSERT_CALL_FORWARDING;
         // if (force != null) return (force);
-        return Transaction.values()[SAMPLE_TABLE[TM1Util.number(0, 99).intValue()]];
+        return this.txnWeights.nextValue();
     }
 
     /**

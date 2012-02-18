@@ -60,7 +60,6 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.VoltTable;
 
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.ProfileMeasurement;
 
@@ -135,10 +134,6 @@ public class MockVoltClient implements Client {
             }
             
             @Override
-            public void setClientHandle(long handle) {
-                // TODO Auto-generated method stub
-            }
-            @Override
             public long getClientHandle() {
                 // TODO Auto-generated method stub
                 return 0;
@@ -156,43 +151,21 @@ public class MockVoltClient implements Client {
             }
 
             @Override
-            public void setSinglePartition(boolean val) {
-                // TODO Auto-generated method stub
-                
-            }
-
-            @Override
             public boolean getThrottleFlag() {
                 // TODO Auto-generated method stub
                 return false;
             }
 
             @Override
-            public void setThrottleFlag(boolean val) {
-                // TODO Auto-generated method stub
-                
-            }
-            
-            @Override
-            public int getServerTimestamp() {
+            public int getRequestCounter() {
                 // TODO Auto-generated method stub
                 return 0;
-            }
-            @Override
-            public void setServerTimestamp(int val) {
-                // TODO Auto-generated method stub
             }
 
             @Override
             public int getBasePartition() {
                 // TODO Auto-generated method stub
                 return 0;
-            }
-
-            @Override
-            public void setBasePartition(int val) {
-                // TODO Auto-generated method stub
-                
             }
         };
     }

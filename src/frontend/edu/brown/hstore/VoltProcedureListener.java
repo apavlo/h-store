@@ -31,7 +31,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-//    private AtomicBoolean throttle = new AtomicBoolean(false);
     private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
 //    private final HStoreSite hstore_site;
@@ -41,9 +40,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
         this.handler = handler;
         assert this.eventLoop != null;
         assert this.handler != null;
-        
-        // HACK
-//        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {
@@ -170,9 +166,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
             
             // Execute store procedure!
-//            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
             try {
-                // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
                 this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
                 StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
                 handler.procedureInvocation(invocation, request, eventLoopCallback);

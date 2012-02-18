@@ -37,7 +37,6 @@ public final class DBBPool {
 
     /**
      * An Arena that maintains allocated memory for a specific size of buffer.
-     *
      */
     private static final class Arena {
 
@@ -458,7 +457,6 @@ public final class DBBPool {
      * A lot of this code is commented out anyways because of the extra storage required
      * even if the code is compiled out.
      */
-    @SuppressWarnings("unused")
     private static final boolean traceAllocations = true;
 
     /**
@@ -698,7 +696,7 @@ public final class DBBPool {
      */
     private final Arena[] initDBBPool() {
         poolLocation.fillInStackTrace();
-        assert(((MAX_ALLOCATION_SIZE & (MAX_ALLOCATION_SIZE -1)) == 0));
+//        assert(((MAX_ALLOCATION_SIZE & (MAX_ALLOCATION_SIZE -1)) == 0));
 
         int arenaCount = 0;
         for (int ii = 16; ii <= MAX_ALLOCATION_SIZE; ii *= 2) {

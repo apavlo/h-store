@@ -357,6 +357,8 @@ public abstract class BenchmarkComponent {
      * Configuration
      */
     private final HStoreConf m_hstoreConf;
+    private final Histogram<String> m_txnWeights = new Histogram<String>();
+    private Integer m_txnWeightsDefault = null;
     
 
     public void printControlMessage(ControlState state) {
@@ -942,6 +944,34 @@ public abstract class BenchmarkComponent {
             this.getCatalog();
         }
         
+        // Parse workload transaction weights
+        if (m_hstoreConf.client.weights != null) {
+            for (String entry : m_hstoreConf.client.weights.split(",")) {
+                String data[] = entry.split(":");
+                if (data.length != 2) {
+                    LOG.warn("Invalid transaction weight entry '" + entry + "'");
+                    continue;
+                }
+                try {
+                    String txnName = data[0];
+                    int txnWeight = Integer.parseInt(data[1]);
+                    assert(txnWeight >= 0);
+                    
+                    // '*' is the default value
+                    if (txnName.equals("*")) {
+                        this.m_txnWeightsDefault = txnWeight;
+                        if (debug.get()) LOG.debug(String.format("Default Transaction Weight: %d", txnWeight));
+                    } else {
+                        if (debug.get()) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
+                        this.m_txnWeights.put(txnName.toUpperCase(), txnWeight);
+                    }
+                } catch (Throwable ex) {
+                    LOG.warn("Invalid transaction weight entry '" + entry + "'", ex);
+                    continue;
+                }
+            } // FOR
+        }
+        
         if (partitionPlanPath != null) {
             boolean exists = FileUtil.exists(partitionPlanPath); 
             if (partitionPlanIgnoreMissing == false)
@@ -1148,6 +1178,16 @@ public abstract class BenchmarkComponent {
             } // SYNCH
         }
         return (cr);
+    }
+    
+    /**
+     * Return an overridden transaction weight
+     * @param txnName
+     * @return
+     */
+    protected final Integer getTransactionWeight(String txnName) {
+        Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
+        return (val != null ? val.intValue() : m_txnWeightsDefault);
     }
     
     /**
