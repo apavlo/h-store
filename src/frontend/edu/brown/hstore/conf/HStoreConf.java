@@ -408,6 +408,17 @@ public final class HStoreConf {
         public boolean queue_dtxn_throttle;
         
         // ----------------------------------------------------------------------------
+        // Parameter Mapping Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String mappings_path;
+        
+        // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
 
@@ -420,6 +431,12 @@ public final class HStoreConf {
         )
         public boolean markov_mispredict_recompute;
 
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String markov_path;
         
         @ConfigProperty(
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
@@ -1175,6 +1192,16 @@ public final class HStoreConf {
             // Configuration File
             if (args.hasParam(ArgumentsParser.PARAM_CONF)) {
                 this.loadFromFile(args.getFileParam(ArgumentsParser.PARAM_CONF));
+            }
+            
+            // Markov Path
+            if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
+                this.site.markov_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+            }
+            
+            // ParameterMappings Path
+            if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
+                this.site.mappings_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
             }
             
             Map<String, String> confParams = args.getHStoreConfParameters();
