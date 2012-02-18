@@ -31,33 +31,30 @@ public interface ClientResponse {
      * @return
      */
     public long getClientHandle();
-    public void setClientHandle(long handle); // HACK
     
     /**
-     * Throttle Flag
-     * @return
+     * Returns true if the node that that this executed on wants this client
+     * to throttle itself because it is overloaded. It is up to the client
+     * to decide whether it wants to do that or not, and how long it will be throttled 
      */
     public boolean getThrottleFlag();
-    public void setThrottleFlag(boolean val);
 
     /**
-     * Server Timestamp
+     * Return the internal request counter of the node that this transaction
+     * executed on. This is used to determine when to unblocked throttled clients.
      */
-    public int getServerTimestamp();
-    public void setServerTimestamp(int val);
+    public int getRequestCounter();
     
     /**
      * Returns true if this transaction executed as a single-partition txn
      * @return
      */
     public boolean isSinglePartition();
-    public void setSinglePartition(boolean val);
     
     /**
      * Base Partition
      */
     public int getBasePartition();
-    public void setBasePartition(int val);
     
     /**
      * Get the transaction id for this response

@@ -52,6 +52,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -195,6 +196,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final PartitionExecutor executors[];
     private final Thread executor_threads[];
+    private final DBBPool executor_pools[];
+    private final FastSerializer executor_serializers[];
     
     /**
      * Procedure Listener Stuff
@@ -326,6 +329,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
+        this.executor_pools = new DBBPool[num_partitions];
+        this.executor_serializers = new FastSerializer[num_partitions];
+        
         this.single_partition_sets = new Collection[num_partitions];
         
         // Offset Hack
@@ -584,11 +590,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected HStoreSite init() {
         if (d) LOG.debug("Initializing HStoreSite " + this.getSiteName());
 
-        List<PartitionExecutor> executor_list = new ArrayList<PartitionExecutor>();
-        for (int partition : this.local_partitions) {
-            executor_list.add(this.getPartitionExecutor(partition));
-        } // FOR
-        
         this.hstore_coordinator = this.initHStoreCoordinator();
         
         EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
@@ -599,8 +600,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Throwable error = arg.getSecond();
                 LOG.error(String.format("Thread %s had an Exception. Halting H-Store Cluster", thread.getName()),
                           error);
-//                if (debug.get()) 
-                LOG.error("Is error null? " + (error == null));
+                if (d) LOG.error("Is error null? " + (error == null));
                 error.printStackTrace();
                 hstore_coordinator.shutdownCluster(error, true);
             }
@@ -664,6 +664,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : this.local_partitions) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
+            
+            // Make sure that we get the handles to each PartitionExecutor's buffer pool
+            this.executor_pools[partition] = executor.getDBBPool();
+            
+            // Then create a re-usable FastSerializer
+            this.executor_serializers[partition] = new FastSerializer(this.executor_pools[partition]);
 
             t = new Thread(executor);
             t.setDaemon(true);
@@ -734,15 +740,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Returns true if this HStoreSite is throttling incoming transactions
      */
-//    protected boolean isIncomingThrottled(int partition) {
-//        return (this.incoming_throttle[partition]);
-//    }
-//    protected int getIncomingQueueMax(int partition) {
-//        return (this.incoming_queue_max[partition]);
-//    }
-//    protected int getIncomingQueueRelease(int partition) {
-//        return (this.incoming_queue_release[partition]);
-//    }
     protected Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
@@ -854,9 +851,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Tell anybody that wants to know that we're going down
         if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
-        
-        // Stop the helper
-//        this.helper_pool.shutdown();
         
         // Tell all of our event loops to stop
         if (t) LOG.trace("Telling Procedure Listener event loops to exit");
@@ -1458,34 +1452,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
 
     /**
-     * 
-     * @param ts
-     * @param cresponse
-     * @return
-     */
-    private ByteBuffer serializeClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        FastSerializer out = new FastSerializer(PartitionExecutor.buffer_pool);
-        try {
-            out.writeObject(cresponse);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        
-        // Check whether we should disable throttling
-        boolean throttle = (cresponse.getStatus() == Status.ABORT_THROTTLED);
-        int timestamp = this.getNextRequestCounter();
-        
-        ByteBuffer buffer = ByteBuffer.wrap(out.getBytes());
-        ClientResponseImpl.setThrottleFlag(buffer, throttle);
-        ClientResponseImpl.setServerTimestamp(buffer, timestamp);
-        
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
-                                       ts, throttle, timestamp));
-        return (buffer);
-    }
-    
-    /**
-     * 
      * At this point the transaction should been properly committed or aborted at
      * the PartitionExecutor, including if it was mispredicted.
      * @param ts
@@ -1503,8 +1469,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status != Status.ABORT_MISPREDICT) {
             if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
 
+            // Check whether we should disable throttling
+            cresponse.setRequestCounter(this.getNextRequestCounter());
+            cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+            
+            // Serialize the ClientResponse into a ByteBuffer so that it can
+            // be shipped back to the client
+            FastSerializer out = this.executor_serializers[ts.getBasePartition()];
+            out.clear();
+            try {
+                out.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            
+            if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+                                           ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+            
             // Send result back to client!
-            ts.getClientCallback().run(this.serializeClientResponse(ts, cresponse).array());
+            // XXX: I'm not sure if our ByteBuffer is safe here 
+            ts.getClientCallback().run(out.getBuffer().array());
+            
         }
         // If the txn was mispredicted, then we will pass the information over to the HStoreSite
         // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
@@ -1781,9 +1766,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * Perform final cleanup and book keeping for a completed txn
+     * If you call this, you can never access anything in this txn's AbstractTransaction again
      * @param txn_id
      */
-    public void completeTransaction(final Long txn_id, final Status status) {
+    public void deleteTransaction(final Long txn_id, final Status status) {
         if (d) LOG.debug("Cleaning up internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         

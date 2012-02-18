@@ -49,7 +49,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private int timestamp = -1;
+    private int requestCounter = -1;
     private boolean throttle = false;
     private boolean singlepartition = false;
     private int basePartition = -1;
@@ -190,24 +190,23 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public boolean getThrottleFlag() {
         return (this.throttle);
     }
-    @Override
     public void setThrottleFlag(boolean val) {
         this.throttle = val;
     }
     @Override
-    public int getServerTimestamp() {
-        return this.timestamp;
+    public int getRequestCounter() {
+        return this.requestCounter;
     }
-    @Override
-    public void setServerTimestamp(int val) {
-        this.timestamp = val;
+    /**
+     * Set the internal request counter
+     */
+    public void setRequestCounter(int val) {
+        this.requestCounter = val;
     }
     @Override
     public boolean isSinglePartition() {
         return singlepartition;
     }
-    
-    @Override
     public void setSinglePartition(boolean val) {
         this.singlepartition = val;
     }
@@ -254,7 +253,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte
-        timestamp = in.readInt();
+        requestCounter = in.readInt();
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
@@ -288,7 +287,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void writeExternal(FastSerializer out) throws IOException {
         assert setProperly;
         out.writeByte(0);//version
-        out.writeInt(timestamp);
+        out.writeInt(requestCounter);
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
@@ -357,7 +356,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Status", this.status + " / " + this.statusString);
         m.put("Handle", this.clientHandle);
-        m.put("Timestamp", this.timestamp);
+        m.put("Timestamp", this.requestCounter);
         m.put("Throttle", this.throttle);
         m.put("SinglePartition", this.singlepartition);
         m.put("BasePartition", this.basePartition);
@@ -377,7 +376,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return (this.basePartition);
     }
 
-    @Override
     public void setBasePartition(int val) {
         this.basePartition = val;
     }
