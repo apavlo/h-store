@@ -35,6 +35,7 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -143,6 +144,10 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         
         // TODO(mainak): Pass this into ServerThread
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
+        
+        if (HStore.instance() == null) {
+            HStore.initialize(catalog_site, hstore_conf);
+        }
         
         m_server = new ServerThread(hstore_conf, catalog_site);
         m_server.start();
