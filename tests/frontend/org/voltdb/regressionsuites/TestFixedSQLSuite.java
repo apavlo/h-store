@@ -61,7 +61,8 @@ public class TestFixedSQLSuite extends RegressionSuite {
             String query =
                 String.format("select count(*), %s.NUM from %s group by %s.NUM",
                               table, table, table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+//            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+            VoltTable[] results = client.callProcedure(String.format("Ticket309%s", table)).getResults();
             assertEquals(3, results[0].getRowCount());
             while (results[0].advanceRow())
             {
@@ -935,6 +936,13 @@ public class TestFixedSQLSuite extends RegressionSuite {
         project.addTablePartitionInfo("OBJECT_DETAIL", "OBJECT_DETAIL_ID");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("Eng397Limit1", "Select P1.NUM from P1 order by P1.NUM limit ?;");
+        
+        // TODO: Hardcoded procedures for ad-hoc queries
+        project.addStmtProcedure("Ticket309P1", "select count(*), P1.NUM from P1 group by P1.NUM");
+        project.addStmtProcedure("Ticket309R1", "select count(*), R1.NUM from R1 group by R1.NUM");
+        project.addStmtProcedure("Ticket309P2", "select count(*), P2.NUM from P2 group by P2.NUM");
+        project.addStmtProcedure("Ticket309R2", "select count(*), R2.NUM from R2 group by R2.NUM");
+        
         //project.addStmtProcedure("Eng490Select", "SELECT A.ASSET_ID, A.OBJECT_DETAIL_ID,  OD.OBJECT_DETAIL_ID FROM ASSET A, OBJECT_DETAIL OD WHERE A.OBJECT_DETAIL_ID = OD.OBJECT_DETAIL_ID;");
 
         // CONFIG #1: Local Site/Partitions running on IPC backend
