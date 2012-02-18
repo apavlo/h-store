@@ -1056,7 +1056,6 @@ public final class HStoreConf {
      */
     protected abstract class Conf {
         
-        final Map<Field, ConfigProperty> properties;
         final String prefix;
         final Class<? extends Conf> confClass; 
         
@@ -1064,14 +1063,16 @@ public final class HStoreConf {
             this.confClass = this.getClass();
             this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
             HStoreConf.this.confHandles.put(this.prefix, this);
-            
-            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
             this.setDefaultValues();
+        }
+        
+        private Map<Field, ConfigProperty> getConfigProperties() {
+            return ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
         }
         
         private void setDefaultValues() {
             // Set the default values for the parameters based on their annotations
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+            for (Entry<Field, ConfigProperty> e : this.getConfigProperties().entrySet()) {
                 Field f = e.getKey();
                 ConfigProperty cp = e.getValue();
                 Object value = getDefaultValue(f, cp);
@@ -1117,7 +1118,7 @@ public final class HStoreConf {
         
         public String toString(boolean experimental) {
             final Map<String, Object> m = new TreeMap<String, Object>();
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+            for (Entry<Field, ConfigProperty> e : this.getConfigProperties().entrySet()) {
                 ConfigProperty cp = e.getValue();
                 if (experimental == false && cp.experimental()) continue;
                 
@@ -1232,7 +1233,7 @@ public final class HStoreConf {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = handle.properties.get(f);
+            ConfigProperty cp = handle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object defaultValue = (cp != null ? this.getDefaultValue(f, cp) : null);
@@ -1311,7 +1312,7 @@ public final class HStoreConf {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = confHandle.properties.get(f);
+            ConfigProperty cp = confHandle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
@@ -1403,11 +1404,8 @@ public final class HStoreConf {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
         
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
-            assert(cp != null);
-            
-            // INDEX
+        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+            Field f = e.getKey();
             String entry = REGEX_CONFIG_REPLACE.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
             sb.append("  <li>  ").append(entry).append("\n");
         } // FOR
@@ -1438,8 +1436,9 @@ public final class HStoreConf {
         
         
         Map<String, String> values = new HashMap<String, String>();
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
+        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+            Field f = e.getKey();
+            ConfigProperty cp = e.getValue();
 
             // PROP
             values.put("PROP", f.getName());
@@ -1493,8 +1492,10 @@ public final class HStoreConf {
         
         StringBuilder sb = new StringBuilder();
         sb.append("<!-- " + group.toUpperCase() + " -->\n");
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
+        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+            Field f = e.getKey();
+            ConfigProperty cp = e.getValue();
+            
             if (cp.experimental()) {
                 
             }
@@ -1522,8 +1523,9 @@ public final class HStoreConf {
               .append("## ").append(StringUtil.title(group)).append(" Parameters\n")
               .append("## ").append(StringUtil.repeat("-", 100)).append("\n\n");
             
-            for (Field f : handle.properties.keySet()) {
-                ConfigProperty cp = handle.properties.get(f);
+            for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
                 if (cp.experimental() && experimental == false) continue;
                 
                 String key = String.format("%s.%s", group, f.getName());

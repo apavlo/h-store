@@ -388,7 +388,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
     
-    
     /**
      * Reusable ParameterSet arrays
      * Size of ParameterSet[] -> ParameterSet[]

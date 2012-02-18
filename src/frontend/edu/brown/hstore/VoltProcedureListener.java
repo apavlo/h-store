@@ -166,9 +166,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
             
             // Execute store procedure!
-//            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
             try {
-                // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
                 this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
                 StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
                 handler.procedureInvocation(invocation, request, eventLoopCallback);
