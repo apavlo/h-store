@@ -108,7 +108,7 @@ public class HStoreThreadManager {
         try {
             org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
         } catch (UnsatisfiedLinkError ex) {
-            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
+            LOG.warn("Unable to set thread affinity. Disabling feature", (debug.get() ? ex : null));
             this.disable = true;
             return;
         }
