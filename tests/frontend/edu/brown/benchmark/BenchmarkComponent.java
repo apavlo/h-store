@@ -960,7 +960,9 @@ public abstract class BenchmarkComponent {
                     // '*' is the default value
                     if (txnName.equals("*")) {
                         this.m_txnWeightsDefault = txnWeight;
+                        if (debug.get()) LOG.debug(String.format("Default Transaction Weight: %d", txnWeight));
                     } else {
+                        if (debug.get()) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
                         this.m_txnWeights.put(txnName.toUpperCase(), txnWeight);
                     }
                 } catch (Throwable ex) {
