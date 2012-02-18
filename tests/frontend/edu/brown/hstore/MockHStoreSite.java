@@ -58,9 +58,15 @@ public class MockHStoreSite extends HStoreSite {
     public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         super(catalog_site, hstore_conf);
         
+        hstore_conf.site.status_enable = false;
+        
         for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
-            this.addPartitionExecutor(p, new MockPartitionExecutor(p, catalog_site.getCatalog(), this.getPartitionEstimator()));
-        }
+            MockPartitionExecutor executor = new MockPartitionExecutor(p,
+                                                                       catalog_site.getCatalog(),
+                                                                       this.getPartitionEstimator());
+            this.addPartitionExecutor(p, executor);
+        } // FOR
+        this.init();
     }
     @Override
     public HStoreCoordinator initHStoreCoordinator() {

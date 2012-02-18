@@ -988,7 +988,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (this.lastCommittedTxnId);
     }
     
-    protected DBBPool getDBBPool() {
+    public DBBPool getDBBPool() {
         return (this.buffer_pool);
     }
     
@@ -1097,7 +1097,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         boolean is_local = (ts instanceof LocalTransaction);
         
         if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s WorkFragment [isLocal=%s]:\n%s",
-                         ts, is_local, fragment));
+                                       ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
@@ -2001,21 +2001,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Push dependencies back to the remote partition that needs it
         if (status == Hstoreservice.Status.OK) {
-//            FastSerializer fs = new FastSerializer(); // buffer_pool);
+            final FastSerializer fs = new FastSerializer(buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 DataFragment.Builder outputBuilder = DataFragment.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
+                if (i > 0) fs.clear();
+                
                 try {
-//                    if (i > 0) fs.clear();
-//                    fs.writeObjectForMessaging(result.dependencies[i]);
-                    outputBuilder.addData(ByteString.copyFrom(FastSerializer.serialize(result.dependencies[i])));
+                    fs.writeObjectForMessaging(result.dependencies[i]);
+                    ByteString bs = ByteString.copyFrom(fs.getBuffer());
+                    outputBuilder.addData(bs);
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts));
                 }
                 builder.addOutput(outputBuilder.build());
                 if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
             } // FOR
-//            fs.getBBContainer().discard();
+            fs.getBBContainer().discard();
         }
         
         return (builder.build());
@@ -2147,7 +2149,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 tmp_removeDependenciesMap.clear();
                 this.getFragmentInputs(ts, ftask, tmp_removeDependenciesMap);
 
-//                if (t) LOG.trace(String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
                 FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (input_dep_ids.contains(e.getKey())) continue;
@@ -2157,8 +2158,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
-//                        fs = new FastSerializer();
-                        if (fs == null) fs = new FastSerializer(); // buffer_pool);
+                        if (fs == null) fs = new FastSerializer(buffer_pool);
                         else fs.clear();
                         try {
                             fs.writeObject(vt);
@@ -2174,9 +2174,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     input_dep_ids.add(e.getKey());
                     request.addAttached(dBuilder.build());
                 } // FOR
-//                if (fs != null) fs.getBBContainer().discard();
+                if (fs != null) fs.getBBContainer().discard();
             }
-            
             request.addFragments(ftask);
         } // FOR (tasks)
         
@@ -2301,6 +2300,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_remote = 0;
         int total = 0;
         
+        final FastSerializer fs = new FastSerializer(this.buffer_pool);
+        
         // Run through this loop if:
         //  (1) This is our first time in the loop (first == true)
         //  (2) If we know that there are still messages being blocked
@@ -2419,7 +2420,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (serializedParams == false) {
                         if (hstore_conf.site.txn_profiling) ts.profiler.startSerialization();
                         tmp_serializedParams.clear();
-                        FastSerializer fs = new FastSerializer();
                         for (int i = 0; i < parameters.length; i++) {
                             ParameterSet ps = parameters[i];
                             if (ps == null) tmp_serializedParams.add(ByteString.EMPTY);
@@ -2466,9 +2466,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                           ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
-        if (t)
-            LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                      ts, first, ts.stillHasWorkFragments(), latch));
+        fs.getBBContainer().discard();
+        
+        if (t) LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                                       ts, first, ts.stillHasWorkFragments(), latch));
 //        assert(ts.stillHasWorkFragments() == false) :
 //            String.format("Trying to block %s before all of its WorkFragments have been dispatched!\n%s\n%s",
 //                          ts,

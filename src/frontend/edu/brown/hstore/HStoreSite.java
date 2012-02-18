@@ -52,7 +52,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -196,8 +195,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final PartitionExecutor executors[];
     private final Thread executor_threads[];
-    private final DBBPool executor_pools[];
-    private final FastSerializer executor_serializers[];
     
     /**
      * Procedure Listener Stuff
@@ -329,8 +326,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.executor_pools = new DBBPool[num_partitions];
-        this.executor_serializers = new FastSerializer[num_partitions];
         
         this.single_partition_sets = new Collection[num_partitions];
         
@@ -665,12 +660,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
             
-            // Make sure that we get the handles to each PartitionExecutor's buffer pool
-            this.executor_pools[partition] = executor.getDBBPool();
-            
-            // Then create a re-usable FastSerializer
-            this.executor_serializers[partition] = new FastSerializer(this.executor_pools[partition]);
-
             t = new Thread(executor);
             t.setDaemon(true);
             t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
@@ -919,13 +908,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
                 ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
-                FastSerializer out = new FastSerializer();
+                FastSerializer fs = new FastSerializer();
                 try {
-                    out.writeObject(cresponse);
+                    fs.writeObject(cresponse);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                done.run(out.getBytes());
+                done.run(fs.getBytes());
                 // Non-blocking....
                 this.hstore_coordinator.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
                 return;
@@ -1451,55 +1440,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR            
     }
 
-    /**
-     * At this point the transaction should been properly committed or aborted at
-     * the PartitionExecutor, including if it was mispredicted.
-     * @param ts
-     * @param cresponse
-     */
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        assert(cresponse != null) : "Missing ClientResponse for " + ts;
-        Status status = cresponse.getStatus();
-        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
-        
-        // Don't send anything back if it's a mispredict because it's as waste of time...
-        // If the txn committed/aborted, then we can send the response directly back to the
-        // client here. Note that we don't even need to call HStoreSite.finishTransaction()
-        // since that doesn't do anything that we haven't already done!
-        if (status != Status.ABORT_MISPREDICT) {
-            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
-
-            // Check whether we should disable throttling
-            cresponse.setRequestCounter(this.getNextRequestCounter());
-            cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
-            
-            // Serialize the ClientResponse into a ByteBuffer so that it can
-            // be shipped back to the client
-            FastSerializer out = this.executor_serializers[ts.getBasePartition()];
-            out.clear();
-            try {
-                out.writeObject(cresponse);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            
-            if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
-                                           ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
-            
-            // Send result back to client!
-            // XXX: I'm not sure if our ByteBuffer is safe here 
-            ts.getClientCallback().run(out.getBuffer().array());
-            
-        }
-        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
-        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
-        // as soon as possible...
-        else {
-            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
-            this.transactionRestart(ts, status);
-        }
-    }
-    
     // ----------------------------------------------------------------------------
     // FAILED TRANSACTIONS (REQUEUE / REJECT / RESTART)
     // ----------------------------------------------------------------------------
@@ -1751,6 +1691,57 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // TRANSACTION FINISH/CLEANUP METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * At this point the transaction should been properly committed or aborted at
+     * the PartitionExecutor, including if it was mispredicted.
+     * @param ts
+     * @param cresponse
+     */
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        assert(cresponse != null) : "Missing ClientResponse for " + ts;
+        Status status = cresponse.getStatus();
+        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
+        
+        // Don't send anything back if it's a mispredict because it's as waste of time...
+        // If the txn committed/aborted, then we can send the response directly back to the
+        // client here. Note that we don't even need to call HStoreSite.finishTransaction()
+        // since that doesn't do anything that we haven't already done!
+        if (status != Status.ABORT_MISPREDICT) {
+            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
+
+            // Check whether we should disable throttling
+            cresponse.setRequestCounter(this.getNextRequestCounter());
+            cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+            
+            // Serialize the ClientResponse into a ByteBuffer so that it can
+            // be shipped back to the client
+            FastSerializer out = ts.getClientResponseSerializer();
+            out.clear();
+            try {
+                out.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            
+            if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+                                           ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+            
+            // Send result back to client!
+            ByteBuffer buffer = out.getBBContainer().b;
+            assert(buffer.hasArray()) :
+                "Unable to get byte array from FastSerializer ByteBuffer";
+            ts.getClientCallback().run(buffer.array());
+            
+        }
+        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
+        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
+        // as soon as possible...
+        else {
+            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
+            this.transactionRestart(ts, status);
+        }
+    }
+    
     /**
      * 
      * @param es

@@ -31,7 +31,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-//    private AtomicBoolean throttle = new AtomicBoolean(false);
     private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
 //    private final HStoreSite hstore_site;
@@ -41,9 +40,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
         this.handler = handler;
         assert this.eventLoop != null;
         assert this.handler != null;
-        
-        // HACK
-//        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {

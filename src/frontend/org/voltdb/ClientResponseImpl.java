@@ -193,6 +193,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setThrottleFlag(boolean val) {
         this.throttle = val;
     }
+    
     @Override
     public int getRequestCounter() {
         return this.requestCounter;
@@ -203,6 +204,16 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void setRequestCounter(int val) {
         this.requestCounter = val;
     }
+    
+    @Override
+    public int getBasePartition() {
+        return (this.basePartition);
+    }
+
+    public void setBasePartition(int val) {
+        this.basePartition = val;
+    }
+    
     @Override
     public boolean isSinglePartition() {
         return singlepartition;
@@ -371,12 +382,4 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 
-    @Override
-    public int getBasePartition() {
-        return (this.basePartition);
-    }
-
-    public void setBasePartition(int val) {
-        this.basePartition = val;
-    }
 }
