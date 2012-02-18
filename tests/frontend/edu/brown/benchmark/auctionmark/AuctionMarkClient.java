@@ -576,7 +576,8 @@ public class AuctionMarkClient extends BenchmarkComponent {
         
         // Initialize Default Weights
         for (Transaction t : Transaction.values()) {
-            this.weights.put(t, t.getDefaultWeight());
+            Integer weight = this.getTransactionWeight(t.callName);
+            this.weights.put(t, (weight != null ? weight : t.getDefaultWeight()));
         } // FOR
 
         // Create xact lookup array
