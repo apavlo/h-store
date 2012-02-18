@@ -784,6 +784,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int txnrate;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String weights;
 
         @ConfigProperty(
             description="Number of processes to use per client host.",
