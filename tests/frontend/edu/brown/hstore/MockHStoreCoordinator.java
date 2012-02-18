@@ -66,8 +66,10 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         this.getReadyObservable().addObserver(new EventObserver<HStoreCoordinator>() {
             @Override
             public void update(EventObservable<HStoreCoordinator> o, HStoreCoordinator arg) {
-                LOG.info("Established connections to remote HStoreCoordinators:\n" +
-                         StringUtil.join("  ", "\n", HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite())));
+                if (HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite()).isEmpty() == false) {
+                    LOG.info("Established connections to remote HStoreCoordinators:\n" +
+                             StringUtil.join("  ", "\n", HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite())));
+                }
             }
         });
         

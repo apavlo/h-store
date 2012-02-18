@@ -16,14 +16,13 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.utils.DBBPool;
 
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
 
 public class ExecutionState {
@@ -47,11 +46,12 @@ public class ExecutionState {
     /** The ExecutionSite that this TransactionState is tied to **/
     protected final PartitionExecutor executor;
     
+    protected final DBBPool buffer_pool;
+    
     /**
      * List of encoded Partition/Dependency keys
      */
     protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
-
     
     protected final ReentrantLock lock = new ReentrantLock();
 
@@ -140,6 +140,8 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
+        this.buffer_pool = executor.getDBBPool();
+        
         int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
         this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
         for (int i = 0; i < this.dependencies.length; i++) {

@@ -227,7 +227,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Procedure Name -> VoltProcedure
      */
-    private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>();
+    private final Map<String, VoltProcedure> procedures = new HashMap<String, VoltProcedure>(16, (float) .1);
     
     /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
@@ -269,7 +269,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
     private final HsqlBackend hsql;
-    public static final DBBPool buffer_pool = new DBBPool(true, false);
+    private final DBBPool buffer_pool = new DBBPool(false, false);
 
     /**
      * Runtime Estimators
@@ -339,58 +339,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * The entries may be either InitiateTaskMessages (i.e., start a stored procedure) or
      * FragmentTaskMessage (i.e., execute some fragments on behalf of another transaction)
      */
-    private final PriorityBlockingQueue<TransactionInfoBaseMessage> work_queue = new PriorityBlockingQueue<TransactionInfoBaseMessage>(10000, work_comparator) {
-        private static final long serialVersionUID = 1L;
-        private final List<TransactionInfoBaseMessage> swap = new ArrayList<TransactionInfoBaseMessage>();
+    private final PartitionExecutorQueue work_queue = new PartitionExecutorQueue();
         
-        @Override
-        public int drainTo(Collection<? super TransactionInfoBaseMessage> c) {
-            assert(c != null);
-            TransactionInfoBaseMessage msg = null;
-            int ctr = 0;
-            this.swap.clear();
-            while ((msg = this.poll()) != null) {
-                // All new transaction requests must be put in the new collection
-                if (msg instanceof InitiateTaskMessage) {
-                    c.add(msg);
-                    ctr++;
-                // Everything else will get added back in afterwards 
-                } else {
-                    this.swap.add(msg);
-                }
-            } // WHILE
-            if (this.swap.isEmpty() == false) this.addAll(this.swap);
-            return (ctr);
-        }
-    };
+    /**
+     * Special wrapper around the PartitionExecutorQueue that can determine whether this
+     * partition is overloaded and therefore new requests should be throttled
+     */
     private final ThrottlingQueue<TransactionInfoBaseMessage> work_throttler;
     
-    private static final Comparator<TransactionInfoBaseMessage> work_comparator = new Comparator<TransactionInfoBaseMessage>() {
-        @Override
-        public int compare(TransactionInfoBaseMessage msg0, TransactionInfoBaseMessage msg1) {
-            assert(msg0 != null);
-            assert(msg1 != null);
-            
-            Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
-            Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
-            
-            if (class0.equals(class1)) return (msg0.getTxnId().compareTo(msg1.getTxnId()));
-
-            boolean isFinish0 = class0.equals(FinishTaskMessage.class);
-            boolean isFinish1 = class1.equals(FinishTaskMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
-            
-            boolean isWork0 = class0.equals(FragmentTaskMessage.class);
-            boolean isWork1 = class1.equals(FragmentTaskMessage.class);
-            if (isWork0 && !isWork1) return (-1);
-            else if (!isWork0 && isWork1) return (1);
-            
-            assert(false) : String.format("%s <-> %s", class0, class1);
-            return 0;
-        }
-    };
-
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
     // ----------------------------------------------------------------------------
@@ -431,7 +387,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * List of serialized ParameterSets
      */
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
-    
     
     /**
      * Reusable ParameterSet arrays
@@ -988,6 +943,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (this.lastCommittedTxnId);
     }
     
+    public DBBPool getDBBPool() {
+        return (this.buffer_pool);
+    }
+    
     /**
      * Return a cached ParameterSet array. This should only be 
      * called by the VoltProcedures managed by this PartitionExecutor.
@@ -1093,7 +1052,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         boolean is_local = (ts instanceof LocalTransaction);
         
         if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s WorkFragment [isLocal=%s]:\n%s",
-                         ts, is_local, fragment));
+                                       ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
@@ -1997,21 +1956,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Push dependencies back to the remote partition that needs it
         if (status == Hstoreservice.Status.OK) {
-//            FastSerializer fs = new FastSerializer(); // buffer_pool);
+            final FastSerializer fs = new FastSerializer(buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 DataFragment.Builder outputBuilder = DataFragment.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
+                if (i > 0) fs.clear();
+                
                 try {
-//                    if (i > 0) fs.clear();
-//                    fs.writeObjectForMessaging(result.dependencies[i]);
-                    outputBuilder.addData(ByteString.copyFrom(FastSerializer.serialize(result.dependencies[i])));
+                    fs.writeObjectForMessaging(result.dependencies[i]);
+                    ByteString bs = ByteString.copyFrom(fs.getBuffer());
+                    outputBuilder.addData(bs);
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts));
                 }
                 builder.addOutput(outputBuilder.build());
                 if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
             } // FOR
-//            fs.getBBContainer().discard();
+            fs.getBBContainer().discard();
         }
         
         return (builder.build());
@@ -2143,7 +2104,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 tmp_removeDependenciesMap.clear();
                 this.getFragmentInputs(ts, ftask, tmp_removeDependenciesMap);
 
-//                if (t) LOG.trace(String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
                 FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (input_dep_ids.contains(e.getKey())) continue;
@@ -2153,8 +2113,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
-//                        fs = new FastSerializer();
-                        if (fs == null) fs = new FastSerializer(); // buffer_pool);
+                        if (fs == null) fs = new FastSerializer(buffer_pool);
                         else fs.clear();
                         try {
                             fs.writeObject(vt);
@@ -2170,9 +2129,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     input_dep_ids.add(e.getKey());
                     request.addAttached(dBuilder.build());
                 } // FOR
-//                if (fs != null) fs.getBBContainer().discard();
+                if (fs != null) fs.getBBContainer().discard();
             }
-            
             request.addFragments(ftask);
         } // FOR (tasks)
         
@@ -2297,6 +2255,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_remote = 0;
         int total = 0;
         
+        final FastSerializer fs = new FastSerializer(this.buffer_pool);
+        
         // Run through this loop if:
         //  (1) This is our first time in the loop (first == true)
         //  (2) If we know that there are still messages being blocked
@@ -2415,7 +2375,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (serializedParams == false) {
                         if (hstore_conf.site.txn_profiling) ts.profiler.startSerialization();
                         tmp_serializedParams.clear();
-                        FastSerializer fs = new FastSerializer();
                         for (int i = 0; i < parameters.length; i++) {
                             ParameterSet ps = parameters[i];
                             if (ps == null) tmp_serializedParams.add(ByteString.EMPTY);
@@ -2462,9 +2421,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                           ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
-        if (t)
-            LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                      ts, first, ts.stillHasWorkFragments(), latch));
+        fs.getBBContainer().discard();
+        
+        if (t) LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                                       ts, first, ts.stillHasWorkFragments(), latch));
 //        assert(ts.stillHasWorkFragments() == false) :
 //            String.format("Trying to block %s before all of its WorkFragments have been dispatched!\n%s\n%s",
 //                          ts,
@@ -2587,7 +2547,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
                 hstore_site.sendClientResponse(ts, cresponse);
-                hstore_site.completeTransaction(ts.getTransactionId(), status);
+                hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 
         // COMMIT: Distributed Transaction
