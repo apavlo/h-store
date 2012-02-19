@@ -87,7 +87,7 @@ public class QueryPrefetcher implements Loggable {
                 if (i > 0)
                     fs.clear();
                 prefetch_params[i].writeExternal(fs);
-                prefetch_params_serialized[i] = ByteString.copyFrom(fs.getBuffer());
+                prefetch_params_serialized[i] = ByteString.copyFrom(fs.getBBContainer().b);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
             }

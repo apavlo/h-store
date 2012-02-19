@@ -28,6 +28,7 @@
 package edu.brown.utils;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
@@ -124,8 +125,18 @@ public abstract class StringUtil {
     }
 
     /**
+     * Return the MD5 checksum of the given ByteBuffer
+     * @param input
+     * @return
+     */
+    public static String md5sum(ByteBuffer bytes) {
+        byte b[] = new byte[bytes.limit()];
+        bytes.get(b);
+        return md5sum(b);
+    }
+    
+    /**
      * Return the MD5 checksum of the given byte array
-     * 
      * @param input
      * @return
      */

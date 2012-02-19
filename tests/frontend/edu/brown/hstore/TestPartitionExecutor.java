@@ -31,6 +31,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
@@ -50,9 +51,9 @@ public class TestPartitionExecutor extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
     
-    private static PartitionExecutor site;
+    private static PartitionExecutor executor;
     
-    private final Random rand = new Random(); 
+    private final Random rand = new Random(1); 
     
 //    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
 //        @Override
@@ -66,13 +67,12 @@ public class TestPartitionExecutor extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
         
-        if (site == null) {
-            PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+        if (executor == null) {
             Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-            HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
-            site = new MockPartitionExecutor(PARTITION_ID, catalog, p_estimator);
-            hstore_site.addPartitionExecutor(PARTITION_ID, site);
-            site.initHStoreSite(hstore_site);
+            HStoreConf hstore_conf = HStoreConf.singleton();
+            MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+            executor = hstore_site.getPartitionExecutor(PARTITION_ID);
+            assertNotNull(executor);
         }
     }
     
@@ -95,7 +95,7 @@ public class TestPartitionExecutor extends BaseTestCase {
      * testGetProcedure
      */
     public void testGetProcedure() {
-        VoltProcedure volt_proc0 = site.getVoltProcedure(TARGET_PROCEDURE);
+        VoltProcedure volt_proc0 = executor.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc0);
     }
     
@@ -269,7 +269,6 @@ public class TestPartitionExecutor extends BaseTestCase {
 //        thread.join();
 //    }
     
-    
     /**
      * testBuildPartitionResult
      */
@@ -282,7 +281,7 @@ public class TestPartitionExecutor extends BaseTestCase {
             Object row[] = new Object[catalog_tbl.getColumns().size()];
             for (int j = 0; j < row.length; j++) {
                 VoltType vtype = VoltType.get(catalog_tbl.getColumns().get(j).getType());
-                row[j] = VoltTypeUtil.getRandomValue(vtype);
+                row[j] = VoltTypeUtil.getRandomValue(vtype, rand);
             } // FOR
             vt.addRow(row);
         } // FOR
@@ -290,8 +289,8 @@ public class TestPartitionExecutor extends BaseTestCase {
         int dep_id = 10001;
         DependencySet result = new DependencySet(new int[]{ dep_id }, new VoltTable[]{ vt });
         
-        RemoteTransaction ts = new RemoteTransaction(site.getHStoreSite());
-        WorkResult partitionResult = site.buildWorkResult(ts, result, Status.OK, null);
+        RemoteTransaction ts = new RemoteTransaction(executor.getHStoreSite());
+        WorkResult partitionResult = executor.buildWorkResult(ts, result, Status.OK, null);
         assertNotNull(partitionResult);
         assertEquals(result.size(), partitionResult.getOutputCount());
         
@@ -302,8 +301,10 @@ public class TestPartitionExecutor extends BaseTestCase {
             
             ByteString bs = d.getData(0);
             assertFalse(bs.isEmpty());
+            System.err.println("SIZE: " + StringUtil.md5sum(bs.asReadOnlyByteBuffer()));
             
-            VoltTable clone = FastDeserializer.deserialize(bs.toByteArray(), VoltTable.class);
+            byte serialized[] = bs.toByteArray();
+            VoltTable clone = FastDeserializer.deserialize(serialized, VoltTable.class);
             assertNotNull(clone);
             assertEquals(vt.getRowCount(), clone.getRowCount());
             assertEquals(vt.getColumnCount(), clone.getColumnCount());

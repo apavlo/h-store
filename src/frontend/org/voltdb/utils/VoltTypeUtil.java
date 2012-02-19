@@ -48,38 +48,42 @@ public abstract class VoltTypeUtil {
     private static final Map<Thread, SimpleDateFormat[]> CACHED_DATE_FORMATS = new HashMap<Thread, SimpleDateFormat[]>();
 
     public static Object getRandomValue(VoltType type) {
+        return getRandomValue(type, VoltTypeUtil.rand);
+    }
+    
+    public static Object getRandomValue(VoltType type, Random rand) {
         Object ret = null;
         switch (type) {
             // --------------------------------
             // INTEGERS
             // --------------------------------
             case TINYINT:
-                ret = Long.valueOf((byte) Math.abs(VoltTypeUtil.rand.nextInt() % 128));
+                ret = Long.valueOf((byte) Math.abs(rand.nextInt() % 128));
                 break;
             case SMALLINT:
-                ret = Long.valueOf((short) Math.abs(VoltTypeUtil.rand.nextInt() % 32768));
+                ret = Long.valueOf((short) Math.abs(rand.nextInt() % 32768));
                 break;
             case INTEGER:
-                ret = Long.valueOf(Math.abs(VoltTypeUtil.rand.nextInt() % 100000));
+                ret = Long.valueOf(Math.abs(rand.nextInt() % 100000));
                 break;
             case BIGINT:
-                ret = Long.valueOf(Math.abs(VoltTypeUtil.rand.nextInt() % 100000));
+                ret = Long.valueOf(Math.abs(rand.nextInt() % 100000));
                 break;
             // --------------------------------
             // FLOATS
             // --------------------------------
             case FLOAT:
             case DECIMAL:
-                ret = Double.valueOf(Math.abs(VoltTypeUtil.rand.nextDouble()));
+                ret = Double.valueOf(Math.abs(rand.nextDouble()));
                 break;
             // --------------------------------
             // STRINGS
             // --------------------------------
             case STRING:
-                int size = VoltTypeUtil.rand.nextInt(31) + 1;
+                int size = rand.nextInt(31) + 1;
                 String ret_str = "";
                 for (int ctr = 0; ctr < size; ctr++) {
-                    char data = (char)(Math.abs(VoltTypeUtil.rand.nextInt()) % 128);
+                    char data = (char)(Math.abs(rand.nextInt()) % 128);
                     //
                     // Skip quotation marks
                     //
@@ -95,7 +99,7 @@ public abstract class VoltTypeUtil {
             // TIMESTAMP
             // --------------------------------
             case TIMESTAMP: {
-                int timestamp = VoltTypeUtil.rand.nextInt(VoltTypeUtil.DATE_STOP - VoltTypeUtil.DATE_START) + VoltTypeUtil.DATE_START;
+                int timestamp = rand.nextInt(VoltTypeUtil.DATE_STOP - VoltTypeUtil.DATE_START) + VoltTypeUtil.DATE_START;
                 ret = new TimestampType(Long.valueOf(timestamp * 1000));
                 break;
             }

@@ -46,7 +46,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -55,7 +54,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -1960,14 +1958,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 DataFragment.Builder outputBuilder = DataFragment.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
-                if (i > 0) fs.clear();
+                fs.clear();
                 
                 try {
-                    fs.writeObjectForMessaging(result.dependencies[i]);
-                    ByteString bs = ByteString.copyFrom(fs.getBuffer());
+                    result.dependencies[i].writeExternal(fs);
+                    ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
                     outputBuilder.addData(bs);
                 } catch (Exception ex) {
-                    throw new RuntimeException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts));
+                    throw new RuntimeException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts), ex);
                 }
                 builder.addOutput(outputBuilder.build());
                 if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
@@ -2117,7 +2115,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         else fs.clear();
                         try {
                             fs.writeObject(vt);
-                            dBuilder.addData(ByteString.copyFrom(fs.getBuffer()));
+                            dBuilder.addData(ByteString.copyFrom(fs.getBBContainer().b));
                         } catch (Exception ex) {
                             throw new RuntimeException(String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts));
                         }
@@ -2381,7 +2379,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             fs.clear();
                             try {
                                 ps.writeExternal(fs);
-                                ByteString bs = ByteString.copyFrom(fs.getBuffer());
+                                ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
                                 tmp_serializedParams.add(bs);
                             } catch (Exception ex) {
                                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
