@@ -223,10 +223,12 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public void close() {
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

@@ -433,8 +433,8 @@ public abstract class BaseTestCase extends TestCase {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
-                CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
-                CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
+            CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
+            CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
             catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
             this.init(this.last_type, catalog);
         }
