@@ -101,7 +101,7 @@ public class LocalTransaction extends AbstractTransaction {
     protected StoredProcedureInvocation invocation;
     
     /**
-     * 
+     * Catalog object of the Procedure that this transaction is currently executing
      */
     protected Procedure catalog_proc;
 
@@ -109,23 +109,16 @@ public class LocalTransaction extends AbstractTransaction {
      * The queued up ClientResponse that we need to send back for this txn
      */
     private ClientResponseImpl cresponse;
+    
+    /**
+     * Each LocalTransaction will have its own FastSerializer (with its own block of memory)
+     * that it can safely use to serialize the ClientResponse. We are sticking this
+     * in here because we don't know what thread could be actually processing
+     * the transaction to send back the final result to the client.
+     * That means it is important that this memory is never freed
+     */
+    private final FastSerializer cresponse_serializer = new FastSerializer();
 
-    /**
-     * The set of partitions that we expected this partition to touch.
-     */
-    protected Collection<Integer> predict_touchedPartitions;
-    
-    /**
-     * The partitions that we told the Dtxn.Coordinator that we were done with
-     */
-    protected final Collection<Integer> done_partitions = new HashSet<Integer>();
-    
-    /**
-     * A handle to the execution state of this transaction
-     * This will only get set when the transaction starts running.
-     */
-    protected ExecutionState state;
-    
     /**
      * If this transaction was restarted, then this field will have the
      * original transaction id
@@ -137,15 +130,33 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private int restart_ctr = 0;
     
+    // ----------------------------------------------------------------------------
+    // INITIAL PREDICTION DATA MEMBERS
+    // ----------------------------------------------------------------------------
+    
     /**
-     * Whether this txn is being executed specutatively
+     * The set of partitions that we expected this partition to touch.
      */
-    private boolean exec_speculative = false;
+    protected Collection<Integer> predict_touchedPartitions;
     
     /**
      * TransctionEstimator State Handle
      */
     private TransactionEstimator.State estimator_state;
+    
+    // ----------------------------------------------------------------------------
+    // RUN TIME DATA MEMBERS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * The partitions that we told the Dtxn.Coordinator that we were done with
+     */
+    protected final Collection<Integer> done_partitions = new HashSet<Integer>();
+    
+    /**
+     * Whether this txn is being executed specutatively
+     */
+    private boolean exec_speculative = false;
     
     /**
      * 
@@ -160,10 +171,18 @@ public class LocalTransaction extends AbstractTransaction {
     public final ProtoRpcController rpc_transactionPrepare[];
     public final ProtoRpcController rpc_transactionFinish[];
     
+    /**
+     * TODO: We need to remove the need for this
+     */
     private final InitiateTaskMessage itask;
     
-    private final FastSerializer cresponse_serializer = new FastSerializer();
-    
+    /**
+     * A handle to the execution state of this transaction
+     * This will only get set when the transaction starts running.
+     * No two transactions are allowed to hold the same ExecutionState
+     * at the same time.
+     */
+    protected ExecutionState state;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS

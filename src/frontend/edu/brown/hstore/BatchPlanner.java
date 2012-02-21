@@ -235,7 +235,7 @@ public class BatchPlanner implements Loggable {
         private final List<PlanFragment> frag_list[];
 
         /** Round# -> Map{PartitionId, Set{PlanFragments}} **/
-        private final Set<PlanVertex> rounds[][];
+        private final Collection<PlanVertex> rounds[][];
         private int rounds_length;
 
         /**
@@ -284,11 +284,11 @@ public class BatchPlanner implements Loggable {
             int num_partitions = BatchPlanner.this.num_partitions;
 
             // Round Data
-            this.rounds = (Set<PlanVertex>[][]) new Set<?>[max_round_size][];
+            this.rounds = (Collection<PlanVertex>[][]) new Collection<?>[max_round_size][];
             for (int i = 0; i < this.rounds.length; i++) {
-                this.rounds[i] = (Set<PlanVertex>[]) new Set<?>[num_partitions];
+                this.rounds[i] = (Collection<PlanVertex>[]) new Collection<?>[num_partitions];
                 for (int ii = 0; ii < num_partitions; ii++) {
-                    this.rounds[i][ii] = new HashSet<PlanVertex>();
+                    this.rounds[i][ii] = new ArrayList<PlanVertex>();
                 } // FOR
             } // FOR
 

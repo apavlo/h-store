@@ -355,7 +355,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     /**
      * Mark this transaction as having issued a SQLStmt batch that modifies data on
-     * some partition
+     * some partition. This doesn't need to specify which partition that this txn modified
+     * data on, it's just to say that somewhere we are going to try to change something.
      */
     public void markExecNotReadOnlyAllPartitions() {
         this.exec_readOnlyAll = false;

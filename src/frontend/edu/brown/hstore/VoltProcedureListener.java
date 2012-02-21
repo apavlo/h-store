@@ -119,7 +119,18 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
         @Override
         public synchronized void run(byte[] serializedResult) {
-            boolean blocked = connection.write(serializedResult);
+            boolean blocked = true;
+            try {
+                blocked = connection.write(serializedResult);
+            } catch (RuntimeException ex) {
+                if (ex.getCause() instanceof IOException) {
+                    // Ignore this
+                    if (LOG.isDebugEnabled()) LOG.warn("Client connection closed unexpectedly", ex);
+                } else {
+                    throw ex;
+                }
+            }
+            
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
             // NOTE: It is possible for the connection to become ready for writing before we run

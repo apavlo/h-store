@@ -1874,7 +1874,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             output_depIds,
                             parameterSets,
                             batchSize,
-                            txn_id,
+                            txn_id.longValue(),
                             this.lastCommittedTxnId,
                             undoToken);
             

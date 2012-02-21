@@ -588,14 +588,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return (response); 
         }
 
-        // Fix for MapReduce transactions
-//        if (m_localTxnState.isMapReduce()) {
-//          assert(this.procParams.length == 1);
-//          this.procParams = (Object[])this.procParams[0];
-//        }
-        
         for (int i = 0; i < paramTypesLength; i++) {
-//          String orig = (this.procParams[i] != null ? this.procParams[i].getClass().getSimpleName() : null);
             try {
                 this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
 //                if (trace.get()) LOG.trace(String.format("[%02d] ORIG:%s -> NEW:%s", i, orig, this.procParams[i].getClass().getSimpleName()));
