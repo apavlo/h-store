@@ -981,7 +981,7 @@ public class BenchmarkController {
         m_clientPSM.prepareShutdown(false);
         boolean first = true;
         for (String clientName : m_clients) {
-            if (first) {
+            if (first && m_config.noShutdown == false) {
                 m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
                 first = false;
             } else {
@@ -1083,8 +1083,10 @@ public class BenchmarkController {
     public synchronized void cleanUpBenchmark() {
         // if (this.cleaned) return;
         
-        if (debug.get()) LOG.debug("Killing clients");
-        m_clientPSM.shutdown();
+        if (m_config.noExecute == false) {
+            if (debug.get()) LOG.debug("Killing clients");
+            m_clientPSM.shutdown();
+        }
         
         if (m_config.noShutdown == false && this.failed == false) {
             if (debug.get()) LOG.debug("Killing HStoreSites");

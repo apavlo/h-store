@@ -27,6 +27,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;
 
@@ -41,7 +42,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private String statusString = null;
     private byte appStatus = Byte.MIN_VALUE;
     private String appStatusString = null;
-    private VoltTable[] results = new VoltTable[0];
+    private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
 
     private int clusterRoundTripTime = 0;
     private int clientRoundTripTime = 0;

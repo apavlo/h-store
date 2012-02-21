@@ -130,8 +130,16 @@ public abstract class BenchmarkComponent {
         POLL,
         CLEAR,
         PAUSE,
+        /**
+         * Stop this BenchmarkComponent instance
+         */
+        STOP,
+        /**
+         * This is the same as STOP except that the BenchmarkComponent will
+         * tell the cluster to shutdown first before it exits 
+         */
         SHUTDOWN,
-        STOP;
+        ;
      
         protected static final Map<Integer, Command> idx_lookup = new HashMap<Integer, Command>();
         protected static final Map<String, Command> name_lookup = new HashMap<String, Command>();
