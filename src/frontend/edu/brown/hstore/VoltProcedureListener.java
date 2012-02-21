@@ -68,7 +68,16 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
         @Override
         public void readCallback(SelectableChannel channel) {
-            read(this);
+            try {
+                read(this);
+            } catch (RuntimeException ex) {
+                if (ex.getCause() instanceof IOException) {
+                    // Ignore this
+                    if (LOG.isDebugEnabled()) LOG.warn("Client connection closed unexpectedly", ex);
+                } else {
+                    throw ex;
+                }
+            }
         }
 
         @Override
