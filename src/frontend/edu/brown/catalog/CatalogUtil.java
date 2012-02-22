@@ -1,11 +1,15 @@
 package edu.brown.catalog;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -14,6 +18,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -43,6 +50,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.compiler.JarBuilder;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.AbstractValueExpression;
 import org.voltdb.expressions.ComparisonExpression;
@@ -369,6 +377,37 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (file);
     }
 
+    /**
+     * Updates the catalog file in the Jar.
+     * 
+     * @param jarFileName
+     * @param catalog
+     * @throws Exception (VoltCompilerException DNE?)
+     */
+    public static void updateCatalogInJar(String jarFileName, Catalog catalog, String catalog_path) throws Exception {
+        catalog.serialize();
+        // Read the old jar file into memory with JarReader.
+        JarReader reader = new JarReader(jarFileName);
+        List<String> files = reader.getContentsFromJarfile();
+        ArrayList<byte[]> bytes = new ArrayList<byte[]>();
+        for (String file : files) {
+            bytes.add(JarReader.readFileFromJarAtURL(jarFileName, file));
+        }
+        
+        // Write everything from the old jar except the catalog to the same file with JarBuilder.
+        JarBuilder builder = new JarBuilder(null);
+        for (int i = 0; i < files.size(); ++i) {
+            String file = files.get(i);
+            if (file.equals(catalog_path)) {
+                builder.addEntry(catalog_path, catalog.serialize().getBytes());
+            }
+            else {
+                builder.addEntry(file, bytes.get(i));
+            }
+        }
+        builder.writeJarToDisk(jarFileName);
+    }
+    
     /**
      * These are the PlanFragment ids that are read-only
      */
@@ -2586,5 +2625,4 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return ("[" + ret + "]");
     }
-
 } // END CLASS

@@ -37,9 +37,17 @@ import org.voltdb.ProcedureProfiler;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltDB.Configuration;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.catalog.CatalogInfo;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Implementation of a VoltServerConfig for a multi-process
@@ -56,6 +64,7 @@ public class LocalCluster implements VoltServerConfig {
     final BackendTarget m_target;
     final String m_buildDir;
     int m_portOffset;
+    final Catalog catalog;
 
     // state
     boolean m_compiled = false;
@@ -78,9 +87,14 @@ public class LocalCluster implements VoltServerConfig {
 
         // set m_witnessReady when the m_token byte sequence is seen.
         AtomicBoolean m_witnessedReady;
-        final int m_token[] = new int[] {'S', 'e', 'r', 'v', 'e', 'r', ' ',
-                                        'c', 'o', 'm', 'p', 'l', 'e', 't', 'e', 'd', ' ',
-                                        'i','n','i','t'};
+        
+        final String msg = HStoreConstants.SITE_READY_MSG;
+        
+        final int m_token[] = new int[msg.length()]; {
+            for (int i = 0; i < msg.length(); ++i) {
+                m_token[i] = msg.charAt(i);
+            }
+        }
 
         PipeToFile(String filename, InputStream stream) {
             m_witnessedReady = new AtomicBoolean(false);
@@ -143,6 +157,35 @@ public class LocalCluster implements VoltServerConfig {
         assert (siteCount > 0);
         assert (hostCount > 0);
         assert (replication >= 0);
+        
+        // (1) Load catalog from Jar
+        Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
+        
+        // (2) Update catalog to include target cluster configuration
+        ClusterConfiguration cc = new ClusterConfiguration();
+        // Update cc with a bunch of hosts/sites/partitions
+        for (int site = 0, currentPartition = 0; site < hostCount; ++site) {
+            for (int partition = 0; partition < siteCount; ++partition, ++currentPartition) {
+                cc.addPartition("localhost", site, currentPartition);
+            }
+        }
+        System.err.println(cc.toString());
+        this.catalog = FixCatalog.addHostInfo(tmpCatalog, cc);
+        
+        System.err.println(CatalogInfo.getInfo(this.catalog, new File(jarFileName)));
+        System.err.println(catalog.serialize());
+        
+        // (3) Write updated catalog back out to jar file
+        try {
+            CatalogUtil.updateCatalogInJar(jarFileName, catalog, "catalog.txt");
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
+        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));
+        
         m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
         m_siteCount = siteCount;
         m_target = target;
@@ -160,21 +203,28 @@ public class LocalCluster implements VoltServerConfig {
         // processes of VoltDBs using the compiled jar file.
         m_cluster = new ArrayList<Process>();
         m_pipes = new ArrayList<PipeToFile>();
-        m_procBuilder = new ProcessBuilder("java",
-                                           "-Djava.library.path=" + m_buildDir + "/nativelibs",
-                                           "-Dlog4j.configuration=log.xml",
-                                           "-ea",
-                                           "-Xmx2048m",
-                                           "-XX:+HeapDumpOnOutOfMemoryError",                                           "-classpath",
-                                           classPath,
-                                           "org.voltdb.VoltDB",
-                                           "catalog",
-                                           m_jarFileName,
-                                           "port",
-                                           "-1");
-        // When we actually append a port value, this will be correct.
-        m_portOffset = m_procBuilder.command().size() - 1;
-
+//        m_procBuilder = new ProcessBuilder("java",
+//                                           "-Djava.library.path=" + m_buildDir + "/nativelibs",
+//                                           "-Dlog4j.configuration=log.xml",
+//                                           "-ea",
+//                                           "-Xmx2048m",
+//                                           "-XX:+HeapDumpOnOutOfMemoryError",
+//                                           "-classpath",
+//                                           classPath,
+//                                           "org.voltdb.VoltDB",
+//                                           "catalog",
+//                                           m_jarFileName,
+//                                           "port",
+//                                           "-1");
+        
+        // 
+        
+        m_procBuilder = new ProcessBuilder(
+                "ant",
+                "hstore-site",
+                "-Djar=" + m_jarFileName,
+                "-Dsite.id=-1"
+        );
         for (String s : m_procBuilder.command()) {
             System.out.println(s);
         }
@@ -220,42 +270,48 @@ public class LocalCluster implements VoltServerConfig {
 //        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 //        config.m_port = HStoreConstants.DEFAULT_PORT;
 
-        m_localServer = null;//new ServerThread(config);
-        m_localServer.start();
-
+        HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
+        
         // create all the out-of-process servers
-        for (int i = 1; i < m_hostCount; i++) {
-            try {
-                m_procBuilder.command().set(m_portOffset,
-                                            String.valueOf(HStoreConstants.DEFAULT_PORT + i));
-
-                Process proc = m_procBuilder.start();
-                m_cluster.add(proc);
-                // write output to obj/release/testoutput/<test name>-n.txt
-                // this may need to be more unique? Also very useful to just
-                // set this to a hardcoded path and use "tail -f" to debug.
-                String testoutputdir = m_buildDir + File.separator + "testoutput";
-                // make sure the directory exists
-                File dir = new File(testoutputdir);
-                if (dir.exists()) {
-                    assert(dir.isDirectory());
+        // Loop through all of the sites in the catalog and start them
+        int offset = m_procBuilder.command().size() - 1;
+        for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
+            final int site_id = catalog_site.getId(); 
+            
+            if (site_id == 0) {
+                m_localServer = new ServerThread(hstore_conf, catalog_site);
+                m_localServer.start();
+            } else {
+                try {
+                    m_procBuilder.command().set(offset, "-Dsite.id=" + site_id);
+                    Process proc = m_procBuilder.start();
+                    m_cluster.add(proc);
+                    // write output to obj/release/testoutput/<test name>-n.txt
+                    // this may need to be more unique? Also very useful to just
+                    // set this to a hardcoded path and use "tail -f" to debug.
+                    String testoutputdir = m_buildDir + File.separator + "testoutput";
+                    // make sure the directory exists
+                    File dir = new File(testoutputdir);
+                    if (dir.exists()) {
+                        assert(dir.isDirectory());
+                    }
+                    else {
+                        boolean status = dir.mkdirs();
+                        assert(status);
+                    }
+    
+                    PipeToFile ptf = new PipeToFile(testoutputdir + File.separator +
+                            getName() + "-" + site_id + ".txt", proc.getInputStream());
+                    m_pipes.add(ptf);
+                    Thread t = new Thread(ptf);
+                    t.setName("ClusterPipe:" + String.valueOf(site_id));
+                    t.start();
                 }
-                else {
-                    boolean status = dir.mkdirs();
-                    assert(status);
+                catch (IOException ex) {
+                    System.out.println("Failed to start cluster process:" + ex.getMessage());
+                    Logger.getLogger(LocalCluster.class.getName()).log(Level.SEVERE, null, ex);
+                    assert (false);
                 }
-
-                PipeToFile ptf = new PipeToFile(testoutputdir + File.separator +
-                        getName() + "-" + i + ".txt", proc.getInputStream());
-                m_pipes.add(ptf);
-                Thread t = new Thread(ptf);
-                t.setName("ClusterPipe:" + String.valueOf(i));
-                t.start();
-            }
-            catch (IOException ex) {
-                System.out.println("Failed to start cluster process:" + ex.getMessage());
-                Logger.getLogger(LocalCluster.class.getName()).log(Level.SEVERE, null, ex);
-                assert (false);
             }
         }
 
