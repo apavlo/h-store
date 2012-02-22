@@ -59,6 +59,8 @@ public abstract class FixCatalog {
         int host_id = VoltDB.FIRST_SITE_ID;
 
         int partition_ctr = 0;
+        catalog_clus.getHosts().clear();
+        catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
             String host_name = String.format("host%02d", host_id++);
             Host catalog_host = catalog_clus.getHosts().add(host_name);

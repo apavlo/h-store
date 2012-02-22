@@ -18,6 +18,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -164,5 +165,10 @@ public class ClusterConfiguration extends ClusterConfig {
             ids.add(pc.partition);
         } // FOR
         return (ids);
+    }
+    
+    @Override
+    public String toString() {
+        return StringUtil.formatMaps(this.host_sites);
     }
 }

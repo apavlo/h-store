@@ -1,5 +1,6 @@
 package edu.brown.catalog;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -80,32 +82,25 @@ public class CatalogInfo {
         }
         return (ret);
     }
-
-    /**
-     * @param args
-     */
-    public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG);
-
+    
+    public static String getInfo(Catalog catalog, File catalog_path) {
+        StringBuilder sb = new StringBuilder();
+        
         // Just print out the Host/Partition Information
-        int num_hosts = CatalogUtil.getCluster(args.catalog).getHosts().size();
-        int num_sites = CatalogUtil.getCluster(args.catalog).getSites().size();
-        int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
+        int num_hosts = CatalogUtil.getCluster(catalog).getHosts().size();
+        int num_sites = CatalogUtil.getCluster(catalog).getSites().size();
+        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
 
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Catalog File", args.catalog_path.getAbsolutePath());
+        m.put("Catalog File", catalog_path.getAbsolutePath());
         m.put("# of Hosts", num_hosts);
         m.put("# of Sites", num_sites);
         m.put("# of Partitions", num_partitions);
-        if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD)) {
-            m.put("Complexity", complexity(args, args.catalog_db, args.workload));
-        }
+        
+        sb.append(StringUtil.formatMaps(":", false, false, false, true, true, true, m));
+        sb.append("\nCluster Information:\n");
 
-        System.out.println(StringUtil.formatMaps(":", false, false, false, true, true, true, m));
-        System.out.println("Cluster Information:\n");
-
-        Map<Host, Set<Site>> hosts = CatalogUtil.getSitesPerHost(args.catalog);
+        Map<Host, Set<Site>> hosts = CatalogUtil.getSitesPerHost(catalog);
         Set<String> partition_ids = new TreeSet<String>();
         String partition_f = "%0" + Integer.toString(num_partitions).length() + "d";
 
@@ -132,7 +127,23 @@ public class CatalogInfo {
             cols[idx] += "\n";
             i++;
         } // FOR
-        System.out.println(StringUtil.columns(cols));
+        sb.append(StringUtil.columns(cols));
+        
+        return sb.toString();
+    }
+
+    /**
+     * @param args
+     */
+    public static void main(String[] vargs) throws Exception {
+        ArgumentsParser args = ArgumentsParser.load(vargs);
+        args.require(ArgumentsParser.PARAM_CATALOG);
+
+//        if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD)) {
+//            m.put("Complexity", complexity(args, args.catalog_db, args.workload));
+//        }
+        
+        System.out.println(getInfo(args.catalog, args.catalog_path));
     }
 
 }

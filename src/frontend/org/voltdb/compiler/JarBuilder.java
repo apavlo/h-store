@@ -50,7 +50,7 @@ public class JarBuilder {
      * Initialize with a reference to the current compiler.
      * @param compiler Current VoltCompiler instance used for error collection.
      */
-    JarBuilder(VoltCompiler compiler) {
+    public JarBuilder(VoltCompiler compiler) {
         this.m_compiler = compiler;
     }
 
