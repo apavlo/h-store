@@ -305,7 +305,6 @@ def start_cluster(updateSync=True):
             if nfs_inst == None and not marked_nfs:
                 tags[NFSTYPE_TAG] = NFSTYPE_TAG_HEAD
                 marked_nfs = True
-                new_sites += 1
                 
             if sites_needed > 0:
                 siteInstance_tags.append(tags)
@@ -471,7 +470,7 @@ def setup_nfshead(rebootInst=True):
     ## Reboot and wait until it comes back online
     if rebootInst:
         LOG.info("Rebooting " + __getInstanceName__(inst))
-        reboot(10)
+        reboot(20)
         __waitUntilStatus__(inst, 'running')
         ## IF
     LOG.info("NFS Head '%s' is online and ready" % __getInstanceName__(inst))
@@ -509,7 +508,7 @@ def setup_nfsclient(rebootInst=True):
     ## Reboot and wait until it comes back online
     if rebootInst:
         LOG.info("Rebooting " + __getInstanceName__(inst))
-        reboot(10)
+        reboot(20)
         __waitUntilStatus__(inst, 'running')
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
