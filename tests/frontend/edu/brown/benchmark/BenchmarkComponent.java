@@ -1195,7 +1195,13 @@ public abstract class BenchmarkComponent {
      */
     protected final Integer getTransactionWeight(String txnName) {
         Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
-        return (val != null ? val.intValue() : m_txnWeightsDefault);
+        if (val != null) {
+            return (val.intValue());
+        }
+        else if (m_txnWeightsDefault != null) {
+            return (m_txnWeightsDefault);
+        }
+        return (null);
     }
     
     /**

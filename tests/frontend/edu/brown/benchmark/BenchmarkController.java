@@ -872,7 +872,12 @@ public class BenchmarkController {
         // spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
             if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
-            Thread.sleep(500);
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ex) {
+                if (this.stop == false) throw ex;
+                return;
+            }
         } // WHILE
         if (this.stop) return;
         if (m_clientFilesUploaded.get() > 0) LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
