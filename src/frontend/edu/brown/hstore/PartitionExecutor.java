@@ -946,9 +946,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (this.lastCommittedTxnId);
     }
     
-    public DBBPool getDBBPool() {
-        return (this.buffer_pool);
-    }
+//    public DBBPool getDBBPool() {
+//        return (this.buffer_pool);
+//    }
     
     /**
      * Return a cached ParameterSet array. This should only be 
@@ -1054,7 +1054,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(attachedInputs != null);
         boolean is_local = (ts instanceof LocalTransaction);
         
-        if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s WorkFragment [isLocal=%s]:\n%s",
+        if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]:\n%s",
                                        ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
@@ -1069,8 +1069,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d> in %s",
-                                                                          deps.size(), stmt_index, input_dep_id, ts));
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                                                   ts, deps.size(), stmt_index, input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
                 // We should really try to merege these two concepts into a single function call
@@ -1092,18 +1092,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         pDeps = deps;
                     }
                     inputs.put(input_dep_id, pDeps); 
-                    if (d) LOG.debug(String.format("Retrieved %d ATTACHED VoltTables for <Stmt #%d, DependencyId #%d> in %s",
-                                                                          deps.size(), stmt_index, input_dep_id, ts));
+                    if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                                                   ts, deps.size(), stmt_index, input_dep_id));
                 }
 
             } // FOR (inputs)
         } // FOR (fragments)
         if (d) {
             if (inputs.isEmpty() == false) {
-                LOG.debug(String.format("Retrieved %d InputDependencies for %s %s on partition %d\n%s",
-                                        inputs.size(), ts, fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
+                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s %s on partition %d\n%s",
+                                        ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
             } else {
-                LOG.warn(String.format("No InputDependencies retrieved for %s %s on partition %d",
+                LOG.warn(String.format("%s - No InputDependencies retrieved for %s %s on partition %d",
                                        ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
             }
         }
@@ -1143,8 +1143,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
-                                                task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
+        if (d) LOG.debug(String.format("%s Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
+                                       ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
     /**
@@ -1157,8 +1157,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         FinishTaskMessage task = ts.getFinishTaskMessage(status);
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
-                                       task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
+        if (d) LOG.debug(String.format("%s - Added multi-partition %s to front of partition %d work queue [size=%d]",
+                                       ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     /**
@@ -1749,7 +1749,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
-        } else if (hstore_conf.site.exec_no_undo_logging_all == false) {
+        }
+        // If the transaction is predicted to be read-only, then we won't bother with an undo buffer
+        else if (ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(this.partitionId, undoToken);
@@ -1784,6 +1786,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                      ts.getTransactionId(),
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
+        
         // NOTE: There are no dependencies that we need to pass in because the entire batch is single-partitioned
         DependencySet result = this.executePlanFragments(ts,
                                                          undoToken,
@@ -1951,7 +1954,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // SerializableException 
         if (error != null) {
             int size = error.getSerializedSize();
-            BBContainer bc = buffer_pool.acquire(size);
+            BBContainer bc = this.buffer_pool.acquire(size);
             error.serializeToBuffer(bc.b);
             builder.setError(ByteString.copyFrom(bc.b));
             bc.discard();
@@ -1959,7 +1962,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Push dependencies back to the remote partition that needs it
         if (status == Hstoreservice.Status.OK) {
-            final FastSerializer fs = new FastSerializer(buffer_pool);
+            final FastSerializer fs = new FastSerializer(this.buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 DataFragment.Builder outputBuilder = DataFragment.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
@@ -2116,7 +2119,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
-                        if (fs == null) fs = new FastSerializer(buffer_pool);
+                        if (fs == null) fs = new FastSerializer(this.buffer_pool);
                         else fs.clear();
                         try {
                             fs.writeObject(vt);
@@ -2411,8 +2414,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
-                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local partition for %s",
-                                                   num_localPartition, ts));
+                    if (d) LOG.debug(String.format("%s - Executing %d FragmentTaskMessages on local partition for %s",
+                                                   ts, num_localPartition));
                     for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                         this.processWorkFragment(ts, fragment, fragmentParams);
@@ -2438,6 +2441,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // wait for all of the results to come back in.
         if (latch == null) latch = ts.getDependencyLatch();
         if (latch.getCount() > 0) {
+            // Free some memory
+            tmp_serializedParams.clear();
+            
             if (d) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies", ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());
@@ -2613,7 +2619,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != -1) {
+        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
             if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
                     LOG.fatal(ts.debug());
@@ -2624,7 +2630,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition());
                 if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
                 if (commit) {
-                    if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                    if (d) LOG.debug(String.format("%s - Committing on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                    ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.releaseUndoToken(undoToken);
     
@@ -2634,7 +2640,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                 // we should be able to check whether our undoToken has already been rolled back
                 } else {
-                    if (d) LOG.debug(String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                    if (d) LOG.debug(String.format("%s - Aborting on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                    ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.undoUndoToken(undoToken);
                 }
