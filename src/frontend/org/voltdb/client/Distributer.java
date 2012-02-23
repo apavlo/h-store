@@ -598,7 +598,7 @@ class Distributer {
             connectionStuff =
             ConnectionUtil.getAuthenticatedConnection(host, program, password, port);
         } catch (Exception ex) {
-            LOG.error("Failed to get connection to " + host + ":" + port, ex);
+            LOG.error("Failed to get connection to " + host + ":" + port, (debug.get() ? ex : null));
             throw new IOException(ex);
         }
         if (debug.get()) 
