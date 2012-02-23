@@ -1787,7 +1787,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
-        } else if (hstore_conf.site.exec_no_undo_logging_all == false) {
+        } else if (ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(this.partitionId, undoToken);
