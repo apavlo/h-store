@@ -108,7 +108,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The queued up ClientResponse that we need to send back for this txn
      */
-    private ClientResponseImpl cresponse;
+    private final ClientResponseImpl cresponse = new ClientResponseImpl();
     
     /**
      * Each LocalTransaction will have its own FastSerializer (with its own block of memory)
@@ -381,7 +381,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        this.cresponse = null;  
+        // this.cresponse = null;  
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -600,10 +600,10 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.catalog_proc.getMapreduce());
     }
     
-    public void setClientResponse(ClientResponseImpl cresponse) {
-        assert(this.cresponse == null);
-        this.cresponse = cresponse;
-    }
+//    public void setClientResponse(ClientResponseImpl cresponse) {
+//        assert(this.cresponse == null);
+//        this.cresponse = cresponse;
+//    }
     public ClientResponseImpl getClientResponse() {
         assert(this.cresponse != null);
         return (this.cresponse);
