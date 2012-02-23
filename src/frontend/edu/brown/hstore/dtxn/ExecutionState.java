@@ -46,7 +46,7 @@ public class ExecutionState {
     /** The ExecutionSite that this TransactionState is tied to **/
     protected final PartitionExecutor executor;
     
-    protected final DBBPool buffer_pool;
+//    protected final DBBPool buffer_pool;
     
     /**
      * List of encoded Partition/Dependency keys
@@ -140,7 +140,7 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
-        this.buffer_pool = executor.getDBBPool();
+//        this.buffer_pool = executor.getDBBPool();
         
         int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
         this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];

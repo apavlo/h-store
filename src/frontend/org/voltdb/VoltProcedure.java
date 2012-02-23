@@ -1116,7 +1116,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, this.planner);
         }
         assert(this.planner != null);
-
+        
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
@@ -1132,6 +1132,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                       this.predict_singlepartition,
                                       this.m_localTxnState.getTouchedPartitions(),
                                       params);
+        
         assert(this.plan != null);
         if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
