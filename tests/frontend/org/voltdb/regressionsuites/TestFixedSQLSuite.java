@@ -992,9 +992,9 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // builder.addServerConfig(config);
 
         // JNI
-        /*config = new LocalSingleProcessServer("fixedsql-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer("fixedsql-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
-        builder.addServerConfig(config);*/
+        builder.addServerConfig(config);
 
 
         // CONFIG #2: HSQL
@@ -1004,10 +1004,11 @@ public class TestFixedSQLSuite extends RegressionSuite {
         builder.addServerConfig(config);*/
 
         // CLUSTER!
-        config = new LocalCluster("fixedsql-cluster.jar", 2, 2,
-                                  1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
+        // FIXME(cjl6)
+//        config = new LocalCluster("fixedsql-cluster.jar", 2, 2,
+//                                  1, BackendTarget.NATIVE_EE_JNI);
+//        config.compile(project);
+//        builder.addServerConfig(config);
 
         return builder;
     }

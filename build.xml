@@ -871,10 +871,8 @@ TEST CASES
 </target>
 
 <!-- Junit tests that run quickly -->
-<target
-    name="junit"
-    description="Tests and suites that run in under 3 minutes under memcheck"
->
+<target name="junit"
+        description="Tests and suites that run in under 3 minutes under memcheck">
     <run_junit>
         <formatters>
             <formatter type="plain" unless="hudson"/>
@@ -888,22 +886,35 @@ TEST CASES
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
-            	<include name='edu/brown/hstore/Test*.class'/>
-            	<include name='edu/brown/hstore/**/Test*.class'/>
+                <include name='edu/brown/hstore/Test*.class'/>
+                <include name='edu/brown/hstore/**/Test*.class'/>
                 <include name='edu/brown/catalog/Test*.class'/>
-                
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
-            	
                 <include name='org/voltdb/network/**/Test*.class'/>
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-                <exclude name="**/*$*.class"/>
+                
+                <!-- Busted tests because of hacking -->
+                <exclude name='edu/brown/benchmark/airline/Test*'/>
+                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
+                <exclude name='edu/brown/markov/TestMarkovGraph*' />
+
+                <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestCatalogUpdateSuite.class" />
+                <exclude name="**/TestFailureDetectSuite.class" />
+                <exclude name="**/TestIndexesSuite.class" />
+                <exclude name="**/TestMaterializedViewSuite.class" />
+                <exclude name="**/TestMultiPartitionSuite.class" />
+                <exclude name="**/TestOrderBySuite.class" />
+                <exclude name="**/TestReplicationSuite.class" />
+                <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                <exclude name="**/TestSqlAggregateSuite.class" />
+                <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
                 <exclude name="**/TestFailuresSuite.class" />
-                <exclude name="**/TestFixedSQLSuite.class" />
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
@@ -912,18 +923,13 @@ TEST CASES
                 <exclude name="**/TestSqlUpdateSuite.class" />
                 <exclude name="**/TestTPCCSuite.class" />
                 
-                <!-- Busted tests because of hacking -->
-                <exclude name='edu/brown/benchmark/airline/Test*'/>
-                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
-                
-                <exclude name='edu/brown/markov/TestMarkovGraph*' />
-                
-                <!-- VoltDB stuff -->
-                <exclude name='org/voltdb/regressionsuites/**'/>
+                <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
+                
+                <exclude name="**/*$*.class"/>
             </fileset>
         </tests>
     </run_junit>
@@ -981,23 +987,43 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
-                <exclude name="**/TestMaliciousClientSuite.class" />
-                <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
+                
+                <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestCatalogUpdateSuite.class" />
+                <exclude name="**/TestFailureDetectSuite.class" />
+                <exclude name="**/TestIndexesSuite.class" />
+                <exclude name="**/TestMaterializedViewSuite.class" />
+                <exclude name="**/TestMultiPartitionSuite.class" />
+                <exclude name="**/TestOrderBySuite.class" />
+                <exclude name="**/TestReplicationSuite.class" />
+                <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                <exclude name="**/TestSqlAggregateSuite.class" />
+                <exclude name="**/TestSystemProcedureSuite.class" />
+                <exclude name="**/TestMaliciousClientSuite.class" />
+                <exclude name="**/TestELTSuite.class" />
+                <exclude name="**/TestFailuresSuite.class" />
+                <exclude name="**/TestPlansGroupBySuite.class" />
+                <exclude name="**/TestRollbackSuite.class" />
+                <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                <exclude name="**/TestSQLFeaturesSuite.class" />
+                <exclude name="**/TestSQLTypesSuite.class" />
+                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestTPCCSuite.class" />
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
-            	<include name='edu/brown/**/*Test.class'/>
+                <include name='edu/brown/**/*Test.class'/>
                 
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
 
                 <!-- Canadian Tests -->
                 <include name='ca/evanjones/**/*Test.class'/>
-            	<include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
                 <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
@@ -1460,7 +1486,7 @@ BENCHMARKS
 
 <target name='benchmark'
     description="Deploy a cluster and run a benchmark">
-	
+    
     <java fork="true" failonerror="true"
         classname="edu.brown.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
