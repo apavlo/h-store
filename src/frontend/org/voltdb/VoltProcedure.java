@@ -560,7 +560,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //            if (t) LOG.trace("Setting up internal state for " + txnState);
 //        }
 
-        ClientResponse response = null;
+        ClientResponseImpl response = null;
         this.m_currentTxnState = txnState;
         this.m_localTxnState = txnState;
         this.client_handle = txnState.getClientHandle();
@@ -745,13 +745,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //                    this.error));
 //        }
         
-        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId().longValue(),
-                                          this.client_handle,
-                                          this.partitionId,
-                                          this.status,
-                                          this.results,
-                                          this.status_msg,
-                                          this.error);
+        response = this.m_localTxnState.getClientResponse();
+        response.init(this.m_currentTxnState.getTransactionId().longValue(),
+                      this.client_handle,
+                      this.partitionId,
+                      this.status,
+                      this.results,
+                      this.status_msg,
+                      this.error);
         if (this.observable != null) this.observable.notifyObservers(response);
         return (response);
     }

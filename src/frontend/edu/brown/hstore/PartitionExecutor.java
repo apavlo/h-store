@@ -788,6 +788,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     } // SYNCH
                     
                     this.processWorkFragment(current_txn, fragment, parameters);
+                    
+                    // Clear out our reusable array
+                    for (int i = 0; i < parameters.length; i++) {
+                        parameters[i] = null;
+                    }
 
                 // -------------------------------
                 // Invoke Stored Procedure
@@ -2504,7 +2509,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             String.format("Queuing ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.current_execMode, cresponse.getStatus());
 
-        ts.setClientResponse(cresponse);
+        // The ClientResponse is already going to be in the LocalTransaction handle
+        // ts.setClientResponse(cresponse);
         this.queued_responses.add(ts);
 
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
