@@ -463,7 +463,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public Site getSite();
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
-//        public long getNextUndo();
+        public long getNextUndo();
 //        public long getTxnId();
 //        public Object getOperStatus();
     }
@@ -475,7 +475,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public Site getSite()                       { return site; }
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
-//        public long getNextUndo()                   { return getNextUndoToken(); }
+        public long getNextUndo()                   { return getNextUndoToken(); }
 //        public long getTxnId()                      { return getCurrentTxnId(); }
 //        public String getOperStatus()               { return VoltDB.getOperStatus(); }
     }
