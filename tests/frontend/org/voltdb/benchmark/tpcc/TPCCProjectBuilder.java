@@ -71,6 +71,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
         MRquery1.class,
+        MRqueryJoinAgg.class,
     };
     
     // Transaction Frequencies
@@ -126,13 +127,17 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
                                     "where  ol_quantity between 1 and 100000 " +
                                     "group by ol_number order by ol_number"
                                     );
-        
-        addStmtProcedure("JoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount), AVG(I_PRICE) " +
+        addStmtProcedure("TestJoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),SUM(i_price),MAX(ol_amount),MIN(i_price)," +
+                "AVG(ol_quantity),AVG(ol_amount), AVG(i_price) " +
                 "FROM order_line, item " +
                 "WHERE order_line.ol_i_id = item.i_id " +
                 "GROUP BY ol_number " +
                 "ORDER BY ol_number");
-        
+        addStmtProcedure("JoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),SUM(i_price),AVG(ol_quantity),AVG(ol_amount), AVG(i_price),COUNT(*)" +
+                "FROM order_line, item " +
+                "WHERE order_line.ol_i_id = item.i_id " +
+                "GROUP BY ol_number " +
+                "ORDER BY ol_number");
         
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
         

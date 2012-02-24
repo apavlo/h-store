@@ -80,6 +80,7 @@ import org.voltdb.compiler.projectfile.SnapshotType;
 import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
+import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
@@ -1189,13 +1190,13 @@ public class VoltCompiler {
         final String[][] procedures =
         {
          // package.classname                                readonly    everysite
-        {LoadMultipartitionTable.class.getCanonicalName(),      "false",    "false"},
-        {DatabaseDump.class.getCanonicalName(),                 "true",    "false"},
+        {LoadMultipartitionTable.class.getCanonicalName(),      "false",   "true"},
+        {DatabaseDump.class.getCanonicalName(),                 "true",    "true"},
         {RecomputeMarkovs.class.getCanonicalName(),             "true",    "true"},
-        {Shutdown.class.getCanonicalName(),                     "false",   "false"},
+        {Shutdown.class.getCanonicalName(),                     "false",   "true"},
         {NoOp.class.getCanonicalName(),                         "true",    "false"},
+        {AdHoc.class.getCanonicalName(),                        "false",   "false"},
         
-//         {"org.voltdb.sysprocs.AdHoc",                        "false",    "false"},
 //         {"org.voltdb.sysprocs.Quiesce",                      "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotSave",                 "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotRestore",              "false",    "false"},
