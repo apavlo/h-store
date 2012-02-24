@@ -281,7 +281,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
-            this.exec_noUndoBuffer[this.base_partition] = true;
+            this.exec_noUndoBuffer[offset] = true;
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
