@@ -247,76 +247,78 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     } // FOR (parameters)
                     
                     // Statements
-                    DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", procedure_cat.getStatements());
-                    procedure_node.add(statementRootNode);                  
-                    for (Statement statement_cat : procedure_cat.getStatements()) {
-                        DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
-                        statementRootNode.add(statement_node);
-                        buildSearchIndex(statement_cat, statement_node);
-                        
-                        // Plan Trees
-                        for (boolean is_singlepartition : new boolean[] { true, false }) {
-                            if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
-                            if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
-
-                            String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
-//                            String attributes = "";
-                            AbstractPlanNode node = null;
+                    if (procedure_cat.getSystemproc() == false) {
+                        DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", procedure_cat.getStatements());
+                        procedure_node.add(statementRootNode);                  
+                        for (Statement statement_cat : procedure_cat.getStatements()) {
+                            DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
+                            statementRootNode.add(statement_node);
+                            buildSearchIndex(statement_cat, statement_node);
                             
-                            try {
-                                node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
-                            } catch (Exception e) {
-                                String msg = e.getMessage();
-                                if (msg == null || msg.length() == 0) {
-                                    e.printStackTrace();
-                                } else {
-                                    LOG.warn(msg);
+                            // Plan Trees
+                            for (boolean is_singlepartition : new boolean[] { true, false }) {
+                                if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
+                                if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
+    
+                                String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
+    //                            String attributes = "";
+                                AbstractPlanNode node = null;
+                                
+                                try {
+                                    node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
+                                } catch (Exception e) {
+                                    String msg = e.getMessage();
+                                    if (msg == null || msg.length() == 0) {
+                                        e.printStackTrace();
+                                    } else {
+                                        LOG.warn(msg);
+                                    }
                                 }
+                                DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new PlanTreeCatalogNode(label, statement_cat, node));
+                                statement_node.add(planNode);
+                                
+                                // Plan Fragments
+                                CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+                                for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
+                                    DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
+                                    planNode.add(fragment_node);
+                                    buildSearchIndex(fragment_cat, fragment_node);
+                                } // FOR (fragments)
                             }
-                            DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new PlanTreeCatalogNode(label, statement_cat, node));
-                            statement_node.add(planNode);
-                            
-                            // Plan Fragments
-                            CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
-                            for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
-                                DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
-                                planNode.add(fragment_node);
-                                buildSearchIndex(fragment_cat, fragment_node);
-                            } // FOR (fragments)
-                        }
                         
-                        // Statement Parameter
-                        DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
-                        statement_node.add(paramRootNode);
-                        for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
-                            DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
-                                @Override
-                                public String toString() {
-                                     StmtParameter param_cat = (StmtParameter)this.getCatalogType();
-                                     VoltType type = VoltType.get((byte)param_cat.getJavatype());
-                                     return (super.toString() + " :: " + type.name());
-                                }
-                            });
-                            paramRootNode.add(param_node);
-                            buildSearchIndex(param_cat, param_node);
-                        } // FOR (parameters)
-                        // Output Columns
-                        DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
-                        statement_node.add(columnRootNode);
-                        for (Column column_cat : statement_cat.getOutput_columns()) {
-                            
-                            DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
-                                @Override
-                                public String toString() {
-                                    Column column_cat = (Column)this.getCatalogType();
-                                    String type = VoltType.get((byte)column_cat.getType()).toSQLString();
-                                    return (super.toString() + " (" + type + ")");
-                                }
-                            });
-                            columnRootNode.add(column_node);
-                            buildSearchIndex(column_cat, column_node);
-                        } // FOR (output columns)
-                    } // FOR (statements)
+                            // Statement Parameter
+                            DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
+                            statement_node.add(paramRootNode);
+                            for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
+                                DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
+                                    @Override
+                                    public String toString() {
+                                         StmtParameter param_cat = (StmtParameter)this.getCatalogType();
+                                         VoltType type = VoltType.get((byte)param_cat.getJavatype());
+                                         return (super.toString() + " :: " + type.name());
+                                    }
+                                });
+                                paramRootNode.add(param_node);
+                                buildSearchIndex(param_cat, param_node);
+                            } // FOR (parameters)
+                            // Output Columns
+                            DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
+                            statement_node.add(columnRootNode);
+                            for (Column column_cat : statement_cat.getOutput_columns()) {
+                                
+                                DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                                    @Override
+                                    public String toString() {
+                                        Column column_cat = (Column)this.getCatalogType();
+                                        String type = VoltType.get((byte)column_cat.getType()).toSQLString();
+                                        return (super.toString() + " (" + type + ")");
+                                    }
+                                });
+                                columnRootNode.add(column_node);
+                                buildSearchIndex(column_cat, column_node);
+                            } // FOR (output columns)
+                        } // FOR (statements)
+                    }
                 } // FOR (procedures)
             } // FOR (databses)
             
