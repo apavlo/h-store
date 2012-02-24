@@ -461,8 +461,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public Collection<PartitionExecutorPostProcessor> getExecutionSitePostProcessors() {
         return (this.processors);
     }
-    
-    public HStoreCoordinator initHStoreCoordinator() {
+    /**
+     * Return a new HStoreCoordinator for this HStoreSite. Note that this
+     * should only be called by HStoreSite.init(), otherwise the 
+     * internal state for this HStoreSite will be incorrect
+     * @return
+     */
+    protected HStoreCoordinator initHStoreCoordinator() {
         return new HStoreCoordinator(this);
     }
     public HStoreCoordinator getCoordinator() {
