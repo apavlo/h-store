@@ -74,7 +74,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
     }
 
     @Override
-    protected int runImpl(ReduceResult result) {
+    protected synchronized int runImpl(ReduceResult result) {
         if (this.isAborted() == false) {
             this.builder.addResults(result);
             LOG.debug(String.format("%s - Added %s from partition %d!",

@@ -73,8 +73,7 @@ public class SendDataWrapperCallback extends BlockingCallback<SendDataResponse, 
     }
 
     @Override
-    protected int runImpl(Integer partition) {
-        
+    protected synchronized int runImpl(Integer partition) {
         assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
         
