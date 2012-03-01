@@ -80,7 +80,7 @@ public class TransactionMapWrapperCallback extends BlockingCallback<TransactionM
     }
 
     @Override
-    protected int runImpl(Integer partition) {
+    protected synchronized int runImpl(Integer partition) {
         if (this.isAborted() == false)
             this.builder.addPartitions(partition.intValue());
         assert(this.ts != null) :
