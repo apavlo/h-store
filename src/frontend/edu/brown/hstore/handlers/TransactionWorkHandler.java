@@ -141,7 +141,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             first = false;
         } // FOR
         assert(ts != null);
-        assert(txn_id == ts.getTransactionId()) :
+        assert(txn_id.equals(ts.getTransactionId())) :
             String.format("Mismatched %s - Expected[%d] != Actual[%s]", ts, txn_id, ts.getTransactionId());
         
         // We don't need to send back a response right here.

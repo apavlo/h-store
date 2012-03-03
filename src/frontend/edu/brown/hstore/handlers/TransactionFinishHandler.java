@@ -81,10 +81,6 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
                                     TransactionFinishResponse.class.getSimpleName(), txn_id,
                                     request.getStatus(), builder.getPartitionsList()));
         callback.run(builder.build());
-        
-        // Always tell the HStoreSite to clean-up any state for this txn
-        // hstore_site.completeTransaction(txn_id, request.getStatus());
-        
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

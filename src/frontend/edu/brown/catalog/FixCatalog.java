@@ -186,7 +186,7 @@ public abstract class FixCatalog {
                 ParameterMappingsSet mappings = new ParameterMappingsSet();
                 mappings.load(input_path.getAbsolutePath(), args.catalog_db);
                 ParametersUtil.applyParameterMappings(args.catalog_db, mappings);
-                LOG.info("Applied ParameterMappings file to '" + input_path + "' catalog parameter mappings...");
+                LOG.debug("Applied ParameterMappings file to '" + input_path + "' catalog parameter mappings...");
             } else {
                 LOG.warn("ParameterMappings file '" + input_path + "' does not exist. Ignoring...");
             }

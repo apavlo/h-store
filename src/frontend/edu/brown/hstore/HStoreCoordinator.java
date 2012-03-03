@@ -625,7 +625,7 @@ public class HStoreCoordinator implements Shutdownable {
             
             // We should never get work for our local partitions
             assert(site_id != this.local_site_id);
-            assert(ts.getTransactionId() == request.getTransactionId()) :
+            assert(ts.getTransactionId().longValue() == request.getTransactionId()) :
                 String.format("%s is for txn #%d but the %s has txn #%d",
                               ts.getClass().getSimpleName(), ts.getTransactionId(),
                               request.getClass().getSimpleName(), request.getTransactionId());
@@ -664,7 +664,8 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionFinish(LocalTransaction ts, Status status, TransactionFinishCallback callback) {
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
-            LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
+            LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
+                                    partitions, ts, status));
         
         TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
@@ -672,18 +673,6 @@ public class HStoreCoordinator implements Shutdownable {
                                                         .addAllPartitions(partitions)
                                                         .build();
         this.transactionFinish_handler.sendMessages(ts, request, callback, partitions);
-        
-        // HACK: At this point we can tell the local partitions that the txn is done
-        // through its callback. This is just so that we don't have to serialize a
-        // TransactionFinishResponse message
-//        for (Integer p : partitions) {
-//            if (this.local_partitions.contains(p)) {
-//                if (trace.get())
-//                    LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
-//                                            callback.getClass().getSimpleName(), ts, p));
-//                callback.decrementCounter(1);
-//            }
-//        } // FOR
     }
     
     /**

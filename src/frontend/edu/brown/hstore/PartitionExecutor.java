@@ -739,7 +739,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
                     }
                 } catch (InterruptedException ex) {
-                    if (d && this.isShuttingDown() == false) LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
+                    if (d && this.isShuttingDown() == false) 
+                        LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
                     stop = true;
                     break;
                 }
@@ -747,7 +748,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 txn_id = work.getTxnId();
                 current_txn = hstore_site.getTransaction(txn_id);
                 if (current_txn == null) {
-                    String msg = "No transaction state for txn #" + txn_id;
+                    String msg = String.format("No transaction state for txn #%d [%s]", txn_id, work.getClass().getSimpleName());
                     LOG.error(msg + "\n" + work.toString());
                     throw new RuntimeException(msg);
                 }
@@ -2574,15 +2575,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             Collection<Integer> predictPartitions = ts.getPredictTouchedPartitions();
             Collection<Integer> donePartitions = ts.getDonePartitions();
             Collection<Integer> partitions = CollectionUtils.subtract(predictPartitions, donePartitions);
-            
-            if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
-            this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
-            
+
+            /// We need to do this before we invoke transactionPrepare because the LocalTransaction handle
+            // might get cleaned up immediately
             if (hstore_conf.site.exec_speculative_execution) {
                 this.setExecutionMode(ts, ts.isExecReadOnly(this.partitionId) ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
             } else {
                 this.setExecutionMode(ts, ExecutionMode.DISABLED);                  
             }
+            
+            if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
+            this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
 
         }
         // ABORT: Distributed Transaction
@@ -2626,7 +2629,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     LOG.fatal(ts.debug());
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
-                if (d) LOG.debug("<FinishWork> undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN");
+                if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
             } else {
                 boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition());
                 if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
@@ -2685,10 +2688,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.exec_speculative_execution) {
                 if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
                                                this.partitionId, ts));
-                Boolean readonly = ts.isExecReadOnly(this.partitionId);
-                this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
+                this.releaseQueuedResponses(ts.isExecReadOnly(this.partitionId) ? true : commit);
             }
-            if(d) LOG.debug("I am trying to releaseBlocked Transaction");
             // Release blocked transactions
             this.releaseBlockedTransactions(ts, false);
         } catch (Throwable ex) {
@@ -2696,18 +2697,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } finally {
             exec_lock.unlock();
         } // SYNCH
-//        if (d) LOG.debug(String.format("%s is releasing DTXN lock [queueSize=%d, waitingLock=%d]",
-//                                       ts, this.work_queue.size(), this.dtxn_lock.getQueueLength()));
-//         this.dtxn_lock.release();
         
-        // HACK: If this is a RemoteTransaction, invoke the cleanup callback
+        // If this is a RemoteTransaction, invoke the cleanup callback
         if (ts instanceof RemoteTransaction) {
             ((RemoteTransaction)ts).getCleanupCallback().run(this.partitionId);
         } else {
             TransactionFinishCallback finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-            if (t)
-                LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
-                                        finish_callback.getClass().getSimpleName(), ts, this.partitionId));
+            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                           ts, finish_callback.getClass().getSimpleName(), this.partitionId));
             finish_callback.decrementCounter(1);
         }
         

@@ -103,7 +103,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Transac
                                     response.getClass().getSimpleName(),
                                     response.getPartitionsCount(),
                                     this.ts));
-        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+        assert(this.ts.getTransactionId().longValue() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d",
                           response.getClass().getSimpleName(), this.ts, response.getTransactionId());
         final Hstoreservice.Status status = response.getStatus();
