@@ -1751,7 +1751,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         }
         // If the transaction is predicted to be read-only, then we won't bother with an undo buffer
-        else if (ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) {
+        else if ((ts.isPredictReadOnly() == false && hstore_conf.site.exec_no_undo_logging_all == false) ||
+                 hstore_conf.site.exec_force_undo_logging_all) {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(this.partitionId, undoToken);
@@ -2619,8 +2620,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
-            if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+            if (ts.isExecReadOnly(this.partitionId) == false && undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
                     LOG.fatal(ts.debug());
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
