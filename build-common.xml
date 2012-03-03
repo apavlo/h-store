@@ -52,6 +52,7 @@
 <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
 <arg value="site.exec_no_undo_logging=${site.exec_no_undo_logging}" />
 <arg value="site.exec_no_undo_logging_all=${site.exec_no_undo_logging_all}" />
+<arg value="site.exec_force_undo_logging_all=${site.exec_force_undo_logging_all}" />
 <arg value="site.exec_avoid_coordinator=${site.exec_avoid_coordinator}" />
 <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
 <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
@@ -77,7 +78,9 @@
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
 <arg value="site.queue_dtxn_increase_max=${site.queue_dtxn_increase_max}" />
 <arg value="site.queue_dtxn_throttle=${site.queue_dtxn_throttle}" />
+<arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
+<arg value="site.markov_path=${site.markov_path}" />
 <arg value="site.markov_path_caching=${site.markov_path_caching}" />
 <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
