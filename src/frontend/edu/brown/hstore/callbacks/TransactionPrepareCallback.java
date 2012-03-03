@@ -38,7 +38,9 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Transac
     
     public void init(LocalTransaction ts) {
         this.ts = ts;
-        super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), ts.getClientCallback());
+        super.init(ts.getTransactionId(),
+                   ts.getPredictTouchedPartitions().size(),
+                   ts.getClientCallback());
     }
     
     public void setClientResponse(ClientResponseImpl cresponse) {

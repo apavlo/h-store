@@ -12,17 +12,17 @@ public abstract class AbstractTxnCallback {
     
     protected final HStoreSite hstore_site;
     protected final RpcCallback<byte[]> done;
-    protected final long txn_id;
+    protected final Long txn_id;
     
  
-    public AbstractTxnCallback(HStoreSite hstore_site, long txn_id, RpcCallback<byte[]> done) {
+    public AbstractTxnCallback(HStoreSite hstore_site, Long txn_id, RpcCallback<byte[]> done) {
         this.hstore_site = hstore_site;
         this.txn_id = txn_id;
         this.done = done;
         assert(this.hstore_site != null) : "Null HStoreSite for txn #" + this.txn_id;
     }
     
-    public long getTransactionId() {
+    public Long getTransactionId() {
         return txn_id;
     }
     

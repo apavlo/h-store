@@ -32,7 +32,7 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionPrepareRequest request, Collection<Integer> partitions, RpcCallback<TransactionPrepareResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionPrepareRequest request, Collection<Integer> partitions, RpcCallback<TransactionPrepareResponse> callback) {
         // We don't care whether we actually updated anybody locally, so we don't need to
         // pass in a set to get the partitions that were updated here.
         hstore_site.transactionPrepare(txn_id, partitions, null);

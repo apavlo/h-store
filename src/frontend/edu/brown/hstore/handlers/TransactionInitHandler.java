@@ -37,7 +37,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
         handler.transactionInit(null, request, callback);
     }
     @Override

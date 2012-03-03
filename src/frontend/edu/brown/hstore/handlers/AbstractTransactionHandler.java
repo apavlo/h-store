@@ -106,7 +106,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
      * @param partitions
      * @param callback
      */
-    public abstract void sendLocal(long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
+    public abstract void sendLocal(Long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
     
     /**
      * The processing method that is invoked if the outgoing message needs

@@ -40,7 +40,7 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
     }
     
     @Override
-    public void sendLocal(long txn_id, SendDataRequest request, Collection<Integer> partitions, RpcCallback<SendDataResponse> callback) {
+    public void sendLocal(Long txn_id, SendDataRequest request, Collection<Integer> partitions, RpcCallback<SendDataResponse> callback) {
         // We should never be called because we never want to have serialize/deserialize data
         // within our own process
         assert(false): this.getClass().getSimpleName() + ".sendLocal should never be called!";
