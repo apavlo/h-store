@@ -13,7 +13,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 /**
  * Special callback that keeps track as to whether we have finished up
  * with everything that we need for a given transaction at a HStoreSite.
- * If we have, then we know it is safe to go ahead and call HStoreSite.completeTransaction()
+ * If we have, then we know it is safe to go ahead and call HStoreSite.deleteTransaction()
  * @author pavlo
  */
 public class TransactionCleanupCallback extends BlockingCallback<Integer, Integer> {

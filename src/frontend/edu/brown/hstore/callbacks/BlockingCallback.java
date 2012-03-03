@@ -111,8 +111,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     /**
-     * This allows you to decrement the counter with actually
-     * creating a message.
+     * This allows you to decrement the counter without actually needing
+     * to create a ProtocolBuffer message.
      */
     public void decrementCounter(int ctr) {
         if (debug.get())

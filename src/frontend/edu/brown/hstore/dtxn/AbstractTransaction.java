@@ -44,6 +44,7 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -223,13 +224,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
-        this.attached_parameterSets = null;
+        if (this.attached_parameterSets != null) {
+            for (int i = 0; i < this.attached_parameterSets.length; i++) {
+                this.attached_parameterSets[i] = null;
+            }
+            this.attached_parameterSets = null;
+        }
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
-            this.last_undo_token[i] = -1;
+            this.last_undo_token[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
             this.exec_noUndoBuffer[i] = false;
@@ -277,7 +283,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == -1 || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
@@ -432,7 +438,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Returns true if this transaction has done something at this partition
      */
     public boolean hasStarted(int partition) {
-        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != -1);
+        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
     }
     
     /**
@@ -547,6 +553,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // We can attach input dependencies used on non-local partitions
     // ----------------------------------------------------------------------------
     
+    
+    public TransactionCleanupCallback getCleanupCallback() {
+        return (null);
+    }
     
     public void attachParameterSets(ParameterSet parameterSets[]) {
         this.attached_parameterSets = parameterSets;
