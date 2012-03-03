@@ -26,7 +26,6 @@
 package edu.brown.hstore;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,6 +51,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -175,6 +175,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
 
+//    private final DBBPool buffer_pool = new DBBPool(false, false);
+    
     private final HStoreThreadManager threadManager;
     
     private final TransactionQueueManager txnQueueManager;
@@ -1706,10 +1708,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             cresponse.setRequestCounter(this.getNextRequestCounter());
             cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
             
-            // Serialize the ClientResponse into a ByteBuffer so that it can
-            // be shipped back to the client
-            FastSerializer out = ts.getClientResponseSerializer();
-            out.clear();
+            // So we have a bit of a problem here.
+            // It would be nice if we could use the BufferPool to get a block of memory so
+            // that we can serialize the ClientResponse out to a byte array
+            // Since we know what we're doing here, we can just free the memory back to the
+            // buffer pool once we call deleteTransaction()
+            // The problem is that we need access to the underlying array of the ByteBuffer,
+            // but we can't get that from here. 
+            FastSerializer out = new FastSerializer(); // this.buffer_pool); // .getClientResponseSerializer();
+            // out.clear();
             try {
                 out.writeObject(cresponse);
             } catch (IOException e) {
@@ -1720,11 +1727,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
             
             // Send result back to client!
-            ByteBuffer buffer = out.getBBContainer().b;
-            assert(buffer.hasArray()) :
-                "Unable to get byte array from FastSerializer ByteBuffer";
-            ts.getClientCallback().run(buffer.array());
-            
+            BBContainer bytes = out.getBBContainer();
+            ts.setClientResponseBytes(bytes);
+            assert(bytes.b.hasArray()) :
+                String.format("Unable to get direct byte array from FastSerializer ByteBuffer [%s/isDirect=%s]",
+                              bytes, bytes.b.isDirect());
+//            byte hack[] = new byte[bytes.b.limit()];
+//            bytes.b.get(hack);
+//            ts.getClientCallback().run(hack);
+            ts.getClientCallback().run(bytes.b.array());
+            //bytes.discard();
         }
         // If the txn was mispredicted, then we will pass the information over to the HStoreSite
         // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed

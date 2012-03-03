@@ -160,6 +160,13 @@ public final class HStoreConf {
         public boolean exec_no_undo_logging_all;
         
         @ConfigProperty(
+            description="Force all transactions to execute with undo logging. For testing purposes only.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_force_undo_logging_all;
+        
+        @ConfigProperty(
             description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
                         "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
                         "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
