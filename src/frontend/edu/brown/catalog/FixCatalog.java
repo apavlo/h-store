@@ -1,7 +1,9 @@
 package edu.brown.catalog;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltDB;
@@ -29,6 +31,13 @@ public abstract class FixCatalog {
     public static final int HOST_THREADS_PER_CORE = 1;
     public static final long HOST_MEMORY = 1073741824l;
 
+    private static final Set<String> LOCALHOST_TYPOS = new HashSet<String>();
+    static {
+        LOCALHOST_TYPOS.add("locahost");
+        LOCALHOST_TYPOS.add("localhst");
+        LOCALHOST_TYPOS.add("localhst");
+    };
+    
     /**
      * Added a hosts/sites/partitions in the catalog. Returns a clone of the
      * Catalog
@@ -62,6 +71,10 @@ public abstract class FixCatalog {
         catalog_clus.getHosts().clear();
         catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
+            if (LOCALHOST_TYPOS.contains(host)) {
+                LOG.warn(String.format("Possible typo in hostname '%s'. Did you mean 'localhost'?", host));
+            }
+            
             String host_name = String.format("host%02d", host_id++);
             Host catalog_host = catalog_clus.getHosts().add(host_name);
             assert (catalog_host != null);
