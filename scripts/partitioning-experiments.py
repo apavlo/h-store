@@ -385,6 +385,7 @@ if __name__ == '__main__':
         "codespeed-benchmark=",
         "codespeed-revision=",
         "codespeed-lastrevision=",
+        "codespeed-branch=",
         
         # Enable debug logging
         "debug",
@@ -392,6 +393,10 @@ if __name__ == '__main__':
     ]
     for key in BASE_SETTINGS.keys():
         BASE_OPTIONS.append("%s=" % key)
+    ## FOR
+    for key in env.keys():
+        if key not in BASE_SETTINGS and key.split(".")[0] in [ "hstore", "ec2" ]:
+            BASE_OPTIONS.append("%s=" % key)
     ## FOR
     
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', BASE_OPTIONS)
@@ -420,6 +425,9 @@ if __name__ == '__main__':
         if key in BASE_SETTINGS:
             varname = key
             paramDict = BASE_SETTINGS
+        elif key in env:
+            varname = key
+            paramDict = env
         else:
             varname = "OPT_" + key.replace("-", "_").upper()
             if varname in globals():
@@ -627,11 +635,12 @@ if __name__ == '__main__':
                                     print "last_changed_date:", last_changed_date
                                     
                                     codespeedBenchmark = options["codespeed-benchmark"][0] if "codespeed-benchmark" in options else benchmark
+                                    codespeedBranch = options["codespeed-branch"][0] if "codespeed-branch" in options else env["hstore.git_branch"]
                                     
                                     LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
                                     result = codespeed.Result(
                                                 commitid=last_changed_rev,
-                                                branch=env["hstore.git_branch"],
+                                                branch=codespeedBranch,
                                                 benchmark=codespeedBenchmark,
                                                 project="H-Store",
                                                 num_partitions=partitions,

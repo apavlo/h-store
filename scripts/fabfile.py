@@ -111,6 +111,8 @@ ENV_DEFAULT = {
     "ec2.force_reboot":            False,
     "ec2.all_instances":           [ ],
     "ec2.running_instances":       [ ],
+    "ec2.reboot_wait_time":        20,
+    "ec2.status_wait_time":        20,
 
     ## Site Options
     "site.partitions":             6,
@@ -279,7 +281,7 @@ def start_cluster(updateSync=True):
             for inst in waiting:
                 __waitUntilStatus__(inst, 'running')
                 env["ec2.running_instances"].append(inst)
-            time.sleep(20)
+            time.sleep(env["ec2.reboot_wait_time"])
     ## IF
     
     ## Otherwise, we need to start some new motha truckas
@@ -470,7 +472,7 @@ def setup_nfshead(rebootInst=True):
     ## Reboot and wait until it comes back online
     if rebootInst:
         LOG.info("Rebooting " + __getInstanceName__(inst))
-        reboot(20)
+        reboot(env["ec2.reboot_wait_time"])
         __waitUntilStatus__(inst, 'running')
         ## IF
     LOG.info("NFS Head '%s' is online and ready" % __getInstanceName__(inst))
@@ -508,7 +510,7 @@ def setup_nfsclient(rebootInst=True):
     ## Reboot and wait until it comes back online
     if rebootInst:
         LOG.info("Rebooting " + __getInstanceName__(inst))
-        reboot(20)
+        reboot(env["ec2.reboot_wait_time"])
         __waitUntilStatus__(inst, 'running')
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
@@ -849,7 +851,7 @@ def __startInstances__(instances_count, ec2_type, instance_tags):
     for inst in reservation.instances:
         env["ec2.running_instances"].append(inst)
         env["ec2.all_instances"].append(inst)
-        time.sleep(5)
+        time.sleep(env["ec2.reboot_wait_time"])
         try:
             ec2_conn.create_tags([inst.id], instance_tags[i])
         except:
@@ -860,7 +862,7 @@ def __startInstances__(instances_count, ec2_type, instance_tags):
         LOG.info("New Instance '%s' / %s is ready" % (__getInstanceName__(inst), env["ec2.site_type"]))
         i += 1
     ## FOR
-    time.sleep(20)
+    time.sleep(env["ec2.reboot_wait_time"])
     LOG.info("Started %d instances." % len(reservation.instances))
 ## DEF
 
@@ -870,7 +872,7 @@ def __startInstances__(instances_count, ec2_type, instance_tags):
 def __waitUntilStatus__(inst, status):
     tries = 10
     while tries > 0 and not inst.update() == status:
-        time.sleep(5)
+        time.sleep(env["ec2.status_wait_time"])
         tries -= 1
     if tries == 0:
         logging.error("Last '%s' status: %s" % (__getInstanceName__(inst), inst.update()))
@@ -881,7 +883,7 @@ def __waitUntilStatus__(inst, status):
     if status == 'running':
         # Set the timeout
         original_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(10)
+        socket.setdefaulttimeout(env["ec2.reboot_wait_time"])
         host_status = False
         tries = 5
         LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (__getInstanceName__(inst), tries))
@@ -894,7 +896,7 @@ def __waitUntilStatus__(inst, status):
             except:
                 pass
             if host_status: break
-            time.sleep(10)
+            time.sleep(env["ec2.reboot_wait_time"])
             tries -= 1
         ## WHILE
         socket.setdefaulttimeout(original_timeout)
