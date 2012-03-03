@@ -35,7 +35,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
         hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
     }
     @Override

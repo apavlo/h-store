@@ -99,13 +99,13 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
             String.format("Missing transaction handle for txn #%d", response.getTransactionId());
         
         
-        long orig_txn_id = this.getOrigTransactionId();
+        Long orig_txn_id = this.getOrigTransactionId();
         long resp_txn_id = response.getTransactionId();
-        long ts_txn_id = this.ts.getTransactionId();
+        Long ts_txn_id = this.ts.getTransactionId();
         
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
-        if (orig_txn_id == resp_txn_id && orig_txn_id != ts_txn_id) {
+        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
             if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
                                                      response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
             return (0);
