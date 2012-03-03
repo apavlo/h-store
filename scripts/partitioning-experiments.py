@@ -41,6 +41,7 @@ import math
 import types
 from datetime import datetime
 from pprint import pprint, pformat
+from types import *
 from fabric.api import *
 from fabric.network import *
 from fabric.contrib.files import *
@@ -106,7 +107,7 @@ OPT_BASE_PARTITIONS_PER_SITE = 7
 DEBUG_OPTIONS = [
     "site.exec_profiling",
     #"site.txn_profiling",
-    #"site.pool_profiling",
+    "site.pool_profiling",
     #"site.planner_profiling",
     "site.status_show_txn_info",
     "site.status_show_executor_info",
@@ -138,16 +139,17 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
+    "client.weights":                   None,
     
     "site.log_backup":                                  False,
-    "site.exec_profiling":                              False,
+    "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
-    "site.pool_profiling":                              False,
+    "site.pool_profiling":                              True,
     "site.planner_profiling":                           False,
-    "site.status_show_txn_info":                        False,
+    "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
-    "site.status_show_exec_info":                       False,
+    "site.status_show_executor_info":                   False,
     "site.status_interval":                             20000,
     "site.txn_incoming_delay":                          1,
     "site.coordinator_init_thread":                     False,
@@ -160,7 +162,7 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
-    "site.memory":                                      6002,
+    "site.memory":                                      65440,
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
     "site.queue_incoming_increase":                     10,
@@ -177,6 +179,7 @@ BASE_SETTINGS = {
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
     "site.cpu_affinity_one_partition_per_core":         True,
+    "site.exec_force_undo_logging_all":                 False,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -442,8 +445,10 @@ if __name__ == '__main__':
                     paramDict[varname] = [ ]
                     paramDict[varname+"_changed"] = True
                 val = paramDict[varname] + options[key] # HACK    
-            else: 
+            elif orig_type != NoneType: 
                 val = orig_type(options[key][0])
+            else:
+                val = options[key][0]
             paramDict[varname] = val
             LOG.debug("%s = %s" % (varname, str(paramDict[varname])))
     ## FOR
