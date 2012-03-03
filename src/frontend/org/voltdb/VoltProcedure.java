@@ -1588,6 +1588,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
           .append(StringUtil.SINGLE_LINE);
         
+        // BATCH PLAN
         sb.append("CURRENT BATCH\n");
         for (int i = 0; i < batchSize; i++) {
             sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
@@ -1598,12 +1599,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                     Arrays.toString(params[i].toArray())));
         } // FOR
         
+        // PARAMETERS
         sb.append(String.format("\n%s PARAMS:\n%s", this.m_currentTxnState, sb.toString()));
         ParameterMangler pm = new ParameterMangler(catalog_proc);
         Object mangled[] = pm.convert(this.procParams); 
         for (int i = 0; i < mangled.length; i++) {
             sb.append(String.format("  [%02d] ", i));
-            if (this.paramTypeIsArray[i]) {
+            if (i < this.paramTypeIsArray.length && this.paramTypeIsArray[i]) {
                 sb.append(Arrays.toString((Object[])mangled[i]));
             } else {
                 sb.append(mangled[i]);
