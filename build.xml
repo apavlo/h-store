@@ -2298,19 +2298,29 @@ H-STORE REMIX
     </condition>
 
     <java fork="yes" classname="edu.brown.hstore.HStore">
+        <!-- Use to identify what process this for killing -->
         <jvmarg value="-Dhstore.tag=site" />
+        <!-- Initial Heap Size -->
         <jvmarg value="-Xms${site.memory}m" />
+        <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
+        
+        <!-- Parallel Garbage Collector (Slower) -->
+        <!-- <jvmarg value="-XX:+UseParNewGC" /> -->
+<!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
+<!--         <jvmarg value="-XX:+CMSIncrementalMode" /> -->
+        
+        <!-- Garbage Collector Debug Output -->
+        <jvmarg value="-verbose:gc" />
+        <jvmarg value="-XX:+PrintGCDetails" />
+        <jvmarg value="-XX:+PrintGCTimeStamps" />
+        <jvmarg value="-XX:-TraceClassUnloading" />
+        
+        <!-- Other JVM Options -->
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-        <!--<jvmarg value="-XX:+UseParNewGC" />
-        <jvmarg value="-XX:+UseConcMarkSweepGC" />-->
-<!--        <jvmarg value="-verbose:gc" />
-        <jvmarg value="-XX:+PrintGCDetails" />
-        <jvmarg value="-XX:+PrintGCTimeStamps" />
-        <jvmarg value="-XX:-TraceClassUnloading" />-->
 
         <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${jar}" />
