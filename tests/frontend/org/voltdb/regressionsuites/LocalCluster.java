@@ -64,7 +64,7 @@ public class LocalCluster implements VoltServerConfig {
     final BackendTarget m_target;
     final String m_buildDir;
     int m_portOffset;
-    final Catalog catalog;
+    Catalog catalog;
 
     // state
     boolean m_compiled = false;
@@ -158,7 +158,7 @@ public class LocalCluster implements VoltServerConfig {
         assert (hostCount > 0);
         assert (replication >= 0);
         
-        // (1) Load catalog from Jar
+        /*// (1) Load catalog from Jar
         Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
         
         // (2) Update catalog to include target cluster configuration
@@ -184,7 +184,7 @@ public class LocalCluster implements VoltServerConfig {
         }
         
         tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
-        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));
+        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
         m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
         m_siteCount = siteCount;
@@ -244,6 +244,31 @@ public class LocalCluster implements VoltServerConfig {
         }
         m_compiled = builder.compile(m_jarFileName, m_siteCount, m_hostCount,
                                      m_replication, "localhost");
+        
+        // (1) Load catalog from Jar
+        Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        
+        // (2) Update catalog to include target cluster configuration
+        ClusterConfiguration cc = new ClusterConfiguration();
+        // Update cc with a bunch of hosts/sites/partitions
+        for (int site = 0, currentPartition = 0; site < m_hostCount; ++site) {
+            for (int partition = 0; partition < m_siteCount; ++partition, ++currentPartition) {
+                cc.addPartition("localhost", site, currentPartition);
+            }
+        }
+        this.catalog = FixCatalog.addHostInfo(tmpCatalog, cc);
+        
+        // (3) Write updated catalog back out to jar file
+        try {
+            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog, "catalog.txt");
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        
         return m_compiled;
     }
 
