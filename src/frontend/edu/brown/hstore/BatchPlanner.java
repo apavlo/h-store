@@ -89,8 +89,16 @@ public class BatchPlanner implements Loggable {
      */
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);
 
+    /**
+     * Cache set of single-partition sets
+     * PartitionId -> Set<Integer>
+     */
     private static Set<Integer> CACHED_SINGLE_PARTITION_SETS[];
 
+    /**
+     * Cached set of
+     * PlanFragment -> Set<PartitionIds>
+     */
     private static Map<Statement, Map<PlanFragment, Set<Integer>>> CACHED_FRAGMENT_PARTITION_MAPS[];
 
     // ----------------------------------------------------------------------------
