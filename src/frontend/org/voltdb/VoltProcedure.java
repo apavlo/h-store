@@ -1234,6 +1234,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
     
     public static ParameterSet getCleanParams(SQLStmt stmt, Object[] args, ParameterSet params) {
+        assert(params != null) : "Unexpected null ParameterSet for " + stmt.catStmt.fullName();
         final int numParamTypes = stmt.numStatementParamJavaTypes;
         final byte stmtParamTypes[] = stmt.statementParamJavaTypes;
         if (args.length != numParamTypes) {

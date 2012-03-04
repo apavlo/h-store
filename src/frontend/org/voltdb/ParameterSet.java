@@ -67,6 +67,10 @@ public class ParameterSet implements FastSerializable {
         return (this);
     }
 
+    public void clear() {
+        this.m_params = null;
+    }
+    
     public Object[] toArray() {
         return m_params;
     }
