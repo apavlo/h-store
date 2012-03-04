@@ -187,7 +187,8 @@ public class FastSerializer implements DataOutput {
 
     /**
      * This method is slow and horrible. It entails an extra copy. Don't use it! Ever! Not even for test!
-     * Just say no to test only code. It will also leak the BBContainer if this FS is being used with a pool.
+     * Just say no to test only code.
+     * It will also leak the BBContainer if this FS is being used with a pool. <<- Is that true??
      */
     public byte[] getBytes() {
         byte[] retval = new byte[buffer.b.position()];

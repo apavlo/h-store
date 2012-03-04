@@ -53,7 +53,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -162,23 +162,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private static HStoreSite SHUTDOWN_HANDLE = null;
 
-    
-    /**
-     * 
-     */
-    private final int local_partition_offsets[];
-    
-    /**
-     * For a given offset from LOCAL_PARTITION_OFFSETS, this array
-     * will contain the partition id
-     */
-    private final int local_partition_reverse[];
-    
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
 
-//    private final DBBPool buffer_pool = new DBBPool(false, false);
+    /**
+     * This buffer pool is used to serialize ClientResponses to send back
+     * to clients.
+     */
+    private final DBBPool buffer_pool = new DBBPool(false, false);
     
     private final HStoreThreadManager threadManager;
     
@@ -228,28 +220,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     /** Catalog Stuff **/
-    protected final Site catalog_site;
-    protected final int site_id;
-    protected final Database catalog_db;
+    private final HStoreConf hstore_conf;
+    private final Site catalog_site;
+    private final int site_id;
+    private final Database catalog_db;
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     
     /** All of the partitions in the cluster */
     private final Collection<Integer> all_partitions;
 
-    /** List of local partitions at this HStoreSite */
-    private final ListOrderedSet<Integer> local_partitions = new ListOrderedSet<Integer>();
-    private final Integer local_partitions_arr[];
-    
-    private final Collection<Integer> single_partition_sets[]; 
-    
-    private final int num_local_partitions;
-    
-    /** PartitionId -> SiteId */
-    private final int partition_site_xref[];
-    
     /** Request counter **/
     private final AtomicInteger request_counter = new AtomicInteger(0); 
+    
+    /**
+     * Keep track of which txns that we have in-flight right now
+     */
+    private final Map<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
     
     /**
      * ClientResponse Processor Thread
@@ -257,14 +244,58 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
     private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
     
-    private final HStoreConf hstore_conf;
+    
     
     /**
      * TODO(xin): MapReduceHelperThread
-     * 
      */
     private final MapReduceHelperThread mr_helper;
     
+    // ----------------------------------------------------------------------------
+    // PARTITION SPECIFIC MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Collection of local partitions at this HStoreSite
+     */
+    private final ListOrderedSet<Integer> local_partitions = new ListOrderedSet<Integer>();
+    
+    /**
+     * Integer list of all local partitions at this HStoreSite
+     */
+    private final Integer local_partitions_arr[];
+    
+    /**
+     * PartitionId -> Internal Offset
+     * This is so that we don't have to keep long arrays of local partition information
+     */
+    private final int local_partition_offsets[];
+    
+    /**
+     * For a given offset from LOCAL_PARTITION_OFFSETS, this array
+     * will contain the partition id
+     */
+    private final int local_partition_reverse[];
+    
+    /**
+     * PartitionId -> SiteId
+     */
+    private final int partition_site_xref[];
+    
+    /**
+     * PartitionId -> Singleton set of that PartitionId
+     */
+    private final Collection<Integer> single_partition_sets[];
+    
+    /**
+     * PartitionId Offset -> FastSerializer
+     */
+    private final FastSerializer partition_serializers[];
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION ESTIMATION
+    // ----------------------------------------------------------------------------
+
     /**
      * Estimation Thresholds
      */
@@ -277,28 +308,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Map<Procedure, ParameterMangler> param_manglers = new HashMap<Procedure, ParameterMangler>();
     
     /**
-     * Keep track of which txns that we have in-flight right now
-     */
-    private final Map<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
-    
-    /**
      * Fixed Markov Estimator
      */
     private final AbstractEstimator fixed_estimator;
     
+    // ----------------------------------------------------------------------------
+    // STATUS + PROFILING MEMBERS
+    // ----------------------------------------------------------------------------
+
     /**
      * Status Monitor
      */
     private HStoreSiteStatus status_monitor = null;
     
-    
     /**
-     * For whatever...
+     * The number of incoming transaction requests per partition 
      */
-    
     private final Histogram<Integer> incoming_partitions = new Histogram<Integer>();
     
-    /** How long the HStoreSite had no inflight txns */
+    /**
+     * How long the HStoreSite had no inflight txns
+     */
     protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
     
     // ----------------------------------------------------------------------------
@@ -333,8 +363,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
-        this.num_local_partitions = this.local_partitions.size();
-        this.local_partitions_arr = new Integer[this.num_local_partitions];
+        int num_local_partitions = this.local_partitions.size();
+        this.local_partitions_arr = new Integer[num_local_partitions];
         
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -344,12 +374,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Offset Hack
         this.local_partition_offsets = new int[num_partitions];
         Arrays.fill(this.local_partition_offsets, -1);
-        this.local_partition_reverse = new int[this.num_local_partitions];
+        this.local_partition_reverse = new int[num_local_partitions];
+        this.partition_serializers = new FastSerializer[num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
             this.local_partition_offsets[partition] = offset;
             this.local_partition_reverse[offset] = partition; 
             this.local_partitions_arr[offset] = partition;
+            this.partition_serializers[offset] = new FastSerializer(this.buffer_pool);
             this.single_partition_sets[partition] = Collections.singleton(partition);
             offset++;
         } // FOR
@@ -587,7 +619,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     protected int getDTXNQueueSize() {
         int ctr = 0;
-        for (Integer p : this.local_partitions) {
+        for (Integer p : this.local_partitions_arr) {
             ctr += this.txnQueueManager.getQueueSize(p.intValue());
         }
         return (ctr);
@@ -692,8 +724,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                                             TimeUnit.MILLISECONDS);
         
         // Then we need to start all of the ExecutionSites in threads
-        if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
-        for (int partition : this.local_partitions) {
+        if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions_arr.length + " partitions on " + this.getSiteName());
+        for (int partition : this.local_partitions_arr) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
             
@@ -748,7 +780,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                HStoreConstants.SITE_READY_MSG,
                                this.getSiteName(),
                                CatalogUtil.getExecutionSitePorts(catalog_site),
-                               this.local_partitions.size()));
+                               this.local_partitions_arr.length));
         this.ready = true;
         this.ready_observable.notifyObservers();
         
@@ -839,7 +871,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.mr_helper != null)
             this.mr_helper.prepareShutdown(error);
         
-        for (int p : this.local_partitions) {
+        for (int p : this.local_partitions_arr) {
             this.executors[p].prepareShutdown(error);
         } // FOR
     }
@@ -869,7 +901,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Tell the MapReduceHelperThread to shutdown too
         if (this.mr_helper != null) this.mr_helper.shutdown();
         
-        for (int p : this.local_partitions) {
+        for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
             this.executors[p].shutdown();
         } // FOR
@@ -966,7 +998,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (t) 
                 LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                         request.getProcName(), hstore_conf.site.exec_force_localexecution));
-            base_partition = this.local_partitions.get((int)(Math.abs(request.getClientHandle()) % this.num_local_partitions));
+            int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
+            base_partition = this.local_partitions_arr[idx].intValue();
         }
         
         if (d) LOG.debug(String.format("Incoming %s transaction request [handle=%d, partition=%d]",
@@ -1375,7 +1408,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         int spec_cnt = 0;
         for (Integer p : partitions) {
-            if (this.local_partitions.contains(p) == false) continue;
+            if (this.local_partition_offsets[p.intValue()] == -1) continue;
             
             // Always tell the queue stuff that the transaction is finished at this partition
             if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
@@ -1585,15 +1618,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
             if (t) {
-                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
-                LOG.trace("Local Partitions: " + this.local_partitions);
+                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.isLocalPartition(redirect_partition) == false));
+                LOG.trace("Local Partitions: " + Arrays.toString(this.local_partitions_arr));
             }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
+            if (this.isLocalPartition(redirect_partition.intValue()) == false && spi.hasBasePartition() == false) {
                 if (d) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
                                                orig_ts, redirect_partition));
                 
@@ -1625,7 +1658,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
             // Allow local redirect
             } else if (orig_ts.getRestartCounter() <= 1 || spi.hasBasePartition() == false) {
-                if (redirect_partition != base_partition && local_partitions.contains(redirect_partition)) {
+                if (redirect_partition.intValue() != base_partition && this.isLocalPartition(redirect_partition.intValue())) {
                     if (d) LOG.debug(String.format("Redirecting %s to local partition %d. " +
                                                     "[restartCtr=%d]\n%s",
                                                     orig_ts, redirect_partition, orig_ts.getRestartCounter(), touched));
@@ -1756,33 +1789,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Since we know what we're doing here, we can just free the memory back to the
             // buffer pool once we call deleteTransaction()
             // The problem is that we need access to the underlying array of the ByteBuffer,
-            // but we can't get that from here. 
-            FastSerializer out = new FastSerializer(); // this.buffer_pool); // .getClientResponseSerializer();
-            // out.clear();
-            try {
-                out.writeObject(cresponse);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            
+            // but we can't get that from here.
+            byte bytes[] = null;
+            int offset = this.getLocalPartitionOffset(ts.getBasePartition());
+            FastSerializer out = this.partition_serializers[offset]; 
+            synchronized (out) {
+                out.clear();
+                try {
+                    out.writeObject(cresponse);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                bytes = out.getBytes();
+            } // SYNCH
             if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
                                            ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
             
             // Send result back to client!
-            BBContainer bytes = out.getBBContainer();
-            ts.setClientResponseBytes(bytes);
-            assert(bytes.b.hasArray()) :
-                String.format("Unable to get direct byte array from FastSerializer ByteBuffer [%s/isDirect=%s]",
-                              bytes, bytes.b.isDirect());
-//            byte hack[] = new byte[bytes.b.limit()];
-//            bytes.b.get(hack);
-//            ts.getClientCallback().run(hack);
             try {
-                ts.getClientCallback().run(bytes.b.array());
+                ts.getClientCallback().run(bytes);
             } catch (CancelledKeyException ex) {
                 // IGNORE
             }
-            //bytes.discard();
         }
         // If the txn was mispredicted, then we will pass the information over to the HStoreSite
         // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
@@ -1910,8 +1938,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // SANITY CHECK
         if (hstore_conf.site.exec_validate_work) {
-            for (int p : this.local_partitions) {
-                assert(ts.equals(this.executors[p].getCurrentDtxn()) == false) :
+            for (Integer p : this.local_partitions_arr) {
+                assert(ts.equals(this.executors[p.intValue()].getCurrentDtxn()) == false) :
                     String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
             } // FOR
         }
