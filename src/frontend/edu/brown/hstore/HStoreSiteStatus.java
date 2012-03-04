@@ -140,7 +140,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         this.header.put("Number of Partitions", this.executors.size());
         
         // Pre-Compute TransactionProfile Information
-        this.initTxnProfileInfo(hstore_site.catalog_db);
+        this.initTxnProfileInfo(hstore_site.getDatabase());
     }
     
     @Override

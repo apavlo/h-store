@@ -54,7 +54,6 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.RpcCallback;
 
@@ -110,16 +109,6 @@ public class LocalTransaction extends AbstractTransaction {
      * The queued up ClientResponse that we need to send back for this txn
      */
     private final ClientResponseImpl cresponse = new ClientResponseImpl();
-    
-    /**
-     * Each LocalTransaction will have its own FastSerializer (with its own block of memory)
-     * that it can safely use to serialize the ClientResponse. We are sticking this
-     * in here because we don't know what thread could be actually processing
-     * the transaction to send back the final result to the client.
-     * That means it is important that this memory is never freed
-     */
-    // private final FastSerializer cresponse_serializer = new FastSerializer();
-    private BBContainer cresponse_bytes = null;
 
     /**
      * If this transaction was restarted, then this field will have the
@@ -357,11 +346,6 @@ public class LocalTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
         
-        if (this.cresponse_bytes != null) {
-            this.cresponse_bytes.discard();
-            this.cresponse_bytes = null;
-        }
-
         // Return our LocalTransactionInitCallback
         if (this.init_callback != null) {
             HStoreObjectPools.CALLBACKS_TXN_INIT.returnObject(this.init_callback);
@@ -612,20 +596,9 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.catalog_proc.getMapreduce());
     }
     
-//    public void setClientResponse(ClientResponseImpl cresponse) {
-//        assert(this.cresponse == null);
-//        this.cresponse = cresponse;
-//    }
     public ClientResponseImpl getClientResponse() {
         assert(this.cresponse != null);
         return (this.cresponse);
-    }
-//    public FastSerializer getClientResponseSerializer() {
-//        return (this.cresponse_serializer);
-//    }
-    public final void setClientResponseBytes(BBContainer cresponse_bytes) {
-        assert(this.cresponse_bytes == null);
-        this.cresponse_bytes = cresponse_bytes;
     }
     
     public void setBatchSize(int batchSize) {

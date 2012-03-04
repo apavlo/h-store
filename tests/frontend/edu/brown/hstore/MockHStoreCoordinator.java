@@ -130,7 +130,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                     .setSenderId(hstore_site.site_id)
+                                                     .setSenderId(hstore_site.getSiteId())
                                                      .build();
             System.exit(1);
             done.run(response);
