@@ -225,8 +225,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.attached_inputs.clear();
         if (this.attached_parameterSets != null) {
+            // Not that this array might be cached, so we just
+            // want to clear out our inner array from the ParameterSets
             for (int i = 0; i < this.attached_parameterSets.length; i++) {
-                this.attached_parameterSets[i] = null;
+                this.attached_parameterSets[i].clear();
             }
             this.attached_parameterSets = null;
         }
