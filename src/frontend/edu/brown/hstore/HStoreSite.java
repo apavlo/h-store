@@ -774,13 +774,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.shutdown_state = ShutdownState.STARTED;
         
-        // This message must always be printed in order for the BenchmarkController
-        // to know that we're ready! That's why we have to use System.out instead of LOG
-        System.out.println(String.format("%s [site=%s, ports=%s, #partitions=%d]",
-                               HStoreConstants.SITE_READY_MSG,
-                               this.getSiteName(),
-                               CatalogUtil.getExecutionSitePorts(catalog_site),
-                               this.local_partitions_arr.length));
+        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s]",
+                                   HStoreConstants.SITE_READY_MSG,
+                                   this.getSiteName(),
+                                   this.catalog_site.getHost().getIpaddr(),
+                                   CollectionUtil.first(CatalogUtil.getExecutionSitePorts(this.catalog_site)),
+                                   Arrays.toString(this.local_partitions_arr));
+        // IMPORTANT: This message must always be printed in order for the BenchmarkController
+        //            to know that we're ready! That's why we have to use System.out instead of LOG
+        System.out.println(msg);
         this.ready = true;
         this.ready_observable.notifyObservers();
         
@@ -1284,40 +1286,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
 
-    /**
-     * 
-     * @param txn_id
-     * @param callback
-     */
-    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
-        // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.insert(txn_id, partitions, callback, true);
-    }
-
-    /**
-     * This function can really block transaction executing on that partition
-     * IMPORTANT: The transaction could be deleted after calling this if it is rejected
-     * @param ts, base_partition
-     */
-    public void transactionStart(LocalTransaction ts, int base_partition) {
-        Long txn_id = ts.getTransactionId();
-        //int base_partition = ts.getBasePartition();
-        Procedure catalog_proc = ts.getProcedure();
-        if (d) LOG.debug(String.format("Starting %s %s on partition %d",
-                        (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
-        
-        PartitionExecutor executor = this.executors[base_partition];
-        assert(executor != null) :
-            "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
-        
-        if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        boolean ret = executor.queueNewTransaction(ts);
-        if (hstore_conf.site.status_show_txn_info && ret) {
-            assert(catalog_proc != null) :
-                String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
-            TxnCounter.EXECUTED.inc(catalog_proc);
-        }
-    }
+    // ----------------------------------------------------------------------------
+    // TRANSACTION HANDLE METHODS
+    // ----------------------------------------------------------------------------
     
     public MapReduceTransaction createMapReduceTransaction(Long txn_id, StoredProcedureInvocation invocation, int base_partition) {
         String proc_name = invocation.getProcName();
@@ -1362,16 +1333,43 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (ts);
     }
     
+    // ----------------------------------------------------------------------------
+    // TRANSACTION OPERATION METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
-     * Execute some map work on a particular PartitionExecutor
-     * @param request
-     * @param done
+     * 
+     * @param txn_id
+     * @param callback
      */
-    public void transactionMap(RemoteTransaction ts, FragmentTaskMessage ftask){
-        if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                ftask.getDestinationPartitionId(), ts.getTransactionId()));
+    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+        // We should always force a txn from a remote partition into the queue manager
+        this.txnQueueManager.insert(txn_id, partitions, callback, true);
+    }
+
+    /**
+     * This function can really block transaction executing on that partition
+     * IMPORTANT: The transaction could be deleted after calling this if it is rejected
+     * @param ts, base_partition
+     */
+    public void transactionStart(LocalTransaction ts, int base_partition) {
+        Long txn_id = ts.getTransactionId();
+        //int base_partition = ts.getBasePartition();
+        Procedure catalog_proc = ts.getProcedure();
+        if (d) LOG.debug(String.format("Starting %s %s on partition %d",
+                        (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
         
-        this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask);
+        PartitionExecutor executor = this.executors[base_partition];
+        assert(executor != null) :
+            "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+        
+        if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
+        boolean ret = executor.queueNewTransaction(ts);
+        if (hstore_conf.site.status_show_txn_info && ret) {
+            assert(catalog_proc != null) :
+                String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
+            TxnCounter.EXECUTED.inc(catalog_proc);
+        }
     }
     
     /**

@@ -517,7 +517,8 @@ public class BenchmarkController {
         // WAIT FOR SERVERS TO BE READY
         int waiting = hosts_started;
         if (waiting > 0) {
-            LOG.info("Waiting for " + waiting + " HStoreSites to finish initialization");
+            LOG.info(String.format("Waiting for %d HStoreSites with %d partitions to finish initialization",
+                                   waiting, CatalogUtil.getNumberOfPartitions(catalog)));
             do {
                 ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                 if (line == null) break;

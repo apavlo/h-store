@@ -100,7 +100,7 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
     
     @Override
     protected void abortCallback(Status status) {
-        assert(this.isInitialized()) : "ORIG TXN: " + this.getOrigTransactionId();
+        assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
         
         // If we abort, then we have to send out an ABORT to
         // all of the partitions that we originally sent INIT requests too
@@ -125,7 +125,7 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
         assert(response.getResultsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
-        Long orig_txn_id = this.getOrigTransactionId();
+        Long orig_txn_id = this.getTransactionId();
         long resp_txn_id = response.getTransactionId();
         Long ts_txn_id = this.ts.getTransactionId();
         

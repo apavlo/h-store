@@ -78,7 +78,7 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
     
     @Override
     protected void abortCallback(Status status) {
-        assert(this.isInitialized()) : "ORIG TXN: " + this.getOrigTransactionId();
+        assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
         
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
@@ -130,13 +130,13 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
         assert(response.getPartitionsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
-        long orig_txn_id = this.getOrigTransactionId();
+        Long orig_txn_id = this.getTransactionId();
         long resp_txn_id = response.getTransactionId();
-        long ts_txn_id = this.ts.getTransactionId();
+        Long ts_txn_id = this.ts.getTransactionId();
         
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
-        if (orig_txn_id == resp_txn_id && orig_txn_id != ts_txn_id) {
+        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
             if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
                                                      response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
             return (0);
