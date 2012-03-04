@@ -36,8 +36,14 @@ public class TransactionWorkRequestBuilder {
             this.builder = TransactionWorkRequest.newBuilder()
                                         .setTransactionId(ts.getTransactionId().longValue())
                                         .setSourcePartition(ts.getBasePartition())
-                                        .setSysproc(ts.isSysProc())
-                                        .addAllDonePartition(ts.getDonePartitions());
+                                        .setSysproc(ts.isSysProc());
+            if (ts.hasDonePartitions()) {
+                BitSet donePartitions = ts.getDonePartitions();
+                for (int i = 0; i < donePartitions.length(); i++) {
+                    if (donePartitions.get(i)) 
+                        this.builder.addDonePartition(i);
+                } // FOR
+            }
             this.stmt_indexes.clear();
             this.inputs.clear();
         }

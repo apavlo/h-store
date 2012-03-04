@@ -29,6 +29,7 @@ import org.voltdb.messaging.FastSerializer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -36,7 +37,7 @@ import edu.brown.utils.StringUtil;
  * procedure response in one FastSerialziable object.
  *
  */
-public class ClientResponseImpl implements FastSerializable, ClientResponse {
+public class ClientResponseImpl implements FastSerializable, ClientResponse, Poolable {
     private boolean setProperly = false;
     private Status status;
     private String statusString = null;
@@ -119,6 +120,19 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
+    }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.txn_id != -1);
+    }
+    
+    @Override
+    public void finish() {
+        this.txn_id = -1;
+        this.clientHandle = -1;
+        this.status = null;
+        this.results = null;
     }
     
     

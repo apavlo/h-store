@@ -45,6 +45,7 @@ package edu.brown.hstore;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,7 +59,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
@@ -379,6 +379,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * List of serialized ParameterSets
      */
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
+    
+    /**
+     * List of PartitionIds that need to be notified that the transaction is preparing to commit
+     */
+    private final List<Integer> tmp_preparePartitions = new ArrayList<Integer>();
     
     /**
      * 
@@ -1975,7 +1980,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param ts
      */
     private boolean calculateDonePartitions(LocalTransaction ts) {
-        final Collection<Integer> ts_done_partitions = ts.getDonePartitions();
+        final BitSet ts_done_partitions = ts.getDonePartitions();
         final int ts_done_partitions_size = ts_done_partitions.size();
         Set<Integer> new_done = null;
 
@@ -2004,13 +2009,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
-                if (ts_done_partitions.contains(p) == false && ts_touched.contains(p)) {
+                if (ts_done_partitions.get(p.intValue()) == false && ts_touched.contains(p)) {
                     if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, ts));
-                    ts_done_partitions.add(p);
+                    ts_done_partitions.set(p.intValue());
                 }
             } // FOR
         }
-        return (ts_done_partitions.size() != ts_done_partitions_size);
+        return (ts_done_partitions.cardinality() != ts_done_partitions_size);
     }
 
     /**
@@ -2030,7 +2035,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // it and restart it as multi-partitioned
         boolean need_restart = false;
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
-        Collection<Integer> done_partitions = ts.getDonePartitions();
+        BitSet done_partitions = ts.getDonePartitions();
         
         boolean new_done = false;
         if (hstore_conf.site.exec_speculative_execution) {
@@ -2055,7 +2060,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // Make sure that this txn isn't trying ot access a partition that we said we were
             // done with earlier
-            else if (done_partitions.contains(target_partition)) {
+            else if (done_partitions.get(target_partition)) {
                 if (d) LOG.debug(String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
                                                ts, this.partitionId, target_partition));
                 need_restart = true;
@@ -2542,9 +2547,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
-            Collection<Integer> predictPartitions = ts.getPredictTouchedPartitions();
-            Collection<Integer> donePartitions = ts.getDonePartitions();
-            Collection<Integer> partitions = CollectionUtils.subtract(predictPartitions, donePartitions);
+            BitSet donePartitions = ts.getDonePartitions();
+            tmp_preparePartitions.clear();
+            for (Integer p : ts.getPredictTouchedPartitions()) {
+                if (donePartitions.get(p.intValue()) == false) {
+                    tmp_preparePartitions.add(p);
+                }
+            } // FOR
 
             /// We need to do this before we invoke transactionPrepare because the LocalTransaction handle
             // might get cleaned up immediately
@@ -2555,8 +2564,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
-            this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
-
+            this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), tmp_preparePartitions);
         }
         // ABORT: Distributed Transaction
         else {

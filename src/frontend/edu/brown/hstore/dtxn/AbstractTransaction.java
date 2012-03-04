@@ -81,9 +81,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Long txn_id = null;
     protected long client_handle;
     protected int base_partition;
-//    private final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
-    private boolean sysproc;
+    protected boolean sysproc;
     protected SerializableException pending_error;
 
     // ----------------------------------------------------------------------------
