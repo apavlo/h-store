@@ -1673,7 +1673,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        Long new_txn_id = Long.valueOf(this.txnid_manager.getNextUniqueTransactionId());
         LocalTransaction new_ts = null;
         try {
             new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
