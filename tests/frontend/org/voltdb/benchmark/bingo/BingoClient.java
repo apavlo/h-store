@@ -89,8 +89,7 @@ public class BingoClient extends BenchmarkComponent {
                     if (clientResponse.getStatusString() != null) {
                         System.err.println(clientResponse.getStatusString());
                     }
-
-                    System.exit(-1);
+                    return;
                 }
                 synchronized (tournaments) {
                     tournaments.offer(Tourney.this);
