@@ -27,6 +27,7 @@ package edu.brown.hstore.dtxn;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -88,7 +89,7 @@ public class LocalTransaction extends AbstractTransaction {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
-    private static final Set<WorkFragment> EMPTY_SET = Collections.emptySet();
+    private static final Set<WorkFragment> EMPTY_FRAGMENT_SET = Collections.emptySet();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
@@ -138,7 +139,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The set of partitions that we expected this partition to touch.
      */
-    protected Collection<Integer> predict_touchedPartitions;
+    private Collection<Integer> predict_touchedPartitions;
     
     /**
      * TransctionEstimator State Handle
@@ -152,7 +153,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    protected final Collection<Integer> done_partitions = new HashSet<Integer>();
+    protected final BitSet done_partitions;
     
     /**
      * Whether this txn is being executed specutatively
@@ -167,10 +168,10 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Cached ProtoRpcControllers
      */
-    public final ProtoRpcController rpc_transactionInit[];
-    public final ProtoRpcController rpc_transactionWork[];
-    public final ProtoRpcController rpc_transactionPrepare[];
-    public final ProtoRpcController rpc_transactionFinish[];
+    private final ProtoRpcController rpc_transactionInit[];
+    private final ProtoRpcController rpc_transactionWork[];
+    private final ProtoRpcController rpc_transactionPrepare[];
+    private final ProtoRpcController rpc_transactionFinish[];
     
     /**
      * TODO: We need to remove the need for this
@@ -183,7 +184,7 @@ public class LocalTransaction extends AbstractTransaction {
      * No two transactions are allowed to hold the same ExecutionState
      * at the same time.
      */
-    protected ExecutionState state;
+    private ExecutionState state;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -194,14 +195,14 @@ public class LocalTransaction extends AbstractTransaction {
      * the acknowledgments back from all of the partitions that we're going to access.
      * This is only needed for distributed transactions. 
      */
-    protected TransactionInitCallback init_callback;
+    private TransactionInitCallback init_callback;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
      * ready to commit/abort our transaction.
      * This is only needed for distributed transactions.
      */
-    protected TransactionPrepareCallback prepare_callback; 
+    private TransactionPrepareCallback prepare_callback; 
     
     /**
      * This callback will keep track of whether we have gotten all the 2PC acknowledgments
@@ -229,6 +230,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfile() : null);
       
         this.itask = new InitiateTaskMessage();
+        
+        int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
+        this.done_partitions = new BitSet(num_partitions);
         
         int num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
         this.rpc_transactionInit = new ProtoRpcController[num_sites];
@@ -382,12 +386,14 @@ public class LocalTransaction extends AbstractTransaction {
         this.state = null;
         this.orig_txn_id = null;
         this.catalog_proc = null;
+        this.invocation = null;
+        this.client_callback = null;
         
         this.exec_speculative = false;
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        this.cresponse.setStatus(null);
+        this.cresponse.finish();
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -647,7 +653,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.restart_ctr = (short)val;
     }
     
-    public Collection<Integer> getDonePartitions() {
+    public boolean hasDonePartitions() {
+        return (this.done_partitions.cardinality() > 0);
+    }
+    public BitSet getDonePartitions() {
         return (this.done_partitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
@@ -1095,7 +1104,7 @@ public class LocalTransaction extends AbstractTransaction {
                 if (this.state.dependency_latch.getCount() == 0) {
                     if (d) LOG.debug(String.format("%s - Pushing EMPTY_SET to ExecutionSite because all the dependencies have arrived!",
                                                    this));
-                    this.state.unblocked_tasks.addLast(EMPTY_SET);
+                    this.state.unblocked_tasks.addLast(EMPTY_FRAGMENT_SET);
                 }
                 if (d) LOG.debug(String.format("%s - Setting CountDownLatch to %d",
                                                this, this.state.dependency_latch.getCount()));
