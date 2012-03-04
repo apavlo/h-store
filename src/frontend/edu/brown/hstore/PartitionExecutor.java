@@ -1128,7 +1128,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("%s Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
+        if (d) LOG.debug(String.format("%s - Added multi-partition %s to front of partition %d work queue [size=%d]",
                                        ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     

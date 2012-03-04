@@ -82,7 +82,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
 
     @Override
     protected void abortCallback(Status status) {
-        assert(this.isInitialized()) : "ORIG TXN: " + this.getOrigTransactionId();
+        assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
         assert(false) : "Unexpected: " + this.ts;
     }
     
@@ -99,7 +99,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
             String.format("Missing transaction handle for txn #%d", response.getTransactionId());
         
         
-        Long orig_txn_id = this.getOrigTransactionId();
+        Long orig_txn_id = this.getTransactionId();
         long resp_txn_id = response.getTransactionId();
         Long ts_txn_id = this.ts.getTransactionId();
         
