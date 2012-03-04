@@ -1215,7 +1215,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Hstoreservice.Status.ABORT_THROTTLED);
                 hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
-            hstore_site.transactionReject(ts, status);
+            // We will want to delete this transaction after we reject it if it is a single-partition txn
+            // Otherwise we will let the normal distributed transaction process clean things up 
+            hstore_site.transactionReject(ts, status, singlePartitioned);
         }
         return (success);
     }

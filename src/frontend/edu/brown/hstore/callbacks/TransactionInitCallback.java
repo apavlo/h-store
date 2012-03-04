@@ -92,14 +92,14 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                     if (this.reject_txnId != null) {
                         this.hstore_site.getTransactionQueueManager().queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
                     } else {
-                        this.hstore_site.transactionRestart(this.ts, status);
+                        this.hstore_site.transactionRestart(this.ts, status, false);
                     }
                 } // SYNCH
                 break;
             }
             case ABORT_THROTTLED:
             case ABORT_REJECT:
-                this.hstore_site.transactionReject(this.ts, status);
+                this.hstore_site.transactionReject(this.ts, status, false);
                 break;
             default:
                 assert(false) : String.format("Unexpected status %s for %s", status, this.ts);

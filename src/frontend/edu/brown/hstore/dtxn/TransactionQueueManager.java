@@ -453,7 +453,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
                                             ts, last_txn_id, releaseTxnId));
                 this.blocked_dtxns.remove();
                 this.blocked_dtxn_release.remove(ts);
-                hstore_site.transactionRestart(ts, Hstoreservice.Status.ABORT_RESTART);
+                hstore_site.transactionRestart(ts, Hstoreservice.Status.ABORT_RESTART, true);
 //                hstore_site.transactionRequeue(p.getSecond());
             } else break;
         } // WHILE
