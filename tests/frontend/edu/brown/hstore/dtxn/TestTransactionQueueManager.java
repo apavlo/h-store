@@ -5,24 +5,21 @@ import java.util.HashSet;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
-import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.catalog.Site;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.MockHStoreSite;
+import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.MockPartitionExecutor;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.TransactionQueueManager;
 
 public class TestTransactionQueueManager extends BaseTestCase {
 
@@ -50,12 +47,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         assertNotNull(catalog_site);
-        hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
-        for (int p = 0; p < NUM_PARTITONS; p++) {
-            PartitionExecutor site = new MockPartitionExecutor(p, catalog, p_estimator);
-            hstore_site.addPartitionExecutor(p, site);
-        } // FOR
-        
+        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton(), true);
         this.queue = new TransactionQueueManager(hstore_site);
     }
     
@@ -129,6 +121,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 } catch (InterruptedException e) {}
             }
         };
+        t.setUncaughtExceptionHandler(this);
         t.start();
         
         while (queue.isEmpty() == false) {

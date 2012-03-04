@@ -285,7 +285,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         
         ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.put("InFlight Txns", String.format("%-5d total / %-5d dtxn / %-5d finished [totalMin=%d, totalMax=%d]",
+        m_exec.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
                         inflight_finished,

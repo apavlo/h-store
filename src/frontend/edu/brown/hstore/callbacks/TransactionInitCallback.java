@@ -67,7 +67,7 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
             hstore_site.transactionStart(ts, ts.getBasePartition());
         } else {
             assert(this.finish_callback != null);
-            this.finish_callback.allowTransactionCleanup();
+            this.finish_callback.enableTransactionDelete();
         }
     }
     
@@ -111,7 +111,7 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         this.finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.finish_callback.disableTransactionCleanup();
+        this.finish_callback.disableTransactionDelete();
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
     }
     
@@ -130,27 +130,30 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
         assert(response.getPartitionsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
-        Long orig_txn_id = this.getTransactionId();
-        long resp_txn_id = response.getTransactionId();
+        Long expected = this.getTransactionId();
         Long ts_txn_id = this.ts.getTransactionId();
         
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
-        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
+        if (expected.longValue() == response.getTransactionId() &&
+            expected.equals(ts_txn_id) == false) {
             if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
+                                                     response.getClass().getSimpleName(), response.getTransactionId(), expected));
             return (0);
         }
         // Otherwise, make sure it's legit
-        assert(ts_txn_id == resp_txn_id) :
+        assert(ts_txn_id.longValue() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
-                          response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), expected);
         
         if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
+            // If we were told what the highest transaction id was at the remove partition, then 
+            // we will store it so that we can update the TransactionQueueManager later on.
+            // We are putting it in a synchronization block just to play it safe.
             if (response.hasRejectTransactionId()) {
                 assert(response.hasRejectPartition()) :
                     String.format("%s has a reject txn #%d but is missing reject partition [txn=#%d]",
-                                  response.getClass().getSimpleName(), resp_txn_id, this.ts);
+                                  response.getClass().getSimpleName(), response.getTransactionId(), this.ts);
                 synchronized (this) {
                     if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
                         if (debug.get()) LOG.debug(String.format("%s was rejected at partition by txn #%d",

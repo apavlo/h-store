@@ -2543,7 +2543,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         else if (status == Hstoreservice.Status.OK) {
             // Store the ClientResponse in the TransactionPrepareCallback so that
             // when we get all of our 
-            TransactionPrepareCallback callback = ts.getTransactionPrepareCallback();
+            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
             assert(callback != null) : "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             callback.setClientResponse(cresponse);
             
@@ -2566,7 +2566,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
-            this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), tmp_preparePartitions);
+            this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
         }
         // ABORT: Distributed Transaction
         else {
