@@ -85,7 +85,7 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
             
         } else {
             assert(this.finish_callback != null);
-            this.finish_callback.allowTransactionCleanup();
+            this.finish_callback.enableTransactionDelete();
         }
     }
 
@@ -99,7 +99,7 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         this.finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.finish_callback.disableTransactionCleanup();
+        this.finish_callback.disableTransactionDelete();
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
     }
     

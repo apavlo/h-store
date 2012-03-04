@@ -67,6 +67,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
@@ -645,6 +646,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // ----------------------------------------------------------------------------
+    // EVENT OBSERVABLES
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Get the Observable handle for this HStoreSite that can alert others when the party is
+     * getting started
+     */
+    public EventObservable<Object> getReadyObservable() {
+        return (this.ready_observable);
+    }
+    /**
+     * Get the Observable handle for this HStore for when the first non-sysproc
+     * transaction request arrives and we are technically beginning the workload
+     * portion of a benchmark run.
+     */
+    public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
+        return (this.startWorkload_observable);
+    }
+    /**
+     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
+     * @return
+     */
+    public EventObservable<Object> getShutdownObservable() {
+        return (this.shutdown_observable);
+    }
+    
+    // ----------------------------------------------------------------------------
     // INITIALIZATION STUFF
     // ----------------------------------------------------------------------------
 
@@ -774,7 +802,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.shutdown_state = ShutdownState.STARTED;
         
-        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s]",
+        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s",
                                    HStoreConstants.SITE_READY_MSG,
                                    this.getSiteName(),
                                    this.catalog_site.getHost().getIpaddr(),
@@ -805,32 +833,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
-    }
-    
-    // ----------------------------------------------------------------------------
-    // EVENT OBSERVABLES
-    // ----------------------------------------------------------------------------
-    /**
-     * Get the Observable handle for this HStoreSite that can alert others when the party is
-     * getting started
-     */
-    public EventObservable<Object> getReadyObservable() {
-        return (this.ready_observable);
-    }
-    /**
-     * Get the Observable handle for this HStore for when the first non-sysproc
-     * transaction request arrives and we are technically beginning the workload
-     * portion of a benchmark run.
-     */
-    public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
-        return (this.startWorkload_observable);
-    }
-    /**
-     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
-     * @return
-     */
-    public EventObservable<Object> getShutdownObservable() {
-        return (this.shutdown_observable);
     }
     
     // ----------------------------------------------------------------------------
@@ -1262,11 +1264,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Check whether our transaction can't run right now because its id is less than
             // the last seen txnid from the remote partitions that it wants to touch
             for (int partition : predict_touchedPartitions) {
-                long last_txn_id = this.txnQueueManager.getLastTransaction(partition); 
-                if (txn_id < last_txn_id) {
+                Long last_txn_id = this.txnQueueManager.getLastTransaction(partition); 
+                if (txn_id.compareTo(last_txn_id) < 0) {
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
-                    if (debug.get()) {
+                    if (d) {
                         LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
                                        ts, partition, last_txn_id));
                         LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
@@ -1402,7 +1404,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // they never actually sent us anything, so we should just tell the queue manager
         // that the txn is done. There is nothing that we need to do at the PartitionExecutors
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
-        boolean is_local = (ts instanceof LocalTransaction);
+        TransactionPrepareCallback callback = null;
+        if (ts instanceof LocalTransaction) {
+            callback = ((LocalTransaction)ts).getTransactionPrepareCallback();
+        }
         
         int spec_cnt = 0;
         for (Integer p : partitions) {
@@ -1422,9 +1427,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
                 }
             }
-            
             if (updated != null) updated.add(p);
-            if (is_local) ((LocalTransaction)ts).getTransactionPrepareCallback().decrementCounter(1);
+            if (callback != null) callback.decrementCounter(1);
 
         } // FOR
         if (debug.get() && spec_cnt > 0)

@@ -28,7 +28,7 @@ public class TransactionFinishCallback extends BlockingCallback<TransactionFinis
      * call HStoreSite.completeTransaction() until we know that everybody that we were
      * waiting to hear responses from has sent them.
      */
-    private boolean can_complete;
+    private boolean readyToDelete;
     
     private final boolean txn_profiling;
     
@@ -46,14 +46,13 @@ public class TransactionFinishCallback extends BlockingCallback<TransactionFinis
             LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.status = status;
-        this.can_complete = true;
+        this.readyToDelete = true;
         super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
     @Override
     protected void finishImpl() {
         this.ts = null;
-        this.status = null;
     }
     
     @Override
@@ -63,7 +62,7 @@ public class TransactionFinishCallback extends BlockingCallback<TransactionFinis
     
     @Override
     protected void unblockCallback() {
-        if (this.can_complete) {
+        if (this.readyToDelete) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
             hstore_site.deleteTransaction(this.getTransactionId(), status);
         }
@@ -77,49 +76,53 @@ public class TransactionFinishCallback extends BlockingCallback<TransactionFinis
     @Override
     protected int runImpl(TransactionFinishResponse response) {
         if (debug.get())
-            LOG.debug(String.format("%s - Got %s with %s [partitions=%s, counter=%d]",
+            LOG.debug(String.format("%s - Got %s with %s [partitions=%s, counter=%d, readyToDelete=%s]",
                                     this.ts, response.getClass().getSimpleName(),
-                                    this.status, response.getPartitionsList(), this.getCounter()));
+                                    this.status, response.getPartitionsList(), this.getCounter(), this.readyToDelete));
+
+        assert(this.ts != null) :
+            String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
+                          response.getTransactionId(), this.status);
         
-        Long orig_txn_id = this.getTransactionId();
-        long resp_txn_id = response.getTransactionId();
+        Long expected = this.getTransactionId();
         Long ts_txn_id = this.ts.getTransactionId();
         
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
-        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
+        if (expected.longValue() == response.getTransactionId() &&
+            expected.equals(ts_txn_id) == false) {
             if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [expected=#%d]",
-                                                     response.getClass().getSimpleName(), resp_txn_id, ts_txn_id));
+                                                     response.getClass().getSimpleName(), response.getTransactionId(), ts_txn_id));
             return (0);
         }
         // Otherwise, make sure it's legit
-        assert(ts_txn_id == resp_txn_id) :
-            String.format("Unexpected %s for a different transaction %s != #%d [origTxn=#%d]",
-                          response.getClass().getSimpleName(), this.ts, resp_txn_id, orig_txn_id);
+        assert(ts_txn_id.longValue() == response.getTransactionId()) :
+            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), expected);
         
         return (response.getPartitionsCount());
     }
     
     /**
-     * Prevent this callback from invoking HStoreSite.completeTransaction
+     * Prevent this callback from invoking HStoreSite.deleteTransaction
      * until some future time.
      */
-    public void disableTransactionCleanup() {
-        assert(this.can_complete);
+    public void disableTransactionDelete() {
+        assert(this.readyToDelete);
         if (debug.get())
-            LOG.debug(String.format("Blocking completeTransaction() for %s", this.ts));
-        this.can_complete = false;
+            LOG.debug(String.format("%s - Enabling the transaction from being deleted", this.ts));
+        this.readyToDelete = false;
     }
     
     /**
-     * Allow this callback to invoke HStoreSite.completeTransaction as soon as
+     * Allow this callback to invoke HStoreSite.deleteTransaction as soon as
      * all of the partitions send back their acknowledgements
      */
-    public void allowTransactionCleanup() {
-        assert(this.can_complete == false);
+    public void enableTransactionDelete() {
+        assert(this.readyToDelete == false);
         if (debug.get())
-            LOG.debug(String.format("Allowing completeTransaction() for %s", this.ts));
-        this.can_complete = true;
+            LOG.debug(String.format("%s - Enabling the transaction to be deleted", this.ts));
+        this.readyToDelete = true;
         if (this.getCounter() == 0) this.unblockCallback();
     }
 }

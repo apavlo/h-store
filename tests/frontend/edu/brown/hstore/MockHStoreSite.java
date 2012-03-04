@@ -55,7 +55,7 @@ public class MockHStoreSite extends HStoreSite {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf, boolean no_init) {
         super(catalog_site, hstore_conf);
         
         hstore_conf.site.status_enable = false;
@@ -66,8 +66,12 @@ public class MockHStoreSite extends HStoreSite {
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR
-        this.init();
+        if (no_init == false) this.init();
     }
+    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+        this(catalog_site, hstore_conf, false);
+    }
+    
     @Override
     public HStoreCoordinator initHStoreCoordinator() {
         return new MockHStoreCoordinator(this);

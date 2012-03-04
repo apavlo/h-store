@@ -271,14 +271,6 @@ public class LocalTransaction extends AbstractTransaction {
             try {
                 this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
                 this.init_callback.init(this);
-                
-                this.prepare_callback = HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
-                this.prepare_callback.init(this);
-                
-                // Don't initialize this until later, because we need to know 
-                // what the final status of the txn
-                this.finish_callback = HStoreObjectPools.CALLBACKS_TXN_FINISH.borrowObject();
-                
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
             }
@@ -566,9 +558,21 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionInitCallback getTransactionInitCallback() {
         return (this.init_callback);
     }
-    public TransactionPrepareCallback getTransactionPrepareCallback() {
+    public TransactionPrepareCallback initTransactionPrepareCallback() {
+        assert(this.prepare_callback == null);
+        try {
+            this.prepare_callback = HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to initialize TransactionPrepareCallback for " + this, ex);
+        }
+        this.prepare_callback.init(this);
         return (this.prepare_callback);
     }
+    public TransactionPrepareCallback getTransactionPrepareCallback() {
+        assert(this.prepare_callback != null);
+        return (this.prepare_callback);
+    }
+    
     /**
      * Initialize the TransactionFinishCallback for this transaction using the
      * given status indicator. You should always use this callback and not allocate
@@ -577,11 +581,20 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
-        assert(this.finish_callback.isInitialized() == false);
+        assert(this.finish_callback == null);
+        // Don't initialize this until later, because we need to know 
+        // what the final status of the txn
+        try {
+            this.finish_callback = HStoreObjectPools.CALLBACKS_TXN_FINISH.borrowObject();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to initialize TransactionFinishCallback for " + this, ex);
+        }
         this.finish_callback.init(this, status);
         return (this.finish_callback);
     }
     public TransactionFinishCallback getTransactionFinishCallback() {
+        assert(this.finish_callback != null) :
+            "Trying to use TransactionFinishCallback for " + this + " before it is intialized";
         return (this.finish_callback);
     }
     public RpcCallback<byte[]> getClientCallback() {
