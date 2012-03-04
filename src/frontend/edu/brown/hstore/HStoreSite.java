@@ -1491,7 +1491,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
                                        ts, status, clientHandle, request_ctr));
         
-        String statusString = String.format("Transaction was rejected by %s [restarts=%d]", this.getSiteName(), ts.getRestartCounter());
+        String statusString = "Transaction was rejected by Site #" + this.site_id;
+        if (d) statusString += " [restarts=" + ts.getRestartCounter() + "]";
         ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
                                                               ts.getClientHandle(),
                                                               ts.getBasePartition(),
