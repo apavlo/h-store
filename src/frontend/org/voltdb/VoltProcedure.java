@@ -1191,6 +1191,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         
+        for (int i = 0; i < batchSize; i++) {
+            params[i].clear();
+        } // FOR
+        
         return (results);
     }
     
