@@ -85,7 +85,10 @@
 
 <!-- Checkstyle Initilization -->
 <taskdef resource="checkstyletask.properties" classpath="${vendor.lib.dir}/checkstyle-5.5.jar"/>
-         
+
+<property name='jprofiler.dir'                  location='/home/ubuntu/jprofiler' />
+<property name='jprofiler.port'                 value='8849' />
+
 <!--
 ***************************************
 ** H-STORE CONFIGURATION
@@ -2305,6 +2308,9 @@ H-STORE REMIX
         <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
         
+        <!-- JProfiler -->
+<!--         <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> -->
+        
         <!-- Parallel Garbage Collector (Slower) -->
         <!-- <jvmarg value="-XX:+UseParNewGC" /> -->
 <!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
@@ -2319,6 +2325,7 @@ H-STORE REMIX
         <!-- Other JVM Options -->
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
+<!--         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs:${jprofiler.dir}/bin/linux-x64:/usr/lib" /> -->
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
 
