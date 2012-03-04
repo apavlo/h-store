@@ -70,7 +70,6 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -881,9 +880,9 @@ public class HStoreCoordinator implements Shutdownable {
         
         // Send out TimeSync request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-            if (e.getKey() == this. local_site_id) continue;
+            if (e.getKey().intValue() == this.local_site_id) continue;
             TimeSyncRequest request = TimeSyncRequest.newBuilder()
-                                            .setSenderId(local_site_id)
+                                            .setSenderId(this.local_site_id)
                                             .setT0S(System.currentTimeMillis())
                                             .build();
             e.getValue().timeSync(new ProtoRpcController(), request, callback);
