@@ -61,6 +61,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
@@ -143,6 +144,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected TransactionEstimator t_estimator;
     protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
+    protected ParameterSetArrayCache param_cache;
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
@@ -237,28 +239,29 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     /**
      * Main initialization method
-     * @param site
+     * @param executor
      * @param catalog_proc
      * @param eeType
      * @param hsql
      * @param p_estimator
      */
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+    public void globalInit(PartitionExecutor executor, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
             m_initialized = true;
         }
-        assert(site != null);
+        assert(executor != null);
         
-        this.executor = site;
-        this.hstore_site = site.getHStoreSite();
+        this.executor = executor;
+        this.hstore_site = executor.getHStoreSite();
         this.hstore_conf = HStoreConf.singleton();
         this.catalog_proc = catalog_proc;
         this.procedure_name = this.catalog_proc.getName();
         this.catalog = this.catalog_proc.getCatalog();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
+        this.param_cache = this.executor.getProcedureParameterSetArrayCache();
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
         this.partitionIdObj = new Integer(this.partitionId);
@@ -717,6 +720,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             LOG.fatal(e);
             System.exit(1);
         } finally {
+            this.param_cache.reset();
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
         }
 
@@ -1099,7 +1103,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Create a list of clean parameters
-        final ParameterSet params[] = this.executor.getParameterSet(batchSize);
+        final ParameterSet params[] = this.param_cache.getParameterSet(batchSize);
+        assert(params != null);
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
         } // FOR
@@ -1190,10 +1195,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
-        
-        for (int i = 0; i < batchSize; i++) {
-            params[i].clear();
-        } // FOR
         
         return (results);
     }

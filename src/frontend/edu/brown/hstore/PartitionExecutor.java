@@ -122,7 +122,9 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.ThrottlingQueue;
+import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -289,11 +291,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
     // Shared VoltProcedure Data Members
     // ----------------------------------------------------------------------------
-    
-    /**
-     * 
-     */
-    private final ParameterSet[][] voltProc_params; 
+
     
     // ----------------------------------------------------------------------------
     // Execution State
@@ -370,11 +368,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Remote SiteId -> TransactionWorkRequest.Builder
      */
-    private final Map<Integer, TransactionWorkRequest.Builder> tmp_transactionRequestBuildersMap = new HashMap<Integer, TransactionWorkRequest.Builder>();
-    
-    private final Map<Integer, Set<Integer>> tmp_transactionRequestBuildersParameters = new HashMap<Integer, Set<Integer>>();
-    
-    private final Map<Integer, Set<Integer>> tmp_transactionRequestBuilderInputs = new HashMap<Integer, Set<Integer>>();
+    private final TransactionWorkRequestBuilder tmp_transactionRequestBuilders[];
     
     /**
      * PartitionId -> List<VoltTable>
@@ -387,10 +381,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
     
     /**
-     * Reusable ParameterSet arrays
-     * Size of ParameterSet[] -> ParameterSet[]
+     * 
      */
-    private final Map<Integer, ParameterSet[]> tmp_parameterSets = new HashMap<Integer, ParameterSet[]>();
+    private final ParameterSetArrayCache tmp_voltProcParams;
+    
+    /**
+     * 
+     */
+    private final ParameterSetArrayCache tmp_fragmentParams;
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -505,7 +503,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.localPartitionIds = null;
         this.execState = null;
-        this.voltProc_params = null;
+        this.tmp_voltProcParams = null;
+        this.tmp_fragmentParams = null;
+        this.tmp_transactionRequestBuilders = null;
     }
 
     /**
@@ -609,23 +609,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 //            this.hsql = null;
 //            this.ee = null;
         }
+        
+        // ParameterSet Array Caches
+        this.tmp_voltProcParams = new ParameterSetArrayCache(hstore_conf.site.planner_max_batch_size / 2);
+        this.tmp_fragmentParams = new ParameterSetArrayCache(hstore_conf.site.planner_max_round_size / 2);
 
         // Initialize temporary data structures
-        for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
-            if (catalog_site.getId() != this.siteId) {
-                tmp_transactionRequestBuildersParameters.put(catalog_site.getId(), new HashSet<Integer>());
-            }
-            tmp_transactionRequestBuilderInputs.put(catalog_site.getId(), new HashSet<Integer>());
-        } // FOR
-        
-        // Shared VoltProcedure Cached Objects
-        this.voltProc_params = new ParameterSet[hstore_conf.site.planner_max_batch_size][];
-        for (int i = 0; i < this.voltProc_params.length; i++) {
-            this.voltProc_params[i] = new ParameterSet[i];
-            for (int j = 0; j < i; j++) {
-                this.voltProc_params[i][j] = new ParameterSet(true);
-            } // FOR
-        } // FOR
+        int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
+        this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
     }
     
     @SuppressWarnings("unchecked")
@@ -733,6 +724,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 try {
                     work = this.work_queue.poll();
                     if (work == null) {
+                        // See if there is anything that we can do while we wait
+                        this.utilityWork();
+                        
                         if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                         work = this.work_queue.take();
@@ -763,9 +757,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                     WorkFragment fragment = ftask.getWorkFragment();
                     assert(fragment != null);
-                    ParameterSet parameters[] = current_txn.getAttachedParameterSets();
-                    assert(parameters != null);
-                    parameters = this.getFragmentParameters(current_txn, fragment, parameters);
+                    ParameterSet parameters[] = this.getFragmentParameters(current_txn, fragment, current_txn.getAttachedParameterSets());
                     assert(parameters != null);
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
@@ -790,11 +782,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     
                     this.processWorkFragment(current_txn, fragment, parameters);
                     
-                    // Clear out our reusable array
-                    for (int i = 0; i < parameters.length; i++) {
-                        parameters[i] = null;
-                    }
-
                 // -------------------------------
                 // Invoke Stored Procedure
                 // -------------------------------
@@ -873,6 +860,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         }
     }
+    
+    /**
+     * Special function that allows us to do some utility work while 
+     * we are waiting for a response or something real to do.
+     */
+    protected void utilityWork() {
+        // Try to free some memory
+        this.tmp_fragmentParams.reset();
+        this.tmp_serializedParams.clear();
+        this.tmp_EEdependencies.clear();
+    }
 
     public void tick() {
         // invoke native ee tick if at least one second has passed
@@ -936,9 +934,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public int getPartitionId() {
         return (this.partitionId);
     }
-    public Collection<Integer> getLocalPartitionIds() {
-        return (this.localPartitionIds);
-    }
     
     public Long getLastExecutedTxnId() {
         return (this.lastExecutedTxnId);
@@ -946,23 +941,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }
-    
-//    public DBBPool getDBBPool() {
-//        return (this.buffer_pool);
-//    }
-    
-    /**
-     * Return a cached ParameterSet array. This should only be 
-     * called by the VoltProcedures managed by this PartitionExecutor.
-     * This is just to reduce the number of objects that we need to allocate
-     * @param size
-     * @return
-     */
-    public ParameterSet[] getParameterSet(int size) {
-        assert(size < this.voltProc_params.length);
-        return (this.voltProc_params[size]);
-    }
 
+    public ParameterSetArrayCache getProcedureParameterSetArrayCache() {
+        return (this.tmp_voltProcParams);
+    }
+    
     /**
      * Returns the next undo token to use when hitting up the EE with work
      * MAX_VALUE = no undo
@@ -980,7 +963,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode mode) {
         if (d && this.current_execMode != mode) {
-//        if (this.exec_mode != mode) {
             LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
                                     this.partitionId, mode, ts, this.current_dtxn, this.current_execMode));
         }
@@ -1023,20 +1005,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     /**
      * Returns the VoltProcedure instance for a given stored procedure name
+     * This is slow and should not be used at run time
      * @param proc_name
      * @return
      */
     public VoltProcedure getVoltProcedure(String proc_name) {
         return (this.procedures.get(proc_name));
     }
-
+    
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, WorkFragment fragment, ParameterSet allParams[]) {
         int num_fragments = fragment.getFragmentIdCount();
-        ParameterSet fragmentParams[] = tmp_parameterSets.get(num_fragments);
-        if (fragmentParams == null) {
-            fragmentParams = new ParameterSet[num_fragments];
-            tmp_parameterSets.put(num_fragments, fragmentParams); 
-        }
+        ParameterSet fragmentParams[] = tmp_fragmentParams.getParameterSet(num_fragments);
         assert(fragmentParams != null);
         assert(fragmentParams.length == num_fragments);
         
@@ -1045,7 +1024,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             assert(stmt_index < allParams.length) :
                 String.format("StatementIndex is %d but there are only %d ParameterSets for %s",
                               stmt_index, allParams.length, ts); 
-            fragmentParams[i] = allParams[stmt_index];
+            fragmentParams[i].setParameters(allParams[stmt_index]);
         } // FOR
         return (fragmentParams);
     }
@@ -2061,13 +2040,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
         // waiting for an input dependency. Note that we pack all the fragments into a single
         // CoordinatorFragment rather than sending each FragmentTaskMessage in its own message
-        assert(tmp_transactionRequestBuildersMap.isEmpty());
         for (WorkFragment ftask : tasks) {
             assert(!ts.isBlocked(ftask));
             
             int target_partition = ftask.getPartitionId();
             int target_site = hstore_site.getSiteIdForPartitionId(target_partition);
-            Set<Integer> input_dep_ids = tmp_transactionRequestBuilderInputs.get(target_site);
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
@@ -2089,25 +2066,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.warn(String.format("%s - Trying to send a WorkFragment request with 0 fragments", ts));
                 continue;
             }
-            
+           
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
             // We will use this store our serialized input dependencies
-            TransactionWorkRequest.Builder request = tmp_transactionRequestBuildersMap.get(target_site);
-            if (request == null) {
-                request = TransactionWorkRequest.newBuilder()
-                                        .setTransactionId(txn_id)
-                                        .setSourcePartition(this.partitionId)
-                                        .setSysproc(ts.isSysProc())
-                                        .addAllDonePartition(done_partitions);
-                tmp_transactionRequestBuildersMap.put(target_site, request);
-                input_dep_ids.clear();
+            TransactionWorkRequestBuilder builder = tmp_transactionRequestBuilders[target_site];
+            if (builder == null) {
+                builder = tmp_transactionRequestBuilders[target_site] = new TransactionWorkRequestBuilder();
             }
+            TransactionWorkRequest.Builder request = builder.getBuilder(ts);
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.
-            Set<Integer> stmt_indexes = tmp_transactionRequestBuildersParameters.get(target_site);
-            assert(stmt_indexes != null);
-            CollectionUtil.addAll(stmt_indexes, ftask.getStmtIndexList());
+            builder.addStatementIndexes(ftask.getStmtIndexList());
             
             // Input Dependencies
             if (ftask.getNeedsInput()) {
@@ -2118,7 +2088,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
                 FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
-                    if (input_dep_ids.contains(e.getKey())) continue;
+                    if (builder.hasInputDependencyId(e.getKey())) continue;
 
                     if (d) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
                                      ts, e.getValue().size(), HStoreSite.formatSiteName(target_site)));
@@ -2138,7 +2108,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                     ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
                                                     CollectionUtil.last(dBuilder.getDataList()).size()));
                     } // FOR
-                    input_dep_ids.add(e.getKey());
+                    builder.addInputDependencyId(e.getKey());
                     request.addAttached(dBuilder.build());
                 } // FOR
                 if (fs != null) fs.getBBContainer().discard();
@@ -2156,32 +2126,26 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
 
         // Stick on the ParameterSets that each site needs into the TransactionWorkRequest
-        for (Integer target_site : tmp_transactionRequestBuildersMap.keySet()) {
-            TransactionWorkRequest.Builder request = tmp_transactionRequestBuildersMap.get(target_site);
-            assert(request != null);
-            Set<Integer> stmt_indexes = tmp_transactionRequestBuildersParameters.get(target_site);
-            assert(stmt_indexes != null);
-            assert(stmt_indexes.isEmpty() == false);
-            for (int i = 0, cnt = parameterSets.size(); i < cnt; i++) {
-                request.addParameterSets(stmt_indexes.contains(i) ? parameterSets.get(i) : ByteString.EMPTY); 
-            } // FOR
+        for (int target_site = 0; target_site < tmp_transactionRequestBuilders.length; target_site++) {
+            TransactionWorkRequestBuilder builder = tmp_transactionRequestBuilders[target_site]; 
+            if (builder == null || builder.isDirty() == false) {
+                continue;
+            }
+            assert(builder != null);
+            builder.addParameterSets(parameterSets);
+            
+            // Bombs away!
+            this.hstore_coordinator.transactionWork(ts, target_site, builder.build(), this.request_work_callback);
+            if (d) LOG.debug(String.format("%s - Sent Work request to remote HStoreSites for %s",
+                                           ts, target_site));
+
         } // FOR
-        
-        
-        // Bombs away!
-        this.hstore_coordinator.transactionWork(ts, tmp_transactionRequestBuildersMap, this.request_work_callback);
-        if (d) LOG.debug(String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
-                                       tasks.size(), tmp_transactionRequestBuildersMap.size(), ts));
 
         // TODO: We need to check whether we need to notify other HStoreSites that we didn't send
         // a new FragmentTaskMessage to that we are done with their partitions
         if (new_done) {
             
         }
-        
-        // We want to clear out our temporary map here so that we don't have to do it
-        // the next time we need to use this
-        tmp_transactionRequestBuildersMap.clear();
     }
 
     /**
@@ -2318,7 +2282,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 this.tmp_localSiteFragmentList.clear();
             }
             
+            // -------------------------------
             // FAST PATH: Assume everything is local
+            // -------------------------------
             if (predict_singlePartition) {
                 for (WorkFragment ftask : fragments) {
                     if (first == false || ts.addWorkFragment(ftask) == false) {
@@ -2344,10 +2310,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     this.processWorkFragment(ts, fragment, fragmentParams);
 //                    read_only = read_only && ftask.isReadOnly();
                 } // FOR
-                
+            }
+            // -------------------------------
             // SLOW PATH: Mixed local and remote messages
-            } else {
-                
+            // -------------------------------
+            else {
                 // Look at each task and figure out whether it should be executed remotely or locally
                 for (WorkFragment ftask : fragments) {
                     int partition = ftask.getPartitionId();
@@ -2388,15 +2355,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         if (hstore_conf.site.txn_profiling) ts.profiler.startSerialization();
                         tmp_serializedParams.clear();
                         for (int i = 0; i < parameters.length; i++) {
-                            ParameterSet ps = parameters[i];
-                            if (ps == null) tmp_serializedParams.add(ByteString.EMPTY);
-                            fs.clear();
-                            try {
-                                ps.writeExternal(fs);
-                                ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
-                                tmp_serializedParams.add(bs);
-                            } catch (Exception ex) {
-                                throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
+                            if (parameters[i] == null) {
+                                tmp_serializedParams.add(ByteString.EMPTY);
+                            } else {
+                                fs.clear();
+                                try {
+                                    parameters[i].writeExternal(fs);
+                                    ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
+                                    tmp_serializedParams.add(bs);
+                                } catch (Exception ex) {
+                                    throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
+                                }
                             }
                         } // FOR
                         if (hstore_conf.site.txn_profiling) ts.profiler.stopSerialization();
@@ -2447,9 +2416,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // wait for all of the results to come back in.
         if (latch == null) latch = ts.getDependencyLatch();
         if (latch.getCount() > 0) {
-            // Free some memory
-            tmp_serializedParams.clear();
-            
             if (d) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies", ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());

@@ -387,7 +387,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        // this.cresponse = null;  
+        this.cresponse.setStatus(null);
         
         if (this.profiler != null) this.profiler.finish();
     }

@@ -166,13 +166,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    private final int LOCAL_PARTITION_OFFSETS[];
+    private final int local_partition_offsets[];
     
     /**
      * For a given offset from LOCAL_PARTITION_OFFSETS, this array
      * will contain the partition id
      */
-    private final int LOCAL_PARTITION_REVERSE[];
+    private final int local_partition_reverse[];
     
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
@@ -336,13 +336,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.single_partition_sets = new Collection[num_partitions];
         
         // Offset Hack
-        this.LOCAL_PARTITION_OFFSETS = new int[num_partitions];
-        Arrays.fill(this.LOCAL_PARTITION_OFFSETS, -1);
-        this.LOCAL_PARTITION_REVERSE = new int[this.num_local_partitions];
+        this.local_partition_offsets = new int[num_partitions];
+        Arrays.fill(this.local_partition_offsets, -1);
+        this.local_partition_reverse = new int[this.num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
-            this.LOCAL_PARTITION_OFFSETS[partition] = offset;
-            this.LOCAL_PARTITION_REVERSE[offset] = partition; 
+            this.local_partition_offsets[partition] = offset;
+            this.local_partition_reverse[offset] = partition; 
             this.local_partitions_arr[offset] = partition;
             this.single_partition_sets[partition] = Collections.singleton(partition);
             offset++;
@@ -418,7 +418,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public int getLocalPartitionOffset(int partition) {
-        return this.LOCAL_PARTITION_OFFSETS[partition];
+        return this.local_partition_offsets[partition];
     }
     
     /**
@@ -427,7 +427,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public int getLocalPartitionFromOffset(int offset) {
-        return this.LOCAL_PARTITION_REVERSE[offset];
+        return this.local_partition_reverse[offset];
     }
     
     // ----------------------------------------------------------------------------
@@ -543,7 +543,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.local_partitions_arr);
     }
     public boolean isLocalPartition(int p) {
-        return (this.LOCAL_PARTITION_OFFSETS[p] != -1);
+        return (this.local_partition_offsets[p] != -1);
     }
     
     public int getSiteIdForPartitionId(int partition_id) {
@@ -567,6 +567,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected int getInflightTxnCount() {
         return (this.inflight_txns.size());
     }
+    /**
+     * Get the collection of inflight Transaction state handles
+     * THIS SHOULD ONLY BE USED FOR TESTING!
+     * @return
+     */
+    protected Collection<AbstractTransaction> getInflightTransactions() {
+        return (this.inflight_txns.values());
+    }
+    
     protected int getDTXNQueueSize() {
         int ctr = 0;
         for (Integer p : this.local_partitions) {
