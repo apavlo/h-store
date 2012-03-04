@@ -22,10 +22,12 @@ import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.TransactionProfile;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -271,10 +273,22 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
+        // Check to see how many of them are marked as finished
+        // There is no guarantee that this will be accurate because txns could be swapped out
+        // by the time we get through it all
+        int inflight_finished = 0;
+        for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
+           if (ts instanceof LocalTransaction) {
+               ClientResponse cr = ((LocalTransaction)ts).getClientResponse();
+               if (cr.getStatus() != null) inflight_finished++;
+           }
+        }
+        
         ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.put("InFlight Txns", String.format("%-5d total / %-5d dtxn [totalMin=%d, totalMax=%d]",
+        m_exec.put("InFlight Txns", String.format("%-5d total / %-5d dtxn / %-5d finished [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
+                        inflight_finished,
                         inflight_min,
                         inflight_max
         ));

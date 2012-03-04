@@ -66,6 +66,16 @@ public class ParameterSet implements FastSerializable {
         this.m_params = params;
         return (this);
     }
+    
+    /**
+     * Set the internal array of this ParameterSet to the same as the one given
+     * @param other
+     * @return
+     */
+    public ParameterSet setParameters(ParameterSet other) {
+        this.m_params = other.m_params;
+        return (this);
+    }
 
     public void clear() {
         this.m_params = null;

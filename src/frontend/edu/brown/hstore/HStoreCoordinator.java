@@ -70,6 +70,7 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -616,22 +617,18 @@ public class HStoreCoordinator implements Shutdownable {
      * @param builders
      * @param callback
      */
-    public void transactionWork(LocalTransaction ts, Map<Integer, TransactionWorkRequest.Builder> builders, RpcCallback<TransactionWorkResponse> callback) {
-        for (Entry<Integer, TransactionWorkRequest.Builder> e : builders.entrySet()) {
-            int site_id = e.getKey().intValue();
-            assert(e.getValue().getFragmentsCount() > 0) :
-                String.format("No WorkFragments for Site %d in %s", site_id, ts);
-            TransactionWorkRequest request = e.getValue().build();
-            
-            // We should never get work for our local partitions
-            assert(site_id != this.local_site_id);
-            assert(ts.getTransactionId().longValue() == request.getTransactionId()) :
-                String.format("%s is for txn #%d but the %s has txn #%d",
-                              ts.getClass().getSimpleName(), ts.getTransactionId(),
-                              request.getClass().getSimpleName(), request.getTransactionId());
-            
-            this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), request, callback);
-        } // FOR
+    public void transactionWork(LocalTransaction ts, int site_id, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
+        assert(request.getFragmentsCount() > 0) :
+            String.format("No WorkFragments for Site %d in %s", site_id, ts);
+        
+        // We should never get work for our local partitions
+        assert(site_id != this.local_site_id);
+        assert(ts.getTransactionId().longValue() == request.getTransactionId()) :
+            String.format("%s is for txn #%d but the %s has txn #%d",
+                          ts.getClass().getSimpleName(), ts.getTransactionId(),
+                          request.getClass().getSimpleName(), request.getTransactionId());
+        
+        this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), request, callback);
     }
     
     /**
