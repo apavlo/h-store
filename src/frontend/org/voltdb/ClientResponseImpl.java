@@ -109,12 +109,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
         this.init(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, e);
     }
     
-    public void init(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
+    public void init(Long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
         this.init(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
     
-    public void init(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
-        this.txn_id = txn_id;
+    public void init(Long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
+        this.txn_id = txn_id.longValue();
         this.clientHandle = client_handle;
         this.basePartition = basePartition;
         this.appStatus = appStatus;

@@ -302,6 +302,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
     
     // ----------------------------------------------------------------------------
+    // CACHED STRINGS
+    // ----------------------------------------------------------------------------
+    
+    private final String REJECTION_MESSAGE;
+    
+    // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
     
@@ -406,6 +412,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.fixed_estimator = null;
         }
+        
+        // CACHED MESSAGES
+        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
     }
     
     // ----------------------------------------------------------------------------
@@ -1149,7 +1158,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.dispatchInvocation(ts);
         
-        if (d) LOG.debug("Finished initial processing of " + ts + ". Returning back to listen on incoming socket");
+        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
     }
 
     /**
@@ -1253,7 +1262,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
 
     /**
-     * This function can really block transaction executing on that parition
+     * This function can really block transaction executing on that partition
+     * IMPORTANT: The transaction could be deleted after calling this if it is rejected
      * @param ts, base_partition
      */
     public void transactionStart(LocalTransaction ts, int base_partition) {
@@ -1319,7 +1329,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (ts);
     }
     
-    /** TODO(xin)
+    /**
      * Execute some map work on a particular PartitionExecutor
      * @param request
      * @param done
@@ -1480,10 +1490,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Rejects a transaction and returns an empty result back to the client
-     * The transaction will not be re-queued
+     * IMPORTANT: The transaction will be deleted after calling this unless no_delete is true
      * @param ts
+     * @param deletable Prevent the txn from getting deleted
      */
-    public void transactionReject(LocalTransaction ts, Status status) {
+    public void transactionReject(LocalTransaction ts, Status status, boolean deletable) {
         assert(ts.isInitialized());
         int request_ctr = this.getNextRequestCounter();
         long clientHandle = ts.getClientHandle();
@@ -1491,16 +1502,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
                                        ts, status, clientHandle, request_ctr));
         
-        String statusString = "Transaction was rejected by Site #" + this.site_id;
+        String statusString = this.REJECTION_MESSAGE;
         if (d) statusString += " [restarts=" + ts.getRestartCounter() + "]";
-        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
-                                                              ts.getClientHandle(),
-                                                              ts.getBasePartition(),
-                                                              status,
-                                                              HStoreConstants.EMPTY_RESULT,
-                                                              statusString);
+        ClientResponseImpl cresponse = ts.getClientResponse();
+        cresponse.init(ts.getTransactionId(),
+                       ts.getClientHandle(),
+                       ts.getBasePartition(),
+                       status,
+                       HStoreConstants.EMPTY_RESULT,
+                       statusString,
+                       ts.getPendingError());
         this.sendClientResponse(ts, cresponse);
-        
 
         if (hstore_conf.site.status_show_txn_info) {
             if (status == Status.ABORT_THROTTLED) {
@@ -1511,6 +1523,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 assert(false) : "Unexpected " + ts + ": " + status;
             }
         }
+        
+        // We can go ahead and delete the transaction right here if we're allowed
+        if (deletable) {
+            this.deleteTransaction(ts.getTransactionId(), status);
+        }
     }
 
     /**
@@ -1518,10 +1535,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This method will perform the following operations:
      *  (1) Restart the transaction as new multi-partitioned transaction
      *  (2) Mark the original transaction as aborted
-     * @param txn_id
-     * @param orig_callback - the original callback to the client
+     * IMPORTANT: The transaction could be deleted after calling this if it is rejected unless deletable is false
+     * @param ts
+     * @param status Final status of this transaction
+     * @param deletable Whether to allow the transaction to be deleted permanently
      */
-    public void transactionRestart(LocalTransaction orig_ts, Status status) {
+    public void transactionRestart(LocalTransaction orig_ts, Status status, boolean deletable) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
@@ -1539,7 +1558,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
-                this.transactionReject(orig_ts, Status.ABORT_REJECT);
+                this.transactionReject(orig_ts, Status.ABORT_REJECT, deletable);
                 return;
             }
         }
@@ -1770,7 +1789,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // as soon as possible...
         else {
             if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
-            this.transactionRestart(ts, status);
+            this.transactionRestart(ts, status, false);
         }
     }
     
