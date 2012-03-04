@@ -1798,7 +1798,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                          output_depIds,
                                                          input_depIds,
                                                          null);
-        assert(result != null) : "Unexpected null DependencySet for " + ts; 
+        assert(result != null) : "Unexpected null DependencySet result for " + ts; 
         if (t) LOG.trace("Output:\n" + result);
         
         ts.fastFinishRound(this.partitionId);
@@ -1895,6 +1895,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             new RuntimeException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
         } finally {
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
+            if (result == null) {
+                LOG.warn(String.format("%s - Finished executing fragments but got back null results [fragmentIds=%s]",
+                                       ts, Arrays.toString(fragmentIds)));
+            }
         }
         
         // *********************************** DEBUG ***********************************
