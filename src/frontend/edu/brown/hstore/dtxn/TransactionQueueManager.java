@@ -429,7 +429,8 @@ public class TransactionQueueManager implements Runnable, Loggable {
      */
     private void checkBlockedDTXNs(Long last_txn_id) {
         if (d && this.blocked_dtxns.isEmpty() == false)
-            LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]", this.blocked_dtxns.size(), last_txn_id));
+            LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]",
+                                    this.blocked_dtxns.size(), last_txn_id));
         
         while (this.blocked_dtxns.isEmpty() == false) {
             LocalTransaction ts = this.blocked_dtxns.peek();
