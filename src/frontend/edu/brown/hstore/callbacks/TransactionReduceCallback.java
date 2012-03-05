@@ -120,33 +120,22 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
                                     response.getStatus(),
                                     this.ts, 
                                     response.getResultsList()));
-        assert(this.ts != null) :
-            String.format("Missing MapReduceTransaction handle for txn #%d", response.getTransactionId());
-        assert(response.getResultsCount() > 0) :
-            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
-        
-        Long orig_txn_id = this.getTransactionId();
-        long resp_txn_id = response.getTransactionId();
-        Long ts_txn_id = this.ts.getTransactionId();
-        
-        // If we get a response that matches our original txn but the LocalTransaction handle 
-        // has changed, then we need to will just ignore it
-        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
+        // From previous transaction. Safe to ignore.
+        if (this.sameTransaction(this.ts, response, response.getTransactionId()) == false) {
             return (0);
         }
-        // Otherwise, make sure it's legit
-        assert(ts_txn_id == resp_txn_id) :
-            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
-                          response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
-        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
+        // Otherwise, make sure it's legit
+        assert(this.ts.getTransactionId().longValue() == response.getTransactionId()) :
+            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getTransactionId());
+        
+        if (response.getStatus() != Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
             return (0);
         }
-        // Here we should receive the reduceOutput data
         
+        // Here we should receive the reduceOutput data
         for (ReduceResult pr : response.getResultsList()) {
             int partition = pr.getPartitionId();
             ByteBuffer bs = pr.getData().asReadOnlyByteBuffer();

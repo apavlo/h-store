@@ -12,6 +12,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.AbstractTransaction;
 
 /**
  * 
@@ -83,6 +84,34 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     public RpcCallback<T> getOrigCallback() {
         return this.orig_callback;
+    }
+    
+    protected boolean sameTransaction(AbstractTransaction ts, Object msg, long msg_txn_id) {
+        // Race condition
+        Long ts_txn_id = null;
+        try {
+            if (ts != null) ts_txn_id = ts.getTransactionId();
+        } catch (NullPointerException ex) {
+            // Ignore
+        } finally {
+            // IMPORTANT: If the LocalTransaction handle is null, then that means we are getting
+            // this message well after we have already cleaned up the transaction. Since these objects
+            // are pooled, it could be reused. So that means we will just ignore it.
+            // This may make it difficult to debug, but hopefully we'll be ok.
+            if (ts_txn_id == null) {
+                if (debug.get()) LOG.warn(String.format("Ignoring old %s for defunct txn #%d",
+                                                         msg.getClass().getSimpleName(), msg_txn_id));
+                return (false);
+            }
+        }
+        // If we get a response that matches our original txn but the LocalTransaction handle 
+        // has changed, then we need to will just ignore it
+        if (msg_txn_id != ts_txn_id.longValue()) {
+            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
+                                                     msg.getClass().getSimpleName(), msg_txn_id, this.getTransactionId()));
+            return (false);
+        }
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -180,8 +209,13 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public final void finish() {
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - Finishing %s", this.txn_id, this.getClass().getSimpleName()));
+        if (this instanceof TransactionPrepareCallback || this instanceof TransactionFinishCallback)
+            assert(this.counter.get() == 0) :
+                String.format("Trying to finish %s for txn #%d before it was properly finished [counter=%d]",
+                              this.getClass().getSimpleName(), this.txn_id, this.counter.get());
+        if (debug.get()) LOG.debug(String.format("Txn #%d - Finishing %s",
+                                                 this.txn_id, this.getClass().getSimpleName()));
+        
         this.aborted.set(false);
         this.invoked.set(false);
         this.orig_callback = null;

@@ -287,7 +287,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultInt=10,
+            defaultInt=1,
             experimental=true
         )
         public int txn_incoming_delay;

@@ -125,26 +125,18 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                                     response.getPartitionsList(),
                                     (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
                                     (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
-        assert(this.ts != null) :
-            String.format("Missing LocalTransaction handle for txn #%d", response.getTransactionId());
-        assert(response.getPartitionsCount() > 0) :
-            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
-        Long expected = this.getTransactionId();
-        Long ts_txn_id = this.ts.getTransactionId();
-        
-        // If we get a response that matches our original txn but the LocalTransaction handle 
-        // has changed, then we need to will just ignore it
-        if (expected.longValue() == response.getTransactionId() &&
-            expected.equals(ts_txn_id) == false) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     response.getClass().getSimpleName(), response.getTransactionId(), expected));
+        // From previous transaction. Safe to ignore.
+        if (this.sameTransaction(this.ts, response, response.getTransactionId()) == false) {
             return (0);
         }
+        
+        assert(response.getPartitionsCount() > 0) :
+            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
-        assert(ts_txn_id.longValue() == response.getTransactionId()) :
+        assert(this.ts.getTransactionId() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
-                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), expected);
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getTransactionId());
         
         if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
             // If we were told what the highest transaction id was at the remove partition, then 
