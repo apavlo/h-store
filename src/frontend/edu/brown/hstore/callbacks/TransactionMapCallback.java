@@ -2,7 +2,6 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.logging.LoggerUtil;
@@ -111,28 +110,16 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
                                     response.getStatus(),
                                     this.ts, 
                                     response.getPartitionsList()));
-        assert(this.ts != null) :
-            String.format("Missing MapReduceTransaction handle for txn #%d", response.getTransactionId());
-        assert(response.getPartitionsCount() > 0) :
-            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
-        
-        Long orig_txn_id = this.getTransactionId();
-        long resp_txn_id = response.getTransactionId();
-        Long ts_txn_id = this.ts.getTransactionId();
-        
-        // If we get a response that matches our original txn but the LocalTransaction handle 
-        // has changed, then we need to will just ignore it
-        if (orig_txn_id.longValue() == resp_txn_id && orig_txn_id.equals(ts_txn_id) == false) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
+        // From previous transaction. Safe to ignore.
+        if (this.sameTransaction(this.ts, response, response.getTransactionId()) == false) {
             return (0);
         }
         // Otherwise, make sure it's legit
-        assert(ts_txn_id == resp_txn_id) :
+        assert(this.ts.getTransactionId().longValue() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
-                          response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getTransactionId());
         
-        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
             return (0);
         }
