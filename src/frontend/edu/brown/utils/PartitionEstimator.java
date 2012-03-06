@@ -120,7 +120,7 @@ public class PartitionEstimator {
     /**
      * CacheEntry ColumnKey -> Set<StmtParameterIndex>
      */
-    protected class CacheEntry extends HashMap<Column, Set<Integer>> {
+    private class CacheEntry extends HashMap<Column, int[]> {
         private static final long serialVersionUID = 1L;
         private final QueryType query_type;
         private boolean contains_or = false;
@@ -144,10 +144,26 @@ public class PartitionEstimator {
          * @param catalog_tbls
          */
         public void put(Column key, int param_idx, Table... catalog_tbls) {
-            if (!this.containsKey(key)) {
-                this.put(key, new HashSet<Integer>());
+            int params[] = this.get(key);
+            boolean dirty = true;
+            if (params == null) {
+                params = new int[]{ param_idx };
+            } else {
+                for (int idx : params) {
+                    if (idx == param_idx) {
+                        dirty = false;
+                        break;
+                    }
+                } // FOR
+                
+                if (dirty) {
+                    int temp[] = new int[params.length + 1];
+                    System.arraycopy(params, 0, temp, 0, params.length);
+                    temp[temp.length-1] = param_idx;
+                    params = temp;
+                }
             }
-            this.get(key).add(param_idx);
+            if (dirty) this.put(key, params);
             for (Table catalog_tbl : catalog_tbls) {
                 this.table_keys.add(CatalogKey.createKey(catalog_tbl));
             } // FOR
@@ -1096,7 +1112,9 @@ public class PartitionEstimator {
                                     partition_col.fullName()));
                         return (null);
                     } else if (partition_col != null && cache_entry.containsKey(partition_col)) {
-                        all_param_idxs.addAll(cache_entry.get(partition_col));
+                        for (int idx : cache_entry.get(partition_col)) {
+                            all_param_idxs.add(Integer.valueOf(idx));
+                        } // FOR
                     }
                 } // FOR
             } // FOR
@@ -1241,8 +1259,7 @@ public class PartitionEstimator {
     private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions, final Collection<Integer> entry_all_partitions, PartitionEstimator.CacheEntry cache_entry,
             Object params[], Integer base_partition) throws Exception {
 
-        // Hash the input parameters to determine what partitions we're headed
-        // to
+        // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;
 
         // Update cache
@@ -1334,7 +1351,11 @@ public class PartitionEstimator {
                             // assert(cache_entry.get(mc_column_key) != null) :
                             // "Null CacheEntry: " + mc_column_key;
                             if (cache_entry.get(mc_column) != null) {
-                                this.calculatePartitions(mc_partitions[i], params, cache_entry.is_array, cache_entry.get(mc_column), mc_column);
+                                this.calculatePartitions(mc_partitions[i],
+                                                         params,
+                                                         cache_entry.is_array,
+                                                         cache_entry.get(mc_column),
+                                                         mc_column);
                             }
 
                             // Unless we have partition values for both keys,
@@ -1367,13 +1388,13 @@ public class PartitionEstimator {
                         this.mcPartitionSetPool.returnObject(mc_partitions);
                     }
                 } else {
-                    Collection<Integer> param_idxs = cache_entry.get(catalog_col);
+                    int param_idxs[] = cache_entry.get(catalog_col);
                     if (trace.get())
                         LOG.trace("Param Indexes: " + param_idxs);
 
                     // Important: If there is no entry for this partitioning
                     // column, then we have to broadcast this mofo
-                    if (param_idxs == null || param_idxs.isEmpty()) {
+                    if (param_idxs == null || param_idxs.length == 0) {
                         if (debug.get())
                             LOG.debug(String.format("No parameter mapping for %s. Fragment must be broadcast to all partitions", catalog_col.fullName()));
                         table_partitions.addAll(this.all_partitions);
@@ -1417,12 +1438,12 @@ public class PartitionEstimator {
      * @param param_idxs
      * @param catalog_col
      */
-    private Set<Integer> calculatePartitions(final Set<Integer> partitions, Object params[], boolean is_array[], Collection<Integer> param_idxs, Column catalog_col) {
+    private Set<Integer> calculatePartitions(final Set<Integer> partitions, Object params[], boolean is_array[], int param_idxs[], Column catalog_col) {
         // Note that we have to go through all of the mappings from the
         // partitioning column
         // to parameters. This can occur when the partitioning column is
         // referenced multiple times
-        for (Integer param_idx : param_idxs) {
+        for (int param_idx : param_idxs) {
             // IMPORTANT: Check if the parameter is an array. If it is, then we
             // have to
             // loop through and get the hash of all of the values

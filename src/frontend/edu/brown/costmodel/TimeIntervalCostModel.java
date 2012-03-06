@@ -500,22 +500,17 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // Calculate the skew factor at this time interval
             // XXX: Should the number of txns be the total number of unique txns
-            // that were executed
-            // or the total number of times a txn touched the partitions?
-            // XXX: What do we do when the number of elements that we are
-            // examining is zero? I guess
-            // the cost just needs to be zero?
+            //      that were executed or the total number of times a txn touched the partitions?
+            // XXX: What do we do when the number of elements that we are examining is zero?
+            //      I guess the cost just needs to be zero?
             // XXX: What histogram do we want to use?
             target_histogram.clear();
             target_histogram.putHistogram(histogram_txn);
 
-            // For each txn that we haven't gotten an estimate for at this
-            // interval, we're going
-            // mark it as being broadcast to all partitions. That way the access
-            // histogram will
-            // look uniform. Then as more information is added, we will
-            // This is an attempt to make sure that the entropy cost never
-            // decreases but only increases
+            // For each txn that we haven't gotten an estimate for at this interval, 
+            // we're going mark it as being broadcast to all partitions. That way the access
+            // histogram will look uniform. Then as more information is added, we will
+            // This is an attempt to make sure that the skew cost never decreases but only increases
             long total_txns_in_interval = (long) total_interval_txns[i];
             if (sb != null) {
                 debug_histograms.put("Incomplete Txns", incomplete_txn_histogram[i]);
