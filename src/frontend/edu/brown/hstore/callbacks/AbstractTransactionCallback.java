@@ -30,8 +30,10 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     }
     
     protected void init(LocalTransaction ts, int counter_val, RpcCallback<T> orig_callback) {
+        assert(ts != null) : "Unexpected null LocalTransaction handle";
         if (debug.get()) LOG.debug(ts + " - Intializing new " + this.getClass().getSimpleName());
         super.init(ts.getTransactionId(), counter_val, orig_callback);
+        this.ts = ts;
     }
 
     @Override
