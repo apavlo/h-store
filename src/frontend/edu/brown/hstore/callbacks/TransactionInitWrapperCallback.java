@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -52,7 +52,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Transaction
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id)
-                             .setStatus(Hstoreservice.Status.OK);
+                             .setStatus(Status.OK);
         super.init(txn_id, counter, orig_callback);
     }
     
@@ -93,14 +93,14 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Transaction
         //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
     }
     
-    public void abort(Hstoreservice.Status status, int partition, long txn_id) {
+    public void abort(Status status, int partition, long txn_id) {
         this.builder.setRejectPartition(partition);
         this.builder.setRejectTransactionId(txn_id);
         this.abort(status);
     }
     
     @Override
-    protected void abortCallback(Hstoreservice.Status status) {
+    protected void abortCallback(Status status) {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));

@@ -1468,7 +1468,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         for (int p : partitions) {
             if (this.isLocalPartition(p) == false) {
-                if (t) LOG.trace(String.format("#%d - Skipping finish at partition %d", txn_id, p));
+//                if (t) 
+                    LOG.debug(String.format("#%d - Skipping finish at partition %d", txn_id, p));
                 continue;
             }
             if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
@@ -1480,7 +1481,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ((ts.hasStarted(p) || ts.getBasePartition() == p)) ) {
+            if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
                 if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 
                 try {
@@ -1566,7 +1567,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // We can go ahead and delete the transaction right here if we're allowed
         if (deletable) {
-            this.deleteTransaction(ts.getTransactionId(), status);
+            synchronized (ts) {
+                if (ts.isDeletable()) {
+                    this.deleteTransaction(ts.getTransactionId(), status);
+                }
+            } // SYNCH
         }
     }
 
@@ -1875,6 +1880,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
+        assert(ts.isDeletable()) :
+            String.format("Trying to delete %s before it is ready!", ts);
+        
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?

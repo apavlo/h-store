@@ -93,6 +93,11 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                                     (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
                                     (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
+        // HACK: We can ignore requests from different txns
+        if (this.sameTransaction(response, response.getTransactionId()) == false) {
+            return (0);
+        }
+        
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
                           response.getTransactionId(), response.getStatus());
@@ -113,7 +118,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                                   response.getClass().getSimpleName(), response.getTransactionId(), this.ts);
                 synchronized (this) {
                     if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
-                        if (debug.get()) LOG.debug(String.format("%s was rejected at partition by txn #%d",
+                        if (debug.get()) LOG.debug(String.format("%s was rejected at partition %d by txn #%d",
                                                                  this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
                         this.reject_partition = response.getRejectPartition();
                         this.reject_txnId = response.getRejectTransactionId();

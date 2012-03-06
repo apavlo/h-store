@@ -620,9 +620,9 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.isInitialized() == false) {
             return (false);
         }
-        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
-            return (false);
-        }
+//        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
+//            return (false);
+//        }
         if (this.prepare_callback != null && this.prepare_callback.getCounter() > 0) {
             return (false);
         }
@@ -1253,7 +1253,9 @@ public class LocalTransaction extends AbstractTransaction {
         m = new ListOrderedMap<String, Object>();
         m.put("Original Txn Id", this.orig_txn_id);
         m.put("Client Callback", this.client_callback);
+        m.put("Init Callback", this.init_callback);
         m.put("Prepare Callback", this.prepare_callback);
+        m.put("Finish Callback", this.finish_callback);
         maps.add(m);
 
         // Profile Times

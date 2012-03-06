@@ -1088,7 +1088,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s %s on partition %d\n%s",
                                         ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
             } else {
-                LOG.warn(String.format("%s - No InputDependencies retrieved for %s %s on partition %d",
+                LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
                                        ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
             }
         }
@@ -2399,7 +2399,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
-                    if (d) LOG.debug(String.format("%s - Executing %d FragmentTaskMessages on local partition for %s",
+                    if (d) LOG.debug(String.format("%s - Executing %d FragmentTaskMessages on local partition",
                                                    ts, num_localPartition));
                     for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);

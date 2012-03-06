@@ -31,7 +31,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     
     protected void init(LocalTransaction ts, int counter_val, RpcCallback<T> orig_callback) {
         assert(ts != null) : "Unexpected null LocalTransaction handle";
-        if (debug.get()) LOG.debug(ts + " - Intializing new " + this.getClass().getSimpleName());
+        if (debug.get()) LOG.debug(ts + " - Initializing new " + this.getClass().getSimpleName());
         super.init(ts.getTransactionId(), counter_val, orig_callback);
         this.ts = ts;
     }
@@ -82,11 +82,17 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected abstract void unblockTransactionCallback();
     protected abstract boolean abortTransactionCallback(Status status);
     
-    protected void deleteTransaction(Status status) {
+    protected final void deleteTransaction(Status status) {
         synchronized (this.ts) {
             if (this.ts.isDeletable()) {
                 if (this.txn_profiling) ts.profiler.stopPostFinish();
+//                if (trace.get()) 
+                    LOG.info(String.format("%s - Deleting from %s [status=%s]",
+                                                         this.ts, this.getClass().getSimpleName(), status));
                 hstore_site.deleteTransaction(this.getTransactionId(), status);
+            } else {
+                LOG.info(String.format("%s - Not deleting from %s [status=%s]\n%s",
+                                       this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
             }
         } // SYNCH
     }
@@ -95,17 +101,17 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
      * 
      * @param status
      */
-    protected void finishTransaction(Status status) {
+    protected final void finishTransaction(Status status) {
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
     
-    protected boolean sameTransaction(AbstractTransaction ts, Object msg, long msg_txn_id) {
+    protected boolean sameTransaction(Object msg, long msg_txn_id) {
         // Race condition
         Long ts_txn_id = null;
         try {
-            if (ts != null) ts_txn_id = ts.getTransactionId();
+            if (this.ts != null) ts_txn_id = this.ts.getTransactionId();
         } catch (NullPointerException ex) {
             // Ignore
         } finally {
