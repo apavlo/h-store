@@ -16,7 +16,7 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class TransactionMapCallback extends BlockingCallback<TransactionMapResponse, TransactionMapResponse> {
+public class TransactionMapCallback extends AbstractTransactionCallback<TransactionMapResponse, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -24,36 +24,19 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private MapReduceTransaction ts;
-    private TransactionFinishCallback finish_callback;
-    
     /**
      * Constructor
      * @param hstore_site
      */
     public TransactionMapCallback(HStoreSite hstore_site) {
-        super(hstore_site, true);
+        super(hstore_site);
     }
 
     public void init(MapReduceTransaction ts) {
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
-        if (debug.get())
-            LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
-        this.ts = ts;
-        this.finish_callback = null;
-        super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
-    }
-    
-    @Override
-    protected void finishImpl() {
-        this.ts = null;
-    }
-    
-    @Override
-    public boolean isInitialized() {
-        return (this.ts != null);
+        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
     }
     
     /**
@@ -61,45 +44,32 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
      * executing the map phase for this txn
      */
     @Override
-    protected void unblockCallback() {
-        if (this.isAborted() == false) {
+    protected void unblockTransactionCallback() {
+        if (debug.get())
+            LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
+                    "<Switching to the 'reduce' phase>.......");
+        
+        MapReduceTransaction mr_ts = (MapReduceTransaction)this.ts;
+        mr_ts.setReducePhase();
+        assert(mr_ts.isReducePhase());
+        
+        if (hstore_site.getHStoreConf().site.mapreduce_reduce_blocking){
             if (debug.get())
-                LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
-                        "<Switching to the 'reduce' phase>.......");
-                                    
-            ts.setReducePhase();
-            assert(ts.isReducePhase());
-            
-            if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking){
-                if (debug.get())
-                    LOG.debug(ts + ": $$$ normal reduce blocking execution way");
-                // calling this hstore_site.transactionStart function will block the executing engine on each partition
-                hstore_site.transactionStart(ts, ts.getBasePartition());
-            } else {
-                // throw reduce job to MapReduceHelperThread to do
-                if (debug.get())
-                    LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
-                hstore_site.getMapReduceHelper().queue(ts);
-            }
-            
+                LOG.debug(ts + ": $$$ normal reduce blocking execution way");
+            // calling this hstore_site.transactionStart function will block the executing engine on each partition
+            hstore_site.transactionStart(ts, ts.getBasePartition());
         } else {
-            assert(this.finish_callback != null);
-            this.finish_callback.enableTransactionDelete();
+            // throw reduce job to MapReduceHelperThread to do
+            if (debug.get())
+                LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
+            hstore_site.getMapReduceHelper().queue(mr_ts);
         }
     }
 
     @Override
-    protected void abortCallback(Status status) {
+    protected boolean abortTransactionCallback(Status status) {
         assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
-        
-        // If we abort, then we have to send out an ABORT to
-        // all of the partitions that we originally sent INIT requests too
-        // Note that we do this *even* if we haven't heard back from the remote
-        // HStoreSite that they've acknowledged our transaction
-        // We don't care when we get the response for this
-        this.finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.finish_callback.disableTransactionDelete();
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
+        return (true);
     }
     
     @Override
@@ -110,10 +80,9 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
                                     response.getStatus(),
                                     this.ts, 
                                     response.getPartitionsList()));
-        // From previous transaction. Safe to ignore.
-        if (this.sameTransaction(this.ts, response, response.getTransactionId()) == false) {
-            return (0);
-        }
+        assert(this.ts != null) :
+            String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
+                          response.getTransactionId(), response.getStatus());
         // Otherwise, make sure it's legit
         assert(this.ts.getTransactionId().longValue() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
@@ -121,7 +90,6 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
         
         if (response.getStatus() != Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
-            return (0);
         }
         return (response.getPartitionsCount());
     }

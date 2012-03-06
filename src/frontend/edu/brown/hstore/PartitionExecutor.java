@@ -1278,7 +1278,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Note that we have to do this before we add the responses to the TransactionState so that
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
-        if (fresponse.getStatus() != Hstoreservice.Status.OK) {
+        if (fresponse.getStatus() != Status.OK) {
             if (t) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
                                                     fresponse.getStatus(), fresponse.getPartitionId(), ts));
 
@@ -1292,7 +1292,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } finally {
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
             }
-            ts.setPendingError(error);
+            // At this point there is no need to even deserialize the rest of the message because 
+            // we know that we're going to have to abort the transaction
+            ts.setPendingError(error, true);
+            return;
         }
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
@@ -2524,7 +2527,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         }
         
+        // -------------------------------
         // ALL: Single-Partition Transactions
+        // -------------------------------
         if (is_singlepartitioned) {
             // Commit or abort the transaction
             this.finishWork(ts, (status == Hstoreservice.Status.OK));
@@ -2539,14 +2544,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 
+        // -------------------------------
         // COMMIT: Distributed Transaction
+        // -------------------------------
         else if (status == Hstoreservice.Status.OK) {
-            // Store the ClientResponse in the TransactionPrepareCallback so that
-            // when we get all of our 
-            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
-            assert(callback != null) : "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
-            callback.setClientResponse(cresponse);
-            
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
             BitSet donePartitions = ts.getDonePartitions();
@@ -2566,9 +2567,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
+            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
+            assert(callback != null) : "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
         }
+        // -------------------------------
         // ABORT: Distributed Transaction
+        // -------------------------------
         else {
             // Send back the result to the client right now, since there's no way 
             // that we're magically going to be able to recover this and get them a result

@@ -286,14 +286,17 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The amount of time the TransactionQueueManager will wait before letting a " +
+                        "distributed transaction id from aquiring a lock on a partition.",
             defaultInt=1,
             experimental=true
         )
         public int txn_incoming_delay;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The number of times that a distributed transaction is allowed to be restarted " +
+                        "(due to things like network delays) before it is outright rejected and the request " +
+                        "is returned to the client.",
             defaultInt=10,
             experimental=false
         )

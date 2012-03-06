@@ -2,20 +2,20 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.dtxn.TransactionQueueManager;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
  * partitions that it needs come back and say they're ready to execute it
  * @author pavlo
  */
-public class TransactionInitCallback extends BlockingCallback<TransactionInitResponse, TransactionInitResponse> {
+public class TransactionInitCallback extends AbstractTransactionCallback<TransactionInitResponse, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionInitCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -23,61 +23,34 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private LocalTransaction ts;
-    private Integer reject_partition = null;
-    private Long reject_txnId = null;
-    private TransactionFinishCallback finish_callback;
-    private final boolean txn_profiling;
+    private transient Integer reject_partition = null;
+    private transient Long reject_txnId = null;
     
     /**
      * Constructor
      * @param hstore_site
      */
     public TransactionInitCallback(HStoreSite hstore_site) {
-        super(hstore_site, true);
-        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
+        super(hstore_site);
     }
 
     public void init(LocalTransaction ts) {
-        if (debug.get())
-            LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
-        this.ts = ts;
-        this.finish_callback = null;
+        super.init(ts, ts.getPredictTouchedPartitions().size(), null);
         this.reject_partition = null;
         this.reject_txnId = null;
-        super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
     @Override
-    protected void finishImpl() {
-        this.ts = null;
+    protected void unblockTransactionCallback() {
+        assert(this.isAborted() == false);
+        if (debug.get())
+            LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
+        if (this.txn_profiling) ts.profiler.stopInitDtxn();
+        hstore_site.transactionStart(ts, ts.getBasePartition());
     }
     
     @Override
-    public boolean isInitialized() {
-        return (this.ts != null);
-    }
-    
-    @Override
-    protected void unblockCallback() {
-        if (this.isAborted() == false) {
-            if (debug.get())
-                LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
-            if (this.txn_profiling) ts.profiler.stopInitDtxn();
-            hstore_site.transactionStart(ts, ts.getBasePartition());
-        } else {
-            assert(this.finish_callback != null);
-            this.finish_callback.enableTransactionDelete();
-        }
-    }
-    
-    public synchronized void setRejectionInfo(int partition, long txn_id) {
-        this.reject_partition = partition;
-        this.reject_txnId = txn_id;
-    }
-    
-    @Override
-    protected void abortCallback(Status status) {
+    protected boolean abortTransactionCallback(Status status) {
         assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
         
         // Then re-queue the transaction. We want to make sure that
@@ -90,7 +63,8 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                 // then we'll tell the TransactionQueueManager to unblock it when it gets released
                 synchronized (this) {
                     if (this.reject_txnId != null) {
-                        this.hstore_site.getTransactionQueueManager().queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
+                        TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager(); 
+                        txnQueueManager.queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
                     } else {
                         this.hstore_site.transactionRestart(this.ts, status, false);
                     }
@@ -105,14 +79,7 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                 assert(false) : String.format("Unexpected status %s for %s", status, this.ts);
         } // SWITCH
         
-        // If we abort, then we have to send out an ABORT to
-        // all of the partitions that we originally sent INIT requests too
-        // Note that we do this *even* if we haven't heard back from the remote
-        // HStoreSite that they've acknowledged our transaction
-        // We don't care when we get the response for this
-        this.finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.finish_callback.disableTransactionDelete();
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
+        return (true);
     }
     
     @Override
@@ -126,11 +93,9 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                                     (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
                                     (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
-        // From previous transaction. Safe to ignore.
-        if (this.sameTransaction(this.ts, response, response.getTransactionId()) == false) {
-            return (0);
-        }
-        
+        assert(this.ts != null) :
+            String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
+                          response.getTransactionId(), response.getStatus());
         assert(response.getPartitionsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
@@ -138,7 +103,7 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
                           response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getTransactionId());
         
-        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Status.OK || this.isAborted()) {
             // If we were told what the highest transaction id was at the remove partition, then 
             // we will store it so that we can update the TransactionQueueManager later on.
             // We are putting it in a synchronization block just to play it safe.
@@ -156,7 +121,6 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
                 } // SYNCH
             }
             this.abort(response.getStatus());
-            return (0);
         }
 //        long txn_id = response.getTransactionId();
 //        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();

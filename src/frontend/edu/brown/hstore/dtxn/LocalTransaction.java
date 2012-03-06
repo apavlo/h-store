@@ -529,7 +529,9 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Set the pending error for this transaction. If wakeThread is true, then
+     * the transaction will be released from its lock so that the transaction can be
+     * aborted without needing to wait for all of the results to return. 
      * @param error
      * @param wakeThread
      */
@@ -610,6 +612,26 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if we believe that this transaction can be deleted
+     */
+    public boolean isDeletable() {
+        if (this.isInitialized() == false) {
+            return (false);
+        }
+        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
+            return (false);
+        }
+        if (this.prepare_callback != null && this.prepare_callback.getCounter() > 0) {
+            return (false);
+        }
+        if (this.finish_callback != null && this.finish_callback.getCounter() > 0) {
+            return (false);
+        }
+        
+        return (true);
+    }
     
     public boolean isMapReduce() {
         return (this.catalog_proc.getMapreduce());
