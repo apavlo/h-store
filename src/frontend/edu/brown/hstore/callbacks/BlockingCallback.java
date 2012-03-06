@@ -7,12 +7,11 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 
 /**
  * 
@@ -40,8 +39,15 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     private final AtomicBoolean aborted = new AtomicBoolean(false);
     
+    /**
+     * This flag is set to true when the unblockCallback() is invoked
+     */
     private final AtomicBoolean invoked = new AtomicBoolean(false);
     
+    /**
+     * If set to true, then this callback will still invoke unblockCallback()
+     * once all of the messages arrive
+     */
     private final boolean invoke_even_if_aborted;
     
     /**
@@ -73,45 +79,17 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         return (this.orig_callback != null);
     }
 
-    public Long getTransactionId() {
+    protected final Long getTransactionId() {
         return (this.txn_id);
     }
-    public int getCounter() {
+    public final int getCounter() {
         return this.counter.get();
     }
-    public int getOrigCounter() {
+    protected final int getOrigCounter() {
         return (this.orig_counter);
     }
-    public RpcCallback<T> getOrigCallback() {
+    protected RpcCallback<T> getOrigCallback() {
         return this.orig_callback;
-    }
-    
-    protected boolean sameTransaction(AbstractTransaction ts, Object msg, long msg_txn_id) {
-        // Race condition
-        Long ts_txn_id = null;
-        try {
-            if (ts != null) ts_txn_id = ts.getTransactionId();
-        } catch (NullPointerException ex) {
-            // Ignore
-        } finally {
-            // IMPORTANT: If the LocalTransaction handle is null, then that means we are getting
-            // this message well after we have already cleaned up the transaction. Since these objects
-            // are pooled, it could be reused. So that means we will just ignore it.
-            // This may make it difficult to debug, but hopefully we'll be ok.
-            if (ts_txn_id == null) {
-                if (debug.get()) LOG.warn(String.format("Ignoring old %s for defunct txn #%d",
-                                                         msg.getClass().getSimpleName(), msg_txn_id));
-                return (false);
-            }
-        }
-        // If we get a response that matches our original txn but the LocalTransaction handle 
-        // has changed, then we need to will just ignore it
-        if (msg_txn_id != ts_txn_id.longValue()) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     msg.getClass().getSimpleName(), msg_txn_id, this.getTransactionId()));
-            return (false);
-        }
-        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -138,10 +116,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * This allows you to decrement the counter without actually needing
      * to create a ProtocolBuffer message.
      */
-    public void decrementCounter(int ctr) {
+    public final void decrementCounter(int ctr) {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Decrementing %s counter by %d",
-                                    txn_id, this.getClass().getSimpleName(), ctr));
+                                    this.txn_id, this.getClass().getSimpleName(), ctr));
         if (this.counter.addAndGet(-1 * ctr) == 0) {
             this.unblock();
         }
@@ -159,17 +137,19 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     // SUCCESSFUL UNBLOCKING
     // ----------------------------------------------------------------------------
     
-    
+    /**
+     * Internal method for calling the unblockCallback()
+     */
     private void unblock() {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
                                     this.txn_id, this.getClass().getSimpleName()));
+        
         if (this.invoked.compareAndSet(false, true)) {
             this.unblockCallback();
         } else {
-            assert(false) :
-                String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
-                              this.txn_id, this.getClass().getSimpleName());
+            throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
+                                                     this.txn_id, this.getClass().getSimpleName()));
         }
     }
     
@@ -185,7 +165,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * 
      */
-    public final void abort(Hstoreservice.Status status) {
+    public final void abort(Status status) {
         // If this is the first response that told us to abort, then we'll
         // send the abort message out 
         if (this.aborted.compareAndSet(false, true)) {
@@ -193,14 +173,18 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         }
     }
     
-    public boolean isAborted() {
+    /**
+     * Returns true if this callback has invoked the abortCallback() method
+     */
+    protected final boolean isAborted() {
         return (this.aborted.get());
     }
     
     /**
-     * 
+     * The callback that is invoked when the first ABORT status arrives for this transaction
+     * This is guaranteed to be called only once per transaction in this method 
      */
-    protected abstract void abortCallback(Hstoreservice.Status status);
+    protected abstract void abortCallback(Status status);
 
     // ----------------------------------------------------------------------------
     // FINISH
@@ -224,7 +208,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     /**
-     * 
+     * Special finish method for the implementing class
      */
     protected abstract void finishImpl();
     

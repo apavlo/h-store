@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -25,7 +26,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
     }
  
     private AbstractTransaction ts;
-    private Hstoreservice.Status status;
+    private Status status;
     
     /**
      * Constructor
@@ -46,9 +47,10 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
             if (localPartitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);
+        super.init(ts.getTransactionId(), counter, null);
         
         this.ts = ts;
-        super.init(ts.getTransactionId(), counter, null);
+        this.status = status;
     }
     
     @Override
@@ -63,13 +65,13 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
     
     @Override
     protected void unblockCallback() {
-        hstore_site.deleteTransaction(this.getTransactionId(), status);
+        hstore_site.deleteTransaction(this.getTransactionId(), this.status);
     }
     
     @Override
     protected void abortCallback(Hstoreservice.Status status) {
-        assert(false) :
-            String.format("Unexpected %s abort for %s", this.getClass().getSimpleName(), this.ts); 
+        String msg = String.format("Unexpected %s abort for %s", this.getClass().getSimpleName(), this.ts);
+        throw new RuntimeException(msg); 
     }
     
     @Override

@@ -1533,6 +1533,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.isInitialized());
         int request_ctr = this.getNextRequestCounter();
         long clientHandle = ts.getClientHandle();
+        
+        // The txn is only deletable if it does not have an outstanding TransactionFinishCallback
+        if (ts.hasTransactionFinishCallback()) {
+            deletable = deletable && (ts.getTransactionFinishCallback().getCounter() == 0); 
+        }
        
         if (d) LOG.debug(String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
                                        ts, status, clientHandle, request_ctr));
@@ -1593,10 +1598,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
-                // The txn is only deletable if it does not have an outstanding TransactionFinishCallback
-                if (orig_ts.hasTransactionFinishCallback()) {
-                    deletable = deletable && (orig_ts.getTransactionFinishCallback().getCounter() == 0); 
-                }
                 this.transactionReject(orig_ts, Status.ABORT_REJECT, deletable);
                 return;
             }

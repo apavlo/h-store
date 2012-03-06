@@ -38,6 +38,9 @@ public class TransactionQueueManager implements Runnable, Loggable {
     private final Collection<Integer> localPartitions;
     private final int localPartitionsArray[];
     
+    /**
+     * 
+     */
     private final long wait_time;
     
     /**
@@ -52,12 +55,12 @@ public class TransactionQueueManager implements Runnable, Loggable {
     private final Long[] last_txns;
     
     /**
-     * indicates which partitions are currently executing a job
+     * Indicates which partitions are currently executing a distributed transaction
      */
     private final boolean[] working_partitions;
     
     /**
-     * maps txn IDs to their callbacks
+     * Maps txn IDs to their TransactionInitWrapperCallbacks
      */
     private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitWrapperCallback>();
     
