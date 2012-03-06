@@ -193,10 +193,6 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public final void finish() {
-        if (this instanceof TransactionPrepareCallback || this instanceof TransactionFinishCallback)
-            assert(this.counter.get() == 0) :
-                String.format("Trying to finish %s for txn #%d before it was properly finished [counter=%d]",
-                              this.getClass().getSimpleName(), this.txn_id, this.counter.get());
         if (debug.get()) LOG.debug(String.format("Txn #%d - Finishing %s",
                                                  this.txn_id, this.getClass().getSimpleName()));
         
@@ -212,5 +208,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     protected abstract void finishImpl();
     
-
+    
+    @Override
+    public String toString() {
+        return String.format("%s[Counter=%d]", super.toString(), this.counter.get()); 
+    }
 }

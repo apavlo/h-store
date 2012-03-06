@@ -74,7 +74,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
         // our HStoreSite gets an acknowledgment from all the
-        // TODO: Figure out how we're going to return this callback to its ObjectPool
+        // Note: The TransactionQueueManager will put this back in the queue for us
+        //       We have to allocate this here because we need to have the original callback
         TransactionInitWrapperCallback wrapper = null;
         try {
             wrapper = HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.borrowObject();

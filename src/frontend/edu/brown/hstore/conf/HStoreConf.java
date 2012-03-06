@@ -829,7 +829,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Multiply the ${client.processesperclient} parameter by " +
                         "the number of partitions in the target cluster.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean processesperclient_per_partition;
