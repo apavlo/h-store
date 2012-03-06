@@ -1593,6 +1593,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
+                // The txn is only deletable if it does not have an outstanding TransactionFinishCallback
+                if (orig_ts.hasTransactionFinishCallback()) {
+                    deletable = deletable && (orig_ts.getTransactionFinishCallback().getCounter() == 0); 
+                }
                 this.transactionReject(orig_ts, Status.ABORT_REJECT, deletable);
                 return;
             }

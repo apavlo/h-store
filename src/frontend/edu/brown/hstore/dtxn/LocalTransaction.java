@@ -568,6 +568,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.prepare_callback.init(this);
         return (this.prepare_callback);
     }
+    public boolean hasTransactionPrepareCallback() {
+        return (this.prepare_callback != null);
+    }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
         assert(this.prepare_callback != null);
         return (this.prepare_callback);
@@ -591,6 +594,9 @@ public class LocalTransaction extends AbstractTransaction {
         }
         this.finish_callback.init(this, status);
         return (this.finish_callback);
+    }
+    public boolean hasTransactionFinishCallback() {
+        return (this.finish_callback != null);
     }
     public TransactionFinishCallback getTransactionFinishCallback() {
         assert(this.finish_callback != null) :
