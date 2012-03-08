@@ -160,6 +160,7 @@ public class MapReduceTransaction extends LocalTransaction {
                                          this.predict_readOnly, this.predict_abortable,
                                          catalog_proc, invocation, null);
             
+            this.local_txns[offset].setPartOfMapreduce(true);
             // init map/reduce Output for each partition
             assert(this.mapEmit != null): "mapEmit has not been initialized\n ";
             assert(this.reduceEmit != null): "reduceEmit has not been initialized\n ";
