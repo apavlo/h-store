@@ -1209,6 +1209,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Unexpected null transaction handle!";
         final InitiateTaskMessage task = ts.getInitiateTaskMessage();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
+        final boolean mapreduce_part = ts.isPartOfMapreduce();
         boolean success = true;
         
         if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
@@ -1217,7 +1218,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.current_execMode != ExecutionMode.DISABLED) {
             if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            success = this.work_throttler.offer(task, false);
+            if (d) LOG.debug(String.format("Is part of mapreduce: " + mapreduce_part));
+            
+            if (mapreduce_part) success = this.work_throttler.offer(task, true);
+            else success = this.work_throttler.offer(task, false);
             
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
@@ -1232,7 +1236,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    ts, task.getClass().getSimpleName(), this.work_queue.size()));
                     // Only use the throttler for single-partition txns
                     if (singlePartitioned) {
-                        success = this.work_throttler.offer(task, false);
+                        if (d) LOG.debug(String.format("Is part of mapreduce: " + mapreduce_part));
+                        if (mapreduce_part) success = this.work_throttler.offer(task, true);
+                        else success = this.work_throttler.offer(task, false);
+                        
                     } else {
                         // this.work_queue.addFirst(task);
                         this.work_queue.add(task);

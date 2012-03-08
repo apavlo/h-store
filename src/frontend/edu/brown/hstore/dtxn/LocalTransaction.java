@@ -123,6 +123,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     private short restart_ctr = 0;
     
+    private boolean part_of_mapreduce = false;
+  
     /**
      * 
      */
@@ -613,6 +615,13 @@ public class LocalTransaction extends AbstractTransaction {
             return (this.state.exec_touchedPartitions != null);
         }
         return (false);
+    }
+    public boolean isPartOfMapreduce() {
+        return part_of_mapreduce;
+    }
+
+    public void setPartOfMapreduce(boolean part_of_mapreduce) {
+        this.part_of_mapreduce = part_of_mapreduce;
     }
     public String getProcedureName() {
         return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
