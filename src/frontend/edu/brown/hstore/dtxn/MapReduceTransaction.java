@@ -155,6 +155,7 @@ public class MapReduceTransaction extends LocalTransaction {
             int offset = hstore_site.getLocalPartitionOffset(partition);
             //int offset = partition;
             if (trace.get()) LOG.trace(String.format("Partition[%d] -> Offset[%d]", partition, offset));
+            // XXX: THIS IS BROKEN!
             this.local_txns[offset].init(this.txn_id, this.client_handle, partition,
                                          Collections.singleton(partition),
                                          this.predict_readOnly, this.predict_abortable,

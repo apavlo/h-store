@@ -55,7 +55,14 @@ public class MockHStoreSite extends HStoreSite {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf, boolean no_init) {
+    /**
+     * Create an new MockHStoreSite for testing.
+     * Note that this will not start any of the internal resources
+     * Use MockHStoreSite.init() to do that!
+     * @param catalog_site
+     * @param hstore_conf
+     */
+    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         super(catalog_site, hstore_conf);
         
         hstore_conf.site.status_enable = false;
@@ -66,10 +73,6 @@ public class MockHStoreSite extends HStoreSite {
                                                                        this.getPartitionEstimator());
             this.addPartitionExecutor(p, executor);
         } // FOR
-        if (no_init == false) this.init();
-    }
-    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-        this(catalog_site, hstore_conf, false);
     }
     
     @Override

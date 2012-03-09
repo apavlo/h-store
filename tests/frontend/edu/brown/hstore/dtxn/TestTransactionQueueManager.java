@@ -47,7 +47,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         assertNotNull(catalog_site);
-        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton(), true);
+        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
         this.queue = new TransactionQueueManager(hstore_site);
     }
     

@@ -21,6 +21,7 @@ import edu.brown.utils.ProjectType;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 
@@ -42,7 +43,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
     private final int NUM_SITES               = (NUM_HOSTS * NUM_SITES_PER_HOST);
     
     private final HStoreSite sites[] = new HStoreSite[NUM_SITES_PER_HOST];
-    private final HStoreCoordinator messengers[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
+//    private final HStoreCoordinator messengers[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
     @Override
     protected void setUp() throws Exception {
@@ -53,9 +54,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
         this.initializeCluster(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
-            
-            this.sites[i] = HStore.initialize(catalog_site, HStoreConf.singleton());
-            this.messengers[i] = this.sites[i].getCoordinator();
+            this.sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
             
             // We have to make our fake ExecutionSites for each Partition at this site
             for (Partition catalog_part : catalog_site.getPartitions()) {
@@ -65,8 +64,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
         } // FOR
 
         
-        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
-        
+        this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         this.voltProc = (VoltMapReduceProcedure<?>)ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assertNotNull(this.voltProc);
         this.schema = this.voltProc.getMapOutputSchema();
@@ -85,12 +83,6 @@ public class TestMapReduceTransaction extends BaseTestCase{
         
         assertEquals(NUM_ROWS, this.table.getRowCount());
     }
-    
-    /*ore$SendDataResponse$Builder.build(Unknown Source)
-     [java]     at edu.brown.hstore.HStoreCoordinator.sendData(HStoreCoordinator.java:880)
-     [java]     at edu.brown.hstore.util.MapReduceHelperThread.shuffle(MapReduceHelperThread.j
-     * test storeData()
-     */
     
     private void compareTables(VoltTable vt0, VoltTable vt1) {
         assertEquals(vt0.getRowCount(), vt1.getRowCount());
@@ -111,12 +103,13 @@ public class TestMapReduceTransaction extends BaseTestCase{
     }
     
     public void testStoreData() throws Exception {
-       MapReduceTransaction ts = new MapReduceTransaction (this.sites[0]);
+       MapReduceTransaction ts = new MapReduceTransaction(this.sites[0]);
        StoredProcedureInvocation request = new StoredProcedureInvocation(-1, TARGET_PROCEDURE.getSimpleName()); 
        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-       ts.init(123456789l, 0, 0, all_partitions, false, true, catalog_proc, request, null);
        
-
+       Collection<Integer> local_partitions = this.sites[0].getLocalPartitionIds();
+       System.err.println(local_partitions);
+       ts.init(123456789l, 0, 0, local_partitions, false, true, catalog_proc, request, null);
        ts.storeData(1, table);
        
        VoltTable result = ts.getReduceInputByPartition(1);
