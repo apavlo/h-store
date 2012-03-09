@@ -303,46 +303,46 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Insert strings that violate the VARCHAR size limit.
     //
-    public void testInsertViolatesStringLength() throws IOException, ProcCallException  {
-        final Client client = this.getClient();
-        boolean caught = false;
-
-
-        // perform this test on the NULLS and NO_NULLS tables
-        // by looping twice and setting params[0] differently each time.
-        for (int i=0; i < 2; ++i) {
-            final Object params[] = new Object[COLS + 2];
-            params[0] = (i == 0) ? "NO_NULLS" : "ALLOW_NULLS";
-
-            // insert a string that violates the varchar size.
-            // there are three strings in the schema with sizes
-            // that can be violated. test each.
-            // loop three times and set a different
-            // varchar to the too-big value each time.
-            for (int stringcount = 0; stringcount < 3; ++stringcount) {
-                int curr_string = 0;
-                params[1] = pkey.incrementAndGet();
-                for (int k=0; k < COLS; ++k) {
-                    if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
-                        params[k+2] = ReallyLongString;
-                    }
-                    else {
-                        params[k+2] = m_midValues[k];
-                    }
-                    if (m_types[k] == VoltType.STRING)
-                        curr_string++;
-                }
-                try {
-                    caught = false;
-                    client.callProcedure("Insert", params);
-                } catch (final ProcCallException e) {
-                    caught = true;
-                }
-
-                assertTrue(caught);
-            }
-        }
-    }
+//    public void testInsertViolatesStringLength() throws IOException, ProcCallException  {
+//        final Client client = this.getClient();
+//        boolean caught = false;
+//
+//
+//        // perform this test on the NULLS and NO_NULLS tables
+//        // by looping twice and setting params[0] differently each time.
+//        for (int i=0; i < 2; ++i) {
+//            final Object params[] = new Object[COLS + 2];
+//            params[0] = (i == 0) ? "NO_NULLS" : "ALLOW_NULLS";
+//
+//            // insert a string that violates the varchar size.
+//            // there are three strings in the schema with sizes
+//            // that can be violated. test each.
+//            // loop three times and set a different
+//            // varchar to the too-big value each time.
+//            for (int stringcount = 0; stringcount < 3; ++stringcount) {
+//                int curr_string = 0;
+//                params[1] = pkey.incrementAndGet();
+//                for (int k=0; k < COLS; ++k) {
+//                    if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
+//                        params[k+2] = ReallyLongString;
+//                    }
+//                    else {
+//                        params[k+2] = m_midValues[k];
+//                    }
+//                    if (m_types[k] == VoltType.STRING)
+//                        curr_string++;
+//                }
+//                try {
+//                    caught = false;
+//                    client.callProcedure("Insert", params);
+//                } catch (final ProcCallException e) {
+//                    caught = true;
+//                }
+//
+//                assertTrue(caught);
+//            }
+//        }
+//    }
 
     //
     // Test that the max serializable string length is correctly handled.
@@ -391,94 +391,94 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Test that the max supported varchar can be inserted.
     //
-    public void testMaxValidStringSize() throws IOException, ProcCallException {
-        final Client client = getClient();
-        boolean caught = false;
-        final Object params[] = new Object[COLS + 2];
-        params[0] = "NO_NULLS";
-
-        // array to build the Big String.
-        final char blob[] = new char[VoltType.MAX_VALUE_LENGTH];
-        for (int i=0; i < blob.length; i++) {
-            blob[i] = 'a';
-        }
-
-        // try to insert a max length string blob into each of the string fields
-        // this string *is* fastserializable.
-        for (int stringcount = 0; stringcount < 4; ++stringcount) {
-            int curr_string = 0;
-            params[1] = pkey.incrementAndGet();
-            for (int k=0; k < COLS; ++k) {
-                if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
-                    params[k+2] = new String(blob);
-                }
-                else {
-                    params[k+2] = m_midValues[k];
-                }
-                if (m_types[k] == VoltType.STRING)
-                    curr_string++;
-            }
-            try {
-                caught = false;
-                client.callProcedure("Insert", params);
-            }
-            catch (final ProcCallException e) {
-                caught = true;
-            }
-            // the last (1048576) string should be fine here.
-            if (stringcount != 3) {
-                assertTrue(caught);
-            }
-            else {
-                assertFalse(caught);
-            }
-        }
-    }
+//    public void testMaxValidStringSize() throws IOException, ProcCallException {
+//        final Client client = getClient();
+//        boolean caught = false;
+//        final Object params[] = new Object[COLS + 2];
+//        params[0] = "NO_NULLS";
+//
+//        // array to build the Big String.
+//        final char blob[] = new char[VoltType.MAX_VALUE_LENGTH];
+//        for (int i=0; i < blob.length; i++) {
+//            blob[i] = 'a';
+//        }
+//
+//        // try to insert a max length string blob into each of the string fields
+//        // this string *is* fastserializable.
+//        for (int stringcount = 0; stringcount < 4; ++stringcount) {
+//            int curr_string = 0;
+//            params[1] = pkey.incrementAndGet();
+//            for (int k=0; k < COLS; ++k) {
+//                if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
+//                    params[k+2] = new String(blob);
+//                }
+//                else {
+//                    params[k+2] = m_midValues[k];
+//                }
+//                if (m_types[k] == VoltType.STRING)
+//                    curr_string++;
+//            }
+//            try {
+//                caught = false;
+//                client.callProcedure("Insert", params);
+//            }
+//            catch (final ProcCallException e) {
+//                caught = true;
+//            }
+//            // the last (1048576) string should be fine here.
+//            if (stringcount != 3) {
+//                assertTrue(caught);
+//            }
+//            else {
+//                assertFalse(caught);
+//            }
+//        }
+//    }
 
 
     //
     // Verify that NULLS are rejected in in NOT NULL columns
     //
-    public void testInsertNulls_No_Nulls() throws IOException {
-        final Client client = this.getClient();
-
-        // Insert a NULL value for each column. For the first
-        // row, insert null in the first column, for the 5th row
-        // in the 5 column, etc.
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-            boolean caught = false;
-
-            // build the parameter list as described above
-            params[0] = "NO_NULLS";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            // Each insert into the NO_NULLS table must fail with a
-            // constraint failure.  Verify this.
-
-            System.out.println("testNullsRejected: :" + k + " " + m_types[k]);
-            try {
-                client.callProcedure("Insert", params);
-            } catch (final ProcCallException e) {
-                if (e.getMessage().contains("CONSTRAINT VIOLATION"))
-                    caught = true;
-                else {
-                    e.printStackTrace();
-                    fail();
-                }
-            } catch (final NoConnectionsException e) {
-                e.printStackTrace();
-                fail();
-            }
-            assertTrue(caught);
-        }
-    }
+//    public void testInsertNulls_No_Nulls() throws IOException {
+//        final Client client = this.getClient();
+//
+//        // Insert a NULL value for each column. For the first
+//        // row, insert null in the first column, for the 5th row
+//        // in the 5 column, etc.
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//            boolean caught = false;
+//
+//            // build the parameter list as described above
+//            params[0] = "NO_NULLS";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//
+//            // Each insert into the NO_NULLS table must fail with a
+//            // constraint failure.  Verify this.
+//
+//            System.out.println("testNullsRejected: :" + k + " " + m_types[k]);
+//            try {
+//                client.callProcedure("Insert", params);
+//            } catch (final ProcCallException e) {
+//                if (e.getMessage().contains("CONSTRAINT VIOLATION"))
+//                    caught = true;
+//                else {
+//                    e.printStackTrace();
+//                    fail();
+//                }
+//            } catch (final NoConnectionsException e) {
+//                e.printStackTrace();
+//                fail();
+//            }
+//            assertTrue(caught);
+//        }
+//    }
 
     //
     // Verify that NULLS are allowed in non-NOT NULL columns
@@ -831,53 +831,53 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Apply a simple expression to each type that supports math.
     //
-    public void testSimpleExpressions()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        // Build a simple expression to do addition and select one column at
-        // a time, using that expression in a trivial projection.
-
-        // insert one row with the mid values
-        final Object params[] = new Object[COLS + 2];
-        params[0] = "NO_NULLS";
-        params[1] = pkey.incrementAndGet();
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_midValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-        // insert one row with the max values
-        params[0] = "NO_NULLS";
-        params[1] = pkey.incrementAndGet();
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_maxValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-
-        // select A + 11 from no_nulls where A = mid_value
-        for (int i=0; i < COLS; i++) {
-            if (!m_supportsMath[i])
-                continue;
-
-            // TODO see trac 236.
-            // Would be better here to select where the column under test
-            // equals its mid value - but decimals can't do that.
-            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
-            + m_columnNames[3] + " = " + m_midValues[3];
-            System.out.println("testsimpleexpression: " + sql);
-            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            final Object obj = row.get(0, m_types[i]);
-
-            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
-            final double got = ((Number)obj).doubleValue();
-            System.out.println("Expect: " + expect + " got: " + got);
-            assertEquals(expect, got);
-        }
-    }
+//    public void testSimpleExpressions()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        // Build a simple expression to do addition and select one column at
+//        // a time, using that expression in a trivial projection.
+//
+//        // insert one row with the mid values
+//        final Object params[] = new Object[COLS + 2];
+//        params[0] = "NO_NULLS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i=0; i < COLS; i++) {
+//            params[i+2] = m_midValues[i];
+//        }
+//        client.callProcedure("Insert", params);
+//
+//        // insert one row with the max values
+//        params[0] = "NO_NULLS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i=0; i < COLS; i++) {
+//            params[i+2] = m_maxValues[i];
+//        }
+//        client.callProcedure("Insert", params);
+//
+//
+//        // select A + 11 from no_nulls where A = mid_value
+//        for (int i=0; i < COLS; i++) {
+//            if (!m_supportsMath[i])
+//                continue;
+//
+//            // TODO see trac 236.
+//            // Would be better here to select where the column under test
+//            // equals its mid value - but decimals can't do that.
+//            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
+//            + m_columnNames[3] + " = " + m_midValues[3];
+//            System.out.println("testsimpleexpression: " + sql);
+//            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            final Object obj = row.get(0, m_types[i]);
+//
+//            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
+//            final double got = ((Number)obj).doubleValue();
+//            System.out.println("Expect: " + expect + " got: " + got);
+//            assertEquals(expect, got);
+//        }
+//    }
 
     public void testJumboRow() throws Exception {
         final Client client = getClient();

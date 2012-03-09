@@ -103,8 +103,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
                 LOG.trace(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else if (trace.get()) {
-            LOG.trace(String.format("%s - Not deleting from %s [status=%s]\n%s",
+        } else { // if (trace.get()) {
+            LOG.info(String.format("%s - Not deleting from %s [status=%s]\n%s",
                                    this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
         }
     }

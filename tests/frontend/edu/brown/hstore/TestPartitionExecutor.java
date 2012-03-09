@@ -51,7 +51,8 @@ public class TestPartitionExecutor extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
     
-    private static PartitionExecutor executor;
+    private HStoreSite hstore_site;
+    private PartitionExecutor executor;
     
     private final Random rand = new Random(1); 
     
@@ -67,13 +68,11 @@ public class TestPartitionExecutor extends BaseTestCase {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
         
-        if (executor == null) {
-            Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-            HStoreConf hstore_conf = HStoreConf.singleton();
-            MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
-            executor = hstore_site.getPartitionExecutor(PARTITION_ID);
-            assertNotNull(executor);
-        }
+        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        executor = hstore_site.getPartitionExecutor(PARTITION_ID);
+        assertNotNull(executor);
     }
     
     protected class BlockingObserver extends EventObserver<ClientResponse> {
@@ -289,7 +288,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         int dep_id = 10001;
         DependencySet result = new DependencySet(new int[]{ dep_id }, new VoltTable[]{ vt });
         
-        RemoteTransaction ts = new RemoteTransaction(executor.getHStoreSite());
+        RemoteTransaction ts = new RemoteTransaction(hstore_site);
         WorkResult partitionResult = executor.buildWorkResult(ts, result, Status.OK, null);
         assertNotNull(partitionResult);
         assertEquals(result.size(), partitionResult.getOutputCount());

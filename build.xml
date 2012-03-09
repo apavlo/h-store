@@ -902,7 +902,6 @@ TEST CASES
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestIndexesSuite.class" />
                 <exclude name="**/TestMaterializedViewSuite.class" />
-                <exclude name="**/TestMultiPartitionSuite.class" />
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
@@ -914,8 +913,6 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSQLFeaturesSuite.class" />
-                <exclude name="**/TestSQLTypesSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
                 <exclude name="**/TestTPCCSuite.class" />
                 

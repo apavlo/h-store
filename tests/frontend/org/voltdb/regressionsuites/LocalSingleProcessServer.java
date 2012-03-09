@@ -79,6 +79,7 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     public boolean compile(VoltProjectBuilder builder) {
         if (m_compiled == true)
             return true;
+        builder.clearPartitions();
         for (int partition = 0; partition < m_partitionCount; ++partition) {
         	builder.addPartition("localhost", 0, partition);
         } // FOR
