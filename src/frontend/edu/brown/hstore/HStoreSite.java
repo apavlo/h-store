@@ -461,8 +461,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // CACHED MESSAGES
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
-        
-        System.out.println("Starting up HStoreSite hashcode " + this.hashCode());
     }
     
     // ----------------------------------------------------------------------------
@@ -910,7 +908,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.hstore_coordinator.shutdown();
         
-        LOG.info("Completed shutdown process at " + this.getSiteName());
+        LOG.info("Completed shutdown process at " + this.getSiteName() + " hashcode " + this.hashCode());
     }
     
     /**
