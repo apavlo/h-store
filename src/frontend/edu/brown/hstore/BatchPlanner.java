@@ -524,18 +524,10 @@ public class BatchPlanner implements Loggable {
             this.time_partitionEstimator = null;
         }
 
-        // Static Members
+        // Static Cache Members
         if (CACHED_SINGLE_PARTITION_SETS == null) {
             synchronized (BatchPlanner.class) {
-                if (CACHED_SINGLE_PARTITION_SETS == null) {
-                    CACHED_SINGLE_PARTITION_SETS = (Set<Integer>[]) new Set<?>[this.num_partitions];
-                    CACHED_FRAGMENT_PARTITION_MAPS = (Map<Statement, Map<PlanFragment, Set<Integer>>>[]) new Map<?, ?>[this.num_partitions];
-
-                    for (int i = 0; i < num_partitions; i++) {
-                        CACHED_SINGLE_PARTITION_SETS[i] = Collections.unmodifiableSet(Collections.singleton(i));
-                        CACHED_FRAGMENT_PARTITION_MAPS[i] = new HashMap<Statement, Map<PlanFragment, Set<Integer>>>();
-                    } // FOR
-                }
+                if (CACHED_SINGLE_PARTITION_SETS == null) BatchPlanner.clear(this.num_partitions);
             } // SYNCH
         }
     }
@@ -576,6 +568,21 @@ public class BatchPlanner implements Loggable {
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+
+    /**
+     * Clear out internal cache
+     * @param num_partitions The total number of partitions in the cluster 
+     */
+    @SuppressWarnings("unchecked")
+    public static synchronized void clear(int num_partitions) {
+        CACHED_SINGLE_PARTITION_SETS = (Set<Integer>[]) new Set<?>[num_partitions];
+        CACHED_FRAGMENT_PARTITION_MAPS = (Map<Statement, Map<PlanFragment, Set<Integer>>>[]) new Map<?, ?>[num_partitions];
+
+        for (int i = 0; i < num_partitions; i++) {
+            CACHED_SINGLE_PARTITION_SETS[i] = Collections.unmodifiableSet(Collections.singleton(i));
+            CACHED_FRAGMENT_PARTITION_MAPS[i] = new HashMap<Statement, Map<PlanFragment, Set<Integer>>>();
+        } // FOR
     }
 
     /**
