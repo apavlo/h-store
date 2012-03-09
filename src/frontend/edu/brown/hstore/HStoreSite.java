@@ -1240,7 +1240,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // Instead, if we're not single-partitioned then that's that only time that 
                 // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
                 TransactionEstimator.State s = ts.getEstimatorState(); 
-                if (ts.getOriginalTransactionId() == null && s != null && s.getInitialEstimate() != null) {
+                if (s != null && s.getInitialEstimate() != null) {
                     MarkovEstimate est = s.getInitialEstimate();
                     assert(est != null);
                     predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
@@ -1688,7 +1688,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Collection<Integer> predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
-        } else if (orig_ts.getOriginalTransactionId() == null && orig_ts.hasTouchedPartitions()) {
+        } else if (orig_ts.getRestartCounter() == 0 && orig_ts.hasTouchedPartitions()) {
             // HACK: Ignore ConcurrentModificationException
             predict_touchedPartitions = new HashSet<Integer>();
             malloc = true;
@@ -1906,6 +1906,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TxnCounter.ABORTED.inc(catalog_proc);
                     break;
                 case ABORT_MISPREDICT:
+                case ABORT_RESTART:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                         t_estimator.mispredict(txn_id);

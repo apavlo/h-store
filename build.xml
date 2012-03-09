@@ -108,16 +108,9 @@
 -->
 
 <!-- Default Project -->
-<condition property="project" value="tpcc">
+<!--<condition property="project" value="tpcc">
     <not><isset property="project"/></not>
-</condition>
-
-<!-- Benchmarks Configuration File -->
-<condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
-    <not><isset property="benchmark.conf"/></not>
-</condition>
-<property file="${benchmark.conf}" prefix="benchmark" />
-<fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
+</condition>-->
 
 <!-- Project Jar File -->
 <property name="benchmark.jar" location="${project}.jar" />
@@ -1489,6 +1482,15 @@ BENCHMARKS
 
 <target name='benchmark'
     description="Deploy a cluster and run a benchmark">
+    
+    <!-- Benchmarks Configuration File -->
+    <condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
+        <not>
+            <isset property="benchmark.conf"/>
+        </not>
+    </condition>
+    <property file="${benchmark.conf}" prefix="benchmark" />
+    <fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
     
     <java fork="true" failonerror="true"
         classname="edu.brown.benchmark.BenchmarkController">

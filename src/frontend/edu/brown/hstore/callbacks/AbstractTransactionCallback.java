@@ -6,11 +6,17 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
+/**
+ * Special BlockingCallback wrapper for transactions. This class has utility methods for
+ * identifying when it is safe to delete a transaction handle from our local HStoreSite. 
+ * @author pavlo
+ * @param <T> The message type of the original RpcCallback
+ * @param <U> The message type that we will accumulate before invoking the original RpcCallback
+ */
 public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback<T, U> {
     private static final Logger LOG = Logger.getLogger(AbstractTransactionCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -85,18 +91,22 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected abstract boolean abortTransactionCallback(Status status);
     
     protected final void deleteTransaction(Status status) {
-        synchronized (this.ts) {
-            if (this.ts.isDeletable()) {
-                if (this.txn_profiling) ts.profiler.stopPostFinish();
-//                if (trace.get()) 
-                    LOG.info(String.format("%s - Deleting from %s [status=%s]",
-                                                         this.ts, this.getClass().getSimpleName(), status));
-                hstore_site.deleteTransaction(this.getTransactionId(), status);
-            } else {
-                LOG.info(String.format("%s - Not deleting from %s [status=%s]\n%s",
-                                       this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
-            }
-        } // SYNCH
+        // TODO: Need to think about whether this is thread-safe
+        //       My initial hunch is that it's not, which means we may want
+        //       to set a flag somewhere that prevents us from calling deleteTransaction
+        //       from multiple threads.
+        boolean deletable = this.ts.isDeletable();
+        
+        if (deletable) {
+            if (this.txn_profiling) ts.profiler.stopPostFinish();
+            if (trace.get()) 
+                LOG.trace(String.format("%s - Deleting from %s [status=%s]",
+                                                     this.ts, this.getClass().getSimpleName(), status));
+            hstore_site.deleteTransaction(this.getTransactionId(), status);
+        } else if (trace.get()) {
+            LOG.trace(String.format("%s - Not deleting from %s [status=%s]\n%s",
+                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
+        }
     }
     
     /**

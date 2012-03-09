@@ -109,12 +109,6 @@ public class LocalTransaction extends AbstractTransaction {
      * The queued up ClientResponse that we need to send back for this txn
      */
     private final ClientResponseImpl cresponse = new ClientResponseImpl();
-
-    /**
-     * If this transaction was restarted, then this field will have the
-     * original transaction id
-     */
-    private Long orig_txn_id;
     
     /**
      * The number of times that this transaction has been restarted 
@@ -360,7 +354,6 @@ public class LocalTransaction extends AbstractTransaction {
         }
         
         this.state = null;
-        this.orig_txn_id = null;
         this.catalog_proc = null;
         this.invocation = null;
         this.client_callback = null;
@@ -605,6 +598,11 @@ public class LocalTransaction extends AbstractTransaction {
             "Trying to use TransactionFinishCallback for " + this + " before it is intialized";
         return (this.finish_callback);
     }
+    
+    /**
+     * Return the original callback that will send the final results back to the client
+     * @return
+     */
     public RpcCallback<byte[]> getClientCallback() {
         return (this.client_callback);
     }
@@ -620,19 +618,22 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.isInitialized() == false) {
             return (false);
         }
-//        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
-//            return (false);
-//        }
+        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
+            return (false);
+        }
         if (this.prepare_callback != null && this.prepare_callback.getCounter() > 0) {
             return (false);
         }
         if (this.finish_callback != null && this.finish_callback.getCounter() > 0) {
             return (false);
         }
-        
         return (true);
     }
-    
+
+    /**
+     * Returns true if this transaction is part of a MapReduce transaction 
+     * @return
+     */
     public boolean isMapReduce() {
         return (this.catalog_proc.getMapreduce());
     }
@@ -649,22 +650,30 @@ public class LocalTransaction extends AbstractTransaction {
     public InitiateTaskMessage getInitiateTaskMessage() {
         return (this.itask);
     }
+    
+    /**
+     * Return the StoredProcedureInvocation that came over the wire 
+     * from the client for the original transaction request 
+     * @return
+     */
     public StoredProcedureInvocation getInvocation() {
-        return invocation;
+        return (this.invocation);
     }
 
     /**
-     * Return the original txn id that this txn was restarted for (after a mispredict)
+     * Return the number of times that this transaction was restarted
      * @return
      */
-    public Long getOriginalTransactionId() {
-        return (this.orig_txn_id);
-    }
     public int getRestartCounter() {
         return (this.restart_ctr);
     }
+    
+    /**
+     * Set the number of times that this transaction has been restarted
+     * @param val
+     */
     public void setRestartCounter(int val) {
-        this.restart_ctr = (short)val;
+        this.restart_ctr = val;
     }
     
     public boolean hasDonePartitions() {
@@ -1251,7 +1260,6 @@ public class LocalTransaction extends AbstractTransaction {
 
         // Additional Info
         m = new ListOrderedMap<String, Object>();
-        m.put("Original Txn Id", this.orig_txn_id);
         m.put("Client Callback", this.client_callback);
         m.put("Init Callback", this.init_callback);
         m.put("Prepare Callback", this.prepare_callback);
