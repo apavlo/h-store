@@ -158,11 +158,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (HStoreSite.getThreadName(site_id, null, partition_id));
     }
     
-    /**
-     * TODO
-     */
-    private static HStoreSite SHUTDOWN_HANDLE = null;
-
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
@@ -351,6 +346,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         assert(catalog_site != null);
         
+        // **IMPORTANT**
+        // Always clear out the CatalogUtil cache before we start our new HStoreSite
+        CatalogUtil.clearCache(catalog_site);
+        
         this.hstore_conf = hstore_conf;
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
@@ -460,6 +459,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public int getLocalPartitionOffset(int partition) {
+        assert(partition < this.local_partition_offsets.length) :
+            String.format("Unable to get offset of local partition %d %s [hashCode=%d]",
+                          partition, Arrays.toString(this.local_partition_offsets), this.hashCode());
         return this.local_partition_offsets[partition];
     }
     
@@ -781,13 +783,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Add in our shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
-        
-        // And mark ourselves as the current HStoreSite in case somebody wants to take us down!
-        // TODO: Move to HStore.java
-        synchronized (HStoreSite.class) {
-            if (SHUTDOWN_HANDLE == null) SHUTDOWN_HANDLE = this;
-        } // SYNCH
+        // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
         
         return (this);
     }
@@ -839,30 +835,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // HSTORESTITE SHUTDOWN STUFF
     // ----------------------------------------------------------------------------
     
-    public static void crash() {
-        if (SHUTDOWN_HANDLE != null) {
-            SHUTDOWN_HANDLE.hstore_coordinator.shutdownCluster();
-        } else {
-            LOG.fatal("H-Store has encountered an unrecoverable error and is exiting.");
-            LOG.fatal("The log may contain additional information.");
-            System.exit(-1);
-        }
-        
-    }
-    
     /**
      * Shutdown Hook Thread
      */
-    private final class ShutdownHook implements Runnable {
-        @Override
-        public void run() {
-            // Dump out our status
-            int num_inflight = inflight_txns.size();
-            if (num_inflight > 0) {
-                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
-            }
-        }
-    } // END CLASS
+//    private final class ShutdownHook implements Runnable {
+//        @Override
+//        public void run() {
+//            // Dump out our status
+//            int num_inflight = inflight_txns.size();
+//            if (num_inflight > 0) {
+//                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
+//            }
+//        }
+//    } // END CLASS
 
     @Override
     public void prepareShutdown(boolean error) {
@@ -897,6 +882,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
+        
+        // Kill the queue manager
+        this.txnQueueManager.shutdown();
         
         // Tell our local boys to go down too
         for (PartitionExecutorPostProcessor p : this.processors) {

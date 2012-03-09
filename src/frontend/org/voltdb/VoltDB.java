@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.Map;
 import java.util.TimeZone;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 
@@ -212,10 +213,14 @@ public class VoltDB {
             System.err.println(t.toString());
         }
 
-        HStoreSite.crash();
-//        System.err.println("VoltDB has encountered an unrecoverable error and is exiting.");
-//        System.err.println("The log may contain additional information.");
-//        System.exit(-1);
+        HStoreSite handle = HStore.instance();
+        if (handle != null) {
+            handle.getCoordinator().shutdownCluster();
+        } else {
+            System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
+            System.err.println("The log may contain additional information.");
+            System.exit(-1);
+        }
     }
 
     /**

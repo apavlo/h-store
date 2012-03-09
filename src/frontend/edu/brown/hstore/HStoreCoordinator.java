@@ -121,6 +121,8 @@ public class HStoreCoordinator implements Shutdownable {
     private final TransactionFinishDispatcher transactionFinish_dispatcher;
     private final TransactionRedirectDispatcher transactionRedirect_dispatcher;    
     
+    private final List<Thread> dispatcherThreads = new ArrayList<Thread>();
+    
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
@@ -230,18 +232,21 @@ public class HStoreCoordinator implements Shutdownable {
             Thread t = new Thread(transactionInit_dispatcher, HStoreSite.getThreadName(this.hstore_site, "init"));
             t.setDaemon(true);
             t.start();
+            this.dispatcherThreads.add(t);
         }
         if (this.transactionFinish_dispatcher != null) {
             if (debug.get()) LOG.debug("Starting FinishTransaction dispatcher thread");
             Thread t = new Thread(transactionFinish_dispatcher, HStoreSite.getThreadName(this.hstore_site, "finish"));
             t.setDaemon(true);
             t.start();
+            this.dispatcherThreads.add(t);
         }
         if (this.transactionRedirect_dispatcher != null) {
             if (debug.get()) LOG.debug("Starting ForwardTxn dispatcher thread");
             Thread t = new Thread(transactionRedirect_dispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
             t.setDaemon(true);
             t.start();
+            this.dispatcherThreads.add(t);
         }
         
         if (debug.get()) LOG.debug("Starting listener thread");
@@ -283,6 +288,12 @@ public class HStoreCoordinator implements Shutdownable {
         this.state = ShutdownState.SHUTDOWN;
         
         try {
+            // Kill all of our dispatchers
+            for (Thread t : this.dispatcherThreads) {
+                if (trace.get()) LOG.trace("Stopping dispatcher thread " + t.getName());
+                t.interrupt();
+            } // FOR
+            
             if (trace.get()) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
             this.eventLoop.exitLoop();
 
