@@ -529,8 +529,9 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // The number of partition touches should never be greater than our
             // potential touches
-            assert (num_elements <= (total_txns_in_interval * num_partitions)) : "New Partitions Touched Sample Count [" + num_elements + "] < " + "Maximum Potential Touched Count ["
-                    + (total_txns_in_interval * num_partitions) + "]";
+            assert(num_elements <= (total_txns_in_interval * num_partitions)) :
+                "New Partitions Touched Sample Count [" + num_elements + "] < " + 
+                "Maximum Potential Touched Count [" + (total_txns_in_interval * num_partitions) + "]";
 
             if (sb != null) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -580,15 +581,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             }
         }
 
-        // (3) We can now calculate the final total estimate cost of this
-        // workload as the following
-        // Just take the simple ratio of mp txns / all txns
+        // (3) We can now calculate the final total estimate cost of this workload as the following 
+        //     Just take the simple ratio of mp txns / all txns
         this.last_execution_cost = MathUtil.weightedMean(execution_costs, total_interval_txns); // MathUtil.roundToDecimals(MathUtil.geometricMean(execution_costs,
                                                                                                 // MathUtil.GEOMETRIC_MEAN_ZERO),
                                                                                                 // 10);
 
-        // The final entropy cost needs to be weighted by the percentage of txns
-        // running in that interval
+        // The final skew cost needs to be weighted by the percentage of txns running in that interval
         // This will cause the partitions with few txns
         this.last_skew_cost = MathUtil.weightedMean(total_skews, total_interval_txns); // roundToDecimals(MathUtil.geometricMean(entropies,
                                                                                        // MathUtil.GEOMETRIC_MEAN_ZERO),
