@@ -447,6 +447,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // CACHED MESSAGES
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
+        
+        System.out.println("Starting up HStoreSite hashcode " + this.hashCode());
     }
     
     // ----------------------------------------------------------------------------
@@ -777,9 +779,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
          
             // Don't forget our CatalogUtil friend!
             CatalogUtil.preload(this.catalog_db);
-            
-            // And the BatchPlanner
-            BatchPlanner.clear(this.all_partitions.size());
             
         } catch (Exception ex) {
             throw new RuntimeException("Failed to prepare HStoreSite", ex);
