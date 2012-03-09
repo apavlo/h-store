@@ -49,6 +49,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     
     @Override
     protected final void unblockCallback() {
+        assert(this.ts != null) :
+            "Unexpected null transaction handle for txn #" + this.getTransactionId();
         if (this.isAborted()) {
             assert(this.finishStatus != null);
             this.deleteTransaction(this.finishStatus);
