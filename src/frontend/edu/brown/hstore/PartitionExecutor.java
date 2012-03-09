@@ -67,7 +67,6 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;

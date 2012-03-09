@@ -1,10 +1,13 @@
 package edu.brown.hstore.dispatchers;
 
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProfileMeasurement;
 
 /**
@@ -31,21 +34,29 @@ public abstract class AbstractDispatcher<E> implements Runnable {
     
     @Override
     public final void run() {
-        if (this.hStoreCoordinator.getHStoreConf().site.cpu_affinity)
+        HStoreConf hstore_conf = this.hStoreCoordinator.getHStoreConf(); 
+        if (hstore_conf.site.cpu_affinity)
             this.hStoreCoordinator.getHStoreSite().getThreadManager().registerProcessingThread();
         E e = null;
+        boolean profiling = hstore_conf.site.exec_profiling;
         while (this.hStoreCoordinator.isShutdownOrPrepareShutDown() == false) {
             try {
-                idleTime.start();
+                if (profiling) idleTime.start();
                 e = this.queue.take();
-                idleTime.stop();
+                if (profiling) idleTime.stop();
             } catch (InterruptedException ex) {
                 break;
             }
             try {
                 this.runImpl(e);
             } catch (Throwable ex) {
-                LOG.warn("Failed to process queued element " + e, ex);
+                String dump = null;
+                if (ClassUtil.isArray(e)) {
+                    dump = Arrays.toString((Object[])e);
+                } else if (e != null) {
+                    dump = e.toString();
+                }
+                LOG.warn("Failed to process queued element: " + dump, ex);
                 continue;
             }
         } // WHILE
