@@ -14,13 +14,14 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 
-public class TransactionQueueManager implements Runnable, Loggable {
+public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -37,6 +38,8 @@ public class TransactionQueueManager implements Runnable, Loggable {
     
     private final Collection<Integer> localPartitions;
     private final int localPartitionsArray[];
+    
+    private boolean stop = false;
     
     /**
      * 
@@ -155,7 +158,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
         long txn_id = -1;
         long last_id = -1;
         
-        while (true) {
+        while (this.stop == false) {
             synchronized (this) {
                 try {
                     this.wait(this.wait_time * 10); // FIXME
@@ -470,5 +473,21 @@ public class TransactionQueueManager implements Runnable, Loggable {
      */
     public TransactionInitWrapperCallback getCallback(long txn_id) {
         return (this.txn_callbacks.get(txn_id));
+    }
+
+    @Override
+    public void prepareShutdown(boolean error) {
+        // Nothing for now
+        // Probably should abort all queued txns.
+    }
+
+    @Override
+    public void shutdown() {
+        this.stop = true;
+    }
+
+    @Override
+    public boolean isShuttingDown() {
+        return (this.stop);
     }
 }

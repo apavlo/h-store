@@ -603,8 +603,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         // just print error info an bail if we run into an error here
         catch (final Exception ex) {
-            LOG.fatal("Failed to initialize PartitionExecutor", ex);
-            VoltDB.crashVoltDB();
+            throw new RuntimeException("Failed to initialize PartitionExecutor", ex);
         }
         this.ee = eeTemp;
         this.hsql = hsqlTemp;

@@ -58,8 +58,8 @@ public class LocalCluster implements VoltServerConfig {
 
     // configuration data
     final String m_jarFileName;
+    final int m_partitionPerSite;
     final int m_siteCount;
-    final int m_hostCount;
     final int m_replication;
     final BackendTarget m_target;
     final String m_buildDir;
@@ -147,15 +147,15 @@ public class LocalCluster implements VoltServerConfig {
     }
 
     public LocalCluster(String jarFileName, int siteCount,
-                        int hostCount, int replication, BackendTarget target)
+                        int partitionsPerSite, int replication, BackendTarget target)
     {
         System.out.println("Instantiating LocalCluster for " + jarFileName);
-        System.out.println("Sites: " + siteCount + " hosts: " + hostCount
+        System.out.println("Sites: " + siteCount + " hosts: " + partitionsPerSite
                            + " replication factor: " + replication);
 
         assert (jarFileName != null);
         assert (siteCount > 0);
-        assert (hostCount > 0);
+        assert (partitionsPerSite > 0);
         assert (replication >= 0);
         
         /*// (1) Load catalog from Jar
@@ -187,9 +187,9 @@ public class LocalCluster implements VoltServerConfig {
         System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
         m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
-        m_siteCount = siteCount;
+        m_partitionPerSite = siteCount;
         m_target = target;
-        m_hostCount = hostCount;
+        m_siteCount = partitionsPerSite;
         m_replication = replication;
         String buildDir = System.getenv("VOLTDB_BUILD_DIR");  // via build.xml
         if (buildDir == null)
@@ -242,7 +242,7 @@ public class LocalCluster implements VoltServerConfig {
         if (m_compiled) {
             return true;
         }
-        m_compiled = builder.compile(m_jarFileName, m_siteCount, m_hostCount,
+        m_compiled = builder.compile(m_jarFileName, m_partitionPerSite, m_siteCount,
                                      m_replication, "localhost");
         
         // (1) Load catalog from Jar
@@ -251,8 +251,8 @@ public class LocalCluster implements VoltServerConfig {
         // (2) Update catalog to include target cluster configuration
         ClusterConfiguration cc = new ClusterConfiguration();
         // Update cc with a bunch of hosts/sites/partitions
-        for (int site = 0, currentPartition = 0; site < m_hostCount; ++site) {
-            for (int partition = 0; partition < m_siteCount; ++partition, ++currentPartition) {
+        for (int site = 0, currentPartition = 0; site < m_siteCount; ++site) {
+            for (int partition = 0; partition < m_partitionPerSite; ++partition, ++currentPartition) {
                 cc.addPartition("localhost", site, currentPartition);
             }
         }
@@ -262,12 +262,11 @@ public class LocalCluster implements VoltServerConfig {
         try {
             CatalogUtil.updateCatalogInJar(m_jarFileName, catalog, "catalog.txt");
         } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         
         tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
         
         return m_compiled;
     }
@@ -280,7 +279,7 @@ public class LocalCluster implements VoltServerConfig {
         }
 
         // set to true to spew startup timing data
-        boolean logtime = false;
+        boolean logtime = true;
         long startTime = 0;
         if (logtime) {
             startTime = System.currentTimeMillis();
@@ -288,7 +287,7 @@ public class LocalCluster implements VoltServerConfig {
         }
 
         // create the in-process server
-        Configuration config = new Configuration();
+//        Configuration config = new Configuration();
 //        config.m_backend = m_target;
 //        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
 //        config.m_pathToCatalog = m_jarFileName;
@@ -326,7 +325,8 @@ public class LocalCluster implements VoltServerConfig {
                     }
     
                     PipeToFile ptf = new PipeToFile(testoutputdir + File.separator +
-                            getName() + "-" + site_id + ".txt", proc.getInputStream());
+                                                    getName() + "-" + site_id + ".txt", proc.getInputStream());
+                    ptf.m_writer.write(m_procBuilder.command().toString() + "\n");
                     m_pipes.add(ptf);
                     Thread t = new Thread(ptf);
                     t.setName("ClusterPipe:" + String.valueOf(site_id));
@@ -421,14 +421,14 @@ public class LocalCluster implements VoltServerConfig {
 
     @Override
     public String getName() {
-        return "localCluster-" + String.valueOf(m_siteCount) +
-               "-" + String.valueOf(m_hostCount) + "-" + m_target.display.toUpperCase();
+        return "localCluster-" + String.valueOf(m_partitionPerSite) +
+               "-" + String.valueOf(m_siteCount) + "-" + m_target.display.toUpperCase();
     }
 
     @Override
     public int getNodeCount()
     {
-        return m_hostCount;
+        return m_siteCount;
     }
 
     @Override
