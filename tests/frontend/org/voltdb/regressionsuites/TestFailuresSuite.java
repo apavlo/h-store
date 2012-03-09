@@ -324,37 +324,37 @@ public class TestFailuresSuite extends RegressionSuite {
 
     // Try a SQL stmt that will almost certainly kill the out of process planner
     // Make sure it doesn't kill the system
-    public void testKillOPPlanner() throws IOException, ProcCallException {
-        System.out.println("STARTING testKillOPPlanner");
-        Client client = getClient();
-
-        try {
-            client.callProcedure("@AdHoc",
-                    "select * from WAREHOUSE, DISTRICT, CUSTOMER, CUSTOMER_NAME, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
-                    "WAREHOUSE.W_ID = DISTRICT.D_W_ID and " +
-                    "WAREHOUSE.W_ID = CUSTOMER.C_W_ID and " +
-                    "WAREHOUSE.W_ID = CUSTOMER_NAME.C_W_ID and " +
-                    "WAREHOUSE.W_ID = HISTORY.H_W_ID and " +
-                    "WAREHOUSE.W_ID = STOCK.S_W_ID and " +
-                    "WAREHOUSE.W_ID = ORDERS.O_W_ID and " +
-                    "WAREHOUSE.W_ID = NEW_ORDER.NO_W_ID and " +
-                    "WAREHOUSE.W_ID = ORDER_LINE.OL_W_ID and " +
-                    "WAREHOUSE.W_ID = 0");
-            //fail()
-            // don't actually fail here... there's no guarantee this will fail...
-        }
-        catch (ProcCallException e) {}
-
-        // a short pause to recover the planning process
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            fail();
-        }
-
-        // make sure we can call adhocs
-        client.callProcedure("@AdHoc", "select * from warehouse;");
-    }
+//    public void testKillOPPlanner() throws IOException, ProcCallException {
+//        System.out.println("STARTING testKillOPPlanner");
+//        Client client = getClient();
+//
+//        try {
+//            client.callProcedure("@AdHoc",
+//                    "select * from WAREHOUSE, DISTRICT, CUSTOMER, CUSTOMER_NAME, HISTORY, STOCK, ORDERS, NEW_ORDER, ORDER_LINE where " +
+//                    "WAREHOUSE.W_ID = DISTRICT.D_W_ID and " +
+//                    "WAREHOUSE.W_ID = CUSTOMER.C_W_ID and " +
+//                    "WAREHOUSE.W_ID = CUSTOMER_NAME.C_W_ID and " +
+//                    "WAREHOUSE.W_ID = HISTORY.H_W_ID and " +
+//                    "WAREHOUSE.W_ID = STOCK.S_W_ID and " +
+//                    "WAREHOUSE.W_ID = ORDERS.O_W_ID and " +
+//                    "WAREHOUSE.W_ID = NEW_ORDER.NO_W_ID and " +
+//                    "WAREHOUSE.W_ID = ORDER_LINE.OL_W_ID and " +
+//                    "WAREHOUSE.W_ID = 0");
+//            //fail()
+//            // don't actually fail here... there's no guarantee this will fail...
+//        }
+//        catch (ProcCallException e) {}
+//
+//        // a short pause to recover the planning process
+//        try {
+//            Thread.sleep(200);
+//        } catch (InterruptedException e) {
+//            fail();
+//        }
+//
+//        // make sure we can call adhocs
+//        client.callProcedure("@AdHoc", "select * from warehouse;");
+//    }
 
     public void testAppStatus() throws Exception {
         System.out.println("STARTING testAppStatus");

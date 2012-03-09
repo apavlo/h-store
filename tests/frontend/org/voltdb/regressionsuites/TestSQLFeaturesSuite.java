@@ -167,70 +167,71 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         }
     }
 
-    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
-        Client client = getClient();
+// FIXME
+//    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
+//        Client client = getClient();
+//
+//        VoltTable[] results = client.callProcedure("BatchedMultiPartitionTest").getResults();
+//        assertEquals(5, results.length);
+//        assertEquals(1, results[0].asScalarLong());
+//        assertEquals(1, results[1].asScalarLong());
+//        assertEquals(1, results[2].asScalarLong());
+//        assertEquals(2, results[3].getRowCount());
+//        assertEquals(1, results[4].getRowCount());
+//    }
 
-        VoltTable[] results = client.callProcedure("BatchedMultiPartitionTest").getResults();
-        assertEquals(5, results.length);
-        assertEquals(1, results[0].asScalarLong());
-        assertEquals(1, results[1].asScalarLong());
-        assertEquals(1, results[2].asScalarLong());
-        assertEquals(2, results[3].getRowCount());
-        assertEquals(1, results[4].getRowCount());
-    }
-
-    public void testLongStringUsage() throws IOException {
-        final int STRLEN = 5000;
-
-        Client client = getClient();
-
-        String longStringPart = "volt!";
-        StringBuilder sb = new StringBuilder();
-        while(sb.length() < STRLEN)
-            sb.append(longStringPart);
-        String longString = sb.toString();
-        assertEquals(STRLEN, longString.length());
-
-        VoltTable[] results = null;
-        try {
-            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        assertEquals(1, results.length);
-        VoltTableRow row = results[0].fetchRow(0);
-
-        assertEquals(1, row.getLong(0));
-        assertEquals(0, row.getString(2).compareTo(longString));
-    }
-
-    public void testStringAsByteArrayParam() throws IOException {
-        final int STRLEN = 5000;
-
-        Client client = getClient();
-
-        String longStringPart = "volt!";
-        StringBuilder sb = new StringBuilder();
-        while(sb.length() < STRLEN)
-            sb.append(longStringPart);
-        String longString = sb.toString();
-        assertEquals(STRLEN, longString.length());
-
-
-        VoltTable[] results = null;
-        try {
-            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        }
-        assertEquals(1, results.length);
-        VoltTableRow row = results[0].fetchRow(0);
-
-        assertEquals(1, row.getLong(0));
-        assertEquals(0, row.getString(2).compareTo(longString));
-    }
+//    public void testLongStringUsage() throws IOException {
+//        final int STRLEN = 5000;
+//
+//        Client client = getClient();
+//
+//        String longStringPart = "volt!";
+//        StringBuilder sb = new StringBuilder();
+//        while(sb.length() < STRLEN)
+//            sb.append(longStringPart);
+//        String longString = sb.toString();
+//        assertEquals(STRLEN, longString.length());
+//
+//        VoltTable[] results = null;
+//        try {
+//            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        assertEquals(1, results.length);
+//        VoltTableRow row = results[0].fetchRow(0);
+//
+//        assertEquals(1, row.getLong(0));
+//        assertEquals(0, row.getString(2).compareTo(longString));
+//    }
+//
+//    public void testStringAsByteArrayParam() throws IOException {
+//        final int STRLEN = 5000;
+//
+//        Client client = getClient();
+//
+//        String longStringPart = "volt!";
+//        StringBuilder sb = new StringBuilder();
+//        while(sb.length() < STRLEN)
+//            sb.append(longStringPart);
+//        String longString = sb.toString();
+//        assertEquals(STRLEN, longString.length());
+//
+//
+//        VoltTable[] results = null;
+//        try {
+//            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//        assertEquals(1, results.length);
+//        VoltTableRow row = results[0].fetchRow(0);
+//
+//        assertEquals(1, row.getLong(0));
+//        assertEquals(0, row.getString(2).compareTo(longString));
+//    }
 
     public void testPassAllArgTypes() throws IOException {
         byte b = 100;
@@ -312,10 +313,10 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         // CONFIG #3: 1 Local Site/Partition running on HSQL backend
         /////////////////////////////////////////////////////////////
 
-        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
 
         /////////////////////////////////////////////////////////////

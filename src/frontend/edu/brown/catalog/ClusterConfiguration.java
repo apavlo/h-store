@@ -85,6 +85,11 @@ public class ClusterConfiguration extends ClusterConfig {
             this.addPartition(host_info);
         } // FOR
     }
+    
+    public void clear() {
+        this.host_sites.clear();
+        this.all_partitions.clear();
+    }
 
     @Override
     public boolean validate() {

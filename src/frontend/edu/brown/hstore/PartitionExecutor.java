@@ -1785,11 +1785,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                          output_depIds,
                                                          input_depIds,
                                                          null);
-        assert(result != null) : "Unexpected null DependencySet result for " + ts; 
+        // assert(result != null) : "Unexpected null DependencySet result for " + ts; 
         if (t) LOG.trace("Output:\n" + result);
         
         ts.fastFinishRound(this.partitionId);
-        return (result.dependencies);
+        return (result != null ? result.dependencies : null);
     }
     
     /**

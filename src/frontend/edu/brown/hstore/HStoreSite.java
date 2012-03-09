@@ -851,7 +851,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
-        this.hstore_coordinator.prepareShutdown(false);
+        if (this.hstore_coordinator != null)
+            this.hstore_coordinator.prepareShutdown(false);
         for (PartitionExecutorPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
         } // FOR
@@ -860,7 +861,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper.prepareShutdown(error);
         
         for (int p : this.local_partitions_arr) {
-            this.executors[p].prepareShutdown(error);
+            if (this.executors[p] != null) 
+                this.executors[p].prepareShutdown(error);
         } // FOR
     }
     
@@ -906,9 +908,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.procEventLoop.exitLoop();
         if (this.voltListener != null) this.voltListener.close();
         
-        this.hstore_coordinator.shutdown();
+        if (this.hstore_coordinator != null)
+            this.hstore_coordinator.shutdown();
         
-        LOG.info("Completed shutdown process at " + this.getSiteName() + " hashcode " + this.hashCode());
+        LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]", this.getSiteName(), this.hashCode()));
     }
     
     /**

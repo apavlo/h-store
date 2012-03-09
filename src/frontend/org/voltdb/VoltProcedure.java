@@ -1192,7 +1192,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             // Block until we get all of our responses.
             results = this.executor.dispatchWorkFragments(this.m_localTxnState, this.partitionFragments, params);
         }
-        assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
+        if (d && results == null)
+            LOG.warn("Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString());
 
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         
