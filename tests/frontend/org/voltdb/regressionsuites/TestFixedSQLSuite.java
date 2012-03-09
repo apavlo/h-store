@@ -86,7 +86,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
         }
     }
     
-    /*public void testTicket309TripleX() throws IOException, ProcCallException
+    public void testTicket309TripleX() throws IOException, ProcCallException
     {
         String[] tables = {"P1", "R1", "P2", "R2"};
         Client client = getClient();
@@ -125,7 +125,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
                 }
             }
         }
-    }*/
+    }
 
     //
     // Regression test for broken SQL of the variety:
@@ -992,7 +992,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // builder.addServerConfig(config);
 
         // JNI
-        config = new LocalSingleProcessServer("fixedsql-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer("fixedsql-onesite.jar", 4, BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
         builder.addServerConfig(config);
 

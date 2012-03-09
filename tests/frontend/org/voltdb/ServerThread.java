@@ -26,6 +26,7 @@ package org.voltdb;
 import org.voltdb.catalog.Site;
 
 import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -38,6 +39,8 @@ public class ServerThread extends Thread {
     // TODO(mainak) Pass this in as an argument to the constructor
     final Site catalog_site;
 
+    HStoreSite hstore_site;
+    
     public ServerThread(HStoreConf hstore_conf, Site catalog_site) {
         setName("ServerThread");
         // Use the default HStoreConf
@@ -67,20 +70,20 @@ public class ServerThread extends Thread {
 
     @Override
     public void run() {
-        HStore.initialize(catalog_site, hstore_conf);
-        HStore.instance().run();
+        this.hstore_site = HStore.initialize(catalog_site, hstore_conf);
+        this.hstore_site.run();
     }
 
     public void waitForInitialization() {
         // Wait until the server has actually started running.
-        while (!HStore.instance().isRunning()) {
+        while (this.hstore_site == null || this.hstore_site.isRunning() == false) {
             Thread.yield();
         }
     }
 
     public void shutdown() throws InterruptedException {
         assert Thread.currentThread() != this;
-        HStore.instance().shutdown();
+        this.hstore_site.shutdown();
         this.join();
     }
 }
