@@ -87,42 +87,40 @@ public abstract class HStoreObjectPools {
      */
     public synchronized static void initialize(HStoreSite hstore_site) {
         assert(hstore_site != null);
-        if (CALLBACKS_TXN_REDIRECT_REQUEST == null) {
-            HStoreConf hstore_conf = hstore_site.getHStoreConf();
-            
-            CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
-                    (int)(hstore_conf.site.pool_txninit_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
-                    (int)(hstore_conf.site.pool_txninitwrapper_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
-                    (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_FINISH = TypedStackObjectPool.factory(TransactionFinishCallback.class,
-                    (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            
-            CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
-                    (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling);
-            CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
-                    (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling);
+        HStoreConf hstore_conf = hstore_site.getHStoreConf();
+        
+        CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
+                (int)(hstore_conf.site.pool_txninit_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
+                (int)(hstore_conf.site.pool_txninitwrapper_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
+                (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        CALLBACKS_TXN_FINISH = TypedStackObjectPool.factory(TransactionFinishCallback.class,
+                (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        
+        CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
+                (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling);
+        CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
+                (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling);
 
-            STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
-                    (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
-                    (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
-                    (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling, hstore_site);
-            STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
-                    (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
-                    hstore_conf.site.pool_profiling);
-        }
+        STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
+                (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
+                (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
+                (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
+        STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
+                (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling);
         for (Entry<String, StackObjectPool> e : getAllPools().entrySet()) {
             assert(e.getValue() != null) : e.getKey() + " is null!";
         } // FOR
