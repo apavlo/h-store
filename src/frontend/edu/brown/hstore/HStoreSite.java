@@ -346,10 +346,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         assert(catalog_site != null);
         
-        // **IMPORTANT**
-        // Always clear out the CatalogUtil cache before we start our new HStoreSite
-        CatalogUtil.clearCache(catalog_site);
-        
         this.hstore_conf = hstore_conf;
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
@@ -365,11 +361,29 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
         this.local_partitions_arr = new Integer[num_local_partitions];
-        
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        
         this.single_partition_sets = new Collection[num_partitions];
+
+        // **IMPORTANT**
+        // Always clear out our various caches before we start our new HStoreSite
+        if (d) LOG.debug("Preloading cached objects");
+        try {
+            // Don't forget our CatalogUtil friend!
+            CatalogUtil.clearCache(this.catalog_db);
+            CatalogUtil.preload(this.catalog_db);
+            
+            // Load up everything the QueryPlanUtil
+            PlanNodeUtil.preload(this.catalog_db);
+            
+            // Then load up everything in the PartitionEstimator
+            this.p_estimator.preload();
+            
+            // And the BatchPlanner
+            BatchPlanner.clear(this.all_partitions.size());
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to prepare HStoreSite", ex);
+        }
         
         // Offset Hack
         this.local_partition_offsets = new int[num_partitions];
@@ -768,21 +782,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.executor_threads[partition] = t;
             t.start();
         } // FOR
-        
-        if (d) LOG.debug("Preloading cached objects");
-        try {
-            // Load up everything the QueryPlanUtil
-            PlanNodeUtil.preload(this.catalog_db);
-            
-            // Then load up everything in the PartitionEstimator
-            this.p_estimator.preload();
-         
-            // Don't forget our CatalogUtil friend!
-            CatalogUtil.preload(this.catalog_db);
-            
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to prepare HStoreSite", ex);
-        }
         
         // Add in our shutdown hook
         // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
