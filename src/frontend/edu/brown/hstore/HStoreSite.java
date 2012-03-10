@@ -1343,7 +1343,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.insert(txn_id, partitions, callback, true);
+        this.txnQueueManager.insert(txn_id, partitions, callback);
     }
 
     /**

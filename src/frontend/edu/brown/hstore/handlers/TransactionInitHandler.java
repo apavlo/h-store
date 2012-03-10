@@ -38,7 +38,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     
     @Override
     public void sendLocal(Long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
-        handler.transactionInit(null, request, callback);
+        this.remoteQueue(null, request, callback);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
