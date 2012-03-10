@@ -606,11 +606,16 @@ public class HStoreCoordinator implements Shutdownable {
     // ----------------------------------------------------------------------------
 
     /**
-     * 
+     * Send a TransactionInitRequest message to all of the sites that have 
+     * the partitions that this transaction will need during its execution
      * @param ts
      * @param callback
      */
     public void transactionInit(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+        if (debug.get()) LOG.debug(String.format("%s - Sending TransactionInitRequest to %d partitions %s",
+                                   ts, ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
+
+        
         // TODO(cjl6): Look at the Procedure to see whether it has prefetchable queries. If it does, then
         // embed them in the TransactionInitRequest
         // TODO(cjl6): If there are pre-fetchable queries, then generate the WorkFragments and embed
@@ -634,11 +639,14 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     /**
-     * 
+     * Send the TransactionWorkRequest to the target remote site
      * @param builders
      * @param callback
      */
     public void transactionWork(LocalTransaction ts, int site_id, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
+        if (debug.get()) LOG.debug(String.format("%s - Sending TransactionWorkRequest to remote site %d [numFragments=%d]",
+                                   ts, site_id, request.getFragmentsCount()));
+        
         assert(request.getFragmentsCount() > 0) :
             String.format("No WorkFragments for Site %d in %s", site_id, ts);
         
@@ -949,7 +957,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get())
             LOG.debug(String.format("Invoking shutdown protocol [blocking=%s, ex=%s]", blocking, ex));
         if (blocking) {
-            this.shutdownCluster(null);
+            this.shutdownCluster(ex);
         } else {
             // Make this a thread so that we don't block and can continue cleaning up other things
             Thread shutdownThread = new Thread() {

@@ -314,7 +314,7 @@ public class LocalTransaction extends AbstractTransaction {
         } // FOR
     }
     
-    protected void resetExecutionState() {
+    public void resetExecutionState() {
         this.state = null;
     }
     
@@ -626,7 +626,7 @@ public class LocalTransaction extends AbstractTransaction {
     public final void setNeedsRestart(boolean value) {
         assert(this.needs_restart != value) :
             "Trying to set " + this + " internal needs_restart flag to " + value + " twice";
-        this.needs_restart = true;
+        this.needs_restart = value;
     }
     
     /**
@@ -848,6 +848,11 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.blocked_tasks.contains(ftask));
     }
     
+    /**
+     * Return the collection of the partitions that this transaction is expected
+     * to need during its execution. The transaction may choose to not use all of
+     * these but it is not allowed to use more.
+     */
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
     }
@@ -1327,7 +1332,7 @@ public class LocalTransaction extends AbstractTransaction {
                 String inner = "";
                 
                 inner += "  Statement #" + stmt_index;
-                if (stmts != null && stmts.length > 0) { 
+                if (stmts != null && stmt_index < stmts.length) { 
                     inner += " - " + stmts[stmt_index].getStatement().getName();
                 }
                 inner += "\n";

@@ -86,7 +86,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         return (this.txn_id);
     }
     public final int getCounter() {
-        return this.counter.get();
+        return (this.counter.get());
     }
     protected final int getOrigCounter() {
         return (this.orig_counter);
@@ -110,7 +110,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if ((this.abortInvoked.get() == false || this.invoke_even_if_aborted) && new_count == 0) {
+        if (new_count == 0) {
             this.unblock();
         }
     }
@@ -152,11 +152,13 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
             LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
                                     this.txn_id, this.getClass().getSimpleName()));
         
-        if (this.unblockInvoked.compareAndSet(false, true)) {
-            this.unblockCallback();
-        } else {
-            throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
-                                                     this.txn_id, this.getClass().getSimpleName()));
+        if (this.abortInvoked.get() == false || this.invoke_even_if_aborted) {
+            if (this.unblockInvoked.compareAndSet(false, true)) {
+                this.unblockCallback();
+            } else {
+                throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
+                                                         this.txn_id, this.getClass().getSimpleName()));
+            }
         }
     }
     
@@ -187,7 +189,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * Returns true if this callback has invoked the abortCallback() method
      */
-    protected final boolean isAborted() {
+    public final boolean isAborted() {
         return (this.abortInvoked.get());
     }
     

@@ -103,8 +103,10 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         // Otherwise, make sure it's legit
         assert(this.ts.getTransactionId() == response.getTransactionId()) :
-            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
-                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getTransactionId());
+            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d, partitions=%s]",
+                          response.getClass().getSimpleName(),
+                          this.ts, response.getTransactionId(),
+                          this.getTransactionId(), response.getPartitionsList());
         
         if (response.getStatus() != Status.OK || this.isAborted()) {
             // If we were told what the highest transaction id was at the remove partition, then 

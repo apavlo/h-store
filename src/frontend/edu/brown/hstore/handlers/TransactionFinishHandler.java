@@ -72,9 +72,8 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         // Send back a FinishResponse to let them know we're cool with everything...
         TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()
                                                           .setTransactionId(txn_id);
-        Collection<Integer> local_partitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : request.getPartitionsList()) {
-            if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
+        for (int p : request.getPartitionsList()) {
+            if (hstore_site.isLocalPartition(p)) builder.addPartitions(p);
         } // FOR
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",

@@ -125,8 +125,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        return ((this.isUnblocked() && this.unblockFinished) ||
-                (this.isAborted() && this.abortFinished));
+        return (this.getCounter() == 0 &&
+                ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished)));
     }
     
     // ----------------------------------------------------------------------------
@@ -145,12 +145,12 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     private final void deleteTransaction(Status status) {
         if (this.ts.isDeletable()) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
-//            if (debug.get()) 
+            if (debug.get()) 
                 LOG.debug(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else { // if (debug.get()) {
-            LOG.info(String.format("%s - Not deleting from %s [status=%s]\n%s",
+        } else if (debug.get()) {
+            LOG.debug(String.format("%s - Not deleting from %s [status=%s]\n%s",
                                    this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
         }
     }
@@ -163,5 +163,40 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
+    }
+    
+    @Deprecated
+    protected boolean sameTransaction(Object msg, long msg_txn_id) {
+        // Race condition
+        Long ts_txn_id = null;
+        try {
+            if (this.ts != null) ts_txn_id = this.ts.getTransactionId();
+        } catch (NullPointerException ex) {
+            // Ignore
+        } finally {
+            // IMPORTANT: If the LocalTransaction handle is null, then that means we are getting
+            // this message well after we have already cleaned up the transaction. Since these objects
+            // are pooled, it could be reused. So that means we will just ignore it.
+            // This may make it difficult to debug, but hopefully we'll be ok.
+            if (ts_txn_id == null) {
+                if (debug.get()) LOG.warn(String.format("Ignoring old %s for defunct txn #%d",
+                                                         msg.getClass().getSimpleName(), msg_txn_id));
+                return (false);
+            }
+        }
+        // If we get a response that matches our original txn but the LocalTransaction handle
+        // has changed, then we need to will just ignore it
+        if (msg_txn_id != ts_txn_id.longValue()) {
+            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
+                                                     msg.getClass().getSimpleName(), msg_txn_id, this.getTransactionId()));
+            return (false);
+        }
+        return (true);
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s / Deletable=%s",
+                             super.toString(), this.allCallbacksFinished());
     }
 }

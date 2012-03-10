@@ -1455,6 +1455,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // SYNCH
         }
         
+        ts.resetExecutionState();
         volt_proc.finish();
     }
     

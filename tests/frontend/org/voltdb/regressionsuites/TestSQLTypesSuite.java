@@ -790,43 +790,43 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Round trip the minimum value.
     //
-    public void testInsertMinValues_No_Nulls()
-        throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        // Insert a MIN value for each column. For the first
-        // row, insert null in the first column, for the 5th row
-        // in the 5 column, etc.
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            params[0] = "";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_minValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            // Perform the inserts and execute selects, verifying the
-            // content of the select matches the parameters passed to
-            // insert
-
-            System.out.println("testInsertMinValues: " + k + " MIN type is " + m_types[k]);
-            params[0] = "NO_NULLS";
-            client.callProcedure("Insert", params);
-            final VoltTable[] result = client.callProcedure("Select", "NO_NULLS", pkey.get()).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            for (int i=0; i < COLS; ++i) {
-                final Object obj = row.get(i+1, m_types[i]);
-                assertTrue (!row.wasNull());
-                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-            }
-        }
-    }
+//    public void testInsertMinValues_No_Nulls()
+//        throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        // Insert a MIN value for each column. For the first
+//        // row, insert null in the first column, for the 5th row
+//        // in the 5 column, etc.
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//
+//            // build the parameter list as described above
+//            params[0] = "";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_minValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//
+//            // Perform the inserts and execute selects, verifying the
+//            // content of the select matches the parameters passed to
+//            // insert
+//
+//            System.out.println("testInsertMinValues: " + k + " MIN type is " + m_types[k]);
+//            params[0] = "NO_NULLS";
+//            client.callProcedure("Insert", params);
+//            final VoltTable[] result = client.callProcedure("Select", "NO_NULLS", pkey.get()).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            for (int i=0; i < COLS; ++i) {
+//                final Object obj = row.get(i+1, m_types[i]);
+//                assertTrue (!row.wasNull());
+//                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//            }
+//        }
+//    }
 
     //
     // Apply a simple expression to each type that supports math.

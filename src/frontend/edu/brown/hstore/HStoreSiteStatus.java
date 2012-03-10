@@ -282,7 +282,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                ClientResponse cr = ((LocalTransaction)ts).getClientResponse();
                if (cr.getStatus() != null) {
                    inflight_finished++;
-                   LOG.warn("STUCK TRANSACTION: " + ts);
+                   LOG.warn(inflight_finished + " - STUCK TRANSACTION\n" + ts.debug());
                }
            }
         }
@@ -361,6 +361,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 TransactionInitQueueCallback callback = manager.getCallback(txn_id);
                 int len = status.length();
                 status += "#" + txn_id;
+                AbstractTransaction ts = hstore_site.getTransaction(txn_id);
+                if (ts == null) {
+                    status += " MISSING?";
+                } else {
+                    status += " [hashCode=" + ts.hashCode() + "]";
+                }
+                
                 if (callback != null) {
                     status += "\n" + StringUtil.repeat(" ", len);
                     status += String.format("Partitions=%s / Remaining=%d", callback.getPartitions(), callback.getCounter());
