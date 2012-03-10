@@ -1207,7 +1207,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ts.setTransactionId(txn_id);
             this.inflight_txns.put(txn_id, ts);
         }
-         if (d) LOG.debug(ts + " - Dispatching new transaction invocation");
+        if (d) LOG.debug(ts + " - Dispatching new transaction invocation");
         
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
@@ -1221,7 +1221,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to running at partition %d [handle=%d]",
+            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
                              ts, base_partition, ts.getClientHandle()));
             
             // Partitions
@@ -1841,6 +1841,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
        
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
+        if (d) LOG.debug(ts + " - State before delete:\n" + ts.debug());
         
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
