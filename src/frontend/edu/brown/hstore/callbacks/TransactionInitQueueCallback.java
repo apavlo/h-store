@@ -128,8 +128,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
     
     @Override
     protected synchronized int runImpl(Integer partition) {
-        if (this.isAborted() == false)
-            this.builder.addPartitions(partition.intValue());
+        this.builder.addPartitions(partition.intValue());
         return 1;
     }
 }
