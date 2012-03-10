@@ -112,18 +112,22 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
             this.unblock();
         }
     }
-    
+
     /**
      * This allows you to decrement the counter without actually needing
      * to create a ProtocolBuffer message.
+     * @param delta
+     * @return Returns the new value of the counter
      */
-    public final void decrementCounter(int ctr) {
+    public final int decrementCounter(int delta) {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Decrementing %s counter by %d",
-                                    this.txn_id, this.getClass().getSimpleName(), ctr));
-        if (this.counter.addAndGet(-1 * ctr) == 0) {
-            this.unblock();
-        }
+                                    this.txn_id, this.getClass().getSimpleName(), delta));
+        int new_ctr = this.counter.addAndGet(-1 * delta); 
+        assert(new_ctr >= 0) :
+            "Invalid negative " + this.getClass().getSimpleName() + " counter for txn #" + txn_id;
+        if (new_ctr == 0) this.unblock();
+        return (new_ctr);
     }
     
     /**
