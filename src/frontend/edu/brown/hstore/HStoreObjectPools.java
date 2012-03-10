@@ -9,7 +9,7 @@ import org.apache.commons.pool.impl.StackObjectPool;
 
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -33,7 +33,7 @@ public abstract class HStoreObjectPools {
     /**
      * 
      */
-    public static TypedStackObjectPool<TransactionInitWrapperCallback> CALLBACKS_TXN_INITWRAPPER;
+    public static TypedStackObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
     /**
      * 
      */
@@ -92,8 +92,8 @@ public abstract class HStoreObjectPools {
         CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
                 (int)(hstore_conf.site.pool_txninit_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
-                (int)(hstore_conf.site.pool_txninitwrapper_idle * hstore_conf.site.pool_scale_factor),
+        CALLBACKS_TXN_INITQUEUE = TypedStackObjectPool.factory(TransactionInitQueueCallback.class,
+                (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
                 (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),

@@ -15,7 +15,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.MockHStoreSite;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -62,7 +62,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         Collection<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         MockCallback inner_callback = new MockCallback();
-        TransactionInitWrapperCallback outer_callback = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback = new TransactionInitQueueCallback(hstore_site);
         outer_callback.init(txn_id, partitions, inner_callback);
         
         // Insert the txn into our queue and then call check
@@ -93,11 +93,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         Collection<Integer> partitions1 = CatalogUtil.getAllPartitionIds(catalog_db);
         
         final MockCallback inner_callback0 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback0 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
         outer_callback0.init(txn_id0, partitions0, inner_callback0);
         
         final MockCallback inner_callback1 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback1 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback1 = new TransactionInitQueueCallback(hstore_site);
         outer_callback1.init(txn_id1, partitions1, inner_callback1);
         
         // insert the higher ID first but make sure it comes out second
@@ -153,15 +153,15 @@ public class TestTransactionQueueManager extends BaseTestCase {
         Collection<Integer> partitions2 = CatalogUtil.getAllPartitionIds(catalog_db);
         
         final MockCallback inner_callback0 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback0 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
         outer_callback0.init(txn_id0, partitions0, inner_callback0);
         
         final MockCallback inner_callback1 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback1 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback1 = new TransactionInitQueueCallback(hstore_site);
         outer_callback1.init(txn_id1, partitions1, inner_callback1);
         
         final MockCallback inner_callback2 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback2 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback2 = new TransactionInitQueueCallback(hstore_site);
         outer_callback2.init(txn_id2, partitions2, inner_callback2);
         
         this.queue.insert(txn_id0, partitions0, outer_callback0);
@@ -229,11 +229,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         partitions1.add(3);
         
         final MockCallback inner_callback0 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback0 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
         outer_callback0.init(txn_id0, partitions0, inner_callback0);
         
         final MockCallback inner_callback1 = new MockCallback();
-        TransactionInitWrapperCallback outer_callback1 = new TransactionInitWrapperCallback(hstore_site);
+        TransactionInitQueueCallback outer_callback1 = new TransactionInitQueueCallback(hstore_site);
         outer_callback1.init(txn_id1, partitions1, inner_callback1);
         
         this.queue.insert(txn_id0, partitions0, outer_callback0);

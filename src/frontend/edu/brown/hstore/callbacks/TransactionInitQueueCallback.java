@@ -13,14 +13,13 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * This callback is used to wrap around the network-outbound TransactionInitResponse callback on
- * an HStoreSite that is being asked to participate in a distributed transaction from another
- * HStoreSite. Only when we get all the acknowledgments (through the run method) for the local 
- * partitions at this HStoreSite will we invoke the original callback.
+ * This callback is used for when a transaction is waiting in the TransactionQueueManager at this site 
+ * Only when we get all the acknowledgments (through the run method) for the local partitions at 
+ * this HStoreSite will we invoke the original callback.
  * @author pavlo
  */
-public class TransactionInitWrapperCallback extends BlockingCallback<TransactionInitResponse, Integer> {
-    private static final Logger LOG = Logger.getLogger(TransactionInitWrapperCallback.class);
+public class TransactionInitQueueCallback extends BlockingCallback<TransactionInitResponse, Integer> {
+    private static final Logger LOG = Logger.getLogger(TransactionInitQueueCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -30,7 +29,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Transaction
     private TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     
-    public TransactionInitWrapperCallback(HStoreSite hstore_site) {
+    public TransactionInitQueueCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
     }
     

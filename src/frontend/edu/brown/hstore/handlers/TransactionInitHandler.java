@@ -13,7 +13,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
@@ -76,9 +76,9 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         // our HStoreSite gets an acknowledgment from all the
         // Note: The TransactionQueueManager will put this back in the queue for us
         //       We have to allocate this here because we need to have the original callback
-        TransactionInitWrapperCallback wrapper = null;
+        TransactionInitQueueCallback wrapper = null;
         try {
-            wrapper = HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.borrowObject();
+            wrapper = HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.borrowObject();
             wrapper.init(txn_id, request.getPartitionsList(), callback);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
