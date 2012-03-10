@@ -41,12 +41,13 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     }
     
     @Override
-    protected void unblockTransactionCallback() {
+    protected boolean unblockTransactionCallback() {
         assert(this.isAborted() == false);
         if (debug.get())
             LOG.debug(this.ts + " is ready to execute. Passing to HStoreSite");
         if (this.txn_profiling) ts.profiler.stopInitDtxn();
         hstore_site.transactionStart(ts, ts.getBasePartition());
+        return (false);
     }
     
     @Override

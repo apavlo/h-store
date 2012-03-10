@@ -37,7 +37,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
     }
     
     @Override
-    public void unblockTransactionCallback() {
+    public boolean unblockTransactionCallback() {
         assert(this.ts.getClientResponse().isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
 
@@ -50,6 +50,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
         this.hstore_site.sendClientResponse(this.ts, this.ts.getClientResponse());
+        return (false);
     }
     
     @Override

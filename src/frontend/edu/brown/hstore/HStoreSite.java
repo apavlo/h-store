@@ -1810,8 +1810,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void deleteTransaction(final Long txn_id, final Status status) {
-//        if (d) 
-            LOG.info("Deleting internal info for txn #" + txn_id);
+        if (d) LOG.debug("Deleting internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
         // It's ok for us to not have a transaction handle, because it could be

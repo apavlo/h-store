@@ -839,13 +839,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
-                ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (current_txn != null ? " - " + current_txn : ""), ex), ex);
                 if (current_txn != null) LOG.fatal("TransactionState Dump:\n" + current_txn.debug());
                 
             }
-            this.hstore_coordinator.shutdownCluster(new Exception(ex));
+            this.hstore_coordinator.shutdownCluster(ex);
         } finally {
             String txnDebug = "";
             if (d && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
@@ -2538,6 +2537,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (status == Status.ABORT_MISPREDICT) {
                 if (d) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
                 this.hstore_site.transactionRestart(ts, status);
+                ts.markAsDeletable();
                 this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
             // Use the separate post-processor thread to send back the result
@@ -2549,6 +2549,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // Send back the result right now!
             else {
                 this.hstore_site.sendClientResponse(ts, cresponse);
+                ts.markAsDeletable();
                 this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 

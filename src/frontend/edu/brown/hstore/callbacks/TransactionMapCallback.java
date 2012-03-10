@@ -44,7 +44,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<Transact
      * executing the map phase for this txn
      */
     @Override
-    protected void unblockTransactionCallback() {
+    protected boolean unblockTransactionCallback() {
         if (debug.get())
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
                     "<Switching to the 'reduce' phase>.......");
@@ -64,6 +64,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<Transact
                 LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
+        return (false);
     }
 
     @Override
