@@ -52,8 +52,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     private final boolean invoke_even_if_aborted;
     
     /**
-     * Default Constructor
-     * @param invoke_even_if_aborted TODO
+     * Constructor
+     * If invoke_even_if_aborted set to true, then this callback will still execute
+     * the unblockCallback() method after all the responses have arrived. 
+     * @param invoke_even_if_aborted  
      */
     protected BlockingCallback(HStoreSite hstore_site, boolean invoke_even_if_aborted) {
         this.hstore_site = hstore_site;

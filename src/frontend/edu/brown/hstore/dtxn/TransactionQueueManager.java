@@ -64,7 +64,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     private final boolean[] working_partitions;
     
     /**
-     * Maps txn IDs to their TransactionInitWrapperCallbacks
+     * Maps txn IDs to their TransactionInitQueueCallbacks
      */
     private final Map<Long, TransactionInitQueueCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitQueueCallback>();
     
@@ -331,11 +331,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             } // SYNCH
         }
         // The transaction was waiting in the queue for this partition. That means
-        // we need to invoke its TransactionInitWrapper callback
+        // we need to invoke its TransactionInitQueue callback
         else {
             TransactionInitQueueCallback callback = this.txn_callbacks.get(txn_id);
             assert(callback != null) :
-                "Missing TransactionInitWrapperCallback for txn #" + txn_id;
+                "Missing TransactionInitQueueCallback for txn #" + txn_id;
+            callback.abort(status);
             if (callback.decrementCounter(1) == 0) {
                 this.cleanupTransaction(txn_id);
             }
@@ -435,7 +436,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     
     /**
      * Remove the transaction from our internal queues
-     * We will also put their TransactionInitWrapperCallback back into the
+     * We will also put their TransactionInitQueueCallback back into the
      * object pool (if they have one) 
      * @param txn_id
      */

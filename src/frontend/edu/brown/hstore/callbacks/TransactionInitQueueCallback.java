@@ -78,9 +78,14 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                                     this.getOrigCallback().getClass().getSimpleName(),
                                     this.builder.getStatus()));
         }
-        assert(this.getOrigCounter() == builder.getPartitionsCount()) :
-            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
+        if (this.isAborted() == false) {
+            assert(this.builder.getPartitionsList() != null) :
+                String.format("The %s for txn #%d has no results but it was suppose to have %d.",
+                              builder.getClass().getSimpleName(), this.getTransactionId(), this.getOrigCounter());
+            assert(this.getOrigCounter() == this.builder.getPartitionsCount()) :
+                String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
+                              builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
+        }
         assert(this.getOrigCallback() != null) :
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         this.getOrigCallback().run(this.builder.build());
@@ -92,6 +97,14 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
     }
     
+    /**
+     * Special remote-side abort method for specifying the partition that rejected
+     * this transaction and what the larger transaction id was that caused our
+     * transaction to get rejected.
+     * @param status
+     * @param partition
+     * @param txn_id
+     */
     public void abort(Status status, int partition, long txn_id) {
         this.builder.setRejectPartition(partition);
         this.builder.setRejectTransactionId(txn_id);
