@@ -56,7 +56,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
      * executing the map phase for this txn
      */
     @Override
-    protected void unblockTransactionCallback() {
+    protected boolean unblockTransactionCallback() {
         if (debug.get())
             LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
         
@@ -75,10 +75,11 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
                        ts.getPendingError()); 
         hstore_site.sendClientResponse(ts, cresponse);
 
-       // STEP 2
-       // Initialize the FinishCallback and tell every partition in the cluster
-       // to clean up this transaction because we're done with it!
+        // STEP 2
+        // Initialize the FinishCallback and tell every partition in the cluster
+        // to clean up this transaction because we're done with it!
         this.finishTransaction(Status.OK);
+        return (false);
     }
     
     @Override

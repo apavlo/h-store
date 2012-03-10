@@ -33,9 +33,10 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     }
     
     @Override
-    protected void unblockTransactionCallback() {
-        // The only thing that we need to do is attempt to delete the transaction 
-        this.deleteTransaction(this.status);
+    protected boolean unblockTransactionCallback() {
+        // There is nothing that we need to do here.
+        this.setFinishStatus(status);
+        return (true);
     }
     
     @Override

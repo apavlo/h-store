@@ -461,7 +461,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.blocked_dtxn_release.remove(ts);
                 Status new_status = hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
                 ts.setNeedsRestart(false);
-                if (new_status == Status.ABORT_REJECT && ts.isDeletable()) {
+                if (ts.isDeletable()) {
                     hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
                 }
                 

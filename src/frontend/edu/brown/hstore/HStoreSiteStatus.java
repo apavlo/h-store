@@ -280,7 +280,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
            if (ts instanceof LocalTransaction) {
                ClientResponse cr = ((LocalTransaction)ts).getClientResponse();
-               if (cr.getStatus() != null) inflight_finished++;
+               if (cr.getStatus() != null) {
+                   inflight_finished++;
+                   LOG.warn("STUCK TRANSACTION: " + ts);
+               }
            }
         }
         

@@ -30,6 +30,25 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected LocalTransaction ts;
     private Status finishStatus;
     
+    
+    /**
+     * This flag is set to true after the unblockCallback() invocation is finished
+     * This prevents somebody from checking whether we have invoked the unblock callback
+     * but are still in the middle of processing it.
+     */
+    private boolean unblockFinished = false;
+    
+    /**
+     * This flag is set to true after the abortCallback() invocation is finished
+     * This prevents somebody from checking whether we have invoked the abort callback
+     * but are still in the middle of processing it.
+     */
+    private boolean abortFinished = false;
+    
+    /**
+     * Constructor
+     * @param hstore_site
+     */
     protected AbstractTransactionCallback(HStoreSite hstore_site) {
         super(hstore_site, true);
         this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
@@ -46,6 +65,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected void finishImpl() {
         this.ts = null;
         this.finishStatus = null;
+        this.unblockFinished = false;
+        this.abortFinished = false;
     }
 
     @Override
@@ -60,16 +81,12 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         assert(this.ts.isInitialized()) :
             "Unexpected uninitalized transaction handle for txn #" + this.getTransactionId();
         
-        if (this.isAborted()) {
-            assert(this.finishStatus != null);
-            this.deleteTransaction(this.finishStatus);
-        } else {
-            this.unblockTransactionCallback();
+        boolean delete = true;
+        if (this.isAborted() == false) {
+            delete = this.unblockTransactionCallback();
         }
-        
-        // *IMPORTANT*
-        // After this point we can't use the LocalTransaction handle
-        // for anything because it may have been deleted.
+        this.unblockFinished = true;
+        if (delete) this.deleteTransaction(this.finishStatus);
     }
     
     @Override
@@ -89,31 +106,50 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
             }
             this.finishTransaction(status);
         }
+        this.abortFinished = true;
+        this.deleteTransaction(status);
     }
     
     /**
      * 
      */
-    protected abstract void unblockTransactionCallback();
+    protected abstract boolean unblockTransactionCallback();
     protected abstract boolean abortTransactionCallback(Status status);
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACK CHECKS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if either the unblock or abort callbacks have been invoked
+     * and have finished their processing
+     */
+    public final boolean allCallbacksFinished() {
+        return ((this.isUnblocked() && this.unblockFinished) ||
+                (this.isAborted() && this.abortFinished));
+    }
     
     // ----------------------------------------------------------------------------
     // INTERNAL UTILITY METHODS
     // ----------------------------------------------------------------------------
+    
+    protected void setFinishStatus(Status status) {
+        this.finishStatus = status;
+    }
     
     /**
      * Checks whether a transaction is ready to be deleted
      * This is thread-safe
      * @param status
      */
-    protected final void deleteTransaction(Status status) {
+    private final void deleteTransaction(Status status) {
         if (this.ts.isDeletable()) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
-//            if (trace.get()) 
-                LOG.info(String.format("%s - Deleting from %s [status=%s]",
+//            if (debug.get()) 
+                LOG.debug(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else { // if (trace.get()) {
+        } else { // if (debug.get()) {
             LOG.info(String.format("%s - Not deleting from %s [status=%s]\n%s",
                                    this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
         }
@@ -128,33 +164,4 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
-    
-    protected boolean sameTransaction(Object msg, long msg_txn_id) {
-        // Race condition
-        Long ts_txn_id = null;
-        try {
-            if (this.ts != null) ts_txn_id = this.ts.getTransactionId();
-        } catch (NullPointerException ex) {
-            // Ignore
-        } finally {
-            // IMPORTANT: If the LocalTransaction handle is null, then that means we are getting
-            // this message well after we have already cleaned up the transaction. Since these objects
-            // are pooled, it could be reused. So that means we will just ignore it.
-            // This may make it difficult to debug, but hopefully we'll be ok.
-            if (ts_txn_id == null) {
-                if (debug.get()) LOG.warn(String.format("Ignoring old %s for defunct txn #%d",
-                                                         msg.getClass().getSimpleName(), msg_txn_id));
-                return (false);
-            }
-        }
-        // If we get a response that matches our original txn but the LocalTransaction handle 
-        // has changed, then we need to will just ignore it
-        if (msg_txn_id != ts_txn_id.longValue()) {
-            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
-                                                     msg.getClass().getSimpleName(), msg_txn_id, this.getTransactionId()));
-            return (false);
-        }
-        return (true);
-    }
-    
 }

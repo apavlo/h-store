@@ -40,23 +40,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     private final AtomicBoolean abortInvoked = new AtomicBoolean(false);
     
     /**
-     * This flag is set to true after the abortCallback() invocation is finished
-     * This prevents somebody from checking whether we have invoked the abort callback
-     * but are still in the middle of processing it.
-     */
-    private boolean abortFinished = false;
-    
-    /**
      * This flag is set to true when the unblockCallback() is invoked
      */
     private final AtomicBoolean unblockInvoked = new AtomicBoolean(false);
-    
-    /**
-     * This flag is set to true after the unblockCallback() invocation is finished
-     * This prevents somebody from checking whether we have invoked the unblock callback
-     * but are still in the middle of processing it.
-     */
-    private boolean unblockFinished = false;
+
     
     /**
      * If set to true, then this callback will still invoke unblockCallback()
@@ -105,15 +92,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     protected final RpcCallback<T> getOrigCallback() {
         return this.orig_callback;
     }
-    
-    /**
-     * Returns true if either the unblock or abort callbacks have been invoked
-     * and have finished their processing
-     */
-    public final boolean allCallbacksFinished() {
-        return (this.isUnblockCallbackFinished() && this.isAbortCallbackFinished());
-    }
-    
+
     // ----------------------------------------------------------------------------
     // RUN
     // ----------------------------------------------------------------------------
@@ -169,21 +148,14 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         if (this.unblockInvoked.compareAndSet(false, true)) {
             this.unblockCallback();
-            this.unblockFinished = true;
         } else {
             throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
                                                      this.txn_id, this.getClass().getSimpleName()));
         }
     }
     
-    /**
-     * Returns true if this callback has been aborted and we have successfully
-     * completed the unblockCallback() method. This means that it is safe
-     * to go ahead and clean-up this callback.
-     * @return
-     */
-    public final boolean isUnblockCallbackFinished() {
-        return (this.unblockInvoked.get() && this.unblockFinished);
+    public final boolean isUnblocked() {
+        return (this.unblockInvoked.get());
     }
     
     /**
@@ -203,7 +175,6 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         // send the abort message out 
         if (this.abortInvoked.compareAndSet(false, true)) {
             this.abortCallback(status);
-            this.unblockFinished = true;
         }
     }
     
@@ -212,16 +183,6 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     protected final boolean isAborted() {
         return (this.abortInvoked.get());
-    }
-    
-    /**
-     * Returns true if this callback has been aborted and we have succesfully
-     * completed the abortCallback() method. This means that it is safe
-     * to go ahead and clean-up this callback.
-     * @return
-     */
-    public final boolean isAbortCallbackFinished() {
-        return (this.abortInvoked.get() && this.abortFinished);
     }
     
     /**
@@ -242,7 +203,6 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         this.abortInvoked.set(false);
         this.unblockInvoked.set(false);
-        this.unblockFinished = false;
         this.orig_callback = null;
         this.txn_id = null;
         this.finishImpl();
@@ -256,6 +216,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public String toString() {
-        return String.format("%s[Counter=%d]", super.toString(), this.counter.get()); 
+        return String.format("%s[Invoked=%s, Aborted=%s, Counter=%d]",
+                             this.getClass().getSimpleName(), 
+                             this.unblockInvoked.get(),
+                             this.abortInvoked.get(),
+                             this.counter.get()); 
     }
 }

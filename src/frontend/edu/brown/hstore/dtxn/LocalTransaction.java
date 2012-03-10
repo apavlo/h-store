@@ -656,6 +656,11 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return (true);
     }
+    public final void markAsDeletable() {
+        assert(this.deletable == false) :
+            "Trying to mark " + this + " as deletable more than once";
+        this.deletable = true;
+    }
     public final boolean checkDeletableFlag() {
         return (this.deletable);
     }
@@ -1269,6 +1274,8 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
+        m.put("Deletable", this.deletable);
+        m.put("Needs Restart", this.needs_restart);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
         
