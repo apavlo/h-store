@@ -63,6 +63,10 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         } else {
             this.unblockTransactionCallback();
         }
+        
+        // *IMPORTANT*
+        // After this point we can't use the LocalTransaction handle
+        // for anything because it may have been deleted.
     }
     
     @Override
@@ -99,8 +103,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         
         if (deletable) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
-            if (trace.get()) 
-                LOG.trace(String.format("%s - Deleting from %s [status=%s]",
+//            if (trace.get()) 
+                LOG.info(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             hstore_site.deleteTransaction(this.getTransactionId(), status);
         } else { // if (trace.get()) {

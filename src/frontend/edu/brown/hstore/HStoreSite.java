@@ -126,11 +126,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Formatted site name
      * @param site_id
-     * @param suffix - Can be null
      * @param partition - Can be null
+     * @param suffix - Can be null
      * @return
      */
-    public static final String getThreadName(int site_id, String suffix, Integer partition) {
+    public static final String getThreadName(int site_id, Integer partition, String...suffixes) {
+        String suffix = null;
+        if (suffixes != null && suffixes.length > 0) suffix = StringUtil.join("-", suffixes);
         if (suffix == null) suffix = "";
         if (suffix.isEmpty() == false) {
             suffix = "-" + suffix;
@@ -141,21 +143,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (String.format("H%02d%s", site_id, suffix));
     }
 
-    public static final String getThreadName(HStoreSite hstore_site, String suffix, Integer partition) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, suffix, partition));
+    public static final String getThreadName(HStoreSite hstore_site, Integer partition, String...suffixes) {
+        return (HStoreSite.getThreadName(hstore_site.site_id, partition, suffixes));
     }
-    public static final String getThreadName(HStoreSite hstore_site, String suffix) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, suffix, null));
+    public static final String getThreadName(HStoreSite hstore_site, String...suffixes) {
+        return (HStoreSite.getThreadName(hstore_site.site_id, null, suffixes));
     }
     public static final String getThreadName(HStoreSite hstore_site, Integer partition) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, null, partition));
+        return (HStoreSite.getThreadName(hstore_site.site_id, partition));
     }
     public static final String formatSiteName(Integer site_id) {
         if (site_id == null) return (null);
-        return (HStoreSite.getThreadName(site_id, null, null));
+        return (HStoreSite.getThreadName(site_id, null));
     }
     public static final String formatPartitionName(int site_id, int partition_id) {
-        return (HStoreSite.getThreadName(site_id, null, partition_id));
+        return (HStoreSite.getThreadName(site_id, partition_id));
     }
     
     // ----------------------------------------------------------------------------
@@ -219,6 +221,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final HStoreConf hstore_conf;
     private final Site catalog_site;
     private final int site_id;
+    private final String site_name;
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
@@ -238,7 +241,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * ClientResponse Processor Thread
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
-    private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
+    private final LinkedBlockingDeque<LocalTransaction> ready_responses = new LinkedBlockingDeque<LocalTransaction>();
     
     
     
@@ -350,6 +353,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.site_id = this.catalog_site.getId();
+        this.site_name = HStoreSite.getThreadName(this.site_id, null);
         
         // TODO: Pull the PartitionEstimator info from HStoreConf
         this.p_estimator = new PartitionEstimator(this.catalog_db);
@@ -433,7 +437,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d)
                 LOG.debug(String.format("Starting %d post-processing threads", hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
-                this.processors.add(new PartitionExecutorPostProcessor(this, this.ready_responses));
+                PartitionExecutorPostProcessor processor = new PartitionExecutorPostProcessor(this, this.ready_responses); 
+                this.processors.add(processor);
             } // FOR
         }
         
@@ -581,7 +586,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.site_id);
     }
     public String getSiteName() {
-        return (HStoreSite.getThreadName(this.site_id, null, null));
+        return (this.site_name);
     }
     
     /**
@@ -706,10 +711,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
                 Thread thread = arg.getFirst();
                 Throwable error = arg.getSecond();
-                LOG.error(String.format("Thread %s had an Exception. Halting H-Store Cluster", thread.getName()),
-                          error);
-                if (d) LOG.error("Is error null? " + (error == null));
-                error.printStackTrace();
+                LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
                 hstore_coordinator.shutdownCluster(error, true);
             }
         };
@@ -755,19 +757,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.start();
         }
         
-        // Schedule the ExecutionSiteHelper
-//        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
-//        this.helper = new ExecutionSiteHelper(this,
-//                                              executor_list,
-//                                              hstore_conf.site.helper_txn_per_round,
-//                                              hstore_conf.site.helper_txn_expire,
-//                                              hstore_conf.site.txn_profiling);
-//        this.helper_pool.scheduleAtFixedRate(this.helper,
-//                                             hstore_conf.site.helper_initial_delay,
-//                                             hstore_conf.site.helper_interval,
-//                                             TimeUnit.MILLISECONDS);
-        
-        // Then we need to start all of the ExecutionSites in threads
+        // Then we need to start all of the PartitionExecutor in threads
         if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions_arr.length + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions_arr) {
             PartitionExecutor executor = this.getPartitionExecutor(partition);
@@ -1193,7 +1183,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      */
     private void dispatchInvocation(LocalTransaction ts) {
-        assert(ts.isInitialized()) : String.format("Unexpected uninitialized LocalTranaction for txn #%d", ts.getTransactionId());
+        assert(ts.isInitialized()) : 
+            "Unexpected uninitialized LocalTranaction for " + ts;
         Long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
                 
@@ -1216,12 +1207,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ts.setTransactionId(txn_id);
             this.inflight_txns.put(txn_id, ts);
         }
+         if (d) LOG.debug(ts + " - Dispatching new transaction invocation");
         
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
         if (ts.isPredictSinglePartition()) {
-            if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
+            if (d) LOG.debug(String.format("%s - Fast path single-partition execution on partition %d [handle=%d]",
                              ts, base_partition, ts.getClientHandle()));
             this.transactionStart(ts, base_partition);
         }
@@ -1229,7 +1221,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("Queuing distributed %s to running at partition %d [handle=%d]",
+            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to running at partition %d [handle=%d]",
                              ts, base_partition, ts.getClientHandle()));
             
             // Partitions
@@ -1248,7 +1240,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     assert(est != null);
                     predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
                 }
-                assert(predict_touchedPartitions.isEmpty() == false) : "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
+                assert(predict_touchedPartitions.isEmpty() == false) : 
+                    "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
             }
 
             // Check whether our transaction can't run right now because its id is less than
@@ -1259,7 +1252,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
                     if (d) {
-                        LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
+                        LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
                                        ts, partition, last_txn_id));
                         LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
                                            TransactionIdManager.toString(last_txn_id),
@@ -1282,6 +1275,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // TRANSACTION HANDLE METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
+     * @param txn_id
+     * @param invocation
+     * @param base_partition
+     * @return
+     */
     public MapReduceTransaction createMapReduceTransaction(Long txn_id, StoredProcedureInvocation invocation, int base_partition) {
         String proc_name = invocation.getProcName();
         Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
@@ -1306,6 +1306,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (ts);
     }
     
+    /**
+     * Create a RemoteTransaction handle. This obviously only for a remote site.
+     * @param txn_id
+     * @param request
+     * @return
+     */
     public RemoteTransaction createRemoteTransaction(Long txn_id, TransactionWorkRequest request) {
         RemoteTransaction ts = null;
         try {
@@ -1328,10 +1334,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // TRANSACTION OPERATION METHODS
     // ----------------------------------------------------------------------------
-    
+
     /**
-     * 
+     * Add the given transaction id to this site's queue manager
      * @param txn_id
+     * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
     public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
@@ -1412,7 +1419,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts != null && hstore_conf.site.exec_speculative_execution) {
                 if (d) LOG.debug(String.format("Telling partition %d to enable speculative execution because of txn #%d", p, txn_id));
                 boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
-                if (debug.get() && ret) {
+                if (d && ret) {
                     spec_cnt++;
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
                 }
@@ -1421,7 +1428,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (callback != null) callback.decrementCounter(1);
 
         } // FOR
-        if (debug.get() && spec_cnt > 0)
+        if (d && spec_cnt > 0)
             LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
     }
     
@@ -1458,8 +1465,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         for (int p : partitions) {
             if (this.isLocalPartition(p) == false) {
-//                if (t) 
-                    LOG.debug(String.format("#%d - Skipping finish at partition %d", txn_id, p));
+                if (t) LOG.trace(String.format("#%d - Skipping finish at partition %d", txn_id, p));
                 continue;
             }
             if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
@@ -1497,22 +1503,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // FAILED TRANSACTIONS (REQUEUE / REJECT / RESTART)
     // ----------------------------------------------------------------------------
-    
-    /**
-     * 
-     * @param ts
-     */
-    public void transactionRequeue(LocalTransaction ts) {
-        long old_txn_id = ts.getTransactionId();
-
-        // Make sure that we remove the old txn
-        this.inflight_txns.remove(old_txn_id);
-        
-        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
-        ts.setTransactionId(new_txn_id);
-        this.dispatchInvocation(ts);
-        if (d) LOG.debug(String.format("Released blocked txn #%d as new %s", old_txn_id, ts));
-    }
     
     /**
      * Rejects a transaction and returns an empty result back to the client
@@ -1745,11 +1735,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
          if (d) {
-            LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
+            LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d [restarts=%d, partitions=%s]",
                                     orig_ts,
                                     (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                                     new_ts,
                                     base_partition,
+                                    new_ts.getRestartCounter(),
                                     predict_touchedPartitions));
             if (t && status == Status.ABORT_MISPREDICT)
                 LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
@@ -1764,8 +1755,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
 
     /**
+     * Send back the given ClientResponse to the actual client waiting for it
      * At this point the transaction should been properly committed or aborted at
      * the PartitionExecutor, including if it was mispredicted.
+     * This is the only place that we will invoke the original Client callback and send back the
+     * results.
      * @param ts
      * @param cresponse
      */
@@ -1779,7 +1773,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
         if (status != Status.ABORT_MISPREDICT) {
-            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
+            if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, status));
 
             // Check whether we should disable throttling
             cresponse.setRequestCounter(this.getNextRequestCounter());
@@ -1833,7 +1827,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
-        this.ready_responses.add(new Object[]{ts, cr});
+        this.ready_responses.add(ts);
     }
 
     /**
@@ -1842,7 +1836,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void deleteTransaction(final Long txn_id, final Status status) {
-        if (d) LOG.debug("Deleting internal info for txn #" + txn_id);
+//        if (d) 
+            LOG.info("Deleting internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
         // It's ok for us to not have a transaction handle, because it could be

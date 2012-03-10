@@ -173,7 +173,7 @@ public abstract class HStore {
         // HStoreSite Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
         Thread t = Thread.currentThread();
-        t.setName(HStoreSite.getThreadName(site_id, "main", null));
+        t.setName(HStoreSite.getThreadName(site_id, null, "main"));
         
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);

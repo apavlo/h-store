@@ -193,16 +193,43 @@ public class HStoreCoordinator implements Shutdownable {
         
         // Special dispatcher threads to handle incoming requests
         // These are used so that we can process messages in a different thread than the main HStoreCoordinator thread
-        this.transactionInit_dispatcher = (hstore_conf.site.coordinator_init_thread ? new TransactionInitDispatcher(this) : null);
-        this.transactionFinish_dispatcher = (hstore_conf.site.coordinator_finish_thread ? new TransactionFinishDispatcher(this) : null);
-        this.transactionRedirect_dispatcher = (hstore_conf.site.coordinator_redirect_thread ? new TransactionRedirectDispatcher(this) : null);
+        
+        // TransactionInitDispatcher
+        if (hstore_conf.site.coordinator_init_thread) {
+            this.transactionInit_dispatcher = new TransactionInitDispatcher(this);
+            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "init");
+            Thread t = new Thread(this.transactionInit_dispatcher, name);
+            this.dispatcherThreads.add(t);
+        } else {
+            this.transactionInit_dispatcher = null;
+        }
+        
+        // TransactionFinishDispatcher
+        if (hstore_conf.site.coordinator_finish_thread) {
+            this.transactionFinish_dispatcher = new TransactionFinishDispatcher(this);
+            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "finish");
+            Thread t = new Thread(this.transactionInit_dispatcher, name);
+            this.dispatcherThreads.add(t);
+        } else {
+            this.transactionFinish_dispatcher = null;
+        }
 
-        this.transactionInit_handler = new TransactionInitHandler(hstore_site, this, transactionInit_dispatcher);
+        // TransactionRedirectDispatcher
+        if (hstore_conf.site.coordinator_redirect_thread) {
+            this.transactionRedirect_dispatcher = new TransactionRedirectDispatcher(this);
+            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "redirect");
+            Thread t = new Thread(this.transactionInit_dispatcher, name);
+            this.dispatcherThreads.add(t);
+        } else {
+            this.transactionRedirect_dispatcher = null;
+        }
+
+        this.transactionInit_handler = new TransactionInitHandler(hstore_site, this, this.transactionInit_dispatcher);
         this.transactionWork_handler = new TransactionWorkHandler(hstore_site, this);
         this.transactionMap_handler = new TransactionMapHandler(hstore_site, this);
         this.transactionReduce_handler = new TransactionReduceHandler(hstore_site,this);
         this.transactionPrepare_handler = new TransactionPrepareHandler(hstore_site, this);
-        this.transactionFinish_handler = new TransactionFinishHandler(hstore_site, this, transactionFinish_dispatcher);
+        this.transactionFinish_handler = new TransactionFinishHandler(hstore_site, this, this.transactionFinish_dispatcher);
         this.sendData_handler = new SendDataHandler(hstore_site, this);
         
         // Wrap the listener in a daemon thread
@@ -227,27 +254,11 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
 
-        if (this.transactionInit_dispatcher != null) {
-            if (debug.get()) LOG.debug("Starting InitTransaction dispatcher thread");
-            Thread t = new Thread(transactionInit_dispatcher, HStoreSite.getThreadName(this.hstore_site, "init"));
+        for (Thread t : this.dispatcherThreads) {
+            if (debug.get()) LOG.debug("Starting dispatcher thread: " + t.getName());
             t.setDaemon(true);
             t.start();
-            this.dispatcherThreads.add(t);
-        }
-        if (this.transactionFinish_dispatcher != null) {
-            if (debug.get()) LOG.debug("Starting FinishTransaction dispatcher thread");
-            Thread t = new Thread(transactionFinish_dispatcher, HStoreSite.getThreadName(this.hstore_site, "finish"));
-            t.setDaemon(true);
-            t.start();
-            this.dispatcherThreads.add(t);
-        }
-        if (this.transactionRedirect_dispatcher != null) {
-            if (debug.get()) LOG.debug("Starting ForwardTxn dispatcher thread");
-            Thread t = new Thread(transactionRedirect_dispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
-            t.setDaemon(true);
-            t.start();
-            this.dispatcherThreads.add(t);
-        }
+        } // FOR
         
         if (debug.get()) LOG.debug("Starting listener thread");
         this.listener_thread.start();
@@ -1014,6 +1025,9 @@ public class HStoreCoordinator implements Shutdownable {
             }
         }
         LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
+        if (ex != null) {
+            LOG.fatal("A fatal error caused this shutdown", ex);
+        }
         LogManager.shutdown();
         System.exit(exit_status);
     }

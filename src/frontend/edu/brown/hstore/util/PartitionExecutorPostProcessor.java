@@ -1,6 +1,5 @@
 package edu.brown.hstore.util;
 
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
@@ -36,7 +35,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingDeque<Object[]> queue;
+    private final LinkedBlockingDeque<LocalTransaction> queue;
 
     /**
      * Handle to ourselves
@@ -47,7 +46,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
      * 
      * @param hstore_site
      */
-    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<Object[]> queue) {
+    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<LocalTransaction> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
     }
@@ -63,21 +62,19 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
             LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        Object pair[] = null;
+        LocalTransaction ts = null;
         while (this.stop == false) {
             try {
                 if (hstore_conf.site.status_show_executor_info) idleTime.start();
-                pair = this.queue.takeFirst();
+                ts = this.queue.takeFirst();
                 if (hstore_conf.site.status_show_executor_info) idleTime.stop();
-                assert(pair != null);
-                assert(pair.length == 2) : "Unexpected response: " + Arrays.toString(pair);
+                assert(ts != null);
             } catch (InterruptedException ex) {
                 this.stop = true;
                 break;
             }
             if (hstore_conf.site.status_show_executor_info) execTime.start();
-            LocalTransaction ts = (LocalTransaction)pair[0];
-            ClientResponseImpl cr = (ClientResponseImpl)pair[1];
+            ClientResponseImpl cr = ts.getClientResponse();
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                                      ts, ts.getBasePartition(), cr.getStatus()));
             try {
