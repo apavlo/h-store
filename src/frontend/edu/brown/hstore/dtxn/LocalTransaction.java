@@ -116,7 +116,6 @@ public class LocalTransaction extends AbstractTransaction {
     private int restart_ctr = 0;
     
     private boolean needs_restart = false;
-    private boolean is_restarted = false;
     
     private boolean deletable = false;
     
@@ -370,7 +369,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.cresponse.finish();
 
         this.needs_restart = false;
-        this.is_restarted = false;
         this.deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
@@ -620,17 +618,15 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
-    public void markNeedsRestart() {
-        assert(this.needs_restart == false) :
-            "Trying to mark " + this + " as needing to be restarted twice";
+    /**
+     * Mark this transaction as needing to be restarted. This will prevent it from
+     * being deleted immediately
+     * @param value
+     */
+    public final void setNeedsRestart(boolean value) {
+        assert(this.needs_restart != value) :
+            "Trying to set " + this + " internal needs_restart flag to " + value + " twice";
         this.needs_restart = true;
-    }
-    public void markRestarted() {
-        assert(this.needs_restart) :
-            "Trying to mark " + this + " as requeued before needs_restart flag was set";
-        assert(this.is_restarted == false) :
-            "Trying to mark " + this + " as restarted twice";
-        this.is_restarted = true;
     }
     
     /**
@@ -642,16 +638,16 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.isInitialized() == false) {
             return (false);
         }
-        if (this.init_callback != null && this.init_callback.getCounter() > 0) {
+        if (this.init_callback != null && this.init_callback.allCallbacksFinished() == false) {
             return (false);
         }
-        if (this.prepare_callback != null && this.prepare_callback.getCounter() > 0) {
+        if (this.prepare_callback != null && this.prepare_callback.allCallbacksFinished() == false) {
             return (false);
         }
-        if (this.finish_callback != null && this.finish_callback.getCounter() > 0) {
+        if (this.finish_callback != null && this.finish_callback.allCallbacksFinished() == false) {
             return (false);
         }
-        if (this.needs_restart && this.is_restarted == false) {
+        if (this.needs_restart) {
             return (false);
         }
         synchronized (this) {
@@ -659,6 +655,9 @@ public class LocalTransaction extends AbstractTransaction {
             this.deletable = true;
         }
         return (true);
+    }
+    public final boolean checkDeletableFlag() {
+        return (this.deletable);
     }
 
     /**

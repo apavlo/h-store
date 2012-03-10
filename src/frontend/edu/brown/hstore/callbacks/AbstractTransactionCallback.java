@@ -57,6 +57,9 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected final void unblockCallback() {
         assert(this.ts != null) :
             "Unexpected null transaction handle for txn #" + this.getTransactionId();
+        assert(this.ts.isInitialized()) :
+            "Unexpected uninitalized transaction handle for txn #" + this.getTransactionId();
+        
         if (this.isAborted()) {
             assert(this.finishStatus != null);
             this.deleteTransaction(this.finishStatus);
@@ -94,14 +97,17 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     protected abstract void unblockTransactionCallback();
     protected abstract boolean abortTransactionCallback(Status status);
     
+    // ----------------------------------------------------------------------------
+    // INTERNAL UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Checks whether a transaction is ready to be deleted
+     * This is thread-safe
+     * @param status
+     */
     protected final void deleteTransaction(Status status) {
-        // TODO: Need to think about whether this is thread-safe
-        //       My initial hunch is that it's not, which means we may want
-        //       to set a flag somewhere that prevents us from calling deleteTransaction
-        //       from multiple threads.
-        boolean deletable = this.ts.isDeletable();
-        
-        if (deletable) {
+        if (this.ts.isDeletable()) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
 //            if (trace.get()) 
                 LOG.info(String.format("%s - Deleting from %s [status=%s]",
@@ -114,7 +120,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     }
     
     /**
-     * 
+     * Tell the HStoreCoordinator to invoke the TransactionFinish process
      * @param status
      */
     protected final void finishTransaction(Status status) {

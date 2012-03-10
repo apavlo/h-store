@@ -51,12 +51,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
-        assert(this.isInitialized()) : "ORIG TXN: " + this.getTransactionId();
-        
-        // Then re-queue the transaction. We want to make sure that
-        // we use a new LocalTransaction handle because this one is going to get freed
-        // We want to do this first because the transaction state could get
-        // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
+        // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {
             case ABORT_RESTART: {
                 // If we have the transaction that we got busted up with at the remote site
@@ -66,17 +61,19 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                         TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager(); 
                         txnQueueManager.queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
                     } else {
-                        this.hstore_site.transactionRestart(this.ts, status, false);
+                        // We don't care whether our transaction was rejected or not because we know that
+                        // we still need to call TransactionFinish, which will delete the final transaction state
+                        this.hstore_site.transactionRestart(this.ts, status);
                     }
                 } // SYNCH
                 break;
             }
             case ABORT_THROTTLED:
             case ABORT_REJECT:
-                this.hstore_site.transactionReject(this.ts, status, false);
+                this.hstore_site.transactionReject(this.ts, status);
                 break;
             default:
-                assert(false) : String.format("Unexpected status %s for %s", status, this.ts);
+                throw new RuntimeException(String.format("Unexpected status %s for %s", status, this.ts));
         } // SWITCH
         
         return (true);
@@ -94,9 +91,9 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                                     (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         
         // HACK: We can ignore requests from different txns
-        if (this.sameTransaction(response, response.getTransactionId()) == false) {
-            return (0);
-        }
+//        if (this.sameTransaction(response, response.getTransactionId()) == false) {
+//            return (0);
+//        }
         
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d [status=%s]",
@@ -127,11 +124,6 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
             }
             this.abort(response.getStatus());
         }
-//        long txn_id = response.getTransactionId();
-//        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
-//        for (int partition : response.getPartitionsList()) {
-//            manager.markAsLastTxnId(partition, txn_id);
-//        } // FOR
         return (response.getPartitionsCount());
     }
 }

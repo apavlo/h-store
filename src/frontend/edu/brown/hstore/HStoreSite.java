@@ -1506,32 +1506,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Rejects a transaction and returns an empty result back to the client
-     * IMPORTANT: The transaction will be deleted after calling this unless no_delete is true
      * @param ts
-     * @param deletable Prevent the txn from getting deleted
      */
-    public void transactionReject(LocalTransaction ts, Status status, boolean deletable) {
+    public void transactionReject(LocalTransaction ts, Status status) {
         assert(ts.isInitialized());
-        int request_ctr = this.getNextRequestCounter();
-        long clientHandle = ts.getClientHandle();
+        if (d) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+                                       ts, status, ts.getClientHandle()));
         
-        // The txn is only deletable if it does not have an outstanding TransactionFinishCallback
-        if (ts.hasTransactionFinishCallback()) {
-            deletable = deletable && (ts.getTransactionFinishCallback().getCounter() == 0); 
-        }
-       
-        if (d) LOG.debug(String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
-                                       ts, status, clientHandle, request_ctr));
-        
-        String statusString = this.REJECTION_MESSAGE;
-        if (d) statusString += " [restarts=" + ts.getRestartCounter() + "]";
         ClientResponseImpl cresponse = ts.getClientResponse();
         cresponse.init(ts.getTransactionId(),
                        ts.getClientHandle(),
                        ts.getBasePartition(),
                        status,
                        HStoreConstants.EMPTY_RESULT,
-                       statusString,
+                       this.REJECTION_MESSAGE,
                        ts.getPendingError());
         this.sendClientResponse(ts, cresponse);
 
@@ -1544,28 +1532,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 assert(false) : "Unexpected " + ts + ": " + status;
             }
         }
-        
-        // We can go ahead and delete the transaction right here if we're allowed
-        if (deletable) {
-            synchronized (ts) {
-                if (ts.isDeletable()) {
-                    this.deleteTransaction(ts.getTransactionId(), status);
-                }
-            } // SYNCH
-        }
     }
 
     /**
-     * The transaction was mispredicted as single-partitioned
+     * Restart the given transaction with a brand new transaction handle.
      * This method will perform the following operations:
      *  (1) Restart the transaction as new multi-partitioned transaction
      *  (2) Mark the original transaction as aborted
-     * IMPORTANT: The transaction could be deleted after calling this if it is rejected unless deletable is false
-     * @param ts
+     *  
+     * <B>IMPORTANT:</B> If the return status of the transaction is ABORT_REJECT, then you will
+     *                   probably need to delete the transaction handle.
      * @param status Final status of this transaction
-     * @param deletable Whether to allow the transaction to be deleted permanently
+     * @param ts
+     * @return Returns the final status of this transaction
      */
-    public void transactionRestart(LocalTransaction orig_ts, Status status, boolean deletable) {
+    public Status transactionRestart(LocalTransaction orig_ts, Status status) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
@@ -1583,8 +1564,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
-                this.transactionReject(orig_ts, Status.ABORT_REJECT, deletable);
-                return;
+                this.transactionReject(orig_ts, Status.ABORT_REJECT);
+                return (Status.ABORT_REJECT);
             }
         }
         
@@ -1631,9 +1612,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 try {
                     serializedRequest = FastSerializer.serialize(spi);
                 } catch (IOException ex) {
-                    LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts);
-                    this.hstore_coordinator.shutdownCluster(ex, false);
-                    return;
+                    throw new RuntimeException("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts, ex);
                 }
                 assert(serializedRequest != null);
                 
@@ -1646,7 +1625,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 this.hstore_coordinator.transactionRedirect(serializedRequest, callback, redirect_partition);
                 if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
-                return;
+                return (Status.ABORT_RESTART);
                 
             // Allow local redirect
             } else if (orig_ts.getRestartCounter() <= 1 || spi.hasBasePartition() == false) {
@@ -1747,6 +1726,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         this.dispatchInvocation(new_ts);
+        return (Status.ABORT_RESTART);
     }
 
     
@@ -1757,63 +1737,57 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Send back the given ClientResponse to the actual client waiting for it
      * At this point the transaction should been properly committed or aborted at
-     * the PartitionExecutor, including if it was mispredicted.
-     * This is the only place that we will invoke the original Client callback and send back the
-     * results.
+     * the PartitionExecutor, including if it was mispredicted. This is the only place that
+     * we will invoke the original Client callback and send back the results.
+     * Note that the ClientResponse's status cannot be ABORT_MISPREDICT.
      * @param ts
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        assert(cresponse != null) : "Missing ClientResponse for " + ts;
-        Status status = cresponse.getStatus();
-        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
+        assert(cresponse != null) :
+            "Missing ClientResponse for " + ts;
+        assert(cresponse.getClientHandle() != -1) :
+            "The client handle for " + ts + " was not set properly";
+        assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
+            "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
         // Don't send anything back if it's a mispredict because it's as waste of time...
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (status != Status.ABORT_MISPREDICT) {
-            if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, status));
+        if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, cresponse.getStatus()));
 
-            // Check whether we should disable throttling
-            cresponse.setRequestCounter(this.getNextRequestCounter());
-            cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
-            
-            // So we have a bit of a problem here.
-            // It would be nice if we could use the BufferPool to get a block of memory so
-            // that we can serialize the ClientResponse out to a byte array
-            // Since we know what we're doing here, we can just free the memory back to the
-            // buffer pool once we call deleteTransaction()
-            // The problem is that we need access to the underlying array of the ByteBuffer,
-            // but we can't get that from here.
-            byte bytes[] = null;
-            int offset = this.getLocalPartitionOffset(ts.getBasePartition());
-            FastSerializer out = this.partition_serializers[offset]; 
-            synchronized (out) {
-                out.clear();
-                try {
-                    out.writeObject(cresponse);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                bytes = out.getBytes();
-            } // SYNCH
-            if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
-                                           ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
-            
-            // Send result back to client!
+        // Check whether we should disable throttling
+        cresponse.setRequestCounter(this.getNextRequestCounter());
+        cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+        
+        // So we have a bit of a problem here.
+        // It would be nice if we could use the BufferPool to get a block of memory so
+        // that we can serialize the ClientResponse out to a byte array
+        // Since we know what we're doing here, we can just free the memory back to the
+        // buffer pool once we call deleteTransaction()
+        // The problem is that we need access to the underlying array of the ByteBuffer,
+        // but we can't get that from here.
+        byte bytes[] = null;
+        int offset = this.getLocalPartitionOffset(ts.getBasePartition());
+        FastSerializer out = this.partition_serializers[offset]; 
+        synchronized (out) {
+            out.clear();
             try {
-                ts.getClientCallback().run(bytes);
-            } catch (CancelledKeyException ex) {
-                // IGNORE
+                out.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }
-        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
-        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
-        // as soon as possible...
-        else {
-            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
-            this.transactionRestart(ts, status, false);
+            bytes = out.getBytes();
+        } // SYNCH
+        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+                                       ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+        
+        // Send result back to client!
+        try {
+            ts.getClientCallback().run(bytes);
+        } catch (CancelledKeyException ex) {
+            // IGNORE
         }
     }
     
@@ -1823,10 +1797,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cr
      */
-    public void queueClientResponse(PartitionExecutor es, LocalTransaction ts, ClientResponseImpl cr) {
+    public void queueClientResponse(LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                                       ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
+                                       ts, ts.getBasePartition(), cr.getStatus(), this.ready_responses.size()));
         this.ready_responses.add(ts);
     }
 
@@ -1865,8 +1839,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
-        assert(ts.isDeletable()) :
-            String.format("Trying to delete %s before it is ready!", ts);
+        assert(ts.checkDeletableFlag()) :
+            String.format("Trying to delete %s before it was marked as ready!", ts);
         
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
