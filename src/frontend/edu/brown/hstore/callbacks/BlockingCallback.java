@@ -37,12 +37,26 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * unexpected abort. This ensures that we only send out the ABORT
      * to all the HStoreSites once. 
      */
-    private final AtomicBoolean aborted = new AtomicBoolean(false);
+    private final AtomicBoolean abortInvoked = new AtomicBoolean(false);
+    
+    /**
+     * This flag is set to true after the abortCallback() invocation is finished
+     * This prevents somebody from checking whether we have invoked the abort callback
+     * but are still in the middle of processing it.
+     */
+    private boolean abortFinished = false;
     
     /**
      * This flag is set to true when the unblockCallback() is invoked
      */
-    private final AtomicBoolean invoked = new AtomicBoolean(false);
+    private final AtomicBoolean unblockInvoked = new AtomicBoolean(false);
+    
+    /**
+     * This flag is set to true after the unblockCallback() invocation is finished
+     * This prevents somebody from checking whether we have invoked the unblock callback
+     * but are still in the middle of processing it.
+     */
+    private boolean unblockFinished = false;
     
     /**
      * If set to true, then this callback will still invoke unblockCallback()
@@ -88,8 +102,16 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     protected final int getOrigCounter() {
         return (this.orig_counter);
     }
-    protected RpcCallback<T> getOrigCallback() {
+    protected final RpcCallback<T> getOrigCallback() {
         return this.orig_callback;
+    }
+    
+    /**
+     * Returns true if either the unblock or abort callbacks have been invoked
+     * and have finished their processing
+     */
+    public final boolean allCallbacksFinished() {
+        return (this.isUnblockCallbackFinished() && this.isAbortCallbackFinished());
     }
     
     // ----------------------------------------------------------------------------
@@ -107,7 +129,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if ((this.aborted.get() == false || this.invoke_even_if_aborted) && new_count == 0) {
+        if ((this.abortInvoked.get() == false || this.invoke_even_if_aborted) && new_count == 0) {
             this.unblock();
         }
     }
@@ -140,17 +162,28 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * Internal method for calling the unblockCallback()
      */
-    private void unblock() {
+    private final void unblock() {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
                                     this.txn_id, this.getClass().getSimpleName()));
         
-        if (this.invoked.compareAndSet(false, true)) {
+        if (this.unblockInvoked.compareAndSet(false, true)) {
             this.unblockCallback();
+            this.unblockFinished = true;
         } else {
             throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
                                                      this.txn_id, this.getClass().getSimpleName()));
         }
+    }
+    
+    /**
+     * Returns true if this callback has been aborted and we have successfully
+     * completed the unblockCallback() method. This means that it is safe
+     * to go ahead and clean-up this callback.
+     * @return
+     */
+    public final boolean isUnblockCallbackFinished() {
+        return (this.unblockInvoked.get() && this.unblockFinished);
     }
     
     /**
@@ -168,8 +201,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     public final void abort(Status status) {
         // If this is the first response that told us to abort, then we'll
         // send the abort message out 
-        if (this.aborted.compareAndSet(false, true)) {
+        if (this.abortInvoked.compareAndSet(false, true)) {
             this.abortCallback(status);
+            this.unblockFinished = true;
         }
     }
     
@@ -177,7 +211,17 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * Returns true if this callback has invoked the abortCallback() method
      */
     protected final boolean isAborted() {
-        return (this.aborted.get());
+        return (this.abortInvoked.get());
+    }
+    
+    /**
+     * Returns true if this callback has been aborted and we have succesfully
+     * completed the abortCallback() method. This means that it is safe
+     * to go ahead and clean-up this callback.
+     * @return
+     */
+    public final boolean isAbortCallbackFinished() {
+        return (this.abortInvoked.get() && this.abortFinished);
     }
     
     /**
@@ -196,8 +240,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         if (debug.get()) LOG.debug(String.format("Txn #%d - Finishing %s",
                                                  this.txn_id, this.getClass().getSimpleName()));
         
-        this.aborted.set(false);
-        this.invoked.set(false);
+        this.abortInvoked.set(false);
+        this.unblockInvoked.set(false);
+        this.unblockFinished = false;
         this.orig_callback = null;
         this.txn_id = null;
         this.finishImpl();

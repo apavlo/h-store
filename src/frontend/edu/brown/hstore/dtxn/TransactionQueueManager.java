@@ -13,6 +13,7 @@ import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.TxnCounter;
@@ -35,6 +36,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * the site that will send init requests to this coordinator
      */
     private final HStoreSite hstore_site;
+    private final HStoreConf hstore_conf;
     
     private final Collection<Integer> localPartitions;
     private final int localPartitionsArray[];
@@ -102,6 +104,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public TransactionQueueManager(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.localPartitions = hstore_site.getLocalPartitionIds();
         assert(this.localPartitions.isEmpty() == false);
         this.localPartitionsArray = CollectionUtil.toIntArray(this.localPartitions);
@@ -112,7 +115,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.working_partitions = new boolean[this.txn_queues.length];
         this.last_txns = new Long[this.txn_queues.length];
         
-        this.wait_time = hstore_site.getHStoreConf().site.txn_incoming_delay;
+        this.wait_time = hstore_conf.site.txn_incoming_delay;
         for (int partition : allPartitions) {
             this.last_txns[partition] = -1l;
             if (this.localPartitions.contains(partition)) {
@@ -148,7 +151,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void run() {
         Thread self = Thread.currentThread();
         self.setName(HStoreSite.getThreadName(hstore_site, "queue"));
-        if (hstore_site.getHStoreConf().site.cpu_affinity) {
+        if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
         
@@ -407,25 +410,30 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * access a partition on has its last tranasction id as greater than what the LocalTransaction was issued.
      * @param ts
      * @param partition
-     * @param txn_id
+     * @param last_txn_id
      */
-    public void queueBlockedDTXN(LocalTransaction ts, int partition, Long txn_id) {
-        if (d) LOG.debug(String.format("Blocking %s until after a txn greater than #%d is created for partition %d",
-                                                 ts, txn_id, partition));
-        if (this.blocked_dtxn_release.putIfAbsent(ts, txn_id) != null) {
+    public void queueBlockedDTXN(LocalTransaction ts, int partition, Long last_txn_id) {
+        if (d) LOG.debug(String.format("%s - Blocking transaction until after a txn greater than #%d is created for partition %d",
+                                       ts, last_txn_id, partition));
+       
+        // IMPORTANT: Mark this transaction as needing to be restarted
+        //            This will prevent it from getting deleted out from under us
+        ts.setNeedsRestart(true);
+        
+        if (this.blocked_dtxn_release.putIfAbsent(ts, last_txn_id) != null) {
             Long other_txn_id = this.blocked_dtxn_release.get(ts);
-            if (other_txn_id != null && other_txn_id.compareTo(txn_id) < 0) {
-                this.blocked_dtxn_release.put(ts, txn_id);
+            if (other_txn_id != null && other_txn_id.compareTo(last_txn_id) < 0) {
+                this.blocked_dtxn_release.put(ts, last_txn_id);
             }
         } else {
             this.blocked_dtxns.offer(ts);
         }
         if (this.localPartitions.contains(partition) == false) {
-            this.markAsLastTxnId(partition, txn_id);
+            this.markAsLastTxnId(partition, last_txn_id);
         }
-        if (hstore_site.getHStoreConf().site.status_show_txn_info && ts.getRestartCounter() == 1) {
+        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) {
             TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
-            this.blocked_hist.put((int)TransactionIdManager.getInitiatorIdFromTransactionId(txn_id));
+            this.blocked_hist.put((int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id));
         }
     }
     
@@ -451,7 +459,12 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                                                ts, last_txn_id, releaseTxnId));
                 this.blocked_dtxns.remove();
                 this.blocked_dtxn_release.remove(ts);
-                hstore_site.transactionRestart(ts, Status.ABORT_RESTART, true);
+                Status new_status = hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
+                ts.setNeedsRestart(false);
+                if (new_status == Status.ABORT_REJECT && ts.isDeletable()) {
+                    hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+                }
+                
             } else break;
         } // WHILE
     }

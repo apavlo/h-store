@@ -85,14 +85,14 @@ public class MockHStoreSite extends HStoreSite {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void transactionRestart(LocalTransaction orig_ts, Status status, boolean deletable) {
+    public void transactionRestart(LocalTransaction orig_ts, Status status) {
         int restart_limit = 10;
         if (orig_ts.getRestartCounter() > restart_limit) {
             if (orig_ts.isSysProc()) {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                            orig_ts, orig_ts.getRestartCounter()));
             } else {
-                this.transactionReject(orig_ts, Status.ABORT_REJECT, deletable);
+                this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return;
             }
         }

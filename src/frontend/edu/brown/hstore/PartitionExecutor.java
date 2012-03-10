@@ -1215,7 +1215,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
             // Otherwise we will let the normal distributed transaction process clean things up 
-            hstore_site.transactionReject(ts, status, singlePartitioned);
+            hstore_site.transactionReject(ts, status);
         }
         return (success);
     }
@@ -2532,14 +2532,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // Commit or abort the transaction
             this.finishWork(ts, (status == Status.OK));
             
-            // Then send the result back to the client!
-            if (hstore_conf.site.exec_postprocessing_thread) {
+            // If the txn was mispredicted, then we will pass the information over to the HStoreSite
+            // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
+            // as soon as possible...
+            if (status == Status.ABORT_MISPREDICT) {
+                if (d) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+                this.hstore_site.transactionRestart(ts, status);
+                this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
+            }
+            // Use the separate post-processor thread to send back the result
+            else if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
                                                ts, cresponse.getStatus()));
-                hstore_site.queueClientResponse(this, ts, cresponse);
-            } else {
-                hstore_site.sendClientResponse(ts, cresponse);
-                hstore_site.deleteTransaction(ts.getTransactionId(), status);
+                this.hstore_site.queueClientResponse(ts, cresponse);
+            }
+            // Send back the result right now!
+            else {
+                this.hstore_site.sendClientResponse(ts, cresponse);
+                this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 
         // -------------------------------
@@ -2771,7 +2781,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             try {
                 if (hstore_conf.site.exec_postprocessing_thread) {
                     if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
-                    hstore_site.queueClientResponse(this, ts, cr);
+                    hstore_site.queueClientResponse(ts, cr);
                 } else {
                     if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
                     this.processClientResponse(ts, cr);

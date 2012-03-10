@@ -40,6 +40,9 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
     public void unblockTransactionCallback() {
         assert(this.ts.getClientResponse().isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
+
+        // Everybody returned ok, so we'll tell them all commit right now
+        this.finishTransaction(Status.OK);
         
         // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE
         // So that means we can send back the result to the client and then 
@@ -47,9 +50,6 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
         this.hstore_site.sendClientResponse(this.ts, this.ts.getClientResponse());
-        
-        // Everybody returned ok, so we'll tell them all commit right now
-        this.finishTransaction(Status.OK);
     }
     
     @Override
