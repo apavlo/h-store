@@ -535,7 +535,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this enabled, HStoreCoordinator will use a separate thread to process incoming initialization " +
                         "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean coordinator_init_thread;
@@ -543,7 +543,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this enabled, HStoreCoordinator will use a separate thread to process incoming finish " +
                         "requests for restarted transactions from other HStoreSites. ",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean coordinator_finish_thread;

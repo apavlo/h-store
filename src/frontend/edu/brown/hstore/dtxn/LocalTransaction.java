@@ -115,6 +115,11 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private int restart_ctr = 0;
     
+    private boolean needs_restart = false;
+    private boolean is_restarted = false;
+    
+    private boolean deletable = false;
+    
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -363,6 +368,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.done_partitions.clear();
         this.restart_ctr = 0;
         this.cresponse.finish();
+
+        this.needs_restart = false;
+        this.is_restarted = false;
+        this.deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -611,8 +620,23 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
     
+    public void markNeedsRestart() {
+        assert(this.needs_restart == false) :
+            "Trying to mark " + this + " as needing to be restarted twice";
+        this.needs_restart = true;
+    }
+    public void markRestarted() {
+        assert(this.needs_restart) :
+            "Trying to mark " + this + " as requeued before needs_restart flag was set";
+        assert(this.is_restarted == false) :
+            "Trying to mark " + this + " as restarted twice";
+        this.is_restarted = true;
+    }
+    
     /**
      * Returns true if we believe that this transaction can be deleted
+     * Note that this will only return true once and only once for each transaction invocation.
+     * That ensures that only one thread is allowed to delete a transaction
      */
     public boolean isDeletable() {
         if (this.isInitialized() == false) {
@@ -626,6 +650,13 @@ public class LocalTransaction extends AbstractTransaction {
         }
         if (this.finish_callback != null && this.finish_callback.getCounter() > 0) {
             return (false);
+        }
+        if (this.needs_restart && this.is_restarted == false) {
+            return (false);
+        }
+        synchronized (this) {
+            if (this.deletable) return (false);
+            this.deletable = true;
         }
         return (true);
     }
