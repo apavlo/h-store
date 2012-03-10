@@ -66,7 +66,7 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -1341,7 +1341,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
         this.txnQueueManager.insert(txn_id, partitions, callback);
     }
@@ -1433,9 +1433,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * This method is used to finally complete the transaction.
+     * This method is used to finish a distributed transaction.
      * The PartitionExecutor will either commit or abort the transaction at the specified partitions
-     * This is a non-blocking call that doesn't need to wait to know that the txn was finished successfully
+     * This is a non-blocking call that doesn't wait to know that the txn was finished successfully at 
+     * each PartitionExecutor.
      * @param txn_id
      * @param status
      * @param partitions
@@ -1488,7 +1489,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     throw new RuntimeException(ex);
                 }
             }
-            // If this is a LocalTransaction, then we want to just decrement their counter
+            // If this is a LocalTransaction, then we want to just decrement their TransactionFinishCallback counter
             else if (finish_callback != null) {
                 finish_callback.decrementCounter(1);
             }

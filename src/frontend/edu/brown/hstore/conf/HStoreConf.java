@@ -755,9 +755,17 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
             defaultInt=2500,
-            experimental=false
+            experimental=false,
+            replacedBy="pool_txninitqueue_idle"
         )
         public int pool_txninitwrapper_idle;
+        
+        @ConfigProperty(
+            description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_txninitqueue_idle;
         
         @ConfigProperty(
             description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",

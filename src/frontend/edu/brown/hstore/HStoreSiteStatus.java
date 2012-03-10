@@ -24,7 +24,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.client.ClientResponse;
 
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
@@ -358,7 +358,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                    (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
             Long txn_id = manager.getCurrentTransaction(partition);
             if (txn_id != null) {
-                TransactionInitWrapperCallback callback = manager.getCallback(txn_id);
+                TransactionInitQueueCallback callback = manager.getCallback(txn_id);
                 int len = status.length();
                 status += "#" + txn_id;
                 if (callback != null) {

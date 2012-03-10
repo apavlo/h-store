@@ -12,7 +12,7 @@ import org.voltdb.TransactionIdManager;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -66,7 +66,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * Maps txn IDs to their TransactionInitWrapperCallbacks
      */
-    private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitWrapperCallback>();
+    private final Map<Long, TransactionInitQueueCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitQueueCallback>();
     
     /**
      * Blocked Queue Comparator
@@ -187,7 +187,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         boolean txn_released = false;
         for (int partition : this.localPartitionsArray) {
-            TransactionInitWrapperCallback callback = null;
+            TransactionInitQueueCallback callback = null;
             Long next_id = null;
             int counter = -1;
             
@@ -252,7 +252,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param callback
      * @return
      */
-    public boolean insert(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+    public boolean insert(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]",
                                        txn_id, partitions));
         
@@ -333,7 +333,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // The transaction was waiting in the queue for this partition. That means
         // we need to invoke its TransactionInitWrapper callback
         else {
-            TransactionInitWrapperCallback callback = this.txn_callbacks.get(txn_id);
+            TransactionInitQueueCallback callback = this.txn_callbacks.get(txn_id);
             assert(callback != null) :
                 "Missing TransactionInitWrapperCallback for txn #" + txn_id;
             if (callback.decrementCounter(1) == 0) {
@@ -440,7 +440,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param txn_id
      */
     private void cleanupTransaction(Long txn_id) {
-        TransactionInitWrapperCallback callback = this.txn_callbacks.remove(txn_id);
+        TransactionInitQueueCallback callback = this.txn_callbacks.remove(txn_id);
         
         if (callback != null) {
             for (int partition : callback.getPartitions()) {
@@ -453,11 +453,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                     }
                 } // SYNCH
             } // FOR
-            HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.returnObject(callback);
+            HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.returnObject(callback);
         }
     }
     
-    private void rejectTransaction(Long txn_id, TransactionInitWrapperCallback callback, Status status, int reject_partition, Long reject_txnId) {
+    private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
         // First send back an ABORT message to the initiating HStoreSite
         try {
             callback.abort(status, reject_partition, reject_txnId.longValue());
@@ -521,7 +521,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * DEBUG METHOD
      */
-    public TransactionInitWrapperCallback getCallback(long txn_id) {
+    public TransactionInitQueueCallback getCallback(long txn_id) {
         return (this.txn_callbacks.get(txn_id));
     }
 

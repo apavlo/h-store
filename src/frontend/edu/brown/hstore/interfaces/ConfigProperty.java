@@ -54,4 +54,10 @@ public @interface ConfigProperty {
      * @return
      */
     boolean experimental() default false;
+    
+    /**
+     * The new HStoreConf parameter that this one has been replaced with
+     * @return
+     */
+    String replacedBy() default "";
 }

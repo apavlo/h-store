@@ -31,7 +31,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
 
@@ -95,7 +95,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             
-            TransactionInitWrapperCallback wrapper = new TransactionInitWrapperCallback(hstore_site);
+            TransactionInitQueueCallback wrapper = new TransactionInitQueueCallback(hstore_site);
             wrapper.init(request.getTransactionId(), request.getPartitionsList(), done);
             txnQueueManager.insert(request.getTransactionId(), request.getPartitionsList(), wrapper);
         }
