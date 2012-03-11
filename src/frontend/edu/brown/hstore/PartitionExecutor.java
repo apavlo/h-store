@@ -129,6 +129,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
@@ -2749,10 +2750,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // we need to tell the EE to commit. All ones that completed before that won't
         // have to hit up the EE.
         LocalTransaction ts = null;
+        Histogram<Integer> mispredict_h = null;
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
-        while ((ts = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() : this.queued_responses.pollFirst())) != null) {
+        while ((ts = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
+                                                                        this.queued_responses.pollFirst())) != null) {
             ClientResponseImpl cr = ts.getClientResponse();
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.
@@ -2761,8 +2764,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // If the multi-p txn aborted, then we need to abort everything in our queue
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
-                cr.setStatus(Status.ABORT_MISPREDICT);
-                ts.setPendingError(new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions()), false);
+                // We're going to assume that any transaction that didn't mispredict
+                // was single-partitioned. We'll just create a reusable histogram
+                // for this partition. This is because these transactions won't have
+                // the histogram of what partitions that they touched because that
+                // is stored in the ExecutionState, which the transactions won't have
+                // at this point.
+                if (cr.getStatus() != Status.ABORT_MISPREDICT) {
+                    if (mispredict_h == null) {
+                        mispredict_h = new Histogram<Integer>();
+                        mispredict_h.put(this.partitionId);
+                    }
+                    ts.setPendingError(new MispredictionException(ts.getTransactionId(), mispredict_h), false);
+                    cr.setStatus(Status.ABORT_MISPREDICT);
+                }
                 aborted++;
                 
             // Optimization: Check whether the last element in the list is a commit
