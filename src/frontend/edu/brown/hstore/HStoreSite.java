@@ -602,15 +602,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public Collection<Integer> getLocalPartitionIds() {
         return (this.local_partitions);
     }
+    /**
+     * Return an immutable array of the local partition ids managed by this HStoreSite
+     * Use this array is prefable to the Collection<Integer> if you must iterate of over them.
+     * This avoids having to create a new Iterator instance each time.
+     */
     public Integer[] getLocalPartitionIdArray() {
         return (this.local_partitions_arr);
     }
-    public boolean isLocalPartition(int p) {
-        return (this.local_partition_offsets[p] != -1);
+    /**
+     * Returns true if the given partition id is managed by this HStoreSite
+     * @param partition
+     * @return
+     */
+    public boolean isLocalPartition(int partition) {
+        return (this.local_partition_offsets[partition] != -1);
     }
     
     public int getSiteIdForPartitionId(int partition_id) {
-        return this.partition_site_xref[partition_id];
+        return (this.partition_site_xref[partition_id]);
     }
     
     @SuppressWarnings("unchecked")
