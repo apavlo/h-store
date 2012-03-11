@@ -1661,7 +1661,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Collection<Integer> predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
-        } else if (orig_ts.getRestartCounter() == 0 && orig_ts.hasTouchedPartitions()) {
+        } else if (orig_ts.getRestartCounter() == 0) {
             // HACK: Ignore ConcurrentModificationException
             predict_touchedPartitions = new HashSet<Integer>();
             malloc = true;
