@@ -105,9 +105,13 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
      * @param partition
      * @param txn_id
      */
-    public void abort(Status status, int partition, long txn_id) {
-        this.builder.setRejectPartition(partition);
-        this.builder.setRejectTransactionId(txn_id);
+    public void abort(Status status, int partition, Long txn_id) {
+        assert(this.builder != null) :
+            "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
+        if (txn_id != null) {
+            this.builder.setRejectPartition(partition);
+            this.builder.setRejectTransactionId(txn_id);
+        }
         this.abort(status);
     }
     

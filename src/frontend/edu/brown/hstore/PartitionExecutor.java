@@ -801,8 +801,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         assert(current_txn != null) : "Unexpected null LocalTransaction handle from " + orig_ts; 
                     }
 
-                    this.processInitiateTaskMessage((LocalTransaction)current_txn, itask);
-                    if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
+                    try {
+                        this.processInitiateTaskMessage((LocalTransaction)current_txn, itask);
+                    } catch (Throwable ex) {
+                        LOG.error(String.format("Unexpected error when executing %s\n%s", current_txn, current_txn.debug()));
+                        throw ex;
+                    } finally {
+                        if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
+                    }
                     
                 // -------------------------------
                 // Finish Transaction
@@ -1389,13 +1395,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         ClientResponseImpl cresponse = null;
         try {
-            cresponse = (ClientResponseImpl)volt_proc.call(ts,itask.getParameters()); // Blocking...
+            cresponse = (ClientResponseImpl)volt_proc.call(ts, itask.getParameters()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
             if (this.isShuttingDown() == false) {
                 SQLStmt last[] = volt_proc.voltLastQueriesExecuted();
-                System.err.println("ERROR: " + ex);
                 LOG.fatal("Unexpected error while executing " + ts, ex);
                 if (last.length > 0) {
                     LOG.fatal(String.format("Last Queries Executed [%d]: %s", last.length, Arrays.toString(last)));
@@ -1403,6 +1408,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.fatal("LocalTransactionState Dump:\n" + ts.debug());
                 this.crash(ex);
             }
+        } finally{
+            ts.resetExecutionState();
         }
         // If this is a MapReduce job, then we can just ignore the ClientResponse
         // and return immediately
@@ -1454,8 +1461,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 exec_lock.unlock();
             } // SYNCH
         }
-        
-        ts.resetExecutionState();
         volt_proc.finish();
     }
     

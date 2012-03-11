@@ -1811,6 +1811,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void deleteTransaction(final Long txn_id, final Status status) {
+        assert(txn_id != null) : "Unexpected null transaction id";
         if (d) LOG.debug("Deleting internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
@@ -1841,7 +1842,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
        
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
-        if (d) LOG.debug(ts + " - State before delete:\n" + ts.debug());
+        if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
