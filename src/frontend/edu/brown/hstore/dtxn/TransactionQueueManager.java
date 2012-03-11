@@ -63,7 +63,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     /**
      * Indicates which partitions are currently executing a distributed transaction
      */
-    private final boolean[] working_partitions;
+    private final boolean[] locked;
     
     /**
      * Maps txn IDs to their TransactionInitQueueCallbacks
@@ -110,7 +110,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         Collection<Integer> allPartitions = hstore_site.getAllPartitionIds();
         int num_ids = allPartitions.size();
         this.txn_queues = new TransactionInitPriorityQueue[num_ids];
-        this.working_partitions = new boolean[this.txn_queues.length];
+        this.locked = new boolean[this.txn_queues.length];
         this.last_txns = new Long[this.txn_queues.length];
         this.localPartitionsArray = CollectionUtil.toIntArray(hstore_site.getLocalPartitionIds());
         this.wait_time = hstore_conf.site.txn_incoming_delay;
@@ -120,7 +120,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             this.last_txns[partition] = -1l;
             if (this.hstore_site.isLocalPartition(partition)) {
                 this.txn_queues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
-                this.working_partitions[partition] = false;
+                this.locked[partition] = false;
                 hstore_site.getStartWorkloadObservable().addObserver(this.txn_queues[partition]);
             }
         } // FOR
@@ -160,7 +160,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while (this.stop == false) {
             synchronized (this) {
                 try {
-                    this.wait(this.wait_time * 10); // FIXME
+                    this.wait(this.wait_time * 2); // FIXME
                 } catch (InterruptedException e) {
                     // Nothing...
                 }
@@ -193,12 +193,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             Long next_id = null;
             int counter = -1;
             
-            if (this.working_partitions[partition]) {
+            if (this.locked[partition]) {
                 if (t) LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
                 continue;
             }
-            TransactionInitPriorityQueue queue = this.txn_queues[partition];
-            next_id = queue.poll();
+
+            // Poll the queue and get the next value. We need
+            // a lock in case somebody is looking for this txnId to remove
+            synchronized (this.txn_queues[partition]) {
+                next_id = this.txn_queues[partition].poll();    
+            } // SYNCH
+            
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (next_id == null) {
@@ -216,26 +221,24 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (callback.isAborted()) {
                 if (d) LOG.debug(String.format("The next id for partition #%d is txn #%d but its callback is marked as aborted. [queueSize=%d]",
                                                partition, next_id, this.last_txns[partition], txn_queues[partition].size()));
-                queue.remove(next_id);
+                this.txn_queues[partition].remove(next_id);
                 txn_released = true;
                 continue;
             }
-            
-            // We have to acquire a lock to make sure that somebody else isn't screwing with us
-            // This is some funkiness due to how we are cleaning up transactions...
-            synchronized (this.last_txns[partition]) {
-                if (this.last_txns[partition].compareTo(next_id) > 0) {
-                    if (d) LOG.debug(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
-                                                   partition, next_id, this.last_txns[partition], txn_queues[partition].size()));
-                    this.rejectTransaction(next_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
-                    continue;
-                }
+            // We don't need to acquire lock here because we know that our partition isn't doing
+            // anything at this moment. 
+            else if (this.last_txns[partition].compareTo(next_id) > 0) {
+                if (d) LOG.debug(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
+                                               partition, next_id, this.last_txns[partition], txn_queues[partition].size()));
+                this.rejectTransaction(next_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
+                continue;
+            }
 
-                if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
-                                               partition, next_id));
-                this.last_txns[partition] = next_id;
-                this.working_partitions[partition] = true;
-            } // SYNCH
+            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
+                                           partition, next_id));
+            this.last_txns[partition] = next_id;
+            this.locked[partition] = true;
+            
             // Send the init request for the specified partition
             try {
                 callback.run(partition);
@@ -252,7 +255,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.cleanupTransaction(next_id);
             }
         } // FOR
-        return txn_released;
+        return (txn_released);
     }
     
     
@@ -262,6 +265,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     
     /**
      * Add a new transaction to this queue manager.
+     * Returns true if the transaction was successfully inserted at all partitions
      * @param txn_id
      * @param partitions
      * @param callback
@@ -271,47 +275,60 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]",
                                        txn_id, partitions));
         
+        // Always put in the callback first, because we may end up rejecting
+        // this txnId in the loop below
         this.txn_callbacks.put(txn_id, callback);
+        
         boolean should_notify = false;
         boolean ret = true;
         for (int partition : partitions) {
-            TransactionInitPriorityQueue queue = this.txn_queues[partition];
-            
             // We can pre-emptively check whether this txnId is greater than
-            // the largest one that we know about at a remote partition
-            if (this.hstore_site.isLocalPartition(partition) == false) {
-                // We don't need to acquire the lock on last_txns at this partition because 
-                // all that we care about is that whatever value is in there now is greater than
-                // the what the transaction was trying to use.
-                if (this.last_txns[partition].compareTo(txn_id) > 0) {
-                    if (d) LOG.debug(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
-                                                   partition, this.last_txns[partition], txn_id));
-                    this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
-                    ret = false;
-                    break;
-                }
-                continue;
+            // the largest one that we know about at a partition
+            // We don't need to acquire the lock on last_txns at this partition because 
+            // all that we care about is that whatever value is in there now is greater than
+            // the what the transaction was trying to use.
+            if (this.last_txns[partition].compareTo(txn_id) > 0) {
+                if (d) LOG.debug(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
+                                               partition, this.last_txns[partition], txn_id));
+                this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
+                ret = false;
+                break;
             }
             
-            Long next_safe = queue.noteTransactionRecievedAndReturnLastSeen(txn_id.longValue());
+            // There's nothing that we need to do for a remote partition
+            if (this.hstore_site.isLocalPartition(partition) == false) continue;
+            
+            // For local partitions, peek ahead in this partition's queue to see whether the 
+            // txnId that we're trying to insert is less than the next one that we expect to release 
+            TransactionInitPriorityQueue queue = this.txn_queues[partition];
+            Long next_safe = queue.noteTransactionRecievedAndReturnLastSeen(txn_id);
+            
+            // The next txnId that we're going to try to execute is already greater
+            // than this new txnId that we were given! Rejection!
+            // XXX: I don't think that this will ever happen...
             if (next_safe.compareTo(txn_id) > 0) {
                 if (d) LOG.debug(String.format("The next safe id for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, next_safe);
                 ret = false;
                 break;
-            } else if (queue.offer(txn_id, false) == false) {
+            }
+            // Our queue is overloaded. We have to throttle the txnId!
+            else if (queue.offer(txn_id, false) == false) {
                 if (d) LOG.debug(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id, callback, Status.ABORT_THROTTLED, partition, next_safe);
                 ret = false;
                 break;
-            } else if (!this.working_partitions[partition]) {
+            }
+            // If our queue is currently idle, poke the thread so that it wakes up and tries to
+            // schedule our boys!
+            else if (this.locked[partition] == false) {
                 should_notify = true;
             }
             
             if (d) LOG.debug(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
-                                           txn_id, partition, this.working_partitions[partition], this.txn_queues[partition].size()));
+                                           txn_id, partition, this.locked[partition], this.txn_queues[partition].size()));
         } // FOR
         if (should_notify) {
             synchronized (this) {
@@ -322,49 +339,127 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     }
     
     /**
-     * Mark the transaction as being finished with the given partition
+     * Mark the transaction as being finished with the given local partition. This can be called
+     * either before or after the transaction was initialized at all partitions.
      * @param txn_id
      * @param partition
      */
     public void finished(Long txn_id, Status status, int partition) {
-        if (d) LOG.debug(String.format("Marking txn #%d as finished on partition %d [status=%s, basePartition=%d]",
-                                    txn_id, partition, status,
-                                    TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
+        assert(this.hstore_site.isLocalPartition(partition)) :
+            "Trying to mark txn #" + txn_id + " as finished on remote partition #" + partition;
+        if (d) LOG.debug(String.format("Notifying queue manager that txn #%d is finished on partition %d " +
+        		                       "[status=%s, basePartition=%d]",
+        		                       txn_id, partition, status,
+        		                       TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
         
-        // XXX: Do we need to always check whether it is actually running?
+        // If the given txnId is the current transaction at this partition and still holds
+        // the lock on the partition, then we will want to release it
         boolean poke = false;
-        synchronized (this.last_txns[partition]) {
-            if (this.last_txns[partition].equals(txn_id)) {
-                if (d) LOG.debug(String.format("Unmarked partition %d as working because txn #%d is finished",
-                                 partition, txn_id));
-                this.working_partitions[partition] = false;
-                poke = true;
-            } else if (d) {
-                LOG.debug(String.format("Not unmarking partition %d for txn #%d [current=%d, locked=%s]",
-                                        partition, txn_id, this.last_txns[partition], this.working_partitions[partition]));
-            }
-        } // SYNCH
+        if (this.locked[partition] && this.last_txns[partition].equals(txn_id)) {
+            if (d) LOG.debug(String.format("Unlocking partition %d because txn #%d is finished [status=%s]",
+                                           partition, txn_id, status));
+            this.locked[partition] = false;
+            poke = true;
+        } else if (d) {
+            LOG.debug(String.format("Not unlocking partition %d for txn #%d [current=%d, locked=%s, status=%s]",
+                                    partition, txn_id, this.last_txns[partition], this.locked[partition], status));
+        }
         
-        // Always remove it from this partition's queue
+        // Always attempt to remove it from this partition's queue
         // If this remove() returns false, then we know that our transaction wasn't
         // sitting in the queue for that partition.
-        if (this.txn_queues[partition].remove(txn_id)) {
-            // This is a local transaction that was still waiting for this partition. That means
-            // we will want to decrement the counter its Transaction
-            if (d) LOG.debug(String.format("Removed txn #%d from parititon %d queue", txn_id, partition));
+        boolean removed = false;
+        synchronized (this.txn_queues[partition]) {
+            removed = this.txn_queues[partition].remove(txn_id);
+        } // SYNCH
+        // This is a local transaction that is still waiting for this partition (i.e., it hasn't
+        // been rejected yet). That means we will want to decrement the counter its Transaction
+        if (removed) {
+            if (d) LOG.debug(String.format("Removed txn #%d from partition %d queue", txn_id, partition));
             TransactionInitQueueCallback callback = this.txn_callbacks.get(txn_id);
             assert(callback != null) :
                 "Missing TransactionInitQueueCallback for txn #" + txn_id;
-            callback.abort(status);
-            if (callback.decrementCounter(1) == 0) {
-                this.cleanupTransaction(txn_id);
-            }
+            if (callback.isAborted() == false) callback.abort(status);
         }
         if (poke) {
             synchronized (this) {
                 this.notifyAll();
             } // SYNCH
         }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Remove the transaction from our internal queues
+     * We will also put their TransactionInitQueueCallback back into the
+     * object pool (if they have one) 
+     * @param txn_id
+     */
+    private void cleanupTransaction(Long txn_id) {
+        if (d) LOG.debug(String.format("Cleaning up txn #%d from queue manager", txn_id));
+        
+        // At this point we can safely assume that the callback is either aborted
+        // or its internal counter is zero. Basically there is nothing else that we
+        // need to do with this transaction at this point.
+        TransactionInitQueueCallback callback = this.txn_callbacks.remove(txn_id);
+        if (callback != null) {
+            HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.returnObject(callback);
+        }
+    }
+    
+    /**
+     * Reject the given transaction at this QueueManager.
+     * @param txn_id
+     * @param callback
+     * @param status
+     * @param reject_partition
+     * @param reject_txnId
+     */
+    private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
+        if (d) LOG.debug(String.format("Announcing that txn #%d is rejected on partition %d until a txnId greater than #%d",
+                                       txn_id, reject_partition, reject_txnId));
+        
+        // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
+        if (callback.isAborted() == false) {
+            try {
+                callback.abort(status, reject_partition, reject_txnId);
+            } catch (Throwable ex) {
+                String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
+                                          txn_id, status, reject_partition, reject_txnId);
+                throw new RuntimeException(msg, ex);
+            }
+        }
+        
+        // Then make sure that our txnId is removed from all of the local partitions
+        // that we queued it on.
+        boolean poke = false;
+        for (int partition : callback.getPartitions()) {
+            if (hstore_site.isLocalPartition(partition) == false) continue;
+            // Try to remove it from our queue. If we can't then it might
+            // be that we're the current transaction at this partition, so that
+            // we need to make sure that we release the locks
+            boolean removed = false;
+            synchronized (this.txn_queues[partition]) {
+                removed = this.txn_queues[partition].remove(txn_id);
+            } // SYNCH
+            
+            // We don't need to acquire a lock here because we know that
+            // nobody else can update us unless the lock flag is false
+            if (removed == false && this.locked[partition] && this.last_txns[partition].equals(txn_id)) {
+                this.locked[partition] = false;
+                poke = true;
+            }
+        } // FOR
+        if (poke) {
+            synchronized (this) {
+                this.notifyAll();
+            } // SYNCH
+        }
+        
+        this.cleanupTransaction(txn_id);
     }
     
     // ----------------------------------------------------------------------------
@@ -379,6 +474,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void markAsLastTxnId(int partition, Long txn_id) {
         assert(this.hstore_site.isLocalPartition(partition) == false) :
             "Trying to mark the last seen txnId for local partition #" + partition;
+        
+        // This lock is low-contention because we don't update the last txnId seen
+        // at partitions very often.
         synchronized (this.last_txns[partition]) {
             if (this.last_txns[partition].compareTo(txn_id) < 0) {
                 if (d) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d", txn_id, partition));
@@ -455,64 +553,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     }
     
     // ----------------------------------------------------------------------------
-    // INTERNAL METHODS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * Remove the transaction from our internal queues
-     * We will also put their TransactionInitQueueCallback back into the
-     * object pool (if they have one) 
-     * @param txn_id
-     */
-    private void cleanupTransaction(Long txn_id) {
-        if (d) LOG.debug(String.format("Cleaning up txn #%d from queue manager", txn_id));
-        TransactionInitQueueCallback callback = this.txn_callbacks.remove(txn_id);
-        
-        if (callback != null) {
-            for (int partition : callback.getPartitions()) {
-                // Skip any local partition
-                if (hstore_site.isLocalPartition(partition)) continue;
-                synchronized (this.last_txns[partition]) {
-                    if (this.last_txns[partition].compareTo(txn_id) < 0) {
-                        if (d) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d",
-                                                       txn_id, partition));
-                        this.last_txns[partition] = txn_id;
-                    }
-                } // SYNCH
-            } // FOR
-            HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.returnObject(callback);
-        }
-    }
-    
-    private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
-        if (d) LOG.debug(String.format("Announcing that txn #%d is rejected on partition %d until a txnId greater than #%d",
-                                       txn_id, reject_partition, reject_txnId));
-        
-        // First send back an ABORT message to the initiating HStoreSite
-        try {
-            callback.abort(status, reject_partition, reject_txnId);
-        } catch (Throwable ex) {
-            String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
-                                      txn_id, status, reject_partition, reject_txnId);
-            throw new RuntimeException(msg, ex);
-        }
-        
-        // Then mark the txn as done at all the partitions that we set as
-        // as the current txn. Not sure how this will work...
-        for (int partition : callback.getPartitions()) {
-            if (hstore_site.isLocalPartition(partition) == false) continue;
-            this.txn_queues[partition].remove(txn_id);
-            synchronized (this.last_txns[partition]) {
-                if (txn_id.equals(this.last_txns[partition])) {
-                    this.finished(txn_id, status, partition);
-                }
-            } // SYNCH
-        } // FOR
-        
-        this.cleanupTransaction(txn_id);
-    }
-    
-    // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
@@ -533,7 +573,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @return
      */
     public Long getCurrentTransaction(int partition) {
-        if (this.working_partitions[partition]) {
+        if (this.locked[partition]) {
             return (this.last_txns[partition]);
         }
         return (null);
@@ -596,7 +636,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             Map<String, Object> inner = new ListOrderedMap<String, Object>();
             inner.put("Current Txn", this.last_txns[p]);
             if (hstore_site.isLocalPartition(p)) {
-                inner.put("Locked?", this.working_partitions[p]);
+                inner.put("Locked?", this.locked[p]);
                 inner.put("Queue Size", this.txn_queues[p].size());
             }
             m[idx].put(String.format("Partition #%02d", p), inner);

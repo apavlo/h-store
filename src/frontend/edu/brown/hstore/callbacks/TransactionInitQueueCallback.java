@@ -33,7 +33,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         super(hstore_site, false);
     }
     
-    public void init(long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
+    public void init(Long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :
@@ -43,14 +43,13 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         
         // Only include local partitions
         int counter = 0;
-        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : partitions) {
-            if (localPartitions.contains(p)) counter++;
+        for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
+            if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
-                             .setTransactionId(txn_id)
+                             .setTransactionId(txn_id.longValue())
                              .setStatus(Status.OK);
         super.init(txn_id, counter, orig_callback);
     }
@@ -78,14 +77,12 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                                     this.getOrigCallback().getClass().getSimpleName(),
                                     this.builder.getStatus()));
         }
-        if (this.isAborted() == false) {
-            assert(this.builder.getPartitionsList() != null) :
-                String.format("The %s for txn #%d has no results but it was suppose to have %d.",
-                              builder.getClass().getSimpleName(), this.getTransactionId(), this.getOrigCounter());
-            assert(this.getOrigCounter() == this.builder.getPartitionsCount()) :
-                String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                              builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
-        }
+        assert(this.builder.getPartitionsList() != null) :
+            String.format("The %s for txn #%d has no results but it was suppose to have %d.",
+                          builder.getClass().getSimpleName(), this.getTransactionId(), this.getOrigCounter());
+        assert(this.getOrigCounter() == this.builder.getPartitionsCount()) :
+            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
+                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
         assert(this.getOrigCallback() != null) :
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         this.getOrigCallback().run(this.builder.build());
@@ -107,9 +104,6 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
      * @param txn_id
      */
     public void abort(Status status, int partition, Long txn_id) {
-        // HACK: If the builder is null... well screw it...
-        if (this.builder == null) return;
-        
         assert(this.builder != null) :
             "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
         if (txn_id != null) {
@@ -126,20 +120,26 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         
         // Uh... this might have already been sent out?
-        if (this.builder != null) {
-            this.builder.setStatus(status);
-            Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
-            for (Integer p : this.partitions) {
-                if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
-                    this.builder.addPartitions(p.intValue());
-                }
-            } // FOR
-            this.unblockCallback();
-        }
+        assert(this.builder != null) :
+            "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
+
+        // Ok so where's what going on here. We need to send back
+        // an abort message, so we're going use the builder that we've been 
+        // working on and send out the bomb back to the base partition tells it that this
+        // transaction is kaput at this HStoreSite.
+        this.builder.setStatus(status);
+        this.builder.clearPartitions();
+        this.builder.addAllPartitions(this.partitions);
+        this.getOrigCallback().run(this.builder.build());
+        this.builder = null;
     }
     
     @Override
     protected synchronized int runImpl(Integer partition) {
+        assert(this.builder != null) :
+            "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
+        assert(this.isAborted() == false) :
+            "Trying to add partitions for txn #" + this.getTransactionId() + " after the callback has been aborted";
         this.builder.addPartitions(partition.intValue());
         return 1;
     }
