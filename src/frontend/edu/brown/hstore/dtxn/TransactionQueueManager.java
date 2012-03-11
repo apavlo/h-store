@@ -221,27 +221,29 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 continue;
             }
             
-            // Again, we don't need to acquire lock on last_txns at this partition because 
-            // all that we care about is that whatever value is in there now is greater than
-            // the what the transaction was trying to use.
-            if (this.last_txns[partition].compareTo(next_id) > 0) {
-                if (d) LOG.debug(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
-                                               partition, next_id, this.last_txns[partition], txn_queues[partition].size()));
-                this.rejectTransaction(next_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
-                continue;
-            }
-
-            // Otherwise send the init request to the specified partition
-            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
-                                           partition, next_id));
-            // Now we do need the lock here...
+            // We have to acquire a lock to make sure that somebody else isn't screwing with us
+            // This is some funkiness due to how we are cleaning up transactions...
             synchronized (this.last_txns[partition]) {
+                if (this.last_txns[partition].compareTo(next_id) > 0) {
+                    if (d) LOG.debug(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
+                                                   partition, next_id, this.last_txns[partition], txn_queues[partition].size()));
+                    this.rejectTransaction(next_id, callback, Status.ABORT_RESTART, partition, this.last_txns[partition]);
+                    continue;
+                }
+
+                if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
+                                               partition, next_id));
                 this.last_txns[partition] = next_id;
+                this.working_partitions[partition] = true;
             } // SYNCH
-            this.working_partitions[partition] = true;
-            callback.run(partition);
-            counter = callback.getCounter();
-            
+            // Send the init request for the specified partition
+            try {
+                callback.run(partition);
+                counter = callback.getCounter();
+            } catch (Throwable ex) {
+                throw new RuntimeException(String.format("Failed to invoke %s for txn #%d at partition %d",
+                                                         callback.getClass().getSimpleName(), next_id, partition), ex);
+            }
             txn_released = true;
                 
             // remove the callback when this partition is the last one to start the job
@@ -339,7 +341,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 poke = true;
             } else if (d) {
                 LOG.debug(String.format("Not unmarking partition %d for txn #%d [current=%d, locked=%s]",
-                        partition, txn_id, this.last_txns[partition], this.working_partitions[partition]));
+                                        partition, txn_id, this.last_txns[partition], this.working_partitions[partition]));
             }
         } // SYNCH
         
