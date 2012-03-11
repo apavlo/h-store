@@ -139,7 +139,6 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
-    "client.weights":                   None,
     
     "site.log_backup":                                  False,
     "site.exec_profiling":                              True,
@@ -172,14 +171,12 @@ BASE_SETTINGS = {
     "site.queue_dtxn_increase":                         0,
     "site.queue_dtxn_throttle":                         False,
     
-    "site.txn_enable_queue_pruning":                    False,
     "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
     "site.cpu_affinity_one_partition_per_core":         True,
-    "site.exec_force_undo_logging_all":                 False,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -352,6 +349,19 @@ def parseResultsOutput(output):
 ## DEF
 
 ## ==============================================
+## extractAllParameters
+## ==============================================
+def extractAllParameters(buildCommonXml):
+    params = set()
+    regex = re.compile("<arg value=\"([\w]+\..*?)=.*?\" />", re.IGNORECASE)
+    with open(buildCommonXml, "r") as fd:
+        for m in regex.finditer(fd.read()):
+            params.add(m.group(1))
+    ## WITH
+    return (params)
+    ## DEF
+
+## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
@@ -394,13 +404,25 @@ if __name__ == '__main__':
         "debug",
         "debug-hstore",
     ]
+    ## Include our BASE_SETTINGS
     for key in BASE_SETTINGS.keys():
         BASE_OPTIONS.append("%s=" % key)
-    ## FOR
+    ## And our Boto environment keys
     for key in env.keys():
         if key not in BASE_SETTINGS and key.split(".")[0] in [ "hstore", "ec2" ]:
             BASE_OPTIONS.append("%s=" % key)
-    ## FOR
+    ## Load in all of the possible parameters from our 'build-common.xml' file
+    buildCommonXml = "../build-common.xml"
+    HSTORE_PARAMS = [ ]
+    if os.path.exists(buildCommonXml):
+        HSTORE_PARAMS = extractAllParameters(buildCommonXml)
+        for key in HSTORE_PARAMS:
+            key = "%s=" % key
+            if not key in BASE_OPTIONS:
+                BASE_OPTIONS.append(key)
+        ## FOR
+    else:
+        LOG.warn("Unable to load configuration parameters from '%s'" % buildCommonXml)
     
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', BASE_OPTIONS)
     
@@ -425,7 +447,7 @@ if __name__ == '__main__':
     for key in options:
         varname = None
         paramDict = None
-        if key in BASE_SETTINGS:
+        if key in BASE_SETTINGS or key in HSTORE_PARAMS:
             varname = key
             paramDict = BASE_SETTINGS
         elif key in env:
@@ -437,6 +459,7 @@ if __name__ == '__main__':
                 paramDict= globals()
         ## IF
         if paramDict is not None:
+            if not varname in paramDict: paramDict[varname] = None
             orig_type = type(paramDict[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
@@ -444,7 +467,7 @@ if __name__ == '__main__':
                 if not varname+"_changed" in globals(): ## HACK
                     paramDict[varname] = [ ]
                     paramDict[varname+"_changed"] = True
-                val = paramDict[varname] + options[key] # HACK    
+                val = paramDict[varname] + options[key] # HACK
             elif orig_type != NoneType: 
                 val = orig_type(options[key][0])
             else:
