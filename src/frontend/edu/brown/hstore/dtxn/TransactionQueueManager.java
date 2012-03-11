@@ -4,7 +4,10 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -44,6 +47,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     
     private boolean stop = false;
     
+    private final Semaphore checkFlag = new Semaphore(1);
+    
     /**
      * 
      */
@@ -70,6 +75,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     private final Map<Long, TransactionInitQueueCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitQueueCallback>();
     
+    // ----------------------------------------------------------------------------
+    // BLOCKED DISTRIBUTED TRANSACTIONS
+    // ----------------------------------------------------------------------------
+    
     /**
      * Blocked Queue Comparator
      */
@@ -86,18 +95,32 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     };
     
-    private ConcurrentHashMap<LocalTransaction, Long> blocked_dtxn_release = new ConcurrentHashMap<LocalTransaction, Long>();
+    private final ConcurrentHashMap<LocalTransaction, Long> blocked_dtxn_release = new ConcurrentHashMap<LocalTransaction, Long>();
     
     /**
      * Internal list of distributed LocalTransactions that are unable to
      * get the locks that they need on the remote partitions
      */
-    private PriorityBlockingQueue<LocalTransaction> blocked_dtxns = new PriorityBlockingQueue<LocalTransaction>(100, blocked_comparator);
+    private final PriorityBlockingQueue<LocalTransaction> blocked_dtxns = new PriorityBlockingQueue<LocalTransaction>(100, blocked_comparator);
     
     /**
      * This Histogram keeps track of what sites have blocked the most transactions from us
      */
-    private Histogram<Integer> blocked_hist = new Histogram<Integer>();
+    private final Histogram<Integer> blocked_hist = new Histogram<Integer>();
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTIONS THAT NEED TO BE REQUEUED
+    // ----------------------------------------------------------------------------
+
+    /**
+     * A queue of aborted transactions that need to restart and add back into the system
+     * <B>NOTE:</B> Anything that shows up in this queue will be deleted by this manager
+     */
+    private final LinkedBlockingQueue<LocalTransaction> requeue_txns = new LinkedBlockingQueue<LocalTransaction>(); 
+    
+    // ----------------------------------------------------------------------------
+    // INTIALIZATION
+    // ----------------------------------------------------------------------------
     
     /**
      * Constructor
@@ -156,15 +179,15 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         final TransactionIdManager idManager = hstore_site.getTransactionIdManager();
         long txn_id = -1;
         long last_id = -1;
+        LocalTransaction ts = null;
         
         while (this.stop == false) {
-            synchronized (this) {
-                try {
-                    this.wait(this.wait_time * 2); // FIXME
-                } catch (InterruptedException e) {
-                    // Nothing...
-                }
-            } // SYNCH
+            try {
+                this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                // Nothing...
+            }
+            
             if (t) LOG.trace("Checking partition queues for dtxns to release!");
             while (this.checkQueues()) {
                 // Keep checking the queue as long as they have more stuff in there
@@ -176,7 +199,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.checkBlockedDTXNs(txn_id);
                 last_id = txn_id;
             }
-        }
+            
+            // Requeue mispredicted local transactions
+            while ((ts = this.requeue_txns.poll()) != null) {
+                this.hstore_site.transactionRestart(ts, Status.ABORT_MISPREDICT);
+                ts.markAsDeletable();
+                this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_MISPREDICT);
+            } // WHILE
+        } // WHILE
     }
     
     /**
@@ -330,11 +360,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (d) LOG.debug(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
                                            txn_id, partition, this.locked[partition], this.txn_queues[partition].size()));
         } // FOR
-        if (should_notify) {
-            synchronized (this) {
-                this.notifyAll();
-            } // SYNCH
-        }
+        if (should_notify && this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
         return (ret);
     }
     
@@ -381,11 +408,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 "Missing TransactionInitQueueCallback for txn #" + txn_id;
             if (callback.isAborted() == false) callback.abort(status);
         }
-        if (poke) {
-            synchronized (this) {
-                this.notifyAll();
-            } // SYNCH
-        }
+        if (poke && this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
     }
     
     // ----------------------------------------------------------------------------
@@ -453,12 +477,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 poke = true;
             }
         } // FOR
-        if (poke) {
-            synchronized (this) {
-                this.notifyAll();
-            } // SYNCH
-        }
-        
+        if (poke && this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
         this.cleanupTransaction(txn_id);
     }
     
@@ -492,7 +512,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param partition
      * @param last_txn_id
      */
-    public void queueBlockedDTXN(LocalTransaction ts, int partition, Long last_txn_id) {
+    public void queueBlockedTransaction(LocalTransaction ts, int partition, Long last_txn_id) {
         if (d) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than #%d is created for partition %d",
                                        ts, last_txn_id, partition));
        
@@ -515,9 +535,25 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
             this.blocked_hist.put((int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id));
         }
-        synchronized (this) {
-            this.notifyAll();
-        } // SYNCH
+        if (this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
+    }
+    
+    /**
+     * 
+     * @param ts
+     * @param status
+     */
+    public void queueAbortedTransaction(LocalTransaction ts, Status status) {
+        if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
+        
+        if (this.requeue_txns.offer(ts) == false) {
+            this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
+            ts.markAsDeletable();
+            this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+        }
+        if (this.checkFlag.availablePermits() == 0)
+            this.checkFlag.release();
     }
     
     /**
@@ -534,7 +570,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             Long releaseTxnId = this.blocked_dtxn_release.get(ts);
             if (releaseTxnId == null) {
                 if (d) LOG.warn("Missing release TxnId for " + ts);
-                this.blocked_dtxns.remove();
+                this.blocked_dtxns.remove(ts);
                 continue;
             }
             if (releaseTxnId.compareTo(last_txn_id) < 0) {

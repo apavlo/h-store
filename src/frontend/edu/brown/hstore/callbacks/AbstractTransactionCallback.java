@@ -160,6 +160,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
      * @param status
      */
     protected final void finishTransaction(Status status) {
+        assert(this.ts != null) :
+            "Unexpected null transaction handle for txn #" + this.getTransactionId();
+        if (debug.get()) LOG.debug(String.format("%s - Invoking TransactionFinish protocol from %s [status=%s]",
+                                                 this.ts, this.getClass().getSimpleName(), status));
+        
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);

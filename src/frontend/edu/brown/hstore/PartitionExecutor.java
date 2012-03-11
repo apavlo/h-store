@@ -2564,9 +2564,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // as soon as possible...
             if (status == Status.ABORT_MISPREDICT) {
                 if (d) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
-                this.hstore_site.transactionRestart(ts, status);
-                ts.markAsDeletable();
-                this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
+                // We don't want to delete the transaction here because whoever is going to requeue it for
+                // us will need to know what partitions that the transaction touched when it executed before
+                this.hstore_site.transactionRequeue(ts, status);
             }
             // Use the separate post-processor thread to send back the result
             else if (hstore_conf.site.exec_postprocessing_thread) {
