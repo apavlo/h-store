@@ -89,6 +89,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         assert(this.getOrigCallback() != null) :
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         this.getOrigCallback().run(this.builder.build());
+        this.builder = null;
         
         // TODO(cjl6): At this point all of the partitions at this HStoreSite are allocated
         //             for executing this txn. We can now check whether it has any embedded
@@ -106,6 +107,9 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
      * @param txn_id
      */
     public void abort(Status status, int partition, Long txn_id) {
+        // HACK: If the builder is null... well screw it...
+        if (this.builder == null) return;
+        
         assert(this.builder != null) :
             "Unexpected null TransactionInitResponse builder for txn #" + this.getTransactionId();
         if (txn_id != null) {
@@ -120,14 +124,18 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
-        this.builder.setStatus(status);
-        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : this.partitions) {
-            if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
-                this.builder.addPartitions(p.intValue());
-            }
-        } // FOR
-        this.unblockCallback();
+        
+        // Uh... this might have already been sent out?
+        if (this.builder != null) {
+            this.builder.setStatus(status);
+            Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
+            for (Integer p : this.partitions) {
+                if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
+                    this.builder.addPartitions(p.intValue());
+                }
+            } // FOR
+            this.unblockCallback();
+        }
     }
     
     @Override
