@@ -29,6 +29,10 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
     private TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     
+    // ----------------------------------------------------------------------------
+    // INTIALIZATION
+    // ----------------------------------------------------------------------------
+    
     public TransactionInitQueueCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
     }
@@ -54,6 +58,10 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         super.init(txn_id, counter, orig_callback);
     }
     
+    /**
+     * All of the partitions that this transaction needs (including remote)
+     * @return
+     */
     public Collection<Integer> getPartitions() {
         return (this.partitions);
     }
@@ -96,7 +104,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
     }
     
     /**
-     * Special remote-side abort method for specifying the partition that rejected
+     * Special abort method for specifying the partition that rejected
      * this transaction and what the larger transaction id was that caused our
      * transaction to get rejected.
      * @param status
@@ -129,7 +137,9 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         // transaction is kaput at this HStoreSite.
         this.builder.setStatus(status);
         this.builder.clearPartitions();
-        this.builder.addAllPartitions(this.partitions);
+        for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
+            if (this.partitions.contains(p)) this.builder.addPartitions(p.intValue());
+        } // FOR
         this.getOrigCallback().run(this.builder.build());
         this.builder = null;
     }

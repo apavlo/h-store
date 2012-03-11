@@ -433,13 +433,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param txn_id
      */
     private void cleanupTransaction(Long txn_id) {
-        if (d) LOG.debug(String.format("Cleaning up txn #%d from queue manager", txn_id));
-        
         // At this point we can safely assume that the callback is either aborted
         // or its internal counter is zero. Basically there is nothing else that we
         // need to do with this transaction at this point.
         TransactionInitQueueCallback callback = this.initQueuesCallbacks.remove(txn_id);
         if (callback != null) {
+            if (d) LOG.debug(String.format("Returned %s for txn #%d back to object pool",
+                                           callback.getClass().getSimpleName(), txn_id));
             HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.returnObject(callback);
         }
     }

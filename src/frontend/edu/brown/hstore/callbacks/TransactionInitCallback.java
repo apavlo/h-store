@@ -26,6 +26,10 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     private transient Integer reject_partition = null;
     private transient Long reject_txnId = null;
     
+    // ----------------------------------------------------------------------------
+    // INTIALIZATION
+    // ----------------------------------------------------------------------------
+    
     /**
      * Constructor
      * @param hstore_site
@@ -52,19 +56,22 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
+        if (debug.get())
+            LOG.debug(this.ts + " - Transaction was aborted with status " + status);
+        
         // If the transaction needs to be restarted, then we'll attempt to requeue it.
         switch (status) {
             case ABORT_RESTART: {
                 // If we have the transaction that we got busted up with at the remote site
                 // then we'll tell the TransactionQueueManager to unblock it when it gets released
+                TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager();
                 synchronized (this) {
                     if (this.reject_txnId != null) {
-                        TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager(); 
                         txnQueueManager.blockTransaction(this.ts, this.reject_partition, this.reject_txnId);
                     } else {
                         // We don't care whether our transaction was rejected or not because we know that
                         // we still need to call TransactionFinish, which will delete the final transaction state
-                        this.hstore_site.transactionRestart(this.ts, status);
+                        txnQueueManager.restartTransaction(this.ts, status);
                     }
                 } // SYNCH
                 break;
