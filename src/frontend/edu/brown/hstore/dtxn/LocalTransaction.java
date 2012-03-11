@@ -311,6 +311,9 @@ public class LocalTransaction extends AbstractTransaction {
     
     
     public void setExecutionState(ExecutionState state) {
+        if (d) LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
+                                       this, (this.state == null)));
+        assert(state != null);
         assert(this.state == null);
         this.state = state;
         
@@ -322,6 +325,8 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public void resetExecutionState() {
+        if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
+                                       this, (this.state == null)));
         this.state = null;
     }
     
@@ -341,6 +346,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void finish() {
+        if (d) LOG.debug(String.format("%s - Invoking finish() cleanup", this));
+        this.resetExecutionState();
         super.finish();
         
         // Return our LocalTransactionInitCallback
@@ -364,7 +371,6 @@ public class LocalTransaction extends AbstractTransaction {
             this.estimator_state = null;
         }
         
-        this.state = null;
         this.catalog_proc = null;
         this.invocation = null;
         this.client_callback = null;
@@ -529,7 +535,10 @@ public class LocalTransaction extends AbstractTransaction {
     public void fastFinishRound(int partition) {
         this.round_state[hstore_site.getLocalPartitionOffset(partition)] = RoundState.STARTED;
         super.finishRound(partition);
-        this.state.clearRound();
+        if (this.base_partition == partition) {
+            assert(this.state != null) : "Unexpected null ExecutionState for " + this;
+            this.state.clearRound();
+        }
     }
     
     // ----------------------------------------------------------------------------
