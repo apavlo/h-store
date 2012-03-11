@@ -1269,7 +1269,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            TransactionIdManager.toString(txn_id)));
                     }
                     if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                    this.txnQueueManager.queueBlockedDTXN(ts, partition, last_txn_id);
+                    this.txnQueueManager.queueBlockedTransaction(ts, partition, last_txn_id);
                     return;
                 }
             } // FOR
@@ -1516,6 +1516,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     /**
+     * A non-blocking method for requeuing an aborted transaction using the
+     * TransactionQueueManager. This allows a PartitionExecutor to tell us that
+     * they can't execute some transaction and we'll let the queue manager's 
+     * thread take care of it for us.
+     * This will eventually call HStoreSite.transactionRestart()
+     * @param ts
+     * @param status
+     */
+    public void transactionRequeue(LocalTransaction ts, Status status) {
+        assert(ts != null);
+        assert(status != Status.OK) :
+            "Unexpected requeue status " + status + " for " + ts;
+        this.txnQueueManager.queueAbortedTransaction(ts, status);
+    }
+    
+    /**
      * Rejects a transaction and returns an empty result back to the client
      * @param ts
      */
@@ -1551,8 +1567,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      *  (1) Restart the transaction as new multi-partitioned transaction
      *  (2) Mark the original transaction as aborted
      *  
-     * <B>IMPORTANT:</B> If the return status of the transaction is ABORT_REJECT, then you will
-     *                   probably need to delete the transaction handle.
+     * <B>IMPORTANT:</B> If the return status of the transaction is ABORT_REJECT, then
+     *                   you will probably need to delete the transaction handle.
+     * <B>IMPORTANT:</B> This is a blocking call and should not be invoked by the PartitionExecutor
+     *                    
      * @param status Final status of this transaction
      * @param ts
      * @return Returns the final status of this transaction

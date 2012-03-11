@@ -578,7 +578,8 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.init_callback);
     }
     public TransactionPrepareCallback initTransactionPrepareCallback() {
-        assert(this.prepare_callback == null);
+        assert(this.prepare_callback == null) :
+            "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
         try {
             this.prepare_callback = HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
         } catch (Exception ex) {
@@ -603,7 +604,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
-        assert(this.finish_callback == null);
+        assert(this.finish_callback == null) :
+            "Trying initialize the TransactionFinishCallback for " + this + " more than once";
         // Don't initialize this until later, because we need to know 
         // what the final status of the txn
         try {
