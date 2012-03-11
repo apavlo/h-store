@@ -646,6 +646,15 @@ public final class HStoreConf {
         public boolean status_kill_if_hung;
         
         @ConfigProperty(
+            description="Allow the HStoreSiteStatus thread to check whether there any zombie transactions. " +
+                        "This can occur if the transaction has already sent back the ClientResponse, but " +
+                        "its internal state has not been cleaned up.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean status_check_for_zombies;
+        
+        @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include transaction information",
             defaultBoolean=false,
             experimental=false
