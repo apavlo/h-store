@@ -322,14 +322,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (this.cur_finishedTxns != null) {
             m_exec.put("Zombie Txns", inflight_zombies +
                                       (inflight_zombies > 0 ? " - " + CollectionUtil.first(this.cur_finishedTxns) : ""));
-            for (AbstractTransaction ts : this.cur_finishedTxns) {
-                // HACK
-                if (ts instanceof LocalTransaction && this.last_finishedTxns.remove(ts)) {
-                    LocalTransaction local_ts = (LocalTransaction)ts;
-                    local_ts.markAsDeletable();
-                    hstore_site.deleteTransaction(ts.getTransactionId(), local_ts.getClientResponse().getStatus());
-                }
-            }
+//            for (AbstractTransaction ts : this.cur_finishedTxns) {
+//                // HACK
+//                if (ts instanceof LocalTransaction && this.last_finishedTxns.remove(ts)) {
+//                    LocalTransaction local_ts = (LocalTransaction)ts;
+//                    local_ts.markAsDeletable();
+//                    hstore_site.deleteTransaction(ts.getTransactionId(), local_ts.getClientResponse().getStatus());
+//                }
+//            }
             this.last_finishedTxns.clear();
             this.last_finishedTxns.addAll(this.cur_finishedTxns);
         }
@@ -549,7 +549,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // First get all the BatchPlanners that we have
         Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
         for (PartitionExecutor es : this.executors.values()) {
-            bps.addAll(es.POOL_BATCH_PLANNERS.values());
+            bps.addAll(es.batchPlanners.values());
         } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
         ProfileMeasurement final_totals[] = null;
