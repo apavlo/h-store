@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -54,7 +55,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreSite.getThreadName(hstore_site, "post"));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "post"));
         if (hstore_site.getHStoreConf().site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }

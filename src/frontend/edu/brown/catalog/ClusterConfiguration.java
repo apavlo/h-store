@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.compiler.ClusterConfig;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -58,7 +59,8 @@ public class ClusterConfiguration extends ClusterConfig {
 
         @Override
         public String toString() {
-            return String.format("%s - %s", this.host, HStoreSite.formatPartitionName(this.site, this.partition));
+            return String.format("%s - %s", this.host,
+                                            HStoreThreadManager.getThreadName(this.site, this.partition));
         }
     }
 

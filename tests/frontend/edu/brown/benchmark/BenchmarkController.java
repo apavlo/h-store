@@ -104,7 +104,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
 
 public class BenchmarkController {
@@ -367,7 +367,7 @@ public class BenchmarkController {
             int site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
                 if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
-                                                         HStoreSite.formatSiteName(site_id), host, HStoreConstants.DEFAULT_PORT));
+                                                         HStoreThreadManager.formatSiteName(site_id), host, HStoreConstants.DEFAULT_PORT));
                 
                 Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
                 s.add(Pair.of(host, HStoreConstants.DEFAULT_PORT));
@@ -383,7 +383,7 @@ public class BenchmarkController {
                 assert(p != null);
                 if (trace.get())
                     LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
-                                           HStoreSite.formatSiteName(e.getKey()),
+                                           HStoreThreadManager.formatSiteName(e.getKey()),
                                            p.getFirst(), p.getSecond()));
                 unique_hosts.add(p.getFirst());
             } // FOR
@@ -487,11 +487,11 @@ public class BenchmarkController {
             // Check whether this one of the sites that will be started externally
             if (m_config.profileSiteIds.contains(site_id)) {
                 LOG.info(String.format("Skipping HStoreSite %s because it will be started by profiler",
-                                       HStoreSite.formatSiteName(site_id)));
+                                       HStoreThreadManager.formatSiteName(site_id)));
                 continue;
             }
             
-            LOG.info(String.format("Starting HStoreSite %s on %s", HStoreSite.formatSiteName(site_id), host));
+            LOG.info(String.format("Starting HStoreSite %s on %s", HStoreThreadManager.formatSiteName(site_id), host));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {
@@ -509,7 +509,7 @@ public class BenchmarkController {
             String exec_command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, siteCommand);
             String fullCommand = StringUtil.join(" ", exec_command);
             resultsUploader.setCommandLineForHost(host, fullCommand);
-            if (trace.get()) LOG.trace("START " + HStoreSite.formatSiteName(site_id) + ": " + fullCommand);
+            if (trace.get()) LOG.trace("START " + HStoreThreadManager.formatSiteName(site_id) + ": " + fullCommand);
             m_sitePSM.startProcess(host_id, exec_command);
             hosts_started++;
         } // FOR
@@ -616,7 +616,7 @@ public class BenchmarkController {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
                 if (trace.get()) 
-                    LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+                    LOG.trace(String.format("HStoreSite %s: %s", HStoreThreadManager.formatSiteName(catalog_site.getId()), address));
                 break;
             } // FOR
         } // FOR
@@ -755,14 +755,14 @@ public class BenchmarkController {
         assert(site_id != null);
         Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
         assert(p != null);
-        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(site_id)));
+        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreThreadManager.formatSiteName(site_id)));
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
             new_client.createConnection(null, p.getFirst(), p.getSecond(), "user", "password");
         } catch (Exception ex) {
             throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
-                                                     HStoreSite.formatSiteName(site_id), p.getFirst(), p.getSecond()));
+                                                     HStoreThreadManager.formatSiteName(site_id), p.getFirst(), p.getSecond()));
         }
         return (new_client);
     }
@@ -1061,7 +1061,7 @@ public class BenchmarkController {
             Pair<String, Integer> p = CollectionUtil.first(m_launchHosts.get(site_id));
             assert(p != null) : "Invalid SiteId " + site_id;
             
-            if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));
+            if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreThreadManager.formatSiteName(site_id)));
             SSHTools.copyFromRemote(output_directory, m_config.remoteUser, p.getFirst(), remote_path.getPath(), m_config.sshOptions);
             File local_file = new File(output_directory + "/" + remote_path.getName());
             markovs.put(partition_id, local_file);

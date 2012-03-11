@@ -123,42 +123,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t = trace.get();
     }
     
-    /**
-     * Formatted site name
-     * @param site_id
-     * @param partition - Can be null
-     * @param suffix - Can be null
-     * @return
-     */
-    public static final String getThreadName(int site_id, Integer partition, String...suffixes) {
-        String suffix = null;
-        if (suffixes != null && suffixes.length > 0) suffix = StringUtil.join("-", suffixes);
-        if (suffix == null) suffix = "";
-        if (suffix.isEmpty() == false) {
-            suffix = "-" + suffix;
-            if (partition != null) suffix = String.format("-%03d%s", partition.intValue(), suffix);
-        } else if (partition != null) {
-            suffix = String.format("-%03d", partition.intValue());
-        }
-        return (String.format("H%02d%s", site_id, suffix));
-    }
-
-    public static final String getThreadName(HStoreSite hstore_site, Integer partition, String...suffixes) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, partition, suffixes));
-    }
-    public static final String getThreadName(HStoreSite hstore_site, String...suffixes) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, null, suffixes));
-    }
-    public static final String getThreadName(HStoreSite hstore_site, Integer partition) {
-        return (HStoreSite.getThreadName(hstore_site.site_id, partition));
-    }
-    public static final String formatSiteName(Integer site_id) {
-        if (site_id == null) return (null);
-        return (HStoreSite.getThreadName(site_id, null));
-    }
-    public static final String formatPartitionName(int site_id, int partition_id) {
-        return (HStoreSite.getThreadName(site_id, partition_id));
-    }
     
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
@@ -242,8 +206,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
     private final LinkedBlockingDeque<LocalTransaction> ready_responses = new LinkedBlockingDeque<LocalTransaction>();
-    
-    
     
     /**
      * TODO(xin): MapReduceHelperThread
@@ -353,7 +315,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.site_id = this.catalog_site.getId();
-        this.site_name = HStoreSite.getThreadName(this.site_id, null);
+        this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
         // TODO: Pull the PartitionEstimator info from HStoreConf
         this.p_estimator = new PartitionEstimator(this.catalog_db);
@@ -649,21 +611,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.inflight_txns.values());
     }
     
-    protected int getDTXNQueueSize() {
-        int ctr = 0;
-        for (Integer p : this.local_partitions_arr) {
-            ctr += this.txnQueueManager.getQueueSize(p.intValue());
-        }
-        return (ctr);
-    }
-    
-    /**
-     * Get the number of transactions inflight for this partition
-     */
-    protected int getInflightTxnCount(int partition) {
-//        return (this.inflight_txns_ctr[partition].get());
-        return (this.txnQueueManager.getQueueSize(partition));
-    }
+//    /**
+//     * Get the number of transactions inflight for this partition
+//     */
+//    protected int getInflightTxnCount(int partition) {
+////        return (this.inflight_txns_ctr[partition].get());
+//        return (this.txnQueueManager.getQueueSize(partition));
+//    }
     
     protected int getQueuedResponseCount() {
         return (this.ready_responses.size());
@@ -722,7 +676,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Thread thread = arg.getFirst();
                 Throwable error = arg.getSecond();
                 LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
-                hstore_coordinator.shutdownCluster(error, true);
+                hstore_coordinator.shutdownClusterBlocking(error);
             }
         };
         handler.addObserver(observer);
@@ -966,8 +920,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     throw new RuntimeException(e);
                 }
                 done.run(fs.getBytes());
+
                 // Non-blocking....
-                this.hstore_coordinator.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
+                Exception error = new Exception("Shutdown command received at " + this.getSiteName());
+                this.hstore_coordinator.shutdownCluster(error);
                 return;
             }
         // DB2-style Transaction Redirection
@@ -1210,7 +1166,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("ORIG TRANSACTION:\n" + dupe);
                 LOG.fatal("NEW TRANSACTION:\n" + ts);
-                this.hstore_coordinator.shutdownCluster(new Exception(msg), true);
+                Exception error = new Exception(msg);
+                this.hstore_coordinator.shutdownClusterBlocking(error);
             }
             LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
             txn_id = new_txn_id;
@@ -1257,7 +1214,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Check whether our transaction can't run right now because its id is less than
             // the last seen txnid from the remote partitions that it wants to touch
             for (int partition : predict_touchedPartitions) {
-                Long last_txn_id = this.txnQueueManager.getLastTransaction(partition); 
+                Long last_txn_id = this.txnQueueManager.getLastInitTransaction(partition); 
                 if (txn_id.compareTo(last_txn_id) < 0) {
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
@@ -1269,7 +1226,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            TransactionIdManager.toString(txn_id)));
                     }
                     if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                    this.txnQueueManager.queueBlockedTransaction(ts, partition, last_txn_id);
+                    this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
                     return;
                 }
             } // FOR
@@ -1353,7 +1310,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.insert(txn_id, partitions, callback);
+        this.txnQueueManager.initInsert(txn_id, partitions, callback);
     }
 
     /**
@@ -1422,7 +1379,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // Always tell the queue stuff that the transaction is finished at this partition
             if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
-            this.txnQueueManager.finished(txn_id, Status.OK, p.intValue());
+            this.txnQueueManager.initFinished(txn_id, Status.OK, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
@@ -1483,7 +1440,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.finished(txn_id, status, p);
+            if (commit == false) this.txnQueueManager.initFinished(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
@@ -1528,7 +1485,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts != null);
         assert(status != Status.OK) :
             "Unexpected requeue status " + status + " for " + ts;
-        this.txnQueueManager.queueAbortedTransaction(ts, status);
+        this.txnQueueManager.restartTransaction(ts, status);
     }
     
     /**
@@ -1980,7 +1937,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
-                self.setName(HStoreSite.getThreadName(hstore_site, "listen"));
+                self.setName(HStoreThreadManager.getThreadName(hstore_site, "listen"));
                 if (hstore_site.getHStoreConf().site.cpu_affinity)
                     hstore_site.getThreadManager().registerProcessingThread();
                 
@@ -2012,7 +1969,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
-                self.setName(HStoreSite.getThreadName(hstore_site, "setup"));
+                self.setName(HStoreThreadManager.getThreadName(hstore_site, "setup"));
                 if (hstore_site.getHStoreConf().site.cpu_affinity)
                     hstore_site.getThreadManager().registerProcessingThread();
                 

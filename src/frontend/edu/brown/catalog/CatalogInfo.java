@@ -23,7 +23,7 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
@@ -122,7 +122,7 @@ public class CatalogInfo {
                     partition_ids.add(String.format(partition_f, catalog_part.getId()));
                 } // FOR
                 String prefix = (++j == sites.size() ? HOST_LAST : HOST_INNER);
-                cols[idx] += String.format("     %s SITE %s: %s\n", prefix, HStoreSite.formatSiteName(catalog_site.getId()), partition_ids);
+                cols[idx] += String.format("     %s SITE %s: %s\n", prefix, HStoreThreadManager.formatSiteName(catalog_site.getId()), partition_ids);
             } // FOR
             cols[idx] += "\n";
             i++;

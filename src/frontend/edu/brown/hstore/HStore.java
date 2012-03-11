@@ -130,7 +130,7 @@ public abstract class HStore {
             // Load the Markov models if we were given an input path and pass them to t_estimator
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(catalog_site.getId()));
+            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
             TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
 
             // setup the EE
@@ -173,7 +173,7 @@ public abstract class HStore {
         // HStoreSite Stuff
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
         Thread t = Thread.currentThread();
-        t.setName(HStoreSite.getThreadName(site_id, null, "main"));
+        t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);

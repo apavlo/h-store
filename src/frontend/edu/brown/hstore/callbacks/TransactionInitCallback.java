@@ -60,7 +60,7 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                 synchronized (this) {
                     if (this.reject_txnId != null) {
                         TransactionQueueManager txnQueueManager = this.hstore_site.getTransactionQueueManager(); 
-                        txnQueueManager.queueBlockedTransaction(this.ts, this.reject_partition, this.reject_txnId);
+                        txnQueueManager.blockTransaction(this.ts, this.reject_partition, this.reject_txnId);
                     } else {
                         // We don't care whether our transaction was rejected or not because we know that
                         // we still need to call TransactionFinish, which will delete the final transaction state

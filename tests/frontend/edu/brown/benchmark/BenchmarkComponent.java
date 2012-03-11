@@ -102,7 +102,7 @@ import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 
@@ -1023,7 +1023,7 @@ public abstract class BenchmarkComponent {
                     try {
                         if (debug.get())
                             LOG.debug(String.format("Creating connection to %s at %s:%d",
-                                                    (site_id != null ? HStoreSite.formatSiteName(site_id) : ""),
+                                                    (site_id != null ? HStoreThreadManager.formatSiteName(site_id) : ""),
                                                     m_host, m_port));
                         createConnection(site_id, m_host, m_port);
                         atLeastOneConnection = true;
@@ -1538,7 +1538,7 @@ public abstract class BenchmarkComponent {
         throws UnknownHostException, IOException {
         if (debug.get())
             LOG.debug(String.format("Requesting connection to %s %s:%d",
-                HStoreSite.formatSiteName(site_id), hostname, port));
+                HStoreThreadManager.formatSiteName(site_id), hostname, port));
         m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
     }
 
