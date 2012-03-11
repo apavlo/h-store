@@ -217,12 +217,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     /**
-     * Collection of local partitions at this HStoreSite
+     * Collection of local partitions managed at this HStoreSite
      */
     private final ListOrderedSet<Integer> local_partitions = new ListOrderedSet<Integer>();
     
     /**
-     * Integer list of all local partitions at this HStoreSite
+     * Integer list of all local partitions managed at this HStoreSite
      */
     private final Integer local_partitions_arr[];
     
