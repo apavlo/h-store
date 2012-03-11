@@ -141,7 +141,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
-    private final TransactionIdManager txnid_manager;
+    private final TransactionIdManager txnIdManager;
     
     /**
      * We will bind this variable after construction so that we can inject some
@@ -386,7 +386,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
-        this.txnid_manager = new TransactionIdManager(this.site_id);
+        this.txnIdManager = new TransactionIdManager(this.site_id);
         this.threadManager = new HStoreThreadManager(this);
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
         
@@ -523,7 +523,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.txnQueueManager);
     }
     public TransactionIdManager getTransactionIdManager() {
-        return (this.txnid_manager);
+        return (this.txnIdManager);
     }
     public EstimationThresholds getThresholds() {
         return thresholds;
@@ -896,7 +896,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         final boolean sysproc = request.isSysProc();
-        final boolean mapreduce = catalog_proc.getMapreduce();
         int base_partition = request.getBasePartition();
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]", catalog_proc.getName(), request.getClientHandle()));
 
@@ -911,6 +910,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (sysproc) {
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
+            // TODO: Execute as a regular transaction
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
                 ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
                 FastSerializer fs = new FastSerializer();
@@ -959,35 +959,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // REDIRECT TXN TO PROPER PARTITION
         // If the dest_partition isn't local, then we need to ship it off to the right location
         // -------------------------------
-        TransactionIdManager id_generator = this.txnid_manager;
-        if (this.single_partition_sets[base_partition] == null) {
-            if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
-            
-            // Make a wrapper for the original callback so that when the result comes back frm the remote partition
-            // we will just forward it back to the client. How sweet is that??
-            TransactionRedirectCallback callback = null;
-            try {
-                callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
-                callback.init(done);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
-            }
-            
-            // Mark this request as having been redirected
-            assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
-            StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
-            
-            this.hstore_coordinator.transactionRedirect(serializedRequest, callback, base_partition);
-            if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
+        if (this.isLocalPartition(base_partition) == false) {
+            assert(request.hasBasePartition() == false) : 
+                "Trying to redirect " + catalog_proc.getName() + " transaction more than once!";
+            this.transactionRedirect(catalog_proc, serializedRequest, base_partition, done);
             return;
         }
         
         // Grab a new LocalTransactionState object from the target base partition's PartitionExecutor object pool
         // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
-        Long txn_id = new Long(id_generator.getNextUniqueTransactionId());
+        Long txn_id = new Long(this.txnIdManager.getNextUniqueTransactionId());
         LocalTransaction ts = null;
         try {
-            if (mapreduce) {
+            if (catalog_proc.getMapreduce()) {
                 ts = HStoreObjectPools.STATES_TXN_MAPREDUCE.borrowObject();
             } else {
                 ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
@@ -1107,7 +1091,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        if (mapreduce) {
+        if (catalog_proc.getMapreduce()) {
             ((MapReduceTransaction)ts).init(
                     txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
@@ -1161,7 +1145,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK!
             this.inflight_txns.put(txn_id, dupe);
             // long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
-            Long new_txn_id = new Long(this.txnid_manager.getNextUniqueTransactionId());
+            Long new_txn_id = new Long(this.txnIdManager.getNextUniqueTransactionId());
             if (new_txn_id == txn_id) {
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("ORIG TRANSACTION:\n" + dupe);
@@ -1473,6 +1457,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     /**
+     * 
+     * @param catalog_proc
+     * @param serializedRequest
+     * @param base_partition
+     * @param done
+     */
+    public void transactionRedirect(Procedure catalog_proc, byte serializedRequest[], int base_partition, RpcCallback<byte[]> done) {
+        if (d) LOG.debug(String.format("Forwarding %s request to partition %d", catalog_proc.getName(), base_partition));
+        
+        // Make a wrapper for the original callback so that when the result comes back frm the remote partition
+        // we will just forward it back to the client. How sweet is that??
+        TransactionRedirectCallback callback = null;
+        try {
+            callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+            callback.init(done);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
+        }
+        
+        // Mark this request as having been redirected
+        StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
+        
+        this.hstore_coordinator.transactionRedirect(serializedRequest, callback, base_partition);
+        if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
+    }
+    
+    /**
      * A non-blocking method for requeuing an aborted transaction using the
      * TransactionQueueManager. This allows a PartitionExecutor to tell us that
      * they can't execute some transaction and we'll let the queue manager's 
@@ -1630,7 +1641,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        Long new_txn_id = Long.valueOf(this.txnid_manager.getNextUniqueTransactionId());
+        Long new_txn_id = Long.valueOf(this.txnIdManager.getNextUniqueTransactionId());
         LocalTransaction new_ts = null;
         try {
             new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();

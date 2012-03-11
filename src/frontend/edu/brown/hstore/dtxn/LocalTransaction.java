@@ -271,6 +271,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.itask.setDestPartition(base_partition);
         this.itask.setReadOnly(predict_readOnly);
         this.itask.setStoredProcedureInvocation(invocation);
+        this.itask.setSysProc(catalog_proc.getSystemproc());
         
         if (this.predict_singlePartition == false) {
             try {
