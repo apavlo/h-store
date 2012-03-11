@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -385,36 +385,28 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * WorkFragments that we need to send to a different PartitionExecutor that is on this same HStoreSite
      */
     private final List<WorkFragment> tmp_localSiteFragmentList = new ArrayList<WorkFragment>();
-    
     /**
      * Temporary space used when calling removeInternalDependencies()
      */
     private final HashMap<Integer, List<VoltTable>> tmp_removeDependenciesMap = new HashMap<Integer, List<VoltTable>>();
-
     /**
      * Remote SiteId -> TransactionWorkRequest.Builder
      */
     private final TransactionWorkRequestBuilder tmp_transactionRequestBuilders[];
-    
     /**
      * PartitionId -> List<VoltTable>
      */
     private final Map<Integer, List<VoltTable>> tmp_EEdependencies = new HashMap<Integer, List<VoltTable>>();
-    
     /**
      * List of serialized ParameterSets
      */
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
-    
     /**
      * List of PartitionIds that need to be notified that the transaction is preparing to commit
      */
     private final List<Integer> tmp_preparePartitions = new ArrayList<Integer>();
-    
-
-    
     /**
-     * 
+     * Reusable ParameterSet array cache for WorkFragments
      */
     private final ParameterSetArrayCache tmp_fragmentParams;
     
@@ -716,7 +708,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.hstore_coordinator != null);
         assert(this.self == null);
         this.self = Thread.currentThread();
-        this.self.setName(HStoreSite.getThreadName(this.hstore_site, this.partitionId));
+        this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
         
         if (hstore_conf.site.cpu_affinity) {
             this.hstore_site.getThreadManager().registerEEThread(partition);
@@ -2126,7 +2118,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (builder.hasInputDependencyId(e.getKey())) continue;
 
                     if (d) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
-                                     ts, e.getValue().size(), HStoreSite.formatSiteName(target_site)));
+                                     ts, e.getValue().size(), HStoreThreadManager.formatSiteName(target_site)));
                     DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
@@ -2841,7 +2833,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public synchronized void crash(Throwable ex) {
         LOG.warn(String.format("PartitionExecutor for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_coordinator != null);
-        this.hstore_coordinator.shutdownCluster(ex); // This won't return
+        this.hstore_coordinator.shutdownClusterBlocking(ex);
     }
     
     @Override
@@ -2851,7 +2843,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     @Override
     public void prepareShutdown(boolean error) {
-        shutdown_state = Shutdownable.ShutdownState.PREPARE_SHUTDOWN;
+        this.shutdown_state = Shutdownable.ShutdownState.PREPARE_SHUTDOWN;
     }
     
     /**

@@ -157,6 +157,18 @@ public class SerializableException extends VoltProcedure.VoltAbortException {
         }
         p_serializeToBuffer(b);
     }
+    
+    /**
+     * Serialize this exception to a new ByteBuffer
+     * WARNING: This is slow and should normally be used!
+     * @return
+     */
+    public ByteBuffer serializeToBuffer() {
+        int size = this.getSerializedSize();
+        ByteBuffer buffer = ByteBuffer.allocate(size);
+        this.serializeToBuffer(buffer);
+        return (buffer);
+    }
 
     /**
      * Method for subclasses to implement that serializes the subclass's contents to

@@ -11,6 +11,7 @@ import com.google.protobuf.RpcController;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -76,7 +77,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             
             if (trace.get())
                 LOG.trace(String.format("Sending %s message to %s for %s",
-                                        request.getClass().getSimpleName(), HStoreSite.formatSiteName(dest_site_id), ts));
+                                        request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
             
             // Local Partition
             if (this.local_site_id == dest_site_id) {

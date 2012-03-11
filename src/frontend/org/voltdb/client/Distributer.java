@@ -47,7 +47,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -590,7 +590,7 @@ class Distributer {
     public synchronized void createConnection(Integer site_id, String host, int port, String program, String password) throws UnknownHostException, IOException {
         if (debug.get()) {
             LOG.debug(String.format("Creating new connection [site=%s, host=%s, port=%d]",
-                                    HStoreSite.formatSiteName(site_id), host, port));
+                                    HStoreThreadManager.formatSiteName(site_id), host, port));
             LOG.debug("Trying for an authenticated connection...");
         }
         Object connectionStuff[] = null;
@@ -630,7 +630,7 @@ class Distributer {
         m_connections.add(cxn);
         if (site_id != null) {
             if (debug.get())
-                LOG.debug(String.format("Created connection for Site %s: %s", HStoreSite.formatSiteName(site_id), cxn));
+                LOG.debug(String.format("Created connection for Site %s: %s", HStoreThreadManager.formatSiteName(site_id), cxn));
             synchronized (m_connectionSiteXref) {
                 Collection<NodeConnection> nc = m_connectionSiteXref.get(site_id);
                 if (nc == null) {
@@ -691,7 +691,7 @@ class Distributer {
              cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
 //            cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
             if (cxn == null) {
-                LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
+                LOG.warn("No direct connection to " + HStoreThreadManager.formatSiteName(site_id));
             } else backpressure = false; // XXX
 //            else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
 //                backpressure = false;

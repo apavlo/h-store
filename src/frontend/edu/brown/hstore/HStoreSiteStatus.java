@@ -159,7 +159,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     @Override
     public void run() {
         self = Thread.currentThread();
-        self.setName(HStoreSite.getThreadName(hstore_site, "mon"));
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, "mon"));
         if (hstore_conf.site.cpu_affinity)
             hstore_site.getThreadManager().registerProcessingThread();
 
@@ -282,10 +282,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
         m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
         
-        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
+        TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
         HStoreThreadManager thread_manager = hstore_site.getThreadManager();
+        
         int inflight_cur = hstore_site.getInflightTxnCount();
-        int inflight_local = hstore_site.getDTXNQueueSize();
+        int inflight_local = queueManagerDebug.getInitQueueSize();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
@@ -372,7 +374,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             PartitionExecutor es = e.getValue();
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
-            ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
+            ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
             // Queue Information
@@ -390,12 +392,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                           (es_queue.isThrottled() ? " *THROTTLED*" : ""));
             m.put("Exec Queue", status);
             
+            // TransactionQueueManager Info
             status = String.format("%-5s [limit=%d, release=%d]%s / ",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
                                    (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
-            Long txn_id = manager.getCurrentTransaction(partition);
+            Long txn_id = queueManager.getCurrentTransaction(partition);
             if (txn_id != null) {
-                TransactionInitQueueCallback callback = manager.getCallback(txn_id);
+                TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
                 int len = status.length();
                 status += "#" + txn_id;
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
@@ -410,8 +413,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                     status += String.format("Partitions=%s / Remaining=%d", callback.getPartitions(), callback.getCounter());
                 }
             }
-            
             m.put("DTXN Queue", status);
+            
+            // TransactionQueueManager - Blocked
+            m.put("Blocked Transactions", queueManagerDebug.getBlockedQueueSize());
+            
+            // TransactionQueueManager - Requeued Txns
+            m.put("Waiting Requeues", queueManagerDebug.getRestartQueueSize());
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
 //                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
@@ -911,7 +919,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         String top = StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo);
         String bot = "";
-        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
+        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
         if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
             bot = "\nRejected Transactions:\n" + blockedDtxns;
 //            bot += "\n" + hstore_site.getTransactionQueueManager().toString();

@@ -6,7 +6,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreObjectPools;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
 import edu.brown.utils.Poolable;
 
@@ -53,7 +53,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
     public void run(byte[] parameter) {
         final boolean trace = LOG.isTraceEnabled();
         if (trace) LOG.trace(String.format("Got ClientResponse callback! Sending back to %s [bytes=%d]",
-                                           HStoreSite.formatSiteName(this.dest_id), parameter.length));
+                                           HStoreThreadManager.formatSiteName(this.dest_id), parameter.length));
         ByteString bs = ByteString.copyFrom(parameter);
         TransactionRedirectResponse response = TransactionRedirectResponse.newBuilder()
                                                                           .setSenderId(this.source_id)

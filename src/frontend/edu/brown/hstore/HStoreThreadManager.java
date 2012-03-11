@@ -13,6 +13,7 @@ import org.voltdb.catalog.Partition;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class HStoreThreadManager {
@@ -159,5 +160,46 @@ public class HStoreThreadManager {
     
     public Map<Integer, Set<Thread>> getCPUThreads() {
         return Collections.unmodifiableMap(this.cpu_threads);
+    }
+
+    // ----------------------------------------------------------------------------
+    // THREAD NAME FORMATTERS
+    // ----------------------------------------------------------------------------
+    
+    public static final String formatSiteName(Integer site_id) {
+        if (site_id == null) return (null);
+        return (getThreadName(site_id, null));
+    }
+
+    public static final String getThreadName(HStoreSite hstore_site, Integer partition) {
+        return (getThreadName(hstore_site.getSiteId(), partition));
+    }
+
+    public static final String getThreadName(HStoreSite hstore_site, String...suffixes) {
+        return (getThreadName(hstore_site.getSiteId(), null, suffixes));
+    }
+
+    public static final String getThreadName(HStoreSite hstore_site, Integer partition, String...suffixes) {
+        return (getThreadName(hstore_site.getSiteId(), partition, suffixes));
+    }
+
+    /**
+     * Formatted site name
+     * @param site_id
+     * @param partition - Can be null
+     * @param suffix - Can be null
+     * @return
+     */
+    public static final String getThreadName(int site_id, Integer partition, String...suffixes) {
+        String suffix = null;
+        if (suffixes != null && suffixes.length > 0) suffix = StringUtil.join("-", suffixes);
+        if (suffix == null) suffix = "";
+        if (suffix.isEmpty() == false) {
+            suffix = "-" + suffix;
+            if (partition != null) suffix = String.format("-%03d%s", partition.intValue(), suffix);
+        } else if (partition != null) {
+            suffix = String.format("-%03d", partition.intValue());
+        }
+        return (String.format("H%02d%s", site_id, suffix));
     }
 }

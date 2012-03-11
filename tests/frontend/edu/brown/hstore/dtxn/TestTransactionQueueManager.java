@@ -67,7 +67,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        boolean ret = this.queue.insert(txn_id, partitions, outer_callback);
+        boolean ret = this.queue.initInsert(txn_id, partitions, outer_callback);
         assert(ret);
         
         int tries = 10;
@@ -101,8 +101,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         outer_callback1.init(txn_id1, partitions1, inner_callback1);
         
         // insert the higher ID first but make sure it comes out second
-        this.queue.insert(txn_id1, partitions1, outer_callback1);
-        this.queue.insert(txn_id0, partitions0, outer_callback0);
+        this.queue.initInsert(txn_id1, partitions1, outer_callback1);
+        this.queue.initInsert(txn_id0, partitions0, outer_callback0);
         
         // create another thread to get the locks in order
         Thread t = new Thread() {
@@ -110,13 +110,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Status.OK, partition);
+                        queue.initFinished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Status.OK, partition);
+                        queue.initFinished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -164,8 +164,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         TransactionInitQueueCallback outer_callback2 = new TransactionInitQueueCallback(hstore_site);
         outer_callback2.init(txn_id2, partitions2, inner_callback2);
         
-        this.queue.insert(txn_id0, partitions0, outer_callback0);
-        this.queue.insert(txn_id1, partitions1, outer_callback1);
+        this.queue.initInsert(txn_id0, partitions0, outer_callback0);
+        this.queue.initInsert(txn_id1, partitions1, outer_callback1);
         
         // create another thread to get the locks in order
         Thread t = new Thread() {
@@ -173,19 +173,19 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Status.OK, partition);
+                        queue.initFinished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Status.OK, partition);
+                        queue.initFinished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback2.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id2, Status.OK, partition);
+                        queue.initFinished(txn_id2, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -199,7 +199,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertTrue(queue.isEmpty());
         
         // add the third txn and wait for it
-        this.queue.insert(txn_id2, partitions2, outer_callback2);
+        this.queue.initInsert(txn_id2, partitions2, outer_callback2);
         while (queue.isEmpty() == false) {
             queue.checkQueues();
             ThreadUtil.sleep(10);
@@ -236,8 +236,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         TransactionInitQueueCallback outer_callback1 = new TransactionInitQueueCallback(hstore_site);
         outer_callback1.init(txn_id1, partitions1, inner_callback1);
         
-        this.queue.insert(txn_id0, partitions0, outer_callback0);
-        this.queue.insert(txn_id1, partitions1, outer_callback1);
+        this.queue.initInsert(txn_id0, partitions0, outer_callback0);
+        this.queue.initInsert(txn_id1, partitions1, outer_callback1);
         
         // create another thread to get the locks in order
         Thread t = new Thread() {
@@ -245,13 +245,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Status.OK, partition);
+                        queue.initFinished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Status.OK, partition);
+                        queue.initFinished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }

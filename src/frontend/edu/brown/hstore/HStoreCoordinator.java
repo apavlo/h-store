@@ -22,6 +22,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Pair;
@@ -197,7 +198,7 @@ public class HStoreCoordinator implements Shutdownable {
         // TransactionInitDispatcher
         if (hstore_conf.site.coordinator_init_thread) {
             this.transactionInit_dispatcher = new TransactionInitDispatcher(this);
-            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "init");
+            String name = HStoreThreadManager.getThreadName(this.hstore_site, "coord", "init");
             Thread t = new Thread(this.transactionInit_dispatcher, name);
             this.dispatcherThreads.add(t);
         } else {
@@ -207,7 +208,7 @@ public class HStoreCoordinator implements Shutdownable {
         // TransactionFinishDispatcher
         if (hstore_conf.site.coordinator_finish_thread) {
             this.transactionFinish_dispatcher = new TransactionFinishDispatcher(this);
-            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "finish");
+            String name = HStoreThreadManager.getThreadName(this.hstore_site, "coord", "finish");
             Thread t = new Thread(this.transactionInit_dispatcher, name);
             this.dispatcherThreads.add(t);
         } else {
@@ -217,7 +218,7 @@ public class HStoreCoordinator implements Shutdownable {
         // TransactionRedirectDispatcher
         if (hstore_conf.site.coordinator_redirect_thread) {
             this.transactionRedirect_dispatcher = new TransactionRedirectDispatcher(this);
-            String name = HStoreSite.getThreadName(this.hstore_site, "coord", "redirect");
+            String name = HStoreThreadManager.getThreadName(this.hstore_site, "coord", "redirect");
             Thread t = new Thread(this.transactionInit_dispatcher, name);
             this.dispatcherThreads.add(t);
         } else {
@@ -233,7 +234,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.sendData_handler = new SendDataHandler(hstore_site, this);
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
+        this.listener_thread = new Thread(new MessengerListener(), HStoreThreadManager.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
     }
@@ -522,7 +523,7 @@ public class HStoreCoordinator implements Shutdownable {
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
             if (debug.get()) 
-                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
+                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderId())));
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
@@ -560,19 +561,29 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request,
                 RpcCallback<ShutdownResponse> done) {
-            LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
-            
-            HStoreCoordinator.this.prepareShutdown(false);
+            String originName = HStoreThreadManager.formatSiteName(request.getSenderId());
+            LOG.warn(String.format("Got shutdown request from HStoreSite %s [hasError=%s]", originName, request.hasError()));
             
             // Tell the HStoreSite to shutdown
-            hstore_site.shutdown();
+            HStoreCoordinator.this.hstore_site.prepareShutdown(false);
             
-            // Then send back the acknowledgment
+            // Then send back the acknowledgment right away
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                   .setSenderId(local_site_id)
+                                                   .setSenderId(HStoreCoordinator.this.local_site_id)
                                                    .build();
-            // Send this now!
             done.run(response);
+            
+            // See if they gave us the original error. If they did, then we'll
+            // try to be helpful and print it out here
+            SerializableException error = null;
+            if (request.hasError()) {
+                ByteString bytes = request.getError();
+                error = SerializableException.deserializeFromBuffer(bytes.asReadOnlyByteBuffer());
+                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
+            }
+            
+            // TODO: This should be moved into the HStoreSite.shutdown()
+            HStoreCoordinator.this.hstore_site.shutdown();
             LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
             if (debug.get())
                 LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
@@ -588,7 +599,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.get()) 
                 LOG.debug(String.format("Recieved %s from HStoreSite %s",
                                                  request.getClass().getSimpleName(),
-                                                 HStoreSite.formatSiteName(request.getSenderId())));
+                                                 HStoreThreadManager.formatSiteName(request.getSenderId())));
             
             TimeSyncResponse response = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
@@ -709,7 +720,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
-        if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
+        if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreThreadManager.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
         TransactionRedirectRequest mr = TransactionRedirectRequest.newBuilder()
                                         .setSenderId(this.local_site_id)
@@ -916,16 +927,19 @@ public class HStoreCoordinator implements Shutdownable {
                                             .setT0S(System.currentTimeMillis())
                                             .build();
             e.getValue().timeSync(new ProtoRpcController(), request, callback);
-            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
+            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(e.getKey()));
         } // FOR
         
         if (trace.get()) LOG.trace("Sent out all TIMESYNC requests!");
+        boolean success = false;
         try {
-            latch.await();
+            success = latch.await(10, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             // nothing
         }
-        if (trace.get()) LOG.trace("Received all TIMESYNC responses!");
+        if (success == false) {
+            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", num_sites));
+        } else if (trace.get()) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation
         long max_dt = 0L;
@@ -949,32 +963,29 @@ public class HStoreCoordinator implements Shutdownable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Take down the cluster. If the blocking flag is true, then this call will never return
-     * @param ex
+     * Take down the cluster. This is a non-blocking call. It will return right away
+     * @param error
      * @param blocking
      */
-    public void shutdownCluster(final Throwable ex, final boolean blocking) {
+    public void shutdownCluster(final Throwable error) {
         if (debug.get())
-            LOG.debug(String.format("Invoking shutdown protocol [blocking=%s, ex=%s]", blocking, ex));
-        if (blocking) {
-            this.shutdownCluster(ex);
-        } else {
-            // Make this a thread so that we don't block and can continue cleaning up other things
-            Thread shutdownThread = new Thread() {
-                @Override
-                public void run() {
-                    HStoreCoordinator.this.shutdownCluster(ex); // Never returns!
-                }
-            };
-            shutdownThread.setDaemon(true);
-            shutdownThread.start();
-        }
+            LOG.debug(String.format("Invoking shutdown protocol [non-blocking / error=%s]", error));
+        // Make this a thread so that we don't block and can continue cleaning up other things
+        Thread shutdownThread = new Thread() {
+            @Override
+            public void run() {
+                HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
+            }
+        };
+        shutdownThread.setName(HStoreThreadManager.getThreadName(this.hstore_site, "shutdown"));
+        shutdownThread.setDaemon(true);
+        shutdownThread.start();
         return;
     }
     
     /**
      * Tell all of the other sites to shutdown and then knock ourselves out...
-     * This is will never return
+     * This is a non-blocking call.
      */
     public void shutdownCluster() {
         this.shutdownCluster(null);
@@ -983,61 +994,75 @@ public class HStoreCoordinator implements Shutdownable {
     /**
      * Shutdown the cluster. If the given Exception is not null, then all the nodes will
      * exit with a non-zero status. This is will never return
-     * @param ex
+     * TODO: Move into HStoreSite
+     * @param error
      */
-    public synchronized void shutdownCluster(Throwable ex) {
+    protected synchronized void shutdownClusterBlocking(final Throwable error) {
         final int num_sites = this.channels.size();
         if (this.state == ShutdownState.SHUTDOWN) return;
-        this.hstore_site.prepareShutdown(ex != null);
-        LOG.info("Shutting down cluster", ex);
+        this.hstore_site.prepareShutdown(error != null);
+        LOG.info("Shutting down cluster", error);
 
-        final int exit_status = (ex == null ? 0 : 1);
+        final int exit_status = (error == null ? 0 : 1);
         final CountDownLatch latch = new CountDownLatch(num_sites);
         
-        if (num_sites > 0) {
-            RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
-                private final Set<Integer> siteids = new HashSet<Integer>(); 
+        try {
+            if (num_sites > 0) {
+                RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
+                    private final Set<Integer> siteids = new HashSet<Integer>(); 
+                    
+                    @Override
+                    public void run(ShutdownResponse parameter) {
+                        int siteId = parameter.getSenderId();
+                        assert(this.siteids.contains(siteId) == false) :
+                            "Duplicate response from remote HStoreSite " + HStoreThreadManager.formatSiteName(siteId);
+                        this.siteids.add(siteId);
+                        if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+                        latch.countDown();
+                    }
+                };
                 
-                @Override
-                public void run(ShutdownResponse parameter) {
-                    int siteid = parameter.getSenderId();
-                    assert(this.siteids.contains(siteid) == false) : "Duplicate response from " + hstore_site.getSiteName();
-                    this.siteids.add(siteid);
-                    if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
-                    latch.countDown();
+                ShutdownRequest.Builder builder = ShutdownRequest.newBuilder()
+                                                        .setSenderId(catalog_site.getId())
+                                                        .setExitStatus(exit_status);
+                // Pack the error into a SerializableException
+                if (error != null) {
+                    SerializableException sError = new SerializableException(error);
+                    ByteBuffer buffer = sError.serializeToBuffer();
+                    builder.setError(ByteString.copyFrom(buffer));
+                    LOG.info("Serializing error message in shutdown request");
                 }
-            };
-            
-            if (debug.get()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
-            for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-                ShutdownRequest sm = ShutdownRequest.newBuilder()
-                                                .setSenderId(catalog_site.getId())
-                                                .setExitStatus(exit_status)
-                                                .build();
-                e.getValue().shutdown(new ProtoRpcController(), sm, callback);
-                if (trace.get()) LOG.trace("Sent SHUTDOWN to " + HStoreSite.formatSiteName(e.getKey()));
-            } // FOR
-        }
-        
-        // Tell ourselves to shutdown while we wait
-        if (debug.get()) LOG.debug("Telling local site to shutdown");
-        this.hstore_site.shutdown();
-        
-        // Block until the latch releases us
-        if (num_sites > 0) {
-            LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
-            try {
-                latch.await(5, TimeUnit.SECONDS);
-            } catch (Exception ex2) {
-                // IGNORE!
+                
+                ShutdownRequest request = builder.build();
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
+                                                         request.getClass().getSimpleName(), num_sites));
+                for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+                    e.getValue().shutdown(new ProtoRpcController(), request, callback);
+                    if (trace.get()) LOG.trace(String.format("Sent %s to %s",
+                                                             request.getClass().getSimpleName(),
+                                                             HStoreThreadManager.formatSiteName(e.getKey())));
+                } // FOR
             }
+        
+            // Tell ourselves to shutdown while we wait
+            if (debug.get()) LOG.debug("Telling local site to shutdown");
+            this.hstore_site.shutdown();
+            
+            // Block until the latch releases us
+            if (num_sites > 0) {
+                LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+                latch.await(5, TimeUnit.SECONDS);
+            }
+        } catch (Throwable ex2) {
+            // IGNORE
+        } finally {
+            LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
+            if (error != null) {
+                LOG.fatal("A fatal error caused this shutdown", error);
+            }
+            LogManager.shutdown();
+            System.exit(exit_status);
         }
-        LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
-        if (ex != null) {
-            LOG.fatal("A fatal error caused this shutdown", ex);
-        }
-        LogManager.shutdown();
-        System.exit(exit_status);
     }
 
 
@@ -1057,7 +1082,7 @@ public class HStoreCoordinator implements Shutdownable {
                     InetSocketAddress address = new InetSocketAddress(host, remote_site.getMessenger_port()); 
                     m.add(Pair.of(remote_site.getId(), address));
                     if (debug.get()) LOG.debug(String.format("Creating RpcChannel to %s for site %s",
-                                               address, HStoreSite.formatSiteName(remote_site.getId())));
+                                               address, HStoreThreadManager.formatSiteName(remote_site.getId())));
                 } // FOR
             } // FOR 
         } // FOR
@@ -1066,6 +1091,7 @@ public class HStoreCoordinator implements Shutdownable {
 
     /**
      * Returns an HStoreService handle that is connected to the given site
+     * This should not be called directly.
      * @param catalog_site
      * @return
      */
