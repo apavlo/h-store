@@ -1890,6 +1890,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     break;
                 case ABORT_REJECT:
+                case ABORT_THROTTLED:
                     if (hstore_conf.site.status_show_txn_info)
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
