@@ -234,7 +234,7 @@ public class TestVoltProcedure extends TestCase {
             catalog = new Catalog();
             catalog.execute(serializedCatalog);
             cluster = catalog.getClusters().get("cluster");
-            site = cluster.getSites().get(Integer.toString(siteId));
+            this.site = cluster.getSites().get(Integer.toString(siteId));
             //host = cluster.getHosts().get("host");
             //site = host.getSites().get(String.valueOf(siteId));
             database = cluster.getDatabases().get("database");

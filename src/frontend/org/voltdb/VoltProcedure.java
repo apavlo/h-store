@@ -173,10 +173,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // WORKLOAD TRACE HANDLES
     // ----------------------------------------------------------------------------
     
-    private boolean enable_tracing = false;
-    private Object m_workloadXactHandle = null;
-    private Integer m_workloadBatchId = null;
-    private final List<Object> m_workloadQueryHandles = new ArrayList<Object>();
+    /**
+     * Whether to enable dumping out the transactions/queries executed by this procedure
+     * These traces are not used for recovery and are slow.
+     */
+    private boolean workloadTraceEnable = false;
+    private Object workloadTxnHandle = null;
+    private Integer workloadBatchId = null;
+    private List<Object> workloadQueryHandles;
 
     // ----------------------------------------------------------------------------
     // INVOCATION MEMBERS
@@ -269,8 +273,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
-        this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
+        // Enable Workload Tracing
+        this.workloadTraceEnable = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
                               (ProcedureProfiler.workloadTrace != null);
+        if (this.workloadTraceEnable) {
+            this.workloadQueryHandles = new ArrayList<Object>();
+        }
         
         this.t_estimator = this.executor.getTransactionEstimator();
         this.p_estimator = p_estimator;
@@ -610,9 +618,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // Workload Trace
         // Create a new transaction record in the trace manager. This will give us back
         // a handle that we need to pass to the trace manager when we want to register a new query
-        if (this.enable_tracing) {
-            this.m_workloadQueryHandles.clear();
-            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
+        if (this.workloadTraceEnable) {
+            this.workloadQueryHandles.clear();
+            this.workloadTxnHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
         }
 
         // Fix to make no-Java procedures work
@@ -665,8 +673,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 this.status = Hstoreservice.Status.ABORT_USER;
                 this.status_msg = "USER ABORT: " + ex.getMessage();
                 
-                if (this.enable_tracing && m_workloadXactHandle != null) {
-                    ProcedureProfiler.workloadTrace.abortTransaction(m_workloadXactHandle);
+                if (this.workloadTraceEnable && workloadTxnHandle != null) {
+                    ProcedureProfiler.workloadTrace.abortTransaction(workloadTxnHandle);
                 }
             // -------------------------------
             // MispredictionException
@@ -725,11 +733,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Workload Trace - Stop the transaction trace record.
-        if (this.enable_tracing && m_workloadXactHandle != null && this.status == Hstoreservice.Status.OK) {
+        if (this.workloadTraceEnable && workloadTxnHandle != null && this.status == Hstoreservice.Status.OK) {
             if (hstore_conf.site.trace_txn_output) {
-                ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle, this.results);
+                ProcedureProfiler.workloadTrace.stopTransaction(workloadTxnHandle, this.results);
             } else {
-                ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle);
+                ProcedureProfiler.workloadTrace.stopTransaction(workloadTxnHandle);
             }
         }
         
@@ -1027,16 +1035,16 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
         // Workload Trace - Start Query
-        if (this.enable_tracing && m_workloadXactHandle != null) {
-            m_workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(m_workloadXactHandle);
-            m_workloadQueryHandles.clear();
+        if (this.workloadTraceEnable && workloadTxnHandle != null) {
+            workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(workloadTxnHandle);
+            workloadQueryHandles.clear();
             for (int i = 0; i < batchQueryStmtIndex; i++) {
-                Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(m_workloadXactHandle,
+                Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(workloadTxnHandle,
                                                                                 batchQueryStmts[i].catStmt,
                                                                                 batchQueryArgs[i],
-                                                                                m_workloadBatchId);
+                                                                                workloadBatchId);
                 assert(queryHandle != null);
-                m_workloadQueryHandles.add(queryHandle);
+                workloadQueryHandles.add(queryHandle);
             }
         }
 
@@ -1049,9 +1057,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                                          forceSinglePartition);
 
         // Workload Trace - Stop Query
-        if (this.enable_tracing && m_workloadXactHandle != null) {
+        if (this.workloadTraceEnable && workloadTxnHandle != null) {
             for (int i = 0; i < batchQueryStmtIndex; i++) {
-                Object handle = m_workloadQueryHandles.get(i);
+                Object handle = workloadQueryHandles.get(i);
                 if (handle != null) {
                     if (hstore_conf.site.trace_query_output) {
                         ProcedureProfiler.workloadTrace.stopQuery(handle, retval[i]);
@@ -1062,7 +1070,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             } // FOR
             // Make sure that we clear out our query handles so that the next
             // time they queue a query they will get a new batch id
-            m_workloadQueryHandles.clear();
+            workloadQueryHandles.clear();
         }
 
         batchQueryStmtIndex = 0;
@@ -1111,14 +1119,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        this.planner = this.executor.POOL_BATCH_PLANNERS.get(batchHashCode);
+        this.planner = this.executor.batchPlanners.get(batchHashCode);
         if (this.planner == null) { // Assume fast case
             this.planner = new BatchPlanner(batchStmts,
                                             batchSize,
                                             this.catalog_proc,
                                             this.p_estimator,
                                             forceSinglePartition);
-            this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, this.planner);
+            this.executor.batchPlanners.put(batchHashCode, this.planner);
         }
         assert(this.planner != null);
         
