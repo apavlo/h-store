@@ -16,15 +16,18 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.utils.DBBPool;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
 
+/**
+ * The internal state of a transaction while it is running at a PartitionExecutor
+ * This will be removed from the LocalTransaction once its control code is finished executing 
+ * @author pavlo
+ */
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -116,13 +119,6 @@ public class ExecutionState {
      */
     protected int received_ctr = 0;
     
-    /** 
-     * What partitions has this txn touched
-     * This needs to be a Histogram so that we can figure out what partitions
-     * were touched the most if end up needing to redirect it later on
-     */
-    protected final Histogram<Integer> exec_touchedPartitions;
-    
     /**
      * This is a special flag that tells us the last round that we used the cached DependencyInfos
      * If the last round doesn't equal the current round, then we will have to call finish()
@@ -151,11 +147,9 @@ public class ExecutionState {
         
 //        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
-        this.exec_touchedPartitions = new Histogram<Integer>();
     }
     
     public void clear() {
-        this.exec_touchedPartitions.clear();
         this.dependency_latch = null;
         this.clearRound();
     }

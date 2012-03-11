@@ -147,6 +147,13 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private boolean exec_speculative = false;
     
+    /** 
+     * What partitions has this txn touched
+     * This needs to be a Histogram so that we can figure out what partitions
+     * were touched the most if end up needing to redirect it later on
+     */
+    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
+    
     /**
      * 
      */
@@ -363,6 +370,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.client_callback = null;
         
         this.exec_speculative = false;
+        this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
@@ -718,13 +726,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.done_partitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
-        return (this.state.exec_touchedPartitions);
-    }
-    public boolean hasTouchedPartitions() {
-        if (this.state != null) {
-            return (this.state.exec_touchedPartitions != null);
-        }
-        return (false);
+        return (this.exec_touchedPartitions);
     }
     public String getProcedureName() {
         return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
@@ -837,7 +839,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public boolean isExecSinglePartition() {
-        return (this.state.exec_touchedPartitions.getValueCount() <= 1);
+        return (this.exec_touchedPartitions.getValueCount() <= 1);
     }
     /**
      * Returns true if the given FragmentTaskMessage is currently set as blocked for this txn
@@ -1283,22 +1285,23 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Needs Restart", this.needs_restart);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
+
+        m = new ListOrderedMap<String, Object>();
+        m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
+        m.put("Exec Touched Partitions", this.exec_touchedPartitions);
         
         // Actual Execution
         if (this.state != null) {
-            m = new ListOrderedMap<String, Object>();
             m.put("Exec Single-Partitioned", this.isExecSinglePartition());
             m.put("Speculative Execution", this.exec_speculative);
-            m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
-            m.put("Touched Partitions", this.state.exec_touchedPartitions);
             m.put("Dependency Ctr", this.state.dependency_ctr);
             m.put("Received Ctr", this.state.received_ctr);
             m.put("CountdownLatch", this.state.dependency_latch);
             m.put("# of Blocked Tasks", this.state.blocked_tasks.size());
             m.put("# of Statements", this.state.batch_size);
             m.put("Expected Results", this.state.results_dependency_stmt_ctr.keySet());
-            maps.add(m);
         }
+        maps.add(m);
 
         // Additional Info
         m = new ListOrderedMap<String, Object>();

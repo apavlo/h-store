@@ -129,7 +129,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
@@ -2750,7 +2749,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // we need to tell the EE to commit. All ones that completed before that won't
         // have to hit up the EE.
         LocalTransaction ts = null;
-        Histogram<Integer> mispredict_h = null;
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
@@ -2765,17 +2763,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
                 // We're going to assume that any transaction that didn't mispredict
-                // was single-partitioned. We'll just create a reusable histogram
-                // for this partition. This is because these transactions won't have
-                // the histogram of what partitions that they touched because that
-                // is stored in the ExecutionState, which the transactions won't have
-                // at this point.
+                // was single-partitioned. We'll use their TouchedPartitions histogram
                 if (cr.getStatus() != Status.ABORT_MISPREDICT) {
-                    if (mispredict_h == null) {
-                        mispredict_h = new Histogram<Integer>();
-                        mispredict_h.put(this.partitionId);
-                    }
-                    ts.setPendingError(new MispredictionException(ts.getTransactionId(), mispredict_h), false);
+                    ts.setPendingError(new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions()), false);
                     cr.setStatus(Status.ABORT_MISPREDICT);
                 }
                 aborted++;
