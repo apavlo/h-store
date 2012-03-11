@@ -7,6 +7,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -176,9 +177,8 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     public void reduce(final MapReduceTransaction mr_ts) {
         // Runtime
 
-        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-
-        if (hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_Runed()) {
+        VoltMapReduceProcedure<?> volt_proc = (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+        if (hstore_site.isLocalPartition(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_Runed()) {
             if (debug.get())
                 LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
             volt_proc.setPartitionId(mr_ts.getBasePartition());

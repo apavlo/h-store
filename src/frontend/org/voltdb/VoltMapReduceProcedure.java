@@ -250,6 +250,13 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
 //        } // FOR
     }
     
+    public final int getPartitionId() {
+        return partitionId;
+    }
+    public final void setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
+    }
+    
 
 }
 

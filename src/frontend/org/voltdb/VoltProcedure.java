@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
@@ -49,7 +48,6 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.HStoreConstants;
@@ -104,10 +102,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // Path of least resistance?
     public static class StmtProcedure extends VoltProcedure {}
 
-    private final static Double DOUBLE_NULL = new Double(-1.7976931348623157E+308);
-    
-    public static final String ANON_STMT_NAME = "sql";
-
     // ----------------------------------------------------------------------------
     // GLOBAL MEMBERS
     // ----------------------------------------------------------------------------
@@ -133,13 +127,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected final Map<String, SQLStmt> stmts = new HashMap<String, SQLStmt>();
 
     // cached fake SQLStmt array for single statement non-java procs
-    SQLStmt[] m_cachedSingleStmt = { null };
+    private SQLStmt[] m_cachedSingleStmt = { null };
 
     // Used to figure out what partitions a query needs to go to
-    protected Catalog catalog;
-    protected Procedure catalog_proc;
-    protected String procedure_name;
-    protected AbstractHasher hasher;
+    private Procedure catalog_proc;
+    private String procedure_name;
     protected PartitionEstimator p_estimator;
     protected TransactionEstimator t_estimator;
     protected HStoreSite hstore_site;
@@ -148,12 +140,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
-    public int getPartitionId() {
-        return partitionId;
-    }
-    public void setPartitionId(int partitionId) {
-        this.partitionId = partitionId;
-    }
 
     protected Integer partitionIdObj = null;
 
@@ -262,7 +248,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.hstore_conf = HStoreConf.singleton();
         this.catalog_proc = catalog_proc;
         this.procedure_name = this.catalog_proc.getName();
-        this.catalog = this.catalog_proc.getCatalog();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
         this.param_cache = this.executor.getProcedureParameterSetArrayCache();
@@ -282,7 +267,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         this.t_estimator = this.executor.getTransactionEstimator();
         this.p_estimator = p_estimator;
-        this.hasher = this.p_estimator.getHasher();
         
         if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
         
@@ -398,7 +382,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
         // has no java
         else {
-            Statement catStmt = catalog_proc.getStatements().get(ANON_STMT_NAME);
+            Statement catStmt = catalog_proc.getStatements().get(HStoreConstants.ANON_STMT_NAME);
             SQLStmt stmt = new SQLStmt(catStmt.getSqltext());
             stmt.catStmt = catStmt;
             initSQLStmt(stmt);
@@ -1269,7 +1253,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             else if (type == VoltType.BIGINT)
                 args[ii] = Long.MIN_VALUE;
             else if (type == VoltType.FLOAT)
-                args[ii] = DOUBLE_NULL;
+                args[ii] = VoltType.NULL_DOUBLE;
             else if (type == VoltType.TIMESTAMP)
                 args[ii] = new TimestampType(Long.MIN_VALUE);
             else if (type == VoltType.STRING)
