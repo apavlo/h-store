@@ -488,9 +488,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         // First send back an ABORT message to the initiating HStoreSite
         try {
-            callback.abort(status, reject_partition, reject_txnId.longValue());
+            callback.abort(status, reject_partition, reject_txnId);
         } catch (Throwable ex) {
-            String msg = "Unexpected error when trying to abort txn #" + txn_id;
+            String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
+                                      txn_id, status, reject_partition, reject_txnId);
             throw new RuntimeException(msg, ex);
         }
         
