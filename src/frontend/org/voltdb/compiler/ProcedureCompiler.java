@@ -46,6 +46,7 @@ import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.interfaces.Prefetchable;
 import edu.brown.utils.ClassUtil;
 
@@ -445,7 +446,7 @@ public abstract class ProcedureCompiler {
         // ADD THE STATEMENT
 
         // add the statement to the catalog
-        Statement catalogStmt = procedure.getStatements().add(VoltProcedure.ANON_STMT_NAME);
+        Statement catalogStmt = procedure.getStatements().add(HStoreConstants.ANON_STMT_NAME);
 
         // compile the statement
         StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, procedureDescriptor.m_singleStmt, info.singlePartition);

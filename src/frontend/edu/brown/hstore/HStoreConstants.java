@@ -56,4 +56,9 @@ public abstract class HStoreConstants {
      */
     public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
 
+    /**
+     * The default name of the Statement given for single-statement (i.e., non-Java) Procedures
+     */
+    public static final String ANON_STMT_NAME = "sql";
+
 }
