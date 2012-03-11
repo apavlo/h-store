@@ -103,6 +103,7 @@
 <arg value="site.status_enable=${site.status_enable}" />
 <arg value="site.status_interval=${site.status_interval}" />
 <arg value="site.status_kill_if_hung=${site.status_kill_if_hung}" />
+<arg value="site.status_check_for_zombies=${site.status_check_for_zombies}" />
 <arg value="site.status_show_txn_info=${site.status_show_txn_info}" />
 <arg value="site.status_show_executor_info=${site.status_show_executor_info}" />
 <arg value="site.status_show_thread_info=${site.status_show_thread_info}" />
@@ -118,5 +119,6 @@
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
 <arg value="site.pool_txninit_idle=${site.pool_txninit_idle}" />
 <arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
+<arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
 <arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
 

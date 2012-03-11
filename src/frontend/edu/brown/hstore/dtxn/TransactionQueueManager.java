@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 
@@ -21,6 +22,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
@@ -123,8 +125,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
         } // FOR
         
-        if (d)
-            LOG.debug(String.format("Created %d TransactionInitQueues for %s", num_ids, hstore_site.getSiteName()));
+        if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
+                                       num_ids, hstore_site.getSiteName()));
     }
     
     @Override
@@ -336,8 +338,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.working_partitions[partition] = false;
                 poke = true;
             } else if (d) {
-                LOG.debug(String.format("Not unmarking partition %d for txn #%d [current=%d]",
-                        partition, txn_id, this.last_txns[partition]));
+                LOG.debug(String.format("Not unmarking partition %d for txn #%d [current=%d, locked=%s]",
+                        partition, txn_id, this.last_txns[partition], this.working_partitions[partition]));
             }
         } // SYNCH
         
@@ -374,10 +376,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public void markAsLastTxnId(int partition, Long txn_id) {
         assert(this.hstore_site.isLocalPartition(partition) == false) :
-            "Trying to mark the last seen transaction id for local partition #" + partition;
+            "Trying to mark the last seen txnId for local partition #" + partition;
         synchronized (this.last_txns[partition]) {
             if (this.last_txns[partition].compareTo(txn_id) < 0) {
-                if (d) LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
+                if (d) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d", txn_id, partition));
                 this.last_txns[partition] = txn_id;
             }
         } // SYNCH
@@ -391,7 +393,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param last_txn_id
      */
     public void queueBlockedDTXN(LocalTransaction ts, int partition, Long last_txn_id) {
-        if (d) LOG.debug(String.format("%s - Blocking transaction until after a txn greater than #%d is created for partition %d",
+        if (d) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than #%d is created for partition %d",
                                        ts, last_txn_id, partition));
        
         // IMPORTANT: Mark this transaction as needing to be restarted
@@ -436,7 +438,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 continue;
             }
             if (releaseTxnId.compareTo(last_txn_id) < 0) {
-                if (d) LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
+                if (d) LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
                                                ts, last_txn_id, releaseTxnId));
                 this.blocked_dtxns.remove();
                 this.blocked_dtxn_release.remove(ts);
@@ -466,10 +468,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         if (callback != null) {
             for (int partition : callback.getPartitions()) {
-                if (hstore_site.isLocalPartition(partition) == false) continue;
+                // Skip any local partition
+                if (hstore_site.isLocalPartition(partition)) continue;
                 synchronized (this.last_txns[partition]) {
                     if (this.last_txns[partition].compareTo(txn_id) < 0) {
-                        if (d) LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d",
+                        if (d) LOG.debug(String.format("Marking txn #%d as last txnId for remote partition %d",
                                                        txn_id, partition));
                         this.last_txns[partition] = txn_id;
                     }
@@ -480,7 +483,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     }
     
     private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
-        if (d) LOG.debug(String.format("Announcing that txn #%d is rejected on partition %d until a txn greater than #%d",
+        if (d) LOG.debug(String.format("Announcing that txn #%d is rejected on partition %d until a txnId greater than #%d",
                                        txn_id, reject_partition, reject_txnId));
         
         // First send back an ABORT message to the initiating HStoreSite
@@ -570,5 +573,32 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     @Override
     public boolean isShuttingDown() {
         return (this.stop);
+    }
+    
+    @Override
+    public String toString() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m[] = (Map<String, Object>[])new Map[2];
+        int idx = -1;
+
+        // Basic Information
+        m[++idx] = new ListOrderedMap<String, Object>();
+        m[idx].put("Wait Time", this.wait_time + " ms");
+        m[idx].put("# of Callbacks", this.txn_callbacks.size());
+        m[idx].put("# of Blocked Txns", this.blocked_dtxns.size());
+        
+        // Local Partitions
+        m[++idx] = new ListOrderedMap<String, Object>();
+        for (int p = 0; p < this.last_txns.length; p++) {
+            Map<String, Object> inner = new ListOrderedMap<String, Object>();
+            inner.put("Current Txn", this.last_txns[p]);
+            if (hstore_site.isLocalPartition(p)) {
+                inner.put("Locked?", this.working_partitions[p]);
+                inner.put("Queue Size", this.txn_queues[p].size());
+            }
+            m[idx].put(String.format("Partition #%02d", p), inner);
+        } // FOR
+        
+        return StringUtil.formatMaps(m);
     }
 }
