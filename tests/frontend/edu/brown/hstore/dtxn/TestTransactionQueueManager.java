@@ -72,7 +72,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         int tries = 10;
         while (queue.isEmpty() == false && tries-- > 0) {
-            queue.checkQueues();
+            queue.checkInitQueues();
             ThreadUtil.sleep(100);
         }
         assert(inner_callback.lock.availablePermits() > 0);
@@ -125,7 +125,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         t.start();
         
         while (queue.isEmpty() == false) {
-            queue.checkQueues();
+            queue.checkInitQueues();
             ThreadUtil.sleep(10);
         }
         
@@ -193,7 +193,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         t.start();
         
         // both of the first two disjoint txns should be released on the same call to checkQueues()
-        while (queue.checkQueues() == false) {
+        while (queue.checkInitQueues() == false) {
             ThreadUtil.sleep(10);
         }
         assertTrue(queue.isEmpty());
@@ -201,7 +201,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         // add the third txn and wait for it
         this.queue.initInsert(txn_id2, partitions2, outer_callback2);
         while (queue.isEmpty() == false) {
-            queue.checkQueues();
+            queue.checkInitQueues();
             ThreadUtil.sleep(10);
         }
         
@@ -259,13 +259,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
         t.start();
         
         // only the first txn should be released because they are not disjoint
-        while (queue.checkQueues() == false) {
+        while (queue.checkInitQueues() == false) {
             ThreadUtil.sleep(10);
         }
         assertFalse(queue.isEmpty());
         
         while (queue.isEmpty() == false) {
-            queue.checkQueues();
+            queue.checkInitQueues();
             ThreadUtil.sleep(10);
         }
         
