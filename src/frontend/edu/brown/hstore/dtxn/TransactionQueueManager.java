@@ -404,10 +404,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // been rejected yet). That means we will want to decrement the counter its Transaction
         if (removed) {
             if (d) LOG.debug(String.format("Removed txn #%d from partition %d queue", txn_id, partition));
+            
+            // We still have a callback, make sure that we remove it
             TransactionInitQueueCallback callback = this.initQueuesCallbacks.get(txn_id);
-            assert(callback != null) :
-                "Missing TransactionInitQueueCallback for txn #" + txn_id;
-            if (callback.isAborted() == false) callback.abort(status);
+            if (callback != null) {
+                if (callback.isAborted() == false) callback.abort(status);
+                this.cleanupTransaction(txn_id);
+            }
         }
         if (poke && this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();

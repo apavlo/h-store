@@ -92,7 +92,12 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
     @Override
     protected final void abortCallback(Status status) {
         this.finishStatus = status;
-        boolean finish = this.abortTransactionCallback(status);
+        
+        // We can't abort if we've already invoked the regular callback
+        boolean finish = false;
+        if (this.isUnblocked() == false) {
+            finish = this.abortTransactionCallback(status);
+        }
         
         // If we abort, then we have to send out an ABORT to
         // all of the partitions that we originally sent INIT requests too
