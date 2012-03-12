@@ -50,7 +50,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -108,6 +107,7 @@ import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -980,17 +980,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     /**
      * Set the current ExecutionMode for this executor
-     * @param mode
+     * @param newMode
      * @param txn_id
      */
-    private void setExecutionMode(AbstractTransaction ts, ExecutionMode mode) {
-        if (d && this.currentExecMode != mode) {
+    private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
+        if (d && this.currentExecMode != newMode) {
             LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
-                                    this.partitionId, mode, ts, this.currentDtxn, this.currentExecMode));
+                                    this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
         }
-        assert(mode != ExecutionMode.COMMIT_READONLY || (mode == ExecutionMode.COMMIT_READONLY && this.currentDtxn != null)) :
-            String.format("%s is trying to set partition %d to %s when the current DTXN is null?", ts, this.partitionId, mode);
-        this.currentExecMode = mode;
+        assert(newMode != ExecutionMode.COMMIT_READONLY || (newMode == ExecutionMode.COMMIT_READONLY && this.currentDtxn != null)) :
+            String.format("%s is trying to set partition %d to %s when the current DTXN is null?", ts, this.partitionId, newMode);
+        this.currentExecMode = newMode;
     }
     public ExecutionMode getExecutionMode() {
         return (this.currentExecMode);
@@ -1776,7 +1776,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Only notify other partitions that we're done with them if we're not a single-partition transaction
         if (hstore_conf.site.exec_speculative_execution && ts.isPredictSinglePartition() == false) {
             // TODO: We need to notify the remote HStoreSites that we are done with their partitions
-            this.calculateDonePartitions(ts);
+            ts.calculateDonePartitions(this.thresholds);
         }
 
         if (t) {
@@ -1997,50 +1997,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Figure out what partitions this transaction is done with and notify those partitions
-     * that they are done
-     * @param ts
-     */
-    private boolean calculateDonePartitions(LocalTransaction ts) {
-        final BitSet ts_done_partitions = ts.getDonePartitions();
-        final int ts_done_partitions_size = ts_done_partitions.size();
-        Set<Integer> new_done = null;
-
-        TransactionEstimator.State t_state = ts.getEstimatorState();
-        if (t_state == null) {
-            return (false);
-        }
-        
-        if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
-                                       ts, ts.getCurrentRound(this.partitionId)));
-        
-        MarkovEstimate estimate = t_state.getLastEstimate();
-        assert(estimate != null) : "Got back null MarkovEstimate for " + ts;
-        new_done = estimate.getFinishedPartitions(this.thresholds);
-        
-        if (new_done.isEmpty() == false) { 
-            // Note that we can actually be done with ourself, if this txn is only going to execute queries
-            // at remote partitions. But we can't actually execute anything because this partition's only 
-            // execution thread is going to be blocked. So we always do this so that we're not sending a 
-            // useless message
-            new_done.remove(this.partitionId);
-            
-            // Make sure that we only tell partitions that we actually touched, otherwise they will
-            // be stuck waiting for a finish request that will never come!
-            Collection<Integer> ts_touched = ts.getTouchedPartitions().values();
-
-            // Mark the txn done at this partition if the MarkovEstimate said we were done
-            for (Integer p : new_done) {
-                if (ts_done_partitions.get(p.intValue()) == false && ts_touched.contains(p)) {
-                    if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, ts));
-                    ts_done_partitions.set(p.intValue());
-                }
-            } // FOR
-        }
-        return (ts_done_partitions.cardinality() != ts_done_partitions_size);
-    }
-
-    /**
      * This site is requesting that the coordinator execute work on its behalf
      * at remote sites in the cluster 
      * @param ftasks
@@ -2061,7 +2017,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         boolean new_done = false;
         if (hstore_conf.site.exec_speculative_execution) {
-            new_done = this.calculateDonePartitions(ts);
+            new_done = ts.calculateDonePartitions(this.thresholds);
         }
         
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
@@ -2587,17 +2543,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 }
             } // FOR
 
-            /// We need to do this before we invoke transactionPrepare because the LocalTransaction handle
-            // might get cleaned up immediately
+            // We need to set the new ExecutionMode before we invoke transactionPrepare
+            // because the LocalTransaction handle might get cleaned up immediately
+            ExecutionMode newMode = null;
             if (hstore_conf.site.exec_speculative_execution) {
-                this.setExecutionMode(ts, ts.isExecReadOnly(this.partitionId) ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
+                newMode = (ts.isExecReadOnly(this.partitionId) ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
             } else {
-                this.setExecutionMode(ts, ExecutionMode.DISABLED);                  
+                newMode = ExecutionMode.DISABLED;
             }
+            this.setExecutionMode(ts, newMode);
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
             TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
-            assert(callback != null) : "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
+            assert(callback != null) : 
+                "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
         }
         // -------------------------------
@@ -2672,13 +2631,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * The coordinator is telling our site to abort/commit the txn with the
-     * provided transaction id. This method should only be used for multi-partition transactions, because
+     * Somebody told us that our partition needs to abort/commit the given transaction id.
+     * This method should only be used for distributed transactions, because
      * it will do some extra work for speculative execution
      * @param txn_id
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
-    public void finishTransaction(AbstractTransaction ts, boolean commit) {
+    private void finishTransaction(AbstractTransaction ts, boolean commit) {
         if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d", ts, this.partitionId));
         if (this.currentDtxn != ts) {  
             return;
@@ -2712,14 +2671,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             exec_lock.unlock();
         } // SYNCH
         
-        // If this is a RemoteTransaction, invoke the cleanup callback
-        if (ts instanceof RemoteTransaction) {
-            ((RemoteTransaction)ts).getCleanupCallback().run(this.partitionId);
-        } else {
-            TransactionFinishCallback finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
+        // If we have a cleanup callback, then invoke that
+        if (ts.getCleanupCallback() != null) {
+            TransactionCleanupCallback callback = ts.getCleanupCallback();
             if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
-                                           ts, finish_callback.getClass().getSimpleName(), this.partitionId));
-            finish_callback.decrementCounter(1);
+                                           ts, callback.getClass().getSimpleName(), this.partitionId));
+            ts.getCleanupCallback().run(this.partitionId);
+        }
+        // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback 
+        else if (ts instanceof LocalTransaction) {
+            TransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
+            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                           ts, callback.getClass().getSimpleName(), this.partitionId));
+            callback.decrementCounter(1);
         }
         
     }    

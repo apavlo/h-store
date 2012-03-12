@@ -42,9 +42,8 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
         
         // Only include local partitions
         int counter = 0;
-        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : partitions) {
-            if (localPartitions.contains(p)) counter++;
+        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+            if (partitions.contains(p)) counter++;
         } // FOR
         assert(counter > 0);
         super.init(ts.getTransactionId(), counter, null);
