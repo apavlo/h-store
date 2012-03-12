@@ -69,6 +69,8 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.markov.EstimationThresholds;
+import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
@@ -1258,6 +1260,49 @@ public class LocalTransaction extends AbstractTransaction {
                                   debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitions().size(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
         return (dinfo.getResults(hstore_site.getLocalPartitionIds(), true));
+    }
+    
+    /**
+     * Figure out what partitions this transaction is done with and notify those partitions
+     * that they are done
+     * @param ts
+     */
+    public boolean calculateDonePartitions(EstimationThresholds thresholds) {
+        final int ts_done_partitions_size = this.done_partitions.size();
+        Set<Integer> new_done = null;
+
+        TransactionEstimator.State t_state = this.getEstimatorState();
+        if (t_state == null) {
+            return (false);
+        }
+        
+        if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
+                                       this, this.getCurrentRound(this.base_partition)));
+        
+        MarkovEstimate estimate = t_state.getLastEstimate();
+        assert(estimate != null) : "Got back null MarkovEstimate for " + this;
+        new_done = estimate.getFinishedPartitions(thresholds);
+        
+        if (new_done.isEmpty() == false) { 
+            // Note that we can actually be done with ourself, if this txn is only going to execute queries
+            // at remote partitions. But we can't actually execute anything because this partition's only 
+            // execution thread is going to be blocked. So we always do this so that we're not sending a 
+            // useless message
+            new_done.remove(this.base_partition);
+            
+            // Make sure that we only tell partitions that we actually touched, otherwise they will
+            // be stuck waiting for a finish request that will never come!
+            Collection<Integer> ts_touched = this.getTouchedPartitions().values();
+
+            // Mark the txn done at this partition if the MarkovEstimate said we were done
+            for (Integer p : new_done) {
+                if (this.done_partitions.get(p.intValue()) == false && ts_touched.contains(p)) {
+                    if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
+                    this.done_partitions.set(p.intValue());
+                }
+            } // FOR
+        }
+        return (this.done_partitions.cardinality() != ts_done_partitions_size);
     }
     
     // ----------------------------------------------------------------------------

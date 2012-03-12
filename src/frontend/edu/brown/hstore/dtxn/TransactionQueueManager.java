@@ -240,8 +240,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // If null, then there is nothing that is ready to run at this partition,
             // so we'll just skip to the next one
             if (next_id == null) {
-                if (t) LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping... [queueSize=%d]",
-                                               partition, initQueues[partition].size()));
+                if (t) LOG.trace(String.format("Partition #%d initQueue does not have a transaction ready to run. Skipping... [queueSize=%d]",
+                                               partition, this.initQueues[partition].size()));
                 continue;
             }
             
@@ -267,7 +267,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 continue;
             }
 
-            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!",
+            if (d) LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking initQueue callback!",
                                            partition, next_id));
             this.initQueuesLastTxn[partition] = next_id;
             this.initQueuesBlocked[partition] = true;
@@ -305,7 +305,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @return
      */
     public boolean initInsert(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
-        if (d) LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]",
+        if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
                                        txn_id, partitions));
         
         // Always put in the callback first, because we may end up rejecting
@@ -321,7 +321,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // all that we care about is that whatever value is in there now is greater than
             // the what the transaction was trying to use.
             if (this.initQueuesLastTxn[partition].compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The last initQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                                partition, this.initQueuesLastTxn[partition], txn_id));
                 this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, this.initQueuesLastTxn[partition]);
                 ret = false;
@@ -339,7 +339,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // The next txnId that we're going to try to execute is already greater
             // than this new txnId that we were given! Rejection!
             if (next_safe.compareTo(txn_id) > 0) {
-                if (d) LOG.debug(String.format("The next safe txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
+                if (d) LOG.debug(String.format("The next safe initQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, next_safe);
                 ret = false;
@@ -347,7 +347,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             // Our queue is overloaded. We have to throttle the txnId!
             else if (queue.offer(txn_id, false) == false) {
-                if (d) LOG.debug(String.format("The queue for partition #%d is overloaded. Throttling txn #%d",
+                if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id, callback, Status.ABORT_THROTTLED, partition, next_safe);
                 ret = false;
@@ -359,7 +359,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 should_notify = true;
             }
             
-            if (d) LOG.debug(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
+            if (d) LOG.debug(String.format("Added txn #%d to initQueue for partition %d [locked=%s, queueSize=%d]",
                                            txn_id, partition, this.initQueuesBlocked[partition], this.initQueues[partition].size()));
         } // FOR
         if (should_notify && this.checkFlag.availablePermits() == 0)

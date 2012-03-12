@@ -40,7 +40,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -127,7 +126,7 @@ public class PartitionEstimator {
         private final Set<String> table_keys = new HashSet<String>();
         private final Collection<String> broadcast_tables = new HashSet<String>();
 
-        private final transient ListOrderedSet<Table> tables = new ListOrderedSet<Table>();
+        private transient Table tables[];
         /** Whether the table in the tables array is replicated */
         private transient boolean is_replicated[];
         private transient boolean is_array[]; // parameters
@@ -169,11 +168,11 @@ public class PartitionEstimator {
             } // FOR
         }
 
-        public void setContainsOr(boolean flag) {
+        public void markContainsOR(boolean flag) {
             this.contains_or = flag;
         }
 
-        public boolean isContainsOr() {
+        public boolean isMarkedContainsOR() {
             return (this.contains_or);
         }
 
@@ -181,7 +180,6 @@ public class PartitionEstimator {
          * The catalog object for this CacheEntry references a table without any
          * predicates on columns, so we need to mark it as having to always be
          * broadcast (unless it is replicated)
-         * 
          * @param catalog_tbls
          */
         public void markAsBroadcast(Table... catalog_tbls) {
@@ -197,22 +195,10 @@ public class PartitionEstimator {
         }
 
         /**
-         * Does the catalog object represented by this CacheEntry have to be
-         * broadcast to all partitions because of the given Table
-         * 
-         * @param catalog_tbl
-         * @return
-         */
-        public boolean isMarkedAsBroadcast(Table catalog_tbl) {
-            return (this.broadcast_tables.contains(CatalogKey.createKey(catalog_tbl)));
-        }
-
-        /**
          * Get all of the tables referenced in this CacheEntry
-         * 
          * @return
          */
-        public ListOrderedSet<Table> getTables() {
+        public Table[] getTables() {
             if (this.cache_valid == false) {
                 // We have to update the cache set if don't have all of the
                 // entries we need or the catalog has changed
@@ -220,13 +206,13 @@ public class PartitionEstimator {
                     if (this.cache_valid == false) {
                         if (trace.get())
                             LOG.trace("Generating list of tables used by cache entry");
-                        this.tables.clear();
-
-                        this.is_replicated = new boolean[this.table_keys.size()];
+                        
+                        this.tables = new Table[this.table_keys.size()];
+                        this.is_replicated = new boolean[this.tables.length];
                         int i = 0;
                         for (String table_key : this.table_keys) {
                             Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
-                            this.tables.add(catalog_tbl);
+                            this.tables[i] = catalog_tbl;
                             this.is_replicated[i++] = catalog_tbl.getIsreplicated();
                         } // FOR
                     }
@@ -239,17 +225,9 @@ public class PartitionEstimator {
         public boolean hasTable(Table catalog_tbl) {
             return (this.table_keys.contains(CatalogKey.createKey(catalog_tbl)));
         }
-
         public void setValid() {
             this.is_valid = true;
         }
-
-        public void setInvalid() {
-            this.is_valid = false;
-            this.table_keys.clear();
-            this.clear();
-        }
-
         public boolean isValid() {
             return (this.is_valid);
         }
@@ -520,8 +498,8 @@ public class PartitionEstimator {
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
                     if (debug.get())
                         LOG.warn(CatalogUtil.getDisplayName(catalog_frag) + " contains OR conjunction. Cannot be used with multi-column partitioning");
-                    stmt_cache.setContainsOr(true);
-                    frag_cache.setContainsOr(true);
+                    stmt_cache.markContainsOR(true);
+                    frag_cache.markContainsOR(true);
                 }
 
                 // If there are no tables, then we need to double check that the
@@ -1096,8 +1074,7 @@ public class PartitionEstimator {
                 }
 
                 // If this PlanFragment has a broadcast, then this statment
-                // can't be used
-                // for fast look-ups
+                // can't be used for fast look-ups
                 if (cache_entry.hasBroadcast()) {
                     if (debug.get())
                         LOG.warn(String.format("%s contains an operation that must be broadcast. Cannot be used for fast look-ups", catalog_frag.fullName()));
@@ -1273,18 +1250,14 @@ public class PartitionEstimator {
         @SuppressWarnings("unchecked")
         final Set<Integer> table_partitions = (Set<Integer>) this.partitionSetPool.borrowObject();
         assert (table_partitions != null);
+        table_partitions.clear();
 
-        // Go through each table referenced in this CacheEntry and look-up the
-        // parameters that the partitioning
-        // columns are referenced against to determine what partitions we need
-        // to go to
-        // IMPORTANT: If there are no tables (meaning it's some PlanFragment
-        // that combines data output
-        // from other PlanFragments), then won't return anything because it is
-        // up to whoever
-        // to figure out where to send this PlanFragment (it may be at the
-        // coordinator)
-        List<Table> tables = cache_entry.getTables().asList();
+        // Go through each table referenced in this CacheEntry and look-up the parameters that the 
+        // partitioning columns are referenced against to determine what partitions we need to go to
+        // IMPORTANT: If there are no tables (meaning it's some PlanFragment that combines data output
+        // from other PlanFragments), then won't return anything because it is up to whoever
+        // to figure out where to send this PlanFragment (it may be at the coordinator)
+        Table tables[] = cache_entry.getTables();
         if (trace.get()) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("CacheEntry", cache_entry);
@@ -1294,20 +1267,15 @@ public class PartitionEstimator {
             LOG.trace("Calculating partitions for " + cache_entry.query_type + "\n" + StringUtil.formatMaps(m));
         }
 
-        for (int table_idx = 0, cnt = cache_entry.is_replicated.length; table_idx < cnt; table_idx++) {
-            final Table catalog_tbl = tables.get(table_idx);
+        for (int table_idx = 0; table_idx < cache_entry.is_replicated.length; table_idx++) {
+            final Table catalog_tbl = tables[table_idx];
             final boolean is_replicated = cache_entry.is_replicated[table_idx];
-            if (table_idx > 0)
-                table_partitions.clear();
 
             // Easy Case: If this table is replicated and this query is a scan,
-            // then
-            // we're in the clear and there's nothing else we need to do here
-            // for the
-            // current table (but we still need to check the other guys).
+            // then we're in the clear and there's nothing else we need to do here
+            // for the current table (but we still need to check the other guys).
             // Conversely, if it's replicated but we're performing an update or
-            // a
-            // delete, then we know it's not single-sited.
+            // a delete, then we know it's not single-sited.
             if (is_replicated) {
                 if (stmt_type == QueryType.SELECT) {
                     if (trace.get())
@@ -1321,9 +1289,9 @@ public class PartitionEstimator {
                 } else {
                     assert (false) : "Unexpected query type: " + stmt_type;
                 }
-                // Otherwise calculate the partition value based on this table's
-                // partitioning column
-            } else {
+            }
+            // Otherwise calculate the partition value based on this table's partitioning column
+            else {
                 // Grab the parameter mapping for this column
                 Column catalog_col = cache_tablePartitionColumns.get(catalog_tbl);
                 if (trace.get())
@@ -1334,7 +1302,7 @@ public class PartitionEstimator {
                 if (catalog_col instanceof MultiColumn) {
                     // HACK: All multi-column look-ups on queries with an OR
                     // must be broadcast
-                    if (cache_entry.isContainsOr()) {
+                    if (cache_entry.isMarkedContainsOR()) {
                         if (debug.get())
                             LOG.warn("Trying to use multi-column partitioning [" + catalog_col.fullName() + "] on query that contains an 'OR': " + cache_entry);
                         table_partitions.addAll(this.all_partitions);

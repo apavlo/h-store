@@ -20,7 +20,7 @@ import edu.brown.utils.ProfileMeasurement;
 public abstract class AbstractDispatcher<E> implements Runnable {
     private static final Logger LOG = Logger.getLogger(AbstractDispatcher.class);
     
-    protected final HStoreCoordinator hStoreCoordinator;
+    protected final HStoreCoordinator hstore_coordinator;
     private final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
     private final LinkedBlockingDeque<E> queue = new LinkedBlockingDeque<E>();
 
@@ -29,17 +29,17 @@ public abstract class AbstractDispatcher<E> implements Runnable {
      * @param hStoreCoordinator
      */
     public AbstractDispatcher(HStoreCoordinator hStoreCoordinator) {
-        this.hStoreCoordinator = hStoreCoordinator;
+        this.hstore_coordinator = hStoreCoordinator;
     }
     
     @Override
     public final void run() {
-        HStoreConf hstore_conf = this.hStoreCoordinator.getHStoreConf(); 
+        HStoreConf hstore_conf = this.hstore_coordinator.getHStoreConf(); 
         if (hstore_conf.site.cpu_affinity)
-            this.hStoreCoordinator.getHStoreSite().getThreadManager().registerProcessingThread();
+            this.hstore_coordinator.getHStoreSite().getThreadManager().registerProcessingThread();
         E e = null;
         boolean profiling = hstore_conf.site.exec_profiling;
-        while (this.hStoreCoordinator.isShutdownOrPrepareShutDown() == false) {
+        while (this.hstore_coordinator.isShutdownOrPrepareShutDown() == false) {
             try {
                 if (profiling) idleTime.start();
                 e = this.queue.take();
