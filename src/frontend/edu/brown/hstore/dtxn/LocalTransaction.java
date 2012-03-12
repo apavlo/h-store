@@ -120,6 +120,7 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean needs_restart = false;
     
     private boolean deletable = false;
+    private boolean not_deletable = false;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -357,6 +358,7 @@ public class LocalTransaction extends AbstractTransaction {
 
         this.needs_restart = false;
         this.deletable = false;
+        this.not_deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -668,7 +670,7 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.finish_callback != null && this.finish_callback.allCallbacksFinished() == false) {
             return (false);
         }
-        if (this.needs_restart) {
+        if (this.needs_restart || this.not_deletable) {
             return (false);
         }
         synchronized (this) {
@@ -677,10 +679,16 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return (true);
     }
+    public final void markAsNotDeletable() {
+        assert(this.not_deletable == false) :
+            "Trying to mark " + this + " as not-deletable more than once";
+        this.not_deletable = true;
+    }
     public final void markAsDeletable() {
         assert(this.deletable == false) :
             "Trying to mark " + this + " as deletable more than once";
         this.deletable = true;
+        this.not_deletable = false;
     }
     public final boolean checkDeletableFlag() {
         return (this.deletable);
@@ -1338,6 +1346,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
         m.put("Deletable", this.deletable);
+        m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);

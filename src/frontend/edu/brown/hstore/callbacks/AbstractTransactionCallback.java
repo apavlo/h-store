@@ -50,7 +50,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
      * @param hstore_site
      */
     protected AbstractTransactionCallback(HStoreSite hstore_site) {
-        super(hstore_site, true);
+        super(hstore_site, false);
         this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
     
