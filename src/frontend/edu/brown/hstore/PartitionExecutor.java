@@ -798,6 +798,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [nextMode=%s]",
                                                                     current_txn, this.partitionId, newMode));                    
                         }
+                        // There is a current DTXN but it's not us!
+                        // That means we need to block ourselves until it finishes
+                        else if (this.currentDtxn != current_txn) {
+                            if (d) LOG.warn(String.format("%s - Blocking on partition %d until current Dtxn %s finishes",
+                                                          current_txn, this.partitionId, this.currentDtxn));
+                            this.currentBlockedTxns.add(ftask);
+                            continue;
+                        }
+                        assert(this.currentDtxn == current_txn) :
+                            String.format("Trying to execute a second Dtxn %s before the current one has finished [current=%s]",
+                                          current_txn, this.currentDtxn);
                         this.setExecutionMode(current_txn, newMode);
                     } finally {
                         exec_lock.unlock();
@@ -1120,8 +1131,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.currentDtxn == null) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.currentDtxn, ts, this.currentBlockedTxns.size());
-//        if (d) 
-            LOG.info(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
+        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
                                        ts, this.partitionId, this.currentDtxn));
         this.currentDtxn = ts;
     }
@@ -1129,9 +1139,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private void resetCurrentDtxn() {
         assert(this.currentDtxn != null) :
             "Trying to reset the currentDtxn when it is already null";
-//        if (d)
-        LOG.info(String.format("Resetting current DTXN for partition #%d to null [previous=%s]",
-                                this.partitionId, this.currentDtxn));
+        if (d) LOG.debug(String.format("Resetting current DTXN for partition #%d to null [previous=%s]",
+                                       this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
     
@@ -1163,8 +1172,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         FinishTaskMessage task = ts.getFinishTaskMessage(status);
         this.work_queue.add(task);
-//        if (d) 
-            LOG.info(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
+        if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
                                        ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
@@ -1350,9 +1358,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ExecutionMode before_mode = ExecutionMode.COMMIT_ALL;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         
-//        if (t) 
-            LOG.info(String.format("%s - Attempting to begin processing %s on partition %d [taskHash=%d]",
-                                    ts, itask.getClass().getSimpleName(), this.partitionId, itask.hashCode()));
+        if (t) LOG.trace(String.format("%s - Attempting to begin processing %s on partition %d [taskHash=%d]",
+                                       ts, itask.getClass().getSimpleName(), this.partitionId, itask.hashCode()));
         // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
         // for this PartitionExecutor.
         if (predict_singlePartition == false) {
@@ -1546,7 +1553,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             String.format("Tried to execute WorkFragment %s for %s on partition %d but it was suppose to be executed on partition %d",
                           wfrag.getFragmentIdList(), ts, this.partitionId, wfrag.getPartitionId());
         
-        // A txn is "local" if the Java is executing at the same site as we are
+        // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
         if (d) LOG.debug(String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
@@ -2644,12 +2651,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private void finishTransaction(AbstractTransaction ts, boolean commit) {
         if (this.currentDtxn != ts) {  
-            LOG.info(String.format("%s - Skipping finishWork request at partition %d because it is not the current Dtxn [%s/undoToken=%d]",
+            if (d) LOG.debug(String.format("%s - Skipping finishWork request at partition %d because it is not the current Dtxn [%s/undoToken=%d]",
                                    ts, this.partitionId, this.currentDtxn, ts.getLastUndoToken(partitionId)));
             return;
         }
-//      if (d) 
-        LOG.info(String.format("%s - Processing finishWork request at partition %d", ts, this.partitionId));
+        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d",
+                                       ts, this.partitionId));
 
         assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         
@@ -2683,16 +2690,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // If we have a cleanup callback, then invoke that
         if (ts.getCleanupCallback() != null) {
             TransactionCleanupCallback callback = ts.getCleanupCallback();
-//            if (t) 
-                LOG.info(String.format("%s - Notifying %s that the txn is finished at partition %d",
+            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                                            ts, callback.getClass().getSimpleName(), this.partitionId));
             ts.getCleanupCallback().run(this.partitionId);
         }
         // If it's a LocalTransaction, then we'll want to invoke their TransactionFinishCallback 
         else if (ts instanceof LocalTransaction) {
             TransactionFinishCallback callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-//            if (t) 
-                LOG.info(String.format("%s - Notifying %s that the txn is finished at partition %d",
+            if (t) LOG.trace(String.format("%s - Notifying %s that the txn is finished at partition %d",
                                            ts, callback.getClass().getSimpleName(), this.partitionId));
             callback.decrementCounter(1);
         }

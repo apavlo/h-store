@@ -288,8 +288,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-//        if (d) 
-            LOG.info(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
+        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
                                        this, this.round_ctr[offset], partition, undoToken));
     }
     
