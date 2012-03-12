@@ -78,7 +78,7 @@ public class TransactionIdManager {
     long counterValue = 0;
 
     // remembers the last txn generated
-    long lastTxnId = 0;
+    Long lastTxnId = 0l;
     
     long time_delta = 0L;
 
@@ -96,7 +96,7 @@ public class TransactionIdManager {
      * to this method will return strictly larger long values.
      * @return The newly generated transaction id.
      */
-    public synchronized long getNextUniqueTransactionId() {
+    public synchronized Long getNextUniqueTransactionId() {
         long currentTime = System.currentTimeMillis();
 //        boolean new_time = true;
         if (currentTime == lastUsedTime) {
@@ -147,9 +147,8 @@ public class TransactionIdManager {
             counterValue = 0;
         }
 
-        lastTxnId = makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId);
-
-        return lastTxnId;
+        this.lastTxnId = Long.valueOf(makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId));
+        return (this.lastTxnId);
     }
 
     public static long makeIdFromComponents(long ts, long seqNo, long initiatorId) {
@@ -215,7 +214,7 @@ public class TransactionIdManager {
      * Get the last txn id generated.
      * @return The last txn id generated.
      */
-    public long getLastTxnId() {
+    public Long getLastTxnId() {
         return lastTxnId;
     }
 
@@ -223,6 +222,10 @@ public class TransactionIdManager {
         return lastUsedTime;
     }
 
+    /**
+     * This should not be invoked directly by anybody else at runtime
+     * @param delta
+     */
     public void setTimeDelta(long delta) {
         this.time_delta = delta;
     }

@@ -889,7 +889,9 @@ public class HStoreCoordinator implements Shutdownable {
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Approximate the time offsets of all the sites in the cluster so that we can offset
+     * our TransactionIdManager's timestamps by the site with the clock the furthest ahead. 
+     * This is a blocking call and only really needs to be performed once at start-up
      */
     public void syncClusterTimes() {
         final int num_sites = this.channels.size();
@@ -941,7 +943,7 @@ public class HStoreCoordinator implements Shutdownable {
                 culprit = e.getKey();
             }
         }
-        this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
+        this.hstore_site.setTransactionIdManagerTimeDelta(max_dt);
         if (debug.get()) {
             LOG.debug("Setting time delta to " + max_dt + "ms");
             LOG.debug("I think the killer is site " + culprit + "!");

@@ -2325,7 +2325,6 @@ H-STORE REMIX
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
 
-        <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="conf=${conf}" />
         <arg value="site.id=${site.id}" />

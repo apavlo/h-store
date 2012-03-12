@@ -184,10 +184,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
-        final TransactionIdManager idManager = hstore_site.getTransactionIdManager();
-        long txn_id = -1;
-        long last_id = -1;
-        
         while (this.stop == false) {
             try {
                 this.checkFlag.tryAcquire(this.wait_time*2, TimeUnit.MILLISECONDS);
@@ -200,12 +196,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process
             }
-            if (this.blockedQueue.isEmpty() == false) {
-                txn_id = idManager.getLastTxnId();
-                if (last_id == txn_id) txn_id = idManager.getNextUniqueTransactionId();
-                this.checkBlockedQueue(txn_id);
-                last_id = txn_id;
-            }
+            
+            // Release blocked distributed transactions
+            this.checkBlockedQueue();
             
             // Requeue mispredicted local transactions
             this.checkRestartQueue();
@@ -546,7 +539,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug(String.format("%s - Blocking transaction until after a txnId greater than #%d is created for partition %d",
                                        ts, last_txn_id, partition));
        
-        // IMPORTANT: Mark this transaction as needing to be restarted
+        // IMPORTANT: Mark this transaction as not being deletable.
         //            This will prevent it from getting deleted out from under us
         ts.setNeedsRestart(true);
         
@@ -563,7 +556,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
         if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) {
             TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
-            this.blockedQueueHistogram.put((int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id));
+            int id = (int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id.longValue());
+            this.blockedQueueHistogram.put(id);
         }
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
@@ -573,10 +567,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * 
      * @param last_txn_id
      */
-    private void checkBlockedQueue(Long last_txn_id) {
-        if (d && this.blockedQueue.isEmpty() == false)
-            LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]",
-                                    this.blockedQueue.size(), last_txn_id));
+    private void checkBlockedQueue() {
+        if (d) LOG.debug(String.format("Checking whether we can release %d blocked dtxns",
+                                       this.blockedQueue.size()));
         
         while (this.blockedQueue.isEmpty() == false) {
             LocalTransaction ts = this.blockedQueue.peek();
@@ -590,17 +583,23 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 }
                 continue;
             }
+            
+            // Check whether the last txnId issued by the TransactionIdManager at the transactions'
+            // base partition is greater than the one that we can be released on 
+            TransactionIdManager txnIdManager = hstore_site.getTransactionIdManager(ts.getBasePartition());
+            Long last_txn_id = txnIdManager.getLastTxnId();
             if (releaseTxnId.compareTo(last_txn_id) < 0) {
                 if (d) LOG.debug(String.format("Releasing blocked %s because the lastest txnId was #%d [release=%d]",
                                                ts, last_txn_id, releaseTxnId));
                 this.blockedQueue.remove();
                 this.blockedQueueTransactions.remove(ts);
-                hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
+                this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
                 ts.setNeedsRestart(false);
                 if (ts.isDeletable()) {
-                    hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+                    this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
                 }
-                
+            // For now we can break, but I think that we may need separate
+            // queues for the different partitions...
             } else break;
         } // WHILE
     }

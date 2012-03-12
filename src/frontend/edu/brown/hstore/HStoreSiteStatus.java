@@ -182,7 +182,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 this.last_completed == completed && hstore_site.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
                 LOG.fatal(msg);
-                this.hstore_site.getCoordinator().shutdownCluster(new RuntimeException(msg));
+                this.hstore_site.getHStoreCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
         } // WHILE
@@ -922,7 +922,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         String bot = "";
         Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
         if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
-            bot = "\nRejected Transactions:\n" + blockedDtxns;
+            bot = "\nRejected Transactions by Remote Identifier:\n" + blockedDtxns;
 //            bot += "\n" + hstore_site.getTransactionQueueManager().toString();
         }
         
