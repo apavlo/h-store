@@ -137,7 +137,6 @@ BASE_SETTINGS = {
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
-    "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
     
     "site.log_backup":                                  False,
@@ -161,6 +160,7 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
+    "site.num_hosts_round_robin":                       None,
     "site.memory":                                      65440,
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
@@ -187,7 +187,6 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":         True,
             "benchmark.warehouse_debug":         False,
             "benchmark.noop":                    False,
-            "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
         {
@@ -244,6 +243,11 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         env["benchmark.neworder_only"] = True
         env["benchmark.neworder_abort"] = False
 
+        env["client.processesperclient"] = 800 # * math.ceil(env["site.partitions"] / 4)
+        env["client.blocking_concurrent"] = int(math.ceil(env["site.partitions"] / 2))
+        env["client.processesperclient_per_partition"] = False
+
+        env["site.exec_neworder_cheat"] = (exp_factor == 0)
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
             env["benchmark.neworder_multip"] = (exp_factor > 0)
@@ -559,9 +563,10 @@ if __name__ == '__main__':
                 # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
                 exp_factors = [ ]
                 if OPT_EXP_SETTINGS == 0:
-                    values = [ 0, 3, 10, 80, 100 ]
+                    #values = [ 0, 3, 10, 80, 100 ]
+                    values = [ 0, 10, 20, 30 ]
                 else:
-                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
+                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 3)
                 LOG.debug("%s Exp Factor Values: %s" % (OPT_EXP_TYPE.upper(), values))
                 for f in values:
                     if f > int(OPT_EXP_FACTOR_STOP): break

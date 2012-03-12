@@ -51,7 +51,7 @@ import edu.brown.utils.PartitionEstimator;
  * of the rows applicable to the current partitioning at each node in the
  * cluster.
  */
-@ProcInfo(singlePartition = false)
+@ProcInfo(singlePartition = true)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -162,6 +162,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // Split the input table into per-partition units
         if (debug.get()) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into partitioned tables");
         boolean mispredict = false;
+        table.resetRowPosition();
         while (table.advanceRow()) {
             int p = -1;
             try {

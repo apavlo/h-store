@@ -70,7 +70,7 @@ ALL_PACKAGES = [
     'git-core',
     'gcc',
     'g++',
-    'sun-java6-jdk',
+    'openjdk-6-jdk',
     'valgrind',
     'ant',
     ## Not required, but handy to have
@@ -85,9 +85,10 @@ NFSCLIENT_PACKAGES = [
     'autofs',
 ]
 
-NFSTYPE_TAG         = "Type"
-NFSTYPE_TAG_HEAD    = "nfs-node"
-NFSTYPE_TAG_CLIENT  = "nfs-client"
+TAG_NFSTYPE         = "Type"
+TAG_NFSTYPE_HEAD    = "nfs-node"
+TAG_NFSTYPE_CLIENT  = "nfs-client"
+TAG_CLUSTER         = "Cluster"
 
 ## Fabric Options
 env.key_filename = os.path.join(os.environ["HOME"], ".ssh/hstore.pem")
@@ -113,11 +114,12 @@ ENV_DEFAULT = {
     "ec2.running_instances":       [ ],
     "ec2.reboot_wait_time":        20,
     "ec2.status_wait_time":        20,
+    "ec2.cluster_group":           None,
 
     ## Site Options
     "site.partitions":             6,
     "site.sites_per_host":         1,
-    "site.partitions_per_site":    6,
+    "site.partitions_per_site":    7,
     
     ## Client Options
     "client.count":                1,
@@ -179,6 +181,7 @@ def start_cluster(updateSync=True):
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
     instances_needed = hostCount + clientCount
     instances_count = instances_needed
+    if env["ec2.cluster_group"]: LOG.info("Virtual Cluster: %s" % env["ec2.cluster_group"])
     LOG.info("HostCount:%d / SiteCount:%d / PartitionCount:%d / ClientCount:%d" % (\
              hostCount, siteCount, partitionCount, clientCount))
 
@@ -201,7 +204,7 @@ def start_cluster(updateSync=True):
         is_running = inst in env["ec2.running_instances"]
         
         ## At least one of the running nodes must be our nfs-node
-        if inst.tags[NFSTYPE_TAG] == NFSTYPE_TAG_HEAD:
+        if inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
             if is_running:
                 assert nfs_inst == None, "Multiple NFS instances are running"
                 nfs_inst_online = True
@@ -235,9 +238,9 @@ def start_cluster(updateSync=True):
     ## IF
                 
     if nfs_inst == None:
-        LOG.info("No '%s' instance is available. Will create a new one" % NFSTYPE_TAG_HEAD)
+        LOG.info("No '%s' instance is available. Will create a new one" % TAG_NFSTYPE_HEAD)
     elif not nfs_inst_online:
-        LOG.info("'%s' instance %s is offline. Will restart" % (NFSTYPE_TAG_HEAD, __getInstanceName__(nfs_inst)))
+        LOG.info("'%s' instance %s is offline. Will restart" % (TAG_NFSTYPE_HEAD, __getInstanceName__(nfs_inst)))
     
     ## Check whether we enough instances already running
     sites_needed = max(0, siteCount - len(siteInstances))
@@ -302,10 +305,14 @@ def start_cluster(updateSync=True):
         for i in range(instances_needed):
             tags = { 
                 "Name": "hstore-%02d" % (next_id),
-                NFSTYPE_TAG: NFSTYPE_TAG_CLIENT,
+                TAG_NFSTYPE: TAG_NFSTYPE_CLIENT,
             }
+            ## Virtual Cluster
+            if env["ec2.cluster_group"]:
+                tags[TAG_CLUSTER] = env["ec2.cluster_group"]
+            
             if nfs_inst == None and not marked_nfs:
-                tags[NFSTYPE_TAG] = NFSTYPE_TAG_HEAD
+                tags[TAG_NFSTYPE] = TAG_NFSTYPE_HEAD
                 marked_nfs = True
                 
             if sites_needed > 0:
@@ -331,7 +338,7 @@ def start_cluster(updateSync=True):
     ## Check whether we already have an NFS node setup
     for i in range(len(env["ec2.running_instances"])):
         inst = env["ec2.running_instances"][i]
-        if NFSTYPE_TAG in inst.tags and inst.tags[NFSTYPE_TAG] == NFSTYPE_TAG_HEAD:
+        if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
             LOG.debug("BEFORE: %s" % env["ec2.running_instances"])
             env["ec2.running_instances"].pop(i)
             env["ec2.running_instances"].insert(0, inst)
@@ -459,6 +466,8 @@ def setup_nfshead(rebootInst=True):
     
     hstore_dir = "/home/%s/hstore" % env.user
     
+    sudo("apt-get --yes remove %s" % " ".join(NFSCLIENT_PACKAGES))
+    sudo("apt-get --yes autoremove")
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
     sudo("exportfs -a")
@@ -467,7 +476,7 @@ def setup_nfshead(rebootInst=True):
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
-    ec2_conn.create_tags([inst.id], {NFSTYPE_TAG: NFSTYPE_TAG_HEAD})
+    ec2_conn.create_tags([inst.id], {TAG_NFSTYPE: TAG_NFSTYPE_HEAD})
     
     ## Reboot and wait until it comes back online
     if rebootInst:
@@ -505,7 +514,7 @@ def setup_nfsclient(rebootInst=True):
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
-    ec2_conn.create_tags([inst.id], {NFSTYPE_TAG: NFSTYPE_TAG_CLIENT})
+    ec2_conn.create_tags([inst.id], {TAG_NFSTYPE: TAG_NFSTYPE_CLIENT})
     
     ## Reboot and wait until it comes back online
     if rebootInst:
@@ -599,20 +608,25 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     host_id = 0
     site_id = 0
     partition_id = 0
+    partitions_per_site = env["site.partitions_per_site"]
     
     ## HStore Sites
     LOG.debug("Partitions Needed: %d" % env["site.partitions"])
     LOG.debug("Partitions Per Site: %d" % env["site.partitions_per_site"])
     site_hosts = set()
+    
+    if "site.num_hosts_round_robin" in env and env["site.num_hosts_round_robin"] != None:
+        partitions_per_site = math.ceil(env["site.partitions"] / float(env["site.num_hosts_round_robin"]))
+    
     for inst in __getRunningSiteInstances__():
         site_hosts.add(inst.private_dns_name)
         for i in range(env["site.sites_per_host"]):
             firstPartition = partition_id
-            lastPartition = min(env["site.partitions"], firstPartition + env["site.partitions_per_site"])-1
+            lastPartition = min(env["site.partitions"], firstPartition + partitions_per_site)-1
             host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
             if firstPartition != lastPartition:
                 host += "-%d" % lastPartition
-            partition_id += env["site.partitions_per_site"]
+            partition_id += partitions_per_site
             site_id += 1
             hosts.append(host)
             if lastPartition+1 == env["site.partitions"]: break
@@ -911,8 +925,13 @@ def __getInstances__():
     if env["ec2.running_instances"]: return env["ec2.running_instances"]
     
     instFilter = { }
-    if env["ec2.placement_group"] != None:
-        instFilter["placement_group"] = env["ec2.placement_group"]
+    
+    ## Virtual Clusters
+    if env["ec2.cluster_group"]:
+        instFilter["tag:" + TAG_CLUSTER] = env["ec2.cluster_group"]
+    
+    env["ec2.all_instances"] = [ ]
+    env["ec2.running_instances"] = [ ]
     
     reservations = ec2_conn.get_all_instances(filters=instFilter)
     instances = [i for r in reservations for i in r.instances]
@@ -976,9 +995,15 @@ def __getInstance__(public_dns_name):
 def __getInstanceTypeCounts__():
     """Return a tuple of the number hosts/sites/partitions/clients that we need"""
     partitionCount = env["site.partitions"]
-    siteCount = int(math.ceil(partitionCount / float(env["site.partitions_per_site"])))
-    hostCount = int(math.ceil(siteCount / float(env["site.sites_per_host"])))
     clientCount = env["client.count"] 
+    
+    if "site.num_hosts_round_robin" in env and env["site.num_hosts_round_robin"] != None:
+        hostCount = int(env["site.num_hosts_round_robin"])
+        siteCount = hostCount
+    else:
+        siteCount = int(math.ceil(partitionCount / float(env["site.partitions_per_site"])))
+        hostCount = int(math.ceil(siteCount / float(env["site.sites_per_host"])))
+    
     return (hostCount, siteCount, partitionCount, clientCount)
 ## DEF
 
@@ -1058,7 +1083,11 @@ def __createSecurityGroup__():
 def __createPlacementGroup__():
     groupName = env["ec2.placement_group"]
     assert groupName
-    placement_groups = ec2_conn.get_all_placement_groups(groupnames=[groupName])
+    placement_groups = []
+    try:
+        placement_groups = ec2_conn.get_all_placement_groups(groupnames=[groupName])
+    except:
+        pass
     if len(placement_groups) == 0:
         LOG.info("Creating placement group '%s'" % groupName)
         ec2_conn.create_placement_group(groupName, strategy='cluster')

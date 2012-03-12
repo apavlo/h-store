@@ -2154,6 +2154,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public VoltTable[] dispatchWorkFragments(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+        assert(fragments.isEmpty() == false) :
+            "Unexpected empty WorkFragment list for " + ts;
+        
         // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Preparing to dispatch %d messages and wait for the results",
