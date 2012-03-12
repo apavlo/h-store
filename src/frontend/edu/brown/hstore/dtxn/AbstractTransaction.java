@@ -39,6 +39,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
@@ -260,9 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * reduceInput table should merge all incoming data from the mapOutput tables.
      */
     public Status storeData(int partition, VoltTable vt) {
-        assert(false) : "Unimplemented!";
-        
-        return (Status.OK);
+        throw new NotImplementedException("Not able to store data for non-MapReduce transactions");
     }
     
     // ----------------------------------------------------------------------------
