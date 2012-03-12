@@ -403,7 +403,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 status += "#" + txn_id;
                 AbstractTransaction ts = hstore_site.getTransaction(txn_id);
                 if (ts == null) {
-                    status += " MISSING?";
+                    // This is ok if the txn is remote
+                    // status += " MISSING?";
                 } else {
                     status += " [hashCode=" + ts.hashCode() + "]";
                 }

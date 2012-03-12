@@ -280,6 +280,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             try {
                 callback.run(partition);
                 counter = callback.getCounter();
+            } catch (NullPointerException ex) {
+                // HACK: Ignore...
+                if (d) LOG.warn(String.format("Unexpected error when invoking %s for txn #%d at partition %d",
+                                              callback.getClass().getSimpleName(), next_id, partition), ex);
             } catch (Throwable ex) {
                 throw new RuntimeException(String.format("Failed to invoke %s for txn #%d at partition %d",
                                                          callback.getClass().getSimpleName(), next_id, partition), ex);
@@ -408,7 +412,16 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             // We still have a callback, make sure that we remove it
             TransactionInitQueueCallback callback = this.initQueuesCallbacks.get(txn_id);
             if (callback != null) {
-                if (callback.isAborted() == false) callback.abort(status);
+                try {
+                    if (callback.isAborted() == false) callback.abort(status);
+                } catch (Throwable ex) {
+                    // XXX
+                    if (d) {
+                        String msg = String.format("Unexpected error when trying to abort txn #%d on partition %d [status=%s]",
+                                                   txn_id, partition, status);
+                        LOG.warn(msg, ex);
+                    }
+                }
                 this.cleanupTransaction(txn_id);
             }
         }
@@ -457,15 +470,20 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     private void rejectTransaction(Long txn_id, TransactionInitQueueCallback callback, Status status, int reject_partition, Long reject_txnId) {
         if (d) LOG.debug(String.format("Rejecting txn #%d on partition %d. Blocking until a txnId greater than #%d",
                                        txn_id, reject_partition, reject_txnId));
+
         
         // First send back an ABORT message to the initiating HStoreSite (if we haven't already)
-        if (callback.isAborted() == false) {
+        if (callback.isAborted() == false && callback.isUnblocked() == false) {
             try {
                 callback.abort(status, reject_partition, reject_txnId);
             } catch (Throwable ex) {
-                String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
-                                          txn_id, status, reject_partition, reject_txnId);
-                throw new RuntimeException(msg, ex);
+                // XXX
+                if (d) {
+                    String msg = String.format("Unexpected error when trying to abort txn #%d [status=%s, rejectPartition=%d, rejectTxnId=%s]",
+                                              txn_id, status, reject_partition, reject_txnId);
+                    LOG.warn(msg, ex); 
+                    // throw new RuntimeException(msg, ex);
+                }
             }
         }
         
@@ -565,7 +583,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             Long releaseTxnId = this.blockedQueueTransactions.get(ts);
             if (releaseTxnId == null) {
                 if (d) LOG.warn("Missing release TxnId for " + ts);
-                this.blockedQueue.remove(ts);
+                try {
+                    this.blockedQueue.remove(ts);
+                } catch (NullPointerException ex) {
+                    // XXX: IGNORE
+                }
                 continue;
             }
             if (releaseTxnId.compareTo(last_txn_id) < 0) {
@@ -611,6 +633,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         LocalTransaction ts = null;
         while ((ts = this.restartQueue.poll()) != null) {
             Status status = ts.getClientResponse().getStatus();
+            ts.markAsNotDeletable();
             this.hstore_site.transactionRestart(ts, status);
             ts.markAsDeletable();
             this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
