@@ -1431,7 +1431,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // transactions will commit/abort immediately
             if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
                 if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
-                
                 try {
                     this.executors[p].queueFinish(ts, status);
                 } catch (Throwable ex) {
@@ -1442,11 +1441,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // If this is a LocalTransaction, then we want to just decrement their TransactionFinishCallback counter
             else if (finish_callback != null) {
+                if (d) LOG.debug(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                               ts, finish_callback.getClass().getSimpleName(), p));
                 finish_callback.decrementCounter(1);
             }
             // If we didn't queue the transaction to be finished at this partition, then we need to make sure
             // that we mark the transaction as finished for this callback
             else if (cleanup_callback != null) {
+                if (d) LOG.debug(String.format("%s - Notifying %s that the txn is finished at partition %d",
+                                               ts, cleanup_callback.getClass().getSimpleName(), p));
                 cleanup_callback.run(p);
             }
         } // FOR            
@@ -1777,7 +1780,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             bytes = out.getBytes();
         } // SYNCH
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, requestCtr=%d]",
                                        ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
         
         // Send result back to client!

@@ -196,7 +196,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             }
             
             if (t) LOG.trace("Checking partition queues for dtxns to release!");
-            while (this.checkQueues()) {
+            while (this.checkInitQueues()) {
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process
             }
@@ -212,13 +212,17 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         } // WHILE
     }
     
+    // ----------------------------------------------------------------------------
+    // INIT QUEUES
+    // ----------------------------------------------------------------------------
+    
     /**
      * Check whether there are any transactions that need to be released for execution
      * at the partitions controlled by this queue manager
      * Returns true if we released a transaction at at least one partition
      */
-    protected boolean checkQueues() {
-        if (t) LOG.trace("Checking queues");
+    protected boolean checkInitQueues() {
+        if (t) LOG.trace("Checking initQueues for " + this.localPartitionsArray.length + " partitions");
         
         boolean txn_released = false;
         for (int partition : this.localPartitionsArray) {
@@ -290,11 +294,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         } // FOR
         return (txn_released);
     }
-    
-    
-    // ----------------------------------------------------------------------------
-    // PUBLIC API
-    // ----------------------------------------------------------------------------
     
     /**
      * Add a new transaction to this queue manager.

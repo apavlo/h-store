@@ -132,7 +132,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // TODO(pavlo): Document what these arrays are and how the offsets are calculated
     
     private final boolean finished[];
-    protected final long last_undo_token[];
+    private final long last_undo_token[];
     protected final RoundState round_state[];
     protected final int round_ctr[];
     
@@ -162,7 +162,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int cnt = hstore_site.getLocalPartitionIds().size();
+        int cnt = hstore_site.getLocalPartitionIdArray().length;
         this.finished = new boolean[cnt];
         this.last_undo_token = new long[cnt];
         this.round_state = new RoundState[cnt];
@@ -176,6 +176,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         for (int i = 0; i < this.work_task.length; i++) {
             this.work_task[i] = new FragmentTaskMessage();
         } // FOR
+        
+        Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_readOnly, true);
     }
 
     /**
@@ -219,7 +222,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_abortable = true;
         this.pending_error = null;
         this.sysproc = false;
-        
         this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
@@ -277,7 +279,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
+            undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
@@ -285,7 +288,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
+//        if (d) 
+            LOG.info(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
                                        this, this.round_ctr[offset], partition, undoToken));
     }
     

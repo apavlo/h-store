@@ -312,36 +312,6 @@ public class LocalTransaction extends AbstractTransaction {
         );
     }
     
-    
-    public void setExecutionState(ExecutionState state) {
-        if (d) LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
-                                       this, (this.state == null)));
-        assert(state != null);
-        assert(this.state == null);
-        this.state = state;
-        
-        // Reset this so that we will call finish() on the cached DependencyInfos
-        // before we try to use it again
-        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
-            this.state.dinfo_lastRound[i] = -1;
-        } // FOR
-    }
-    
-    public void resetExecutionState() {
-        if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
-                                       this, (this.state == null)));
-        this.state = null;
-    }
-    
-    /**
-     * Returns true if this LocalTransaction was actually started
-     * in the ExecutionSite.
-     * @return
-     */
-    public boolean wasExecuted() {
-        return (this.state != null);
-    }
-    
     @Override
     public boolean isInitialized() {
         return (this.catalog_proc != null && super.isInitialized());
@@ -395,6 +365,35 @@ public class LocalTransaction extends AbstractTransaction {
         this.txn_id = txn_id;
     }
     
+    public void setExecutionState(ExecutionState state) {
+        if (d) LOG.debug(String.format("%s - Setting ExecutionState handle [isNull=%s]",
+                                       this, (this.state == null)));
+        assert(state != null);
+        assert(this.state == null);
+        this.state = state;
+        
+        // Reset this so that we will call finish() on the cached DependencyInfos
+        // before we try to use it again
+        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
+            this.state.dinfo_lastRound[i] = -1;
+        } // FOR
+    }
+    
+    public void resetExecutionState() {
+        if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
+                                       this, (this.state == null)));
+        this.state = null;
+    }
+    
+    /**
+     * Returns true if this LocalTransaction was actually started
+     * in the ExecutionSite.
+     * @return
+     */
+    public boolean wasExecuted() {
+        return (this.state != null);
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
@@ -415,7 +414,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         if (this.base_partition == partition) {
             // Reset these guys here so that we don't waste time in the last round
-            if (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != -1) {
+            if (this.getLastUndoToken(partition) != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
                 this.state.clearRound();
             }
         }
