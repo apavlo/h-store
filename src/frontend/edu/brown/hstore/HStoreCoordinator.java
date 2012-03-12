@@ -479,46 +479,37 @@ public class HStoreCoordinator implements Shutdownable {
     private class RemoteServiceHandler extends HStoreService {
     
         @Override
-        public void transactionInit(RpcController controller, TransactionInitRequest request,
-                RpcCallback<TransactionInitResponse> callback) {
+        public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
              transactionInit_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
-        public void transactionWork(RpcController controller, TransactionWorkRequest request,
-                RpcCallback<TransactionWorkResponse> callback) {
+        public void transactionWork(RpcController controller, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
             transactionWork_handler.remoteHandler(controller, request, callback);
         }
         
         @Override
-        public void transactionMap(RpcController controller, TransactionMapRequest request,
-                RpcCallback<TransactionMapResponse> callback) {
-            
+        public void transactionMap(RpcController controller, TransactionMapRequest request, RpcCallback<TransactionMapResponse> callback) {
             transactionMap_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
-        public void transactionReduce(RpcController controller, TransactionReduceRequest request,
-                RpcCallback<TransactionReduceResponse> callback) {
-            
+        public void transactionReduce(RpcController controller, TransactionReduceRequest request, RpcCallback<TransactionReduceResponse> callback) {
             transactionReduce_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
-        public void transactionPrepare(RpcController controller, TransactionPrepareRequest request,
-                RpcCallback<TransactionPrepareResponse> callback) {
+        public void transactionPrepare(RpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
             transactionPrepare_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
-        public void transactionFinish(RpcController controller, TransactionFinishRequest request,
-                RpcCallback<TransactionFinishResponse> callback) {
+        public void transactionFinish(RpcController controller, TransactionFinishRequest request, RpcCallback<TransactionFinishResponse> callback) {
             transactionFinish_handler.remoteQueue(controller, request, callback);
         }
         
         @Override
-        public void transactionRedirect(RpcController controller, TransactionRedirectRequest request,
-                RpcCallback<TransactionRedirectResponse> done) {
+        public void transactionRedirect(RpcController controller, TransactionRedirectRequest request, RpcCallback<TransactionRedirectResponse> done) {
             // We need to create a wrapper callback so that we can get the output that
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
@@ -549,29 +540,16 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         @Override
-        public void sendData(RpcController controller, SendDataRequest request,
-                RpcCallback<SendDataResponse> done) {
+        public void sendData(RpcController controller, SendDataRequest request, RpcCallback<SendDataResponse> done) {
             // Take the SendDataRequest and pass it to the sendData_handler, which
             // will deserialize the embedded VoltTable and wrap it in something that we can
             // then pass down into the underlying ExecutionEngine
             sendData_handler.remoteQueue(controller, request, done);
-          
         }
         
         @Override
-        public void shutdown(RpcController controller, ShutdownRequest request,
-                RpcCallback<ShutdownResponse> done) {
+        public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             String originName = HStoreThreadManager.formatSiteName(request.getSenderId());
-            LOG.warn(String.format("Got shutdown request from HStoreSite %s [hasError=%s]", originName, request.hasError()));
-            
-            // Tell the HStoreSite to shutdown
-            HStoreCoordinator.this.hstore_site.prepareShutdown(false);
-            
-            // Then send back the acknowledgment right away
-            ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                   .setSenderId(HStoreCoordinator.this.local_site_id)
-                                                   .build();
-            done.run(response);
             
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
@@ -579,8 +557,20 @@ public class HStoreCoordinator implements Shutdownable {
             if (request.hasError()) {
                 ByteString bytes = request.getError();
                 error = SerializableException.deserializeFromBuffer(bytes.asReadOnlyByteBuffer());
-                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
+//                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
             }
+            
+            LOG.warn(String.format("Got shutdown request from HStoreSite %s", originName, error));
+            
+            // Tell the HStoreSite to shutdown
+            HStoreCoordinator.this.hstore_site.prepareShutdown(false);
+            
+
+            // Then send back the acknowledgment right away
+            ShutdownResponse response = ShutdownResponse.newBuilder()
+                                                   .setSenderId(HStoreCoordinator.this.local_site_id)
+                                                   .build();
+            done.run(response);
             
             // TODO: This should be moved into the HStoreSite.shutdown()
             HStoreCoordinator.this.hstore_site.shutdown();
