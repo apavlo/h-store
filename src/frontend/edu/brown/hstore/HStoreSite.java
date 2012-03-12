@@ -141,7 +141,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
-    private final TransactionIdManager txnIdManager;
+    private final TransactionIdManager txnIdManagers[];
     
     /**
      * We will bind this variable after construction so that we can inject some
@@ -386,8 +386,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
-        this.txnIdManager = new TransactionIdManager(this.site_id);
+        
+        // Separate TransactionIdManager per partition
+        if (hstore_conf.site.txn_partition_id_managers) {
+            this.txnIdManagers = new TransactionIdManager[num_partitions];
+            for (int partition : this.local_partitions) {
+                this.txnIdManagers[partition] = new TransactionIdManager(partition);
+            } // FOR
+        
+        }
+        // Single TransactionIdManager for the entire site
+        else {
+            this.txnIdManagers = new TransactionIdManager[]{
+                new TransactionIdManager(this.site_id)
+            };
+        }
+        
+        // HStoreSite Thread Manager
         this.threadManager = new HStoreThreadManager(this);
+        
+        // Incoming Txn Request Listener
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
         
         if (hstore_conf.site.status_show_executor_info) {
@@ -430,30 +448,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
     }
     
-    // ----------------------------------------------------------------------------
-    // LOCAL PARTITION OFFSETS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * 
-     * @param partition
-     * @return
-     */
-    public int getLocalPartitionOffset(int partition) {
-        assert(partition < this.local_partition_offsets.length) :
-            String.format("Unable to get offset of local partition %d %s [hashCode=%d]",
-                          partition, Arrays.toString(this.local_partition_offsets), this.hashCode());
-        return this.local_partition_offsets[partition];
-    }
-    
-    /**
-     * 
-     * @param offset
-     * @return
-     */
-    public int getLocalPartitionFromOffset(int offset) {
-        return this.local_partition_reverse[offset];
-    }
+
     
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
@@ -498,13 +493,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Return a new HStoreCoordinator for this HStoreSite. Note that this
      * should only be called by HStoreSite.init(), otherwise the 
-     * internal state for this HStoreSite will be incorrect
+     * internal state for this HStoreSite will be incorrect. If you want
+     * the HStoreCoordinator at runtime, use HStoreSite.getHStoreCoordinator()
      * @return
      */
     protected HStoreCoordinator initHStoreCoordinator() {
         return new HStoreCoordinator(this);
     }
-    public HStoreCoordinator getCoordinator() {
+    public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
     }
 
@@ -522,9 +518,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
     }
-    public TransactionIdManager getTransactionIdManager() {
-        return (this.txnIdManager);
+    
+    /**
+     * Get the TransactionIdManager for the given partition
+     * If there are not separate managers per partition, we will just
+     * return the global one for this HStoreSite 
+     * @param partition
+     * @return
+     */
+    public TransactionIdManager getTransactionIdManager(int partition) {
+        if (this.txnIdManagers.length == 1) {
+            return (this.txnIdManagers[0]);
+        } else {
+            return (this.txnIdManagers[partition]);
+        }
     }
+    public void setTransactionIdManagerTimeDelta(long delta) {
+        for (TransactionIdManager t : this.txnIdManagers) {
+            if (t != null) t.setTimeDelta(delta);
+        } // FOR
+    }
+    
     public EstimationThresholds getThresholds() {
         return thresholds;
     }
@@ -628,6 +642,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private int getNextRequestCounter() {
         return (this.request_counter.getAndIncrement());
+    }
+    
+    // ----------------------------------------------------------------------------
+    // LOCAL PARTITION OFFSETS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @param partition
+     * @return
+     */
+    public int getLocalPartitionOffset(int partition) {
+        assert(partition < this.local_partition_offsets.length) :
+            String.format("Unable to get offset of local partition %d %s [hashCode=%d]",
+                          partition, Arrays.toString(this.local_partition_offsets), this.hashCode());
+        return this.local_partition_offsets[partition];
+    }
+    
+    /**
+     * 
+     * @param offset
+     * @return
+     */
+    public int getLocalPartitionFromOffset(int offset) {
+        return this.local_partition_reverse[offset];
     }
     
     // ----------------------------------------------------------------------------
@@ -905,9 +944,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.incoming_partitions.put(base_partition);
         }
         
-        // First figure out where this sucker needs to go
+        // -------------------------------
+        // BASE PARTITION
+        // -------------------------------
+        
+        // DB2-style Transaction Redirection
+        if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
+            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+            assert(base_partition == request.getBasePartition());    
+        }
         // If it's a sysproc, then it doesn't need to go to a specific partition
-        if (sysproc) {
+        else if (sysproc) {
+            // For now we'll just run the sysproc on a random partition at this site
+            
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             // TODO: Execute as a regular transaction
@@ -926,13 +975,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.hstore_coordinator.shutdownCluster(error);
                 return;
             }
-        // DB2-style Transaction Redirection
-        } else if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
-            assert(base_partition == request.getBasePartition());    
-            
+        }
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
-        } else if (hstore_conf.site.exec_force_localexecution == false) {
+        else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
                 Integer p = this.p_estimator.getBasePartition(catalog_proc, args, false);
@@ -956,8 +1001,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        request.getProcName(), request.getClientHandle(), base_partition));
         
         // -------------------------------
-        // REDIRECT TXN TO PROPER PARTITION
-        // If the dest_partition isn't local, then we need to ship it off to the right location
+        // REDIRECT TXN TO PROPER BASE PARTITION
+        // If the base_partition isn't local, then we need to ship it off to the right site
         // -------------------------------
         if (this.isLocalPartition(base_partition) == false) {
             assert(request.hasBasePartition() == false) : 
@@ -968,7 +1013,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Grab a new LocalTransactionState object from the target base partition's PartitionExecutor object pool
         // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
-        Long txn_id = new Long(this.txnIdManager.getNextUniqueTransactionId());
+        Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
@@ -997,31 +1042,39 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Collection<Integer> predict_touchedPartitions = null;
         TransactionEstimator.State t_state = null; 
         
-        // Sysprocs are always multi-partitioned
-        // Done(xin): add mapreduce
-        if (sysproc || catalog_proc.getMapreduce()) {
-            if (t) LOG.trace(String.format("New request is for a %s %s, so it has to be multi-partitioned [clientHandle=%d]",
-                             (catalog_proc.getMapreduce() ? "MapReduce" : "sysproc"),
-                             request.getProcName(), request.getClientHandle()));
+        // Sysprocs can be either all partitions or single-partitioned
+        if (sysproc) {
+            // TODO: It would be nice if the client could pass us a hint when loading the tables
+            // It would be just for the loading, and not regular transactions
+            if (catalog_proc.getSinglepartition()) {
+                predict_touchedPartitions = this.single_partition_sets[base_partition];
+            } else {
+                predict_touchedPartitions = this.all_partitions;
+            }
+        }
+        // MapReduceTransactions always need all partitions
+        else if (catalog_proc.getMapreduce()) {
+            if (t) LOG.trace(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
+                                           request.getProcName(), request.getClientHandle()));
             predict_touchedPartitions = this.all_partitions;
-            
+        }
         // Force all transactions to be single-partitioned
-        } else if (hstore_conf.site.exec_force_singlepartitioned) {
+        else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                              request.getProcName(), base_partition, request.getClientHandle()));
             predict_touchedPartitions = this.single_partition_sets[base_partition];
-            
+        }    
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
-        } else if (hstore_conf.site.exec_neworder_cheat) {
+        else if (hstore_conf.site.exec_neworder_cheat) {
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
             if (this.fixed_estimator != null)
                 predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
             if (predict_touchedPartitions == null)
                 predict_touchedPartitions = this.single_partition_sets[base_partition];
-            
+        }    
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
-        } else {
+        else {
             if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
                                            request.getProcName(), request.getClientHandle()));
             
@@ -1145,7 +1198,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK!
             this.inflight_txns.put(txn_id, dupe);
             // long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
-            Long new_txn_id = new Long(this.txnIdManager.getNextUniqueTransactionId());
+            Long new_txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
             if (new_txn_id == txn_id) {
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("ORIG TRANSACTION:\n" + dupe);
@@ -1644,7 +1697,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        Long new_txn_id = Long.valueOf(this.txnIdManager.getNextUniqueTransactionId());
+        Long new_txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
         LocalTransaction new_ts = null;
         try {
             new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();

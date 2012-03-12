@@ -34,7 +34,7 @@ public class MockHStoreSite extends HStoreSite {
     // ----------------------------------------------------------------------------
     
     static LocalTransaction makeLocalTransaction(HStoreSite hstore_site) {
-        long txnId = hstore_site.getTransactionIdManager().getNextUniqueTransactionId();
+        long txnId = hstore_site.getTransactionIdManager(0).getNextUniqueTransactionId();
         long clientHandle = -1;
         int base_partition = CollectionUtil.random(hstore_site.getLocalPartitionIds());
         Collection<Integer> predict_touchedPartitions = hstore_site.getAllPartitionIds();
@@ -118,7 +118,7 @@ public class MockHStoreSite extends HStoreSite {
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().start(); // Blocks until all connections are established
-        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
+        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
         assert(hstore_coordinator.isStarted());
         
         final CountDownLatch latch = new CountDownLatch(1);

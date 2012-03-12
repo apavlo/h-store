@@ -215,7 +215,7 @@ public class VoltDB {
 
         HStoreSite handle = HStore.instance();
         if (handle != null) {
-            handle.getCoordinator().shutdownCluster();
+            handle.getHStoreCoordinator().shutdownCluster();
         } else {
             System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
             System.err.println("The log may contain additional information.");

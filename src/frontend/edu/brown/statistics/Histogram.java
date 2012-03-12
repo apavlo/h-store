@@ -538,6 +538,7 @@ public class Histogram<X> implements JSONSerializable {
      * @param other
      */
     public synchronized void putHistogram(Histogram<X> other) {
+        if (other == this) return;
         for (Entry<X, Long> e : other.histogram.entrySet()) {
             if (e.getValue() > 0)
                 this._put(e.getKey(), e.getValue());

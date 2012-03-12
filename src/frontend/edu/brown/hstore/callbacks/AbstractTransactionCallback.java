@@ -172,7 +172,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingCallback
         
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
+        this.hstore_site.getHStoreCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
     
     @Deprecated

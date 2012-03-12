@@ -309,6 +309,13 @@ public final class HStoreConf {
         )
         public int txn_restart_limit_sysproc;
         
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean txn_partition_id_managers;
+        
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
         // ----------------------------------------------------------------------------

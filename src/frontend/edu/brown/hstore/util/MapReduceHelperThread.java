@@ -172,7 +172,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             }
         });
 
-        this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
+        this.hstore_site.getHStoreCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
 
     public void reduce(final MapReduceTransaction mr_ts) {

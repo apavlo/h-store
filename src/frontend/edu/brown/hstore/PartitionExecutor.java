@@ -682,7 +682,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
-        this.hstore_coordinator = hstore_site.getCoordinator();
+        this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         
         if (hstore_conf.site.exec_profiling) {
@@ -1407,7 +1407,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // SYNCH
         }
         
-        // Always reset the ExecutionState
+        // Always clear+set the ExecutionState
         this.execState.clear();
         ts.setExecutionState(this.execState);
         
