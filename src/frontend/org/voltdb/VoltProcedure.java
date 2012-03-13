@@ -1120,6 +1120,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // local executor or to Evan's magical distributed transaction manager
         assert(this.predict_singlepartition == this.m_currentTxnState.isPredictSinglePartition()) :
             String.format("%s != %s\n%s", this.predict_singlepartition, this.m_currentTxnState.isPredictSinglePartition(), this.m_currentTxnState.debug());
+        if (d) LOG.debug("<Debug for MR,getPredictTouchedPartitions>  " + this.m_localTxnState.getPredictTouchedPartitions().toString() + "\n");
+        if (d) LOG.debug("<Debug for MR,getTouchedPartitions>  " + this.m_localTxnState.getTouchedPartitions().toString() + "\n");
+        
+        
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(),
                                       this.client_handle,
                                       this.partitionIdObj, 

@@ -1220,7 +1220,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 assert(predict_touchedPartitions.isEmpty() == false) : "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
             }
-
+            
             // Check whether our transaction can't run right now because its id is less than
             // the last seen txnid from the remote partitions that it wants to touch
             for (int partition : predict_touchedPartitions) {
@@ -1244,6 +1244,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
             if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
+//            if (ts.isMapReduce() == true && hstore_conf.site.mr_map_blocking == false) {
+//                // execute MapReduce-style transaction asynchronized
+//                if (debug.get())
+//                    LOG.debug(ts + ": $$$ normal map non-blocking asynchronized execution way");
+//                MapReduceTransaction mr_ts = (MapReduceTransaction)ts;
+//                assert(mr_ts.isMapPhase());
+//                getMapReduceHelper().queue(mr_ts);
+//            } else {
+//                if (debug.get())
+//                    LOG.debug(ts + ": $$$ normal execution way to do initialization request");
+//                this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
+//            }
             this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
         }
     }

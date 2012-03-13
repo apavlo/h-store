@@ -608,6 +608,8 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.done_partitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
+        LOG.debug("<Debug for MR>ExecutionState:" + (this.state).toString());
+        LOG.debug("<Debug for MR>getTouchedPartitions:" + (this.state.exec_touchedPartitions).toString());
         return (this.state.exec_touchedPartitions);
     }
     public boolean hasTouchedPartitions() {

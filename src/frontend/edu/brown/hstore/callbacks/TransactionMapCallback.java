@@ -71,7 +71,7 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
             ts.setReducePhase();
             assert(ts.isReducePhase());
             
-            if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking){
+            if(hstore_site.getHStoreConf().site.mr_reduce_blocking){
                 if (debug.get())
                     LOG.debug(ts + ": $$$ normal reduce blocking execution way");
                 // calling this hstore_site.transactionStart function will block the executing engine on each partition
