@@ -8,7 +8,9 @@ import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.ExecutionState;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
@@ -64,7 +66,15 @@ public class TransactionInitCallback extends BlockingCallback<TransactionInitRes
             if (debug.get())
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
             if (this.txn_profiling) ts.profiler.stopInitDtxn();
-            hstore_site.transactionStart(ts, ts.getBasePartition());
+            if (ts.isMapReduce() && hstore_site.getHStoreConf().site.mr_map_blocking == false) {
+                // start MapReduce-style transaction asynchronized
+                if (debug.get())
+                    LOG.debug(ts + ": $$$ normal map non-blocking asynchronized execution way");
+                hstore_site.getMapReduceHelper().queue((MapReduceTransaction)ts);
+            } else {
+                // start this transaction in blocking way
+                hstore_site.transactionStart(ts, ts.getBasePartition());
+            }
         } else {
             assert(this.finish_callback != null);
             this.finish_callback.allowTransactionCleanup();

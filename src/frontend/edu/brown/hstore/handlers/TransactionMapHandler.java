@@ -85,16 +85,23 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         }
         assert(mr_ts.isMapPhase());
         mr_ts.initTransactionMapWrapperCallback(callback);
-        /*
-         * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
-         * This is to avoid the double invoke for remote task. 
-         * */
-        for (int partition : hstore_site.getLocalPartitionIds()) {
-            if (partition != mr_ts.getBasePartition()) { 
-                LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                hstore_site.transactionStart(ts, partition);
-            }
-        } // FOR
+        
+        if(hstore_site.getHStoreConf().site.mr_map_blocking) {
+            /*
+             * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
+             * This is to avoid the double invoke for remote task. 
+             * */
+            for (int partition : hstore_site.getLocalPartitionIds()) {
+                if (partition != mr_ts.getBasePartition()) { 
+                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+                    hstore_site.transactionStart(ts, partition);
+                }
+            } // FOR
+        } else {
+            // non-blocking way of execution for Reduce
+            mr_ts.setBasePartition_map_runed(true);
+            hstore_site.getMapReduceHelper().queue(mr_ts);
+        }
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
