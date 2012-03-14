@@ -613,6 +613,7 @@ public class MultiLoader extends BenchmarkComponent {
                 if (items.getRowCount() == replicated_batch_size) {
                     LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
                     loadVoltTable("ITEM", items);
+                    items.clearRowData();
                 }
             } // FOR
             if (items.getRowCount() > 0) {
@@ -620,6 +621,7 @@ public class MultiLoader extends BenchmarkComponent {
                 if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
                 LOG.info("Loading replicated ITEM table" + extra);
                 loadVoltTable("ITEM", items);
+                items.clearRowData();
             }
 
 //            if (m_voltClient != null) {

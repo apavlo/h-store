@@ -592,10 +592,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             } catch (RuntimeException e) {
                 LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
                 throw new InvocationTargetException(e);
-            } catch (AssertionError e) {
-                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
-                System.exit(1);
             }
+//            catch (AssertionError e) {
+//                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
+//                System.exit(1);
+//            }
             if (d) LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
             
         // -------------------------------
