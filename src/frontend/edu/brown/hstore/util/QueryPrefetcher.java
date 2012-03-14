@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.catalog.Database;
@@ -26,6 +27,7 @@ import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
 /**
@@ -34,7 +36,10 @@ import edu.brown.utils.PartitionEstimator;
  * @author cjl6
  */
 public class QueryPrefetcher implements Loggable {
-
+	private static final Logger LOG = Logger.getLogger(QueryPrefetcher.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+	
 //    private final Database catalog_db;
     private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
     private final int[] partition_site_xref;
@@ -85,6 +90,7 @@ public class QueryPrefetcher implements Loggable {
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
         BatchPlanner planner = this.planners.get(catalog_proc);
+        assert(planner != null) : "Missing BatchPlanner for " + catalog_proc;
         ParameterSet prefetch_params[] = new ParameterSet[planner.getBatchSize()];
         ByteString prefetch_params_serialized[] = new ByteString[prefetch_params.length];
 
@@ -106,6 +112,8 @@ public class QueryPrefetcher implements Loggable {
             } // FOR
             prefetch_params[i] = new ParameterSet(stmt_params);
 
+            LOG.info(i + ") " + prefetch_params[i]);
+            
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
                 if (i > 0) fs.clear();
@@ -173,11 +181,12 @@ public class QueryPrefetcher implements Loggable {
         		}
         		// and no other WorkFragments, set the TransactionInitRequest to null.
         		else {
-        			
+        			init_requests[i] = null;
         		}
         	}
+        	// Otherwise, just build it.
         	else {
-        		
+        		init_requests[i] = builders[i].build();
         	}
         }
 
