@@ -312,10 +312,10 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         // CONFIG #3: 1 Local Site/Partition running on HSQL backend
         /////////////////////////////////////////////////////////////
 
-//        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer("sqlfeatures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
 
         /////////////////////////////////////////////////////////////
