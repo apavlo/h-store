@@ -581,9 +581,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
-            if (t) 
-                LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
-                                        this.procMethod, this.procParams + Arrays.toString(this.procParams), this.partitionId));
+            if (t) LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
+                                           this.procMethod,
+                                           this.procParams + Arrays.toString(this.procParams),
+                                           this.partitionId));
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
@@ -726,6 +727,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.status_msg,
                       this.error);
         if (this.observable != null) this.observable.notifyObservers(response);
+        if (t) LOG.trace(response);
         return (response);
     }
 
