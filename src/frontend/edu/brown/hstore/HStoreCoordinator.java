@@ -100,7 +100,7 @@ public class HStoreCoordinator implements Shutdownable {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final Site catalog_site;
-    private final int num_sites;
+    private int num_sites;
     private final int local_site_id;
     private final Collection<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
@@ -186,7 +186,6 @@ public class HStoreCoordinator implements Shutdownable {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.catalog_site = hstore_site.getSite();
-        this.num_sites = this.channels.size();
         this.local_site_id = this.catalog_site.getId();
         this.local_partitions = hstore_site.getLocalPartitionIds();
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
@@ -261,6 +260,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
+        this.num_sites = this.channels.size();
 
         for (Thread t : this.dispatcherThreads) {
             if (debug.get()) LOG.debug("Starting dispatcher thread: " + t.getName());
@@ -625,7 +625,7 @@ public class HStoreCoordinator implements Shutdownable {
                                    ts, ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
 
         
-        // TODO(cjl6): Look at the Procedure to see whether it has prefetchable queries. If it does, then
+        // Look at the Procedure to see whether it has prefetchable queries. If it does, then
         // embed them in the TransactionInitRequest
         if (ts.getProcedure().getPrefetch()) {
             TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(ts);
@@ -649,10 +649,6 @@ public class HStoreCoordinator implements Shutdownable {
                 String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
             this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
         }
-        
-        // TODO(cjl6): If there are pre-fetchable queries, then generate the WorkFragments and embed
-        //             them in the InitRequest.
-        
         
         // TODO(cjl6): In the later version, use a BatchPlanner to identify which WorkFragments need to
         //             go to which partitions and then generate unique InitRequest objects per partition
