@@ -167,7 +167,6 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         }
     }
 
-// FIXME
 //    public void testBatchedMultipartitionTxns() throws IOException, ProcCallException {
 //        Client client = getClient();
 //
@@ -180,58 +179,58 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
 //        assertEquals(1, results[4].getRowCount());
 //    }
 
-//    public void testLongStringUsage() throws IOException {
-//        final int STRLEN = 5000;
-//
-//        Client client = getClient();
-//
-//        String longStringPart = "volt!";
-//        StringBuilder sb = new StringBuilder();
-//        while(sb.length() < STRLEN)
-//            sb.append(longStringPart);
-//        String longString = sb.toString();
-//        assertEquals(STRLEN, longString.length());
-//
-//        VoltTable[] results = null;
-//        try {
-//            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
-//        } catch (ProcCallException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//        assertEquals(1, results.length);
-//        VoltTableRow row = results[0].fetchRow(0);
-//
-//        assertEquals(1, row.getLong(0));
-//        assertEquals(0, row.getString(2).compareTo(longString));
-//    }
-//
-//    public void testStringAsByteArrayParam() throws IOException {
-//        final int STRLEN = 5000;
-//
-//        Client client = getClient();
-//
-//        String longStringPart = "volt!";
-//        StringBuilder sb = new StringBuilder();
-//        while(sb.length() < STRLEN)
-//            sb.append(longStringPart);
-//        String longString = sb.toString();
-//        assertEquals(STRLEN, longString.length());
-//
-//
-//        VoltTable[] results = null;
-//        try {
-//            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
-//        } catch (ProcCallException e) {
-//            e.printStackTrace();
-//            fail();
-//        }
-//        assertEquals(1, results.length);
-//        VoltTableRow row = results[0].fetchRow(0);
-//
-//        assertEquals(1, row.getLong(0));
-//        assertEquals(0, row.getString(2).compareTo(longString));
-//    }
+    public void testLongStringUsage() throws IOException {
+        final int STRLEN = 5000;
+
+        Client client = getClient();
+
+        String longStringPart = "volt!";
+        StringBuilder sb = new StringBuilder();
+        while(sb.length() < STRLEN)
+            sb.append(longStringPart);
+        String longString = sb.toString();
+        assertEquals(STRLEN, longString.length());
+
+        VoltTable[] results = null;
+        try {
+            results = client.callProcedure("WorkWithBigString", 1, longString).getResults();
+        } catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        assertEquals(1, results.length);
+        VoltTableRow row = results[0].fetchRow(0);
+
+        assertEquals(1, row.getLong(0));
+        assertEquals(0, row.getString(2).compareTo(longString));
+    }
+
+    public void testStringAsByteArrayParam() throws IOException {
+        final int STRLEN = 5000;
+
+        Client client = getClient();
+
+        String longStringPart = "volt!";
+        StringBuilder sb = new StringBuilder();
+        while(sb.length() < STRLEN)
+            sb.append(longStringPart);
+        String longString = sb.toString();
+        assertEquals(STRLEN, longString.length());
+
+
+        VoltTable[] results = null;
+        try {
+            results = client.callProcedure("PassByteArrayArg", 1, 2, longString.getBytes("UTF-8")).getResults();
+        } catch (ProcCallException e) {
+            e.printStackTrace();
+            fail();
+        }
+        assertEquals(1, results.length);
+        VoltTableRow row = results[0].fetchRow(0);
+
+        assertEquals(1, row.getLong(0));
+        assertEquals(0, row.getString(2).compareTo(longString));
+    }
 
     public void testPassAllArgTypes() throws IOException {
         byte b = 100;
