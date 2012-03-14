@@ -71,6 +71,7 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.QueryPrefetcher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -99,6 +100,7 @@ public class HStoreCoordinator implements Shutdownable {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final Site catalog_site;
+    private int num_sites;
     private final int local_site_id;
     private final Collection<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
@@ -127,6 +129,8 @@ public class HStoreCoordinator implements Shutdownable {
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
+    
+    private QueryPrefetcher prefetcher;
 
     /**
      * 
@@ -237,6 +241,8 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread = new Thread(new MessengerListener(), HStoreThreadManager.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
+        
+        //this.prefetcher = new QueryPrefetcher(catalog_db, p_estimator);
     }
     
     protected HStoreService initHStoreService() {
@@ -254,6 +260,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
+        this.num_sites = this.channels.size();
 
         for (Thread t : this.dispatcherThreads) {
             if (debug.get()) LOG.debug("Starting dispatcher thread: " + t.getName());
@@ -618,26 +625,40 @@ public class HStoreCoordinator implements Shutdownable {
                                    ts, ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
 
         
-        // TODO(cjl6): Look at the Procedure to see whether it has prefetchable queries. If it does, then
+        // Look at the Procedure to see whether it has prefetchable queries. If it does, then
         // embed them in the TransactionInitRequest
-        // TODO(cjl6): If there are pre-fetchable queries, then generate the WorkFragments and embed
-        //             them in the InitRequest.
+        if (ts.getProcedure().getPrefetch()) {
+            TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(ts);
+            for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                if (site_id == this.local_site_id) {
+                    this.transactionInit_handler.sendLocal(ts.getTransactionId(), requests[site_id], ts.getPredictTouchedPartitions(), callback);
+                }
+                if (requests[site_id] != null) {
+                    ProtoRpcController controller = ts.getTransactionInitController(site_id);
+                    this.channels.get(site_id).transactionInit(controller, requests[site_id], callback);
+                }
+            } // FOR
+        }
+        else {
+            TransactionInitRequest request = TransactionInitRequest.newBuilder()
+                    .setTransactionId(ts.getTransactionId())
+                    .setProcedureId(ts.getProcedure().getId())
+                    .addAllPartitions(ts.getPredictTouchedPartitions())
+                    .build();
+            assert(callback != null) :
+                String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
+            this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
+        }
+        
         // TODO(cjl6): In the later version, use a BatchPlanner to identify which WorkFragments need to
         //             go to which partitions and then generate unique InitRequest objects per partition
+        
         
         // TODO(pavlo): Add boolean flag to Procedure catalog object that says whether 
         // it has pre-fetchable queries or not. Create a quick lookup mechanism to get those queries
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
         //              about the rejection to the other partitions that are included in the InitRequest.
-        TransactionInitRequest request = TransactionInitRequest.newBuilder()
-                                                         .setTransactionId(ts.getTransactionId())
-                                                         .setProcedureId(ts.getProcedure().getId())
-                                                         .addAllPartitions(ts.getPredictTouchedPartitions())
-                                                         .build();
-        assert(callback != null) :
-            String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
-        this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
     }
     
     /**
@@ -895,11 +916,10 @@ public class HStoreCoordinator implements Shutdownable {
      * This is a blocking call and only really needs to be performed once at start-up
      */
     public void syncClusterTimes() {
-        final int num_sites = this.channels.size();
         // We don't need to do this if there is only one site
-        if (num_sites == 0) return;
+        if (this.num_sites == 0) return;
         
-        final CountDownLatch latch = new CountDownLatch(num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
         RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
@@ -931,7 +951,7 @@ public class HStoreCoordinator implements Shutdownable {
             // nothing
         }
         if (success == false) {
-            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", num_sites));
+            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", this.num_sites));
         } else if (trace.get()) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation
@@ -991,16 +1011,15 @@ public class HStoreCoordinator implements Shutdownable {
      * @param error
      */
     protected synchronized void shutdownClusterBlocking(final Throwable error) {
-        final int num_sites = this.channels.size();
         if (this.state == ShutdownState.SHUTDOWN) return;
         this.hstore_site.prepareShutdown(error != null);
         LOG.info("Shutting down cluster", error);
 
         final int exit_status = (error == null ? 0 : 1);
-        final CountDownLatch latch = new CountDownLatch(num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites);
         
         try {
-            if (num_sites > 0) {
+            if (this.num_sites > 0) {
                 RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                     private final Set<Integer> siteids = new HashSet<Integer>(); 
                     
@@ -1028,7 +1047,7 @@ public class HStoreCoordinator implements Shutdownable {
                 
                 ShutdownRequest request = builder.build();
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
-                                                         request.getClass().getSimpleName(), num_sites));
+                                                         request.getClass().getSimpleName(), this.num_sites));
                 for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
                     e.getValue().shutdown(new ProtoRpcController(), request, callback);
                     if (trace.get()) LOG.trace(String.format("Sent %s to %s",
@@ -1042,7 +1061,7 @@ public class HStoreCoordinator implements Shutdownable {
             this.hstore_site.shutdown();
             
             // Block until the latch releases us
-            if (num_sites > 0) {
+            if (this.num_sites > 0) {
                 LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
                 latch.await(5, TimeUnit.SECONDS);
             }
