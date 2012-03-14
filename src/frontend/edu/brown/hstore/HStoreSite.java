@@ -1251,7 +1251,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Check whether our transaction can't run right now because its id is less than
             // the last seen txnid from the remote partitions that it wants to touch
             for (int partition : predict_touchedPartitions) {
-                Long last_txn_id = this.txnQueueManager.getLastInitTransaction(partition); 
+                Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
                 if (txn_id.compareTo(last_txn_id) < 0) {
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
@@ -1271,7 +1271,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
             if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
-            this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
+            this.txnQueueManager.initTransaction(ts);
         }
     }
 
@@ -1347,7 +1347,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.initInsert(txn_id, partitions, callback);
+        this.txnQueueManager.lockInsert(txn_id, partitions, callback);
     }
 
     /**
@@ -1416,7 +1416,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // Always tell the queue stuff that the transaction is finished at this partition
             if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
-            this.txnQueueManager.initFinished(txn_id, Status.OK, p.intValue());
+            this.txnQueueManager.lockFinished(txn_id, Status.OK, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
@@ -1477,7 +1477,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.initFinished(txn_id, status, p);
+            if (commit == false) this.txnQueueManager.lockFinished(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
@@ -1945,6 +1945,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_THROTTLED:
                     if (hstore_conf.site.status_show_txn_info)
                         TxnCounter.REJECTED.inc(catalog_proc);
+                    break;
+                case ABORT_UNEXPECTED:
+                    // TODO: Make new counter?
                     break;
                 default:
                     LOG.warn(String.format("Unexpected status %s for %s", status, ts));

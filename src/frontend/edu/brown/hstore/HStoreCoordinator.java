@@ -616,6 +616,7 @@ public class HStoreCoordinator implements Shutdownable {
     /**
      * Send a TransactionInitRequest message to all of the sites that have 
      * the partitions that this transaction will need during its execution
+     * This must be guaranteed to only be invoked by one thread at a time
      * @param ts
      * @param callback
      */

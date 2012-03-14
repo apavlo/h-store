@@ -33,6 +33,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -343,54 +344,54 @@ public class TestSQLTypesSuite extends RegressionSuite {
 //            }
 //        }
 //    }
-
-    //
-    // Test that the max serializable string length is correctly handled.
-    // It must be rejected always since it is greater than the max varchar size.
-    //
-    public void testMaxSerializeStringSize() throws IOException, ProcCallException {
-        final Client client = getClient();
-        boolean caught = false;
-        final Object params[] = new Object[COLS + 2];
-        params[0] = "NO_NULLS";
-
-        // array to build the Big String.
-        final char blob[] = new char[VoltType.MAX_VALUE_LENGTH + 4];
-        for (int i=0; i < blob.length; i++) {
-            blob[i] = 'a';
-        }
-
-        // try to insert a max length string blob into each of the string fields
-        // this string *is* fastserializable.
-        for (int stringcount = 0; stringcount < 4; ++stringcount) {
-            int curr_string = 0;
-            params[1] = pkey.incrementAndGet();
-            for (int k=0; k < COLS; ++k) {
-                if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
-                    params[k+2] = new String(blob);
-                }
-                else {
-                    params[k+2] = m_midValues[k];
-                }
-                if (m_types[k] == VoltType.STRING)
-                    curr_string++;
-            }
-            try {
-                caught = false;
-                client.callProcedure("Insert", params);
-            }
-            catch (final RuntimeException e) {
-                assertTrue(e.getCause() instanceof java.io.IOException);
-                assertTrue(e.toString().contains("String exceeds maximum length of"));
-                caught = true;
-            }
-            assertTrue(caught);
-        }
-    }
-
-    //
-    // Test that the max supported varchar can be inserted.
-    //
+//
+//    //
+//    // Test that the max serializable string length is correctly handled.
+//    // It must be rejected always since it is greater than the max varchar size.
+//    //
+//    public void testMaxSerializeStringSize() throws IOException, ProcCallException {
+//        final Client client = getClient();
+//        boolean caught = false;
+//        final Object params[] = new Object[COLS + 2];
+//        params[0] = "NO_NULLS";
+//
+//        // array to build the Big String.
+//        final char blob[] = new char[VoltType.MAX_VALUE_LENGTH + 4];
+//        for (int i=0; i < blob.length; i++) {
+//            blob[i] = 'a';
+//        }
+//
+//        // try to insert a max length string blob into each of the string fields
+//        // this string *is* fastserializable.
+//        for (int stringcount = 0; stringcount < 4; ++stringcount) {
+//            int curr_string = 0;
+//            params[1] = pkey.incrementAndGet();
+//            for (int k=0; k < COLS; ++k) {
+//                if ((m_types[k] == VoltType.STRING) && (stringcount == curr_string)) {
+//                    params[k+2] = new String(blob);
+//                }
+//                else {
+//                    params[k+2] = m_midValues[k];
+//                }
+//                if (m_types[k] == VoltType.STRING)
+//                    curr_string++;
+//            }
+//            try {
+//                caught = false;
+//                client.callProcedure("Insert", params);
+//            }
+//            catch (final RuntimeException e) {
+//                assertTrue(e.getCause() instanceof java.io.IOException);
+//                assertTrue(e.toString().contains("String exceeds maximum length of"));
+//                caught = true;
+//            }
+//            assertTrue(caught);
+//        }
+//    }
+//
+//    //
+//    // Test that the max supported varchar can be inserted.
+//    //
 //    public void testMaxValidStringSize() throws IOException, ProcCallException {
 //        final Client client = getClient();
 //        boolean caught = false;
@@ -420,9 +421,11 @@ public class TestSQLTypesSuite extends RegressionSuite {
 //            }
 //            try {
 //                caught = false;
-//                client.callProcedure("Insert", params);
+//                ClientResponse cr = client.callProcedure("Insert", params);
+//                System.err.printf("[%02d] %s\n", stringcount, cr);
 //            }
 //            catch (final ProcCallException e) {
+//                e.printStackTrace();
 //                caught = true;
 //            }
 //            // the last (1048576) string should be fine here.
@@ -439,7 +442,52 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Verify that NULLS are rejected in in NOT NULL columns
     //
-//    public void testInsertNulls_No_Nulls() throws IOException {
+    public void testInsertNulls_No_Nulls() throws IOException {
+        final Client client = this.getClient();
+
+        // Insert a NULL value for each column. For the first
+        // row, insert null in the first column, for the 5th row
+        // in the 5 column, etc.
+
+        final Object params[] = new Object[COLS + 2];
+
+        for (int k=0; k < COLS; ++k) {
+            boolean caught = false;
+
+            // build the parameter list as described above
+            params[0] = "NO_NULLS";
+            params[1] = pkey.incrementAndGet();
+            for (int i = 0; i < COLS; i++) {
+                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
+                assert(params[i+2] != null);
+            }
+
+            // Each insert into the NO_NULLS table must fail with a
+            // constraint failure.  Verify this.
+
+            System.out.println("testNullsRejected: :" + k + " " + m_types[k]);
+            try {
+                ClientResponse cr = client.callProcedure("Insert", params);
+                System.err.println(cr);
+            } catch (final ProcCallException e) {
+                if (e.getMessage().contains("CONSTRAINT VIOLATION"))
+                    caught = true;
+                else {
+                    e.printStackTrace();
+                    fail();
+                }
+            } catch (final NoConnectionsException e) {
+                e.printStackTrace();
+                fail();
+            }
+            assertTrue(caught);
+        }
+    }
+
+    //
+    // Verify that NULLS are allowed in non-NOT NULL columns
+    //
+//    public void testInsertNulls_Nulls_Allowed() throws IOException {
 //        final Client client = this.getClient();
 //
 //        // Insert a NULL value for each column. For the first
@@ -449,347 +497,303 @@ public class TestSQLTypesSuite extends RegressionSuite {
 //        final Object params[] = new Object[COLS + 2];
 //
 //        for (int k=0; k < COLS; ++k) {
-//            boolean caught = false;
 //
 //            // build the parameter list as described above
-//            params[0] = "NO_NULLS";
+//            params[0] = "";
 //            params[1] = pkey.incrementAndGet();
 //            for (int i = 0; i < COLS; i++) {
 //                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
 //                assert(params[i+2] != null);
 //            }
 //
-//            // Each insert into the NO_NULLS table must fail with a
-//            // constraint failure.  Verify this.
+//            // Each insert in to the ALLOW_NULLS table must succeed.
+//            // Perform the inserts and execute selects, verifying the
+//            // content of the select matches the parameters passed to
+//            // insert
 //
-//            System.out.println("testNullsRejected: :" + k + " " + m_types[k]);
+//            System.out.println("testNullsAllowed: " + k + " NULL type is " + m_types[k]);
+//
 //            try {
-//                client.callProcedure("Insert", params);
+//                params[0] = "ALLOW_NULLS";
+//                // We'll use the multi-partition insert for this test.  Between
+//                // this and testInsertNull_No_Nulls we should cover both
+//                // cases in ticket 306
+//                client.callProcedure("InsertMulti", params);
 //            } catch (final ProcCallException e) {
-//                if (e.getMessage().contains("CONSTRAINT VIOLATION"))
-//                    caught = true;
-//                else {
-//                    e.printStackTrace();
-//                    fail();
-//                }
+//                e.printStackTrace();
+//                fail();
 //            } catch (final NoConnectionsException e) {
 //                e.printStackTrace();
 //                fail();
 //            }
-//            assertTrue(caught);
+//
+//            // verify that the row was inserted
+//            try {
+//                final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
+//                final VoltTableRow row = result[0].fetchRow(0);
+//                for (int i=0; i < COLS; ++i) {
+//                    final Object obj = row.get(i+1, m_types[i]);
+//                    if (i == k) {
+//                        assertTrue(row.wasNull());
+//                        System.out.println("Row " + i + " verifed as NULL");
+//                    }
+//                    else {
+//                        assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//                    }
+//                }
+//            }
+//            catch (final Exception ex) {
+//                ex.printStackTrace();
+//                fail();
+//            }
 //        }
 //    }
-
-    //
-    // Verify that NULLS are allowed in non-NOT NULL columns
-    //
-    public void testInsertNulls_Nulls_Allowed() throws IOException {
-        final Client client = this.getClient();
-
-        // Insert a NULL value for each column. For the first
-        // row, insert null in the first column, for the 5th row
-        // in the 5 column, etc.
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            params[0] = "";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            // Each insert in to the ALLOW_NULLS table must succeed.
-            // Perform the inserts and execute selects, verifying the
-            // content of the select matches the parameters passed to
-            // insert
-
-            System.out.println("testNullsAllowed: " + k + " NULL type is " + m_types[k]);
-
-            try {
-                params[0] = "ALLOW_NULLS";
-                // We'll use the multi-partition insert for this test.  Between
-                // this and testInsertNull_No_Nulls we should cover both
-                // cases in ticket 306
-                client.callProcedure("InsertMulti", params);
-            } catch (final ProcCallException e) {
-                e.printStackTrace();
-                fail();
-            } catch (final NoConnectionsException e) {
-                e.printStackTrace();
-                fail();
-            }
-
-            // verify that the row was inserted
-            try {
-                final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
-                final VoltTableRow row = result[0].fetchRow(0);
-                for (int i=0; i < COLS; ++i) {
-                    final Object obj = row.get(i+1, m_types[i]);
-                    if (i == k) {
-                        assertTrue(row.wasNull());
-                        System.out.println("Row " + i + " verifed as NULL");
-                    }
-                    else {
-                        assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-                    }
-                }
-            }
-            catch (final Exception ex) {
-                ex.printStackTrace();
-                fail();
-            }
-        }
-    }
-
-    public void testUpdateToNull() throws IOException, ProcCallException
-    {
-        final Client client = this.getClient();
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            // Fill the row with non-null data and insert
-            params[0] = "";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = m_midValues[i];
-                assert(params[i+2] != null);
-            }
-            params[0] = "ALLOW_NULLS";
-            client.callProcedure("Insert", params);
-
-
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            try {
-                client.callProcedure("Update", params);
-            } catch (final ProcCallException e) {
-                e.printStackTrace();
-                fail();
-            } catch (final NoConnectionsException e) {
-                e.printStackTrace();
-                fail();
-            }
-
-            // verify that the row was updated
-            final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            for (int i=0; i < COLS; ++i) {
-                final Object obj = row.get(i+1, m_types[i]);
-                if (i == k) {
-                    assertTrue(row.wasNull());
-                }
-                else {
-                    assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-                }
-            }
-        }
-    }
-
-    public void testUpdateFromNull()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            // Fill the row with diagonal null data and insert
-            params[0] = "";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-            params[0] = "ALLOW_NULLS";
-            client.callProcedure("Insert", params);
-
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            try {
-                client.callProcedure("Update", params);
-            } catch (final ProcCallException e) {
-                e.printStackTrace();
-                fail();
-            } catch (final NoConnectionsException e) {
-                e.printStackTrace();
-                fail();
-            }
-
-            // verify that the row was updated
-            final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            for (int i=0; i < COLS; ++i) {
-                final Object obj = row.get(i+1, m_types[i]);
-                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-            }
-        }
-    }
-
-    public void testDeleteNulls()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        // Insert a NULL value for each column. For the first
-        // row, insert null in the first column, for the 5th row
-        // in the 5 column, etc.
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            // Fill the row with diagonal null data and insert
-            params[0] = "ALLOW_NULLS";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-            client.callProcedure("Insert", params);
-            VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
-            System.out.println(result[0]);
-
-            try {
-                client.callProcedure("Delete", "ALLOW_NULLS", pkey.get());
-            } catch (final ProcCallException e) {
-                e.printStackTrace();
-                fail();
-            } catch (final NoConnectionsException e) {
-                e.printStackTrace();
-                fail();
-            }
-
-            // verify that the row was deleted
-            result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
-            assertEquals(0, result[0].getRowCount());
-        }
-     }
-
-    public void testMissingAttributeInsert_With_Defaults()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        Client client = this.getClient();
-
-        Object params[] = new Object[COLS + 2];
-
-        params[0] = "WITH_DEFAULTS";
-        params[1] = pkey.incrementAndGet();
-        for (int i = 0; i < COLS; i++) {
-            params[i+2] = m_defaultValues[i];
-            assert(params[i+2] != null);
-        }
-
-        try {
-            client.callProcedure("Insert", params);
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        } catch (NoConnectionsException e) {
-            e.printStackTrace();
-            fail();
-        }
-
-        VoltTable[] result = client.callProcedure("Select", "WITH_DEFAULTS", pkey.get()).getResults();
-        VoltTableRow row = result[0].fetchRow(0);
-        for (int i=0; i < COLS; ++i) {
-            Object obj = row.get(i+1, m_types[i]);
-            assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-        }
-    }
-
-    public void testMissingAttributeInsert_With_Null_Defaults()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        Client client = this.getClient();
-
-        Object params[] = new Object[COLS + 2];
-
-        params[0] = "WITH_NULL_DEFAULTS";
-        params[1] = pkey.incrementAndGet();
-        for (int i = 0; i < COLS; i++) {
-            params[i+2] = m_nullValues[i];
-            assert(params[i+2] != null);
-        }
-
-        try {
-            client.callProcedure("Insert", params);
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            fail();
-        } catch (NoConnectionsException e) {
-            e.printStackTrace();
-            fail();
-        }
-
-        VoltTable[] result = client.callProcedure("Select", "WITH_NULL_DEFAULTS", pkey.get()).getResults();
-        VoltTableRow row = result[0].fetchRow(0);
-        for (int i=0; i < COLS; ++i) {
-            Object obj = row.get(i+1, m_types[i]);
-            assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-        }
-    }
-
-    //
-    // Round trip the maximum value
-    //
-    public void testInsertMaxValues_No_Nulls()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        // Insert a MAX value for each column. For the first
-        // row, insert MAX in the first column, for the 5th row
-        // in the 5 column, etc.
-
-        final Object params[] = new Object[COLS + 2];
-
-        for (int k=0; k < COLS; ++k) {
-
-            // build the parameter list as described above
-            params[0] = "";
-            params[1] = pkey.incrementAndGet();
-            for (int i = 0; i < COLS; i++) {
-                params[i+2] = (i == k) ? m_maxValues[i] : m_midValues[i];
-                assert(params[i+2] != null);
-            }
-
-            // Perform the inserts and execute selects, verifying the
-            // content of the select matches the parameters passed to
-            // insert
-
-            System.out.println("testInsertMaxValues: " + k + " MAX type is " + m_types[k]);
-            params[0] = "NO_NULLS";
-            client.callProcedure("Insert", params);
-            // verify that the row was updated
-            final VoltTable[] result = client.callProcedure("Select", "NO_NULLS", pkey.get()).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            for (int i=0; i < COLS; ++i) {
-                final Object obj = row.get(i+1, m_types[i]);
-                assertTrue (!row.wasNull());
-                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
-            }
-        }
-    }
-
-    //
-    // Round trip the minimum value.
-    //
+//
+//    public void testUpdateToNull() throws IOException, ProcCallException
+//    {
+//        final Client client = this.getClient();
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//
+//            // build the parameter list as described above
+//            // Fill the row with non-null data and insert
+//            params[0] = "";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//            params[0] = "ALLOW_NULLS";
+//            client.callProcedure("Insert", params);
+//
+//
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//
+//            try {
+//                client.callProcedure("Update", params);
+//            } catch (final ProcCallException e) {
+//                e.printStackTrace();
+//                fail();
+//            } catch (final NoConnectionsException e) {
+//                e.printStackTrace();
+//                fail();
+//            }
+//
+//            // verify that the row was updated
+//            final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            for (int i=0; i < COLS; ++i) {
+//                final Object obj = row.get(i+1, m_types[i]);
+//                if (i == k) {
+//                    assertTrue(row.wasNull());
+//                }
+//                else {
+//                    assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//                }
+//            }
+//        }
+//    }
+//
+//    public void testUpdateFromNull()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//
+//            // build the parameter list as described above
+//            // Fill the row with diagonal null data and insert
+//            params[0] = "";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//            params[0] = "ALLOW_NULLS";
+//            client.callProcedure("Insert", params);
+//
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//
+//            try {
+//                client.callProcedure("Update", params);
+//            } catch (final ProcCallException e) {
+//                e.printStackTrace();
+//                fail();
+//            } catch (final NoConnectionsException e) {
+//                e.printStackTrace();
+//                fail();
+//            }
+//
+//            // verify that the row was updated
+//            final VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            for (int i=0; i < COLS; ++i) {
+//                final Object obj = row.get(i+1, m_types[i]);
+//                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//            }
+//        }
+//    }
+//
+//    public void testDeleteNulls()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        // Insert a NULL value for each column. For the first
+//        // row, insert null in the first column, for the 5th row
+//        // in the 5 column, etc.
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//
+//            // build the parameter list as described above
+//            // Fill the row with diagonal null data and insert
+//            params[0] = "ALLOW_NULLS";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_nullValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//            client.callProcedure("Insert", params);
+//            VoltTable[] result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
+//            System.out.println(result[0]);
+//
+//            try {
+//                client.callProcedure("Delete", "ALLOW_NULLS", pkey.get());
+//            } catch (final ProcCallException e) {
+//                e.printStackTrace();
+//                fail();
+//            } catch (final NoConnectionsException e) {
+//                e.printStackTrace();
+//                fail();
+//            }
+//
+//            // verify that the row was deleted
+//            result = client.callProcedure("Select", "ALLOW_NULLS", pkey.get()).getResults();
+//            assertEquals(0, result[0].getRowCount());
+//        }
+//     }
+//
+//    public void testMissingAttributeInsert_With_Defaults()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        Client client = this.getClient();
+//
+//        Object params[] = new Object[COLS + 2];
+//
+//        params[0] = "WITH_DEFAULTS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i = 0; i < COLS; i++) {
+//            params[i+2] = m_defaultValues[i];
+//            assert(params[i+2] != null);
+//        }
+//
+//        try {
+//            client.callProcedure("Insert", params);
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        } catch (NoConnectionsException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//
+//        VoltTable[] result = client.callProcedure("Select", "WITH_DEFAULTS", pkey.get()).getResults();
+//        VoltTableRow row = result[0].fetchRow(0);
+//        for (int i=0; i < COLS; ++i) {
+//            Object obj = row.get(i+1, m_types[i]);
+//            assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//        }
+//    }
+//
+//    public void testMissingAttributeInsert_With_Null_Defaults()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        Client client = this.getClient();
+//
+//        Object params[] = new Object[COLS + 2];
+//
+//        params[0] = "WITH_NULL_DEFAULTS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i = 0; i < COLS; i++) {
+//            params[i+2] = m_nullValues[i];
+//            assert(params[i+2] != null);
+//        }
+//
+//        try {
+//            client.callProcedure("Insert", params);
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            fail();
+//        } catch (NoConnectionsException e) {
+//            e.printStackTrace();
+//            fail();
+//        }
+//
+//        VoltTable[] result = client.callProcedure("Select", "WITH_NULL_DEFAULTS", pkey.get()).getResults();
+//        VoltTableRow row = result[0].fetchRow(0);
+//        for (int i=0; i < COLS; ++i) {
+//            Object obj = row.get(i+1, m_types[i]);
+//            assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//        }
+//    }
+//
+//    //
+//    // Round trip the maximum value
+//    //
+//    public void testInsertMaxValues_No_Nulls()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        // Insert a MAX value for each column. For the first
+//        // row, insert MAX in the first column, for the 5th row
+//        // in the 5 column, etc.
+//
+//        final Object params[] = new Object[COLS + 2];
+//
+//        for (int k=0; k < COLS; ++k) {
+//
+//            // build the parameter list as described above
+//            params[0] = "";
+//            params[1] = pkey.incrementAndGet();
+//            for (int i = 0; i < COLS; i++) {
+//                params[i+2] = (i == k) ? m_maxValues[i] : m_midValues[i];
+//                assert(params[i+2] != null);
+//            }
+//
+//            // Perform the inserts and execute selects, verifying the
+//            // content of the select matches the parameters passed to
+//            // insert
+//
+//            System.out.println("testInsertMaxValues: " + k + " MAX type is " + m_types[k]);
+//            params[0] = "NO_NULLS";
+//            client.callProcedure("Insert", params);
+//            // verify that the row was updated
+//            final VoltTable[] result = client.callProcedure("Select", "NO_NULLS", pkey.get()).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            for (int i=0; i < COLS; ++i) {
+//                final Object obj = row.get(i+1, m_types[i]);
+//                assertTrue (!row.wasNull());
+//                assertTrue( comparisonHelper(obj, params[i+2], m_types[i]) );
+//            }
+//        }
+//    }
+//
+//    //
+//    // Round trip the minimum value.
+//    //
 //    public void testInsertMinValues_No_Nulls()
 //        throws NoConnectionsException, ProcCallException, IOException
 //    {
@@ -827,227 +831,227 @@ public class TestSQLTypesSuite extends RegressionSuite {
 //            }
 //        }
 //    }
-
-    //
-    // Apply a simple expression to each type that supports math.
-    //
-//    public void testSimpleExpressions()
+//
+//    //
+//    // Apply a simple expression to each type that supports math.
+//    //
+////    public void testSimpleExpressions()
+////    throws NoConnectionsException, ProcCallException, IOException
+////    {
+////        final Client client = this.getClient();
+////
+////        // Build a simple expression to do addition and select one column at
+////        // a time, using that expression in a trivial projection.
+////
+////        // insert one row with the mid values
+////        final Object params[] = new Object[COLS + 2];
+////        params[0] = "NO_NULLS";
+////        params[1] = pkey.incrementAndGet();
+////        for (int i=0; i < COLS; i++) {
+////            params[i+2] = m_midValues[i];
+////        }
+////        client.callProcedure("Insert", params);
+////
+////        // insert one row with the max values
+////        params[0] = "NO_NULLS";
+////        params[1] = pkey.incrementAndGet();
+////        for (int i=0; i < COLS; i++) {
+////            params[i+2] = m_maxValues[i];
+////        }
+////        client.callProcedure("Insert", params);
+////
+////
+////        // select A + 11 from no_nulls where A = mid_value
+////        for (int i=0; i < COLS; i++) {
+////            if (!m_supportsMath[i])
+////                continue;
+////
+////            // TODO see trac 236.
+////            // Would be better here to select where the column under test
+////            // equals its mid value - but decimals can't do that.
+////            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
+////            + m_columnNames[3] + " = " + m_midValues[3];
+////            System.out.println("testsimpleexpression: " + sql);
+////            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
+////            final VoltTableRow row = result[0].fetchRow(0);
+////            final Object obj = row.get(0, m_types[i]);
+////
+////            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
+////            final double got = ((Number)obj).doubleValue();
+////            System.out.println("Expect: " + expect + " got: " + got);
+////            assertEquals(expect, got);
+////        }
+////    }
+//
+//    public void testJumboRow() throws Exception {
+//        final Client client = getClient();
+//        byte firstStringBytes[] = new byte[1048576];
+//        java.util.Arrays.fill(firstStringBytes, (byte)'c');
+//        String firstString = new String(firstStringBytes, "UTF-8");
+//        byte secondStringBytes[] = new byte[1048564];
+//        java.util.Arrays.fill(secondStringBytes, (byte)'a');
+//        String secondString = new String(secondStringBytes, "UTF-8");
+//
+//        Object params[] = new Object[] {
+//                "JUMBO_ROW",
+//                0,
+//                0,
+//                0,
+//                0,
+//                0,
+//                0.0,
+//                new TimestampType(0),
+//                firstString,
+//                secondString,
+//                "",
+//                "",
+//                VoltType.NULL_DECIMAL
+//        };
+//        VoltTable results[] = client.callProcedure("Insert", params).getResults();
+//        params = null;
+//        firstString = null;
+//        secondString = null;
+//
+//        assertEquals(results.length, 1);
+//        assertEquals( 1, results[0].asScalarLong());
+//
+//        results = client.callProcedure("Select", "JUMBO_ROW", 0).getResults();
+//        assertEquals(results.length, 1);
+//        assertTrue(results[0].advanceRow());
+//        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(1), firstStringBytes));
+//        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(2), secondStringBytes));
+//
+//        java.util.Arrays.fill(firstStringBytes, (byte)'q');
+//        firstString = new String(firstStringBytes, "UTF-8");
+//        java.util.Arrays.fill(secondStringBytes, (byte)'r');
+//        secondString = new String(secondStringBytes, "UTF-8");
+//
+//        params = new Object[] {
+//                "JUMBO_ROW",
+//                0,
+//                0,
+//                0,
+//                0,
+//                0,
+//                0.0,
+//                new TimestampType(0),
+//                firstString,
+//                secondString,
+//                "",
+//                "",
+//                VoltType.NULL_DECIMAL
+//        };
+//
+//        results = client.callProcedure("Update", params).getResults();
+//        params = null;
+//        firstString = null;
+//        secondString = null;
+//
+//        assertEquals(results.length, 1);
+//        assertEquals( 1, results[0].asScalarLong());
+//
+//        results = client.callProcedure("Select", "JUMBO_ROW", 0).getResults();
+//        assertEquals(results.length, 1);
+//        assertTrue(results[0].advanceRow());
+//        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(1), firstStringBytes));
+//        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(2), secondStringBytes));
+//    }
+//
+//    public void testUpdateDecimalWithPVE()
 //    throws NoConnectionsException, ProcCallException, IOException
 //    {
+//        // insert a couple of rows.
 //        final Client client = this.getClient();
-//
-//        // Build a simple expression to do addition and select one column at
-//        // a time, using that expression in a trivial projection.
-//
-//        // insert one row with the mid values
 //        final Object params[] = new Object[COLS + 2];
-//        params[0] = "NO_NULLS";
-//        params[1] = pkey.incrementAndGet();
+//        params[0] = "ALLOW_NULLS";
+//        params[1] = 0;
 //        for (int i=0; i < COLS; i++) {
 //            params[i+2] = m_midValues[i];
 //        }
 //        client.callProcedure("Insert", params);
 //
 //        // insert one row with the max values
-//        params[0] = "NO_NULLS";
-//        params[1] = pkey.incrementAndGet();
+//        params[0] = "ALLOW_NULLS";
+//        params[1] = 1;
 //        for (int i=0; i < COLS; i++) {
 //            params[i+2] = m_maxValues[i];
 //        }
 //        client.callProcedure("Insert", params);
 //
+//        // update the mid value to the minimum decimal value
+//        VoltTable[] result = client.callProcedure("UpdateDecimal", m_minValues[10], m_midValues[10]).getResults();
 //
-//        // select A + 11 from no_nulls where A = mid_value
-//        for (int i=0; i < COLS; i++) {
-//            if (!m_supportsMath[i])
-//                continue;
+//        // select that same row again by primary key
+//        result = client.callProcedure("Select", "ALLOW_NULLS", 0).getResults();
 //
-//            // TODO see trac 236.
-//            // Would be better here to select where the column under test
-//            // equals its mid value - but decimals can't do that.
-//            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
-//            + m_columnNames[3] + " = " + m_midValues[3];
-//            System.out.println("testsimpleexpression: " + sql);
-//            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
-//            final VoltTableRow row = result[0].fetchRow(0);
-//            final Object obj = row.get(0, m_types[i]);
+//        // and verify the row
+//        final VoltTableRow row = result[0].fetchRow(0);
+//        final BigDecimal bd = (row.getDecimalAsBigDecimal(11));
+//        assertTrue(comparisonHelper(m_minValues[10], bd, m_types[10]));
+//    }
 //
-//            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
-//            final double got = ((Number)obj).doubleValue();
-//            System.out.println("Expect: " + expect + " got: " + got);
-//            assertEquals(expect, got);
+//    private void helper_testInvalidParameterSerializations(Client client, Object[] params)
+//    throws NoConnectionsException, IOException, ProcCallException
+//    {
+//        try {
+//            client.callProcedure("ParamSetArrays", params);
+//        }
+//        catch (RuntimeException e) {
+//            assertTrue(e.getCause() instanceof IOException);
 //        }
 //    }
-
-    public void testJumboRow() throws Exception {
-        final Client client = getClient();
-        byte firstStringBytes[] = new byte[1048576];
-        java.util.Arrays.fill(firstStringBytes, (byte)'c');
-        String firstString = new String(firstStringBytes, "UTF-8");
-        byte secondStringBytes[] = new byte[1048564];
-        java.util.Arrays.fill(secondStringBytes, (byte)'a');
-        String secondString = new String(secondStringBytes, "UTF-8");
-
-        Object params[] = new Object[] {
-                "JUMBO_ROW",
-                0,
-                0,
-                0,
-                0,
-                0,
-                0.0,
-                new TimestampType(0),
-                firstString,
-                secondString,
-                "",
-                "",
-                VoltType.NULL_DECIMAL
-        };
-        VoltTable results[] = client.callProcedure("Insert", params).getResults();
-        params = null;
-        firstString = null;
-        secondString = null;
-
-        assertEquals(results.length, 1);
-        assertEquals( 1, results[0].asScalarLong());
-
-        results = client.callProcedure("Select", "JUMBO_ROW", 0).getResults();
-        assertEquals(results.length, 1);
-        assertTrue(results[0].advanceRow());
-        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(1), firstStringBytes));
-        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(2), secondStringBytes));
-
-        java.util.Arrays.fill(firstStringBytes, (byte)'q');
-        firstString = new String(firstStringBytes, "UTF-8");
-        java.util.Arrays.fill(secondStringBytes, (byte)'r');
-        secondString = new String(secondStringBytes, "UTF-8");
-
-        params = new Object[] {
-                "JUMBO_ROW",
-                0,
-                0,
-                0,
-                0,
-                0,
-                0.0,
-                new TimestampType(0),
-                firstString,
-                secondString,
-                "",
-                "",
-                VoltType.NULL_DECIMAL
-        };
-
-        results = client.callProcedure("Update", params).getResults();
-        params = null;
-        firstString = null;
-        secondString = null;
-
-        assertEquals(results.length, 1);
-        assertEquals( 1, results[0].asScalarLong());
-
-        results = client.callProcedure("Select", "JUMBO_ROW", 0).getResults();
-        assertEquals(results.length, 1);
-        assertTrue(results[0].advanceRow());
-        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(1), firstStringBytes));
-        assertTrue(java.util.Arrays.equals( results[0].getStringAsBytes(2), secondStringBytes));
-    }
-
-    public void testUpdateDecimalWithPVE()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        // insert a couple of rows.
-        final Client client = this.getClient();
-        final Object params[] = new Object[COLS + 2];
-        params[0] = "ALLOW_NULLS";
-        params[1] = 0;
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_midValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-        // insert one row with the max values
-        params[0] = "ALLOW_NULLS";
-        params[1] = 1;
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_maxValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-        // update the mid value to the minimum decimal value
-        VoltTable[] result = client.callProcedure("UpdateDecimal", m_minValues[10], m_midValues[10]).getResults();
-
-        // select that same row again by primary key
-        result = client.callProcedure("Select", "ALLOW_NULLS", 0).getResults();
-
-        // and verify the row
-        final VoltTableRow row = result[0].fetchRow(0);
-        final BigDecimal bd = (row.getDecimalAsBigDecimal(11));
-        assertTrue(comparisonHelper(m_minValues[10], bd, m_types[10]));
-    }
-
-    private void helper_testInvalidParameterSerializations(Client client, Object[] params)
-    throws NoConnectionsException, IOException, ProcCallException
-    {
-        try {
-            client.callProcedure("ParamSetArrays", params);
-        }
-        catch (RuntimeException e) {
-            assertTrue(e.getCause() instanceof IOException);
-        }
-    }
-
-    public void testInvalidParameterSerializations()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-        final Object params[] = new Object[8];
-
-        params[0] = new short[1];
-        params[1] = new int[1];
-        params[2] = new long[1];
-        params[3] = new double[1];
-        params[4] = new String[1];
-        params[5] = new TimestampType[1];
-        params[6] = new BigDecimal[1];
-        params[7] = new byte[1];
-
-        // make sure the procedure CAN work.
-        client.callProcedure("ParamSetArrays", params);
-
-        // now cycle through invalid array lengths
-        // these should fail in client serialization to the server
-        params[0] = new short[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[0] = new short[1];
-        params[1] = new int[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[1] = new int[1];
-        params[2] = new long[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[2] = new long[1];
-        params[3] = new double[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[3] = new double[1];
-        params[4] = new String[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[4] = new String[1];
-        params[5] = new TimestampType[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[5] = new TimestampType[1];
-        params[6] = new BigDecimal[Short.MAX_VALUE + 1];
-        helper_testInvalidParameterSerializations(client, params);
-
-        params[6] = new BigDecimal[1];
-        params[7] = new byte[VoltType.MAX_VALUE_LENGTH + 1];
-        helper_testInvalidParameterSerializations(client, params);
-    }
+//
+//    public void testInvalidParameterSerializations()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//        final Object params[] = new Object[8];
+//
+//        params[0] = new short[1];
+//        params[1] = new int[1];
+//        params[2] = new long[1];
+//        params[3] = new double[1];
+//        params[4] = new String[1];
+//        params[5] = new TimestampType[1];
+//        params[6] = new BigDecimal[1];
+//        params[7] = new byte[1];
+//
+//        // make sure the procedure CAN work.
+//        client.callProcedure("ParamSetArrays", params);
+//
+//        // now cycle through invalid array lengths
+//        // these should fail in client serialization to the server
+//        params[0] = new short[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[0] = new short[1];
+//        params[1] = new int[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[1] = new int[1];
+//        params[2] = new long[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[2] = new long[1];
+//        params[3] = new double[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[3] = new double[1];
+//        params[4] = new String[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[4] = new String[1];
+//        params[5] = new TimestampType[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[5] = new TimestampType[1];
+//        params[6] = new BigDecimal[Short.MAX_VALUE + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//
+//        params[6] = new BigDecimal[1];
+//        params[7] = new byte[VoltType.MAX_VALUE_LENGTH + 1];
+//        helper_testInvalidParameterSerializations(client, params);
+//    }
 
 
     //
