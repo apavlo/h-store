@@ -99,7 +99,7 @@ public class SerializableException extends VoltProcedure.VoltAbortException {
         pw.flush();
         m_message = sw.toString();
     }
-
+    
     public SerializableException(ByteBuffer b) {
         final int messageLength = b.getInt();
         final byte messageBytes[] = new byte[messageLength];
