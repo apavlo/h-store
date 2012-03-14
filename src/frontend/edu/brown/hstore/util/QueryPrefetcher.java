@@ -1,6 +1,7 @@
 package edu.brown.hstore.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +80,7 @@ public class QueryPrefetcher implements Loggable {
         Procedure catalog_proc = ts.getProcedure();
         assert (ts.getProcedureParameters() != null) : "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
-
+        
         // TODO: Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
@@ -149,9 +150,35 @@ public class QueryPrefetcher implements Loggable {
             builder.addPrefetchFragments(frag);
         } // FOR (WorkFragment)
 
+        Collection<Integer> touched_partitions = ts.getPredictTouchedPartitions();
+        boolean[] touched_sites = new boolean[num_sites];
+        for (int partition : touched_partitions) {
+        	touched_sites[this.partition_site_xref[partition]] = true;
+        }
         TransactionInitRequest[] init_requests = new TransactionInitRequest[this.num_sites];
+        TransactionInitRequest default_request = null;
         for (int i = 0; i < num_sites; ++i) {
-            init_requests[i] = builders[i].build();
+        	// If this site has no prefetched fragments ...
+        	if (builders[i] == null) {
+        		// but it has other non-prefetched WorkFragments, create a default TransactionInitRequest.
+        		if (touched_sites[i]) {
+        			if (default_request == null) {
+        	            default_request = TransactionInitRequest.newBuilder()
+        	                    .setTransactionId(ts.getTransactionId())
+        	                    .setProcedureId(ts.getProcedure().getId())
+        	                    .addAllPartitions(ts.getPredictTouchedPartitions())
+        	                    .build();
+                	}
+        			init_requests[i] = default_request;
+        		}
+        		// and no other WorkFragments, set the TransactionInitRequest to null.
+        		else {
+        			
+        		}
+        	}
+        	else {
+        		
+        	}
         }
 
         return init_requests;
