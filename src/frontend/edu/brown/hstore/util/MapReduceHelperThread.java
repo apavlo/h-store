@@ -96,58 +96,54 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
                 break;
             }
             assert (ts != null);
-            if (ts.isMapPhase() && !hstore_conf.site.mr_map_blocking) {
-                this.map(ts);
-            }else if (ts.isShufflePhase()) {
+            if (ts.isShufflePhase()) {
                 this.shuffle(ts);
-            }else if (ts.isReducePhase() && !hstore_conf.site.mr_reduce_blocking) {
+            }
+            if (ts.isReducePhase() && !hstore_conf.site.mr_reduce_blocking) {
                 this.reduce(ts);
-            }else {
-                if (debug.get())
-                    LOG.debug("<...>ts:" +ts);
             }
 
         } // WHILE
 
     }
     
-    public void map(final MapReduceTransaction mr_ts) {
-        // Runtime
-
-        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-
-        if (hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_map_runed()) {
-            if (debug.get())
-                LOG.debug(String.format("TXN: %s $$$1 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
-            volt_proc.setPartitionId(mr_ts.getBasePartition());
-            if (debug.get())
-                LOG.debug(String.format("TXN: %s $$$2 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
-            
-            assert(execState != null);
-            execState.clear();
-            mr_ts.setExecutionState(execState);
-            
-            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
-
-        } else {
-
-            for (int partition : hstore_site.getLocalPartitionIds()) {
-                if (debug.get())
-                    LOG.debug(String.format("TXN: %s $$$3 non-blocking map, partition called on:%d", mr_ts, partition));
-
-                if (partition != mr_ts.getBasePartition()) {
-                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                    if (debug.get())
-                        LOG.debug(String.format("TXN: %s $$$4 non-blocking map, partition called on:%d", mr_ts, partition));
-                    volt_proc.setPartitionId(partition);
-                    execState.clear();
-                    ts.setExecutionState(execState);
-                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
-                }
-            }
-        }
-
-    }
+//    public void map(final MapReduceTransaction mr_ts) {
+//        // Runtime
+//
+//        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+//
+//        if (hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_map_runed()) {
+//            if (debug.get())
+//                LOG.debug(String.format("TXN: %s $$$1 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
+//            volt_proc.setPartitionId(mr_ts.getBasePartition());
+//            if (debug.get())
+//                LOG.debug(String.format("TXN: %s $$$2 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
+//            
+//            assert(execState != null);
+//            execState.clear();
+//            mr_ts.setExecutionState(execState);
+//            
+//            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+//
+//        } else {
+//
+//            for (int partition : hstore_site.getLocalPartitionIds()) {
+//                if (debug.get())
+//                    LOG.debug(String.format("TXN: %s $$$3 non-blocking map, partition called on:%d", mr_ts, partition));
+//
+//                if (partition != mr_ts.getBasePartition()) {
+//                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+//                    if (debug.get())
+//                        LOG.debug(String.format("TXN: %s $$$4 non-blocking map, partition called on:%d", mr_ts, partition));
+//                    volt_proc.setPartitionId(partition);
+//                    execState.clear();
+//                    ts.setExecutionState(execState);
+//                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+//                }
+//            }
+//        }
+//
+//    }
 
     protected void shuffle(final MapReduceTransaction ts) {
         /**

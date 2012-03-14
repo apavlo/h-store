@@ -399,6 +399,12 @@ public class MapReduceTransaction extends LocalTransaction {
         return (StringUtil.formatMaps(this.getDebugMap()));
     }
     
+    @Override
+    public boolean isPredictSinglePartition() {
+        if (debug.get()) LOG.debug("Trying to do asynchronous map execution way, txs:" + this);
+        return !this.hstore_site.getHStoreConf().site.mr_map_blocking;
+    }
+    
 
     @Override
     public void initRound(int partition, long undoToken) {

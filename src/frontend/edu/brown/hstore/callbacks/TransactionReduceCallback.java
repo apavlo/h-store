@@ -86,11 +86,13 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
                                                                   ""); 
            hstore_site.sendClientResponse(ts, cresponse);
 
-           // STEP 2
-           // Initialize the FinishCallback and tell every partition in the cluster
-           // to clean up this transaction because we're done with it!
-           this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
-           hstore_site.getCoordinator().transactionFinish(ts, Status.OK, this.finish_callback);
+           if (hstore_site.getHStoreConf().site.mr_map_blocking) {
+               // STEP 2
+               // Initialize the FinishCallback and tell every partition in the cluster
+               // to clean up this transaction because we're done with it!
+               this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
+               hstore_site.getCoordinator().transactionFinish(ts, Status.OK, this.finish_callback);
+           }
             
         } else {
             assert(this.finish_callback != null);
