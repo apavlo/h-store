@@ -1896,6 +1896,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         DependencySet result = null;
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
         if (needs_profiling) ((LocalTransaction)ts).profiler.startExecEE();
+        Throwable t = null;
         try {
             if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d",
                                            ts, Arrays.toString(fragmentIds), this.partitionId));
@@ -1911,14 +1912,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             this.lastCommittedTxnId,
                             undoToken);
             
-        } catch (EEException ex) {
-            LOG.fatal(String.format("%s - Unrecoverable error in the ExecutionEngine", ts), ex);
-            System.exit(1);
+        } catch (SerializableException ex) {
+            if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine", ts), ex);
+            t = ex;
+            throw ex;
         } catch (Throwable ex) {
+            t = ex;
             new ServerFaultException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
         } finally {
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
-            if (result == null) {
+            if (t == null && result == null) {
                 LOG.warn(String.format("%s - Finished executing fragments but got back null results [fragmentIds=%s]",
                                        ts, Arrays.toString(fragmentIds)));
             }
