@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os, sys, commands, string
+import os, sys, commands, string, glob
 from buildtools import *
 
 # usage:
@@ -168,41 +168,12 @@ CTX.INPUT[''] = """
  voltdbjni.cpp
 """
 
-CTX.INPUT['catalog'] = """
- authprogram.cpp
- catalog.cpp
- cataloginteger.cpp
- catalogtype.cpp
- cluster.cpp
- column.cpp
- columnref.cpp
- connector.cpp
- connectordestinationinfo.cpp
- connectortableinfo.cpp
- constraint.cpp
- constraintref.cpp
- database.cpp
- group.cpp
- groupref.cpp
- hardwarecore.cpp
- hardwarecpu.cpp
- hardwarethread.cpp
- host.cpp
- index.cpp
- materializedviewinfo.cpp
- partition.cpp
- planfragment.cpp
- procedure.cpp
- procparameter.cpp
- program.cpp
- site.cpp
- statement.cpp
- stmtparameter.cpp
- table.cpp
- user.cpp
- userref.cpp
- snapshotschedule.cpp
-"""
+# 2012-03-14
+# Automatically grab all of our catalog files
+catalog_files = [ ]
+for f in glob.glob(os.path.join(CTX.INPUT_PREFIX, 'catalog', '*.cpp')):
+    catalog_files.append(os.path.basename(f))
+CTX.INPUT['catalog'] = "\n".join(sorted(catalog_files))
 
 CTX.INPUT['common'] = """
  SerializableEEException.cpp
