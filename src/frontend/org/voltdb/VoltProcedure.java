@@ -41,9 +41,11 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -590,13 +592,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
             } catch (RuntimeException e) {
-                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
                 throw new InvocationTargetException(e);
             }
-//            catch (AssertionError e) {
-//                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
-//                System.exit(1);
-//            }
             if (d) LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
             
         // -------------------------------
@@ -639,9 +636,17 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             // -------------------------------
             // ConstraintFailureException
             // -------------------------------
-            } else if (ex_class.equals(org.voltdb.exceptions.ConstraintFailureException.class)) {
+            } else if (ex_class.equals(ConstraintFailureException.class)) {
                 this.status = Status.ABORT_UNEXPECTED;
-                this.status_msg = "CONSTRAINT FAILURE: " + ex.getMessage();
+                this.status_msg = "CONSTRAINT VIOLATION: " + ex.getMessage();
+                
+            // -------------------------------
+            // ServerFaultException
+            // -------------------------------
+            } else if (ex_class.equals(ServerFaultException.class)) {
+                // A server fault means that we definitely did something wrong
+                this.status = Status.ABORT_UNEXPECTED;
+                this.status_msg = "SERVER FAULT: " + ex.getMessage();
                 
             // -------------------------------
             // Everything Else
@@ -666,7 +671,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                     }
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.error(String.format("%s Unexpected Abort: %s", this.m_currentTxnState, msg), ex);
+                    LOG.warn(String.format("%s Unexpected Abort: %s", this.m_currentTxnState, msg), ex);
                 }
                 status = Status.ABORT_UNEXPECTED;
                 status_msg = "UNEXPECTED ABORT: " + statusMsg;
@@ -1005,11 +1010,22 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         // Execute the queries and return the VoltTable results
         last_batchQueryStmtIndex = batchQueryStmtIndex;
-        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex,
-                                                         batchQueryStmts,
-                                                         batchQueryArgs,
-                                                         isFinalSQL,
-                                                         forceSinglePartition);
+
+        VoltTable[] retval = null;
+        try {
+            retval = this.executeQueriesInABatch(batchQueryStmtIndex,
+                                                 batchQueryStmts,
+                                                 batchQueryArgs,
+                                                 isFinalSQL,
+                                                 forceSinglePartition);
+        // This should just be forwarded along
+        } catch (SerializableException ex) {
+            throw ex;
+        // We know that any error that we get here is because of us and not their user code 
+        } catch (Throwable ex) {
+            String message = "Unexpected error while executing queries";
+            throw new ServerFaultException(message, ex, this.getTransactionId());
+        }
 
         // Workload Trace - Stop Query
         if (this.workloadTraceEnable && workloadTxnHandle != null) {
