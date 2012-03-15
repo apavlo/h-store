@@ -867,8 +867,9 @@ TEST CASES
 </target>
 
 <!-- Fetch the files that we need to run the full tests -->
-<target name="junit-getfiles">
-    <exec dir='${tools.dir}' executable='getfiles.py'>
+<target name="junit-getfiles"
+        description="Fetch the files that we need to run junit-full">
+    <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
         <arg line="${files.dir}" />
     </exec>
