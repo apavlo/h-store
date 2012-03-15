@@ -866,6 +866,14 @@ TEST CASES
     </run_junit>
 </target>
 
+<!-- Fetch the files that we need to run the full tests -->
+<target name="junit-getfiles">
+    <exec dir='${tools.dir}' executable='getfiles.py'>
+        <arg line="--copy=${localcopy}" />
+        <arg line="${files.dir}" />
+    </exec>
+</target>
+
 <!-- Junit tests that run quickly -->
 <target name="junit"
         description="Tests and suites that run in under 3 minutes under memcheck">
