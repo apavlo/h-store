@@ -110,7 +110,7 @@ import edu.brown.utils.ThreadUtil;
  * 
  * @author pavlo
  */
-public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable {
+public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable, Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -1996,6 +1996,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This is a blocking call!
      * @throws Exception
      */
+    @Override
     public void run() {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final HStoreSite hstore_site = this;
