@@ -982,12 +982,12 @@ TEST CASES
                 <exclude name="**/*$*.class"/>
 
                 <!-- VoltDB Tests -->
-                <include name='org/hsqldb/**/Test*.class'/>
-                <include name='org/voltdb/**/Test*.class'/>
-                <include name='org/voltdb/network/**/Test*.class'/>
-                <include name='org/voltdb/messaging/**/*Test.class'/>
-                <include name='org/voltdb/network/**/*Test.class'/>
-                <include name='org/voltdb/utils/**/*Test.class'/>
+<!--                 <include name='org/hsqldb/**/Test*.class'/> -->
+<!--                 <include name='org/voltdb/**/Test*.class'/> -->
+<!--                 <include name='org/voltdb/network/**/Test*.class'/> -->
+<!--                 <include name='org/voltdb/messaging/**/*Test.class'/> -->
+<!--                 <include name='org/voltdb/network/**/*Test.class'/> -->
+<!--                 <include name='org/voltdb/utils/**/*Test.class'/> -->
                 
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
@@ -995,6 +995,8 @@ TEST CASES
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
                 
                 <!-- VoltDB Regression Suite -->
+                <include name="org/voltdb/regressionsuites/Test*.class"/>
+                
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
                 <exclude name="**/TestIndexesSuite.class" />
@@ -1014,16 +1016,16 @@ TEST CASES
                 <exclude name="**/TestTPCCSuite.class" />
 
                 <!-- Brown Tests -->
-                <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/**/*Test.class'/>
+<!--                 <include name='edu/brown/**/Test*.class'/> -->
+<!--                 <include name='edu/brown/**/*Test.class'/> -->
                 
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
 
                 <!-- Canadian Tests -->
-                <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
-                <include name='edu/mit/**/Test*.class'/>
+<!--                 <include name='ca/evanjones/**/*Test.class'/> -->
+<!--                 <include name='edu/mit/**/*Test.class'/> -->
+<!--                 <include name='edu/mit/**/Test*.class'/> -->
             </fileset>
         </tests>
     </run_junit>
