@@ -600,7 +600,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param last_txn_id
      */
     private void checkBlockedQueue() {
-        if (d) LOG.debug(String.format("Checking whether we can release %d blocked dtxns",
+        if (t) LOG.trace(String.format("Checking whether we can release %d blocked dtxns",
                                        this.blockedQueue.size()));
         
         while (this.blockedQueue.isEmpty() == false) {
