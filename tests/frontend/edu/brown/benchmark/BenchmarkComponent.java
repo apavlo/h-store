@@ -993,7 +993,7 @@ public abstract class BenchmarkComponent {
                 useHeavyweightClient(),
                 statsSettings
         );
-        if (m_blocking) {
+        if (m_blocking && isLoader == false) {
             if (debug.get()) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
