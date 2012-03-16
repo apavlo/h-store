@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
@@ -17,6 +18,7 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -68,12 +70,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             String.format("Got init request for remote txn #%d but we already have one [%s]",
                           txn_id, ts);
         
-        // TODO(cjl6): If (request.getPrefetchFragmentsCount() > 0), then we need to
-        // make a RemoteTransaction handle for ourselves so that we can keep track of 
-        // our state when pre-fetching queries.
-        
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
-        // our HStoreSite gets an acknowledgment from all the
+        // our HStoreSite gets an acknowledgment from all the ...
         // Note: The TransactionQueueManager will put this back in the queue for us
         //       We have to allocate this here because we need to have the original callback
         TransactionInitQueueCallback wrapper = null;
@@ -83,6 +81,25 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+        
+        // TODO(cjl6): If (request.getPrefetchFragmentsCount() > 0), then we need to
+        // make a RemoteTransaction handle for ourselves so that we can keep track of 
+        // our state when pre-fetching queries.
+        if (request.getPrefetchFragmentsCount() > 0) {
+            // If we don't have a handle, we need to make one so that we can stick in the
+            // things that we need to prefetch. At this point we know that we're on
+            // a remote site from the txn's base partition
+            if (ts == null) {
+                int base_partition = request.getBasePartition();
+                boolean sysproc = CatalogUtil.isSysProcedure(hstore_site.getDatabase(), request.getProcedureId());
+                ts = hstore_site.createRemoteTransaction(txn_id, base_partition, sysproc);
+            }
+            
+            // Stick the prefetch information into the transaction
+            ts.attachPrefetchQueries(request.getPrefetchFragmentsList(), request.getPrefetchParameterSetsList());
+        }
+        
+        
         hstore_site.transactionInit(txn_id, request.getPartitionsList(), wrapper);
         
         // We don't need to send back a response right here.

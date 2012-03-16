@@ -137,7 +137,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             
             if (debug.get())
                 LOG.debug("__FILE__:__LINE__ " + String.format("Invoking transactionWork for %s [first=%s]", ts, first));
-            hstore_site.transactionWork(ts, request, fragment);
+            hstore_site.transactionWork(ts, fragment);
             first = false;
         } // FOR
         assert(ts != null);

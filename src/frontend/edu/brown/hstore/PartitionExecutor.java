@@ -775,9 +775,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                     WorkFragment fragment = ftask.getWorkFragment();
                     assert(fragment != null);
+                    // TODO (cjl6): Only do this if the fragment is not prefetched
                     ParameterSet parameters[] = this.getFragmentParameters(current_txn,
                                                                            fragment,
                                                                            current_txn.getAttachedParameterSets());
+                    // TODO (cjl6): If it is prefetched, use current_txn.getPrefetchParameterSets() instead
+                    
                     assert(parameters != null);
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null

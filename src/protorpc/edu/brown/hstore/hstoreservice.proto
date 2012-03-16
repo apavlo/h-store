@@ -72,6 +72,9 @@ message WorkFragment {
     
     // If true, this is the final fragment for this transaction at this partition.
     optional bool last_fragment = 8 [default = false];
+
+		// If true, this fragment should be prefetched.
+		optional bool prefetch = 9 [default = false];
 }
 
 // -----------------------------------
@@ -83,12 +86,15 @@ message TransactionInitRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
 
+		// The base partition
+		required int32 base_partition = 2;
+
     // Procedure Id
-    required int32 procedure_id = 2;
+    required int32 procedure_id = 3;
     
     // List of partitions at this site that are will be involved
     // with this transaction.
-    repeated int32 partitions = 3 [packed=true];
+    repeated int32 partitions = 4 [packed=true];
 
     // -----------------------------------
     // PRE-FETCH QUERIES
@@ -96,11 +102,11 @@ message TransactionInitRequest {
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated WorkFragment prefetch_fragments = 4;
+    repeated WorkFragment prefetch_fragments = 5;
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match Work.stmtIndex
-    repeated bytes prefetch_parameter_sets = 5;
+    repeated bytes prefetch_parameter_sets = 6;
 }
 
 message TransactionInitResponse {
