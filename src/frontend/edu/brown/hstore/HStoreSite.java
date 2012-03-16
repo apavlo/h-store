@@ -1316,14 +1316,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(Long txn_id, TransactionWorkRequest request) {
+    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, boolean sysproc) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-            ts.init(txn_id, request.getSourcePartition(), request.getSysproc(), true);
+            ts.init(txn_id, base_partition, sysproc, true);
             if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
-                                           ts, request.getSourcePartition(), false, ts.hashCode()));
+                                           ts, base_partition, false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -1380,10 +1380,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @param done
      */
-    public void transactionWork(RemoteTransaction ts, TransactionWorkRequest request, WorkFragment fragment) {
+    public void transactionWork(AbstractTransaction ts, WorkFragment fragment) {
         if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
                                                 fragment.getPartitionId(), ts.getTransactionId()));
         int partition = fragment.getPartitionId();
+        assert(this.isLocalPartition(partition)) :
+            "Trying to queue work for " + ts + " at non-local partition " + partition;
         FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
         this.executors[partition].queueWork(ts, ftask);
     }

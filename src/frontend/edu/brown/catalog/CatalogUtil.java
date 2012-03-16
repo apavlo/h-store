@@ -489,6 +489,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (sysprocs);
     }
+    
+    /**
+     * Returns true if the Procedure catalog object identified by the given id
+     * is a system procedure
+     * @param catalog_db
+     * @param proc_id
+     * @return
+     */
+    public static boolean isSysProcedure(Database catalog_db, int proc_id) {
+        // TODO: Optimize!
+        Procedure catalog_proc = catalog_db.getProcedures().get("id", proc_id);
+        assert (catalog_proc) != null : "Invalid Procedure Id " + proc_id;
+        return (catalog_proc.getSystemproc());
+    }
 
     /**
      * Return all of the MapReduce Procedures for the database

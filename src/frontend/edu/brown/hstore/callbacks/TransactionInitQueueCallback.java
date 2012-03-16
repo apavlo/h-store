@@ -9,6 +9,9 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -96,13 +99,25 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                 String.format("The original callback for txn #%d is null!", this.getTransactionId());
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
+            
+            // Bundle the txn so we can queue the prefetch queries.
+            
+            // TODO(cjl6): At this point all of the partitions at this HStoreSite are allocated
+            //             for executing this txn. We can now check whether it has any embedded
+            //             queries that need to be queued up for pre-fetching. If so, blast them
+            //             off to the HStoreSite so that they can be executed in the PartitionExecutor
+            //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
+            AbstractTransaction ts = hstore_site.getTransaction(txn_id);
+            if (ts != null /*&& ts.hasPrefetchQueriesAtThisSite()*/) {
+                // Go through all the prefetch queries and send each one off to the right PartitionExecutor
+                // if it's at this HStoreSite.
+                for (WorkFragment frag : ts.getPrefetchFragments()) {
+                    hstore_site.transactionWork(ts, frag);
+                }
+            }
         }
         
-        // TODO(cjl6): At this point all of the partitions at this HStoreSite are allocated
-        //             for executing this txn. We can now check whether it has any embedded
-        //             queries that need to be queued up for pre-fetching. If so, blast them
-        //             off to the HStoreSite so that they can be executed in the PartitionExecutor
-        //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
+
     }
     
     /**
