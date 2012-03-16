@@ -28,6 +28,10 @@ public class DependencySet {
     public final int[] depIds;
     public final VoltTable[] dependencies;
 
+    public DependencySet(int depId, VoltTable dependency) {
+        this(new int[]{depId}, new VoltTable[]{dependency});
+    }
+    
     public DependencySet(int[] depIds, VoltTable[] dependencies) {
         assert(depIds != null);
         assert(dependencies != null);
