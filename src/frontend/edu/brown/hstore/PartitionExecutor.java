@@ -483,8 +483,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
         public long getNextUndo();
-//        public long getTxnId();
-//        public Object getOperStatus();
+        public PartitionExecutor getExecutionSite();
+        public Long getCurrentTxnId();
     }
 
     protected class SystemProcedureContext implements SystemProcedureExecutionContext {
@@ -495,8 +495,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
         public long getNextUndo()                   { return getNextUndoToken(); }
-//        public long getTxnId()                      { return getCurrentTxnId(); }
-//        public String getOperStatus()               { return VoltDB.getOperStatus(); }
+        public PartitionExecutor getExecutionSite() { return PartitionExecutor.this; }
+        public Long getCurrentTxnId()               { return PartitionExecutor.this.currentTxnId; }
     }
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
@@ -899,6 +899,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.tmp_fragmentParams.reset();
         this.tmp_serializedParams.clear();
         this.tmp_EEdependencies.clear();
+        
+//        while (this.work_queue.isEmpty()) {
+//            
+//        }
     }
 
     public void tick() {

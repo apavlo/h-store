@@ -51,7 +51,7 @@ import edu.brown.utils.PartitionEstimator;
  * of the rows applicable to the current partitioning at each node in the
  * cluster.
  */
-@ProcInfo(singlePartition = true)
+@ProcInfo(singlePartition = false)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());

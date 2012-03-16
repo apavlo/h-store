@@ -14,7 +14,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/ant.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-codec-1.5.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-collections-3.2.1.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar" sourcepath="/home/pavlo/Documents/H-Store/SourceJars/collections-generic-4.01-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-configuration-1.6.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-pool-1.5.5.jar"/>
@@ -36,5 +36,6 @@
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/weka-3.6.3.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="third_party/java/jars/snappy-1.0.4.jar"/>
 	<classpathentry kind="output" path="obj/eclipse"/>
 </classpath>
