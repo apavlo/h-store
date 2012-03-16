@@ -104,6 +104,7 @@ public class RegressionSuite extends TestCase {
             m_clientChannels.clear();
         }
         m_clients.clear();
+        System.gc();
     }
 
     /**
