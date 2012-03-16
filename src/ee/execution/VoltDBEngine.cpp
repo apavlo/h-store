@@ -344,9 +344,8 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
                 if (!executor->execute(params)) {
-                    VOLT_DEBUG("The Executor's execution at position '%d'"
-                            " failed for PlanFragment '%jd'",
-                            ctr, (intmax_t)planfragmentId);
+                    VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+                               ctr, (intmax_t)planfragmentId);
                     if (cleanUpTable != NULL)
                         cleanUpTable->deleteAllTuples(false);
                     // set these back to -1 for error handling
@@ -355,10 +354,9 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     return ENGINE_ERRORCODE_ERROR;
                 }
             } catch (SerializableEEException &e) {
-                VOLT_ERROR("The Executor's execution at position '%d'"
-                        " failed for PlanFragment '%jd'",
-                        ctr, (intmax_t)planfragmentId);
-                VOLT_ERROR("SerializableEEException: %s", e.message().c_str());
+                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+                           ctr, (intmax_t)planfragmentId);
+                VOLT_DEBUG("SerializableEEException: %s", e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
                 resetReusedResultOutputBuffer();

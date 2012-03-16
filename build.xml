@@ -982,12 +982,12 @@ TEST CASES
                 <exclude name="**/*$*.class"/>
 
                 <!-- VoltDB Tests -->
-<!--                 <include name='org/hsqldb/**/Test*.class'/> -->
-<!--                 <include name='org/voltdb/**/Test*.class'/> -->
-<!--                 <include name='org/voltdb/network/**/Test*.class'/> -->
-<!--                 <include name='org/voltdb/messaging/**/*Test.class'/> -->
-<!--                 <include name='org/voltdb/network/**/*Test.class'/> -->
-<!--                 <include name='org/voltdb/utils/**/*Test.class'/> -->
+                <include name='org/hsqldb/**/Test*.class'/>
+                <include name='org/voltdb/**/Test*.class'/>
+                <include name='org/voltdb/network/**/Test*.class'/>
+                <include name='org/voltdb/messaging/**/*Test.class'/>
+                <include name='org/voltdb/network/**/*Test.class'/>
+                <include name='org/voltdb/utils/**/*Test.class'/>
                 
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
