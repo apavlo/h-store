@@ -239,6 +239,10 @@ public class VoltProjectBuilder {
     // DATABASE PARTITIONS
     // -------------------------------------------------------------------
     
+    public void clearPartitions() {
+        this.cluster_config.clear();
+    }
+    
     public void addPartition(String hostname, int site_id, int partition_id) {
         this.cluster_config.addPartition(hostname, site_id, partition_id);
     }

@@ -45,13 +45,13 @@ public class CatalogChangeSingleProcessServer extends LocalSingleProcessServer
     @Override
     public boolean compile(VoltProjectBuilder builder) {
         m_origBuilder = builder;
-        boolean compiled = m_origBuilder.compile(m_jarFileName, m_siteCount, 0);
+        boolean compiled = m_origBuilder.compile(m_jarFileName, m_partitionCount, 0);
         return compiled;
     }
 
     public boolean recompile(VoltProjectBuilder builder)
     {
-        boolean compiled = builder.compile(m_jarFileName, m_siteCount, 0);
+        boolean compiled = builder.compile(m_jarFileName, m_partitionCount, 0);
         return compiled;
     }
 
@@ -69,7 +69,7 @@ public class CatalogChangeSingleProcessServer extends LocalSingleProcessServer
 
     public boolean revertCompile()
     {
-        boolean compiled = m_origBuilder.compile(m_jarFileName, m_siteCount, 0);
+        boolean compiled = m_origBuilder.compile(m_jarFileName, m_partitionCount, 0);
         return compiled;
     }
 
@@ -78,7 +78,7 @@ public class CatalogChangeSingleProcessServer extends LocalSingleProcessServer
         // name is combo of the classname and the parameters
 
         String retval = "catalogChangeSingleProcess-";
-        retval += String.valueOf(m_siteCount);
+        retval += String.valueOf(m_partitionCount);
         if (m_target == BackendTarget.HSQLDB_BACKEND)
             retval += "-HSQL";
         else if (m_target == BackendTarget.NATIVE_EE_IPC)

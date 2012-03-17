@@ -7,6 +7,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -15,6 +16,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -71,7 +73,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreSite.getThreadName(hstore_site, "MR"));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "MR"));
         if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
@@ -210,15 +212,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             }
         });
 
-        this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
+        this.hstore_site.getHStoreCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
 
     public void reduce(final MapReduceTransaction mr_ts) {
         // Runtime
 
-        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-
-        if (hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_reduce_runed()) {
+        VoltMapReduceProcedure<?> volt_proc = (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+        if (hstore_site.isLocalPartition(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_reduce_runed()) {
             if (debug.get())
                 LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
             volt_proc.setPartitionId(mr_ts.getBasePartition());

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Random;
 
+import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.client.ClientResponse;
@@ -37,9 +38,12 @@ import org.voltdb.types.ExpressionType;
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class BingoClient extends BenchmarkComponent {
-
+    private static final Logger LOG = Logger.getLogger(BingoClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    
     public static enum Transaction {
         CREATE("Create Tournament"),
         DELETE("Delete Tournament"),
@@ -86,11 +90,10 @@ public class BingoClient extends BenchmarkComponent {
                     if (clientResponse.getException() != null) {
                         clientResponse.getException().printStackTrace();
                     }
-                    if (clientResponse.getStatusString() != null) {
-                        System.err.println(clientResponse.getStatusString());
+                    if (debug.get() && clientResponse.getStatusString() != null) {
+                        LOG.warn(clientResponse.getStatusString());
                     }
-
-                    System.exit(-1);
+                    return;
                 }
                 synchronized (tournaments) {
                     tournaments.offer(Tourney.this);
@@ -255,7 +258,8 @@ public class BingoClient extends BenchmarkComponent {
                 }
             };
 
-//            System.err.println("[" + getClientId() + "] CREATE TOURNEY: " + t.tid);
+            if (debug.get())
+                LOG.debug("[" + getClientId() + "] CREATE TOURNEY: " + t.tid);
             queued = this.getClientHandle().callProcedure(
                     callback,
                     "CreateTournament",

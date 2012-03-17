@@ -38,7 +38,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
         new VoltTable.ColumnInfo("key", VoltType.STRING),
         new VoltTable.ColumnInfo("value", VoltType.BIGINT),
     };
-    private final VoltTable fragment = new VoltTable(columns);
+//    private final VoltTable fragment = new VoltTable(columns);
     
     @Before
     public void setUp() throws Exception {

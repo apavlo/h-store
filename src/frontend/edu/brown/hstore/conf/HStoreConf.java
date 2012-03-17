@@ -32,11 +32,6 @@ public final class HStoreConf {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
-    static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
-    
-    static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
-    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
     
     static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
     
@@ -158,6 +153,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_no_undo_logging_all;
+        
+        @ConfigProperty(
+            description="Force all transactions to execute with undo logging. For testing purposes only.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_force_undo_logging_all;
         
         @ConfigProperty(
             description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
@@ -286,14 +288,17 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
-            description="", // TODO
-            defaultInt=10,
+            description="The amount of time the TransactionQueueManager will wait before letting a " +
+                        "distributed transaction id from aquiring a lock on a partition.",
+            defaultInt=1,
             experimental=true
         )
         public int txn_incoming_delay;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The number of times that a distributed transaction is allowed to be restarted " +
+                        "(due to things like network delays) before it is outright rejected and the request " +
+                        "is returned to the client.",
             defaultInt=10,
             experimental=false
         )
@@ -305,6 +310,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int txn_restart_limit_sysproc;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean txn_partition_id_managers;
         
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
@@ -415,6 +427,17 @@ public final class HStoreConf {
         public boolean queue_dtxn_throttle;
         
         // ----------------------------------------------------------------------------
+        // Parameter Mapping Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String mappings_path;
+        
+        // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
 
@@ -427,6 +450,12 @@ public final class HStoreConf {
         )
         public boolean markov_mispredict_recompute;
 
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String markov_path;
         
         @ConfigProperty(
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
@@ -515,7 +544,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this enabled, HStoreCoordinator will use a separate thread to process incoming initialization " +
                         "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean coordinator_init_thread;
@@ -523,7 +552,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this enabled, HStoreCoordinator will use a separate thread to process incoming finish " +
                         "requests for restarted transactions from other HStoreSites. ",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean coordinator_finish_thread;
@@ -624,6 +653,15 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean status_kill_if_hung;
+        
+        @ConfigProperty(
+            description="Allow the HStoreSiteStatus thread to check whether there any zombie transactions. " +
+                        "This can occur if the transaction has already sent back the ClientResponse, but " +
+                        "its internal state has not been cleaned up.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean status_check_for_zombies;
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include transaction information",
@@ -735,9 +773,17 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
             defaultInt=2500,
-            experimental=false
+            experimental=false,
+            replacedBy="site.pool_txninitqueue_idle"
         )
         public int pool_txninitwrapper_idle;
+        
+        @ConfigProperty(
+            description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_txninitqueue_idle;
         
         @ConfigProperty(
             description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
@@ -791,6 +837,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int txnrate;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultNull=true,
+            experimental=false
+        )
+        public String weights;
 
         @ConfigProperty(
             description="Number of processes to use per client host.",
@@ -802,7 +855,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Multiply the ${client.processesperclient} parameter by " +
                         "the number of partitions in the target cluster.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean processesperclient_per_partition;
@@ -1056,7 +1109,6 @@ public final class HStoreConf {
      */
     protected abstract class Conf {
         
-        final Map<Field, ConfigProperty> properties;
         final String prefix;
         final Class<? extends Conf> confClass; 
         
@@ -1064,14 +1116,16 @@ public final class HStoreConf {
             this.confClass = this.getClass();
             this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
             HStoreConf.this.confHandles.put(this.prefix, this);
-            
-            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
             this.setDefaultValues();
+        }
+        
+        protected Map<Field, ConfigProperty> getConfigProperties() {
+            return ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
         }
         
         private void setDefaultValues() {
             // Set the default values for the parameters based on their annotations
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+            for (Entry<Field, ConfigProperty> e : this.getConfigProperties().entrySet()) {
                 Field f = e.getKey();
                 ConfigProperty cp = e.getValue();
                 Object value = getDefaultValue(f, cp);
@@ -1117,7 +1171,7 @@ public final class HStoreConf {
         
         public String toString(boolean experimental) {
             final Map<String, Object> m = new TreeMap<String, Object>();
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+            for (Entry<Field, ConfigProperty> e : this.getConfigProperties().entrySet()) {
                 ConfigProperty cp = e.getValue();
                 if (experimental == false && cp.experimental()) continue;
                 
@@ -1149,7 +1203,7 @@ public final class HStoreConf {
     /**
      * Prefix -> Configuration
      */
-    private final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
+    protected final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
     
     /**
      * Easy Access Handles
@@ -1182,6 +1236,16 @@ public final class HStoreConf {
             // Configuration File
             if (args.hasParam(ArgumentsParser.PARAM_CONF)) {
                 this.loadFromFile(args.getFileParam(ArgumentsParser.PARAM_CONF));
+            }
+            
+            // Markov Path
+            if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
+                this.site.markov_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
+            }
+            
+            // ParameterMappings Path
+            if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
+                this.site.mappings_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
             }
             
             Map<String, String> confParams = args.getHStoreConfParameters();
@@ -1232,7 +1296,7 @@ public final class HStoreConf {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = handle.properties.get(f);
+            ConfigProperty cp = handle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object defaultValue = (cp != null ? this.getDefaultValue(f, cp) : null);
@@ -1311,7 +1375,7 @@ public final class HStoreConf {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = confHandle.properties.get(f);
+            ConfigProperty cp = confHandle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
@@ -1357,7 +1421,7 @@ public final class HStoreConf {
         return (m);
     }
     
-    private Object getDefaultValue(Field f, ConfigProperty cp) {
+    protected Object getDefaultValue(Field f, ConfigProperty cp) {
         Class<?> f_class = f.getType();
         Object value = null;
         
@@ -1393,161 +1457,7 @@ public final class HStoreConf {
         return (false);
     }
     
-    // ----------------------------------------------------------------------------
-    // OUTPUT METHODS
-    // ----------------------------------------------------------------------------
-    
-    public String makeIndexHTML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
-        
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
-            assert(cp != null);
-            
-            // INDEX
-            String entry = REGEX_CONFIG_REPLACE.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
-            sb.append("  <li>  ").append(entry).append("\n");
-        } // FOR
-        sb.append("</ul>\n\n");
-        
-        return (sb.toString());
-    }
-    
-    public String makeHTML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("<ul class=\"property-list\">\n\n");
-        
-        // Parameters:
-        //  (1) parameter
-        //  (2) parameter
-        //  (3) experimental
-        //  (4) default value
-        //  (5) description 
-        final String template = "<a name=\"@@PROP@@\"></a>\n" +
-                                "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@\n" +
-                                "<table>\n" +
-                                "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
-                                "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
-                                "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
-                                "</table></li>\n\n";
-        
-        
-        Map<String, String> values = new HashMap<String, String>();
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
 
-            // PROP
-            values.put("PROP", f.getName());
-            values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
-            
-            // DEFAULT
-            Object defaultValue = this.getDefaultValue(f, cp);
-            if (defaultValue != null) {
-                String value = defaultValue.toString();
-                Matcher m = REGEX_CONFIG.matcher(value);
-                if (m.find()) value = m.replaceAll(REGEX_CONFIG_REPLACE);
-                defaultValue = value;
-            }
-            values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
-            
-            // TYPE
-            values.put("TYPE", f.getType().getSimpleName().toLowerCase());
-            
-            // EXPERIMENTAL
-            if (cp.experimental()) {
-                values.put("EXP", " <b class=\"experimental\">Experimental</b>");
-            } else {
-                values.put("EXP", "");   
-            }
-            
-            // DESC
-            String desc = cp.description();
-            
-            // Create links to remote sites
-            Matcher m = REGEX_URL.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_URL_REPLACE);
-            
-            // Create links to other parameters
-            m = REGEX_CONFIG.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
-            values.put("DESC", desc);
-            
-            // CREATE HTML FROM TEMPLATE
-            String copy = template;
-            for (String key : values.keySet()) {
-                copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
-            }
-            sb.append(copy);
-        } // FOR
-        sb.append("</ul>\n");
-        return (sb.toString());
-    }
-    
-    public String makeBuildXML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!-- " + group.toUpperCase() + " -->\n");
-        for (Field f : handle.properties.keySet()) {
-            ConfigProperty cp = handle.properties.get(f);
-            if (cp.experimental()) {
-                
-            }
-            String propName = String.format("%s.%s", group, f.getName());
-            sb.append(String.format("<arg value=\"%s=${%s}\" />\n", propName, propName));
-        } // FOR
-        sb.append("\n");
-        return (sb.toString());
-    }
-    
-    
-    /**
-     * 
-     */
-    public String makeDefaultConfig() {
-        return (this.makeConfig(false));
-    }
-    
-    public String makeConfig(boolean experimental) {
-        StringBuilder sb = new StringBuilder();
-        for (String group : this.confHandles.keySet()) {
-            Conf handle = this.confHandles.get(group);
-
-            sb.append("## ").append(StringUtil.repeat("-", 100)).append("\n")
-              .append("## ").append(StringUtil.title(group)).append(" Parameters\n")
-              .append("## ").append(StringUtil.repeat("-", 100)).append("\n\n");
-            
-            for (Field f : handle.properties.keySet()) {
-                ConfigProperty cp = handle.properties.get(f);
-                if (cp.experimental() && experimental == false) continue;
-                
-                String key = String.format("%s.%s", group, f.getName());
-                Object val = null;
-                try {
-                    val = f.get(handle);
-                } catch (Exception ex) {
-                    throw new RuntimeException("Failed to get " + key, ex);
-                }
-                if (val instanceof String) {
-                    String str = (String)val;
-                    if (str.startsWith(global.temp_dir)) {
-                        val = str.replace(global.temp_dir, "${global.temp_dir}");
-                    } else if (str.equals(global.defaulthost)) {
-                        val = str.replace(global.defaulthost, "${global.defaulthost}");
-                    }
-                }
-                
-                sb.append(String.format("%-50s= %s\n", key, val));
-            } // FOR
-            sb.append("\n");
-        } // FOR
-        return (sb.toString());
-    }
     
     @Override
     public String toString() {

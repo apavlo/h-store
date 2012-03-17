@@ -9,7 +9,7 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreObjectPools;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
 import edu.brown.utils.Poolable;
 
@@ -47,7 +47,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     @Override
     public void run(TransactionRedirectResponse parameter) {
         if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
-                                                          HStoreSite.formatSiteName(parameter.getSenderId()), parameter.getOutput().size()));
+                                                          HStoreThreadManager.formatSiteName(parameter.getSenderId()), parameter.getOutput().size()));
         byte data[] = parameter.getOutput().toByteArray();
         try {
             this.orig_callback.run(data);

@@ -31,7 +31,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
 
@@ -66,8 +66,10 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         this.getReadyObservable().addObserver(new EventObserver<HStoreCoordinator>() {
             @Override
             public void update(EventObservable<HStoreCoordinator> o, HStoreCoordinator arg) {
-                LOG.info("Established connections to remote HStoreCoordinators:\n" +
-                         StringUtil.join("  ", "\n", HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite())));
+                if (HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite()).isEmpty() == false) {
+                    LOG.info("Established connections to remote HStoreCoordinators:\n" +
+                             StringUtil.join("  ", "\n", HStoreCoordinator.getRemoteCoordinators(hstore_site.getSite())));
+                }
             }
         });
         
@@ -93,9 +95,9 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void transactionInit(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             
-            TransactionInitWrapperCallback wrapper = new TransactionInitWrapperCallback(hstore_site);
+            TransactionInitQueueCallback wrapper = new TransactionInitQueueCallback(hstore_site);
             wrapper.init(request.getTransactionId(), request.getPartitionsList(), done);
-            txnQueueManager.insert(request.getTransactionId(), request.getPartitionsList(), wrapper, true);
+            txnQueueManager.lockInsert(request.getTransactionId(), request.getPartitionsList(), wrapper);
         }
 
         @Override
@@ -128,7 +130,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                     .setSenderId(hstore_site.site_id)
+                                                     .setSenderId(hstore_site.getSiteId())
                                                      .build();
             System.exit(1);
             done.run(response);

@@ -33,10 +33,10 @@ public class TransactionWorkCallback extends BlockingCallback<TransactionWorkRes
         super(hstore_site, false);
     }
     
-    public void init(long txn_id, int num_partitions, RpcCallback<TransactionWorkResponse> orig_callback) {
+    public void init(Long txn_id, int num_partitions, RpcCallback<TransactionWorkResponse> orig_callback) {
         super.init(txn_id, num_partitions, orig_callback);
         this.builder = TransactionWorkResponse.newBuilder()
-                                            .setTransactionId(txn_id)
+                                            .setTransactionId(txn_id.longValue())
                                             .setStatus(Hstoreservice.Status.OK);
     }
     

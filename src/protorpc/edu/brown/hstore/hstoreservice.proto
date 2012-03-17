@@ -100,7 +100,7 @@ message TransactionInitRequest {
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match Work.stmtIndex
-    optional bytes prefetch_parameter_sets = 5;
+    repeated bytes prefetch_parameter_sets = 5;
 }
 
 message TransactionInitResponse {
@@ -289,6 +289,7 @@ message ShutdownRequest {
     // The id of the HStoreSite that is wants us to shutdown
     required int32 sender_id = 1;
     required int32 exit_status = 2;
+    optional bytes error = 3;
 }
 
 message ShutdownResponse {

@@ -538,6 +538,7 @@ public class Histogram<X> implements JSONSerializable {
      * @param other
      */
     public synchronized void putHistogram(Histogram<X> other) {
+        if (other == this) return;
         for (Entry<X, Long> e : other.histogram.entrySet()) {
             if (e.getValue() > 0)
                 this._put(e.getKey(), e.getValue());
@@ -789,6 +790,10 @@ public class Histogram<X> implements JSONSerializable {
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
 
+    public void load(String input_path) throws IOException {
+        JSONUtil.load(this, null, input_path);
+    }
+    
     @Override
     public void load(String input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);

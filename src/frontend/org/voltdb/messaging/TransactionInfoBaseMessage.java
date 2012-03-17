@@ -33,6 +33,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     Long m_txnId;
     long m_clientHandle;
     boolean m_isReadOnly;
+    boolean m_sysproc = false;
 
     /** Empty constructor for de-serialization */
     TransactionInfoBaseMessage() {
@@ -84,6 +85,13 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_txnId = txnId;
     }
     
+    public boolean isSysProc() {
+        return (m_sysproc);
+    }
+    public void setSysProc(boolean val) {
+        m_sysproc = val; 
+    }
+    
     public long getClientHandle() {
         return m_clientHandle;
     }
@@ -97,7 +105,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     }
 
     protected int getMessageByteCount() {
-        return 4 + 4 + 8 + 8 + 1;
+        return 4 + 4 + 8 + 8 + 1 + 1;
     }
 
     protected void writeToBuffer() {
@@ -105,6 +113,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_buffer.putInt(m_destPartition);
         m_buffer.putLong(m_txnId);
         m_buffer.putLong(m_clientHandle);
+        m_buffer.put(m_sysproc ? (byte) 1 : (byte) 0);
         m_buffer.put(m_isReadOnly ? (byte) 1 : (byte) 0);
     }
 
@@ -113,6 +122,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_destPartition = m_buffer.getInt();
         m_txnId = m_buffer.getLong();
         m_clientHandle = m_buffer.getLong();
+        m_sysproc = m_buffer.get() == 1;
         m_isReadOnly = m_buffer.get() == 1;
     }
 

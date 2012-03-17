@@ -289,7 +289,7 @@ public class SEATSLoader extends SEATSBaseClient {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getFixedIterable(catalog_tbl);
-                this.loadTable(catalog_tbl, iterable, 5000);
+                this.loadTable(catalog_tbl, iterable, 10000);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to load data files for fixed-sized table '" + table_name + "'", ex);
             }
@@ -307,7 +307,7 @@ public class SEATSLoader extends SEATSBaseClient {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getScalingIterable(catalog_tbl); 
-                this.loadTable(catalog_tbl, iterable, 5000);
+                this.loadTable(catalog_tbl, iterable, 10000);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to load data files for scaling-sized table '" + table_name + "'", ex);
             }

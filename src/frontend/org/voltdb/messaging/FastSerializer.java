@@ -96,7 +96,6 @@ public class FastSerializer implements DataOutput {
      * Caveat. A pool won't always give back a direct byte buffer. If a direct byte buffer
      * is absolutely necessary for the serialized result then use isDirect and a null pool
      */
-    /** constructor that sets callback object. */
     public FastSerializer(boolean bigEndian, boolean isDirect, BufferGrowCallback callback, DBBPool pool, int initialAllocation) {
         assert(initialAllocation > 0);
         assert(pool == null && isDirect || pool != null && !isDirect || pool == null && !isDirect);
@@ -121,7 +120,7 @@ public class FastSerializer implements DataOutput {
         return buffer.b.position();
     }
 
-    /** Clears the contents of the underlying buffer, making iteady for more writes. */
+    /** Clears the contents of the underlying buffer, making it ready for more writes. */
     public void clear() {
         buffer.b.clear();
     }
@@ -188,7 +187,8 @@ public class FastSerializer implements DataOutput {
 
     /**
      * This method is slow and horrible. It entails an extra copy. Don't use it! Ever! Not even for test!
-     * Just say no to test only code. It will also leak the BBContainer if this FS is being used with a pool.
+     * Just say no to test only code.
+     * It will also leak the BBContainer if this FS is being used with a pool. <<- Is that true??
      */
     public byte[] getBytes() {
         byte[] retval = new byte[buffer.b.position()];
