@@ -103,6 +103,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   " WHERE B_A_ID = ? AND B_ID = ? " +
                                   "   AND B_A_ID = C_B_A_ID AND B_ID = C_B_ID  " +
                                   " ORDER BY B_VALUE1 ASC LIMIT 25");
+            this.addStmtProcedure("MultiAggregate",
+                    "SELECT C_ID, AVG(TABLEC.C_VALUE0),SUM(TABLEC.C_VALUE0),AVG(TABLEC.C_VALUE1),SUM(TABLEC.C_VALUE1) FROM TABLEC GROUP BY C_ID");
         }
     };
 
@@ -547,4 +549,32 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
     }
+    
+    /**
+     * testMultiAggregate
+     */
+    @Test
+    public void testMultiAggregate() throws Exception {   
+        Procedure catalog_proc = this.getProcedure("MultiAggregate");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        //this.check(catalog_stmt);
+        System.out.println("catalog_proc:"+catalog_proc);
+        System.out.println("catalog_stmt:"+catalog_stmt);
+        
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        System.out.println("root:"+root);
+        
+        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+        SeqScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
+        assertNotNull(scan_node);
+        System.out.println("scan_node:"+scan_node);
+        
+        
+        
+        
+        
+    }
+    
+    
 }
