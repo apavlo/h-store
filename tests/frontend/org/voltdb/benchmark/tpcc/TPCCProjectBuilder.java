@@ -112,33 +112,35 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      */
     public void addDefaultProcedures() {
         addProcedures(PROCEDURES);
-        addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) FROM order_line GROUP BY ol_number order by ol_number");
-        addStmtProcedure("Test",
-                         "SELECT DISTINCT ol_number FROM order_line");
         
-        addStmtProcedure("Query19","select ol_number, sum(ol_amount) from order_line " +
-                                   "where ( ol_o_id >= 20 and ol_o_id <= 100  )" +
-                                   " or (ol_o_id >= 105 and ol_o_id <= 200 )" +
-                                   " or (ol_o_id >= 210 and ol_o_id <= 290 )" +
-                                   "GROUP BY ol_number order by ol_number"
-                                   );
-        addStmtProcedure("Query6","select  ol_number, sum(ol_amount) " +
-                                    "from    order_line " +
-                                    "where  ol_quantity between 1 and 100000 " +
-                                    "group by ol_number order by ol_number"
-                                    );
-        addStmtProcedure("TestJoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),SUM(i_price),MAX(ol_amount),MIN(i_price)," +
-                "AVG(ol_quantity),AVG(ol_amount), AVG(i_price) " +
-                "FROM order_line, item " +
-                "WHERE order_line.ol_i_id = item.i_id " +
-                "GROUP BY ol_number " +
-                "ORDER BY ol_number");
-        addStmtProcedure("JoinAgg", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),SUM(i_price),AVG(ol_quantity),AVG(ol_amount), AVG(i_price),COUNT(*)" +
-                "FROM order_line, item " +
-                "WHERE order_line.ol_i_id = item.i_id " +
-                "GROUP BY ol_number " +
-                "ORDER BY ol_number");
+        // MapReduce OLAP Experimental Queries
+        addStmtProcedure("OLAPQuery1",
+                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
+                         "       AVG(ol_quantity), AVG(ol_amount), COUNT(*)" +
+                         "  FROM ORDER_LINE " +
+                         " GROUP BY ol_number order by ol_number");
+        addStmtProcedure("OLAPQuery6",
+                         "SELECT ol_number, SUM(ol_amount) " +
+                         "  FROM ORDER_LINE " +
+                         " WHERE ol_quantity between 1 and 100000 " +
+                         " GROUP BY ol_number order by ol_number");
+        addStmtProcedure("OLAPQuery19",
+                         "SELECT ol_number, SUM(ol_amount) " +
+                         "  FROM ORDER_LINE " +
+                         "WHERE (ol_o_id >= 20 and ol_o_id <= 100) " +
+                         "   OR (ol_o_id >= 105 and ol_o_id <= 200)" +
+                         "   OR (ol_o_id >= 210 and ol_o_id <= 290)" +
+                         "GROUP BY ol_number order by ol_number");
+        addStmtProcedure("OLAPJoinAgg",
+                         "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
+                         "       SUM(i_price), AVG(ol_quantity), AVG(ol_amount), " +
+                         "       AVG(i_price), COUNT(*) " +
+                         "  FROM ORDER_LINE, ITEM " +
+                         " WHERE order_line.ol_i_id = item.i_id " +
+                         " GROUP BY ol_number " +
+                        "  ORDER BY ol_number");
         
+        // Helpers
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
         
     }
