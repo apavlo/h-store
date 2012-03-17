@@ -89,8 +89,16 @@ public class BatchPlanner implements Loggable {
      */
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);
 
+    /**
+     * Cache set of single-partition sets
+     * PartitionId -> Set<Integer>
+     */
     private static Set<Integer> CACHED_SINGLE_PARTITION_SETS[];
 
+    /**
+     * Cached set of
+     * PlanFragment -> Set<PartitionIds>
+     */
     private static Map<Statement, Map<PlanFragment, Set<Integer>>> CACHED_FRAGMENT_PARTITION_MAPS[];
 
     // ----------------------------------------------------------------------------
@@ -120,6 +128,7 @@ public class BatchPlanner implements Loggable {
     private final boolean force_singlePartition;
 
     private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
+    private final List<Integer> output_dependency_xref_clear = new ArrayList<Integer>();
     private final List<PlanVertex> sorted_vertices = new ArrayList<PlanVertex>();
 
     // FAST SINGLE-PARTITION LOOKUP CACHE
@@ -234,7 +243,7 @@ public class BatchPlanner implements Loggable {
         private final List<PlanFragment> frag_list[];
 
         /** Round# -> Map{PartitionId, Set{PlanFragments}} **/
-        private final Set<PlanVertex> rounds[][];
+        private final Collection<PlanVertex> rounds[][];
         private int rounds_length;
 
         /**
@@ -283,11 +292,11 @@ public class BatchPlanner implements Loggable {
             int num_partitions = BatchPlanner.this.num_partitions;
 
             // Round Data
-            this.rounds = (Set<PlanVertex>[][]) new Set<?>[max_round_size][];
+            this.rounds = (Collection<PlanVertex>[][]) new Collection<?>[max_round_size][];
             for (int i = 0; i < this.rounds.length; i++) {
-                this.rounds[i] = (Set<PlanVertex>[]) new Set<?>[num_partitions];
+                this.rounds[i] = (Collection<PlanVertex>[]) new Collection<?>[num_partitions];
                 for (int ii = 0; ii < num_partitions; ii++) {
-                    this.rounds[i][ii] = new HashSet<PlanVertex>();
+                    this.rounds[i][ii] = new ArrayList<PlanVertex>();
                 } // FOR
             } // FOR
 
@@ -515,18 +524,10 @@ public class BatchPlanner implements Loggable {
             this.time_partitionEstimator = null;
         }
 
-        // Static Members
+        // Static Cache Members
         if (CACHED_SINGLE_PARTITION_SETS == null) {
             synchronized (BatchPlanner.class) {
-                if (CACHED_SINGLE_PARTITION_SETS == null) {
-                    CACHED_SINGLE_PARTITION_SETS = (Set<Integer>[]) new Set<?>[this.num_partitions];
-                    CACHED_FRAGMENT_PARTITION_MAPS = (Map<Statement, Map<PlanFragment, Set<Integer>>>[]) new Map<?, ?>[this.num_partitions];
-
-                    for (int i = 0; i < num_partitions; i++) {
-                        CACHED_SINGLE_PARTITION_SETS[i] = Collections.unmodifiableSet(Collections.singleton(i));
-                        CACHED_FRAGMENT_PARTITION_MAPS[i] = new HashMap<Statement, Map<PlanFragment, Set<Integer>>>();
-                    } // FOR
-                }
+                if (CACHED_SINGLE_PARTITION_SETS == null) BatchPlanner.clear(this.num_partitions);
             } // SYNCH
         }
     }
@@ -541,6 +542,10 @@ public class BatchPlanner implements Loggable {
 
     public Statement[] getStatements() {
         return this.catalog_stmts;
+    }
+    
+    public int getBatchSize() {
+    	return (this.batchSize);
     }
 
     public ProfileMeasurement getBuildFragmentTaskMessagesTime() {
@@ -563,6 +568,21 @@ public class BatchPlanner implements Loggable {
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+
+    /**
+     * Clear out internal cache
+     * @param num_partitions The total number of partitions in the cluster 
+     */
+    @SuppressWarnings("unchecked")
+    public static synchronized void clear(int num_partitions) {
+        CACHED_SINGLE_PARTITION_SETS = (Set<Integer>[]) new Set<?>[num_partitions];
+        CACHED_FRAGMENT_PARTITION_MAPS = (Map<Statement, Map<PlanFragment, Set<Integer>>>[]) new Map<?, ?>[num_partitions];
+
+        for (int i = 0; i < num_partitions; i++) {
+            CACHED_SINGLE_PARTITION_SETS[i] = Collections.unmodifiableSet(Collections.singleton(i));
+            CACHED_FRAGMENT_PARTITION_MAPS[i] = new HashMap<Statement, Map<PlanFragment, Set<Integer>>>();
+        } // FOR
     }
 
     /**
@@ -1051,12 +1071,13 @@ public class BatchPlanner implements Loggable {
 
         graph.num_rounds = 0;
         this.sorted_vertices.clear();
-        this.output_dependency_xref.clear(); // This sucks
+        this.output_dependency_xref_clear.clear();
 
-        Integer base_partition = new Integer(plan.base_partition);
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
-            assert (frag_partitions != null) : "No Fragment->PartitionIds map for Statement #" + stmt_index;
+            assert (frag_partitions != null) : 
+                "No Fragment->PartitionIds map for Statement #" + stmt_index;
+            
             List<PlanFragment> fragments = plan.frag_list[stmt_index];
             assert (fragments != null);
             int num_fragments = fragments.size();
@@ -1067,16 +1088,22 @@ public class BatchPlanner implements Loggable {
             for (int round = 0, cnt = num_fragments; round < cnt; round++) {
                 PlanFragment catalog_frag = fragments.get(round);
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
-                assert (f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round, catalog_frag.fullName(), stmt_index);
-                boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(base_partition));
-                Integer output_id = new Integer(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : this.last_id++);
+                assert (f_partitions != null) : 
+                    String.format("No PartitionIds for [%02d] %s in Statement #%d",
+                                  round, catalog_frag.fullName(), stmt_index);
+                boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
+                Integer output_id = new Integer(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() :
+                                                                         this.last_id++);
 
                 PlanVertex v = new PlanVertex(catalog_frag, stmt_index, round, last_output_id, output_id.intValue(), f_local);
 
                 Set<PlanVertex> dependencies = output_dependency_xref.get(output_id);
                 if (dependencies == null) {
                     dependencies = new HashSet<PlanVertex>();
-                    output_dependency_xref.put(output_id, dependencies);
+                    this.output_dependency_xref.put(output_id, dependencies);
+                } else if (this.output_dependency_xref_clear.contains(output_id) == false) {
+                    dependencies.clear();
+                    this.output_dependency_xref_clear.add(output_id);
                 }
                 dependencies.add(v);
 
@@ -1101,7 +1128,7 @@ public class BatchPlanner implements Loggable {
 
         // Single-Partition Cache
         Collections.sort(this.sorted_vertices, PLANVERTEX_COMPARATOR);
-        final int num_vertices = sorted_vertices.size();
+        final int num_vertices = this.sorted_vertices.size();
         graph.fragmentIds = new long[num_vertices];
         graph.input_ids = new int[num_vertices];
         graph.output_ids = new int[num_vertices];

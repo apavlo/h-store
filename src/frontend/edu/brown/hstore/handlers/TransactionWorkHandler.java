@@ -38,7 +38,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionWorkRequest request, Collection<Integer> partitions, RpcCallback<TransactionWorkResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionWorkRequest request, Collection<Integer> partitions, RpcCallback<TransactionWorkResponse> callback) {
         // TODO
     }
     @Override
@@ -57,7 +57,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     public void remoteHandler(RpcController controller, TransactionWorkRequest request,
             RpcCallback<TransactionWorkResponse> callback) {
         assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
-        long txn_id = request.getTransactionId();
+        Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [partitionFragments=%d]",
                                    request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
@@ -141,7 +141,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             first = false;
         } // FOR
         assert(ts != null);
-        assert(txn_id == ts.getTransactionId()) :
+        assert(txn_id.equals(ts.getTransactionId())) :
             String.format("Mismatched %s - Expected[%d] != Actual[%s]", ts, txn_id, ts.getTransactionId());
         
         // We don't need to send back a response right here.

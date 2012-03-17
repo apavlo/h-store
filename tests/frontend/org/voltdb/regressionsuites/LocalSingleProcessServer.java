@@ -35,6 +35,7 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -45,20 +46,20 @@ import edu.brown.hstore.conf.HStoreConf;
 public class LocalSingleProcessServer implements VoltServerConfig {
 
     public final String m_jarFileName;
-    public final int m_siteCount;
+    public final int m_partitionCount;
     public final BackendTarget m_target;
 
     ServerThread m_server = null;
     boolean m_compiled = false;
 
-    public LocalSingleProcessServer(String jarFileName, int siteCount,
+    public LocalSingleProcessServer(String jarFileName, int partitionCount,
                                     BackendTarget target)
     {
         assert(jarFileName != null);
-        assert(siteCount > 0);
+        assert(partitionCount > 0);
         final String buildType = System.getenv().get("BUILD");
         m_jarFileName = Configuration.getPathToCatalogForTest(jarFileName);
-        m_siteCount = siteCount;
+        m_partitionCount = partitionCount;
         if (buildType == null) {
             m_target = target;
         } else {
@@ -78,8 +79,11 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     public boolean compile(VoltProjectBuilder builder) {
         if (m_compiled == true)
             return true;
-        builder.addPartition("localhost", 0, 0);
-        m_compiled = builder.compile(m_jarFileName, m_siteCount, 0);
+        builder.clearPartitions();
+        for (int partition = 0; partition < m_partitionCount; ++partition) {
+        	builder.addPartition("localhost", 0, partition);
+        } // FOR
+        m_compiled = builder.compile(m_jarFileName, m_partitionCount, 0);
         return m_compiled;
     }
 
@@ -98,7 +102,7 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         // name is combo of the classname and the parameters
 
         String retval = "localSingleProcess-";
-        retval += String.valueOf(m_siteCount);
+        retval += String.valueOf(m_partitionCount);
         if (m_target == BackendTarget.HSQLDB_BACKEND)
             retval += "-HSQL";
         else if (m_target == BackendTarget.NATIVE_EE_IPC)
@@ -129,12 +133,12 @@ public class LocalSingleProcessServer implements VoltServerConfig {
 
     @Override
     public void startUp() {
-        Configuration config = new Configuration();
-        config.m_backend = m_target;
-        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
-        // m_jarFileName is already prefixed with test output path.
-        config.m_pathToCatalog = m_jarFileName;
-        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
+//        Configuration config = new Configuration();
+//        config.m_backend = m_target;
+//        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
+//        // m_jarFileName is already prefixed with test output path.
+//        config.m_pathToCatalog = m_jarFileName;
+//        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 
         // TODO(mainak): Pass this into ServerThread 
         Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
@@ -142,9 +146,11 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         assert(catalog_site != null);
         
         // TODO(mainak): Pass this into ServerThread
-        HStoreConf hstore_conf = HStoreConf.singleton();
+        HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         
-        m_server = new ServerThread(config);
+//        HStore.initialize(catalog_site, hstore_conf);
+        
+        m_server = new ServerThread(hstore_conf, catalog_site);
         m_server.start();
         m_server.waitForInitialization();
     }

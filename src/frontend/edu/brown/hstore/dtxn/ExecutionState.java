@@ -17,15 +17,17 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.FastIntHistogram;
-import edu.brown.statistics.Histogram;
 
+/**
+ * The internal state of a transaction while it is running at a PartitionExecutor
+ * This will be removed from the LocalTransaction once its control code is finished executing 
+ * @author pavlo
+ */
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -47,11 +49,12 @@ public class ExecutionState {
     /** The ExecutionSite that this TransactionState is tied to **/
     protected final PartitionExecutor executor;
     
+//    protected final DBBPool buffer_pool;
+    
     /**
      * List of encoded Partition/Dependency keys
      */
     protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
-
     
     protected final ReentrantLock lock = new ReentrantLock();
 
@@ -116,13 +119,6 @@ public class ExecutionState {
      */
     protected int received_ctr = 0;
     
-    /** 
-     * What partitions has this txn touched
-     * This needs to be a Histogram so that we can figure out what partitions
-     * were touched the most if end up needing to redirect it later on
-     */
-    protected final Histogram<Integer> exec_touchedPartitions;
-    
     /**
      * This is a special flag that tells us the last round that we used the cached DependencyInfos
      * If the last round doesn't equal the current round, then we will have to call finish()
@@ -140,6 +136,8 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
+//        this.buffer_pool = executor.getDBBPool();
+        
         int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
         this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
         for (int i = 0; i < this.dependencies.length; i++) {
@@ -149,11 +147,10 @@ public class ExecutionState {
         
 //        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
-        this.exec_touchedPartitions = new Histogram<Integer>();
     }
     
     public void clear() {
-        this.exec_touchedPartitions.clear();
+        if (debug.get()) LOG.debug("Clearing ExecutionState at partition " + this.executor.getPartitionId());
         this.dependency_latch = null;
         this.clearRound();
     }

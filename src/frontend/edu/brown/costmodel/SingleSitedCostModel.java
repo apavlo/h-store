@@ -1101,8 +1101,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // to sets of partitions that were touched by the query.
                 // XXX: What should we do if the TransactionCacheEntry's base
                 // partition hasn't been calculated yet?
-                // Let's just throw it at the PartitionEstimator and let it
-                // figure out what to do...
+                // Let's just throw it at the PartitionEstimator and let it figure out what to do...
                 Map<String, Set<Integer>> table_partitions = this.p_estimator.getTablePartitions(query_trace, txn_entry.base_partition);
                 StringBuilder sb = null;
                 if (trace.get()) {
@@ -1153,18 +1152,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
                 // Lastly, update the various histogram that keep track of which
                 // partitions are accessed:
-                // (1) The global histogram for the cost model of partitions
-                // touched by all queries
-                // (2) The TransactionCacheEntry histogram of which partitions
-                // are touched by all queries
-                // Note that we do not want to update the global histogram for
-                // the cost model on the
-                // partitions touched by txns, because we don't want to count
-                // the same partition multiple times
-                // Note also that we want to do this *outside* of the loop
-                // above, otherwise we will count
-                // the same partition multiple times if the query references
-                // more than one table!
+                //  (1) The global histogram for the cost model of partitions touched by all queries
+                //  (2) The TransactionCacheEntry histogram of which partitions are touched by all queries
+                // 
+                // Note that we do not want to update the global histogram for the cost model on the
+                // partitions touched by txns, because we don't want to count the same partition multiple times
+                // Note also that we want to do this *outside* of the loop above, otherwise we will count
+                // the same partition multiple times if the query references more than one table!
                 this.histogram_query_partitions.putAll(query_entry.getAllPartitions(), query_weight * txn_weight);
                 txn_entry.touched_partitions.putAll(query_entry.getAllPartitions(), query_weight);
                 int query_num_partitions = query_entry.getAllPartitions().size();
@@ -1206,21 +1200,17 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 LOG.info(query_entry);
         } // FOR (QueryTrace)
 
-        // Now just check whether this sucker has queries that touch more than
-        // one partition
-        // We do this one first because it's the fastest and will pick up enough
-        // of them
+        // Now just check whether this sucker has queries that touch more than one partition
+        // We do this one first because it's the fastest and will pick up enough of them
         if (txn_entry.touched_partitions.getValueCount() > 1) {
             if (trace.get())
                 LOG.trace(txn_trace + " touches " + txn_entry.touched_partitions.getValueCount() + " different partitions");
             txn_entry.singlesited = false;
 
             // Otherwise, now that we have processed all of queries that we
-            // could, we need to check
-            // whether the values of the StmtParameters used on the partitioning
-            // column of each table
-            // all hash to the same value. If they don't, then we know we can't
-            // sbe single-partition
+            // could, we need to check whether the values of the StmtParameters used on the partitioning
+            // column of each table all hash to the same value. If they don't, then we know we can't
+            // be single-partition
         } else {
             for (Entry<String, Set<Integer>> entry : temp_stmtPartitions.entrySet()) {
                 String table_key = entry.getKey();
@@ -1232,9 +1222,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 Column table_partition_col = catalog_tbl.getPartitioncolumn();
                 Set<Integer> hashes = entry.getValue();
 
-                // If there is more than one partition, then we'll never be
-                // multi-partition so we
-                // can stop our search right here.
+                // If there is more than one partition, then we'll never be multi-partition 
+                // so we can stop our search right here.
                 if (hashes.size() > 1) {
                     if (trace.get())
                         LOG.trace(String.format("%s references %s's partitioning attribute %s on %d different partitions -- VALUES %s", catalog_proc.getName(), catalog_tbl.getName(),
@@ -1242,9 +1231,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     txn_entry.singlesited = false;
                     break;
 
-                    // Make sure that the partitioning ProcParameter hashes to
-                    // the same site as the value
-                    // used on the partitioning column for this table
+                // Make sure that the partitioning ProcParameter hashes to the same 
+                // site as the value used on the partitioning column for this table
                 } else if (!hashes.isEmpty() && txn_entry.base_partition != null) {
                     int tbl_partition = CollectionUtil.first(hashes);
                     if (txn_entry.base_partition != tbl_partition) {

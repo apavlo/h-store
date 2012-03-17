@@ -40,7 +40,7 @@ public class TestClientResponseImpl extends TestCase {
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
             assertNotNull(clone);
-            assertEquals(i, clone.getServerTimestamp());
+            assertEquals(i, clone.getRequestCounter());
         } // FOR
     }
     

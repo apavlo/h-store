@@ -42,7 +42,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.builder = TransactionReduceResponse.newBuilder()
-                             .setTransactionId(ts.getTransactionId())
+                             .setTransactionId(ts.getTransactionId().longValue())
                              .setStatus(Hstoreservice.Status.OK);
         super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
     }

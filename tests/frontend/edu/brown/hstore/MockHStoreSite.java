@@ -34,7 +34,7 @@ public class MockHStoreSite extends HStoreSite {
     // ----------------------------------------------------------------------------
     
     static LocalTransaction makeLocalTransaction(HStoreSite hstore_site) {
-        long txnId = hstore_site.getTransactionIdManager().getNextUniqueTransactionId();
+        long txnId = hstore_site.getTransactionIdManager(0).getNextUniqueTransactionId();
         long clientHandle = -1;
         int base_partition = CollectionUtil.random(hstore_site.getLocalPartitionIds());
         Collection<Integer> predict_touchedPartitions = hstore_site.getAllPartitionIds();
@@ -55,13 +55,26 @@ public class MockHStoreSite extends HStoreSite {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
+    /**
+     * Create an new MockHStoreSite for testing.
+     * Note that this will not start any of the internal resources
+     * Use MockHStoreSite.init() to do that!
+     * @param catalog_site
+     * @param hstore_conf
+     */
     public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         super(catalog_site, hstore_conf);
         
+        hstore_conf.site.status_enable = false;
+        
         for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
-            this.addPartitionExecutor(p, new MockPartitionExecutor(p, catalog_site.getCatalog(), this.getPartitionEstimator()));
-        }
+            MockPartitionExecutor executor = new MockPartitionExecutor(p,
+                                                                       catalog_site.getCatalog(),
+                                                                       this.getPartitionEstimator());
+            this.addPartitionExecutor(p, executor);
+        } // FOR
     }
+    
     @Override
     public HStoreCoordinator initHStoreCoordinator() {
         return new MockHStoreCoordinator(this);
@@ -72,7 +85,7 @@ public class MockHStoreSite extends HStoreSite {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void transactionRestart(LocalTransaction orig_ts, Status status) {
+    public Status transactionRestart(LocalTransaction orig_ts, Status status) {
         int restart_limit = 10;
         if (orig_ts.getRestartCounter() > restart_limit) {
             if (orig_ts.isSysProc()) {
@@ -80,9 +93,10 @@ public class MockHStoreSite extends HStoreSite {
                                            orig_ts, orig_ts.getRestartCounter()));
             } else {
                 this.transactionReject(orig_ts, Status.ABORT_REJECT);
-                return;
+                return (Status.ABORT_REJECT);
             }
         }
+        return (status);
     }
 
     // ----------------------------------------------------------------------------
@@ -104,7 +118,7 @@ public class MockHStoreSite extends HStoreSite {
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().start(); // Blocks until all connections are established
-        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
+        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
         assert(hstore_coordinator.isStarted());
         
         final CountDownLatch latch = new CountDownLatch(1);

@@ -27,6 +27,7 @@ package edu.brown;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,7 +63,7 @@ import edu.brown.hstore.conf.HStoreConf;
  * Base class that provides a lot of the common functionality that our HStore test cases need
  * @author pavlo
  */
-public abstract class BaseTestCase extends TestCase {
+public abstract class BaseTestCase extends TestCase implements UncaughtExceptionHandler {
     private static final Logger LOG = Logger.getLogger(BaseTestCase.class);
 
     protected static final boolean ENABLE_JAR_REUSE;
@@ -86,8 +87,7 @@ public abstract class BaseTestCase extends TestCase {
         // Force everything to be single-threaded
         ThreadUtil.setMaxGlobalThreads(2);
     }
-    
-    
+
     protected ProjectType last_type;
     
     /**
@@ -433,8 +433,8 @@ public abstract class BaseTestCase extends TestCase {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
-                CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
-                CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
+            CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
+            CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
             catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
             this.init(this.last_type, catalog);
         }
@@ -552,4 +552,11 @@ public abstract class BaseTestCase extends TestCase {
         return (params);
     }
     
+    
+    
+    @Override
+    public void uncaughtException(Thread t, Throwable e) {
+        e.printStackTrace();
+        fail(e.getMessage()); // XXX: I don't think this gets picked up
+    }
 }

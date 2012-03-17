@@ -19,7 +19,7 @@ public class TransactionFinishDispatcher extends AbstractDispatcher<Object[]> {
         RpcController controller = (RpcController)o[0];
         TransactionFinishRequest request = (TransactionFinishRequest)o[1];
         RpcCallback<TransactionFinishResponse> callback = (RpcCallback<TransactionFinishResponse>)o[2];
-        hStoreCoordinator.getTransactionFinishHandler().remoteHandler(controller, request, callback);
+        hstore_coordinator.getTransactionFinishHandler().remoteHandler(controller, request, callback);
     }
 
 }

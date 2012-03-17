@@ -27,7 +27,9 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -35,13 +37,13 @@ import edu.brown.utils.StringUtil;
  * procedure response in one FastSerialziable object.
  *
  */
-public class ClientResponseImpl implements FastSerializable, ClientResponse {
+public class ClientResponseImpl implements FastSerializable, ClientResponse, Poolable {
     private boolean setProperly = false;
     private Status status;
     private String statusString = null;
     private byte appStatus = Byte.MIN_VALUE;
     private String appStatusString = null;
-    private VoltTable[] results = new VoltTable[0];
+    private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
 
     private int clusterRoundTripTime = 0;
     private int clientRoundTripTime = 0;
@@ -49,7 +51,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private int timestamp = -1;
+    private int requestCounter = -1;
     private boolean throttle = false;
     private boolean singlepartition = false;
     private int basePartition = -1;
@@ -104,13 +106,35 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
 
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
-        this.txn_id = txn_id;
+        this.init(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, e);
+    }
+    
+    public void init(Long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
+        this.init(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
+    }
+    
+    public void init(Long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
+        this.txn_id = txn_id.longValue();
         this.clientHandle = client_handle;
         this.basePartition = basePartition;
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
     }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.txn_id != -1);
+    }
+    
+    @Override
+    public void finish() {
+        this.txn_id = -1;
+        this.clientHandle = -1;
+        this.status = null;
+        this.results = null;
+    }
+    
     
     // ----------------------------------------------------------------------------
     // SPECIAL BYTEBUFFER MODIFIERS
@@ -190,24 +214,34 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public boolean getThrottleFlag() {
         return (this.throttle);
     }
-    @Override
     public void setThrottleFlag(boolean val) {
         this.throttle = val;
     }
+    
     @Override
-    public int getServerTimestamp() {
-        return this.timestamp;
+    public int getRequestCounter() {
+        return this.requestCounter;
     }
+    /**
+     * Set the internal request counter
+     */
+    public void setRequestCounter(int val) {
+        this.requestCounter = val;
+    }
+    
     @Override
-    public void setServerTimestamp(int val) {
-        this.timestamp = val;
+    public int getBasePartition() {
+        return (this.basePartition);
     }
+
+    public void setBasePartition(int val) {
+        this.basePartition = val;
+    }
+    
     @Override
     public boolean isSinglePartition() {
         return singlepartition;
     }
-    
-    @Override
     public void setSinglePartition(boolean val) {
         this.singlepartition = val;
     }
@@ -254,7 +288,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte
-        timestamp = in.readInt();
+        requestCounter = in.readInt();
         txn_id = in.readLong();
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
@@ -288,7 +322,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void writeExternal(FastSerializer out) throws IOException {
         assert setProperly;
         out.writeByte(0);//version
-        out.writeInt(timestamp);
+        out.writeInt(requestCounter);
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
@@ -357,7 +391,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Status", this.status + " / " + this.statusString);
         m.put("Handle", this.clientHandle);
-        m.put("Timestamp", this.timestamp);
+        m.put("Timestamp", this.requestCounter);
         m.put("Throttle", this.throttle);
         m.put("SinglePartition", this.singlepartition);
         m.put("BasePartition", this.basePartition);
@@ -372,13 +406,4 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 
-    @Override
-    public int getBasePartition() {
-        return (this.basePartition);
-    }
-
-    @Override
-    public void setBasePartition(int val) {
-        this.basePartition = val;
-    }
 }

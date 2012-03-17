@@ -13,7 +13,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
@@ -37,8 +37,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
-        handler.transactionInit(null, request, callback);
+    public void sendLocal(Long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
+        this.remoteQueue(null, request, callback);
     }
     @Override
     public void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
@@ -74,10 +74,11 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
         // our HStoreSite gets an acknowledgment from all the
-        // TODO: Figure out how we're going to return this callback to its ObjectPool
-        TransactionInitWrapperCallback wrapper = null;
+        // Note: The TransactionQueueManager will put this back in the queue for us
+        //       We have to allocate this here because we need to have the original callback
+        TransactionInitQueueCallback wrapper = null;
         try {
-            wrapper = HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.borrowObject();
+            wrapper = HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.borrowObject();
             wrapper.init(txn_id, request.getPartitionsList(), callback);
         } catch (Exception ex) {
             throw new RuntimeException(ex);

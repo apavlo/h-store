@@ -17,6 +17,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.markov.MarkovGraph;
@@ -90,7 +91,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                         try {
                             markovs.save(f.getAbsolutePath());
                         } catch (Throwable ex) {
-                            throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreSite.formatSiteName(this.executor.getSiteId()), ex);
+                            throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreThreadManager.formatSiteName(this.executor.getSiteId()), ex);
                         }
                         result[0].addRow(this.executor.getSiteId(), this.partitionId, f.getAbsolutePath(), is_global ? 1 : 0);
                     }

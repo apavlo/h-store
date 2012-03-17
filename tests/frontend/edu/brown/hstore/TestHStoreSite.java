@@ -2,10 +2,13 @@ package edu.brown.hstore;
 
 import static org.junit.Assert.*;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -15,8 +18,17 @@ import edu.brown.hstore.HStoreSite;
 import org.junit.Before;
 import org.junit.Test;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.callbacks.MockClientCallback;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dtxn.LocalTransaction;
+
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltProcedure;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.*;
 
 import edu.brown.protorpc.StoreResultCallback;
@@ -26,13 +38,18 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 public class TestHStoreSite extends BaseTestCase {
-    private static final String TARGET_PROCEDURE = "GetNewDestination";
-    private static final long CLIENT_HANDLE = 1l;
     
-//    private HStoreSite hstore_site;
-    private PartitionEstimator p_estimator;
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = GetNewDestination.class;
+    private static final long CLIENT_HANDLE = 1l;
+    private static final int NUM_PARTITIONS = 10;
+    private static final int BASE_PARTITION = 0;
+    
+    private HStoreSite hstore_site;
+    private HStoreConf hstore_conf;
+    
+    private LocalTransaction ts;
     private StoredProcedureInvocation invocation;
-    private byte[] invocation_bytes;
+    private MockClientCallback callback;
 
     private static final Object PARAMS[] = {
         new Long(0), // S_ID
@@ -41,17 +58,57 @@ public class TestHStoreSite extends BaseTestCase {
         new Long(3), // END_TIME
     };
 
+    
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        p_estimator = new PartitionEstimator(catalog_db);
-        invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
-        invocation_bytes = FastSerializer.serialize(invocation);
         
+        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-        Map<Integer, PartitionExecutor> executors = new HashMap<Integer, PartitionExecutor>();
-//        hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
-        // FIXME coordinator.addDtxnCoordinator(dtxnCoordinator);
+        this.hstore_conf = HStoreConf.singleton();
+        this.hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        
+        this.ts = new LocalTransaction(hstore_site);
+        this.invocation = new StoredProcedureInvocation(CLIENT_HANDLE, catalog_proc.getName(), PARAMS);
+        this.callback = new MockClientCallback();
+        Collection<Integer> predict_touchedPartitions = Collections.singleton(BASE_PARTITION);
+        boolean predict_readOnly = true;
+        boolean predict_canAbort = true;
+        
+        
+        ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
+                predict_touchedPartitions, predict_readOnly, predict_canAbort,
+                catalog_proc, this.invocation, this.callback);
+    }
+    
+    @Override
+    protected void tearDown() throws Exception {
+        hstore_site.shutdown();
+    }
+    
+    /**
+     * testSendClientResponse
+     */
+    @Test
+    public void testSendClientResponse() throws Exception {
+        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
+                                                              ts.getClientHandle(),
+                                                              ts.getBasePartition(),
+                                                              Status.OK,
+                                                              HStoreConstants.EMPTY_RESULT,
+                                                              "");
+        hstore_site.sendClientResponse(ts, cresponse);
+        
+        // Check to make sure our callback got the ClientResponse
+        assertEquals(this.callback, ts.getClientCallback());
+        byte serialized[] = this.callback.getResponse();
+        assertNotNull(serialized);
+        
+        // And just make sure that they're the same
+        ClientResponseImpl clone = FastDeserializer.deserialize(serialized, ClientResponseImpl.class);
+        assertNotNull(clone);
+        assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
+        assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
     }
     
     @Test

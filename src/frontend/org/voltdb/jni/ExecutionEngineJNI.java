@@ -310,7 +310,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
         
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
-        assert (planFragmentIds.length == parameterSets.length);
+        assert(planFragmentIds.length == parameterSets.length);
         
         // serialize the param sets
         fsForParameterSet.clear();
@@ -388,23 +388,22 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             final boolean dirty = deserializer.readBoolean();
             if (dirty)
                 m_dirty = true;
+
             // get a copy of the buffer
             // Because this is a copy, that means we don't have to worry about the EE overwriting us
             // Not sure of the implications for performance.
             ByteBuffer fullBacking = deserializer.readBuffer(totalSize);
             
-            // At this point we don't know how many dependencies we expect to get back from our fragments (although
-            // we clearly should be able to know). So we'll just chuck everything into an ArrayList first.
-            int total_deps = 0;
-            for (int i = 0; i < numFragmentIds; ++i) {
-                total_deps += fullBacking.getInt(fullBacking.position());
-            } // FOR
-            
+            // At this point we don't know how many dependencies we expect to get back from our fragments.
+            // We're just going to assume that each PlanFragment generated one and only one output dependency
+            int total_deps = numFragmentIds;
             VoltTable results[] = new VoltTable[total_deps];
             int dependencies[] = new int[total_deps];
             int dep_ctr = 0;
             for (int i = 0; i < numFragmentIds; ++i) {
                 int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
+                assert(numDependencies == 1) :
+                    "Unexpected multiple output dependencies from PlanFragment #" + planFragmentIds[i];
                 
                 // PAVLO: Since we can't pass the dependency ids using nativeExecuteQueryPlanFragmentsAndGetResults(),
                 // the results will come back without a dependency id. So we have to just assume

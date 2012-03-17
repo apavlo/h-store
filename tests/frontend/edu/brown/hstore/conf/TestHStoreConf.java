@@ -36,7 +36,7 @@ public class TestHStoreConf extends BaseTestCase {
      */
     public void testMakeIndexHTML() throws Exception {
         for (String prefix : groups) {
-            String contents = hstore_conf.makeIndexHTML(prefix);
+            String contents = HStoreConfUtil.makeIndexHTML(hstore_conf, prefix);
             assertNotNull(contents);
             System.err.println(contents);
         } // FOR
@@ -50,7 +50,7 @@ public class TestHStoreConf extends BaseTestCase {
      */
     public void testMakeHTML() throws Exception {
         for (String prefix : groups) {
-            String contents = hstore_conf.makeHTML(prefix);
+            String contents = HStoreConfUtil.makeHTML(hstore_conf, prefix);
             assertNotNull(contents);
             assertFalse(contents.isEmpty());
             System.err.println(contents);
@@ -64,7 +64,7 @@ public class TestHStoreConf extends BaseTestCase {
      */
     public void testBuildXML() throws Exception {
         for (String prefix : groups) {
-            String contents = hstore_conf.makeBuildXML(prefix);
+            String contents = HStoreConfUtil.makeBuildXML(hstore_conf, prefix);
             assertNotNull(contents);
             assertFalse(contents.isEmpty());
             System.err.println(contents);
@@ -75,7 +75,7 @@ public class TestHStoreConf extends BaseTestCase {
      * 
      */
     public void testMakeConfig() throws Exception {
-        String contents = hstore_conf.makeConfig(true);
+        String contents = HStoreConfUtil.makeConfig(hstore_conf, true);
         assertNotNull(contents);
         Class<?> confClass = hstore_conf.site.getClass();
 //        for (Field f : confClass.getFields()) {

@@ -31,6 +31,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -132,7 +133,7 @@ public class PartitionExecutorHelper implements Runnable {
         
         if (this.first) {
             Thread self = Thread.currentThread();
-            self.setName(HStoreSite.getThreadName(hstore_site, "help"));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, "help"));
             if (hstore_site.getHStoreConf().site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
             this.first = false;
@@ -173,7 +174,8 @@ public class PartitionExecutorHelper implements Runnable {
             m.calculateProbabilities();
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
-                this.hstore_site.getCoordinator().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
+                Exception error = new Exception(String.format("Invalid %s MarkovGraph for after recomputing", m.getProcedure().getName()));
+                this.hstore_site.getHStoreCoordinator().shutdownCluster(error);
             }
         } // WHILE
     }
