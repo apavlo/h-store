@@ -155,6 +155,10 @@ class TransactionTrace(AbstractTraceElement):
         return [ q for q in self.__queries if name == None or q.name == name ]
     ## DEF
     
+    def getQueryCount(self):
+        return len(self.__queries)
+    ## DEF
+    
     def debugQueries(self):
         for query_trace in self.__queries:
             print query_trace.orig_query
@@ -235,14 +239,14 @@ class QueryTrace(AbstractTraceElement):
     
     def toJSON(self):
         data = AbstractTraceElement.toJSON(self)
-        data["PROC_NAME"] = self.proc_name
+        #data["PROC_NAME"] = self.proc_name
         data["BATCH_ID"] = self.batch_id
         return (data)
     ## DEF
     
     def fromJSON(self, data):
         super(QueryTrace, self).fromJSON(data)
-        self.proc_name = data["PROC_NAME"]
+        #self.proc_name = data["PROC_NAME"]
         self.batch_id = data["BATCH_ID"]
         return (self)
     ## DEF

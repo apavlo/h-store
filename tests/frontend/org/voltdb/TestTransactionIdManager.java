@@ -85,10 +85,12 @@ public class TestTransactionIdManager extends TestCase {
 
     public void testLastTxnId() {
         for (int i = 0; i < 1000; i++) {
-            long id = tim.getNextUniqueTransactionId();
+            Long id = tim.getNextUniqueTransactionId();
+            assertNotNull(id);
             assertEquals(id, tim.getLastTxnId());
 
-            long id2 = tim.getNextUniqueTransactionId();
+            Long id2 = tim.getNextUniqueTransactionId();
+            assertNotNull(id2);
             assertEquals(id2, tim.getLastTxnId());
 
             assertTrue(id2 > id);

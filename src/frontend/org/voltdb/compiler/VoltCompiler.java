@@ -878,7 +878,7 @@ public class VoltCompiler {
         ArrayList<Column> catalog_cols = new ArrayList<Column>();
         for (String columnName : columnNames) {
             Column catalog_col = catalog_tbl.getColumns().get(columnName);
-            if (catalog_tbl == null) {
+            if (catalog_col == null) {
                 throw new Exception("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
             } else if (catalog_cols.contains(catalog_col)) {
                 throw new Exception("Duplicate vertical partition column '" + columnName + "' for table '" + tableName + "'");

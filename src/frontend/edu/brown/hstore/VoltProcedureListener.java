@@ -31,7 +31,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-//    private AtomicBoolean throttle = new AtomicBoolean(false);
     private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
 //    private final HStoreSite hstore_site;
@@ -41,9 +40,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
         this.handler = handler;
         assert this.eventLoop != null;
         assert this.handler != null;
-        
-        // HACK
-//        this.hstore_site = (handler instanceof HStoreSite ? (HStoreSite)handler : null);
     }
 
     public void acceptCallback(SelectableChannel channel) {
@@ -72,7 +68,16 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
         @Override
         public void readCallback(SelectableChannel channel) {
-            read(this);
+            try {
+                read(this);
+            } catch (RuntimeException ex) {
+                if (ex.getCause() instanceof IOException) {
+                    // Ignore this
+                    if (LOG.isDebugEnabled()) LOG.warn("Client connection closed unexpectedly", ex);
+                } else {
+                    throw ex;
+                }
+            }
         }
 
         @Override
@@ -114,7 +119,18 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
         @Override
         public synchronized void run(byte[] serializedResult) {
-            boolean blocked = connection.write(serializedResult);
+            boolean blocked = true;
+            try {
+                blocked = connection.write(serializedResult);
+            } catch (RuntimeException ex) {
+                if (ex.getCause() instanceof IOException) {
+                    // Ignore this
+                    if (LOG.isDebugEnabled()) LOG.warn("Client connection closed unexpectedly", ex);
+                } else {
+                    throw ex;
+                }
+            }
+            
             // Only register the write if being blocked is "new"
             // TODO: Use NonBlockingConnection which avoids attempting to write when blocked
             // NOTE: It is possible for the connection to become ready for writing before we run
@@ -170,9 +186,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
             
             // Execute store procedure!
-//            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
             try {
-                // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
                 this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
                 StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
                 handler.procedureInvocation(invocation, request, eventLoopCallback);
@@ -229,10 +243,12 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public void close() {
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

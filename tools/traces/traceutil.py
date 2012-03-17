@@ -102,7 +102,8 @@ if __name__ == '__main__':
     txn_ctr = -1
     txn_abort_ctr = 0
     limit_ctr = 0
-    count_data = { }
+    procedure_counts = { }
+    query_counts = { }
     current_txn = None
     
     ## Parameter Mapping
@@ -121,7 +122,7 @@ if __name__ == '__main__':
     with open(trace_file, "r") if trace_file != "-" else sys.stdin as fd:
         for line in map(string.strip, fd):
             txn_ctr += 1
-            if txn_ctr > 0 and txn_ctr % 10000 == 0: logging.info("Transaction #%05d" % txn_ctr)
+            if txn_ctr > 0 and txn_ctr % 10000 == 0: logging.debug("Transaction #%05d" % txn_ctr)
             
             ## Offset
             if offset != None and txn_ctr < offset: continue
@@ -246,8 +247,8 @@ if __name__ == '__main__':
                     ## FOR (Txn Parameters)
                     if updated:
                         writeJSON(txn.toJSON(), sys.stdout)
-                        if not catalog_name in count_data: count_data[catalog_name] = 0
-                        count_data[catalog_name] += 1
+                        if not catalog_name in procedure_counts: procedure_counts[catalog_name] = 0
+                        procedure_counts[catalog_name] += 1
                         #print "[%05d] %s" % (txn_ctr, txn.name)
                         #print json.dumps(txn.toJSON(), indent=2)
                     else:
@@ -373,8 +374,11 @@ if __name__ == '__main__':
             ## ----------------------------------------------
             elif command == "count":
                 if len(args) == 0 or catalog_name in args:
-                    if not catalog_name in count_data: count_data[catalog_name] = 0
-                    count_data[catalog_name] += 1
+                    txn = TransactionTrace().fromJSON(json_data)
+                    assert txn
+                    
+                    procedure_counts[catalog_name] = procedure_counts.get(catalog_name, 0) + 1
+                    query_counts[catalog_name] = query_counts.get(catalog_name, 0) + txn.getQueryCount()
                     limit_ctr += 1
                 ## IF
             ## ----------------------------------------------
@@ -386,17 +390,21 @@ if __name__ == '__main__':
             ## IF
         ## FOR
     ## WITH
-    if count_data:
+    if procedure_counts:
         if command == "fixparams":
-            logging.debug(str(count_data))
+            logging.debug(str(procedure_counts))
         else:
-            print "%-25s%s" % ("Procedure", "Txn Count")
-            print "-"*35
-            total = 0
-            for key in sorted(count_data.keys()):
-                print "%-25s%d" % (key, count_data[key])
-                total += count_data[key]
+            print "%-20s%10s%10s" % ("Procedure", "Txns", "Queries")
+            print "-"*45
+            proc_total = 0
+            query_total = 0
+            line_format = "%-20s%10d%10d"
+            
+            for key in sorted(procedure_counts.keys()):
+                print line_format % (key, procedure_counts[key], query_counts[key])
+                proc_total += procedure_counts[key]
+                query_total += query_counts[key]
             ## FOR
-            print "-"*35
-            print "%-25s%d" % ("TOTAL", total)
+            print "-"*45
+            print line_format % ("TOTAL", proc_total, query_total)
 ## MAIN

@@ -33,6 +33,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -420,7 +421,8 @@ public class TestSQLTypesSuite extends RegressionSuite {
             }
             try {
                 caught = false;
-                client.callProcedure("Insert", params);
+                ClientResponse cr = client.callProcedure("Insert", params);
+                assertNotNull(cr);
             }
             catch (final ProcCallException e) {
                 caught = true;
@@ -464,7 +466,8 @@ public class TestSQLTypesSuite extends RegressionSuite {
 
             System.out.println("testNullsRejected: :" + k + " " + m_types[k]);
             try {
-                client.callProcedure("Insert", params);
+                ClientResponse cr = client.callProcedure("Insert", params);
+                assertNotNull(cr);
             } catch (final ProcCallException e) {
                 if (e.getMessage().contains("CONSTRAINT VIOLATION"))
                     caught = true;
@@ -831,53 +834,53 @@ public class TestSQLTypesSuite extends RegressionSuite {
     //
     // Apply a simple expression to each type that supports math.
     //
-    public void testSimpleExpressions()
-    throws NoConnectionsException, ProcCallException, IOException
-    {
-        final Client client = this.getClient();
-
-        // Build a simple expression to do addition and select one column at
-        // a time, using that expression in a trivial projection.
-
-        // insert one row with the mid values
-        final Object params[] = new Object[COLS + 2];
-        params[0] = "NO_NULLS";
-        params[1] = pkey.incrementAndGet();
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_midValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-        // insert one row with the max values
-        params[0] = "NO_NULLS";
-        params[1] = pkey.incrementAndGet();
-        for (int i=0; i < COLS; i++) {
-            params[i+2] = m_maxValues[i];
-        }
-        client.callProcedure("Insert", params);
-
-
-        // select A + 11 from no_nulls where A = mid_value
-        for (int i=0; i < COLS; i++) {
-            if (!m_supportsMath[i])
-                continue;
-
-            // TODO see trac 236.
-            // Would be better here to select where the column under test
-            // equals its mid value - but decimals can't do that.
-            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
-            + m_columnNames[3] + " = " + m_midValues[3];
-            System.out.println("testsimpleexpression: " + sql);
-            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
-            final VoltTableRow row = result[0].fetchRow(0);
-            final Object obj = row.get(0, m_types[i]);
-
-            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
-            final double got = ((Number)obj).doubleValue();
-            System.out.println("Expect: " + expect + " got: " + got);
-            assertEquals(expect, got);
-        }
-    }
+//    public void testSimpleExpressions()
+//    throws NoConnectionsException, ProcCallException, IOException
+//    {
+//        final Client client = this.getClient();
+//
+//        // Build a simple expression to do addition and select one column at
+//        // a time, using that expression in a trivial projection.
+//
+//        // insert one row with the mid values
+//        final Object params[] = new Object[COLS + 2];
+//        params[0] = "NO_NULLS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i=0; i < COLS; i++) {
+//            params[i+2] = m_midValues[i];
+//        }
+//        client.callProcedure("Insert", params);
+//
+//        // insert one row with the max values
+//        params[0] = "NO_NULLS";
+//        params[1] = pkey.incrementAndGet();
+//        for (int i=0; i < COLS; i++) {
+//            params[i+2] = m_maxValues[i];
+//        }
+//        client.callProcedure("Insert", params);
+//
+//
+//        // select A + 11 from no_nulls where A = mid_value
+//        for (int i=0; i < COLS; i++) {
+//            if (!m_supportsMath[i])
+//                continue;
+//
+//            // TODO see trac 236.
+//            // Would be better here to select where the column under test
+//            // equals its mid value - but decimals can't do that.
+//            final String sql = "SELECT (" + m_columnNames[i] + " + 11) from NO_NULLS where "
+//            + m_columnNames[3] + " = " + m_midValues[3];
+//            System.out.println("testsimpleexpression: " + sql);
+//            final VoltTable[] result = client.callProcedure("@AdHoc", sql).getResults();
+//            final VoltTableRow row = result[0].fetchRow(0);
+//            final Object obj = row.get(0, m_types[i]);
+//
+//            final double expect = ((Number)m_midValues[i]).doubleValue() + 11;
+//            final double got = ((Number)obj).doubleValue();
+//            System.out.println("Expect: " + expect + " got: " + got);
+//            assertEquals(expect, got);
+//        }
+//    }
 
     public void testJumboRow() throws Exception {
         final Client client = getClient();
@@ -1089,9 +1092,10 @@ public class TestSQLTypesSuite extends RegressionSuite {
         builder.addServerConfig(config);
 
         // CLUSTER?
-        config = new LocalCluster("sqltypes-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        config.compile(project);
-        builder.addServerConfig(config);
+        // 2012-03-16 - DISABLED UNTIL WE GET A BETTER BUILD AND TEST SERVER
+//        config = new LocalCluster("sqltypes-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        config.compile(project);
+//        builder.addServerConfig(config);
 
         return builder;
     }

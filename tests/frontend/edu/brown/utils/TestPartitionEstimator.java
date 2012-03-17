@@ -429,6 +429,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Table catalog_tbl = this.getTable("DISTRICT");
         
         Column last[] = { null, null };
+        @SuppressWarnings("rawtypes")
         HashSet split[] = {
             new HashSet<Column>(),
             new HashSet<Column>(),

@@ -35,6 +35,8 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ConnectionUtil;
 
+import edu.brown.logging.LoggerUtil;
+
 /**
  * Base class for a set of JUnit tests that perform regression tests
  * on a running VoltDB server. It is assumed that all tests will access
@@ -46,6 +48,11 @@ import org.voltdb.client.ConnectionUtil;
  */
 public class RegressionSuite extends TestCase {
 
+    static {
+        // log4j Hack
+        LoggerUtil.setupLogging();
+    }
+    
     VoltServerConfig m_config;
     protected String m_username = "default";
     protected String m_password = "password";
@@ -97,6 +104,7 @@ public class RegressionSuite extends TestCase {
             m_clientChannels.clear();
         }
         m_clients.clear();
+        System.gc();
     }
 
     /**

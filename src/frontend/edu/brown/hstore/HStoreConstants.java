@@ -47,11 +47,18 @@ public abstract class HStoreConstants {
      * when executing PlanFragments in the EE
      */
     public static final long DISABLE_UNDO_LOGGING_TOKEN = Long.MAX_VALUE;
+    
+    public static final long NULL_UNDO_LOGGING_TOKEN = -1;
 
     /**
      * H-Store's ant build.xml will add this prefix in front of all the configuration
      * parameters listed in the benchmark-specific properties files
      */
     public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
+
+    /**
+     * The default name of the Statement given for single-statement (i.e., non-Java) Procedures
+     */
+    public static final String ANON_STMT_NAME = "sql";
 
 }

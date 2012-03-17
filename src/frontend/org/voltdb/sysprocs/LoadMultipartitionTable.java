@@ -36,20 +36,22 @@ import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
+import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 
-@ProcInfo(singlePartition = false)
-/*
+/**
  * Given a VoltTable with a schema corresponding to a persistent table, load all
  * of the rows applicable to the current partitioning at each node in the
  * cluster.
  */
+@ProcInfo(singlePartition = false)
 public class LoadMultipartitionTable extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(LoadMultipartitionTable.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -60,9 +62,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     
 
     static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-
     static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
+    private Histogram<Integer> allPartitionsHistogram = new Histogram<Integer>();
+    
     @Override
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
             BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
@@ -70,8 +73,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         
         site.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);
+        
+        this.allPartitionsHistogram.putAll(CatalogUtil.getAllPartitionIds(catalog_proc));
     }
-
+    
     @Override
     public DependencySet executePlanFragment(long txn_id,
                                              Map<Integer, List<VoltTable>> dependencies,
@@ -151,23 +156,13 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     private SynthesizedPlanFragment[] createNonReplicatedPlan(Table catalog_tbl, VoltTable table) {
         if (debug.get()) LOG.debug(catalog_tbl + " is not replicated. Splitting table data into separate pieces for partitions");
         
-        // create a table for each partition
+        // Create a table for each partition
         VoltTable partitionedTables[] = new VoltTable[num_partitions];
-        for (int i = 0; i < partitionedTables.length; i++) {
-            partitionedTables[i] = table.clone(1024 * 1024);
-            if (trace.get()) LOG.trace("Cloned VoltTable for Partition #" + i);
-        }
 
-        // map site id to partition (this assumes 1:1, sorry).
-//        int partitionsToSites[] = new int[numPartitions];
-//        for (Site site : m_cluster.getSites()) {
-//            if (site.getPartition() != null)
-//                partitionsToSites[Integer.parseInt(site.getPartition()
-//                        .getName())] = Integer.parseInt(site.getName());
-//        }
-
-        // split the input table into per-partition units
-        if (debug.get()) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into " + partitionedTables.length + " tables");
+        // Split the input table into per-partition units
+        if (debug.get()) LOG.debug("Splitting original table of " + table.getRowCount() + " rows into partitioned tables");
+        boolean mispredict = false;
+        table.resetRowPosition();
         while (table.advanceRow()) {
             int p = -1;
             try {
@@ -177,12 +172,32 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 throw new RuntimeException(e.getMessage());
             }
             assert(p >= 0);
-            // this adds the active row from table
-            partitionedTables[p].add(table);
-            if (trace.get() && table.getActiveRowIndex() > 0 && table.getActiveRowIndex() % 1000 == 0)
-                LOG.trace(String.format("Processed %s tuples for " + catalog_tbl, table.getActiveRowIndex()));
-        }
+            
+            if (partitionedTables[p] == null) {
+                partitionedTables[p] = table.clone(1024 * 1024);
+                this.m_localTxnState.getTouchedPartitions().put(p);
+                if (this.m_localTxnState.getPredictTouchedPartitions().contains(p) == false) {
+                    mispredict = true;
+                }
+                if (trace.get()) LOG.trace("Cloned VoltTable for Partition #" + p);
+            }
+            
+            // Add the active row from table
+            // Don't bother doing it if we know that we're going to mispredict afterwards 
+            if (mispredict == false) {
+                partitionedTables[p].add(table);
+                if (trace.get() && table.getActiveRowIndex() > 0 && table.getActiveRowIndex() % 1000 == 0)
+                    LOG.trace(String.format("Processed %s tuples for " + catalog_tbl, table.getActiveRowIndex()));
+            }
+        } // WHILE
         
+        // Allow them to restart and lock on the partitions that they need to load
+        // data on. This will help speed up concurrent bulk loading
+        if (mispredict) {
+            if (debug.get()) LOG.warn(String.format("%s - Restarting as a distributed transaction on partitions %s",
+                                                    this.m_localTxnState, this.m_localTxnState.getTouchedPartitions().values()));
+            throw new MispredictionException(this.getTransactionId(), this.m_localTxnState.getTouchedPartitions());
+        }
         StringBuilder sb = null;
         if (trace.get()) {
             sb = new StringBuilder();
@@ -193,7 +208,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
         for (int i = 0; i < partitionedTables.length; ++i) {
             int partition = i;
-            if (partitionedTables[partition].getRowCount() == 0) continue;
+            if (partitionedTables[partition] == null || partitionedTables[partition].getRowCount() == 0) continue;
             ParameterSet params = new ParameterSet(catalog_tbl.getName(), partitionedTables[partition]);
             SynthesizedPlanFragment pf = new SynthesizedPlanFragment();
             pf.fragmentId = SysProcFragmentId.PF_loadDistribute;
@@ -259,16 +274,22 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
         Table catalog_tbl = database.getTables().getIgnoreCase(tableName);
         if (catalog_tbl == null) {
-            throw new VoltAbortException("Table not present in catalog.");
+            throw new VoltAbortException("Table '" + tableName + "' does not exist");
         }
 
         // if tableName is replicated, just send table everywhere.
-        // otherwise, create a VoltTable for each partition and split up the incoming table
-        // then send those partial tables to the appropriate sites.
         if (catalog_tbl.getIsreplicated()) {
-            pfs = createReplicatedPlan(catalog_tbl, table);
-        } else {
-            pfs = createNonReplicatedPlan(catalog_tbl, table);
+            // If they haven't locked all of the partitions in teh cluster, then we'll 
+            // stop them right here and force them to get those
+            if (this.m_localTxnState.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
+                throw new MispredictionException(this.getTransactionId(), this.allPartitionsHistogram);
+            }
+            pfs = this.createReplicatedPlan(catalog_tbl, table);
+        }
+        // Otherwise, create a VoltTable for each partition and split up the incoming table
+        // then send those partial tables to the appropriate sites.
+        else {
+            pfs = this.createNonReplicatedPlan(catalog_tbl, table);
         }
         
         // distribute and execute the fragments providing pfs and id

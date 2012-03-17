@@ -85,7 +85,10 @@
 
 <!-- Checkstyle Initilization -->
 <taskdef resource="checkstyletask.properties" classpath="${vendor.lib.dir}/checkstyle-5.5.jar"/>
-         
+
+<property name='jprofiler.dir'                  location='/home/ubuntu/jprofiler' />
+<property name='jprofiler.port'                 value='8849' />
+
 <!--
 ***************************************
 ** H-STORE CONFIGURATION
@@ -105,17 +108,11 @@
 -->
 
 <!-- Default Project -->
-<condition property="project" value="tpcc">
+<!--<condition property="project" value="tpcc">
     <not><isset property="project"/></not>
-</condition>
+</condition>-->
 
-<!-- Benchmarks Configuration File -->
-<condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
-    <not><isset property="benchmark.conf"/></not>
-</condition>
-<property file="${benchmark.conf}" prefix="benchmark" />
-<fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
-
+<!-- Project Jar File -->
 <property name="benchmark.jar" location="${project}.jar" />
 <condition property="jar" value="${benchmark.jar}">
     <not><isset property="jar"/></not>
@@ -815,14 +812,14 @@ TEST CASES
             failureproperty="junit.failures"
             printsummary="@{printsummary}"
             timeout="@{timeout}"
-            maxmemory='1024M'
+            maxmemory='2600M'
             showoutput="@{showoutput}"
         >
             <classpath refid='project.classpath' />
             <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
             <jvmarg value="-server" />
             <jvmarg value="-Xcheck:jni" />
-            <jvmarg value="-Xmx2048m"/>
+            <jvmarg value="-Xmx2600m"/>
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
             
             <env key="ENABLE_JAR_REUSE" value="${junit.reusejars}"/>
@@ -869,11 +866,18 @@ TEST CASES
     </run_junit>
 </target>
 
+<!-- Fetch the files that we need to run the full tests -->
+<target name="junit-getfiles"
+        description="Fetch the files that we need to run junit-full">
+    <exec dir="${tools.dir}" executable="./getfiles.py">
+        <arg line="--copy=${localcopy}" />
+        <arg line="${files.dir}" />
+    </exec>
+</target>
+
 <!-- Junit tests that run quickly -->
-<target
-    name="junit"
-    description="Tests and suites that run in under 3 minutes under memcheck"
->
+<target name="junit"
+        description="Tests and suites that run in under 3 minutes under memcheck">
     <run_junit>
         <formatters>
             <formatter type="plain" unless="hudson"/>
@@ -887,42 +891,47 @@ TEST CASES
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
-            	<include name='edu/brown/hstore/Test*.class'/>
-            	<include name='edu/brown/hstore/**/Test*.class'/>
+                <include name='edu/brown/hstore/Test*.class'/>
+                <include name='edu/brown/hstore/**/Test*.class'/>
                 <include name='edu/brown/catalog/Test*.class'/>
-                
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
-            	
                 <include name='org/voltdb/network/**/Test*.class'/>
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-                <exclude name="**/*$*.class"/>
-                <exclude name="**/TestMaliciousClientSuite.class" />
-                <exclude name="**/TestELTSuite.class" />
-                <exclude name="**/TestFailuresSuite.class" />
-                <exclude name="**/TestFixedSQLSuite.class" />
-                <exclude name="**/TestPlansGroupBySuite.class" />
-                <exclude name="**/TestRollbackSuite.class" />
-                <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSQLFeaturesSuite.class" />
-                <exclude name="**/TestSQLTypesSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
-                <exclude name="**/TestTPCCSuite.class" />
                 
                 <!-- Busted tests because of hacking -->
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
-                
                 <exclude name='edu/brown/markov/TestMarkovGraph*' />
+
+                <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestCatalogUpdateSuite.class" />
+                <exclude name="**/TestFailureDetectSuite.class" />
+                <exclude name="**/TestIndexesSuite.class" />
+                <exclude name="**/TestMaterializedViewSuite.class" />
+                <exclude name="**/TestOrderBySuite.class" />
+                <exclude name="**/TestReplicationSuite.class" />
+                <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                <exclude name="**/TestSqlAggregateSuite.class" />
+                <exclude name="**/TestSystemProcedureSuite.class" />
+                <exclude name="**/TestMaliciousClientSuite.class" />
+                <exclude name="**/TestELTSuite.class" />
+                <exclude name="**/TestFailuresSuite.class" />
+                <exclude name="**/TestPlansGroupBySuite.class" />
+                <exclude name="**/TestRollbackSuite.class" />
+                <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestTPCCSuite.class" />
                 
-                <!-- VoltDB stuff -->
-                <exclude name='org/voltdb/regressionsuites/**'/>
+                <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
+                
+                <exclude name="**/*$*.class"/>
             </fileset>
         </tests>
     </run_junit>
@@ -980,23 +989,40 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
-                <exclude name="**/TestMaliciousClientSuite.class" />
-                <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
+                
+                <!-- VoltDB Regression Suite -->
+                <exclude name="**/TestCatalogUpdateSuite.class" />
+                <exclude name="**/TestFailureDetectSuite.class" />
+                <exclude name="**/TestIndexesSuite.class" />
+                <exclude name="**/TestMaterializedViewSuite.class" />
+                <exclude name="**/TestOrderBySuite.class" />
+                <exclude name="**/TestReplicationSuite.class" />
+                <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                <exclude name="**/TestSqlAggregateSuite.class" />
+                <exclude name="**/TestSystemProcedureSuite.class" />
+                <exclude name="**/TestMaliciousClientSuite.class" />
+                <exclude name="**/TestELTSuite.class" />
+                <exclude name="**/TestFailuresSuite.class" />
+                <exclude name="**/TestPlansGroupBySuite.class" />
+                <exclude name="**/TestRollbackSuite.class" />
+                <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestTPCCSuite.class" />
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
-            	<include name='edu/brown/**/*Test.class'/>
+                <include name='edu/brown/**/*Test.class'/>
                 
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
 
                 <!-- Canadian Tests -->
                 <include name='ca/evanjones/**/*Test.class'/>
-            	<include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
                 <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
@@ -1459,7 +1485,16 @@ BENCHMARKS
 
 <target name='benchmark'
     description="Deploy a cluster and run a benchmark">
-	
+    
+    <!-- Benchmarks Configuration File -->
+    <condition property="benchmark.conf" value="${benchmark.dir}/${project}.properties">
+        <not>
+            <isset property="benchmark.conf"/>
+        </not>
+    </condition>
+    <property file="${benchmark.conf}" prefix="benchmark" />
+    <fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
+    
     <java fork="true" failonerror="true"
         classname="edu.brown.benchmark.BenchmarkController">
         <classpath refid='project.classpath' />
@@ -1746,9 +1781,6 @@ DESIGNER
 
 <target name='catalog-info'
         description="Print catalog host/partition information">
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -1808,7 +1840,7 @@ DESIGNER
     <java fork="yes" failonerror="true" classname="edu.brown.workload.CombineWorkloadTraces">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.jar=${jar}" />
         <arg value="workload.output=${output}" />
         <arg value="${workload}" />
         <classpath refid='project.classpath' />
@@ -1822,7 +1854,7 @@ DESIGNER
     <java fork="yes" failonerror="true" classname="edu.brown.workload.WorkloadSummarizer">
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.jar=${jar}" />
         <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
         <arg value="workload.output=${output}" />
@@ -1861,9 +1893,6 @@ DESIGNER
 
 
 <target name='graphviz' description="GraphViz Schema Export">
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
@@ -2015,7 +2044,7 @@ DESIGNER
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.jar=${jar}" />
         <arg value="stats.scalefactor=${scalefactor}" />
         <arg value="stats.output=${benchmark.tablestats}" />
         <classpath refid='project.classpath' />
@@ -2024,7 +2053,6 @@ DESIGNER
     
     <echo>Creating stats file for workload '${target.workload}' using '${benchmark.tablestats}' as base</echo>
     <antcall target="stats">
-        <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
         <param name="stats" value="${benchmark.tablestats}" />
         <param name="output" value="${files.stats.dir}/${project}.stats" />
@@ -2034,7 +2062,6 @@ DESIGNER
     
     <echo>Creating mappings file for workload '${target.workload}'</echo>
     <antcall target="mappings-generate">
-        <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
         <param name="output" value="${files.mappings.dir}/${project}.mappings" />
     </antcall>
@@ -2043,7 +2070,7 @@ DESIGNER
 
 <target name='designer-jar'
         description="Prepare a jar file for the designer!">
-    <copy tofile="${project}-designer-benchmark.jar" file="${benchmark.jar}"/>
+    <copy tofile="${project}-designer-benchmark.jar" file="${jar}"/>
     <antcall target="catalog-fix">
         <param name="jar" value="${project}-designer-benchmark.jar" />
         <param name="type" value="${project}" />
@@ -2136,7 +2163,7 @@ DESIGNER
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${project}" />
         <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
@@ -2267,9 +2294,7 @@ H-STORE REMIX
     </antcall>
     
     <!-- Sets up host/site/partition information in system catalogs -->
-    <antcall target="hstore-jar">
-        <param name="jar" value="${benchmark.jar}" />
-    </antcall>
+    <antcall target="hstore-jar" />
 </target>
 
 <target name="hstore-site" description="H-Store Execution Site">
@@ -2281,22 +2306,35 @@ H-STORE REMIX
     </condition>
 
     <java fork="yes" classname="edu.brown.hstore.HStore">
+        <!-- Use to identify what process this for killing -->
         <jvmarg value="-Dhstore.tag=site" />
+        <!-- Initial Heap Size -->
         <jvmarg value="-Xms${site.memory}m" />
+        <!-- Maximum Heap Size -->
         <jvmarg value="-Xmx${site.memory}m" />
+        
+        <!-- JProfiler -->
+        <!-- <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> -->
+        
+        <!-- Parallel Garbage Collector (Slower) -->
+        <!-- <jvmarg value="-XX:+UseParNewGC" /> -->
+        <!-- <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
+        <!-- <jvmarg value="-XX:+CMSIncrementalMode" /> -->
+        
+        <!-- Garbage Collector Debug Output -->
+        <!-- <jvmarg value="-verbose:gc" /> -->
+        <!-- <jvmarg value="-XX:+PrintGCDetails" /> -->
+        <!-- <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
+        <!-- <jvmarg value="-XX:-TraceClassUnloading" /> -->
+        
+        <!-- Other JVM Options -->
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
+        <!-- <jvmarg value="-Djava.library.path=${build.dir}/nativelibs:${jprofiler.dir}/bin/linux-x64:/usr/lib" /> -->
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-        <!--<jvmarg value="-XX:+UseParNewGC" />
-        <jvmarg value="-XX:+UseConcMarkSweepGC" />-->
-<!--        <jvmarg value="-verbose:gc" />
-        <jvmarg value="-XX:+PrintGCDetails" />
-        <jvmarg value="-XX:+PrintGCTimeStamps" />
-        <jvmarg value="-XX:-TraceClassUnloading" />-->
 
-        <jvmarg value="-Dhstore.preload=${site.preload}" />
-        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.jar=${jar}" />
         <arg value="conf=${conf}" />
         <arg value="site.id=${site.id}" />
         <arg value="hasher.class=${hasher}" />
@@ -2320,7 +2358,7 @@ H-STORE REMIX
 
 <target name='hstore-benchmark' description="H-Store Benchmark">
     <antcall target="benchmark">
-        <param name="catalog" value="${benchmark.jar}" />
+        <param name="catalog" value="${jar}" />
         <param name="compile" value="false" />
         <param name="cataloghosts" value="true" />
     </antcall>

@@ -35,7 +35,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     }
     
     @Override
-    public void sendLocal(long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
         hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
     }
     @Override
@@ -72,19 +72,14 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         // Send back a FinishResponse to let them know we're cool with everything...
         TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()
                                                           .setTransactionId(txn_id);
-        Collection<Integer> local_partitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : request.getPartitionsList()) {
-            if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
+        for (int p : request.getPartitionsList()) {
+            if (hstore_site.isLocalPartition(p)) builder.addPartitions(p);
         } // FOR
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                                     TransactionFinishResponse.class.getSimpleName(), txn_id,
                                     request.getStatus(), builder.getPartitionsList()));
         callback.run(builder.build());
-        
-        // Always tell the HStoreSite to clean-up any state for this txn
-        // hstore_site.completeTransaction(txn_id, request.getStatus());
-        
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

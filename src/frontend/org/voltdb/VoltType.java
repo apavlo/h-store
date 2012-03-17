@@ -450,6 +450,7 @@ public enum VoltType {
     public static final long NULL_BIGINT = Long.MIN_VALUE;
     // TODO(evanj): make this a specific bit pattern?
     public static final double NULL_FLOAT = -1.7E+308;
+    public static final Double NULL_DOUBLE = new Double(-1.7976931348623157E+308);
 
     // for consistency at the API level, provide symbolic nulls for these types, too
     private static final class NullTimestampSigil{}

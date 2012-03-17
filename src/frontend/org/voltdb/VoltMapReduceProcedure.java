@@ -126,7 +126,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // Check whether the HStoreConf flag for locking the entire cluster
             // is true. If it is, then we have to tell the queue manager that we're done.
             // MapReduceTransaction should finish forever...
-            hstore_site.getTransactionQueueManager().finished(txn_id, Status.OK, this.partitionId);
+            hstore_site.getTransactionQueueManager().lockFinished(txn_id, Status.OK, this.partitionId);
 
             if (debug.get())
                 LOG.debug(String.format("MAP: About to process %d records for %s on partition %d",
@@ -248,6 +248,13 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
 //        for (int i = 0; i < this.mr_ts.getSize(); i++) {
 //            this.mr_ts.getLocalTransaction(i).finish();
 //        } // FOR
+    }
+    
+    public final int getPartitionId() {
+        return partitionId;
+    }
+    public final void setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
     }
     
 

@@ -13,11 +13,12 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.compiler.ClusterConfig;
 
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -57,7 +58,8 @@ public class ClusterConfiguration extends ClusterConfig {
 
         @Override
         public String toString() {
-            return String.format("%s - %s", this.host, HStoreSite.formatPartitionName(this.site, this.partition));
+            return String.format("%s - %s", this.host,
+                                            HStoreThreadManager.getThreadName(this.site, this.partition));
         }
     }
 
@@ -83,6 +85,11 @@ public class ClusterConfiguration extends ClusterConfig {
         for (String host_info : host_triplets) {
             this.addPartition(host_info);
         } // FOR
+    }
+    
+    public void clear() {
+        this.host_sites.clear();
+        this.all_partitions.clear();
     }
 
     @Override
@@ -164,5 +171,10 @@ public class ClusterConfiguration extends ClusterConfig {
             ids.add(pc.partition);
         } // FOR
         return (ids);
+    }
+    
+    @Override
+    public String toString() {
+        return StringUtil.formatMaps(this.host_sites);
     }
 }

@@ -19,7 +19,7 @@ public class TransactionInitDispatcher extends AbstractDispatcher<Object[]> {
         RpcController controller = (RpcController)o[0];
         TransactionInitRequest request = (TransactionInitRequest)o[1];
         RpcCallback<TransactionInitResponse> callback = (RpcCallback<TransactionInitResponse>)o[2];
-        hStoreCoordinator.getTransactionInitHandler().remoteHandler(controller, request, callback);
+        hstore_coordinator.getTransactionInitHandler().remoteHandler(controller, request, callback);
     }
 
 }

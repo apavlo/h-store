@@ -28,6 +28,6 @@ public class TransactionRedirectDispatcher extends AbstractDispatcher<Pair<byte[
             LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
             throw new RuntimeException(ex);
         }
-        this.hStoreCoordinator.getHStoreSite().procedureInvocation(invocation, p.getFirst(), p.getSecond());
+        this.hstore_coordinator.getHStoreSite().procedureInvocation(invocation, p.getFirst(), p.getSecond());
     }
 }

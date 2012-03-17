@@ -65,10 +65,18 @@ public abstract class ClassUtil {
     private static final Map<Class<?>, Set<Class<?>>> CACHE_getInterfaceClasses = new HashMap<Class<?>, Set<Class<?>>>();
 
     /**
+     * Convenience method to get the name of the method that invoked this method
+     * @return
+     */
+    public static String getCurrentMethodName() {
+        StackTraceElement stack[] = Thread.currentThread().getStackTrace();
+        assert(stack[2] != null);
+        return (stack[2].getMethodName());
+    }
+    
+    /**
      * Check if the given object is an array (primitve or native).
-     * http://www.java2s
-     * .com/Code/Java/Reflection/Checkifthegivenobjectisanarrayprimitveornative
-     * .htm
+     * http://www.java2s.com/Code/Java/Reflection/Checkifthegivenobjectisanarrayprimitveornative.htm
      * 
      * @param obj
      *            Object to test.
