@@ -32,11 +32,6 @@ public final class HStoreConf {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
-    static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
-    
-    static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
-    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
     
     static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
     
@@ -772,7 +767,7 @@ public final class HStoreConf {
             description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false,
-            replacedBy="pool_txninitqueue_idle"
+            replacedBy="site.pool_txninitqueue_idle"
         )
         public int pool_txninitwrapper_idle;
         
@@ -1117,7 +1112,7 @@ public final class HStoreConf {
             this.setDefaultValues();
         }
         
-        private Map<Field, ConfigProperty> getConfigProperties() {
+        protected Map<Field, ConfigProperty> getConfigProperties() {
             return ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
         }
         
@@ -1201,7 +1196,7 @@ public final class HStoreConf {
     /**
      * Prefix -> Configuration
      */
-    private final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
+    protected final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
     
     /**
      * Easy Access Handles
@@ -1419,7 +1414,7 @@ public final class HStoreConf {
         return (m);
     }
     
-    private Object getDefaultValue(Field f, ConfigProperty cp) {
+    protected Object getDefaultValue(Field f, ConfigProperty cp) {
         Class<?> f_class = f.getType();
         Object value = null;
         
@@ -1455,162 +1450,7 @@ public final class HStoreConf {
         return (false);
     }
     
-    // ----------------------------------------------------------------------------
-    // OUTPUT METHODS
-    // ----------------------------------------------------------------------------
-    
-    public String makeIndexHTML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
-        
-        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
-            Field f = e.getKey();
-            String entry = REGEX_CONFIG_REPLACE.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
-            sb.append("  <li>  ").append(entry).append("\n");
-        } // FOR
-        sb.append("</ul>\n\n");
-        
-        return (sb.toString());
-    }
-    
-    public String makeHTML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("<ul class=\"property-list\">\n\n");
-        
-        // Parameters:
-        //  (1) parameter
-        //  (2) parameter
-        //  (3) experimental
-        //  (4) default value
-        //  (5) description 
-        final String template = "<a name=\"@@PROP@@\"></a>\n" +
-                                "<li><tt class=\"property\">@@PROPFULL@@</tt>@@EXP@@\n" +
-                                "<table>\n" +
-                                "<tr><td class=\"prop-default\">Default:</td><td><tt>@@DEFAULT@@</tt></td>\n" +
-                                "<tr><td class=\"prop-type\">Permitted Type:</td><td><tt>@@TYPE@@</tt></td>\n" +
-                                "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
-                                "</table></li>\n\n";
-        
-        
-        Map<String, String> values = new HashMap<String, String>();
-        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
-            Field f = e.getKey();
-            ConfigProperty cp = e.getValue();
 
-            // PROP
-            values.put("PROP", f.getName());
-            values.put("PROPFULL", String.format("%s.%s", group, f.getName()));
-            
-            // DEFAULT
-            Object defaultValue = this.getDefaultValue(f, cp);
-            if (defaultValue != null) {
-                String value = defaultValue.toString();
-                Matcher m = REGEX_CONFIG.matcher(value);
-                if (m.find()) value = m.replaceAll(REGEX_CONFIG_REPLACE);
-                defaultValue = value;
-            }
-            values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
-            
-            // TYPE
-            values.put("TYPE", f.getType().getSimpleName().toLowerCase());
-            
-            // EXPERIMENTAL
-            if (cp.experimental()) {
-                values.put("EXP", " <b class=\"experimental\">Experimental</b>");
-            } else {
-                values.put("EXP", "");   
-            }
-            
-            // DESC
-            String desc = cp.description();
-            
-            // Create links to remote sites
-            Matcher m = REGEX_URL.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_URL_REPLACE);
-            
-            // Create links to other parameters
-            m = REGEX_CONFIG.matcher(desc);
-            if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
-            values.put("DESC", desc);
-            
-            // CREATE HTML FROM TEMPLATE
-            String copy = template;
-            for (String key : values.keySet()) {
-                copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
-            }
-            sb.append(copy);
-        } // FOR
-        sb.append("</ul>\n");
-        return (sb.toString());
-    }
-    
-    public String makeBuildXML(String group) {
-        final Conf handle = this.confHandles.get(group);
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!-- " + group.toUpperCase() + " -->\n");
-        for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
-            Field f = e.getKey();
-            ConfigProperty cp = e.getValue();
-            
-            if (cp.experimental()) {
-                
-            }
-            String propName = String.format("%s.%s", group, f.getName());
-            sb.append(String.format("<arg value=\"%s=${%s}\" />\n", propName, propName));
-        } // FOR
-        sb.append("\n");
-        return (sb.toString());
-    }
-    
-    
-    /**
-     * 
-     */
-    public String makeDefaultConfig() {
-        return (this.makeConfig(false));
-    }
-    
-    public String makeConfig(boolean experimental) {
-        StringBuilder sb = new StringBuilder();
-        for (String group : this.confHandles.keySet()) {
-            Conf handle = this.confHandles.get(group);
-
-            sb.append("## ").append(StringUtil.repeat("-", 100)).append("\n")
-              .append("## ").append(StringUtil.title(group)).append(" Parameters\n")
-              .append("## ").append(StringUtil.repeat("-", 100)).append("\n\n");
-            
-            for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
-                Field f = e.getKey();
-                ConfigProperty cp = e.getValue();
-                if (cp.experimental() && experimental == false) continue;
-                
-                String key = String.format("%s.%s", group, f.getName());
-                Object val = null;
-                try {
-                    val = f.get(handle);
-                } catch (Exception ex) {
-                    throw new RuntimeException("Failed to get " + key, ex);
-                }
-                if (val instanceof String) {
-                    String str = (String)val;
-                    if (str.startsWith(global.temp_dir)) {
-                        val = str.replace(global.temp_dir, "${global.temp_dir}");
-                    } else if (str.equals(global.defaulthost)) {
-                        val = str.replace(global.defaulthost, "${global.defaulthost}");
-                    }
-                }
-                
-                sb.append(String.format("%-50s= %s\n", key, val));
-            } // FOR
-            sb.append("\n");
-        } // FOR
-        return (sb.toString());
-    }
     
     @Override
     public String toString() {
