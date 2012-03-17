@@ -41,6 +41,7 @@ import math
 import types
 from datetime import datetime
 from pprint import pprint, pformat
+from types import *
 from fabric.api import *
 from fabric.network import *
 from fabric.contrib.files import *
@@ -93,6 +94,7 @@ OPT_STOP_ON_ERROR = False
 OPT_RETRY_ON_ZERO = False
 OPT_FORCE_REBOOT = False
 OPT_SINGLE_CLIENT = False
+OPT_CLEAR_LOGS = False
 
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
@@ -106,7 +108,7 @@ OPT_BASE_PARTITIONS_PER_SITE = 7
 DEBUG_OPTIONS = [
     "site.exec_profiling",
     #"site.txn_profiling",
-    #"site.pool_profiling",
+    "site.pool_profiling",
     #"site.planner_profiling",
     "site.status_show_txn_info",
     "site.status_show_executor_info",
@@ -136,18 +138,17 @@ BASE_SETTINGS = {
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
-    "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
     
     "site.log_backup":                                  False,
-    "site.exec_profiling":                              False,
+    "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
-    "site.pool_profiling":                              False,
+    "site.pool_profiling":                              True,
     "site.planner_profiling":                           False,
-    "site.status_show_txn_info":                        False,
+    "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
-    "site.status_show_exec_info":                       False,
+    "site.status_show_executor_info":                   False,
     "site.status_interval":                             20000,
     "site.txn_incoming_delay":                          1,
     "site.coordinator_init_thread":                     False,
@@ -160,7 +161,8 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
-    "site.memory":                                      6002,
+    "site.num_hosts_round_robin":                       None,
+    "site.memory":                                      65440,
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
     "site.queue_incoming_increase":                     10,
@@ -170,7 +172,6 @@ BASE_SETTINGS = {
     "site.queue_dtxn_increase":                         0,
     "site.queue_dtxn_throttle":                         False,
     
-    "site.txn_enable_queue_pruning":                    False,
     "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
@@ -187,7 +188,6 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":         True,
             "benchmark.warehouse_debug":         False,
             "benchmark.noop":                    False,
-            "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
         {
@@ -202,7 +202,6 @@ EXPERIMENT_SETTINGS = {
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
             "benchmark.temporal_skew_rotate":    False,
-            
             "benchmark.neworder_only":          True,
             "benchmark.neworder_abort":         False,
             "benchmark.neworder_multip":        False,
@@ -229,6 +228,7 @@ EXPERIMENT_SETTINGS = {
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
 OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'seats', 'auctionmark' ]
 OPT_PARTITION_PLAN_DIR = "files/designplans"
+OPT_BREAKDOWNS = [ "norouting", "noindexes", "full" ]
 
 ## ==============================================
 ## updateEnv
@@ -236,19 +236,26 @@ OPT_PARTITION_PLAN_DIR = "files/designplans"
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     global OPT_BASE_TXNRATE_PER_PARTITION
   
-    ## ==============================================
     ## ----------------------------------------------
-  
     ## MOTIVATION
+    ## ----------------------------------------------
     if exp_type == "motivation":
         env["benchmark.neworder_only"] = True
         env["benchmark.neworder_abort"] = False
 
+        env["site.exec_neworder_cheat"] = (exp_factor == 0)
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
             env["benchmark.neworder_multip"] = (exp_factor > 0)
+            env["client.processesperclient_per_partition"] = False
+            env["client.processesperclient"] = 400 * env["client.count"]
+            env["client.blocking_concurrent"] = int(math.ceil(env["site.partitions"] / 2))            
             
         elif exp_setting == 1:
+            env["client.processesperclient"] = int(100 * math.ceil(env["site.partitions"] / 4))
+            env["client.processesperclient_per_partition"] = True
+            env["client.blocking_concurrent"] = 1
+            
             if exp_factor == 0:
                 env["benchmark.neworder_skew_warehouse"] = False
                 env["client.skewfactor"] =  -1
@@ -256,17 +263,27 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
                 env["client.skewfactor"] = 1.00001 + (0.25 * (exp_factor - 10) / 10.0)
                 LOG.info("client.skewfactor = %f [exp_factor=%d]" % (env["client.skewfactor"], exp_factor))
         elif exp_setting == 2:
+            env["client.processesperclient"] = int(100 * math.ceil(env["site.partitions"] / 4))
+            env["client.processesperclient_per_partition"] = True
+            env["client.blocking_concurrent"] = 1
+            
             if exp_factor == 0:
                 env["benchmark.temporal_skew"] = False
             else:
+                env["site.queue_incoming_max_per_partition"] = 10000
+                env["site.queue_incoming_increase_max"] = 10000
                 env["benchmark.temporal_skew"] = True
                 env["benchmark.temporal_skew_mix"] = exp_factor
-                LOG.info("benchmark.temporal_skew_mix = %d" % env["benchmark.temporal_skew_mix"])
+                env["benchmark.temporal_skew_rotate"] = False
+                env["site.queue_incoming_throttle"] = True
+                
+    ## ----------------------------------------------
     ## THROUGHPUT
+    ## ----------------------------------------------
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s -Dpartitionplan.ignore_missing=True" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
-        env["benchmark.neworder_multip_mix"] = -1
+        env["benchmark.neworder_multip_mix"] = -1 # Default
         env["benchmark.neworder_multip"] = True
         
         #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "seats" else OPT_BASE_TXNRATE
@@ -280,9 +297,12 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
             env["site.exec_neworder_cheat"] = (benchmark in ["tpcc", "seats"])
+            env["client.txn_hints"] = True
+            env["site.exec_db2_redirects"] = True
         ## IF
-        
+    ## ----------------------------------------------
     ## BREAKDOWN
+    ## ----------------------------------------------
     elif exp_type == "breakdown":
         ## FULL DESIGN
         if exp_factor == "full":
@@ -349,6 +369,19 @@ def parseResultsOutput(output):
 ## DEF
 
 ## ==============================================
+## extractAllParameters
+## ==============================================
+def extractAllParameters(buildCommonXml):
+    params = set()
+    regex = re.compile("<arg value=\"([\w]+\..*?)=.*?\" />", re.IGNORECASE)
+    with open(buildCommonXml, "r") as fd:
+        for m in regex.finditer(fd.read()):
+            params.add(m.group(1))
+    ## WITH
+    return (params)
+    ## DEF
+
+## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
@@ -379,20 +412,38 @@ if __name__ == '__main__':
         "stop-on-error",
         "retry-on-zero",
         "single-client",
+        "clear-logs",
         "trace",
         
         "codespeed-url=",
         "codespeed-benchmark=",
         "codespeed-revision=",
         "codespeed-lastrevision=",
+        "codespeed-branch=",
         
         # Enable debug logging
         "debug",
         "debug-hstore",
     ]
+    ## Include our BASE_SETTINGS
     for key in BASE_SETTINGS.keys():
         BASE_OPTIONS.append("%s=" % key)
-    ## FOR
+    ## And our Boto environment keys
+    for key in env.keys():
+        if key not in BASE_SETTINGS and key.split(".")[0] in [ "hstore", "ec2" ]:
+            BASE_OPTIONS.append("%s=" % key)
+    ## Load in all of the possible parameters from our 'build-common.xml' file
+    buildCommonXml = "../build-common.xml"
+    HSTORE_PARAMS = [ ]
+    if os.path.exists(buildCommonXml):
+        HSTORE_PARAMS = extractAllParameters(buildCommonXml)
+        for key in HSTORE_PARAMS:
+            key = "%s=" % key
+            if not key in BASE_OPTIONS:
+                BASE_OPTIONS.append(key)
+        ## FOR
+    else:
+        LOG.warn("Unable to load configuration parameters from '%s'" % buildCommonXml)
     
     _options, args = getopt.gnu_getopt(sys.argv[1:], '', BASE_OPTIONS)
     
@@ -417,15 +468,19 @@ if __name__ == '__main__':
     for key in options:
         varname = None
         paramDict = None
-        if key in BASE_SETTINGS:
+        if key in BASE_SETTINGS or key in HSTORE_PARAMS:
             varname = key
             paramDict = BASE_SETTINGS
+        elif key in env:
+            varname = key
+            paramDict = env
         else:
             varname = "OPT_" + key.replace("-", "_").upper()
             if varname in globals():
                 paramDict= globals()
         ## IF
         if paramDict is not None:
+            if not varname in paramDict: paramDict[varname] = None
             orig_type = type(paramDict[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
@@ -433,9 +488,11 @@ if __name__ == '__main__':
                 if not varname+"_changed" in globals(): ## HACK
                     paramDict[varname] = [ ]
                     paramDict[varname+"_changed"] = True
-                val = paramDict[varname] + options[key] # HACK    
-            else: 
+                val = paramDict[varname] + options[key] # HACK
+            elif orig_type != NoneType: 
                 val = orig_type(options[key][0])
+            else:
+                val = options[key][0]
             paramDict[varname] = val
             LOG.debug("%s = %s" % (varname, str(paramDict[varname])))
     ## FOR
@@ -500,6 +557,7 @@ if __name__ == '__main__':
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
+    needClearLogs = OPT_CLEAR_LOGS
     forceStop = False
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in OPT_BENCHMARKS:
@@ -523,9 +581,12 @@ if __name__ == '__main__':
                 # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
                 exp_factors = [ ]
                 if OPT_EXP_SETTINGS == 0:
-                    values = [ 0, 3, 10, 80, 100 ]
+                    #values = [ 0, 3, 10, 80, 100 ]
+                    values = [ 0, 10, 20, 30 ]
+                elif OPT_EXP_SETTINGS in [1, 2]:
+                    values = [ 25, 50, 75 ]
                 else:
-                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
+                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 3)
                 LOG.debug("%s Exp Factor Values: %s" % (OPT_EXP_TYPE.upper(), values))
                 for f in values:
                     if f > int(OPT_EXP_FACTOR_STOP): break
@@ -533,13 +594,22 @@ if __name__ == '__main__':
                         exp_factors.append(f)
                 ## FOR
                     
-            elif OPT_EXP_TYPE == "throughput":
-                exp_factors = OPT_PARTITION_PLANS
-            elif OPT_EXP_TYPE == "breakdown":
-                if OPT_EXP_FACTOR_START:
-                    exp_factors = [ OPT_EXP_FACTOR_START ]
+            elif OPT_EXP_TYPE in [ "throughput", "breakdown" ]:
+                possibleTypes = [ ]
+                if OPT_EXP_TYPE == "throughput":
+                    possibleTypes = OPT_PARTITION_PLANS
                 else:
-                    exp_factors = [ "full", "noindexes", "norouting" ]
+                    possibleTypes = OPT_BREAKDOWNS
+                
+                exp_factors = [ ]
+                if not OPT_EXP_FACTOR_START or not OPT_EXP_FACTOR_START in possibleTypes: 
+                    OPT_EXP_FACTOR_START = possibleTypes[0]
+                for v in possibleTypes:
+                    if v == OPT_EXP_FACTOR_START or len(exp_factors) > 0:
+                        exp_factors.append(v)
+                    if v == OPT_EXP_FACTOR_STOP:
+                        break
+                ## FOR
             else:
                 raise Exception("Unexpected experiment type '%s'" % OPT_EXP_TYPE)
             LOG.debug("Experimental Factors: %s" % exp_factors)
@@ -553,6 +623,10 @@ if __name__ == '__main__':
             ## Synchronize Instance Times
             if needSync: fabfile.sync_time()
             needSync = False
+                
+            ## Clear Log Files
+            if needClearLogs: fabfile.clear_logs()
+            needClearLogs = False
                 
             client_inst = fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
@@ -627,11 +701,12 @@ if __name__ == '__main__':
                                     print "last_changed_date:", last_changed_date
                                     
                                     codespeedBenchmark = options["codespeed-benchmark"][0] if "codespeed-benchmark" in options else benchmark
+                                    codespeedBranch = options["codespeed-branch"][0] if "codespeed-branch" in options else env["hstore.git_branch"]
                                     
                                     LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
                                     result = codespeed.Result(
                                                 commitid=last_changed_rev,
-                                                branch=env["hstore.git_branch"],
+                                                branch=codespeedBranch,
                                                 benchmark=codespeedBenchmark,
                                                 project="H-Store",
                                                 num_partitions=partitions,

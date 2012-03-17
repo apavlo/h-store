@@ -1,12 +1,12 @@
 package edu.brown.hstore.util;
 
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -36,7 +36,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingDeque<Object[]> queue;
+    private final LinkedBlockingDeque<LocalTransaction> queue;
 
     /**
      * Handle to ourselves
@@ -47,7 +47,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
      * 
      * @param hstore_site
      */
-    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<Object[]> queue) {
+    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<LocalTransaction> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
     }
@@ -55,7 +55,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreSite.getThreadName(hstore_site, "post"));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "post"));
         if (hstore_site.getHStoreConf().site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
@@ -63,26 +63,24 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
             LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        Object pair[] = null;
+        LocalTransaction ts = null;
         while (this.stop == false) {
             try {
                 if (hstore_conf.site.status_show_executor_info) idleTime.start();
-                pair = this.queue.takeFirst();
+                ts = this.queue.takeFirst();
                 if (hstore_conf.site.status_show_executor_info) idleTime.stop();
-                assert(pair != null);
-                assert(pair.length == 2) : "Unexpected response: " + Arrays.toString(pair);
+                assert(ts != null);
             } catch (InterruptedException ex) {
                 this.stop = true;
                 break;
             }
             if (hstore_conf.site.status_show_executor_info) execTime.start();
-            LocalTransaction ts = (LocalTransaction)pair[0];
-            ClientResponseImpl cr = (ClientResponseImpl)pair[1];
+            ClientResponseImpl cr = ts.getClientResponse();
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                                      ts, ts.getBasePartition(), cr.getStatus()));
             try {
                 hstore_site.sendClientResponse(ts, cr);
-                hstore_site.completeTransaction(ts.getTransactionId(), cr.getStatus());
+                hstore_site.deleteTransaction(ts.getTransactionId(), cr.getStatus());
             } catch (Throwable ex) {
                 LOG.error(String.format("Failed to process %s properly\n%s", ts, cr));
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);

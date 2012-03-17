@@ -40,20 +40,16 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         BLOCKED_SAFETY;
     }
 
-    /**
-     * Not using this class because all we care about is txn_ids, not the sites themselves.
-     */
-    long m_lastSeenTxnId;
-    long m_lastSafeTxnId;
-
-    long m_newestCandidateTransaction = -1;
     final int m_siteId;
     final int m_partitionId;
+    final long m_waitTime;
+    
+    Long m_lastSeenTxnId = -1l;
+    Long m_newestCandidateTransaction = -1l;
     long m_txnsPopped = 0;
-    long m_lastTxnPopped = 0;
+    Long m_lastTxnPopped = 0l;
     long m_blockTime = 0;
     Long m_nextTxn = null;
-    final long m_waitTime;
     QueueState m_state = QueueState.BLOCKED_EMPTY;
 
     /**
@@ -95,7 +91,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
                                     m_partitionId, 
                                     (retval != null ? String.format("#%d/%d", retval, TransactionIdManager.getInitiatorIdFromTransactionId(retval)) : retval)));
         if (retval != null) {
-            assert(m_nextTxn == retval) : 
+            assert(m_nextTxn.equals(retval)) : 
                 String.format("Partition %d - Next txn is #%d/%d but our poll returned txn #%d/%d\n%s",
                               m_partitionId,
                               m_nextTxn, TransactionIdManager.getInitiatorIdFromTransactionId(m_nextTxn),
@@ -140,7 +136,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         // Check whether this new txn is less than the current m_nextTxn
         // If it is and there is still time remaining before it is released,
         // then we'll switch and become the new next m_nextTxn
-        if (m_nextTxn != null && txnID.longValue() < m_nextTxn) {
+        if (m_nextTxn != null && txnID.compareTo(m_nextTxn) < 0) {
             checkQueueState();
             if (m_state != QueueState.UNBLOCKED) {
                 if (debug.get()) LOG.debug(String.format("Partition %d Switching #%d/%d as new next txn [old=#%d/%d]",
@@ -180,12 +176,12 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Update the information stored about the latest transaction
      * seen from each initiator. Compute the newest safe transaction id.
      */
-    public synchronized long noteTransactionRecievedAndReturnLastSeen(long txnId) {
+    public synchronized long noteTransactionRecievedAndReturnLastSeen(Long txnId) {
         // this doesn't exclude dummy txnid but is also a sanity check
-        assert(txnId != 0);
+        assert(txnId != null);
 
         // we've decided that this can happen, and it's fine... just ignore it
-        if (m_lastTxnPopped > txnId) {
+        if (m_lastTxnPopped.compareTo(txnId) > 0) {
             if (debug.get()) {
                 LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
                                        m_partitionId, m_lastTxnPopped, txnId));
@@ -195,7 +191,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         }
 
         // update the latest transaction for the specified initiator
-        if (m_lastSeenTxnId < txnId)
+        if (m_lastSeenTxnId.compareTo(txnId) < 0)
             m_lastSeenTxnId = txnId;
 
         // this minimum is the newest safe transaction to run
@@ -228,7 +224,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     /**
      * @return The id of the newest safe transaction to run.
      */
-    long getNewestSafeTransaction() {
+    Long getNewestSafeTransaction() {
         return m_newestCandidateTransaction;
     }
 
@@ -275,10 +271,10 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("PartitionId", m_partitionId);
         
-        String labels[] = { "Next", "Last Popped", "Last Seen", "Last Safe" };
+        String labels[] = { "Next", "Last Popped", "Last Seen" };
         long txnids[] = null;
         synchronized (this) {
-            txnids = new long[]{ m_nextTxn, m_lastTxnPopped, m_lastSeenTxnId, m_lastSafeTxnId };
+            txnids = new long[]{ m_nextTxn, m_lastTxnPopped, m_lastSeenTxnId };
         } // SYNCH
         for (int i = 0; i < labels.length; i++) {
             m.put(String.format("%s TxnId", labels[i]),

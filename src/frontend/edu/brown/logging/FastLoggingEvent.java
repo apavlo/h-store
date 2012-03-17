@@ -116,12 +116,12 @@ public class FastLoggingEvent extends LoggingEvent {
     public String getNDC() {
         return event.getNDC();
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     @Override
     public Map getProperties() {
         return event.getProperties();
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     @Override
     public Set getPropertyKeySet() {
         return event.getPropertyKeySet();

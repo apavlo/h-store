@@ -11,6 +11,7 @@ import com.google.protobuf.RpcController;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
@@ -63,7 +64,11 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
         // so that we don't have to wait as long for the responses to come back over the network
         boolean send_local = false;
         boolean site_sent[] = new boolean[this.num_sites];
-        int ctr = 0;
+        
+        if (debug.get())
+            LOG.debug(String.format("Sending %s to %d partitions for %s",
+                                    request.getClass().getSimpleName(),  partitions.size(), ts));
+        
         for (Integer p : partitions) {
             int dest_site_id = hstore_site.getSiteIdForPartitionId(p);
 
@@ -72,7 +77,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             
             if (trace.get())
                 LOG.trace(String.format("Sending %s message to %s for %s",
-                                        request.getClass().getSimpleName(), HStoreSite.formatSiteName(dest_site_id), ts));
+                                        request.getClass().getSimpleName(), HStoreThreadManager.formatSiteName(dest_site_id), ts));
             
             // Local Partition
             if (this.local_site_id == dest_site_id) {
@@ -86,15 +91,10 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
                 this.sendRemote(channel, controller, request, callback);
             }
             site_sent[dest_site_id] = true;
-            ctr++;
         } // FOR
         // Optimization: We'll invoke sendLocal() after we have sent out
         // all of the mesages to remote sites
         if (send_local) this.sendLocal(ts.getTransactionId(), request, partitions, callback);
-        
-        if (debug.get())
-            LOG.debug(String.format("Sent %d %s to %d partitions for %s",
-                                    ctr, request.getClass().getSimpleName(),  partitions.size(), ts));
     }
     
     /**
@@ -106,7 +106,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
      * @param partitions
      * @param callback
      */
-    public abstract void sendLocal(long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
+    public abstract void sendLocal(Long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
     
     /**
      * The processing method that is invoked if the outgoing message needs

@@ -39,11 +39,13 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -80,9 +82,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Long txn_id = null;
     protected long client_handle;
     protected int base_partition;
-//    private final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
-    private boolean sysproc;
+    protected boolean sysproc;
     protected SerializableException pending_error;
 
     // ----------------------------------------------------------------------------
@@ -132,7 +133,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // TODO(pavlo): Document what these arrays are and how the offsets are calculated
     
     private final boolean finished[];
-    protected final long last_undo_token[];
+    private final long last_undo_token[];
     protected final RoundState round_state[];
     protected final int round_ctr[];
     
@@ -162,7 +163,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int cnt = hstore_site.getLocalPartitionIds().size();
+        int cnt = hstore_site.getLocalPartitionIdArray().length;
         this.finished = new boolean[cnt];
         this.last_undo_token = new long[cnt];
         this.round_state = new RoundState[cnt];
@@ -176,6 +177,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         for (int i = 0; i < this.work_task.length; i++) {
             this.work_task[i] = new FragmentTaskMessage();
         } // FOR
+        
+        Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        Arrays.fill(this.exec_readOnly, true);
     }
 
     /**
@@ -219,7 +223,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_abortable = true;
         this.pending_error = null;
         this.sysproc = false;
-        
         this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
@@ -229,7 +232,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
-            this.last_undo_token[i] = -1;
+            this.last_undo_token[i] = HStoreConstants.NULL_UNDO_LOGGING_TOKEN;
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
             this.exec_noUndoBuffer[i] = false;
@@ -258,9 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * reduceInput table should merge all incoming data from the mapOutput tables.
      */
     public Status storeData(int partition, VoltTable vt) {
-        assert(false) : "Unimplemented!";
-        
-        return (Status.OK);
+        throw new NotImplementedException("Not able to store data for non-MapReduce transactions");
     }
     
     // ----------------------------------------------------------------------------
@@ -277,7 +278,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == -1 || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.last_undo_token[offset] == HStoreConstants.NULL_UNDO_LOGGING_TOKEN || 
+            undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
@@ -355,7 +357,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     /**
      * Mark this transaction as having issued a SQLStmt batch that modifies data on
-     * some partition
+     * some partition. This doesn't need to specify which partition that this txn modified
+     * data on, it's just to say that somewhere we are going to try to change something.
      */
     public void markExecNotReadOnlyAllPartitions() {
         this.exec_readOnlyAll = false;
@@ -429,9 +432,20 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     /**
      * Returns true if this transaction has done something at this partition
+     * This could be either executing a query or executing the transaction's control code
      */
     public boolean hasStarted(int partition) {
-        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != -1);
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        
+        // If this is the base partition, check to see whether it has
+        // even executed the procedure control code
+        if (this.base_partition == partition) {
+            return (this.round_state[offset] != null);
+        }
+        // Otherwise check whether they have executed a query
+        else {
+            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+        }
     }
     
     /**
@@ -546,6 +560,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // We can attach input dependencies used on non-local partitions
     // ----------------------------------------------------------------------------
     
+    
+    public TransactionCleanupCallback getCleanupCallback() {
+        return (null);
+    }
     
     public void attachParameterSets(ParameterSet parameterSets[]) {
         this.attached_parameterSets = parameterSets;

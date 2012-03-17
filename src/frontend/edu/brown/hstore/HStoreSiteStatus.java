@@ -22,10 +22,12 @@ import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.client.ClientResponse;
 
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.TransactionProfile;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -81,6 +83,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private final int interval; // milliseconds
     private final TreeMap<Integer, PartitionExecutor> executors;
     
+    private final Set<AbstractTransaction> last_finishedTxns;
+    private final Set<AbstractTransaction> cur_finishedTxns;
+    
     private Integer last_completed = null;
     private AtomicInteger snapshot_ctr = new AtomicInteger(0);
     
@@ -119,6 +124,16 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         this.hstore_conf = hstore_conf;
         this.interval = hstore_conf.site.status_interval;
         
+        // The list of transactions that were sitting in the queue as finished
+        // the last time that we checked
+        if (hstore_conf.site.status_check_for_zombies) {
+            this.last_finishedTxns = new HashSet<AbstractTransaction>();
+            this.cur_finishedTxns = new HashSet<AbstractTransaction>();
+        } else {
+            this.last_finishedTxns = null;
+            this.cur_finishedTxns = null;
+        }
+        
         this.executors = new TreeMap<Integer, PartitionExecutor>();
         for (Integer partition : hstore_site.getLocalPartitionIds()) {
             this.executors.put(partition, hstore_site.getPartitionExecutor(partition));
@@ -138,13 +153,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         this.header.put("Number of Partitions", this.executors.size());
         
         // Pre-Compute TransactionProfile Information
-        this.initTxnProfileInfo(hstore_site.catalog_db);
+        this.initTxnProfileInfo(hstore_site.getDatabase());
     }
     
     @Override
     public void run() {
         self = Thread.currentThread();
-        self.setName(HStoreSite.getThreadName(hstore_site, "mon"));
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, "mon"));
         if (hstore_conf.site.cpu_affinity)
             hstore_site.getThreadManager().registerProcessingThread();
 
@@ -167,7 +182,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 this.last_completed == completed && hstore_site.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
                 LOG.fatal(msg);
-                this.hstore_site.getCoordinator().shutdownCluster(new RuntimeException(msg));
+                this.hstore_site.getHStoreCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
         } // WHILE
@@ -264,20 +279,63 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @return
      */
     protected Map<String, Object> executorInfo() {
-        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+        ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
+        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
+        
+        TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
+        TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
         HStoreThreadManager thread_manager = hstore_site.getThreadManager();
+        
         int inflight_cur = hstore_site.getInflightTxnCount();
-        int inflight_local = hstore_site.getDTXNQueueSize();
+        int inflight_local = queueManagerDebug.getInitQueueSize();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
-        ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.put("InFlight Txns", String.format("%-5d total / %-5d dtxn [totalMin=%d, totalMax=%d]",
+        // Check to see how many of them are marked as finished
+        // There is no guarantee that this will be accurate because txns could be swapped out
+        // by the time we get through it all
+        int inflight_finished = 0;
+        int inflight_zombies = 0;
+        if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
+        for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
+           if (ts instanceof LocalTransaction) {
+               LocalTransaction local_ts = (LocalTransaction)ts;
+               ClientResponse cr = local_ts.getClientResponse();
+               if (cr.getStatus() != null) {
+                   inflight_finished++;
+                   // Check for Zombies!
+                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
+                       if (this.last_finishedTxns.contains(ts)) {
+                           inflight_zombies++;
+                       }
+                       this.cur_finishedTxns.add(ts);
+                   }
+               }
+           }
+        } // FOR
+        
+        m_exec.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
+                        inflight_finished,
                         inflight_min,
                         inflight_max
         ));
+        
+        if (this.cur_finishedTxns != null) {
+            m_exec.put("Zombie Txns", inflight_zombies +
+                                      (inflight_zombies > 0 ? " - " + CollectionUtil.first(this.cur_finishedTxns) : ""));
+//            for (AbstractTransaction ts : this.cur_finishedTxns) {
+//                // HACK
+//                if (ts instanceof LocalTransaction && this.last_finishedTxns.remove(ts)) {
+//                    LocalTransaction local_ts = (LocalTransaction)ts;
+//                    local_ts.markAsDeletable();
+//                    hstore_site.deleteTransaction(ts.getTransactionId(), local_ts.getClientResponse().getStatus());
+//                }
+//            }
+            this.last_finishedTxns.clear();
+            this.last_finishedTxns.addAll(this.cur_finishedTxns);
+        }
         
         ProfileMeasurement pm = this.hstore_site.getEmptyQueueTime();
         m_exec.put("Empty Queue", String.format("%d txns / %.2fms total / %.2fms avg",
@@ -285,8 +343,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                         pm.getTotalThinkTimeMS(),
                         pm.getAverageThinkTimeMS()
         ));
-        
-        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
         
         if (hstore_conf.site.exec_postprocessing_thread) {
             int processing_cur = hstore_site.getQueuedResponseCount();
@@ -318,7 +374,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             PartitionExecutor es = e.getValue();
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
-            ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
+            ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
             // Queue Information
@@ -336,21 +392,35 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                           (es_queue.isThrottled() ? " *THROTTLED*" : ""));
             m.put("Exec Queue", status);
             
+            // TransactionQueueManager Info
             status = String.format("%-5s [limit=%d, release=%d]%s / ",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
                                    (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
-            Long txn_id = manager.getCurrentTransaction(partition);
+            Long txn_id = queueManager.getCurrentTransaction(partition);
             if (txn_id != null) {
-                TransactionInitWrapperCallback callback = manager.getCallback(txn_id);
+                TransactionInitQueueCallback callback = queueManagerDebug.getInitCallback(txn_id);
                 int len = status.length();
                 status += "#" + txn_id;
+                AbstractTransaction ts = hstore_site.getTransaction(txn_id);
+                if (ts == null) {
+                    // This is ok if the txn is remote
+                    // status += " MISSING?";
+                } else {
+                    status += " [hashCode=" + ts.hashCode() + "]";
+                }
+                
                 if (callback != null) {
                     status += "\n" + StringUtil.repeat(" ", len);
                     status += String.format("Partitions=%s / Remaining=%d", callback.getPartitions(), callback.getCounter());
                 }
             }
-            
             m.put("DTXN Queue", status);
+            
+            // TransactionQueueManager - Blocked
+            m.put("Blocked Transactions", queueManagerDebug.getBlockedQueueSize());
+            
+            // TransactionQueueManager - Requeued Txns
+            m.put("Waiting Requeues", queueManagerDebug.getRestartQueueSize());
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
 //                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
@@ -489,7 +559,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // First get all the BatchPlanners that we have
         Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
         for (PartitionExecutor es : this.executors.values()) {
-            bps.addAll(es.POOL_BATCH_PLANNERS.values());
+            bps.addAll(es.batchPlanners.values());
         } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
         ProfileMeasurement final_totals[] = null;
@@ -850,10 +920,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         String top = StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo);
         String bot = "";
-        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
+        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getDebugContext().getBlockedDtxnHistogram(); 
         if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
-            bot = "\nRejected Transactions:\n" + blockedDtxns;
+            bot = "\nRejected Transactions by Remote Identifier:\n" + blockedDtxns;
+//            bot += "\n" + hstore_site.getTransactionQueueManager().toString();
         }
+        
         return (top + bot);
     }
     

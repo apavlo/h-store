@@ -102,7 +102,7 @@ import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 
@@ -130,8 +130,16 @@ public abstract class BenchmarkComponent {
         POLL,
         CLEAR,
         PAUSE,
+        /**
+         * Stop this BenchmarkComponent instance
+         */
+        STOP,
+        /**
+         * This is the same as STOP except that the BenchmarkComponent will
+         * tell the cluster to shutdown first before it exits 
+         */
         SHUTDOWN,
-        STOP;
+        ;
      
         protected static final Map<Integer, Command> idx_lookup = new HashMap<Integer, Command>();
         protected static final Map<String, Command> name_lookup = new HashMap<String, Command>();
@@ -357,6 +365,8 @@ public abstract class BenchmarkComponent {
      * Configuration
      */
     private final HStoreConf m_hstoreConf;
+    private final Histogram<String> m_txnWeights = new Histogram<String>();
+    private Integer m_txnWeightsDefault = null;
     
 
     public void printControlMessage(ControlState state) {
@@ -942,6 +952,34 @@ public abstract class BenchmarkComponent {
             this.getCatalog();
         }
         
+        // Parse workload transaction weights
+        if (m_hstoreConf.client.weights != null) {
+            for (String entry : m_hstoreConf.client.weights.split(",")) {
+                String data[] = entry.split(":");
+                if (data.length != 2) {
+                    LOG.warn("Invalid transaction weight entry '" + entry + "'");
+                    continue;
+                }
+                try {
+                    String txnName = data[0];
+                    int txnWeight = Integer.parseInt(data[1]);
+                    assert(txnWeight >= 0);
+                    
+                    // '*' is the default value
+                    if (txnName.equals("*")) {
+                        this.m_txnWeightsDefault = txnWeight;
+                        if (debug.get()) LOG.debug(String.format("Default Transaction Weight: %d", txnWeight));
+                    } else {
+                        if (debug.get()) LOG.debug(String.format("%s Transaction Weight: %d", txnName, txnWeight));
+                        this.m_txnWeights.put(txnName.toUpperCase(), txnWeight);
+                    }
+                } catch (Throwable ex) {
+                    LOG.warn("Invalid transaction weight entry '" + entry + "'", ex);
+                    continue;
+                }
+            } // FOR
+        }
+        
         if (partitionPlanPath != null) {
             boolean exists = FileUtil.exists(partitionPlanPath); 
             if (partitionPlanIgnoreMissing == false)
@@ -955,7 +993,7 @@ public abstract class BenchmarkComponent {
                 useHeavyweightClient(),
                 statsSettings
         );
-        if (m_blocking) {
+        if (m_blocking && isLoader == false) {
             if (debug.get()) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
@@ -985,7 +1023,7 @@ public abstract class BenchmarkComponent {
                     try {
                         if (debug.get())
                             LOG.debug(String.format("Creating connection to %s at %s:%d",
-                                                    (site_id != null ? HStoreSite.formatSiteName(site_id) : ""),
+                                                    (site_id != null ? HStoreThreadManager.formatSiteName(site_id) : ""),
                                                     m_host, m_port));
                         createConnection(site_id, m_host, m_port);
                         atLeastOneConnection = true;
@@ -1148,6 +1186,22 @@ public abstract class BenchmarkComponent {
             } // SYNCH
         }
         return (cr);
+    }
+    
+    /**
+     * Return an overridden transaction weight
+     * @param txnName
+     * @return
+     */
+    protected final Integer getTransactionWeight(String txnName) {
+        Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
+        if (val != null) {
+            return (val.intValue());
+        }
+        else if (m_txnWeightsDefault != null) {
+            return (m_txnWeightsDefault);
+        }
+        return (null);
     }
     
     /**
@@ -1484,7 +1538,7 @@ public abstract class BenchmarkComponent {
         throws UnknownHostException, IOException {
         if (debug.get())
             LOG.debug(String.format("Requesting connection to %s %s:%d",
-                HStoreSite.formatSiteName(site_id), hostname, port));
+                HStoreThreadManager.formatSiteName(site_id), hostname, port));
         m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
     }
 

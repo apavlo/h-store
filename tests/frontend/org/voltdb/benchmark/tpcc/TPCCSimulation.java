@@ -142,7 +142,10 @@ public class TPCCSimulation {
 
         if (config.neworder_skew_warehouse) {
             if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
-            this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, this.max_w_id+1, this.skewFactor);
+            this.zipf = new RandomDistribution.Zipf(new Random(),
+                                                    parameters.starting_warehouse,
+                                                    this.max_w_id+1,
+                                                    Math.max(1.001d, this.skewFactor));
         }
         if (config.warehouse_debug) {
             LOG.info("Enabling WAREHOUSE debug mode");

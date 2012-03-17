@@ -500,22 +500,17 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // Calculate the skew factor at this time interval
             // XXX: Should the number of txns be the total number of unique txns
-            // that were executed
-            // or the total number of times a txn touched the partitions?
-            // XXX: What do we do when the number of elements that we are
-            // examining is zero? I guess
-            // the cost just needs to be zero?
+            //      that were executed or the total number of times a txn touched the partitions?
+            // XXX: What do we do when the number of elements that we are examining is zero?
+            //      I guess the cost just needs to be zero?
             // XXX: What histogram do we want to use?
             target_histogram.clear();
             target_histogram.putHistogram(histogram_txn);
 
-            // For each txn that we haven't gotten an estimate for at this
-            // interval, we're going
-            // mark it as being broadcast to all partitions. That way the access
-            // histogram will
-            // look uniform. Then as more information is added, we will
-            // This is an attempt to make sure that the entropy cost never
-            // decreases but only increases
+            // For each txn that we haven't gotten an estimate for at this interval, 
+            // we're going mark it as being broadcast to all partitions. That way the access
+            // histogram will look uniform. Then as more information is added, we will
+            // This is an attempt to make sure that the skew cost never decreases but only increases
             long total_txns_in_interval = (long) total_interval_txns[i];
             if (sb != null) {
                 debug_histograms.put("Incomplete Txns", incomplete_txn_histogram[i]);
@@ -534,8 +529,9 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // The number of partition touches should never be greater than our
             // potential touches
-            assert (num_elements <= (total_txns_in_interval * num_partitions)) : "New Partitions Touched Sample Count [" + num_elements + "] < " + "Maximum Potential Touched Count ["
-                    + (total_txns_in_interval * num_partitions) + "]";
+            assert(num_elements <= (total_txns_in_interval * num_partitions)) :
+                "New Partitions Touched Sample Count [" + num_elements + "] < " + 
+                "Maximum Potential Touched Count [" + (total_txns_in_interval * num_partitions) + "]";
 
             if (sb != null) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -585,15 +581,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             }
         }
 
-        // (3) We can now calculate the final total estimate cost of this
-        // workload as the following
-        // Just take the simple ratio of mp txns / all txns
+        // (3) We can now calculate the final total estimate cost of this workload as the following 
+        //     Just take the simple ratio of mp txns / all txns
         this.last_execution_cost = MathUtil.weightedMean(execution_costs, total_interval_txns); // MathUtil.roundToDecimals(MathUtil.geometricMean(execution_costs,
                                                                                                 // MathUtil.GEOMETRIC_MEAN_ZERO),
                                                                                                 // 10);
 
-        // The final entropy cost needs to be weighted by the percentage of txns
-        // running in that interval
+        // The final skew cost needs to be weighted by the percentage of txns running in that interval
         // This will cause the partitions with few txns
         this.last_skew_cost = MathUtil.weightedMean(total_skews, total_interval_txns); // roundToDecimals(MathUtil.geometricMean(entropies,
                                                                                        // MathUtil.GEOMETRIC_MEAN_ZERO),

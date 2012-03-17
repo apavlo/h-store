@@ -32,7 +32,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
     }
 
     @Override
-    public void sendLocal(long txn_id, TransactionReduceRequest request,
+    public void sendLocal(Long txn_id, TransactionReduceRequest request,
             Collection<Integer> partitions,
             RpcCallback<TransactionReduceResponse> callback) {
         // this should think about where to send it 

@@ -98,7 +98,7 @@ public class MultiLoader extends BenchmarkComponent {
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
         
         // HACK
-        MAX_BATCH_SIZE *= Math.max(100, (10 / m_tpccConfig.num_warehouses));
+        MAX_BATCH_SIZE *= Math.min(1000, (10 / m_tpccConfig.num_warehouses));
 
         HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < m_tpccConfig.num_loadthreads; ii++) {
@@ -599,6 +599,7 @@ public class MultiLoader extends BenchmarkComponent {
             // items.ensureRowCapacity(parameters.items);
             // items.ensureStringCapacity(parameters.items * 96);
             // Select 10% of the rows to be marked "original"
+            LOG.info(String.format("Loading replicated ITEM table [tuples=%d]", m_parameters.items));
             HashSet<Integer> originalRows = selectUniqueIds(m_parameters.items / 10, 1, m_parameters.items);
             for (int i = 1; i <= m_parameters.items; ++i) {
                 // if we're on a 10% boundary, print out some nice status info
@@ -611,15 +612,19 @@ public class MultiLoader extends BenchmarkComponent {
                 
                 // Items! Sail yo ho!
                 if (items.getRowCount() == replicated_batch_size) {
-                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
+                    if (LOG.isDebugEnabled())
+                        LOG.debug(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
                     loadVoltTable("ITEM", items);
+                    items.clearRowData();
                 }
             } // FOR
             if (items.getRowCount() > 0) {
                 String extra = "";
                 if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
-                LOG.info("Loading replicated ITEM table" + extra);
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Loading replicated ITEM table" + extra);
                 loadVoltTable("ITEM", items);
+                items.clearRowData();
             }
 
 //            if (m_voltClient != null) {
@@ -737,13 +742,13 @@ public class MultiLoader extends BenchmarkComponent {
         }
 
         private void commitDataTables_VoltDB(long w_id) {
-            Object[] params = new Object[data_tables.length + 1];
-            params[0] = w_id;
-            for (int i = 0; i < data_tables.length; ++i) {
-                if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
-                    params[i + 1] = data_tables[i];
-                }
-            }
+//            Object[] params = new Object[data_tables.length + 1];
+//            params[0] = w_id;
+//            for (int i = 0; i < data_tables.length; ++i) {
+//                if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
+//                    params[i + 1] = data_tables[i];
+//                }
+//            }
             // PAVLO: We don't want to use LoadWarehouse because we want to let
             // the system figure out where to put all of the tuples
             final boolean debug = LOG.isDebugEnabled();
