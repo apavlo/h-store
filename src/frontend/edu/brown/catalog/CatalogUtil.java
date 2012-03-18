@@ -482,10 +482,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * Return all of the internal system Procedures for the database
      */
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
-        Set<Procedure> sysprocs = new ListOrderedSet<Procedure>();
+        List<Procedure> sysprocs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc())
+            if (catalog_proc.getSystemproc()) {
+                assert(sysprocs.contains(catalog_proc) == false);
                 sysprocs.add(catalog_proc);
+            }
         }
         return (sysprocs);
     }

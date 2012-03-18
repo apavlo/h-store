@@ -162,8 +162,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
         return new VoltTable(result_columns);
     }
 
-    public VoltTable[] run(SystemProcedureExecutionContext ctx,
-            String paths[], String nonces[]) throws VoltAbortException
+    public VoltTable[] run(String paths[], String nonces[]) throws VoltAbortException
     {
         final long startTime = System.currentTimeMillis();
         VoltTable results[] = new VoltTable[1];

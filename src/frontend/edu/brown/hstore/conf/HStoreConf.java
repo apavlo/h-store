@@ -807,6 +807,13 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
+            description="The directory that benchmark project jars will be stored in.",
+            defaultString="",
+            experimental=false
+        )
+        public String jar_dir = ".";
+        
+        @ConfigProperty(
             description="The amount of memory to allocate for each client process (in MB)",
             defaultInt=512,
             experimental=false
