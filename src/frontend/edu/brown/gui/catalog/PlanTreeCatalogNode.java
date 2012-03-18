@@ -1,9 +1,16 @@
 package edu.brown.gui.catalog;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.Collection;
 
 import javax.swing.JPanel;
@@ -12,9 +19,11 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.utils.Pair;
 
 import edu.brown.gui.AbstractViewer;
 import edu.brown.gui.common.GraphVisualizationPanel;
@@ -64,8 +73,8 @@ public class PlanTreeCatalogNode {
         context.setEdgeShapeTransformer(new EdgeShape.Line<AbstractPlanNode, PlanNodeGraph.Edge>());
         context.setVertexFontTransformer(new GraphVisualizationPanel.VertexFontTransformer<AbstractPlanNode>(true));
 
-        PlanFragmentBoundaries boundaryPainter = new PlanFragmentBoundaries();
-        this.visualizationPanel.addPreRenderPaintable(boundaryPainter);
+//        PlanFragmentBoundaries boundaryPainter = new PlanFragmentBoundaries();
+//        this.visualizationPanel.addPostRenderPaintable(boundaryPainter);
         
         // Full Plan Tab
         JPanel textInfoPanel = new JPanel();
@@ -95,11 +104,21 @@ public class PlanTreeCatalogNode {
     
     private class PlanFragmentBoundaries implements Paintable {
         private PlanFragment fragments[];
+        private Pair<AbstractPlanNode, AbstractPlanNode> fragment_boundaries[];
         private AbstractPlanNode nodes[];
         private int nodes_frags[];
         
+        final BasicStroke boundaryStroke = new BasicStroke(1.0f,
+                                                           BasicStroke.CAP_BUTT,
+                                                           BasicStroke.JOIN_MITER,
+                                                           10.0f,
+                                                           new float[]{5.0f},
+                                                           0.0f);
+        
+        @SuppressWarnings("unchecked")
         PlanFragmentBoundaries() {
             this.fragments = PlanTreeCatalogNode.this.fragments.toArray(new PlanFragment[0]);
+            this.fragment_boundaries = (Pair<AbstractPlanNode, AbstractPlanNode>[])new Pair<?,?>[this.fragments.length];
             int num_nodes = graph.getVertexCount();
             this.nodes = new AbstractPlanNode[num_nodes];
             this.nodes_frags = new int[num_nodes];
@@ -115,23 +134,88 @@ public class PlanTreeCatalogNode {
                         break;
                     }
                 } // FOR
-                if (this.nodes_frags[node_idx] == -1) {
-                    System.err.println("???");
-                }
                 assert(this.nodes_frags[node_idx] != -1);
                 node_idx++;
             } // FOR
+            
+            for (int frag_idx = 0; frag_idx < this.fragments.length; frag_idx++) {
+                AbstractPlanNode max = null;
+                int max_depth = -1;
+                
+                AbstractPlanNode min = null;
+                int min_depth = Integer.MAX_VALUE;
+                
+                for (node_idx = 0; node_idx < nodes.length; node_idx++) {
+                    if (this.nodes_frags[node_idx] != frag_idx) continue;
+                    int depth = PlanNodeUtil.getDepth(this.nodes[node_idx]);
+                    if (depth > max_depth) {
+                        max_depth = depth;
+                        max = this.nodes[node_idx];
+                    }
+                    if (depth < min_depth) {
+                        min_depth = depth;
+                        min = this.nodes[node_idx];
+                    }
+                    System.err.println(this.nodes[node_idx] + " => " + depth);
+                } // FOR
+                if (max == null) max = min;
+                if (min == null) min = max;
+                this.fragment_boundaries[frag_idx] = Pair.of(max, min);
+                System.err.println(this.fragment_boundaries[frag_idx] + "\n");
+            } // FOR (fragments)
+            
         }
         
         @Override
         public void paint(Graphics g) {
-            for (int i = 0; i < this.nodes.length; i++) {
-                Point2D pos = visualizationPanel.getPosition(this.nodes[i]);
-                int x = (int)pos.getX();
-                int y = (int)pos.getY();
+            Graphics2D g2 = (Graphics2D)g;
+            g2.setStroke(boundaryStroke);
+            
+            int offsetLeft = 50;
+            int offsetRight = 50;
+            int box_y = 0;
+            
+            float text_x = 5f;
+            float text_y = 5f;
+            
+            Rectangle nodeSize = null;
+            
+            for (int frag_idx = 0; frag_idx < this.fragments.length; frag_idx++) {
+                g2.setColor(frag_idx == 0 ? Color.BLUE : Color.BLACK);
                 
-                g.drawLine(x, y, x + 100, y);
-            } // FOR
+                AbstractPlanNode topNode = this.fragment_boundaries[frag_idx].getFirst();
+                Point2D topPos = visualizationPanel.getPosition(topNode);
+                AbstractPlanNode botNode = this.fragment_boundaries[frag_idx].getSecond();
+                Point2D botPos = visualizationPanel.getPosition(botNode);
+                
+                if (nodeSize == null) {
+                    Shape s = visualizationPanel.getRenderContext().getVertexShapeTransformer().transform(topNode);
+                    nodeSize = s.getBounds();
+                }
+                
+                Point2D abs_topCorner = new Point2D.Double(topPos.getX() - offsetLeft,
+                                                           topPos.getY() - box_y);
+//                Point2D draw_topCorner = visualizationPanel.transform(abs_topCorner);
+                
+                Point2D abs_botCorner = new Point2D.Double(botPos.getX() + offsetLeft, //  + nodeSize.getWidth(),
+                                                           botPos.getY() + box_y);
+//                Point2D draw_botCorner = visualizationPanel.transform(abs_botCorner);
+                
+                Rectangle2D.Double rect = new Rectangle2D.Double(abs_topCorner.getX(),
+                                                                 abs_topCorner.getY(),
+                                                                 Math.abs(abs_topCorner.getX() - abs_botCorner.getX()),
+                                                                 Math.abs(abs_topCorner.getY() - abs_botCorner.getY()));
+                g2.draw(visualizationPanel.transform(rect));
+                
+                // PlanFragment Label
+                Point2D text_pos = new Point2D.Float((float)abs_topCorner.getX() + text_x,
+                                                     (float)abs_topCorner.getY() + text_y);
+                text_pos = visualizationPanel.transform(text_pos);
+                g2.setColor(Color.BLACK);
+                g2.drawString("PlanFragment #" + this.fragments[frag_idx].getName(),
+                              (float)text_pos.getX(),
+                              (float)text_pos.getY());
+            }
         }
 
         @Override

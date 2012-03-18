@@ -261,4 +261,18 @@ public class TestPlanNodeUtil extends BaseTestCase {
         System.err.println(StringUtil.formatMaps(fragment_nodes));
     }
     
+//    public void testX() throws Exception {
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+//        PlanTreeCatalogNode p = new PlanTreeCatalogNode("XXX", catalog_stmt.getMs_fragments(), root);
+//        
+//        JFrame ret = new JFrame("XXXXX");
+//        ret.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        ret.setLayout(new BorderLayout());
+//        ret.setContentPane(p.getPanel());
+//        ret.setSize(650, 650);
+//        ret.setVisible(true);
+//        ThreadUtil.sleep(11000000);
+//        
+//    }
+    
 }

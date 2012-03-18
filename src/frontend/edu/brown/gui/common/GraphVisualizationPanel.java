@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Shape;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ItemEvent;
@@ -37,6 +38,7 @@ import edu.uci.ics.jung.visualization.control.ViewScalingControl;
 import edu.uci.ics.jung.visualization.decorators.EdgeShape;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
+import edu.uci.ics.jung.visualization.transform.MutableTransformer;
 
 public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     private static final long serialVersionUID = 1L;
@@ -293,8 +295,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     
             new Thread() {
                 public void run() {
+                    MutableTransformer transformer = GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT); 
                     for (int i = 0; i < steps; i++) {
-                        GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT).translate(dx, dy);
+                        transformer.translate(dx, dy);
                         try {
                             Thread.sleep(100);
                         } catch (InterruptedException ex) {
@@ -311,12 +314,24 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @return
      */
     public Point2D getPosition(V vertex) {
-        Point2D q = null; 
+        Point2D pos = null; 
         if (vertex != null) {
             Layout<V,E> layout = this.getGraphLayout();
-            q = layout.transform(vertex);
+            pos = layout.transform(vertex);
+//            MutableTransformer transformer = GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT);
+//            pos = transformer.inverseTransform(pos);
         }
-        return (q); 
+        return (pos); 
+    }
+    
+    public Point2D transform(Point2D p) {
+        MutableTransformer transformer = GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT);
+        return (transformer.transform(p));
+    }
+    
+    public Shape transform(Shape s) {
+        MutableTransformer transformer = GraphVisualizationPanel.this.getRenderContext().getMultiLayerTransformer().getTransformer(Layer.LAYOUT);
+        return (transformer.transform(s));
     }
 
     
