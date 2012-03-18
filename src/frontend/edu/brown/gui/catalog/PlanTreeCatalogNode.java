@@ -6,7 +6,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Point2D;
@@ -19,9 +18,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.PlanFragment;
-import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.utils.Pair;
 
