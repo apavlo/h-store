@@ -304,6 +304,20 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
             }.start();
         }
     }
+    
+    /**
+     * Return the position of the given vertex on the canvas
+     * @param vertex
+     * @return
+     */
+    public Point2D getPosition(V vertex) {
+        Point2D q = null; 
+        if (vertex != null) {
+            Layout<V,E> layout = this.getGraphLayout();
+            q = layout.transform(vertex);
+        }
+        return (q); 
+    }
 
     
     public void selectVertex(V vertex) {

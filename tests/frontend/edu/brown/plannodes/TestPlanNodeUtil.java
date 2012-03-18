@@ -3,10 +3,15 @@ package edu.brown.plannodes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -215,6 +220,45 @@ public class TestPlanNodeUtil extends BaseTestCase {
         AbstractPlanNode node = CollectionUtil.first(found);
         assertNotNull(node);
         assertTrue(node instanceof AbstractScanPlanNode);
+    }
+    
+    /**
+     * testContainsPlanNode
+     */
+    public void testContainsPlanNode() throws Exception {
+        assertTrue(catalog_stmt.getHas_multisited());
+        Collection<PlanFragment> fragments = catalog_stmt.getMs_fragments();
+        assertFalse(fragments.isEmpty());
+        
+        Map<PlanFragment, Set<AbstractPlanNode>> fragment_nodes = new HashMap<PlanFragment, Set<AbstractPlanNode>>();
+        Set<AbstractPlanNode> all_nodes = new HashSet<AbstractPlanNode>();
+        
+        for (PlanFragment catalog_frag : fragments) {
+            assertNotNull(catalog_frag);
+            final Set<AbstractPlanNode> nodes = new HashSet<AbstractPlanNode>();
+            AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
+            assertNotNull(nodes);
+            new PlanNodeTreeWalker(true) {
+                @Override
+                protected void callback(AbstractPlanNode element) {
+                    nodes.add(element);
+                }
+            }.traverse(root);
+            assertFalse(nodes.isEmpty());
+            fragment_nodes.put(catalog_frag, nodes);
+            all_nodes.addAll(nodes);
+        } // FOR
+        
+        for (PlanFragment catalog_frag : fragments) {
+            Set<AbstractPlanNode> nodes = fragment_nodes.get(catalog_frag);
+            assertNotNull(nodes);
+            for (AbstractPlanNode node : all_nodes) {
+                boolean expected = nodes.contains(node);
+                boolean actual = PlanNodeUtil.containsPlanNode(catalog_frag, node);
+                assertEquals(catalog_frag + "=>" + node, expected, actual);
+            } // FOR
+        } // FOR
+        System.err.println(StringUtil.formatMaps(fragment_nodes));
     }
     
 }

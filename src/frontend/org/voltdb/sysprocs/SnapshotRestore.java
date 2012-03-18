@@ -560,8 +560,7 @@ public class SnapshotRestore extends VoltSystemProcedure
 
    // private final VoltSampler m_sampler = new VoltSampler(10, "sample" + String.valueOf(new Random().nextInt() % 10000) + ".txt");
 
-    public VoltTable[] run(SystemProcedureExecutionContext ctx,
-            String path, String nonce, int allowExport) throws VoltAbortException
+    public VoltTable[] run(String path, String nonce, int allowExport) throws VoltAbortException
     {
       //  m_sampler.start();
         final long startTime = System.currentTimeMillis();
