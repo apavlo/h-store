@@ -46,10 +46,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -64,6 +66,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
+import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
@@ -2820,6 +2823,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
         }
         return;
+    }
+    
+    // ---------------------------------------------------------------
+    // SNAPSHOT METHODS
+    // ---------------------------------------------------------------
+    
+    /**
+     * Do snapshot work exclusively until there is no more. Also blocks
+     * until the syncing and closing of snapshot data targets has completed.
+     */
+    public void initiateSnapshots(Deque<SnapshotTableTask> tasks) {
+        // FIXME(meng) m_snapshotter.initiateSnapshots(ee, tasks);
+    }
+
+    public Collection<Exception> completeSnapshotWork() throws InterruptedException {
+        return (null);
+        // FIXME(meng) return m_snapshotter.completeSnapshotWork(ee);
     }
     
     // ---------------------------------------------------------------

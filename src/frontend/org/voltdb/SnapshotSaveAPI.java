@@ -90,7 +90,7 @@ public class SnapshotSaveAPI
         }
 
         if (block != 0) {
-            HashSet<Exception> failures = null;
+            Collection<Exception> failures = null;
             String status = "SUCCESS";
             String err = "";
             try {
