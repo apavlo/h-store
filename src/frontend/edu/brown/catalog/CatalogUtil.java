@@ -891,6 +891,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (sites);
     }
+    
+    /**
+     * Return the list of Partition for a particular host
+     * 
+     * @param catalog_host
+     * @return
+     */
+    public static Collection<Partition> getPartitionsForHost(Host catalog_host) {
+        List<Partition> partitions = new ArrayList<Partition>();
+        Cluster cluster = (Cluster) catalog_host.getParent();
+        for (Site catalog_site : cluster.getSites()) {
+            if (catalog_site.getHost().getName().equals(catalog_host.getName()))
+                partitions.addAll(catalog_site.getPartitions());
+        } // FOR
+        return (partitions);
+    }
 
     /**
      * Return a mapping from SiteId to <Host, Port#>
