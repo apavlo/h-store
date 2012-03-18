@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -68,6 +69,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     protected static long STATUS_OK = 0L;
     
     protected Database database = null;
+    protected Cluster cluster = null;
     protected int num_partitions;
 
     
@@ -75,6 +77,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
         this.database = CatalogUtil.getDatabase(catalog_proc);
+        this.cluster = CatalogUtil.getCluster(this.database);
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
     }
 

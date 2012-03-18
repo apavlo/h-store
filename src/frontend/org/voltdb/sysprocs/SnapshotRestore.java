@@ -48,8 +48,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTypeException;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -166,17 +164,8 @@ public class SnapshotRestore extends VoltSystemProcedure
         site.registerPlanFragment(SysProcFragmentId.
                                   PF_restoreSendPartitionedTableResults,
                                   this);
-        m_cluster = CatalogUtil.getCluster(m_database);
         m_siteId = site.getSiteId();
-        m_hostId =
-            Integer.valueOf(m_cluster.getSites().get(String.valueOf(m_siteId)).
-                            getHost().getTypeName());
-        // XXX HACK GIANT HACK given the current assumption that there is
-        // only one database per cluster, I'm asserting this and then
-        // skirting around the need to have the database name in order to get
-        // to the set of tables. --izzy
-        assert(m_cluster.getDatabases().size() == 1);
-        m_database = m_cluster.getDatabases().get("database");
+        m_hostId = site.getHostId();
     }
 
     @Override
@@ -746,7 +735,7 @@ public class SnapshotRestore extends VoltSystemProcedure
     private Set<Table> getTablesToRestore(Set<String> savedTableNames)
     {
         Set<Table> tables_to_restore = new HashSet<Table>();
-        for (Table table : m_database.getTables())
+        for (Table table : this.database.getTables())
         {
             if (savedTableNames.contains(table.getTypeName()))
             {
@@ -1061,8 +1050,8 @@ public class SnapshotRestore extends VoltSystemProcedure
     private VoltTable[] createPartitionedTables(String tableName,
                                                 VoltTable loadedTable)
     {
-        int number_of_partitions = CatalogUtil.getNumberOfPartitions(m_cluster);
-        Table catalog_table = m_database.getTables().getIgnoreCase(tableName);
+        int number_of_partitions = CatalogUtil.getNumberOfPartitions(this.cluster);
+        Table catalog_table = this.database.getTables().getIgnoreCase(tableName);
         assert(!catalog_table.getIsreplicated());
         // XXX blatantly stolen from LoadMultipartitionTable
         // find the index and type of the partitioning attribute
@@ -1102,11 +1091,9 @@ public class SnapshotRestore extends VoltSystemProcedure
 
     private Table getCatalogTable(String tableName)
     {
-        return m_database.getTables().get(tableName);
+        return this.database.getTables().get(tableName);
     }
 
-    private Cluster m_cluster;
-    private Database m_database;
     private int m_siteId;
     private int m_hostId;
     private static volatile String m_filePath;
