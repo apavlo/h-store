@@ -68,8 +68,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 // ---------------------------------------------------
                 // Distributed NestLoopIndexPlanNode
                 // This is where the NestLoopIndexPlanNode immediately passes
-                // its
-                // intermediate results to a SendPlanNode
+                // its intermediate results to a SendPlanNode
                 // ---------------------------------------------------
                 else if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
                     assert (state.join_node_index.size() == state.join_tbl_mapping.size()) : "Join data structures don't have the same size";

@@ -923,7 +923,6 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
-                <exclude name="**/TestTPCCSuite.class" />
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -1011,7 +1010,6 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
-                <exclude name="**/TestTPCCSuite.class" />
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>

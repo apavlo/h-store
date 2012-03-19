@@ -83,14 +83,14 @@ public class SelectAll extends VoltProcedure {
 
     public VoltTable[] run() {
         voltQueueSQL(warehouse);
-//        voltQueueSQL(district);
-//        voltQueueSQL(item);
-//        voltQueueSQL(customer);
-//        voltQueueSQL(history);
-//        voltQueueSQL(stock);
-//        voltQueueSQL(orders);
-//        voltQueueSQL(new_order);
-//        voltQueueSQL(order_line);
+        voltQueueSQL(district);
+        voltQueueSQL(item);
+        voltQueueSQL(customer);
+        voltQueueSQL(history);
+        voltQueueSQL(stock);
+        voltQueueSQL(orders);
+        voltQueueSQL(new_order);
+        voltQueueSQL(order_line);
         return voltExecuteSQL();
     }
 }

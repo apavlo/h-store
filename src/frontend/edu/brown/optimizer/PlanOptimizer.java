@@ -39,9 +39,9 @@ public class PlanOptimizer {
      * The list of PlanNodeTypes that we do not want to try to optimize
      */
     private static final PlanNodeType TO_IGNORE[] = { PlanNodeType.AGGREGATE, PlanNodeType.NESTLOOP, };
-    private static final String BROKEN_SQL[] = { "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline
-                                                                                       // DeleteReservation.GetCustomerReservation
-            "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
+    private static final String BROKEN_SQL[] = {
+            // "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline DeleteReservation.GetCustomerReservation
+            // "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
     };
 
     /**
@@ -124,11 +124,10 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-        // if (PlanNodeUtil.isDistributedQuery(root) &&
-        // sql.contains("SELECT f_id FROM FLIGHT ORDER BY F_DEPART_TIME DESC  LIMIT 10000"))
-        // {
-        // LOG.debug("LET 'ER RIP!");
-        // }
+//         if (PlanNodeUtil.isDistributedQuery(root) &&
+         if (sql.contains("DISTINCT")) {
+             LOG.debug("LET 'ER RIP!");
+         }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
