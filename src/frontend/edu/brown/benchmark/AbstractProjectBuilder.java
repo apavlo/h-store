@@ -181,7 +181,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     public Catalog createCatalog(boolean fkeys, boolean full_catalog) throws IOException {
         // compile a catalog
         if (full_catalog) {
-            // this.addProcedures(this.procedures);    
+             this.addProcedures(this.procedures);    
         } else {
             // The TPC-E catalog takes a long time load, so we have the ability
             // to just compile the schema and the first procedure to make things load faster
