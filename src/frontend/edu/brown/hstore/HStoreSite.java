@@ -1947,6 +1947,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
+                case ABORT_GRACEFUL:
                     // TODO: Make new counter?
                     break;
                 default:

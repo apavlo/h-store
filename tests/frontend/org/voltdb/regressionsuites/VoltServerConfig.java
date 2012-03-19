@@ -80,6 +80,11 @@ public interface VoltServerConfig {
     public int getNodeCount();
 
     /**
+     * Get the number of partitions running in this test suite
+     */
+    public int getPartitionCount();
+    
+    /**
      * @return Is the underlying instance of VoltDB running HSQL?
      */
     public boolean isHSQL();

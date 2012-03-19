@@ -117,6 +117,11 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     {
         return 1;
     }
+    
+    @Override
+    public int getPartitionCount() {
+        return (m_partitionCount);
+    }
 
     @Override
     public List<String> shutDown() throws InterruptedException {
