@@ -2,10 +2,12 @@
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
+<arg value="global.hasherClass=${global.hasherClass}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
 <arg value="client.log_backup=${client.log_backup}" />
+<arg value="client.jar_dir=${client.jar_dir}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
 <arg value="client.txnrate=${client.txnrate}" />

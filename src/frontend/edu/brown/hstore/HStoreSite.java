@@ -61,6 +61,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -96,6 +97,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
@@ -317,15 +319,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        // TODO: Pull the PartitionEstimator info from HStoreConf
-        this.p_estimator = new PartitionEstimator(this.catalog_db);
-        
-        // **IMPORTANT**
-        // We have to setup the partition offsets before we do anything else here
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
+        
+        // Get the hasher we will use for this HStoreSite
+        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
+                                            new Object[]{ this.catalog_db, num_partitions },
+                                            new Class<?>[]{ Database.class, int.class });
+        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
+        
+        // **IMPORTANT**
+        // We have to setup the partition offsets before we do anything else here
+        
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -374,7 +381,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // General Stuff
-        this.hasher = this.p_estimator.getHasher();
+        
         this.thresholds = new EstimationThresholds(); // default values
         
         // MapReduce Transaction helper thread

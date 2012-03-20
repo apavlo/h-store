@@ -12,7 +12,7 @@ public class CachedHasher extends DefaultHasher {
      * @param catalog_db
      * @param num_partitions
      */
-    public CachedHasher(Database catalog_db, Integer num_partitions) {
+    public CachedHasher(Database catalog_db, int num_partitions) {
         super(catalog_db, num_partitions);
     }
 
