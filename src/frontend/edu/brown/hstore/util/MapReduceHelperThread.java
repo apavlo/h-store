@@ -171,7 +171,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
         VoltTable table = null;
         int rp = -1;
-        for (int partition : this.hstore_site.getAllPartitionIds()) {
+        for (int partition : this.hstore_site.getLocalPartitionIds()) {
 
             table = ts.getMapOutputByPartition(partition);
 
