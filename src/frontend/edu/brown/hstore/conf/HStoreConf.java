@@ -22,6 +22,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
@@ -60,7 +61,15 @@ public final class HStoreConf {
             defaultString="localhost",
             experimental=false
         )
-        public String defaulthost = "localhost";
+        public String defaulthost;
+        
+        @ConfigProperty(
+            description="The name of the AbstractHasher class to use to figure out what partitions " +
+                        "transactions and queries need to go to. We should not need to change this.",
+            defaultString="edu.brown.hashing.DefaultHasher",
+            experimental=true
+        )
+        public String hasherClass;
     }
     
     // ============================================================================
