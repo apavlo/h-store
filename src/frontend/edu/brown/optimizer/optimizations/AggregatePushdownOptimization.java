@@ -37,45 +37,55 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         if (nodes.size() != 1)
             return Pair.of(false, rootNode);
         final HashAggregatePlanNode node = CollectionUtil.first(nodes);
-        
+
+        // String orig_root_debug2 = PlanNodeUtil.debug(root);
+        if (debug.get())
+            LOG.debug("Trying to apply Aggregate pushdown optimization!");
+
         // Skip single-partition query plans
         if (PlanNodeUtil.isDistributedQuery(rootNode) == false) {
-            if (debug.get()) LOG.debug("SKIP - Not a distributed query plan");
+            if (debug.get())
+                LOG.debug("SKIP - Not a distributed query plan");
             return (Pair.of(false, rootNode));
         }
-        // Right now, Can't do averages
-        for (ExpressionType et: node.getAggregateTypes()) {
-            if (et.equals(ExpressionType.AGGREGATE_AVG)) {
-                if (debug.get()) LOG.debug("SKIP - Right now can't optimize AVG()");
-                return (Pair.of(false, rootNode));
-            }
+        // TODO: Can only do single aggregates
+        if (node.getAggregateTypes().size() != 1) {
+            if (debug.get())
+                LOG.debug("SKIP - Multiple aggregates");
+            return (Pair.of(false, rootNode));
         }
-        //if (debug.get()) LOG.debug("Trying to apply Aggregate pushdown optimization!");
-        if (debug.get()) LOG.debug("AbstractPlanNode rootNode: "+ rootNode);
-        if (debug.get()) LOG.debug( "<HashAggregatePlanNode>:" + nodes + " <HashAggregatePlanNode>[first]: "+ node);
-        
-        //for (ExpressionType et:node.getAggregateTypes()) if (debug.get()) LOG.debug("aggregate type:" + et);
-        
+        // Can't do averages
+        if (node.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_AVG) {
+            if (debug.get())
+                LOG.debug("SKIP - Can't optimize AVG()");
+            return (Pair.of(false, rootNode));
+        }
         // Get the AbstractScanPlanNode that is directly below us
         Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(node, AbstractScanPlanNode.class);
-        if (debug.get()) LOG.debug("<ScanPlanNodes>: "+ scans);
-        // XXX:why we need this ???
         if (scans.size() != 1) {
-            if (debug.get()) LOG.debug("SKIP - Multiple scans!");
+            if (debug.get())
+                LOG.debug("SKIP - Multiple scans!");
             return (Pair.of(false, rootNode));
         }
-        // XXX: when there will be more than one scan_node ???
+
         AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
-        if (debug.get()) LOG.debug("<ScanPlanNodes>[first]: "+ scan_node);
         assert (scan_node != null);
-        
-        // Skip if we're already directly after the scan (meaning no network traffic) ??? why we need this
+        // For some reason we have to do this??
+        for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
+            int col_guid = scan_node.getOutputColumnGUIDs().get(col);
+            assert (state.plannerContext.get(col_guid) != null) : "Failed [" + col_guid + "]";
+            // PlanColumn retval = new PlanColumn(guid, expression, columnName,
+            // sortOrder, storage);
+        } // FOR
+
+        // Skip if we're already directly after the scan (meaning no network
+        // traffic)
         if (scan_node.getParent(0).equals(node)) {
             if (debug.get())
                 LOG.debug("SKIP - Aggregate does not need to be distributed");
             return (Pair.of(false, rootNode));
         }
-        
+
         // Check if this is count(distinct) query
         // If it is then we can only pushdown the DISTINCT
         AbstractPlanNode clone_node = null;
@@ -92,7 +102,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                 }
             } // FOR
         }
-        
+
         // Note that we don't want actually move the existing aggregate. We just
         // want to clone it and then
         // attach it down below the SEND/RECIEVE so that we calculate the
@@ -103,44 +113,37 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             } catch (CloneNotSupportedException ex) {
                 throw new RuntimeException(ex);
             }
-            
             state.markDirty(clone_node);
             HashAggregatePlanNode clone_agg = (HashAggregatePlanNode) clone_node;
-            if (debug.get()) LOG.debug("make dirty clone_node:" + clone_node);
-            if (debug.get()) LOG.debug("clone_agg:" + clone_agg);
+
             // Set original AggregateNode to contain sum
             if (clone_agg.getAggregateTypes().size() > 0) {
                 List<ExpressionType> exp_types = node.getAggregateTypes();
                 exp_types.clear();
-                
-                for (int i=0; i < clone_agg.getAggregateTypes().size(); i++) {
-                    ExpressionType origType = clone_agg.getAggregateTypes().get(i);
-                    switch (origType) {
-                        case AGGREGATE_COUNT:
-                        case AGGREGATE_COUNT_STAR:
-                        case AGGREGATE_SUM:
-                            exp_types.add(ExpressionType.AGGREGATE_SUM);
-                            break;
-                        case AGGREGATE_MAX:
-                        case AGGREGATE_MIN:
-                            exp_types.add(origType);
-                            break;
-                        case AGGREGATE_AVG:
-                            // AVG will be dealt later
-                            //exp_types.add(origType);
-                            break;
-                        default:
-                            throw new RuntimeException("Unexpected ExpressionType " + origType);
-                    } // SWITCH
-                }
+
+                ExpressionType origType = clone_agg.getAggregateTypes().get(0);
+                switch (origType) {
+                    case AGGREGATE_COUNT:
+                    case AGGREGATE_COUNT_STAR:
+                    case AGGREGATE_SUM:
+                        exp_types.add(ExpressionType.AGGREGATE_SUM);
+                        break;
+                    case AGGREGATE_MAX:
+                    case AGGREGATE_MIN:
+                        exp_types.add(origType);
+                        break;
+                    default:
+                        throw new RuntimeException("Unexpected ExpressionType " + origType);
+                } // SWITCH
             }
-            
-            // IMPORTANT: If we have GROUP BY columns, then we need to make sure
-            // that those columns are always passed up the query tree at the pushed
-            // down node, even if the final answer doesn't need it
+
+            // IMPORTANT: If we have GROUP BY columns, thn we need to make sure
+            // that
+            // those columns are always passed up the query tree at the pushed
+            // down
+            // node, even if the final answer doesn't need it
             if (node.getGroupByColumnGuids().isEmpty() == false) {
-                // XXX: this should really be checked... I think it should be node other than clone_agg !!!
-                for (Integer guid : node.getGroupByColumnGuids()) {
+                for (Integer guid : clone_agg.getGroupByColumnGuids()) {
                     if (clone_agg.getOutputColumnGUIDs().contains(guid) == false) {
                         clone_agg.getOutputColumnGUIDs().add(guid);
                     }
@@ -154,13 +157,14 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             assert (clone_agg.getAggregateColumnGuids().size() == node.getAggregateColumnGuids().size());
             assert (clone_agg.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
             assert (clone_agg.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
+            // assert(clone_agg.getOutputColumnGUIDs().size() ==
+            // node.getOutputColumnGUIDs().size());
         }
         assert (clone_node != null);
-        
-        // XXX:Fixme:Down below part can not deal with Join table aggregate !!!...
-        
+
         // But this means we have to also update the RECEIVE to only expect the
-        // columns that the AggregateNode will be sending along
+        // columns that
+        // the AggregateNode will be sending along
         ReceivePlanNode recv_node = null;
         if (clone_node instanceof DistinctPlanNode) {
             recv_node = (ReceivePlanNode) node.getChild(0).getChild(0);
@@ -196,7 +200,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         }
 
         if (debug.get()) {
-            //LOG.debug("Successfully applied optimization! Eat that John Hugg!");
+            LOG.debug("Successfully applied optimization! Eat that John Hugg!");
             if (trace.get())
                 LOG.trace("\n" + PlanNodeUtil.debug(rootNode));
         }
