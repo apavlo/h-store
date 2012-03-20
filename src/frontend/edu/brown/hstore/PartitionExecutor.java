@@ -1082,7 +1082,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>",
                                                    ts, deps.size(), stmt_index, input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
@@ -1113,7 +1113,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } // FOR (fragments)
         if (d) {
             if (inputs.isEmpty() == false) {
-                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s %s on partition %d\n%s",
+                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s on partition %d\n%s",
                                         ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
             } else {
                 LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",

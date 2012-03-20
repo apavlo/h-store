@@ -46,7 +46,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
     
     @Override
     protected void finishImpl() {
-        this.finishImpl();
+        super.finishImpl();
         for (int i = 0; i < this.finalResults.length; i++) 
             this.finalResults[i] = null; 
     }

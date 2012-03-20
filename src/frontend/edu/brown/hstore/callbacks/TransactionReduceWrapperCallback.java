@@ -82,7 +82,8 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
         }
         assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
-
+//        if(!ts.checkDeletableFlag())
+//            ts.markAsDeletable();
         return 1;
     }
 
