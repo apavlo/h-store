@@ -1225,53 +1225,59 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
-                             ts, base_partition, ts.getClientHandle()));
-            
-            // Partitions
-            // Figure out what partitions we plan on touching for this transaction
-            Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
-            
-            if (ts.isMapReduce() == false) {
-                // TransactionEstimator
-                // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
-                // that we're done at any partitions because it will throw an error
-                // Instead, if we're not single-partitioned then that's that only time that 
-                // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-                TransactionEstimator.State s = ts.getEstimatorState(); 
-                if (s != null && s.getInitialEstimate() != null) {
-                    MarkovEstimate est = s.getInitialEstimate();
-                    assert(est != null);
-                    predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
-                }
-                assert(predict_touchedPartitions.isEmpty() == false) : 
-                    "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
+            if (ts.isMapReduce() && !hstore_conf.site.mr_map_blocking) {
+                if (d) LOG.debug(String.format("%s - Doing MapReduce Transaction asynchronously, start on partition %d [handle=%d]",
+                        ts, base_partition, ts.getClientHandle()));
+                this.transactionStart(ts, base_partition);
             }
-            
-            // Check whether our transaction can't run right now because its id is less than
-            // the last seen txnid from the remote partitions that it wants to touch
-            for (int partition : predict_touchedPartitions) {
-                Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
-                if (txn_id.compareTo(last_txn_id) < 0) {
-                    // If we catch it here, then we can just block ourselves until
-                    // we generate a txn_id with a greater value and then re-add ourselves
-                    if (d) {
-                        LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
-                                       ts, partition, last_txn_id));
-                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
-                                           TransactionIdManager.toString(last_txn_id),
-                                           TransactionIdManager.toString(txn_id)));
+            else {
+                if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
+                        ts, base_partition, ts.getClientHandle()));
+                // Partitions
+                // Figure out what partitions we plan on touching for this transaction
+                Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
+                
+                if (ts.isMapReduce() == false) {
+                    // TransactionEstimator
+                    // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
+                    // that we're done at any partitions because it will throw an error
+                    // Instead, if we're not single-partitioned then that's that only time that 
+                    // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
+                    TransactionEstimator.State s = ts.getEstimatorState(); 
+                    if (s != null && s.getInitialEstimate() != null) {
+                        MarkovEstimate est = s.getInitialEstimate();
+                        assert(est != null);
+                        predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
                     }
-                    if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                    this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
-                    return;
+                    assert(predict_touchedPartitions.isEmpty() == false) : 
+                        "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
                 }
-            } // FOR
-            
-            // This callback prevents us from making additional requests to the Dtxn.Coordinator until
-            // we get hear back about our our initialization request
-            if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
-            this.txnQueueManager.initTransaction(ts);
+                
+                // Check whether our transaction can't run right now because its id is less than
+                // the last seen txnid from the remote partitions that it wants to touch
+                for (int partition : predict_touchedPartitions) {
+                    Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
+                    if (txn_id.compareTo(last_txn_id) < 0) {
+                        // If we catch it here, then we can just block ourselves until
+                        // we generate a txn_id with a greater value and then re-add ourselves
+                        if (d) {
+                            LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
+                                           ts, partition, last_txn_id));
+                            LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
+                                               TransactionIdManager.toString(last_txn_id),
+                                               TransactionIdManager.toString(txn_id)));
+                        }
+                        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
+                        this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
+                        return;
+                    }
+                } // FOR
+                
+                // This callback prevents us from making additional requests to the Dtxn.Coordinator until
+                // we get hear back about our our initialization request
+                if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
+                this.txnQueueManager.initTransaction(ts);
+            }
         }
     }
 

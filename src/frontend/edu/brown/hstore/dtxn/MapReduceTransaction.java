@@ -157,14 +157,14 @@ public class MapReduceTransaction extends LocalTransaction {
         this.mapEmit = catalog_db.getTables().get(this.catalog_proc.getMapemittable());
         this.reduceEmit = catalog_db.getTables().get(this.catalog_proc.getReduceemittable());
         LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
+        LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         
         // Get the Table catalog object for the map/reduce outputs
         // For each partition there should be a map/reduce output voltTable
-        for (int partition : this.hstore_site.getAllPartitionIds()) {
+        for (int partition : this.hstore_site.getLocalPartitionIds()) {
             int offset = hstore_site.getLocalPartitionOffset(partition);
             //int offset = partition;
-            if (trace.get()) LOG.trace(String.format("Partition[%d] -> Offset[%d]", partition, offset));
-            // XXX: THIS IS BROKEN!
+            LOG.info(String.format("Partition[%d] -> Offset[%d]", partition, offset));
             this.local_txns[offset].init(this.txn_id, this.client_handle, partition,
                                          Collections.singleton(partition),
                                          this.predict_readOnly, this.predict_abortable,
@@ -400,11 +400,12 @@ public class MapReduceTransaction extends LocalTransaction {
         return (StringUtil.formatMaps(this.getDebugMap()));
     }
     
-    @Override
-    public boolean isPredictSinglePartition() {
-        if (debug.get()) LOG.debug("Trying to do asynchronous map execution way, txs:" + this);
-        return !this.hstore_site.getHStoreConf().site.mr_map_blocking;
-    }
+//    @Override
+//    public boolean isPredictSinglePartition() {
+//        if (debug.get() && !this.hstore_site.getHStoreConf().site.mr_map_blocking) 
+//            LOG.debug("Trying to do asynchronous map execution way, txs:" + this);
+//        return !this.hstore_site.getHStoreConf().site.mr_map_blocking;
+//    }
     
 
     @Override
@@ -425,12 +426,6 @@ public class MapReduceTransaction extends LocalTransaction {
     public VoltTable getMapOutputByPartition( int partition ) {
         if (debug.get()) LOG.debug("Trying to getMapOutputByPartition: [ " + partition + " ]");
         return this.mapOutput[hstore_site.getLocalPartitionOffset(partition)];
-        //return this.mapOutput[partition];
-    }
-    
-    public void setMapOutputByPartition ( VoltTable vt,int partition ) {
-        if (debug.get()) LOG.debug("Trying to setMapOutputByPartition: [ " + partition + " ]");
-        this.mapOutput[hstore_site.getLocalPartitionOffset(partition)] = vt;
     }
     
     public VoltTable getReduceInputByPartition ( int partition ) {
@@ -440,6 +435,7 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     public VoltTable getReduceOutputByPartition ( int partition ) {
+        if (debug.get()) LOG.debug("Trying to getReduceOutputByPartition: [ " + partition + " ]");
         return this.reduceOutput[hstore_site.getLocalPartitionOffset(partition)];
         //return this.reduceOutput[partition];
     }
