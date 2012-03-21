@@ -1,4 +1,4 @@
-package edu.brown.optimizer;
+package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +17,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
+import org.voltdb.regressionsuites.LocalCluster;
 import org.voltdb.regressionsuites.LocalSingleProcessServer;
 import org.voltdb.regressionsuites.MultiConfigSuiteBuilder;
 import org.voltdb.regressionsuites.RegressionSuite;
@@ -24,9 +25,16 @@ import org.voltdb.regressionsuites.VoltServerConfig;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.optimizer.BasePlanOptimizerTestCase;
 import edu.brown.utils.StringUtil;
 
-public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
+/**
+ * Special test cases for checking complex operations in the PlanOptimizer
+ * @author pavlo
+ */
+public class TestPlanOptimizerSuite extends RegressionSuite {
+    
+    private static final String PREFIX = "planopt";
 
     @Test
     public void testSingleAggregate() throws IOException, ProcCallException {
@@ -106,14 +114,16 @@ public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
         Map<Integer, List<Double>> expectedValues = new HashMap<Integer, List<Double>>();
         for (Integer c_b_a_id : values.keySet()) {
             for (List<Integer> vals : values.get(c_b_a_id)) {
-                if (expectedValues.containsKey(c_b_a_id) == false) {
-                    expectedValues.put(c_b_a_id, new ArrayList<Double>());
+                List<Double> colValues = expectedValues.get(c_b_a_id); 
+                if (colValues == null) {
+                    colValues = new ArrayList<Double>();
+                    expectedValues.put(c_b_a_id, colValues);
                 }
                 int total = 0;
                 for (Integer val : vals) {
                     total += val.intValue();
                 } // FOR
-                expectedValues.get(c_b_a_id).add(total / (double)values.get(c_b_a_id).size());
+                colValues.add(total / (double)vals.size());
             } // FOR
         } // FOR
         
@@ -124,7 +134,7 @@ public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
         assertNotNull(result);
         System.err.println(result);
         
-        int query_offsets[] = { 4, 5 };
+        int query_offsets[] = { 3, 4 };
         int expected_offsets[] = { 3, 4 };
         while (result.advanceRow()) {
             Integer c_b_a_id = Integer.valueOf((int)result.getLong(0));
@@ -132,7 +142,7 @@ public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
                 double actual = result.getDouble(query_offsets[i]);
                 Double expected = expectedValues.get(c_b_a_id).get(expected_offsets[i]);
                 assertNotNull(c_b_a_id.toString(), expected);
-                System.err.printf("EXPECTED[%d] => %.1f\n", c_b_a_id, expected);
+                System.err.printf("[%d] => EXPECTED:%.1f / ACTUAL:%.1f\n", c_b_a_id, expected, actual);
                 assertEquals(c_b_a_id.toString(), expected.doubleValue(), actual, 0.1);
             } // FOR
         } // WHILE
@@ -173,13 +183,13 @@ public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
      * JUnit / RegressionSuite Boilerplate Constructor
      * @param name The name of this test suite
      */
-    public TestPlanOptimizerRegressionSuite(String name) {
+    public TestPlanOptimizerSuite(String name) {
         super(name);
     }
  
     static public junit.framework.Test suite() {
-        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPlanOptimizerRegressionSuite.class);
-        VoltProjectBuilder project = new BasePlanOptimizerTestCase.PlanOptimizerTestProjectBuilder("planoptreg");
+        MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestPlanOptimizerSuite.class);
+        VoltProjectBuilder project = new BasePlanOptimizerTestCase.PlanOptimizerTestProjectBuilder(PREFIX);
         VoltServerConfig config = null;
  
         // Single Statement Procedures
@@ -193,15 +203,15 @@ public class TestPlanOptimizerRegressionSuite extends RegressionSuite {
  
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-        config = new LocalSingleProcessServer("planoptreg-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
         builder.addServerConfig(config);
  
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
-//        config = new LocalCluster("planoptreg-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.compile(project);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
  
         return builder;
     }
