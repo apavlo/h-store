@@ -954,7 +954,7 @@ public class ArgumentsParser {
                 String hasherClassName = this.params.get(PARAM_HASHER_CLASS);
                 this.hasher_class = (Class<? extends AbstractHasher>) loader.loadClass(hasherClassName);
             }
-            Constructor<? extends AbstractHasher> constructor = this.hasher_class.getConstructor(new Class[] { Database.class, Integer.class });
+            Constructor<? extends AbstractHasher> constructor = this.hasher_class.getConstructor(new Class[] { Database.class, int.class });
             int num_partitions = CatalogUtil.getNumberOfPartitions(this.catalog_db);
             this.hasher = constructor.newInstance(new Object[] { this.catalog_db, num_partitions });
             if (!(this.hasher instanceof DefaultHasher))

@@ -10,8 +10,11 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.planner.PlanColumn;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.DistinctPlanNode;
 import org.voltdb.plannodes.IndexScanPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.types.PlanNodeType;
@@ -28,7 +31,30 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
 
     @Override
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+         super.setUp(ProjectType.TPCC);
+    }
+    
+    /**
+     * testProjectionPushdownDistinctOffset
+     */
+    public void testProjectionPushdownDistinctOffset() throws Exception {
+        Procedure catalog_proc = this.getProcedure(slev.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement 
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        
+        // Make sure that the DistinctPlanNode's target column is OL_I_ID
+        Collection<DistinctPlanNode> dist_nodes = PlanNodeUtil.getPlanNodes(root, DistinctPlanNode.class);
+        assertEquals(1, dist_nodes.size());
+        DistinctPlanNode dist_node = CollectionUtil.first(dist_nodes);
+        assertNotNull(dist_node);
+        
+        int col_guid = dist_node.getDistinctColumnGuid();
+        PlanColumn pc = PlannerContext.singleton().get(col_guid);
+        assertNotNull(pc);
+        assertEquals("OL_I_ID", pc.getDisplayName());
     }
     
     /**

@@ -572,7 +572,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     @Override
-    public synchronized void setPendingError(SerializableException error) {
+    public void setPendingError(SerializableException error) {
         this.setPendingError(error, true);
     }
 

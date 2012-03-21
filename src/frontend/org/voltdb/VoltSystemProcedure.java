@@ -18,11 +18,13 @@
 package org.voltdb;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -68,6 +70,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     protected static long STATUS_OK = 0L;
     
     protected Database database = null;
+    protected Cluster cluster = null;
     protected int num_partitions;
 
     
@@ -75,6 +78,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
     public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
         this.database = CatalogUtil.getDatabase(catalog_proc);
+        this.cluster = CatalogUtil.getCluster(this.database);
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
     }
 
@@ -174,34 +178,58 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //                parambytes = ByteString.copyFrom(fs.getBuffer());
 //            }
 
-            if (debug.get()) 
-                LOG.debug(String.format("Creating SysProc FragmentTaskMessage for %s in %s",
-                                       (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId),
-                                       this.getTransactionState()));
-
-            WorkFragment.Builder builder = WorkFragment.newBuilder()
-                                                    .setPartitionId(pf.destPartitionId)
-                                                    .setReadOnly(false)
-                                                    .setLastFragment(pf.last_task)
-                                                    .addFragmentId(pf.fragmentId)
-                                                    .addStmtIndex(i);
             
-            // Input Dependencies
-            boolean needs_input = false;
-            WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
-            for (int dep : pf.inputDependencyIds) {
-                inputBuilder.addIds(dep);
-                needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-            } // FOR
-            builder.addInputDepId(inputBuilder.build());
-            
-            // Output Dependencies
-            for (int dep : pf.outputDependencyIds) {
-                builder.addOutputDepId(dep);
-            } // FOR
 
-            builder.setNeedsInput(needs_input);
-            ftasks.add(builder.build());
+            // HACK: If the multipartition flag is set to true and we don't have a destPartitionId,
+            // then we'll just make it go to all partitions
+            int partitions[] = null;
+            if (pf.destPartitionId < 0) {
+                if (pf.multipartition) {
+                    partitions = new int[hstore_site.getAllPartitionIds().size()];
+                    for (int p = 0; p < partitions.length; p++) {
+                        partitions[p] = p;
+                    } // FOR
+                }
+                // If it's not multipartitioned and they still don't have a destPartitionId,
+                // then we'll make it just go to this PartitionExecutor's local partition
+                else {
+                    partitions = new int[]{ executor.getPartitionId() };
+                }
+                System.err.println(this.getClass() + " => " + Arrays.toString(partitions));
+            }
+            else {
+                partitions = new int[]{ pf.destPartitionId };
+            }
+            
+            for (int destPartitionId : partitions) {
+                if (debug.get()) 
+                    LOG.debug(String.format("Creating SysProc FragmentTaskMessage for %s in %s",
+                                           (destPartitionId < 0 ? "coordinator" : "partition #" + destPartitionId),
+                                           this.getTransactionState()));
+                WorkFragment.Builder builder = WorkFragment.newBuilder()
+                                                        .setPartitionId(destPartitionId)
+                                                        .setReadOnly(false)
+                                                        .setLastFragment(pf.last_task)
+                                                        .addFragmentId(pf.fragmentId)
+                                                        .addStmtIndex(i);
+                
+                // Input Dependencies
+                boolean needs_input = false;
+                WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
+                for (int dep : pf.inputDependencyIds) {
+                    inputBuilder.addIds(dep);
+                    needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
+                } // FOR
+                builder.addInputDepId(inputBuilder.build());
+                
+                // Output Dependencies
+                for (int dep : pf.outputDependencyIds) {
+                    builder.addOutputDepId(dep);
+                } // FOR
+    
+                builder.setNeedsInput(needs_input);
+                ftasks.add(builder.build());
+            } // FOR
             
 //            FragmentTaskMessage task = new FragmentTaskMessage(
 //                    this.executor.getPartitionId(),

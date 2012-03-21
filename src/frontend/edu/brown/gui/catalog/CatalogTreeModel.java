@@ -135,7 +135,11 @@ public class CatalogTreeModel extends DefaultTreeModel {
         private static final long serialVersionUID = 1L;
 
         public CatalogMapTreeNode(String label, CatalogMap<? extends CatalogType> items) {
-            super(label + " (" + items.size() + ")");
+            this(label, items.size());
+        }
+        
+        public CatalogMapTreeNode(String label, int size) {
+            super(label + " (" + size + ")");
         }
     }
     
@@ -222,104 +226,19 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     }
                 } // FOR (tables)
             
-                // Stored Procedures
-                procedures_node = new CatalogMapTreeNode("Stored Procedures", database_cat.getProcedures());
+                // System Stored Procedures
+                Collection<Procedure> sysProcs = CatalogUtil.getSysProcedures(database_cat);
+                procedures_node = new CatalogMapTreeNode("System Procedures", sysProcs.size());
                 database_node.add(procedures_node);
-                for (Procedure procedure_cat : database_cat.getProcedures()) {
-                    DefaultMutableTreeNode procedure_node = new DefaultMutableTreeNode(new WrapperNode(procedure_cat));
-                    procedures_node.add(procedure_node);
-                    buildSearchIndex(procedure_cat, procedure_node);
-
-                    // Parameters
-                    DefaultMutableTreeNode parameters_node = new CatalogMapTreeNode("Parameters", procedure_cat.getParameters());
-                    procedure_node.add(parameters_node);
-                    for (ProcParameter param_cat : CatalogUtil.getSortedCatalogItems(procedure_cat.getParameters(), "index")) {
-                        DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
-                            @Override
-                            public String toString() {
-                                ProcParameter param_cat = (ProcParameter)this.getCatalogType();
-                                VoltType type = VoltType.get((byte)param_cat.getType());
-                                return (super.toString() + " :: " + type.name());
-                            }
-                        });
-                        parameters_node.add(param_node);
-                        buildSearchIndex(param_cat, param_node);
-                    } // FOR (parameters)
-                    
-                    // Statements
-                    if (procedure_cat.getSystemproc() == false) {
-                        DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", procedure_cat.getStatements());
-                        procedure_node.add(statementRootNode);                  
-                        for (Statement statement_cat : procedure_cat.getStatements()) {
-                            DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
-                            statementRootNode.add(statement_node);
-                            buildSearchIndex(statement_cat, statement_node);
-                            
-                            // Plan Trees
-                            for (boolean is_singlepartition : new boolean[] { true, false }) {
-                                if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
-                                if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
-    
-                                String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
-    //                            String attributes = "";
-                                AbstractPlanNode node = null;
-                                
-                                try {
-                                    node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
-                                } catch (Exception e) {
-                                    String msg = e.getMessage();
-                                    if (msg == null || msg.length() == 0) {
-                                        e.printStackTrace();
-                                    } else {
-                                        LOG.warn(msg);
-                                    }
-                                }
-                                DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(new PlanTreeCatalogNode(label, statement_cat, node));
-                                statement_node.add(planNode);
-                                
-                                // Plan Fragments
-                                CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
-                                for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
-                                    DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
-                                    planNode.add(fragment_node);
-                                    buildSearchIndex(fragment_cat, fragment_node);
-                                } // FOR (fragments)
-                            }
-                        
-                            // Statement Parameter
-                            DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
-                            statement_node.add(paramRootNode);
-                            for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
-                                DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
-                                    @Override
-                                    public String toString() {
-                                         StmtParameter param_cat = (StmtParameter)this.getCatalogType();
-                                         VoltType type = VoltType.get((byte)param_cat.getJavatype());
-                                         return (super.toString() + " :: " + type.name());
-                                    }
-                                });
-                                paramRootNode.add(param_node);
-                                buildSearchIndex(param_cat, param_node);
-                            } // FOR (parameters)
-                            // Output Columns
-                            DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
-                            statement_node.add(columnRootNode);
-                            for (Column column_cat : statement_cat.getOutput_columns()) {
-                                
-                                DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
-                                    @Override
-                                    public String toString() {
-                                        Column column_cat = (Column)this.getCatalogType();
-                                        String type = VoltType.get((byte)column_cat.getType()).toSQLString();
-                                        return (super.toString() + " (" + type + ")");
-                                    }
-                                });
-                                columnRootNode.add(column_node);
-                                buildSearchIndex(column_cat, column_node);
-                            } // FOR (output columns)
-                        } // FOR (statements)
-                    }
-                } // FOR (procedures)
+                this.buildProceduresTree(procedures_node, sysProcs);
+                
+                // Benchmark Stored Procedures
+                List<Procedure> procs = new ArrayList<Procedure>(database_cat.getProcedures());
+                procs.removeAll(sysProcs);
+                procedures_node = new CatalogMapTreeNode("Stored Procedures", procs.size());
+                database_node.add(procedures_node);
+                this.buildProceduresTree(procedures_node, procs);
+                
             } // FOR (databses)
             
             // Construct a xref mapping between host->sites and site->partitions
@@ -363,5 +282,105 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 }
             } // FOR
         } // FOR (clusters)
+    }
+    
+    private void buildProceduresTree(DefaultMutableTreeNode parentNode, Collection<Procedure> procedures) {
+        for (Procedure catalog_proc : procedures) {
+            DefaultMutableTreeNode procNode = new DefaultMutableTreeNode(new WrapperNode(catalog_proc));
+            parentNode.add(procNode);
+            buildSearchIndex(catalog_proc, procNode);
+
+            // Parameters
+            DefaultMutableTreeNode parameters_node = new CatalogMapTreeNode("Parameters", catalog_proc.getParameters());
+            procNode.add(parameters_node);
+            for (ProcParameter param_cat : CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index")) {
+                DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
+                    @Override
+                    public String toString() {
+                        ProcParameter param_cat = (ProcParameter)this.getCatalogType();
+                        VoltType type = VoltType.get((byte)param_cat.getType());
+                        return (super.toString() + " :: " + type.name());
+                    }
+                });
+                parameters_node.add(param_node);
+                buildSearchIndex(param_cat, param_node);
+            } // FOR (parameters)
+            
+            // Statements
+            if (catalog_proc.getSystemproc() == false) {
+                DefaultMutableTreeNode statementRootNode = new CatalogMapTreeNode("Statements", catalog_proc.getStatements());
+                procNode.add(statementRootNode);                  
+                for (Statement statement_cat : catalog_proc.getStatements()) {
+                    DefaultMutableTreeNode statement_node = new DefaultMutableTreeNode(new WrapperNode(statement_cat));
+                    statementRootNode.add(statement_node);
+                    buildSearchIndex(statement_cat, statement_node);
+                    
+                    // Plan Trees
+                    for (boolean is_singlepartition : new boolean[] { true, false }) {
+                        if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
+                        if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
+
+                        String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
+//                            String attributes = "";
+                        AbstractPlanNode node = null;
+                        
+                        try {
+                            node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
+                        } catch (Exception e) {
+                            String msg = e.getMessage();
+                            if (msg == null || msg.length() == 0) {
+                                e.printStackTrace();
+                            } else {
+                                LOG.warn(msg);
+                            }
+                        }
+                        
+                        CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+                        PlanTreeCatalogNode planTreeNode = new PlanTreeCatalogNode(label, fragments, node);
+                        DefaultMutableTreeNode planNode = new DefaultMutableTreeNode(planTreeNode);
+                        statement_node.add(planNode);
+                        
+                        // Plan Fragments
+                        for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
+                            DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
+                            planNode.add(fragment_node);
+                            buildSearchIndex(fragment_cat, fragment_node);
+                        } // FOR (fragments)
+                    }
+                
+                    // Statement Parameter
+                    DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
+                    statement_node.add(paramRootNode);
+                    for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
+                        DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
+                            @Override
+                            public String toString() {
+                                 StmtParameter param_cat = (StmtParameter)this.getCatalogType();
+                                 VoltType type = VoltType.get((byte)param_cat.getJavatype());
+                                 return (super.toString() + " :: " + type.name());
+                            }
+                        });
+                        paramRootNode.add(param_node);
+                        buildSearchIndex(param_cat, param_node);
+                    } // FOR (parameters)
+                    // Output Columns
+                    DefaultMutableTreeNode columnRootNode = new DefaultMutableTreeNode("Output Columns");
+                    statement_node.add(columnRootNode);
+                    for (Column column_cat : statement_cat.getOutput_columns()) {
+                        
+                        DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                            @Override
+                            public String toString() {
+                                Column column_cat = (Column)this.getCatalogType();
+                                String type = VoltType.get((byte)column_cat.getType()).toSQLString();
+                                return (super.toString() + " (" + type + ")");
+                            }
+                        });
+                        columnRootNode.add(column_node);
+                        buildSearchIndex(column_cat, column_node);
+                    } // FOR (output columns)
+                } // FOR (statements)
+            }
+        } // FOR (procedures)
     }
 }

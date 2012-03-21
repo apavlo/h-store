@@ -49,6 +49,7 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     public final int m_partitionCount;
     public final BackendTarget m_target;
 
+    Catalog m_catalog = null;
     ServerThread m_server = null;
     boolean m_compiled = false;
 
@@ -117,6 +118,11 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     {
         return 1;
     }
+    
+    @Override
+    public int getPartitionCount() {
+        return (m_partitionCount);
+    }
 
     @Override
     public List<String> shutDown() throws InterruptedException {
@@ -140,9 +146,8 @@ public class LocalSingleProcessServer implements VoltServerConfig {
 //        config.m_pathToCatalog = m_jarFileName;
 //        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 
-        // TODO(mainak): Pass this into ServerThread 
-        Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        Site catalog_site = CatalogUtil.getSiteFromId(catalog, 0);
+        m_catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        Site catalog_site = CatalogUtil.getSiteFromId(m_catalog, 0);
         assert(catalog_site != null);
         
         // TODO(mainak): Pass this into ServerThread
@@ -155,6 +160,11 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         m_server.waitForInitialization();
     }
 
+    @Override
+    public Catalog getCatalog() {
+        return m_catalog;
+    }
+    
     @Override
     public boolean isHSQL() {
         return m_target == BackendTarget.HSQLDB_BACKEND;

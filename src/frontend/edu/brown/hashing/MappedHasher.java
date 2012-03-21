@@ -33,7 +33,7 @@ public class MappedHasher extends AbstractHasher {
      * @param catalog_db
      * @param num_partitions
      */
-    public MappedHasher(Database catalog_db, Integer num_partitions) {
+    public MappedHasher(Database catalog_db, int num_partitions) {
         super(catalog_db, num_partitions);
     }
     

@@ -389,9 +389,10 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Status", this.status + " / " + this.statusString);
+        m.put("Status", this.status +
+                        (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("Timestamp", this.requestCounter);
+        m.put("RequestCounter", this.requestCounter);
         m.put("Throttle", this.throttle);
         m.put("SinglePartition", this.singlepartition);
         m.put("BasePartition", this.basePartition);
