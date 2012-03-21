@@ -333,7 +333,7 @@ inline Agg* getAggInstance(Pool* memoryPool, ExpressionType agg_type)
     case EXPRESSION_TYPE_AGGREGATE_AVG:
         agg = new (memoryPool->allocate(sizeof(AvgAgg))) AvgAgg(false);
         break;
-    case EXPRESSION_TYPE_AGGREGATE_DISTRIBUTED_AVG:
+    case EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG:
         agg = new (memoryPool->allocate(sizeof(AvgAgg))) AvgAgg(true);
         break;
     case EXPRESSION_TYPE_AGGREGATE_MIN:
@@ -582,7 +582,7 @@ public:
             // average from a distributed query. This is slightly different than our 
             // other aggregates because we need to get the column that has the count
             // and pass that to our special DistributedAvgAgg
-            if ((*m_aggTypes)[i] == EXPRESSION_TYPE_AGGREGATE_DISTRIBUTED_AVG) {
+            if ((*m_aggTypes)[i] == EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG) {
                 // We also need the last column, which is our count
                 NValue weightColumn = nextTuple.getNValue(m_inputTable->columnCount());
                 ((AvgAgg*)aggregateList->m_aggregates[i])->advance(targetColumn, weightColumn);

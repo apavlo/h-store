@@ -454,8 +454,8 @@ string expressionToString(ExpressionType type)
     case EXPRESSION_TYPE_AGGREGATE_AVG: {
         return "AGGREGATE_AVG";
     }
-    case EXPRESSION_TYPE_AGGREGATE_DISTRIBUTED_AVG: {
-        return "AGGREGATE_DISTRIBUTED_AVG";
+    case EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG: {
+        return "AGGREGATE_WEIGHTED_AVG";
     }
     }
     return "INVALID";
@@ -521,8 +521,8 @@ ExpressionType stringToExpression(string str )
         return EXPRESSION_TYPE_AGGREGATE_MAX;
     } else if (str == "AGGREGATE_AVG") {
         return EXPRESSION_TYPE_AGGREGATE_AVG;
-    } else if (str == "AGGREGATE_DISTRIBUTED_AVG") {
-        return EXPRESSION_TYPE_AGGREGATE_DISTRIBUTED_AVG;
+    } else if (str == "AGGREGATE_WEIGHTED_AVG") {
+        return EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG;
     }
 
     return EXPRESSION_TYPE_INVALID;

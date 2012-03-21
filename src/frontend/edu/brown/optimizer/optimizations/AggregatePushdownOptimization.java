@@ -232,7 +232,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                 case AGGREGATE_AVG:
                     // This is a special internal marker that allows us to compute
                     // a weighted average from the count
-                    exp_types.add(ExpressionType.AGGREGATE_DISTRIBUTED_AVG);
+                    exp_types.add(ExpressionType.AGGREGATE_WEIGHTED_AVG);
                     break;
                 default:
                     throw new RuntimeException("Unexpected ExpressionType " + cloneType);
