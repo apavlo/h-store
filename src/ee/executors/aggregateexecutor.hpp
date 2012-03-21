@@ -177,7 +177,8 @@ public:
             return ValueFactory::getNullValue();
         }
         const NValue finalizeResult =
-            m_value.op_divide(ValueFactory::getBigIntValue(m_count));
+        m_value.op_divide(ValueFactory::getDoubleValue(static_cast<double>(m_count)));
+//             m_value.op_divide(ValueFactory::getBigIntValue(m_count));
         return finalizeResult;
     }
 
@@ -529,6 +530,7 @@ public:
                          (memoryPool->
                           allocate(groupByKeySchema->tupleLength())));
         m_numAggColumns = static_cast<int>(m_colTypes->size());
+        m_lastColumnIndex = m_inputTable->columnCount()-1;
     }
 
     inline bool nextTuple(TableTuple nextTuple, TableTuple)
@@ -584,7 +586,7 @@ public:
             // and pass that to our special DistributedAvgAgg
             if ((*m_aggTypes)[i] == EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG) {
                 // We also need the last column, which is our count
-                NValue weightColumn = nextTuple.getNValue(m_inputTable->columnCount());
+                NValue weightColumn = nextTuple.getNValue(m_lastColumnIndex);
                 ((AvgAgg*)aggregateList->m_aggregates[i])->advance(targetColumn, weightColumn);
             } else {
                 aggregateList->m_aggregates[i]->advance(targetColumn);
@@ -647,6 +649,7 @@ private:
     std::vector<ValueType>* m_colTypes;
     HashAggregateMapType m_aggregates;
     int m_numAggColumns;
+    int m_lastColumnIndex;
     TableTuple groupByKeyTuple;
 };
 

@@ -285,9 +285,9 @@ public abstract class PlanOptimizerUtil {
                             this.stop();
                             return;
                         }
-                        // ---------------------------------------------------
-                        // ORDER BY
-                        // ---------------------------------------------------
+                    // ---------------------------------------------------
+                    // ORDER BY
+                    // ---------------------------------------------------
                     } else if (element instanceof OrderByPlanNode) {
                         if ((state.areChildrenDirty(element) || force) &&
                             PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {

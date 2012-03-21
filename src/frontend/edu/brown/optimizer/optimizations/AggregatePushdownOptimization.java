@@ -130,8 +130,13 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         // 2011-12-08: We now need to correct the aggregate columns for the
         // original plan node
         if ((clone_node instanceof DistinctPlanNode) == false) {
+            // If we have a AGGREGATE_WEIGHTED_AVG in our node, then we know that
+            // we can skip the last column because that's the COUNT from the remote partition
+            boolean has_weightedAvg = node.getAggregateTypes().contains(ExpressionType.AGGREGATE_WEIGHTED_AVG);
             node.getAggregateColumnGuids().clear();
-            for (Integer aggOutput : clone_node.getOutputColumnGUIDs()) {
+            int num_cols = clone_node.getOutputColumnGUIDCount() - (has_weightedAvg ? 1 : 0);
+            for (int i = 0; i < num_cols; i++) {
+                Integer aggOutput = clone_node.getOutputColumnGUID(i);
                 PlanColumn planCol = state.plannerContext.get(aggOutput);
                 assert (planCol != null);
                 AbstractExpression exp = planCol.getExpression();
@@ -250,9 +255,9 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             } // FOR
         }
 
-        assert (clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
-        assert (clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
-        assert (clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) : clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
+        assert(clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
+        assert(clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
+        assert(clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) : clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
 //        assert (clone_agg.getAggregateTypes().size() == node.getAggregateTypes().size());
 //        assert (clone_agg.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
 //        assert (clone_agg.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
