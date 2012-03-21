@@ -24,6 +24,8 @@
 package org.voltdb.regressionsuites;
 
 import java.util.List;
+
+import org.voltdb.catalog.Catalog;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 /**
@@ -83,6 +85,11 @@ public interface VoltServerConfig {
      * Get the number of partitions running in this test suite
      */
     public int getPartitionCount();
+
+    /**
+     * Get the catalog used to deploy the cluster in this test suite
+     */
+    public Catalog getCatalog();
     
     /**
      * @return Is the underlying instance of VoltDB running HSQL?

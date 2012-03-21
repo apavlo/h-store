@@ -437,6 +437,11 @@ public class LocalCluster implements VoltServerConfig {
     }
 
     @Override
+    public Catalog getCatalog() {
+        return this.catalog;
+    }
+    
+    @Override
     public void finalize() throws Throwable {
         try {
             shutDownExternal();

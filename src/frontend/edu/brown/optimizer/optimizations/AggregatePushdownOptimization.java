@@ -169,8 +169,13 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
 
         // Update the cloned AggregateNode to handle distributed averages 
         List<ExpressionType> clone_types = clone_agg.getAggregateTypes();
-        boolean has_count = (clone_types.contains(ExpressionType.AGGREGATE_COUNT) ||
-                             clone_types.contains(ExpressionType.AGGREGATE_COUNT_STAR));
+        
+        // For now we'll always put a COUNT at the end of the AggregatePlanNode
+        // This makes it easier for us to find it in the EE
+        boolean has_count = false;
+//        boolean has_count = (clone_types.contains(ExpressionType.AGGREGATE_COUNT) ||
+//                             clone_types.contains(ExpressionType.AGGREGATE_COUNT_STAR));
+
         int orig_cnt = clone_types.size();
         for (int i = 0; i < orig_cnt; i++) {
             ExpressionType cloneType = clone_types.get(i);
