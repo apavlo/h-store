@@ -178,28 +178,28 @@ public class PlanTreeCatalogNode {
             
             Rectangle nodeSize = null;
             
-            for (AbstractPlanNode node : this.nodes) {
-                System.err.println(node + " -> " + visualizationPanel.getPosition(node));
-            }
+//            for (AbstractPlanNode node : this.nodes) {
+//                System.err.println(node + " -> " + visualizationPanel.getPosition(node));
+//            }
             
             Font origFont = g2.getFont();
             g2.setFont(pfFont);
             for (int frag_idx = 0; frag_idx < this.fragments.length; frag_idx++) {
                 g2.setColor(frag_idx == 0 ? Color.BLUE : Color.BLACK);
-                System.err.println(this.fragment_boundaries[frag_idx] + " => " + this.nodes_frags[frag_idx]);
+//                System.err.println(this.fragment_boundaries[frag_idx] + " => " + this.nodes_frags[frag_idx]);
                 
                 Pair<AbstractPlanNode, AbstractPlanNode> p = this.fragment_boundaries[frag_idx]; 
                 AbstractPlanNode topNode = p.getFirst();
                 Point2D topPos = visualizationPanel.getPosition(topNode);
-                System.err.println(topNode + " -> " + topPos);
+//                System.err.println(topNode + " -> " + topPos);
                 AbstractPlanNode botNode = p.getSecond();
                 Point2D botPos = visualizationPanel.getPosition(botNode);
-                System.err.println(botNode + " -> " + botPos);
+//                System.err.println(botNode + " -> " + botPos);
                 
                 if (nodeSize == null) {
                     Shape s = visualizationPanel.getRenderContext().getVertexShapeTransformer().transform(topNode);
                     nodeSize = s.getBounds();
-                    System.err.println("NodeSize: " + nodeSize.getBounds2D());
+//                    System.err.println("NodeSize: " + nodeSize.getBounds2D());
                 }
                 
                 Point2D abs_topCorner = new Point2D.Double(topPos.getX() - offsetLeft,
@@ -216,7 +216,7 @@ public class PlanTreeCatalogNode {
                                                                  Math.abs(abs_topCorner.getY() - abs_botCorner.getY()));
                 Shape s = visualizationPanel.transform(rect); 
                 g2.draw(s);
-                System.err.println(s.getBounds2D());
+//                System.err.println(s.getBounds2D());
                 
                 // PlanFragment Label
                 Point2D text_pos = new Point2D.Float((float)abs_topCorner.getX() + text_x,
@@ -226,7 +226,7 @@ public class PlanTreeCatalogNode {
                 g2.drawString("#" + this.fragments[frag_idx].getName(),
                               (float)text_pos.getX(),
                               (float)text_pos.getY());
-                System.err.println();
+//                System.err.println();
             }
             g2.setFont(origFont);
         }
