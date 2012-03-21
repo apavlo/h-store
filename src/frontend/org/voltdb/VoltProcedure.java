@@ -1324,7 +1324,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
          * Constructor requires no args because it has access to the enclosing classes members.
          */
         public ProcedureStatsCollector() {
-            super("XXX", 1);
+            super("XXX", 1, false);
 //            super(m_site.getCorrespondingSiteId() + " " + catProc.getClassname(),
 //                  m_site.getCorrespondingSiteId());
         }

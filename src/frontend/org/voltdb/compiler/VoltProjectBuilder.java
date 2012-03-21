@@ -292,6 +292,11 @@ public class VoltProjectBuilder {
         return (null);
     }
     
+    public void clearProcedures() {
+        m_procedures.clear();
+        m_procInfoOverrides.clear();
+    }
+    
     /**
      * Create a single statement procedure that only has one query
      * The input parameters to the SQL statement will be automatically passed 

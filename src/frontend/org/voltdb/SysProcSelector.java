@@ -22,5 +22,6 @@ public enum SysProcSelector {
     INITIATOR,         // invoked as @stat initiator
     PARTITIONCOUNT,
     IOSTATS,
-    MANAGEMENT; //Returns pretty much everything
+    MANAGEMENT, //Returns pretty much everything
+    SNAPSHOTSTATUS
 }

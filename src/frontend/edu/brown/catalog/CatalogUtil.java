@@ -482,10 +482,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * Return all of the internal system Procedures for the database
      */
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
-        Set<Procedure> sysprocs = new ListOrderedSet<Procedure>();
+        List<Procedure> sysprocs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc())
+            if (catalog_proc.getSystemproc()) {
+                assert(sysprocs.contains(catalog_proc) == false);
                 sysprocs.add(catalog_proc);
+            }
         }
         return (sysprocs);
     }
@@ -890,6 +892,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 sites.add(catalog_site);
         } // FOR
         return (sites);
+    }
+    
+    /**
+     * Return the list of Partition for a particular host
+     * 
+     * @param catalog_host
+     * @return
+     */
+    public static Collection<Partition> getPartitionsForHost(Host catalog_host) {
+        List<Partition> partitions = new ArrayList<Partition>();
+        Cluster cluster = (Cluster) catalog_host.getParent();
+        for (Site catalog_site : cluster.getSites()) {
+            if (catalog_site.getHost().getName().equals(catalog_host.getName()))
+                partitions.addAll(catalog_site.getPartitions());
+        } // FOR
+        return (partitions);
     }
 
     /**

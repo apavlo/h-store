@@ -27,6 +27,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 
     private AbstractPlanNode new_root;
+    final AtomicBoolean modified = new AtomicBoolean(false);
 
     public RemoveRedundantProjectionsOptimizations(PlanOptimizerState state) {
         super(state);
@@ -35,7 +36,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode rootNode) {
         this.new_root = rootNode;
-        final AtomicBoolean modified = new AtomicBoolean(false);
+        this.modified.set(false);
 
         new PlanNodeTreeWalker(false) {
             protected void callback(AbstractPlanNode element) {

@@ -866,9 +866,15 @@ TEST CASES
     </run_junit>
 </target>
 
+<target name="junit-getfiles.check">
+    <available property="junit-getfiles.exists" file="${files.dir}" />
+</target>
+
 <!-- Fetch the files that we need to run the full tests -->
 <target name="junit-getfiles"
-        description="Fetch the files that we need to run junit-full">
+        description="Fetch the files that we need to run junit-full"
+        depends="junit-getfiles.check"
+        unless="junit-getfiles.exists">
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
         <arg line="${files.dir}" />
@@ -877,7 +883,8 @@ TEST CASES
 
 <!-- Junit tests that run quickly -->
 <target name="junit"
-        description="Tests and suites that run in under 3 minutes under memcheck">
+        description="Tests and suites that run in under 3 minutes under memcheck"
+            depends="junit-getfiles">
     <run_junit>
         <formatters>
             <formatter type="plain" unless="hudson"/>
@@ -923,7 +930,6 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
-                <exclude name="**/TestTPCCSuite.class" />
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -1011,7 +1017,6 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
-                <exclude name="**/TestTPCCSuite.class" />
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>

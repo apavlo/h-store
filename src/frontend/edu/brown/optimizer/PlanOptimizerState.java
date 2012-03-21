@@ -108,8 +108,8 @@ public class PlanOptimizerState {
     }
 
     public void markDirty(AbstractPlanNode node) {
-        if (debug.get())
-            LOG.debug("Marking " + node + " as dirty");
+        if (trace.get())
+            LOG.trace("Marking " + node + " as dirty");
         this.dirtyPlanNodes.add(node);
     }
 
@@ -167,8 +167,8 @@ public class PlanOptimizerState {
         if (this.planNodeColumns.containsKey(node) == false) {
             this.planNodeColumns.put(node, new HashSet<Column>());
         }
-        if (debug.get())
-            LOG.debug(String.format("Referenced Columns %s -> %s", node, catalog_col));
+        if (trace.get())
+            LOG.trace(String.format("Referenced Columns %s -> %s", node, catalog_col));
         this.planNodeColumns.get(node).add(catalog_col);
     }
 

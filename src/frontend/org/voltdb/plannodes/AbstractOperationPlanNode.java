@@ -45,6 +45,16 @@ public abstract class AbstractOperationPlanNode extends AbstractPlanNode {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if ((obj instanceof AbstractOperationPlanNode) == false) {
+            return (false);
+        }
+        AbstractOperationPlanNode other = (AbstractOperationPlanNode)obj;
+        if (this.m_targetTableName.equals(other.m_targetTableName) == false) return (false);
+        return super.equals(obj);
+    }
+    
+    @Override
     public void validate() throws Exception {
         super.validate();
 
