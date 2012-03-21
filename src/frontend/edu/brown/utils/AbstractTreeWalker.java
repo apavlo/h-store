@@ -525,7 +525,8 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
         }
 
         E check_exp = this.stack.pop();
-        assert (element.equals(check_exp));
+        assert (element.equals(check_exp)) :
+            String.format("%s != %s", element, check_exp);
 
         this.callback_after(element);
         if (this.stop) {

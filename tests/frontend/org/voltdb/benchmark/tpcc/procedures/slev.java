@@ -62,27 +62,32 @@ import org.voltdb.*;
 )
 public class slev extends VoltProcedure {
 
-    public final SQLStmt GetOId = new SQLStmt("SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?;");
+    public final SQLStmt GetOId = new SQLStmt(
+        "SELECT D_NEXT_O_ID " +
+        "  FROM DISTRICT " +
+        " WHERE D_W_ID = ? AND D_ID = ?;"
+    );
 
     public final SQLStmt GetStockCount = new SQLStmt(
-        "SELECT COUNT(DISTINCT(OL_I_ID)) FROM ORDER_LINE, STOCK " +
-        "WHERE OL_W_ID = ? AND " +
-        "OL_D_ID = ? AND " +
-        "OL_O_ID < ? AND " +
-        "OL_O_ID >= ? AND " +
-        "S_W_ID = ? AND " +
-        "S_I_ID = OL_I_ID AND " +
-        "S_QUANTITY < ?;");
+        "SELECT COUNT(DISTINCT(OL_I_ID)) " +
+        "  FROM ORDER_LINE, STOCK " +
+        " WHERE OL_W_ID = ? " +
+        "   AND OL_D_ID = ? " +
+        "   AND OL_O_ID < ? " +
+        "   AND OL_O_ID >= ? " +
+        "   AND S_W_ID = ? " +
+        "   AND S_I_ID = OL_I_ID " +
+        "   AND S_QUANTITY < ?;"
+    );
     
     public VoltTable[] run(short w_id, byte d_id, int threshold) {
-
         voltQueueSQL(GetOId, w_id, d_id);
-        if (false) { // FIXME
-            final VoltTable result = voltExecuteSQL()[0];
-            final long o_id = result.asScalarLong(); //if invalid (i.e. no matching o_id), we expect a fail here.
-            voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
-        }
-        //return assumes that o_id is a temporary variable, and that stock_count is a necessarily returned variable.
+        final VoltTable result = voltExecuteSQL()[0];
+        long o_id = result.asScalarLong(); //if invalid (i.e. no matching o_id), we expect a fail here.
+        voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
+        
+        // Return assumes that o_id is a temporary variable, 
+        // and that stock_count is a necessarily returned variable.
         return voltExecuteSQL();
     }
 }

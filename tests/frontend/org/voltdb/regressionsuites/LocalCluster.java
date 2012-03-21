@@ -430,7 +430,17 @@ public class LocalCluster implements VoltServerConfig {
     {
         return m_siteCount;
     }
+    
+    @Override
+    public int getPartitionCount() {
+        return (m_siteCount * m_partitionPerSite);
+    }
 
+    @Override
+    public Catalog getCatalog() {
+        return this.catalog;
+    }
+    
     @Override
     public void finalize() throws Throwable {
         try {

@@ -199,7 +199,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params) {
         {
             predicate->substitute(params);
             assert(predicate != NULL);
-            VOLT_DEBUG("SCAN PREDICATE B:\n%s\n",
+            VOLT_TRACE("SCAN PREDICATE B:\n%s\n",
                        predicate->debug(true).c_str());
         }
 

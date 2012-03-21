@@ -19,11 +19,17 @@ package org.voltdb.client;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -325,5 +331,63 @@ public class ConnectionUtil {
                return response;
            }
         });
+    }
+    
+    public static String getHostnameOrAddress() {
+        try {
+            final InetAddress addr = InetAddress.getLocalHost();
+            return addr.getHostName();
+        } catch (UnknownHostException e) {
+            try {
+                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+                if (interfaces == null) {
+                    return "";
+                }
+                NetworkInterface intf = interfaces.nextElement();
+                Enumeration<InetAddress> addresses = intf.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress address = addresses.nextElement();
+                    if (address instanceof Inet4Address) {
+                        return address.getHostAddress();
+                    }
+                }
+                interfaces = NetworkInterface.getNetworkInterfaces();
+                while (addresses.hasMoreElements()) {
+                    return addresses.nextElement().getHostAddress();
+                }
+                return "";
+            } catch (SocketException e1) {
+                return "";
+            }
+        }
+    }
+
+    public static InetAddress getLocalAddress() {
+        try {
+            final InetAddress addr = InetAddress.getLocalHost();
+            return addr;
+        } catch (UnknownHostException e) {
+            try {
+                Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+                if (interfaces == null) {
+                    return null;
+                }
+                NetworkInterface intf = interfaces.nextElement();
+                Enumeration<InetAddress> addresses = intf.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress address = addresses.nextElement();
+                    if (address instanceof Inet4Address) {
+                        return address;
+                    }
+                }
+                interfaces = NetworkInterface.getNetworkInterfaces();
+                while (addresses.hasMoreElements()) {
+                    return addresses.nextElement();
+                }
+                return null;
+            } catch (SocketException e1) {
+                return null;
+            }
+        }
     }
 }

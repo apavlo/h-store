@@ -14,7 +14,7 @@ import org.voltdb.VoltType;
 )
 public class GetTableCounts extends VoltProcedure {
     
-    public final SQLStmt WarehouseCount = new SQLStmt("SELECT COUNT(W_ID) FROM WAREHOUSE");
+    public final SQLStmt WarehouseCount = new SQLStmt("SELECT COUNT(*) FROM WAREHOUSE");
     public final SQLStmt DistrictCount  = new SQLStmt("SELECT COUNT(D_ID) FROM DISTRICT");
     public final SQLStmt CustomerCount  = new SQLStmt("SELECT COUNT(C_ID) FROM CUSTOMER");
     public final SQLStmt OrdersCount    = new SQLStmt("SELECT COUNT(O_ID) FROM ORDERS");

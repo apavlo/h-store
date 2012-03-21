@@ -179,7 +179,7 @@ public class BenchmarkController {
     Class<? extends BenchmarkComponent> m_loaderClass = null;
 
     final AbstractProjectBuilder m_projectBuilder;
-    final String m_jarFileName;
+    final File m_jarFileName;
     ServerThread m_localserver = null;
     
     /**
@@ -270,7 +270,8 @@ public class BenchmarkController {
         assert(tempBuilder != null);
         m_projectBuilder = tempBuilder;
         m_projectBuilder.addAllDefaults();
-        m_jarFileName = m_projectBuilder.getJarName(false);
+        m_jarFileName = new File(hstore_conf.client.jar_dir +
+                                 File.separator + m_projectBuilder.getJarName(false));
         assert(m_jarFileName != null) : "Invalid ProjectJar file name";
 
         if (config.snapshotFrequency != null
@@ -328,36 +329,31 @@ public class BenchmarkController {
         this.totalNumClients = total_num_clients;
         this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
     }
+    
 
+    /**
+     * COMPILE BENCHMARK JAR
+     */
+    public boolean compileBenchmark() {
+        if (m_config.hosts.length == 0) {
+            m_config.hosts = new String[] { hstore_conf.global.defaulthost };
+        }
+        
+        boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
+                                                   m_config.sitesPerHost,
+                                                   m_config.hosts.length,
+                                                   m_config.k_factor,
+                                                   m_config.hosts[0]);
+        return (success);
+    }
+    
     /**
      * SETUP BENCHMARK 
      */
     public void setupBenchmark() {
-        // actually compile and write the catalog to disk
-        if (m_config.compileBenchmark) {
-            if (m_config.hosts.length == 0) m_config.hosts = new String[] { "localhost" };
-            
-            boolean success = m_projectBuilder.compile(m_jarFileName,
-                                                       m_config.sitesPerHost,
-                                                       m_config.hosts.length,
-                                                       m_config.k_factor,
-                                                       m_config.hosts[0]);
-            if (m_config.compileOnly || success == false) {
-                assert(FileUtil.exists(m_jarFileName)) : "Failed to create jar file '" + m_jarFileName + "'";
-                if (success) {
-                    LOG.info("Compilation Complete. Exiting [" + m_jarFileName + "]");
-                } else {
-                    LOG.error("Compilation Failed. Exiting [" + m_jarFileName + "]");
-                }
-                System.exit(success ? 0 : -1);
-            }
-        } else {
-            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
-        }
-        
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName));
+        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName.getAbsolutePath()));
         
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
@@ -437,7 +433,7 @@ public class BenchmarkController {
         } else {
             // START A SERVER LOCALLY IN-PROCESS
             VoltDB.Configuration localconfig = new VoltDB.Configuration();
-            localconfig.m_pathToCatalog = m_jarFileName;
+            localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
             m_localserver = null;//new ServerThread(localconfig);
             m_localserver.start();
             m_localserver.waitForInitialization();
@@ -1632,6 +1628,33 @@ public class BenchmarkController {
             assert(hstore_conf.client.codespeed_commitid != null) : "Missing CodeSpeed CommitId";
         }
         
+        
+        // COMPILE BENCHMARK
+        if (config.compileBenchmark) {
+            boolean success = false;
+            try {
+                // Actually compile and write the catalog to disk
+                success = controller.compileBenchmark();
+                assert(controller.m_jarFileName.exists()) : 
+                    "Failed to create jar file '" + controller.m_jarFileName + "'";
+            } catch (Throwable ex) {
+                LOG.error(String.format("Unexected error when trying to compile %s benchmark",
+                                        controller.m_projectBuilder.getProjectName()), ex);
+                System.exit(1);
+            }
+            if (config.compileOnly) {
+                if (success) {
+                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName + "]");
+                } else {
+                    LOG.info("Compilation Failed");
+                }
+                System.exit(success ? 0 : -1);
+            }
+        } else {
+            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
+        }
+
+        // EXECUTE BENCHMARK
         try {
             controller.setupBenchmark();
             if (config.noExecute == false) controller.runBenchmark();

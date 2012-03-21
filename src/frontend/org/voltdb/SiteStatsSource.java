@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 package org.voltdb;
 
 import java.util.ArrayList;
-
 import org.voltdb.VoltTable.ColumnInfo;
 
 /**
@@ -30,8 +29,8 @@ public abstract class SiteStatsSource extends StatsSource {
      */
     private final int m_siteId;
 
-    public SiteStatsSource(String name, int siteId) {
-        super(name);
+    public SiteStatsSource(String name, int siteId, boolean isEE) {
+        super(name, isEE);
         this.m_siteId = siteId;
     }
 
@@ -43,7 +42,7 @@ public abstract class SiteStatsSource extends StatsSource {
 
     @Override
     protected void updateStatsRow(Object rowKey, Object rowValues[]) {
-        rowValues[columnNameToIndex.get(VoltSystemProcedure.CNAME_SITE_ID)] = Integer.valueOf(m_siteId);
+        rowValues[columnNameToIndex.get(VoltSystemProcedure.CNAME_SITE_ID)] = new Integer(m_siteId);
         super.updateStatsRow(rowKey, rowValues);
     }
 }
