@@ -296,6 +296,9 @@ public class PartitionEstimator {
         this.catalog_db = catalog_db;
         this.hasher = hasher;
         this.initCatalog(catalog_db);
+        
+        if (trace.get())
+            LOG.trace("Created a new PartitionEstimator with a " + hasher.getClass() + " hasher!");
     }
 
     // ----------------------------------------------------------------------------

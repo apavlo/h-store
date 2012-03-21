@@ -103,16 +103,16 @@ public class SysProcFragmentId
     public static final long PF_scanSnapshotRegistriesResults = 111;
 
     // @SnapshotScan
-    public static final long PF_snapshotDigestScan = 124;
-    public static final long PF_snapshotDigestScanResults = 125;
-    public static final long PF_snapshotScan = 120;
-    public static final long PF_snapshotScanResults = 121;
-    public static final long PF_hostDiskFreeScan = 122;
-    public static final long PF_hostDiskFreeScanResults = 123;
+    public static final int PF_snapshotDigestScan = 124;
+    public static final int PF_snapshotDigestScanResults = 125;
+    public static final int PF_snapshotScan = 120;
+    public static final int PF_snapshotScanResults = 121;
+    public static final int PF_hostDiskFreeScan = 122;
+    public static final int PF_hostDiskFreeScanResults = 123;
 
     // @SnapshotScan
-    public static final long PF_snapshotDelete = 130;
-    public static final long PF_snapshotDeleteResults = 131;
+    public static final int PF_snapshotDelete = 130;
+    public static final int PF_snapshotDeleteResults = 131;
 
     // @InstanceId
     public static final int PF_retrieveInstanceId = 160;

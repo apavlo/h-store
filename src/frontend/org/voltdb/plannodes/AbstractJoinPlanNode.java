@@ -55,6 +55,20 @@ public abstract class AbstractJoinPlanNode extends AbstractPlanNode {
     }
     
     @Override
+    public boolean equals(Object obj) {
+        if ((obj instanceof AbstractJoinPlanNode) == false) {
+            return (false);
+        }
+        AbstractJoinPlanNode other = (AbstractJoinPlanNode)obj;
+        if (this.m_joinType != other.m_joinType) return (false);
+        if (this.m_predicate != null) {
+            if (other.m_predicate == null) return (false);
+            if (this.m_predicate.equals(other.m_predicate) == false) return (false);
+        } else if (other.m_predicate != null) return (false);
+        return super.equals(obj);
+    }
+    
+    @Override
     public void validate() throws Exception {
         super.validate();
 

@@ -16,7 +16,7 @@ public abstract class AbstractHasher implements JSONSerializable {
     protected final int num_partitions;
     protected final Database catalog_db;
     
-    public AbstractHasher(Database catalog_db, Integer num_partitions) {
+    public AbstractHasher(Database catalog_db, int num_partitions) {
         this.catalog_db = catalog_db;
         this.num_partitions = num_partitions;
     }
