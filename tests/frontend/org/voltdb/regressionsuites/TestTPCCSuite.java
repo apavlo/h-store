@@ -820,11 +820,10 @@ public class TestTPCCSuite extends RegressionSuite {
         // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
         
-        // 2012-03-16 - DISABLED UNTIL WE GET A BETTER BUILD AND TEST SERVER
-//        config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

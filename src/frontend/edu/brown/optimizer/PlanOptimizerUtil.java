@@ -503,22 +503,17 @@ public abstract class PlanOptimizerUtil {
             int new_idx = 0;
             for (Integer guid : child_node.getOutputColumnGUIDs()) {
                 PlanColumn pc = state.plannerContext.get(guid);
-                if (pc.getStorage().equals(Storage.kTemporary)) {
+                assert (pc != null);
+                if (pc.equals(orig_pc, true, true)) {
+                    if (trace.get())
+                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                     new_pc = pc;
                     break;
-                } else {
-                    assert (pc != null);
-                    if (pc.equals(orig_pc, true, true)) {
-                        if (trace.get())
-                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
-                        new_pc = pc;
-                        break;
-                    }
                 }
                 new_idx++;
             } // FOR
             if (new_pc == null) {
-                LOG.error(String.format("Couldn't find %d => %s\n", new_idx, new_pc));
+                LOG.error(String.format("Failed to find %d => %s\n", new_idx, new_pc));
                 LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
             }
             assert (new_pc != null);
