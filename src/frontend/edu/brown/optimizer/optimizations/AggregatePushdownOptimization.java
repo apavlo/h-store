@@ -258,11 +258,6 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         assert(clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
         assert(clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
         assert(clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) : clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
-//        assert (clone_agg.getAggregateTypes().size() == node.getAggregateTypes().size());
-//        assert (clone_agg.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
-//        assert (clone_agg.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
-        // assert(clone_agg.getOutputColumnGUIDs().size() ==
-        // node.getOutputColumnGUIDs().size());
         
         return (clone_agg);
     }

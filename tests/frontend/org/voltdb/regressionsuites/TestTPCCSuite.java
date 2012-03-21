@@ -316,7 +316,7 @@ public class TestTPCCSuite extends RegressionSuite {
 //        assertEquals(1L, item2.asScalarLong());
         assertEquals(m_config.getPartitionCount(), item1.asScalarLong());
         assertEquals(m_config.getPartitionCount(), item2.asScalarLong());
-        assertEquals(1L, item3.asScalarLong());
+        assertEquals(m_config.getPartitionCount(), item3.asScalarLong());
 
         // call the neworder transaction:
         // if(ol_supply_w_id != w_id) all_local = 0;
