@@ -141,7 +141,8 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
             // JSONException pushes that exception deep into the bowels of
             // Volt with no good place to catch it and handle the error.
             // Consider this the coward's way out.
-            return "This JSON error message is a lie";
+            throw new RuntimeException("Failed to serialize PlanNodeList", e);
+//            return "This JSON error message is a lie";
         }
         return stringer.toString();
     }

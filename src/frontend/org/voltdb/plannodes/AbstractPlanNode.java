@@ -668,8 +668,8 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         }
         catch (JSONException e)
         {
-            e.printStackTrace();
-            System.exit(-1);
+            throw new RuntimeException("Failed to serialize " + this, e);
+//            System.exit(-1);
         }
         return stringer.toString();
     }
