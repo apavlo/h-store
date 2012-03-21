@@ -1183,8 +1183,17 @@ public class PlanAssembler {
                     // and the offset into the output table schema for the
                     // aggregate node that we're computing.
                     TupleValueExpression tve = new TupleValueExpression();
-                    tve.setValueType(rootExpr.getValueType());
-                    tve.setValueSize(rootExpr.getValueSize());
+                    
+                    // If this is an AVG, then our type should be DECIMAL
+                    if (agg_expression_type == ExpressionType.AGGREGATE_AVG) {
+                        tve.setValueType(VoltType.FLOAT);
+                        tve.setValueSize(VoltType.FLOAT.getLengthInBytesForFixedTypes());
+                    }
+                    // Otherwise it can be whatever the rootExpression is
+                    else {
+                        tve.setValueType(rootExpr.getValueType());
+                        tve.setValueSize(rootExpr.getValueSize());
+                    }
                     tve.setColumnIndex(outputColumnIndex);
                     tve.setColumnName("");
                     tve.setColumnAlias(col.alias);
