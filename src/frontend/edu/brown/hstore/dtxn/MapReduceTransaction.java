@@ -203,9 +203,9 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public void finish() {
         super.finish();
-        for (int i = 0; i < this.partitions_size; i++) {
-            this.local_txns[i].finish();
-        } // FOR
+//        for (int i = 0; i < this.partitions_size; i++) {
+//            this.local_txns[i].finish();
+//        } // FOR
         this.mr_state = null;
         
         this.map_callback.finish();
