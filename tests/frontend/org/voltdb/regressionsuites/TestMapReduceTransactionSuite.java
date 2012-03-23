@@ -122,7 +122,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
     
     protected VoltTable loadTable(Client client) throws IOException, ProcCallException {
         int num_partitions = this.getServerConfig().getPartitionCount();
-        int num_tuples = num_partitions * 10;
+        int num_tuples = num_partitions * 20;
 
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         Table catalog_tbl = catalog_db.getTables().get("ORDER_LINE");
@@ -197,10 +197,37 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
+//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
+        
+        
+        // CLUSTER CONFIG #3
         config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", true);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
+
+        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", false);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapNonBlocking");
+        config.setConfParameter("site.mr_map_blocking", false);
+        config.setConfParameter("site.mr_reduce_blocking", false);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
         return builder;
     }
     
