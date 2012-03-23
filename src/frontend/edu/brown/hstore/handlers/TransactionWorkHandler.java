@@ -11,6 +11,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.DataFragment;
@@ -65,7 +66,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // If this is the first time we've been here, then we need to create a RemoteTransaction handle
         RemoteTransaction ts = hstore_site.getTransaction(txn_id);
         if (ts == null) {
-            ts = hstore_site.createRemoteTransaction(txn_id, request);
+            ts = hstore_site.createRemoteTransaction(txn_id, request.getSourcePartition(), request.getSysproc());
             if (debug.get())
                 LOG.debug("__FILE__:__LINE__ " + String.format("Created new transaction handke %s", ts));
         }
