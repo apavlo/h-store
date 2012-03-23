@@ -647,6 +647,7 @@ public class HStoreCoordinator implements Shutdownable {
             TransactionInitRequest request = TransactionInitRequest.newBuilder()
                     .setTransactionId(ts.getTransactionId())
                     .setProcedureId(ts.getProcedure().getId())
+                    .setBasePartition(ts.getBasePartition())
                     .addAllPartitions(ts.getPredictTouchedPartitions())
                     .build();
             assert(callback != null) :

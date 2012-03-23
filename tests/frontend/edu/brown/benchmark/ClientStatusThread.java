@@ -46,7 +46,7 @@ public class ClientStatusThread extends Thread {
     private final BenchmarkController controller;
     private final BenchmarkResults m_currentResults;
     
-    BenchmarkComponent.TransactionCounter tc = new BenchmarkComponent.TransactionCounter();
+    TransactionCounter tc = new TransactionCounter();
     
     public ClientStatusThread(BenchmarkController controller, int i) {
         super(String.format("client-status-%02d", i));
@@ -205,7 +205,7 @@ public class ClientStatusThread extends Thread {
         this.finished = true;
     }
     
-    void addPollResponseInfo(String clientName, long time, BenchmarkComponent.TransactionCounter tc, String errMsg) {
+    void addPollResponseInfo(String clientName, long time, TransactionCounter tc, String errMsg) {
         assert(m_currentResults != null);
         
         // Update Transaction Counters

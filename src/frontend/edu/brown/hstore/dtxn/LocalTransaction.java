@@ -54,6 +54,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -122,6 +123,12 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean deletable = false;
     private boolean not_deletable = false;
     
+    /**
+     * The timestamp (from EstTime) that our transaction showed up
+     * at this HStoreSite
+     */
+    private long initiateTime;
+    
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -184,6 +191,11 @@ public class LocalTransaction extends AbstractTransaction {
      * at the same time.
      */
     private ExecutionState state;
+    
+    /**
+     * 
+     */
+    private boolean executed = false;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -259,6 +271,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
+        this.initiateTime = EstTime.currentTimeMillis();
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
               
@@ -350,7 +363,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.invocation = null;
         this.client_callback = null;
+        this.initiateTime = 0;
         
+        this.executed = false;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
@@ -390,12 +405,26 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Returns true if this LocalTransaction was actually started
-     * in the ExecutionSite.
-     * @return
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
      */
     public boolean wasExecuted() {
-        return (this.state != null);
+        return (this.executed);
+    }
+    
+    /**
+     * Marks that this transaction's control code was executed at its base partition 
+     */
+    public void markAsExecuted() {
+        this.executed = true;
+    }
+    
+    @Override
+    public boolean needsFinish(int partition) {
+        if (this.base_partition == partition) {
+            return (this.executed);
+        }
+        return super.needsFinish(partition);
     }
     
     // ----------------------------------------------------------------------------
@@ -704,6 +733,13 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.catalog_proc.getMapreduce());
     }
     
+    /**
+     * Get the timestamp that this LocalTransaction handle was initiated
+     */
+    public long getInitiateTime() {
+        return (this.initiateTime);
+    }
+    
     public ClientResponseImpl getClientResponse() {
         assert(this.cresponse != null);
         return (this.cresponse);
@@ -847,12 +883,14 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.output_order);
     }
 
+    /**
+     * Set the flag that indicates whether this transaction was executed speculatively
+     */
     public void setSpeculative(boolean speculative) {
         this.exec_speculative = speculative;
     }
     /**
-     * Returns true if this transaction is being executed speculatively
-     * @return
+     * Returns true if this transaction was executed speculatively
      */
     public boolean isSpeculative() {
         return (this.exec_speculative);
