@@ -76,7 +76,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
         hstore_site.sendClientResponse(ts, cresponse);
 
         if (hstore_site.getHStoreConf().site.mr_map_blocking) {
-         // STEP 2
+            // STEP 2
             // Initialize the FinishCallback and tell every partition in the cluster
             // to clean up this transaction because we're done with it!
             this.finishTransaction(Status.OK);
