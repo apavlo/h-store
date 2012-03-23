@@ -39,7 +39,7 @@ public class ClientStatsLoader {
     private int m_instanceId = -1;
     private final Thread m_loadThread = new Thread(new Loader(), "Client stats loader");
 
-    private static final String tablePrefix = "ma_";
+    private static final String tablePrefix = ""; // "ma_";
 
     private static final String instancesTable = tablePrefix + "clientInstances";
     private static final String connectionStatsTable = tablePrefix + "clientConnectionStats";

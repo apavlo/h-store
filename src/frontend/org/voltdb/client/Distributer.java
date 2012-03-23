@@ -517,11 +517,11 @@ class Distributer {
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings,
             int backpressureWait) {
-//        if (statsSettings != null) {
-//            m_statsLoader = new ClientStatsLoader(statsSettings, this);
-//        } else {
+        if (statsSettings != null) {
+            m_statsLoader = new ClientStatsLoader(statsSettings, this);
+        } else {
             m_statsLoader = null;
-//        }
+        }
         m_useMultipleThreads = useMultipleThreads;
         m_backpressureWait = backpressureWait;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
