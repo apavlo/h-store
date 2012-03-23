@@ -54,7 +54,6 @@ import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
-import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
