@@ -59,8 +59,8 @@ public class ClientStatsLoader {
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
             " serverConnectionId, procedureName, roundtripAvg, roundtripMin, roundtripMax, " +
             " clusterRoundtripAvg, clusterRoundtripMin, clusterRoundtripMax, " +
-            " numInvocations, numAborts, numFailures) " +
-            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
+            " numInvocations, numAborts, numFailures, numRestarts) " +
+            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
 
     private PreparedStatement insertConnectionStatsStmt;
     private PreparedStatement insertProcedureStatsStmt;
@@ -260,6 +260,9 @@ public class ClientStatsLoader {
                                 insertProcedureStatsStmt.setLong(index++,
                                         procedureStats
                                                 .getLong("INVOCATIONS_FAILED"));
+                                insertProcedureStatsStmt.setLong(index++,
+                                        procedureStats
+                                                .getLong("TIMES_RESTARTED"));
                                 insertProcedureStatsStmt.addBatch();
                             }
                             insertProcedureStatsStmt.executeBatch();
