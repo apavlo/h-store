@@ -24,7 +24,6 @@
 package org.voltdb.regressionsuites;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import junit.framework.Test;
 

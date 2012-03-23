@@ -27,6 +27,7 @@ package edu.brown.hstore.dtxn;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,8 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.NotImplementedException;
+
+import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
@@ -151,6 +154,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     //             Need a way easily identify the same queries+parameters per partition.
     // TODO(cjl6): Boolean flag as to whether the transaction has queries it wants to pre-fetch
     //             at each partition
+    /** The list of prefetched WorkFragments, if any **/
+    private Collection<WorkFragment> prefetch_fragments = null;
+    
+    /** The list of ParameterSets for the prefetched WorkFragments, if any (in lockstep with prefetch_fragments) **/
+    private Collection<ByteString> prefetch_parameter_sets = null;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -431,21 +439,24 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Returns true if this transaction has done something at this partition
+     * Returns true if this transaction has done something at this partition and therefore
+     * the PartitionExecutor needs to be told that they are finished
      * This could be either executing a query or executing the transaction's control code
      */
-    public boolean hasStarted(int partition) {
+    public boolean needsFinish(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         
-        // If this is the base partition, check to see whether it has
-        // even executed the procedure control code
-        if (this.base_partition == partition) {
-            return (this.round_state[offset] != null);
-        }
-        // Otherwise check whether they have executed a query
-        else {
-            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-        }
+        return (this.round_state[offset] != null);
+        
+//        // If this is the base partition, check to see whether it has
+//        // even executed the procedure control code
+//        if (this.base_partition == partition) {
+//            return (this.round_state[offset] != null);
+//        }
+//        // Otherwise check whether they have executed a query that
+//        else {
+//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+//        }
     }
     
     /**
@@ -626,5 +637,24 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             return (catalog_proc.getName() + " #" + txn_id);
         }
         return ("#" + txn_id);
+    }
+    
+    
+    // ----------------------------------------------------------------------------
+    // Dealing with prefetched fragments
+    // ----------------------------------------------------------------------------
+    
+    public void attachPrefetchQueries(Collection<WorkFragment> prefetch_fragments, Collection<ByteString> prefetch_parameter_sets) {
+        // Simply copy the references so we don't allocate more objects
+        this.prefetch_fragments = prefetch_fragments;
+        this.prefetch_parameter_sets = prefetch_parameter_sets;
+    }
+    
+    public Collection<WorkFragment> getPrefetchFragments() {
+        return this.prefetch_fragments;
+    }
+    
+    public Collection<ByteString> getPrefetchParameterSets() {
+        return this.prefetch_parameter_sets;
     }
 }
