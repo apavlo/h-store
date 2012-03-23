@@ -55,6 +55,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
     private boolean throttle = false;
     private boolean singlepartition = false;
     private int basePartition = -1;
+    private int restartCounter = 0;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
@@ -133,6 +134,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
         this.clientHandle = -1;
         this.status = null;
         this.results = null;
+        this.restartCounter = 0;
     }
     
     
@@ -385,6 +387,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
         return appStatusString;
     }
     
+    @Override
+    public int getRestartCounter() {
+        return restartCounter;
+    }
+    
+    public void setRestartCounter(int restarts) {
+        restartCounter = restarts;
+    }
 
     @Override
     public String toString() {

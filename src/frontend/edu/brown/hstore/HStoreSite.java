@@ -1829,6 +1829,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long now = EstTime.currentTimeMillis();
         cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
         
+        cresponse.setRestartCounter(ts.getRestartCounter());
+        
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
         // that we can serialize the ClientResponse out to a byte array
