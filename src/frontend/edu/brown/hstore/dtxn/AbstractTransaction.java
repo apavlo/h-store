@@ -439,21 +439,24 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     /**
-     * Returns true if this transaction has done something at this partition
+     * Returns true if this transaction has done something at this partition and therefore
+     * the PartitionExecutor needs to be told that they are finished
      * This could be either executing a query or executing the transaction's control code
      */
-    public boolean hasStarted(int partition) {
+    public boolean needsFinish(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         
-        // If this is the base partition, check to see whether it has
-        // even executed the procedure control code
-        if (this.base_partition == partition) {
-            return (this.round_state[offset] != null);
-        }
-        // Otherwise check whether they have executed a query
-        else {
-            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
-        }
+        return (this.round_state[offset] != null);
+        
+//        // If this is the base partition, check to see whether it has
+//        // even executed the procedure control code
+//        if (this.base_partition == partition) {
+//            return (this.round_state[offset] != null);
+//        }
+//        // Otherwise check whether they have executed a query that
+//        else {
+//            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
+//        }
     }
     
     /**
