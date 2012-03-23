@@ -25,8 +25,8 @@ package org.voltdb.regressionsuites;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.voltdb.BackendTarget;
-import org.voltdb.ProcedureProfiler;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB.Configuration;
 import org.voltdb.catalog.Catalog;
@@ -35,7 +35,6 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.HStore;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -43,7 +42,7 @@ import edu.brown.hstore.conf.HStoreConf;
  * the single-process VoltServer that's so easy to use.
  *
  */
-public class LocalSingleProcessServer implements VoltServerConfig {
+public class LocalSingleProcessServer extends VoltServerConfig {
 
     public final String m_jarFileName;
     public final int m_partitionCount;
@@ -110,6 +109,10 @@ public class LocalSingleProcessServer implements VoltServerConfig {
             retval += "-IPC";
         else
             retval += "-JNI";
+        
+        if (this.nameSuffix != null && this.nameSuffix.isEmpty() == false)
+            retval += "-" + this.nameSuffix;
+        
         return retval;
     }
 
@@ -150,10 +153,8 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         Site catalog_site = CatalogUtil.getSiteFromId(m_catalog, 0);
         assert(catalog_site != null);
         
-        // TODO(mainak): Pass this into ServerThread
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
-        
-//        HStore.initialize(catalog_site, hstore_conf);
+        hstore_conf.loadFromArgs(this.confParams);
         
         m_server = new ServerThread(hstore_conf, catalog_site);
         m_server.start();

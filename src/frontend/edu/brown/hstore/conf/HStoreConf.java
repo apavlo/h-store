@@ -97,6 +97,14 @@ public final class HStoreConf {
             experimental=false
         )
         public int memory;
+        
+        @ConfigProperty(
+            description="When enabled, the HStoreSite will preload objects when the system is started. " +
+            		    "This should only be disabled for regression test cases.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean preload;
 
         @ConfigProperty(
             description="When enabled, the PartitionExecutor threads will be pinned to the first n CPU cores (where " +
@@ -1212,7 +1220,7 @@ public final class HStoreConf {
     /**
      * Prefix -> Configuration
      */
-    protected final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
+    private final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
     
     /**
      * Easy Access Handles
@@ -1467,6 +1475,9 @@ public final class HStoreConf {
     }
     
 
+    protected Map<String, Conf> getHandles() {
+        return (this.confHandles);
+    }
     
     @Override
     public String toString() {
