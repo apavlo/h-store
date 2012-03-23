@@ -64,7 +64,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
@@ -932,6 +931,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
+        EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
         
         // Extract the stuff we need to figure out whether this guy belongs at our site
@@ -1187,7 +1187,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
-        EstTimeUpdater.update(System.currentTimeMillis());
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
         
     }
@@ -1495,7 +1494,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
+            if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p)) {
                 if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);
@@ -1827,7 +1826,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setRequestCounter(this.getNextRequestCounter());
         cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
         
-        long now = EstTime.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        EstTimeUpdater.update(now);
         cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
         cresponse.setRestartCounter(ts.getRestartCounter());
         
