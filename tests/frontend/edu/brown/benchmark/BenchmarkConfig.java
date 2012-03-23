@@ -67,6 +67,7 @@ public class BenchmarkConfig {
     public String snapshotFrequency;
     public int snapshotRetain;
     public String statsDatabaseURL;
+    public int statsPollInterval;
     public String resultsDatabaseURL;
     public String statsTag;//Identifies the result set
     public String applicationName;
@@ -192,6 +193,7 @@ public class BenchmarkConfig {
             int snapshotRetain,
             String statsDatabaseURL,
             String resultsDatabaseURL,
+            int statsPollInterval,
             String statsTag,
             String applicationName,
             String subApplicationName,
@@ -243,6 +245,7 @@ public class BenchmarkConfig {
         this.resultsDatabaseURL = resultsDatabaseURL;
         this.statsDatabaseURL = statsDatabaseURL;
         this.statsTag = statsTag;
+        this.statsPollInterval = statsPollInterval;
         this.applicationName = applicationName;
         this.subApplicationName = subApplicationName;
         
