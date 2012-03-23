@@ -47,8 +47,11 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.HStoreSiteStatus;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -109,7 +112,9 @@ class Distributer {
         private long m_lastInvocationAborts = 0;
         private long m_invocationErrors = 0;
         private long m_lastInvocationErrors = 0;
+        private long m_restartCounter = 0;
 
+        // cumulative latency measured by client, used to calculate avg. lat.
         private long m_roundTripTime = 0;
         private long m_lastRoundTripTime = 0;
 
@@ -118,8 +123,14 @@ class Distributer {
         private int m_minRoundTripTime = Integer.MAX_VALUE;
         private int m_lastMinRoundTripTime = Integer.MAX_VALUE;
 
+        // cumulative latency measured by the cluster, used to calculate avg lat.
         private long m_clusterRoundTripTime = 0;
         private long m_lastClusterRoundTripTime = 0;
+
+        // 10ms buckets. Last bucket is all transactions > 190ms.
+        static int m_numberOfBuckets = 20;
+        private long m_clusterRoundTripTimeBuckets[] = new long[m_numberOfBuckets];
+        private long m_roundTripTimeBuckets[] = new long[m_numberOfBuckets];
 
         private int m_maxClusterRoundTripTime = Integer.MIN_VALUE;
         private int m_lastMaxClusterRoundTripTime = Integer.MIN_VALUE;
@@ -130,7 +141,7 @@ class Distributer {
             m_name = name;
         }
 
-        public void update(int roundTripTime, int clusterRoundTripTime, boolean abort, boolean error) {
+        public void update(int roundTripTime, int clusterRoundTripTime, boolean abort, boolean error, int restartCounter) {
             m_maxRoundTripTime = Math.max(roundTripTime, m_maxRoundTripTime);
             m_lastMaxRoundTripTime = Math.max( roundTripTime, m_lastMaxRoundTripTime);
             m_minRoundTripTime = Math.min( roundTripTime, m_minRoundTripTime);
@@ -150,6 +161,21 @@ class Distributer {
             }
             m_roundTripTime += roundTripTime;
             m_clusterRoundTripTime += clusterRoundTripTime;
+            m_restartCounter += restartCounter;
+
+            // calculate the latency buckets to increment and increment.
+            int rttBucket = (int)(Math.floor(roundTripTime / 10));
+            if (rttBucket >= m_roundTripTimeBuckets.length) {
+                rttBucket = m_roundTripTimeBuckets.length - 1;
+            }
+            m_roundTripTimeBuckets[rttBucket] += 1;
+
+            int rttClusterBucket = (int)(Math.floor(clusterRoundTripTime / 10));
+            if (rttClusterBucket >= m_clusterRoundTripTimeBuckets.length) {
+                rttClusterBucket = m_clusterRoundTripTimeBuckets.length - 1;
+            }
+            m_clusterRoundTripTimeBuckets[rttClusterBucket] += 1;
+
         }
     }
     
@@ -233,13 +259,14 @@ class Distributer {
                 int roundTrip,
                 int clusterRoundTrip,
                 boolean abort,
-                boolean failure) {
+                boolean error,
+                int restartCounter) {
             ProcedureStats stats = m_stats.get(name);
             if (stats == null) {
                 stats = new ProcedureStats(name);
                 m_stats.put( name, stats);
             }
-            stats.update(roundTrip, clusterRoundTrip, abort, failure);
+            stats.update(roundTrip, clusterRoundTrip, abort, error, restartCounter);
         }
 
         @Override
@@ -264,6 +291,7 @@ class Distributer {
             final boolean should_throttle = response.getThrottleFlag();
             final Hstoreservice.Status status = response.getStatus();
             final int timestamp = response.getRequestCounter();
+            final int restart_counter = response.getRestartCounter();
             
             boolean abort = false;
             boolean error = false;
@@ -286,6 +314,7 @@ class Distributer {
                         m0.put("ClientHandle", clientHandle);
                         m0.put("ThrottleFlag", should_throttle);
                         m0.put("Timestamp", timestamp);
+                        m0.put("RestartCounter", restart_counter);
                         
                         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
                         m1.put("Connection", this);
@@ -329,7 +358,7 @@ class Distributer {
                     m_invocationErrors++;
                     error = true;
                 }
-                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error);
+                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error, restart_counter);
             }
 
             if (cb != null) {
@@ -886,6 +915,8 @@ class Distributer {
 
                             stats.m_lastMaxClusterRoundTripTime = Integer.MIN_VALUE;
                             stats.m_lastMinClusterRoundTripTime = Integer.MAX_VALUE;
+                            
+                            
                         }
                         totalInvocations += invocationsCompleted;
                         totalAbortedInvocations += invocationAborts;
