@@ -27,6 +27,8 @@ import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestMapReduceTransactionSuite extends RegressionSuite {
     
+    private static final String PREFIX = "mr";
+    
     /**
      * Supplemental classes needed by TPC-C procs.
      */
@@ -71,20 +73,20 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
                 //rtLists.get(ct).add(0, vt.getLong(3));
                 Object old_value = null;
                 if (cont.size() < 2) cont.add(1, vt.getLong(7));
-                else cont.add(1, vt.getLong(7) + (Long)cont.get(1));
+                else cont.set(1, vt.getLong(7) + ((Long)cont.get(1)).longValue());
                 if (cont.size() < 3) cont.add(2, vt.getDouble(8));
-                else cont.add(2, vt.getDouble(8) + (Double)cont.get(2));
+                else cont.set(2, vt.getDouble(8) + ((Double)cont.get(2)).doubleValue());
                 if (cont.size() < 4) cont.add(3, 1); 
-                else cont.add(3, (Integer)cont.get(3) + 1);
+                else cont.set(3, ((Integer)cont.get(3)).intValue() + 1);
                 
                 ct++;
             } else {
                 int index = map.get(key);
                 assertEquals(key, rtLists.get(index).get(0));
                 //rtLists.get(ct).set(0, vt.getLong(3));
-                rtLists.get(index).set(1, vt.getLong(7) + (Long)rtLists.get(index).get(1));
-                rtLists.get(index).set(2, vt.getDouble(8) + (Double)rtLists.get(index).get(2));
-                rtLists.get(index).set(3, (Integer)rtLists.get(index).get(3) + 1);
+                rtLists.get(index).set(1, vt.getLong(7) + ((Long)rtLists.get(index).get(1)).longValue());
+                rtLists.get(index).set(2, vt.getDouble(8) + ((Double)rtLists.get(index).get(2)).doubleValue());
+                rtLists.get(index).set(3, ((Integer)rtLists.get(index).get(3) ).intValue()+ 1);
             }
         }
         
@@ -105,15 +107,15 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
                 System.out.println("Jason,result List:" + cont);
                 long num =  ((Integer) cont.get(3)).longValue();
                 assertEquals(key, cont.get(0));
-                assertEquals(v.getLong(1), ((Long)cont.get(1)).longValue());
-                assertEquals(v.getDouble(2), ((Double)cont.get(2)).doubleValue());
+                System.out.println("Compare (1):" + v.getLong(1) + " (2):"+ ((Long)cont.get(1)).longValue());
+                assertEquals(((Long)cont.get(1)).longValue(), v.getLong(1));
+                assertEquals(((Double)cont.get(2)).doubleValue(), v.getDouble(2), 0.1);
                 assertEquals(v.getLong(3), ((Long)(v.getLong(1)/num)).longValue());
                 assertEquals(v.getDouble(4), ((Double)(v.getDouble(2)/num)).doubleValue());
                 assertEquals(v.getLong(5), num);
             }
             v.resetRowPosition();
         }
-        
         
     }
     
@@ -186,9 +188,16 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
 //        project.addProcedures(PROCEDURES);
         
         boolean success = false;
+        
+        // CLUSTER CONFIG #1
+        // One site with four partitions running in this JVM
+//        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
+//        config.compile(project);
+//        builder.addServerConfig(config);
+        
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
-        config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
