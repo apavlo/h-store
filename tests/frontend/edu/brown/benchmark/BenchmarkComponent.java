@@ -764,8 +764,8 @@ public abstract class BenchmarkComponent {
         boolean checkTables = false;
         boolean noConnections = false;
         boolean noUploading = false;
-//        String statsDatabaseURL = null;
-//        int statsPollInterval = 10000;
+        String statsDatabaseURL = null;
+        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
         String partitionPlanPath = null;
@@ -835,6 +835,15 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("WAIT")) {
                 startupWait = Long.parseLong(parts[1]);
             }
+            
+            // Procedure Stats Uploading Parameters
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
+                statsDatabaseURL = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
+                statsPollInterval = Integer.parseInt(parts[1]); 
+            }
+            
             else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
             }
@@ -857,23 +866,6 @@ public abstract class BenchmarkComponent {
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         
-        StatsUploaderSettings statsSettings = null;
-//        if (statsDatabaseURL != null) {
-//            try {
-//                statsSettings =
-//                    new
-//                        StatsUploaderSettings(
-//                            statsDatabaseURL,
-//                            getApplicationName(),
-//                            getSubApplicationName(),
-//                            statsPollInterval);
-//            } catch (Exception e) {
-//                System.err.println(e.getMessage());
-//                //e.printStackTrace();
-//                statsSettings = null;
-//            }
-//        }
-
         m_catalogPath = catalogPath;
         m_projectName = projectName;
         m_id = id;
@@ -890,6 +882,20 @@ public abstract class BenchmarkComponent {
         m_noConnections = noConnections || (isLoader && m_noUploading);
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
+        
+        StatsUploaderSettings statsSettings = null;
+        if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
+            try {
+                statsSettings = new StatsUploaderSettings(
+                                        statsDatabaseURL,
+                                        projectName,
+                                        (isLoader ? "LOADER" : "CLIENT"),
+                                        statsPollInterval);
+            } catch (Exception e) {
+                LOG.error("Failed to initialize StatsUploader", e);
+                statsSettings = null;
+            }
+        }
         
         // If we were told to sleep, do that here before we try to load in the catalog
         // This is an attempt to keep us from overloading a single node all at once
