@@ -1472,10 +1472,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts != null) {
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
                 if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
-                // TODO(xin): You should not be invoking this callback at the basePartition's site
-                cleanup_callback = ts.getCleanupCallback();
-                assert(cleanup_callback != null);
-                cleanup_callback.init(ts, status, partitions);
+                // TODO(xin): We should not be invoking this callback at the basePartition's site
+                if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
+                    cleanup_callback = ts.getCleanupCallback();
+                    assert(cleanup_callback != null);
+                    cleanup_callback.init(ts, status, partitions);
+                }
             } else {
                 finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
                 assert(finish_callback != null);
