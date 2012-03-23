@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
@@ -26,12 +25,11 @@ import edu.brown.hstore.callbacks.TransactionReduceCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.StringUtil;
 
 /**
  * Special transaction state object for MapReduce jobs
- * 
  * @author pavlo
+ * @author xin
  */
 public class MapReduceTransaction extends LocalTransaction {
     private static final Logger LOG = Logger.getLogger(MapReduceTransaction.class);
@@ -54,27 +52,6 @@ public class MapReduceTransaction extends LocalTransaction {
         REDUCE,
         FINISH;
     }
-    /*
-     * This is for non-blocking reduce executing in MapReduceHelperThread
-     * */
-    public boolean basePartition_reduce_runed = false;
-    public boolean basePartition_map_runed = false;
-    
-    public boolean isBasePartition_map_runed() {
-        return basePartition_map_runed;
-    }
-
-    public void setBasePartition_map_runed(boolean map_runed) {
-        this.basePartition_map_runed = map_runed;
-    }
-
-    public boolean isBasePartition_reduce_runed() {
-        return basePartition_reduce_runed;
-    }
-
-    public void setBasePartition_reduce_runed(boolean reduce_runed) {
-        basePartition_reduce_runed = reduce_runed;
-    }
 
     /**
      * MapReduce Phases
@@ -83,6 +60,12 @@ public class MapReduceTransaction extends LocalTransaction {
     
     private Table mapEmit;
     private Table reduceEmit;
+    
+    /**
+     * This is for non-blocking reduce executing in MapReduceHelperThread
+     */
+    public boolean basePartition_reduce_runed = false;
+    public boolean basePartition_map_runed = false;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -153,9 +136,8 @@ public class MapReduceTransaction extends LocalTransaction {
         super.init(txn_id, clientHandle, base_partition,
                    predict_touchedPartitions, predict_readOnly, predict_canAbort,
                    catalog_proc, invocation, client_callback);
-        Database catalog_db = CatalogUtil.getDatabase(this.catalog_proc);
-        this.mapEmit = catalog_db.getTables().get(this.catalog_proc.getMapemittable());
-        this.reduceEmit = catalog_db.getTables().get(this.catalog_proc.getReduceemittable());
+        this.mapEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getMapemittable());
+        this.reduceEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getReduceemittable());
         LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
         LOG.info("MapReduce LocalPartitionIds: " + this.hstore_site.getLocalPartitionIds());
         
@@ -186,6 +168,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduce_callback.init(this);
         assert(this.reduce_callback.isInitialized()) : "Unexpected error for " + this;
         
+        // TODO(xin): Initialize the TransactionCleanupCallback if this txn's base partition
+        //            is not at this HStoreSite. 
+        
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
     }
@@ -213,6 +198,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.sendData_callback.finish();
         this.reduce_callback.finish();
         this.reduceWrapper_callback.finish();
+        
+        // TODO(xin): Only call TransactionCleanupCallback.finish() if this txn's base
+        //            partition is not at this HStoreSite. 
         this.cleanup_callback.finish();
         
         if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
@@ -222,7 +210,7 @@ public class MapReduceTransaction extends LocalTransaction {
         this.reduceInput = null;
         this.reduceOutput = null;
     }
-    /*
+    /**
      * Store Data from MapOutput table into reduceInput table
      * ReduceInput table is the result of all incoming mapOutput table from other partitions
      * @see edu.brown.hstore.dtxn.AbstractTransaction#storeData(int, org.voltdb.VoltTable)
@@ -263,6 +251,32 @@ public class MapReduceTransaction extends LocalTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    @Override
+    public boolean isDeletable() {
+        // I think that there is still a race condition here...
+        if (this.cleanup_callback != null && this.cleanup_callback.getCounter() == 0) {
+            return (false);
+        }
+        return (super.isDeletable());
+    }
+    
+    public boolean isBasePartition_map_runed() {
+        return basePartition_map_runed;
+    }
+
+    public void setBasePartition_map_runed(boolean map_runed) {
+        this.basePartition_map_runed = map_runed;
+    }
+
+    public boolean isBasePartition_reduce_runed() {
+        return basePartition_reduce_runed;
+    }
+
+    public void setBasePartition_reduce_runed(boolean reduce_runed) {
+        basePartition_reduce_runed = reduce_runed;
+    }
+    
     /*
      * Return the MapOutput Table schema 
      */
@@ -333,14 +347,6 @@ public class MapReduceTransaction extends LocalTransaction {
         return this.reduceOutput;
     }
     
-    public StoredProcedureInvocation getInvocation() {
-        return this.invocation;
-    }
-
-    public String getProcedureName() {
-        return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
-    }
-
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.hstore_site.getAllPartitionIds());
     }
@@ -368,7 +374,9 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     public TransactionCleanupCallback getCleanupCallback() {
-        return cleanup_callback;
+        // TODO(xin): This should return null if this handle is located at
+        //            the txn's basePartition HStoreSite 
+        return (this.cleanup_callback);
     }
     
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
@@ -388,18 +396,12 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            
             return String.format("%s-%s #%d/%d", this.getProcedureName(), (this.getState().toString()), this.txn_id, this.base_partition);
         } else {
             return ("<Uninitialized>");
         }
     }
 
-    @Override
-    public String debug() {
-        return (StringUtil.formatMaps(this.getDebugMap()));
-    }
-    
 //    @Override
 //    public boolean isPredictSinglePartition() {
 //        if (debug.get() && !this.hstore_site.getHStoreConf().site.mr_map_blocking) 
@@ -410,17 +412,17 @@ public class MapReduceTransaction extends LocalTransaction {
 
     @Override
     public void initRound(int partition, long undoToken) {
-        assert (false) : "initRound should not be invoked on " + this.getClass();
+        throw new RuntimeException("initRound should not be invoked on " + this.getClass());
     }
 
     @Override
     public void startRound(int partition) {
-        assert (false) : "startRound should not be invoked on " + this.getClass();
+        throw new RuntimeException("startRound should not be invoked on " + this.getClass());
     }
 
     @Override
     public void finishRound(int partition) {
-        assert (false) : "finishRound should not be invoked on " + this.getClass();
+        throw new RuntimeException("finishRound should not be invoked on " + this.getClass());
     }
     
     public VoltTable getMapOutputByPartition( int partition ) {
