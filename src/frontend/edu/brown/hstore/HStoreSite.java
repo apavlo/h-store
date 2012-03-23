@@ -1475,10 +1475,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 cleanup_callback = ts.getCleanupCallback();
                 assert(cleanup_callback != null);
                 cleanup_callback.init(ts, status, partitions);
-                if (ts instanceof MapReduceTransaction) {
-                    if (d) LOG.debug(String.format("MR_Txn:%s, should be marked as deleteble\n",ts));
-                    ((MapReduceTransaction)ts).markAsDeletable();
-                }
             } else {
                 finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
                 assert(finish_callback != null);
