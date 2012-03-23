@@ -515,8 +515,7 @@ public abstract class PlanOptimizerUtil {
                 LOG.error(String.format("Failed to find %d => %s\n", new_idx, new_pc));
                 LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
             }
-            assert (new_pc != null) :
-                String.format("Failed to find %s at offset %d for %s", orig_pc, i, node);
+            assert (new_pc != null);
             node.getAggregateColumnGuids().set(i, new_pc.guid());
         } // FOR
 
