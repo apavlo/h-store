@@ -70,7 +70,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
@@ -97,8 +96,6 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.JSONSerializable;
-import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
@@ -384,48 +381,6 @@ public abstract class BenchmarkComponent {
         }
         System.out.println(sb);
     }
-    
-    public static class TransactionCounter implements JSONSerializable {
-        
-        public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
-        public Histogram<String> transactions = new Histogram<String>(true);
-
-        public TransactionCounter copy() {
-            TransactionCounter copy = new TransactionCounter();
-            copy.basePartitions.putHistogram(this.basePartitions);
-            copy.transactions.putHistogram(this.transactions);
-            return (copy);
-        }
-        
-        public void clear() {
-            this.basePartitions.clearValues();
-            this.transactions.clearValues();
-        }
-        
-        // ----------------------------------------------------------------------------
-        // SERIALIZATION METHODS
-        // ----------------------------------------------------------------------------
-        @Override
-        public void load(String input_path, Database catalog_db) throws IOException {
-            JSONUtil.load(this, catalog_db, input_path);
-        }
-        @Override
-        public void save(String output_path) throws IOException {
-            JSONUtil.save(this, output_path);
-        }
-        @Override
-        public String toJSONString() {
-            return (JSONUtil.toJSONString(this));
-        }
-        @Override
-        public void toJSON(JSONStringer stringer) throws JSONException {
-            JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, JSONUtil.getSerializableFields(this.getClass()));
-        }
-        @Override
-        public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-            JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
-        }
-    } // END CLASS
     
     /**
      * Implements the simple state machine for the remote controller protocol.
@@ -993,7 +948,7 @@ public abstract class BenchmarkComponent {
                 useHeavyweightClient(),
                 statsSettings
         );
-        if (m_blocking && isLoader == false) {
+        if (m_blocking) { //  && isLoader == false) {
             if (debug.get()) 
                 LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
