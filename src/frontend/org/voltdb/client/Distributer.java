@@ -47,11 +47,8 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.HStoreSiteStatus;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice;
-import edu.brown.hstore.Hstoreservice.HStoreService;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -855,6 +852,7 @@ class Distributer {
             new ColumnInfo( "INVOCATIONS_COMPLETED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_ABORTED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_FAILED", VoltType.BIGINT),
+            new ColumnInfo( "TIMES_RESTARTED", VoltType.BIGINT)
     };
 
     VoltTable getProcedureStats(final boolean interval) {
@@ -870,6 +868,7 @@ class Distributer {
         long totalClusterRoundTripTime = 0;
         int totalClusterRoundTripMax = Integer.MIN_VALUE;
         int totalClusterRoundTripMin = Integer.MAX_VALUE;
+        long totalRestarts = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -883,6 +882,7 @@ class Distributer {
                         long clusterRoundTripTime = stats.m_clusterRoundTripTime;
                         int clusterMinRoundTripTime = stats.m_minClusterRoundTripTime;
                         int clusterMaxRoundTripTime = stats.m_maxClusterRoundTripTime;
+                        long restartCounter = stats.m_restartCounter;
 
                         if (interval) {
                             invocationsCompleted = stats.m_invocationsCompleted - stats.m_lastInvocationsCompleted;
@@ -915,8 +915,6 @@ class Distributer {
 
                             stats.m_lastMaxClusterRoundTripTime = Integer.MIN_VALUE;
                             stats.m_lastMinClusterRoundTripTime = Integer.MAX_VALUE;
-                            
-                            
                         }
                         totalInvocations += invocationsCompleted;
                         totalAbortedInvocations += invocationAborts;
@@ -927,6 +925,7 @@ class Distributer {
                         totalClusterRoundTripTime += clusterRoundTripTime;
                         totalClusterRoundTripMax = Math.max(clusterMaxRoundTripTime, totalClusterRoundTripMax);
                         totalClusterRoundTripMin = Math.min(clusterMinRoundTripTime, totalClusterRoundTripMin);
+                        totalRestarts += restartCounter;
                         retval.addRow(
                                 now,
                                 m_hostname,
@@ -943,7 +942,8 @@ class Distributer {
                                 clusterMaxRoundTripTime,
                                 invocationsCompleted,
                                 invocationAborts,
-                                invocationErrors
+                                invocationErrors,
+                                restartCounter
                                 );
                     }
                 }
