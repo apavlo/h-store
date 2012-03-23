@@ -105,7 +105,7 @@ public class HStoreCoordinator implements Shutdownable {
     private final Collection<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     
-    /** SiteId -> HStoreServer */
+    /** SiteId -> HStoreService */
     private final Map<Integer, HStoreService> channels = new HashMap<Integer, HStoreService>();
     
     private final Thread listener_thread;
@@ -271,7 +271,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("Starting listener thread");
         this.listener_thread.start();
         
-        if (this.hstore_conf.site.coordinator_sync_time) {
+        if (hstore_conf.site.coordinator_sync_time) {
             syncClusterTimes();
         }
         

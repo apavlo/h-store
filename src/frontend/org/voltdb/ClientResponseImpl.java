@@ -45,8 +45,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
     private String appStatusString = null;
     private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
 
-    private int clusterRoundTripTime = 0;
-    private int clientRoundTripTime = 0;
+    private int clusterRoundTripTime = -1;
+    private int clientRoundTripTime = -1;
     private SerializableException m_exception = null;
     
     // PAVLO
@@ -389,13 +389,21 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Status", this.status + " / " + this.statusString);
+        m.put("Status", this.status +
+                        (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("Timestamp", this.requestCounter);
+        m.put("RequestCounter", this.requestCounter);
         m.put("Throttle", this.throttle);
         m.put("SinglePartition", this.singlepartition);
         m.put("BasePartition", this.basePartition);
         m.put("Exception", m_exception);
+        
+        if (this.clientRoundTripTime > 0) {
+            m.put("Client RoundTrip Time", this.clientRoundTripTime + " ms");
+        }
+        if (this.clusterRoundTripTime > 0) {
+            m.put("Cluster RoundTrip Time", this.clusterRoundTripTime + " ms");
+        }
         
         Map<String, Object> inner = new ListOrderedMap<String, Object>();
         for (int i = 0; i < results.length; i++) {

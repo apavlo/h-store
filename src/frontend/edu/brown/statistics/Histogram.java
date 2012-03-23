@@ -790,6 +790,10 @@ public class Histogram<X> implements JSONSerializable {
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
 
+    public void load(String input_path) throws IOException {
+        JSONUtil.load(this, null, input_path);
+    }
+    
     @Override
     public void load(String input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);

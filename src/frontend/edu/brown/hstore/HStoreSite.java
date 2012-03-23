@@ -54,6 +54,8 @@ import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.EstTime;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -61,6 +63,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -96,6 +99,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
@@ -110,7 +114,7 @@ import edu.brown.utils.ThreadUtil;
  * 
  * @author pavlo
  */
-public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable {
+public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable, Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -317,15 +321,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        // TODO: Pull the PartitionEstimator info from HStoreConf
-        this.p_estimator = new PartitionEstimator(this.catalog_db);
-        
-        // **IMPORTANT**
-        // We have to setup the partition offsets before we do anything else here
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
+        
+        // Get the hasher we will use for this HStoreSite
+        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
+                                            new Object[]{ this.catalog_db, num_partitions },
+                                            new Class<?>[]{ Database.class, int.class });
+        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
+        
+        // **IMPORTANT**
+        // We have to setup the partition offsets before we do anything else here
+        
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -374,7 +383,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // General Stuff
-        this.hasher = this.p_estimator.getHasher();
+        
         this.thresholds = new EstimationThresholds(); // default values
         
         // MapReduce Transaction helper thread
@@ -1177,8 +1186,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
-        
+        EstTimeUpdater.update(System.currentTimeMillis());
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
+        
     }
 
     /**
@@ -1816,6 +1826,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setRequestCounter(this.getNextRequestCounter());
         cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
         
+        long now = EstTime.currentTimeMillis();
+        cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
+        
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
         // that we can serialize the ClientResponse out to a byte array
@@ -1949,6 +1962,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
+                case ABORT_GRACEFUL:
                     // TODO: Make new counter?
                     break;
                 default:
@@ -1998,6 +2012,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This is a blocking call!
      * @throws Exception
      */
+    @Override
     public void run() {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final HStoreSite hstore_site = this;

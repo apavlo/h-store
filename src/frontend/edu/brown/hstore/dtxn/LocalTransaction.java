@@ -54,6 +54,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -121,6 +122,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     private boolean deletable = false;
     private boolean not_deletable = false;
+    private long initiateTime;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -257,6 +259,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
+        this.initiateTime = EstTime.currentTimeMillis();
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
               
@@ -348,6 +351,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.invocation = null;
         this.client_callback = null;
+        this.initiateTime = 0;
         
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
@@ -570,7 +574,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     @Override
-    public synchronized void setPendingError(SerializableException error) {
+    public void setPendingError(SerializableException error) {
         this.setPendingError(error, true);
     }
 
@@ -700,6 +704,13 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isMapReduce() {
         return (this.catalog_proc.getMapreduce());
+    }
+    
+    /**
+     * Get the timestamp that this LocalTransaction handle was initiated
+     */
+    public long getInitiateTime() {
+        return (this.initiateTime);
     }
     
     public ClientResponseImpl getClientResponse() {

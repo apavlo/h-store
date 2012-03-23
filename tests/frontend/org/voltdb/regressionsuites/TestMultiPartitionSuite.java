@@ -219,13 +219,11 @@ public class TestMultiPartitionSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
 
         // get a server config that similar, but doesn't use the same backend
-        config = new LocalSingleProcessServer("distregression-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-
+//        config = new LocalSingleProcessServer("distregression-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
         // build the jarfile (note the reuse of the TPCC project)
-        config.compile(project);
-
+//        config.compile(project);
         // add this config to the set of tests to run
-        builder.addServerConfig(config);
+//        builder.addServerConfig(config);
 
         // Cluster
         config = new LocalCluster("distregression-cluster.jar", 2, 2,
