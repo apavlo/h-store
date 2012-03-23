@@ -1,14 +1,13 @@
 CREATE TABLE clientInstances (
-    instanceId                  int NOT NULL AUTO_INCREMENT, -- SQLITE: AUTOINCREMENT
+    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
     clusterStartTime            bigint NOT NULL,
     clusterLeaderAddress        varchar(64) NOT NULL,
     applicationName             varchar(32) NOT NULL,
-    subApplicationName          varchar(32),
-    PRIMARY KEY (instanceId)
+    subApplicationName          varchar(32)
 );
 
 CREATE TABLE clientConnectionStats (
-    instanceId                  int NOT NULL AUTO_INCREMENT,
+    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
     tsEvent                     bigint NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
@@ -21,12 +20,11 @@ CREATE TABLE clientConnectionStats (
     numBytesRead                bigint NOT NULL,
     numMessagesRead             bigint NOT NULL,
     numBytesWritten             bigint NOT NULL,
-    numMessagesWritten          bigint NOT NULL,
-    PRIMARY KEY (instanceId)
+    numMessagesWritten          bigint NOT NULL
 );
 
 CREATE TABLE clientProcedureStats (
-    instanceId                  int NOT NULL AUTO_INCREMENT,
+    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
     tsEvent                     bigint NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
@@ -43,5 +41,5 @@ CREATE TABLE clientProcedureStats (
     numInvocations              bigint NOT NULL,
     numAborts                   bigint NOT NULL,
     numFailures                 bigint NOT NULL,
-    PRIMARY KEY (instanceId)
+    numRestarts                 bigint NOT NULL
 );
