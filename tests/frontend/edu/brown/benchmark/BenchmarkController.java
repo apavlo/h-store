@@ -159,8 +159,6 @@ public class BenchmarkController {
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
 
-    final static String m_tpccClientClassName = "org.voltdb.benchmark.tpcc.TPCCClient"; // DEFAULT
-
     // benchmark parameters
     final BenchmarkConfig m_config;
     

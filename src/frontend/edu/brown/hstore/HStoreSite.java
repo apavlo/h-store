@@ -54,6 +54,8 @@ import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.EstTime;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -1184,8 +1186,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
-        
+        EstTimeUpdater.update(System.currentTimeMillis());
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
+        
     }
 
     /**
@@ -1820,6 +1823,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Check whether we should disable throttling
         cresponse.setRequestCounter(this.getNextRequestCounter());
         cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+        
+        long now = EstTime.currentTimeMillis();
+        cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
         
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
