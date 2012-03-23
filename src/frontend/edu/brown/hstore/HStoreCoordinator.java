@@ -32,7 +32,6 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
@@ -47,6 +46,8 @@ import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.TransactionMapRequest;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchAcknowledgement;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectRequest;
@@ -521,12 +522,12 @@ public class HStoreCoordinator implements Shutdownable {
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
             if (debug.get()) 
-                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderId())));
+                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
                 callback = (TransactionRedirectResponseCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
-                callback.init(local_site_id, request.getSenderId(), done);
+                callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
             }
@@ -556,7 +557,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
-            String originName = HStoreThreadManager.formatSiteName(request.getSenderId());
+            String originName = HStoreThreadManager.formatSiteName(request.getSenderSite());
             
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
@@ -575,7 +576,7 @@ public class HStoreCoordinator implements Shutdownable {
 
             // Then send back the acknowledgment right away
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                   .setSenderId(HStoreCoordinator.this.local_site_id)
+                                                   .setSenderSite(HStoreCoordinator.this.local_site_id)
                                                    .build();
             done.run(response);
             
@@ -596,15 +597,22 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.get()) 
                 LOG.debug(String.format("Recieved %s from HStoreSite %s",
                                                  request.getClass().getSimpleName(),
-                                                 HStoreThreadManager.formatSiteName(request.getSenderId())));
+                                                 HStoreThreadManager.formatSiteName(request.getSenderSite())));
             
             TimeSyncResponse response = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
-                                                    .setSenderId(local_site_id)
+                                                    .setSenderSite(local_site_id)
                                                     .setT0S(request.getT0S())
                                                     .setT1S(System.currentTimeMillis())
                                                     .build();
             done.run(response);
+        }
+
+        @Override
+        public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request,
+                RpcCallback<TransactionPrefetchAcknowledgement> done) {
+            // TODO Auto-generated method stub
+            
         }
     } // END CLASS
     
@@ -736,7 +744,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreThreadManager.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
         TransactionRedirectRequest mr = TransactionRedirectRequest.newBuilder()
-                                        .setSenderId(this.local_site_id)
+                                        .setSenderSite(this.local_site_id)
                                         .setWork(bs)
                                         .build();
         this.channels.get(dest_site_id).transactionRedirect(new ProtoRpcController(), mr, callback);
@@ -845,7 +853,7 @@ public class HStoreCoordinator implements Shutdownable {
 
             SendDataRequest.Builder builder = SendDataRequest.newBuilder()
                     .setTransactionId(txn_id)
-                    .setSenderId(local_site_id);
+                    .setSenderSite(local_site_id);
 
             // Loop through and get all the data for this site
             if (debug.get())
@@ -871,16 +879,14 @@ public class HStoreCoordinator implements Shutdownable {
                 }
                 if (debug.get()) 
                     LOG.debug("Constructing Dependency for " + catalog_part);
-                builder.addFragments(DataFragment.newBuilder()
-                             .setId(catalog_part.getId())
-                             .addData(bs)
-                             .build());
+                builder.addDepId(catalog_part.getId())
+                       .addData(bs);
             } // FOR n partitions in remote_site
             
-            if (builder.getFragmentsCount() > 0) {
+            if (builder.getDataCount() > 0) {
                 if (debug.get())
                     LOG.debug(String.format("Sending data to %d partitions at %s for %s",
-                                                     builder.getFragmentsCount(), remote_site, ts));
+                                                     builder.getDataCount(), remote_site, ts));
                 this.channels.get(dest_site_id).sendData(new ProtoRpcController(), builder.build(), callback);
             }
         } // FOR n sites in this catalog
@@ -901,7 +907,7 @@ public class HStoreCoordinator implements Shutdownable {
                 SendDataResponse.Builder builder = SendDataResponse.newBuilder()
                                                                                  .setTransactionId(txn_id)
                                                                                  .setStatus(Hstoreservice.Status.OK)
-                                                                                 .setSenderId(dest_site_id);
+                                                                                 .setSenderSite(dest_site_id);
                 callback.run(builder.build());
             } // FOR
         }
@@ -928,7 +934,7 @@ public class HStoreCoordinator implements Shutdownable {
             public void run(TimeSyncResponse request) {
                 long t1_r = System.currentTimeMillis();
                 int dt = (int)((request.getT1S() + request.getT0R()) - (t1_r + request.getT0S())) / 2;
-                time_deltas.put(request.getSenderId(), dt);
+                time_deltas.put(request.getSenderSite(), dt);
                 latch.countDown();
             }
         };
@@ -937,7 +943,7 @@ public class HStoreCoordinator implements Shutdownable {
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             if (e.getKey().intValue() == this.local_site_id) continue;
             TimeSyncRequest request = TimeSyncRequest.newBuilder()
-                                            .setSenderId(this.local_site_id)
+                                            .setSenderSite(this.local_site_id)
                                             .setT0S(System.currentTimeMillis())
                                             .build();
             e.getValue().timeSync(new ProtoRpcController(), request, callback);
@@ -1026,7 +1032,7 @@ public class HStoreCoordinator implements Shutdownable {
                     
                     @Override
                     public void run(ShutdownResponse parameter) {
-                        int siteId = parameter.getSenderId();
+                        int siteId = parameter.getSenderSite();
                         assert(this.siteids.contains(siteId) == false) :
                             "Duplicate response from remote HStoreSite " + HStoreThreadManager.formatSiteName(siteId);
                         this.siteids.add(siteId);
@@ -1036,7 +1042,7 @@ public class HStoreCoordinator implements Shutdownable {
                 };
                 
                 ShutdownRequest.Builder builder = ShutdownRequest.newBuilder()
-                                                        .setSenderId(catalog_site.getId())
+                                                        .setSenderSite(catalog_site.getId())
                                                         .setExitStatus(exit_status);
                 // Pack the error into a SerializableException
                 if (error != null) {
