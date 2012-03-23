@@ -663,7 +663,8 @@ public class BenchmarkController {
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allClientArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
+        allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+        // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         allClientArgs.add("LOADER=false");
         
         int threads_per_client = hstore_conf.client.processesperclient;
@@ -1245,7 +1246,8 @@ public class BenchmarkController {
         // try to read connection string for reporting database
         // from a "mysqlp" file
         // set value to null on failure
-        String[] databaseURL = { "localhost", "localhost" };
+        String[] databaseURL = { "", "" };
+        int statsPollInterval = 1000;
 //        try {
 //            databaseURL = readConnectionStringFromFile(remotePath);
 //            assert(databaseURL.length == 2);
@@ -1568,7 +1570,8 @@ public class BenchmarkController {
                 snapshotFrequency, 
                 snapshotRetain, 
                 databaseURL[0], 
-                databaseURL[1], 
+                databaseURL[1],
+                statsPollInterval,
                 statsTag,
                 applicationName, 
                 subApplicationName,
