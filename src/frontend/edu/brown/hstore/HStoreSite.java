@@ -63,7 +63,6 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -341,23 +340,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.single_partition_sets = new Collection[num_partitions];
 
         // **IMPORTANT**
-        // Always clear out our various caches before we start our new HStoreSite
-        if (d) LOG.debug("Preloading cached objects");
-        try {
-            // Don't forget our CatalogUtil friend!
-            CatalogUtil.clearCache(this.catalog_db);
-            CatalogUtil.preload(this.catalog_db);
-            
-            // Load up everything the QueryPlanUtil
-            PlanNodeUtil.preload(this.catalog_db);
-            
-            // Then load up everything in the PartitionEstimator
-            this.p_estimator.preload();
-            
-            // And the BatchPlanner
-            BatchPlanner.clear(this.all_partitions.size());
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to prepare HStoreSite", ex);
+        // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
+        CatalogUtil.clearCache(this.catalog_db);
+        BatchPlanner.clear(this.all_partitions.size());
+
+        // Only preload stuff if we were asked to
+        if (hstore_conf.site.preload) {
+            if (d) LOG.debug("Preloading cached objects");
+            try {
+                // Don't forget our CatalogUtil friend!
+                CatalogUtil.preload(this.catalog_db);
+                
+                // Load up everything the QueryPlanUtil
+                PlanNodeUtil.preload(this.catalog_db);
+                
+                // Then load up everything in the PartitionEstimator
+                this.p_estimator.preload();
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to prepare HStoreSite", ex);
+            }
         }
         
         // Offset Hack
@@ -1828,7 +1829,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         long now = EstTime.currentTimeMillis();
         cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
-        
         cresponse.setRestartCounter(ts.getRestartCounter());
         
         // So we have a bit of a problem here.
