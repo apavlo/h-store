@@ -15,6 +15,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.callbacks.SendDataCallback;
@@ -170,6 +171,10 @@ public class MapReduceTransaction extends LocalTransaction {
         
         // TODO(xin): Initialize the TransactionCleanupCallback if this txn's base partition
         //            is not at this HStoreSite. 
+        if (!this.hstore_site.isLocalPartition(base_partition)) {
+            cleanup_callback.init(this, Status.OK, this.hstore_site.getLocalPartitionIds());
+        }
+        
         
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         return (this);
@@ -201,7 +206,10 @@ public class MapReduceTransaction extends LocalTransaction {
         
         // TODO(xin): Only call TransactionCleanupCallback.finish() if this txn's base
         //            partition is not at this HStoreSite. 
-        this.cleanup_callback.finish();
+        if (!this.hstore_site.isLocalPartition(this.base_partition)) {
+            this.cleanup_callback.finish();
+        }
+        
         
         if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
         this.mapEmit = null;
@@ -375,8 +383,9 @@ public class MapReduceTransaction extends LocalTransaction {
     
     public TransactionCleanupCallback getCleanupCallback() {
         // TODO(xin): This should return null if this handle is located at
-        //            the txn's basePartition HStoreSite 
-        return (this.cleanup_callback);
+        //            the txn's basePartition HStoreSite
+        if (this.hstore_site.isLocalPartition(base_partition)) return null;
+        else return (this.cleanup_callback);
     }
     
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
