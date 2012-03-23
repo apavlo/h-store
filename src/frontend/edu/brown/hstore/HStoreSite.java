@@ -1472,6 +1472,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts != null) {
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
                 if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
+                // TODO(xin): You should not be invoking this callback at the basePartition's site
                 cleanup_callback = ts.getCleanupCallback();
                 assert(cleanup_callback != null);
                 cleanup_callback.init(ts, status, partitions);
@@ -1905,9 +1906,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
+        if (d) LOG.debug(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
-        if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
