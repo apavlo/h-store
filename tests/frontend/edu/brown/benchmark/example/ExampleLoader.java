@@ -19,7 +19,6 @@ public class ExampleLoader extends BenchmarkComponent {
         for (String key : m_extraParams.keySet()) {
             // TODO: Retrieve extra configuration parameters
         } // FOR
-        System.out.println("<I am doing ExampleLoader>*****************************************\n");
     }
 
     @Override
@@ -28,14 +27,12 @@ public class ExampleLoader extends BenchmarkComponent {
         Client client = this.getClientHandle();
         for (Table catalog_tbl : CatalogUtil.getDatabase(catalog).getTables()) {
             // Create an empty VoltTable handle and then populate it in batches
-            // to
-            // be sent to the DBMS
+            // to be sent to the DBMS
             VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
             try {
                 // Makes a blocking call to @LoadMultipartitionTable sysproc in
-                // order to load
-                // the contents of the VoltTable into the cluster
-                client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), table);
+                // order to load the contents of the VoltTable into the cluster
+                this.loadVoltTable(catalog_tbl.getName(), table);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to load data for " + catalog_tbl, e);
             }

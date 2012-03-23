@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
+import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
@@ -439,7 +441,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public void run(TransactionWorkResponse msg) {
             Long txn_id = msg.getTransactionId();
             AbstractTransaction ts = hstore_site.getTransaction(txn_id);
-            assert(ts != null) : "No transaction state exists for txn #" + txn_id;
+            
+            // We can ignore anything that comes in for a transaction that we don't know about
+            if (ts == null) {
+                if (d) LOG.debug("No transaction state exists for txn #" + txn_id);
+                return;
+            }
             
             if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
                                         ts, msg.getResultsCount()));
@@ -483,8 +490,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
         public long getNextUndo();
-//        public long getTxnId();
-//        public Object getOperStatus();
+        public PartitionExecutor getExecutionSite();
+        public Long getCurrentTxnId();
     }
 
     protected class SystemProcedureContext implements SystemProcedureExecutionContext {
@@ -495,8 +502,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
         public long getNextUndo()                   { return getNextUndoToken(); }
-//        public long getTxnId()                      { return getCurrentTxnId(); }
-//        public String getOperStatus()               { return VoltDB.getOperStatus(); }
+        public PartitionExecutor getExecutionSite() { return PartitionExecutor.this; }
+        public Long getCurrentTxnId()               { return PartitionExecutor.this.currentTxnId; }
     }
 
     private final SystemProcedureContext m_systemProcedureContext = new SystemProcedureContext();
@@ -902,6 +909,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.tmp_fragmentParams.reset();
         this.tmp_serializedParams.clear();
         this.tmp_EEdependencies.clear();
+        
+//        while (this.work_queue.isEmpty()) {
+//            
+//        }
     }
 
     public void tick() {
@@ -1302,40 +1313,46 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Process a FragmentResponseMessage and update the TransactionState accordingly
      * @param ts
-     * @param fresponse
+     * @param result
      */
-    private void processWorkResult(LocalTransaction ts, WorkResult fresponse) {
+    private void processWorkResult(LocalTransaction ts, WorkResult result) {
         if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
-                                       ts, this.partitionId, fresponse.getPartitionId(), fresponse.getOutputCount()));
+                                       ts, this.partitionId, result.getPartitionId(), result.getOutputCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
         // Note that we have to do this before we add the responses to the TransactionState so that
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
-        if (fresponse.getStatus() != Status.OK) {
+        if (result.getStatus() != Status.OK) {
             if (t) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
-                                                    fresponse.getStatus(), fresponse.getPartitionId(), ts));
+                                                    result.getStatus(), result.getPartitionId(), ts));
 
             SerializableException error = null;
             if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
             try {
-                error = SerializableException.deserializeFromBuffer(fresponse.getError().asReadOnlyByteBuffer());
+                ByteBuffer buffer = result.getError().asReadOnlyByteBuffer();
+                error = SerializableException.deserializeFromBuffer(buffer);
             } catch (Exception ex) {
                 throw new ServerFaultException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
-                                           fresponse.getPartitionId(), ts, fresponse.getError().size()), ex);
+                                           result.getPartitionId(), ts, result.getError().size()), ex);
             } finally {
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
             }
             // At this point there is no need to even deserialize the rest of the message because 
             // we know that we're going to have to abort the transaction
-            ts.setPendingError(error, true);
+            if (error == null) {
+                LOG.warn(ts + " - Unexpected null SerializableException\n" + result);
+            } else {
+                if (d) LOG.error(ts + " - Got error from partition " + result.getPartitionId(), error);
+                ts.setPendingError(error, true);
+            }
             return;
         }
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
-        for (DataFragment output : fresponse.getOutputList()) {
+        for (DataFragment output : result.getOutputList()) {
             if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
-                                                    fresponse.getPartitionId(), ts));
+                                                    result.getPartitionId(), ts));
             for (ByteString bs : output.getDataList()) {
                 VoltTable vt = null;
                 if (bs.isEmpty() == false) {
@@ -1343,10 +1360,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     try {
                         vt = fd.readObject(VoltTable.class);
                     } catch (Exception ex) {
-                        throw new ServerFaultException("Failed to deserialize VoltTable from partition " + fresponse.getPartitionId() + " for " + ts, ex);
+                        throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
                     }
                 }
-                ts.addResult(fresponse.getPartitionId(), output.getId(), vt);
+                ts.addResult(result.getPartitionId(), output.getId(), vt);
             } // FOR (output)
         } // FOR (dependencies)
         if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
@@ -1576,22 +1593,26 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         try {
             result = this.executeWorkFragment(ts, wfrag, parameters);
         } catch (ConstraintFailureException ex) {
-            LOG.fatal("Hit an ConstraintFailureException for " + ts, ex);
+            if (d) LOG.warn(String.format("%s - Unexpected ConstraintFailureException error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
-            LOG.fatal("Hit an EE Error for " + ts, ex);
+            LOG.error(String.format("%s - Unexpected ExecutionEngine error on partition %d", ts, this.partitionId), ex);
             this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
-            LOG.warn("Hit a SQL Error for " + ts, ex);
+            LOG.error(String.format("%s - Unexpected SQL error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.error("Something unexpected and bad happended for " + ts, ex);
+            LOG.error(String.format("%s - Unexpected error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
-            error = new SerializableException(ex);
+            if (ex instanceof SerializableException) {
+                error = (SerializableException)ex;
+            } else {
+                error = new SerializableException(ex);
+            }
         } finally {
             // Success, but without any results???
             if (result == null && status == Status.OK) {
@@ -1619,10 +1640,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // LOCAL TRANSACTION
         // -------------------------------
         if (is_dtxn == false) {
+            LocalTransaction local_ts = (LocalTransaction)ts;
+            
             // If the transaction is local, store the result directly in the local TransactionState
             if (status == Status.OK) {
                 if (t) LOG.trace("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
-                LocalTransaction local_ts = (LocalTransaction)ts;
                 assert(result.size() == wfrag.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = wfrag.getOutputDepId(i);
@@ -1638,7 +1660,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     }
                 } // FOR
             } else {
-                ts.setPendingError(error);
+                local_ts.setPendingError(error, true);
             }
         }
             
@@ -1990,6 +2012,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             int size = error.getSerializedSize();
             BBContainer bc = this.buffer_pool.acquire(size);
             error.serializeToBuffer(bc.b);
+            bc.b.rewind();
             builder.setError(ByteString.copyFrom(bc.b));
             bc.discard();
         }
@@ -2249,7 +2272,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (2) If we know that there are still messages being blocked
         //  (3) If we know that there are still unblocked messages that we need to process
         //  (4) The latch for this round is still greater than zero
-        while (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0)) {
+        while (ts.hasPendingError() == false && 
+               (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
             if (t) LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
                                            ts, first, ts.stillHasWorkFragments(), queue.size(), latch));
             
@@ -2440,7 +2464,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (this.hstore_site.isShuttingDown() == false) {
                     LOG.error(String.format("%s - We were interrupted while waiting for results", ts), ex);
                 }
-                return (null);
+                done = true;
             } catch (Throwable ex) {
                 new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
@@ -2462,7 +2486,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
         // where we can generate a message to the client 
         if (ts.hasPendingError()) {
-            if (d) LOG.warn(String.format("%s was hit with a %s", ts, ts.getPendingError().getClass().getSimpleName()));
+//            if (d)
+                LOG.warn(String.format("%s was hit with a %s", ts, ts.getPendingError().getClass().getSimpleName()));
             throw ts.getPendingError();
         }
         
@@ -2819,6 +2844,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
         }
         return;
+    }
+    
+    // ---------------------------------------------------------------
+    // SNAPSHOT METHODS
+    // ---------------------------------------------------------------
+    
+    /**
+     * Do snapshot work exclusively until there is no more. Also blocks
+     * until the syncing and closing of snapshot data targets has completed.
+     */
+    public void initiateSnapshots(Deque<SnapshotTableTask> tasks) {
+        // FIXME(meng) m_snapshotter.initiateSnapshots(ee, tasks);
+    }
+
+    public Collection<Exception> completeSnapshotWork() throws InterruptedException {
+        return (null);
+        // FIXME(meng) return m_snapshotter.completeSnapshotWork(ee);
     }
     
     // ---------------------------------------------------------------

@@ -30,10 +30,8 @@ public class ExampleClient extends BenchmarkComponent {
             Random rand = new Random();
             while (true) {
                 // Select a random transaction to execute and generate its input
-                // parameters
-                // The procedure index (procIdx) needs to the same as the array
-                // of procedure
-                // names returned by getTransactionDisplayNames()
+                // parameters. The procedure index (procIdx) needs to the same as the array
+                // of procedure names returned by getTransactionDisplayNames()
                 int procIdx = rand.nextInt(ExampleProjectBuilder.PROCEDURES.length);
                 String procName = ExampleProjectBuilder.PROCEDURES[procIdx].getSimpleName();
                 Object procParams[] = null; // TODO
@@ -47,8 +45,7 @@ public class ExampleClient extends BenchmarkComponent {
                 client.callProcedure(callback, procName, procIdx);
 
                 // Check whether all the nodes are backed-up and this client
-                // should block
-                // before sending new requests.
+                // should block before sending new requests.
                 client.backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {

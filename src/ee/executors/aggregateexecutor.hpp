@@ -135,24 +135,39 @@ private:
 
 class AvgAgg : public Agg {
 public:
-    AvgAgg() :
+    AvgAgg(bool weighted) :
+        m_weighted(weighted),
         m_count(0)
     {
-        // m_value initialized on first advance.
+        m_defaultDelta = ValueFactory::getIntegerValue(1);
     }
 
     void advance(const NValue val)
     {
+        this->advance(val, m_defaultDelta);
+    }
+    
+    void advance(const NValue val, const NValue delta)
+    {
         if (val.isNull()) {
             return;
         }
-        if (m_count == 0) {
-            m_value = val;
+        if (m_weighted) {
+            NValue weighted_val = val.op_multiply(delta);
+            if (m_count == 0) {
+                m_value = weighted_val;
+            } else {
+                m_value = m_value.op_add(weighted_val);
+            }
+            m_count += delta.getInteger();
+        } else {
+            if (m_count == 0) {
+                m_value = val;
+            } else {
+                m_value = m_value.op_add(val);
+            }
+            m_count += 1;
         }
-        else {
-            m_value = m_value.op_add(val);
-        }
-        ++m_count;
     }
 
     NValue finalize()
@@ -162,12 +177,16 @@ public:
             return ValueFactory::getNullValue();
         }
         const NValue finalizeResult =
-            m_value.op_divide(ValueFactory::getBigIntValue(m_count));
+        m_value.op_divide(ValueFactory::getDoubleValue(static_cast<double>(m_count)));
+//             m_value.op_divide(ValueFactory::getBigIntValue(m_count));
         return finalizeResult;
     }
 
 private:
+    // m_value initialized on first advance.
     NValue m_value;
+    NValue m_defaultDelta;
+    bool m_weighted;
     int64_t m_count;
 };
 
@@ -313,7 +332,10 @@ inline Agg* getAggInstance(Pool* memoryPool, ExpressionType agg_type)
         agg = new (memoryPool->allocate(sizeof(SumAgg))) SumAgg();
         break;
     case EXPRESSION_TYPE_AGGREGATE_AVG:
-        agg = new (memoryPool->allocate(sizeof(AvgAgg))) AvgAgg();
+        agg = new (memoryPool->allocate(sizeof(AvgAgg))) AvgAgg(false);
+        break;
+    case EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG:
+        agg = new (memoryPool->allocate(sizeof(AvgAgg))) AvgAgg(true);
         break;
     case EXPRESSION_TYPE_AGGREGATE_MIN:
         agg = new (memoryPool->allocate(sizeof(MinAgg))) MinAgg();
@@ -507,6 +529,8 @@ public:
             moveNoHeader(static_cast<char*>
                          (memoryPool->
                           allocate(groupByKeySchema->tupleLength())));
+        m_numAggColumns = static_cast<int>(m_colTypes->size());
+        m_lastColumnIndex = m_inputTable->columnCount()-1;
     }
 
     inline bool nextTuple(TableTuple nextTuple, TableTuple)
@@ -553,8 +577,20 @@ public:
         // update the aggregation calculation.
         for (int i = 0; i < m_colTypes->size(); i++)
         {
-            aggregateList->m_aggregates[i]->
-                advance(nextTuple.getNValue(m_node->getAggregateColumns()[i]));
+            NValue targetColumn = nextTuple.getNValue(m_node->getAggregateColumns()[i]);
+            
+            // 2012-03-20 - PAVLO
+            // We have a new special ExpressionType that can compute a weighted
+            // average from a distributed query. This is slightly different than our 
+            // other aggregates because we need to get the column that has the count
+            // and pass that to our special DistributedAvgAgg
+            if ((*m_aggTypes)[i] == EXPRESSION_TYPE_AGGREGATE_WEIGHTED_AVG) {
+                // We also need the last column, which is our count
+                NValue weightColumn = nextTuple.getNValue(m_lastColumnIndex);
+                ((AvgAgg*)aggregateList->m_aggregates[i])->advance(targetColumn, weightColumn);
+            } else {
+                aggregateList->m_aggregates[i]->advance(targetColumn);
+            }
         }
 
         return true;
@@ -612,6 +648,8 @@ private:
     std::vector<int>* m_groupByCols;
     std::vector<ValueType>* m_colTypes;
     HashAggregateMapType m_aggregates;
+    int m_numAggColumns;
+    int m_lastColumnIndex;
     TableTuple groupByKeyTuple;
 };
 
@@ -645,6 +683,7 @@ public:
                                                        agg_types->size())))
     {
         ::memset(m_aggs, 0, sizeof(void*) * agg_types->size());
+        m_numAggColumns = static_cast<int>(m_colTypes->size());
     }
 
     inline bool nextTuple(TableTuple nextTuple, TableTuple prevTuple)
@@ -677,7 +716,7 @@ public:
             {
                 return false;
             }
-            for (int i = 0; i < m_colTypes->size(); i++)
+            for (int i = 0; i < m_numAggColumns; i++)
             {
                 //is_ints and ret_types are all referring to all
                 //output columns some of which are not aggregates.  It
@@ -692,7 +731,7 @@ public:
                     getAggInstance(m_memoryPool, (*m_aggTypes)[i]);
             }
         }
-        for (int i = 0; i < m_colTypes->size(); i++)
+        for (int i = 0; i < m_numAggColumns; i++)
         {
             const int column = m_node->getAggregateColumns()[i];
             NValue value = nextTuple.getNValue(column);
@@ -747,6 +786,7 @@ private:
     std::vector<ExpressionType>* m_aggTypes;
     std::vector<int>* m_groupByCols;
     std::vector<ValueType>* m_colTypes;
+    int m_numAggColumns;
     Agg** m_aggs;
 };
 
@@ -794,8 +834,9 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
             {
                 VOLT_ERROR("Failed to find index of AGGREGATE PlanColumn %s [guid=%d]",
                            node->getAggregateColumnNames()[ctr].c_str(), node->getAggregateColumnGuids()[ctr]);
-                VOLT_ERROR("[%02d] GUID = %d\n", ctr, node->getAggregateColumnGuids()[ctr]);
-                VOLT_ERROR("CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
+                VOLT_ERROR("Invalid Query Plan CHILD:\n%s", child_node->debugInfo("").c_str());
+                VOLT_ERROR("----------------------------------");
+                VOLT_ERROR("Invalid Query Plan PARENT:\n%s", node->debugInfo("").c_str());
                 return false;
             }
             aggregateColumns.push_back(index);
@@ -852,8 +893,10 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
             // Planner must provide the GUID of the input column for the mapping.
             int inputColumnIndex = child_node->getColumnIndexFromGuid(outputColumnInputColumnGuid, catalog_db);
             if (inputColumnIndex == -1) {
-                VOLT_ERROR("Can not find index for passthrough col guid %d at offset %d", outputColumnInputColumnGuid, ii);
-                VOLT_ERROR("CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
+                VOLT_ERROR("Failed to find index for passthrough col guid %d at offset %d", outputColumnInputColumnGuid, ii);
+                VOLT_ERROR("Invalid Query Plan CHILD:\n%s", child_node->debugInfo("").c_str());
+                VOLT_ERROR("----------------------------------");
+                VOLT_ERROR("Invalid Query Plan PARENT:\n%s", node->debugInfo("").c_str());
                 return false;
             }
                 

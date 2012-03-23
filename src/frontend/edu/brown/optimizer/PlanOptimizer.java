@@ -39,9 +39,9 @@ public class PlanOptimizer {
      * The list of PlanNodeTypes that we do not want to try to optimize
      */
     private static final PlanNodeType TO_IGNORE[] = { PlanNodeType.AGGREGATE, PlanNodeType.NESTLOOP, };
-    private static final String BROKEN_SQL[] = { "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline
-                                                                                       // DeleteReservation.GetCustomerReservation
-            "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
+    private static final String BROKEN_SQL[] = {
+            // "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline DeleteReservation.GetCustomerReservation
+            // "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
     };
 
     /**
@@ -61,8 +61,14 @@ public class PlanOptimizer {
      * List of the Optimizations that we will want to apply
      */
     @SuppressWarnings("unchecked")
-    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[]) new Class<?>[] { AggregatePushdownOptimization.class,
-            RemoveDistributedReplicatedTableJoinOptimization.class, ProjectionPushdownOptimization.class, LimitOrderByPushdownOptimization.class, RemoveRedundantProjectionsOptimizations.class, };
+    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = 
+        (Class<? extends AbstractOptimization>[]) new Class<?>[] {
+            RemoveDistributedReplicatedTableJoinOptimization.class,    
+            AggregatePushdownOptimization.class,
+            ProjectionPushdownOptimization.class,
+            LimitOrderByPushdownOptimization.class,
+            RemoveRedundantProjectionsOptimizations.class,
+    };
 
     // ----------------------------------------------------------------------------
     // INSTANCE CONFIGURATION
@@ -124,11 +130,10 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-        // if (PlanNodeUtil.isDistributedQuery(root) &&
-        // sql.contains("SELECT f_id FROM FLIGHT ORDER BY F_DEPART_TIME DESC  LIMIT 10000"))
-        // {
-        // LOG.debug("LET 'ER RIP!");
-        // }
+//         if (PlanNodeUtil.isDistributedQuery(root) &&
+//         if (sql.contains("SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), SUM(i_price), COUNT(*)")) {
+//             LOG.debug("LET 'ER RIP!");
+//         }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
@@ -155,7 +160,9 @@ public class PlanOptimizer {
             state.updateColumnInfo(new_root);
 
             try {
-                AbstractOptimization opt = ClassUtil.newInstance(optClass, new Object[] { state }, new Class<?>[] { PlanOptimizerState.class });
+                AbstractOptimization opt = ClassUtil.newInstance(optClass,
+                                                                 new Object[] { state },
+                                                                 new Class<?>[] { PlanOptimizerState.class });
                 assert (opt != null);
                 Pair<Boolean, AbstractPlanNode> p = opt.optimize(new_root);
                 if (p.getFirst()) {
@@ -175,10 +182,8 @@ public class PlanOptimizer {
             }
 
             // STEP #3
-            // If any nodes were modified by this optimization, go through the
-            // tree
-            // and make sure our output columns and other information is all in
-            // sync
+            // If any nodes were modified by this optimization, go through the tree
+            // and make sure our output columns and other information is all in sync
             if (state.hasDirtyNodes())
                 PlanOptimizerUtil.updateAllColumns(state, new_root, false);
         } // FOR

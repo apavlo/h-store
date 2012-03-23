@@ -54,13 +54,21 @@ public class SysProcFragmentId
      */
     public static final int PF_saveTestResults = 41;
     /*
-     * Create and distribute tasks and targets to each EE
-     */
+    * Create and distribute tasks and targets to each EE
+    */
     public static final int PF_createSnapshotTargets = 42;
     /*
-     * Confirm the targets were successfully created
-     */
+    * Confirm the targets were successfully created
+    */
     public static final int PF_createSnapshotTargetsResults = 43;
+    /*
+    * Quiesce the export data as part of the snapshot
+    */
+    public static final int PF_snapshotSaveQuiesce = 44;
+    /*
+    * Aggregate the results of snapshot quiesce
+    */
+    public static final int PF_snapshotSaveQuiesceResults = 45;
 
     // @LoadMultipartitionTable
     public static final int PF_loadDistribute = 50;
@@ -89,10 +97,10 @@ public class SysProcFragmentId
     // @Quiesce
     public static final int PF_quiesce_sites = 100;
     public static final int PF_quiesce_processed_sites = 101;
-
+    
     // @SnapshotStatus
-    public static final int PF_scanSnapshotRegistries = 110;
-    public static final int PF_scanSnapshotRegistriesResults = 111;
+    public static final long PF_scanSnapshotRegistries = 110;
+    public static final long PF_scanSnapshotRegistriesResults = 111;
 
     // @SnapshotScan
     public static final int PF_snapshotDigestScan = 124;
@@ -119,5 +127,6 @@ public class SysProcFragmentId
     // @RecomputeMarkovs
     public static final int PF_recomputeMarkovsDistribute = 180;
     public static final int PF_recomputeMarkovsAggregate = 181;
+    
     
 }
