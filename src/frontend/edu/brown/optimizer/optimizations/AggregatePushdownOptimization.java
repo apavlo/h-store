@@ -199,7 +199,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                     // Aggregate Input Column
                     // We just need to do it against the first column in the child's output
                     // Picking the column that we want to use doesn't matter even if there is a GROUP BY
-                    clone_agg.getAggregateColumnGuids().add(node.getOutputColumnGUID(0));
+                    clone_agg.getAggregateColumnGuids().add(node.getChild(0).getOutputColumnGUID(0));
 
                     // Aggregate Output Column
                     TupleValueExpression exp = new TupleValueExpression();
