@@ -104,12 +104,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
-import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
@@ -581,15 +580,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.t_estimator = t_estimator; 
         }
         
-        // Don't bother with creating the EE if we're on the coordinator
-        if (true) { //  || !this.coordinator) {
-            // An execution site can be backed by HSQLDB, by volt's EE accessed
-            // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
-            // the VoltProcedure interface invokes HSQLDB directly through its
-            // hsql Backend member variable.  The real volt backend is encapsulated
-            // by the ExecutionEngine class. This class has implementations for both
-            // JNI and IPC - and selects the desired implementation based on the
-            // value of this.eeBackend.
+        // An execution site can be backed by HSQLDB, by volt's EE accessed
+        // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
+        // the VoltProcedure interface invokes HSQLDB directly through its
+        // hsql Backend member variable.  The real volt backend is encapsulated
+        // by the ExecutionEngine class. This class has implementations for both
+        // JNI and IPC - and selects the desired implementation based on the
+        // value of this.eeBackend.
         HsqlBackend hsqlTemp = null;
         ExecutionEngine eeTemp = null;
         try {
@@ -631,10 +628,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hsql = hsqlTemp;
         assert(this.ee != null);
         assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
-//        } else {
-//            this.hsql = null;
-//            this.ee = null;
-        }
         
         // ParameterSet Array Caches
         this.procParameterSets = new ParameterSetArrayCache(hstore_conf.site.planner_max_batch_size / 2);
@@ -658,15 +651,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 try {
                     p_class = (Class<? extends VoltProcedure>)Class.forName(className);
                     volt_proc = (VoltProcedure)p_class.newInstance();
-                } catch (final InstantiationException e) {
-                    LOG.fatal("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
-                    System.exit(1);
-                } catch (final IllegalAccessException e) {
-                    LOG.fatal("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
-                    System.exit(1);
-                } catch (final ClassNotFoundException e) {
-                    LOG.fatal("Failed to load procedure class '" + className + "'", e);
-                    System.exit(1);
+                } catch (Exception e) {
+                    throw new ServerFaultException("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                 }
                 
             } else {
@@ -782,12 +768,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                     WorkFragment fragment = ftask.getWorkFragment();
                     assert(fragment != null);
-                    // TODO (cjl6): Only do this if the fragment is not prefetched
-                    ParameterSet parameters[] = this.getFragmentParameters(current_txn,
-                                                                           fragment,
-                                                                           current_txn.getAttachedParameterSets());
-                    // TODO (cjl6): If it is prefetched, use current_txn.getPrefetchParameterSets() instead
-                    
+
+                    // Get the ParameterSet array for this WorkFragment
+                    // It can either be attached to the AbstractTransaction handle if it came
+                    // over the wire directly from the txn's base partition, or it can be attached
+                    // as for prefetch WorkFragments 
+                    ParameterSet parameters[] = null;
+                    if (fragment.getPrefetch()) {
+                        parameters = current_txn.getPrefetchParameterSets();
+                    } else {
+                        parameters = current_txn.getAttachedParameterSets();
+                    }
+                    this.getFragmentParameters(current_txn, fragment, parameters);
                     assert(parameters != null);
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
@@ -1317,7 +1309,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private void processWorkResult(LocalTransaction ts, WorkResult result) {
         if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
-                                       ts, this.partitionId, result.getPartitionId(), result.getOutputCount()));
+                                       ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
         // Note that we have to do this before we add the responses to the TransactionState so that
@@ -1350,21 +1342,21 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
-        for (DataFragment output : result.getOutputList()) {
+        for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
             if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
                                                     result.getPartitionId(), ts));
-            for (ByteString bs : output.getDataList()) {
-                VoltTable vt = null;
-                if (bs.isEmpty() == false) {
-                    FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
-                    try {
-                        vt = fd.readObject(VoltTable.class);
-                    } catch (Exception ex) {
-                        throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
-                    }
+            int depId = result.getDepId(i);
+            ByteString bs = result.getDepData(i);
+            VoltTable vt = null;
+            if (bs.isEmpty() == false) {
+                FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
+                try {
+                    vt = fd.readObject(VoltTable.class);
+                } catch (Exception ex) {
+                    throw new ServerFaultException("Failed to deserialize VoltTable from partition " + result.getPartitionId() + " for " + ts, ex);
                 }
-                ts.addResult(result.getPartitionId(), output.getId(), vt);
-            } // FOR (output)
+            }
+            ts.addResult(result.getPartitionId(), depId, vt);
         } // FOR (dependencies)
         if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
     }
@@ -1637,9 +1629,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // -------------------------------
+        // PREFETCH QUERIES
+        // -------------------------------
+        if (wfrag.getPrefetch()) {
+            // TODO: If this txn is at the same HStoreSite, then we need to put it somewhere
+            // inside of the LocalTransaction so that they will know how to find it.
+            // If it's a remote txn, then we need to send it back directly
+        
+        }
+        // -------------------------------
         // LOCAL TRANSACTION
         // -------------------------------
-        if (is_dtxn == false) {
+        else if (is_dtxn == false) {
             LocalTransaction local_ts = (LocalTransaction)ts;
             
             // If the transaction is local, store the result directly in the local TransactionState
@@ -1648,7 +1649,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 assert(result.size() == wfrag.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = wfrag.getOutputDepId(i);
-                    // ts.addResult(result.depIds[i], result.dependencies[i]);
                     if (t) LOG.trace("Storing DependencyId #" + dep_id  + " for " + ts);
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
@@ -2021,18 +2021,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (status == Status.OK) {
             final FastSerializer fs = new FastSerializer(this.buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                DataFragment.Builder outputBuilder = DataFragment.newBuilder();
-                outputBuilder.setId(result.depIds[i]);
+                builder.addDepId(result.depIds[i]);
                 fs.clear();
                 
                 try {
                     result.dependencies[i].writeExternal(fs);
                     ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
-                    outputBuilder.addData(bs);
+                    builder.addDepData(bs);
                 } catch (Exception ex) {
                     throw new ServerFaultException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts), ex);
                 }
-                builder.addOutput(outputBuilder.build());
                 if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
             } // FOR
             fs.getBBContainer().discard();
@@ -2097,15 +2095,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
            
             // Get the TransactionWorkRequest.Builder for the remote HStoreSite
             // We will use this store our serialized input dependencies
-            TransactionWorkRequestBuilder builder = tmp_transactionRequestBuilders[target_site];
-            if (builder == null) {
-                builder = tmp_transactionRequestBuilders[target_site] = new TransactionWorkRequestBuilder();
+            TransactionWorkRequestBuilder requestBuilder = tmp_transactionRequestBuilders[target_site];
+            if (requestBuilder == null) {
+                requestBuilder = tmp_transactionRequestBuilders[target_site] = new TransactionWorkRequestBuilder();
             }
-            TransactionWorkRequest.Builder request = builder.getBuilder(ts);
+            TransactionWorkRequest.Builder builder = requestBuilder.getBuilder(ts);
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.
-            builder.addStatementIndexes(ftask.getStmtIndexList());
+            requestBuilder.addStatementIndexes(ftask.getStmtIndexList());
             
             // Input Dependencies
             if (ftask.getNeedsInput()) {
@@ -2116,18 +2114,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
                 FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
-                    if (builder.hasInputDependencyId(e.getKey())) continue;
+                    if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
 
                     if (d) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
                                      ts, e.getValue().size(), HStoreThreadManager.formatSiteName(target_site)));
-                    DataFragment.Builder dBuilder = DataFragment.newBuilder();
-                    dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
                         if (fs == null) fs = new FastSerializer(this.buffer_pool);
                         else fs.clear();
                         try {
                             fs.writeObject(vt);
-                            dBuilder.addData(ByteString.copyFrom(fs.getBBContainer().b));
+                            builder.addAttachedDepId(e.getKey().intValue());
+                            builder.addAttachedData(ByteString.copyFrom(fs.getBBContainer().b));
                         } catch (Exception ex) {
                             String msg = String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts);
                             throw new ServerFaultException(msg, ts.getTransactionId());
@@ -2135,14 +2132,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         if (d)
                             LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
                                                     ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
-                                                    CollectionUtil.last(dBuilder.getDataList()).size()));
+                                                    CollectionUtil.last(builder.getAttachedDataList()).size()));
                     } // FOR
-                    builder.addInputDependencyId(e.getKey());
-                    request.addAttached(dBuilder.build());
+                    requestBuilder.addInputDependencyId(e.getKey());
                 } // FOR
                 if (fs != null) fs.getBBContainer().discard();
             }
-            request.addFragments(ftask);
+            builder.addFragments(ftask);
         } // FOR (tasks)
         
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure

@@ -278,6 +278,14 @@ public final class HStoreConf {
         public boolean exec_validate_work;
         
         @ConfigProperty(
+            description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
+            		    "queries on remote partitions for distributed transactions.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_prefetch_queries;
+        
+        @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
                 defaultBoolean=true,
                 experimental=true
