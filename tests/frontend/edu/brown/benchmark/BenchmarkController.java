@@ -663,6 +663,7 @@ public class BenchmarkController {
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+        allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
         allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
         // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         allClientArgs.add("LOADER=false");
@@ -1247,6 +1248,7 @@ public class BenchmarkController {
         // from a "mysqlp" file
         // set value to null on failure
         String[] databaseURL = { "", "" };
+        String statsDatabaseJDBC = null;
         int statsPollInterval = 1000;
 //        try {
 //            databaseURL = readConnectionStringFromFile(remotePath);
@@ -1367,9 +1369,15 @@ public class BenchmarkController {
                 snapshotRetain = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase("NUMCONNECTIONS")) {
                 clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
+                
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 databaseURL[0] = parts[1];
-            } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
+                statsDatabaseJDBC = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
@@ -1571,6 +1579,7 @@ public class BenchmarkController {
                 snapshotRetain, 
                 databaseURL[0], 
                 databaseURL[1],
+                statsDatabaseJDBC,
                 statsPollInterval,
                 statsTag,
                 applicationName, 
