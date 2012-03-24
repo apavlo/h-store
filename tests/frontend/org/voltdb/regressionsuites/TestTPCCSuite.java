@@ -806,12 +806,14 @@ public class TestTPCCSuite extends RegressionSuite {
 //        project.addStmtProcedure("GetOrderLineCount", "SELECT * FROM ORDER_LINE");
 //        project.addStmtProcedure("GetStockCount", "SELECT * FROM STOCK");
         
+        boolean success;
+        
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_JNI);
         //config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        boolean success = config.compile(project);
+        success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 
