@@ -64,6 +64,7 @@ import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
@@ -148,9 +149,14 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
 
     /**
+     * 
+     */
+    private List<WorkResult> prefetch_results;
+    
+    /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    protected final BitSet done_partitions;
+    private final BitSet done_partitions;
     
     /**
      * Whether this txn is being executed specutatively
@@ -191,7 +197,8 @@ public class LocalTransaction extends AbstractTransaction {
     private ExecutionState state;
     
     /**
-     * 
+     * Whether this transaction's control code was executed on
+     * its base partition.
      */
     private boolean executed = false;
     
@@ -364,6 +371,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.initiateTime = 0;
         
         this.executed = false;
+        this.prefetch_results = null;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
@@ -916,6 +924,16 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
+    }
+    
+    public void addPrefetchResults(List<WorkResult> results) {
+        if (this.prefetch_results == null) {
+            synchronized (this) {
+                if (this.prefetch_results == null) {
+                    this.prefetch_results = new ArrayList<WorkResult>();
+                }
+            } // SYNCH
+        }
     }
     
     // ----------------------------------------------------------------------------
