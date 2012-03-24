@@ -68,6 +68,7 @@ import edu.brown.hstore.handlers.SendDataHandler;
 import edu.brown.hstore.handlers.TransactionFinishHandler;
 import edu.brown.hstore.handlers.TransactionInitHandler;
 import edu.brown.hstore.handlers.TransactionMapHandler;
+import edu.brown.hstore.handlers.TransactionPrefetchHandler;
 import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
@@ -115,6 +116,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final TransactionInitHandler transactionInit_handler;
     private final TransactionWorkHandler transactionWork_handler;
+    private final TransactionPrefetchHandler transactionPrefetch_handler;
     private final TransactionMapHandler transactionMap_handler;
     private final TransactionReduceHandler transactionReduce_handler;
     private final TransactionPrepareHandler transactionPrepare_handler;
@@ -232,6 +234,7 @@ public class HStoreCoordinator implements Shutdownable {
 
         this.transactionInit_handler = new TransactionInitHandler(hstore_site, this, this.transactionInit_dispatcher);
         this.transactionWork_handler = new TransactionWorkHandler(hstore_site, this);
+        this.transactionPrefetch_handler = new TransactionPrefetchHandler(hstore_site, this);
         this.transactionMap_handler = new TransactionMapHandler(hstore_site, this);
         this.transactionReduce_handler = new TransactionReduceHandler(hstore_site,this);
         this.transactionPrepare_handler = new TransactionPrepareHandler(hstore_site, this);
@@ -495,6 +498,11 @@ public class HStoreCoordinator implements Shutdownable {
         public void transactionWork(RpcController controller, TransactionWorkRequest request, RpcCallback<TransactionWorkResponse> callback) {
             transactionWork_handler.remoteHandler(controller, request, callback);
         }
+
+        @Override
+        public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request, RpcCallback<TransactionPrefetchAcknowledgement> callback) {
+            transactionPrefetch_handler.remoteHandler(controller, request, callback);
+        }
         
         @Override
         public void transactionMap(RpcController controller, TransactionMapRequest request, RpcCallback<TransactionMapResponse> callback) {
@@ -608,12 +616,6 @@ public class HStoreCoordinator implements Shutdownable {
             done.run(response);
         }
 
-        @Override
-        public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request,
-                RpcCallback<TransactionPrefetchAcknowledgement> done) {
-            // TODO Auto-generated method stub
-            
-        }
     } // END CLASS
     
     
