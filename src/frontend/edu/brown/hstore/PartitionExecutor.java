@@ -99,6 +99,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -779,7 +780,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     } else {
                         parameters = current_txn.getAttachedParameterSets();
                     }
-                    this.getFragmentParameters(current_txn, fragment, parameters);
+                    parameters = this.getFragmentParameters(current_txn, fragment, parameters);
                     assert(parameters != null);
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
@@ -1084,7 +1085,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>",
                                                    ts, deps.size(), stmt_index, input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
@@ -1115,9 +1116,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } // FOR (fragments)
         if (d) {
             if (inputs.isEmpty() == false) {
-                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s %s on partition %d\n%s",
-                                        ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
-            } else {
+                LOG.debug(String.format("%s - Retrieved %d InputDependencies for %s on partition %d",
+                                        ts, inputs.size(), fragment.getFragmentIdList(), fragment.getPartitionId())); // StringUtil.formatMaps(inputs)));
+            } else if (fragment.getNeedsInput()) {
                 LOG.warn(String.format("%s - No InputDependencies retrieved for %s on partition %d",
                                        ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
             }
@@ -1608,6 +1609,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } finally {
             // Success, but without any results???
             if (result == null && status == Status.OK) {
+                System.err.println(wfrag);
                 Exception ex = new Exception(String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
                                                            wfrag.getFragmentIdList(), this.partitionId, ts));
                 if (d) LOG.warn(ex);
@@ -1635,6 +1637,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // TODO: If this txn is at the same HStoreSite, then we need to put it somewhere
             // inside of the LocalTransaction so that they will know how to find it.
             // If it's a remote txn, then we need to send it back directly
+            throw new NotImplementedException("Query prefetch is not ready!");
         
         }
         // -------------------------------
@@ -2429,9 +2432,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     } // FOR
                 }
             }
-            if (t)
-                LOG.trace(String.format("%s - Dispatched %d WorkFragments [remoteSite=%d, localSite=%d, localPartition=%d]",
-                          ts, total, num_remote, num_localSite, num_localPartition));
+            if (t) LOG.trace(String.format("%s - Dispatched %d WorkFragments [remoteSite=%d, localSite=%d, localPartition=%d]",
+                                           ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
         fs.getBBContainer().discard();
@@ -2482,8 +2484,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
         // where we can generate a message to the client 
         if (ts.hasPendingError()) {
-//            if (d)
-                LOG.warn(String.format("%s was hit with a %s", ts, ts.getPendingError().getClass().getSimpleName()));
+            if (d) LOG.warn(String.format("%s was hit with a %s",
+                                          ts, ts.getPendingError().getClass().getSimpleName()));
             throw ts.getPendingError();
         }
         
