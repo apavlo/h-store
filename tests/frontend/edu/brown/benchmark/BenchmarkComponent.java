@@ -1006,7 +1006,7 @@ public abstract class BenchmarkComponent {
             }
             if (!atLeastOneConnection) {
                 setState(ControlState.ERROR, "No HOSTS specified on command line.");
-                throw new RuntimeException("Failed to establish connections to cluster");
+                throw new RuntimeException("Failed to establish connections to H-Store cluster");
             }
         }
         m_checkTransaction = checkTransaction;
