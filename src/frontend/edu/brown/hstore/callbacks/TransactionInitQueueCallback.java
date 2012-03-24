@@ -1,9 +1,15 @@
 package edu.brown.hstore.callbacks;
 
+import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
+import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.messaging.FastDeserializer;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.HStoreSite;
@@ -11,7 +17,6 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -31,6 +36,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
             
     private TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
+    private final boolean prefetch; 
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
@@ -38,6 +44,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
     
     public TransactionInitQueueCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
+        this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
     public void init(Long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
@@ -100,19 +107,35 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
             this.getOrigCallback().run(this.builder.build());
             this.builder = null;
             
-            // Bundle the txn so we can queue the prefetch queries.
-            
-            // TODO(cjl6): At this point all of the partitions at this HStoreSite are allocated
-            //             for executing this txn. We can now check whether it has any embedded
-            //             queries that need to be queued up for pre-fetching. If so, blast them
-            //             off to the HStoreSite so that they can be executed in the PartitionExecutor
-            //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
-            AbstractTransaction ts = hstore_site.getTransaction(txn_id);
-            if (ts != null /*&& ts.hasPrefetchQueriesAtThisSite()*/) {
-                // Go through all the prefetch queries and send each one off to the right PartitionExecutor
-                // if it's at this HStoreSite.
-                for (WorkFragment frag : ts.getPrefetchFragments()) {
-                    hstore_site.transactionWork(ts, frag);
+            // Bundle the prefetch queries in the txn so we can queue them up
+            // At this point all of the partitions at this HStoreSite are allocated
+            // for executing this txn. We can now check whether it has any embedded
+            // queries that need to be queued up for pre-fetching. If so, blast them
+            // off to the HStoreSite so that they can be executed in the PartitionExecutor
+            // Use txn_id to get the AbstractTransaction handle from the HStoreSite
+            if (this.prefetch) {
+                AbstractTransaction ts = hstore_site.getTransaction(this.txn_id);
+                if (ts != null && ts.hasPrefetchQueries()) {
+                    // We need to convert our raw ByteString ParameterSets into the actual objects
+                    List<ByteString> rawParams = ts.getPrefetchRawParameterSets(); 
+                    int num_parameters = rawParams.size();
+                    ParameterSet params[] = new ParameterSet[num_parameters]; 
+                    for (int i = 0; i < params.length; i++) {
+                        try {
+                            params[i] = FastDeserializer.deserialize(rawParams.get(i).asReadOnlyByteBuffer(),
+                                                                     ParameterSet.class);
+                        } catch (IOException ex) {
+                            String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
+                            throw new ServerFaultException(msg, ex, this.txn_id);
+                        }
+                    } // FOR
+                    ts.attachPrefetchParameters(params);
+                    
+                    // Go through all the prefetch WorkFragments and send them off to 
+                    // the right PartitionExecutor at this HStoreSite.
+                    for (WorkFragment frag : ts.getPrefetchFragments()) {
+                        hstore_site.transactionWork(ts, frag);
+                    } // FOR
                 }
             }
         }
