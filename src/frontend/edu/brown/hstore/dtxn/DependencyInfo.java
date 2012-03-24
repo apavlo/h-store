@@ -12,6 +12,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -204,11 +205,11 @@ public class DependencyInfo implements Poolable {
      * @param flip_local_partition
      * @return
      */
-    protected List<VoltTable> getResults(Collection<Integer> local_partitions, boolean flip_local_partition) {
+    protected List<VoltTable> getResults(HStoreSite hstore_site, boolean flip_local_partition) {
         if (flip_local_partition) {
             for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
                 Integer partition = this.results.get(i);
-                if (local_partitions.contains(partition)) {
+                if (hstore_site.isLocalPartition(partition.intValue())) {
                     if (d) LOG.debug(String.format("%s - Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
                                                    this.txn_id, this.dependency_id, partition));
                     VoltTable vt = this.results_list.get(i);
@@ -216,7 +217,8 @@ public class DependencyInfo implements Poolable {
                     ByteBuffer buffer = vt.getTableDataReference();
                     byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
                     buffer.get(arr, 0, arr.length);
-                    this.results_list.set(i, new VoltTable(ByteBuffer.wrap(arr), true));
+                    ByteBuffer new_buffer = ByteBuffer.wrap(arr);
+                    this.results_list.set(i, new VoltTable(new_buffer, true));
                 }
             } // FOR
         }

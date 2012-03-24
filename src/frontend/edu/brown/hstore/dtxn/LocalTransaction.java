@@ -934,6 +934,7 @@ public class LocalTransaction extends AbstractTransaction {
                 }
             } // SYNCH
         }
+        this.prefetch_results.addAll(results);
     }
     
     // ----------------------------------------------------------------------------
@@ -1279,7 +1280,6 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("%s - Retrieving %d internal dependencies for %s WorkFragment:\n%s",
                                        this, fragment.getInputDepIdCount(), fragment));
         
-        Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
@@ -1298,7 +1298,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   debugStmtDep(stmt_index, input_d_id), num_tables, dinfo.getPartitions().size(), this,
                                   this.toString(), fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
-                results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
+                results.put(input_d_id, dinfo.getResults(hstore_site, true));
                 if (d) LOG.debug(String.format("%s - %s -> %d VoltTables",
                                                this, debugStmtDep(stmt_index, input_d_id), results.get(input_d_id).size()));
             } // FOR
@@ -1322,7 +1322,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
                                   debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitions().size(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
-        return (dinfo.getResults(hstore_site.getLocalPartitionIds(), true));
+        return (dinfo.getResults(hstore_site, true));
     }
     
     /**
