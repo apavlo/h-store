@@ -75,16 +75,16 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         FINISHED;
     }
     
+    protected final HStoreSite hstore_site;
+    
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected final HStoreSite hstore_site;
-    
     protected Long txn_id = null;
     protected long client_handle;
     protected int base_partition;
-    protected boolean rejected;
+    protected Status status;
     protected boolean sysproc;
     protected SerializableException pending_error;
 
@@ -93,13 +93,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
 
     /**
-     * Attached ParameterSets for the current execution round
-     * This is so that we don't have to marshal them over to different partitions on the same HStoreSite  
+     * Attached inputs for the current execution round.
+     * This cannot be in the ExecutionState because we may have attached inputs for 
+     * transactions that aren't running yet.
      */
     private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
     
     /**
-     * 
+     * Attached ParameterSets for the current execution round
+     * This is so that we don't have to marshal them over to different partitions on the same HStoreSite  
      */
     private ParameterSet attached_parameterSets[];
     
@@ -114,12 +116,19 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // GLOBAL PREDICTIONS FLAGS
     // ----------------------------------------------------------------------------
     
+    /**
+     * Whether this transaction will only touch one partition
+     */
     protected boolean predict_singlePartition = false;
     
-    /** Whether this txn can abort */
+    /**
+     * Whether this txn can abort
+     */
     protected boolean predict_abortable = true;
     
-    /** Whether we predict that this txn will be read-only */
+    /**
+     * Whether we predict that this txn will be read-only
+     */
     protected boolean predict_readOnly = false;
     
     // ----------------------------------------------------------------------------
@@ -218,7 +227,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.sysproc = sysproc;
-        this.rejected = false;
         this.predict_singlePartition = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
@@ -240,12 +248,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_readOnly = false;
         this.predict_abortable = true;
         this.pending_error = null;
+        this.status = null;
         this.sysproc = false;
         this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
         
+        // If this transaction handle was keeping track of pre-fetched queries,
+        // then go ahead and reset those state variables.
         this.prefetch_fragments = null;
         this.prefetch_params_raw = null;
         this.prefetch_params = null;
@@ -260,9 +271,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_noUndoBuffer[i] = false;
         } // FOR
 
-        // TODO(cjl6): If this transaction handle was keeping track of pre-fetched queries,
-        //             then go ahead and reset those state variables.
-        
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = null;
@@ -433,37 +441,27 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * Get this state's transaction id
      */
-    public Long getTransactionId() {
+    public final Long getTransactionId() {
         return this.txn_id;
     }
     /**
      * Get this state's client_handle
      */
-    public long getClientHandle() {
+    public final long getClientHandle() {
         return this.client_handle;
     }
     /**
      * Get the base PartitionId where this txn's Java code is executing on
      */
-    public int getBasePartition() {
+    public final int getBasePartition() {
         return base_partition;
     }
-
-    public boolean isSysProc() {
+    /**
+     * Returns true if this transaction is for a system procedure
+     */
+    public final boolean isSysProc() {
         return this.sysproc;
     }
-    
-    public boolean isRejected() {
-        return (this.rejected);
-    }
-    
-    public void markAsRejected() {
-        this.rejected = true;
-    }
-    public TransactionCleanupCallback getCleanupCallback() {
-        return (null);
-    }
-
     
     /**
      * Returns true if this transaction has done something at this partition and therefore
@@ -484,6 +482,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
 //        else {
 //            return (this.last_undo_token[offset] != HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
 //        }
+    }
+    
+    /**
+     * Return a TransactionCleanupCallback
+     * Note that this will be null for LocalTransactions
+     */
+    public TransactionCleanupCallback getCleanupCallback() {
+        return (null);
     }
     
     /**
@@ -534,6 +540,29 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.work_task[offset].setWorkFragment(this.txn_id, fragment));
     }
     
+    /**
+     * Return the current Status for this transaction
+     * This is not thread-safe. 
+     */
+    public final Status getStatus() {
+        return (this.status);
+    }
+    /**
+     * Set the current Status for this transaction
+     * This is not thread-safe.
+     * @param status
+     */
+    public final void setStatus(Status status) {
+        this.status = status;
+    }
+    
+    /**
+     * Returns true if this transaction has been aborted.
+     */
+    public final boolean isAborted() {
+        return (this.status != null && this.status != Status.OK);
+    }
+    
     // ----------------------------------------------------------------------------
     // Keep track of whether this txn executed stuff at this partition's EE
     // ----------------------------------------------------------------------------
@@ -557,7 +586,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public boolean hasSubmittedEE(int partition) {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
-    
     
     // ----------------------------------------------------------------------------
     // Whether the ExecutionSite is finished with the transaction
@@ -597,7 +625,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     // ATTACHED DATA FOR NORMAL WORK FRAGMENTS
     // ----------------------------------------------------------------------------
-    
     
     
     public void attachParameterSets(ParameterSet parameterSets[]) {
@@ -649,12 +676,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     
-    public List<WorkFragment> getPrefetchFragments() {
-        return this.prefetch_fragments;
+    public final List<WorkFragment> getPrefetchFragments() {
+        return (this.prefetch_fragments);
     }
     
-    public List<ByteString> getPrefetchRawParameterSets() {
-        return this.prefetch_params_raw;
+    public final List<ByteString> getPrefetchRawParameterSets() {
+        return (this.prefetch_params_raw);
     }
 
     public final ParameterSet[] getPrefetchParameterSets() {
