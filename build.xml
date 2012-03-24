@@ -1571,10 +1571,9 @@ BENCHMARKS
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
         <arg value="NUMCONNECTIONS=${numconnections}" />
-<!--         <arg value="STATSTAG=${statsTag}" /> -->
-<!--         <arg value="STATSDATABASEURL=${statsDatabaseURL}" /> -->
-        <arg value="APPLICATIONNAME=${applicationName}" />
-        <arg value="SUBAPPLICATIONNAME=${subApplicationName}" />
+        <arg value="STATSTAG=${statsTag}" />
+        <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
+        <arg value="STATSDATABASEJDBC=${statsDatabaseJDBC}" />
 
         <!-- measureoverhead parameters -->
         <arg value="transaction=${transaction}"/>

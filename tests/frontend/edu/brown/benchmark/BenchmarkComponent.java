@@ -765,6 +765,7 @@ public abstract class BenchmarkComponent {
         boolean noConnections = false;
         boolean noUploading = false;
         String statsDatabaseURL = null;
+        String statsDatabaseJDBC = null;
         int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
@@ -840,6 +841,9 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 statsDatabaseURL = parts[1];
             }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
+                statsDatabaseJDBC = parts[1];
+            }
             else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
                 statsPollInterval = Integer.parseInt(parts[1]); 
             }
@@ -885,7 +889,12 @@ public abstract class BenchmarkComponent {
         
         StatsUploaderSettings statsSettings = null;
         if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
+            LOG.info("statsDatabaseURL => " + statsDatabaseURL);
+            
             try {
+                if (statsDatabaseJDBC != null && statsDatabaseJDBC.isEmpty() == false) {
+                    Class.forName(statsDatabaseJDBC);
+                }
                 statsSettings = new StatsUploaderSettings(
                                         statsDatabaseURL,
                                         projectName,
