@@ -109,6 +109,9 @@ public abstract class VoltServerConfig {
     
     protected String nameSuffix = "";
     protected final Map<String, String> confParams = new HashMap<String, String>(); 
+    {
+        this.setConfParameter("site.coordinator_sync_time", false);
+    }
     
     public final void setTestNameSuffix(String suffix) {
         this.nameSuffix = suffix;
