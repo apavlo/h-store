@@ -699,8 +699,8 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionPrefetch(RemoteTransaction ts, TransactionPrefetchResult request) {
         if (debug.get()) LOG.debug(String.format("%s - Sending %s back to base partition %d [numResults=%d]",
                                                  ts, request.getClass().getSimpleName(),
-                                                 ts.getBasePartition(), request.getResultsCount()));
-        assert(request.getResultsCount() > 0) :
+                                                 ts.getBasePartition(), request.hasResult()));
+        assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
         int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
         assert(site_id != this.local_site_id);

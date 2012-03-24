@@ -50,11 +50,12 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         assert(request.hasTransactionId()) : 
             "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
-        if (debug.get()) LOG.debug(String.format("Got %s for txn #%d [remoteSite=%d]",
-                                                 request.getClass().getSimpleName(), txn_id, request.getSourceSite()));
+        if (debug.get()) LOG.debug(String.format("Got %s for txn #%d [remotePartition=%d]",
+                                                 request.getClass().getSimpleName(), txn_id, request.getSourcePartition()));
         
         // We should never a get a TransactionPrefetchResult for a transaction that
         // we don't know about.
+        // XXX: No I think it's ok because we 
         LocalTransaction ts = hstore_site.getTransaction(txn_id);
         if (ts == null) {
             String msg = String.format("Unexpected transaction id %d for incoming %s",
@@ -64,7 +65,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         
         // We want to store this before sending back the acknowledgment so that the transaction can get
         // access to it right away
-        ts.addPrefetchResults(request.getResultsList());
+        ts.addPrefetchResults(request.getResult());
         
         TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
                                                             .setTransactionId(txn_id.longValue())
