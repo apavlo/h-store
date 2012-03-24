@@ -56,9 +56,9 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
                                            HStoreThreadManager.formatSiteName(this.dest_id), parameter.length));
         ByteString bs = ByteString.copyFrom(parameter);
         TransactionRedirectResponse response = TransactionRedirectResponse.newBuilder()
-                                                                          .setSenderId(this.source_id)
-                                                                          .setOutput(bs)
-                                                                          .build();
+                                                              .setSenderSite(this.source_id)
+                                                              .setOutput(bs)
+                                                              .build();
         this.orig_callback.run(response);
         if (trace) LOG.trace("Sent our ClientResponse back. Returning to regularly scheduled program...");
         try {
