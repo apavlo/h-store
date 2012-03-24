@@ -27,7 +27,6 @@ package edu.brown.hstore.dtxn;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -154,11 +153,22 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     //             Need a way easily identify the same queries+parameters per partition.
     // TODO(cjl6): Boolean flag as to whether the transaction has queries it wants to pre-fetch
     //             at each partition
-    /** The list of prefetched WorkFragments, if any **/
-    private Collection<WorkFragment> prefetch_fragments = null;
     
-    /** The list of ParameterSets for the prefetched WorkFragments, if any (in lockstep with prefetch_fragments) **/
-    private Collection<ByteString> prefetch_parameter_sets = null;
+    /** 
+     * The list of prefetched WorkFragments, if any
+     */
+    private List<WorkFragment> prefetch_fragments = null;
+    
+    /**
+     * The list of raw serialized ParameterSets for the prefetched WorkFragments,
+     * if any (in lockstep with prefetch_fragments)
+     */
+    private List<ByteString> prefetch_params_raw = null;
+    
+    /**
+     * The deserialized ParameterSets for the prefetched WorkFragments,
+     */
+    private ParameterSet[] prefetch_params = null;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -235,6 +245,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
+        
+        this.prefetch_fragments = null;
+        this.prefetch_params_raw = null;
+        this.prefetch_params = null;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
@@ -406,6 +420,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // GENERAL METHODS
     // ----------------------------------------------------------------------------
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof AbstractTransaction) {
+            AbstractTransaction other = (AbstractTransaction)obj;
+            if ((other.txn_id == null) && (this.txn_id == null)) return (this.hashCode() != other.hashCode());
+            return (this.txn_id.equals(other.txn_id) && this.base_partition == other.base_partition);
+        }
+        return (false);
+    }
     
     /**
      * Get this state's transaction id
@@ -437,6 +460,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public void markAsRejected() {
         this.rejected = true;
     }
+    public TransactionCleanupCallback getCleanupCallback() {
+        return (null);
+    }
+
     
     /**
      * Returns true if this transaction has done something at this partition and therefore
@@ -568,13 +595,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     // ----------------------------------------------------------------------------
-    // We can attach input dependencies used on non-local partitions
+    // ATTACHED DATA FOR NORMAL WORK FRAGMENTS
     // ----------------------------------------------------------------------------
     
     
-    public TransactionCleanupCallback getCleanupCallback() {
-        return (null);
-    }
     
     public void attachParameterSets(ParameterSet parameterSets[]) {
         this.attached_parameterSets = parameterSets;
@@ -598,15 +622,51 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.attached_inputs);
     }
     
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof AbstractTransaction) {
-            AbstractTransaction other = (AbstractTransaction)obj;
-            if ((other.txn_id == null) && (this.txn_id == null)) return (this.hashCode() != other.hashCode());
-            return (this.txn_id.equals(other.txn_id) && this.base_partition == other.base_partition);
-        }
-        return (false);
+    // ----------------------------------------------------------------------------
+    // PREFETCH QUERIES
+    // ----------------------------------------------------------------------------
+    
+    public void attachPrefetchQueries(List<WorkFragment> fragments, List<ByteString> rawParameters) {
+        assert(this.prefetch_fragments == null) :
+            "Trying to attach Prefetch WorkFragments more than once!";
+        
+        // Simply copy the references so we don't allocate more objects
+        this.prefetch_fragments = fragments;
+        this.prefetch_params_raw = rawParameters;
     }
+    
+    public void attachPrefetchParameters(ParameterSet params[]) {
+        assert(this.prefetch_params == null) :
+            "Trying to attach Prefetch ParameterSets more than once!";
+        this.prefetch_params = params;
+    }
+    
+    /**
+     * Returns true if this transaction has prefetched attached this handle 
+     */
+    public boolean hasPrefetchQueries() {
+        return (this.prefetch_fragments != null && this.prefetch_fragments.isEmpty() == false);
+    }
+    
+    
+    public List<WorkFragment> getPrefetchFragments() {
+        return this.prefetch_fragments;
+    }
+    
+    public List<ByteString> getPrefetchRawParameterSets() {
+        return this.prefetch_params_raw;
+    }
+
+    public final ParameterSet[] getPrefetchParameterSets() {
+        assert(this.prefetch_params != null);
+        return (this.prefetch_params);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PREFETCH QUERIES
+    // ----------------------------------------------------------------------------
+    
+
 
     @Override
     public String toString() {
@@ -639,22 +699,5 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return ("#" + txn_id);
     }
     
-    
-    // ----------------------------------------------------------------------------
-    // Dealing with prefetched fragments
-    // ----------------------------------------------------------------------------
-    
-    public void attachPrefetchQueries(Collection<WorkFragment> prefetch_fragments, Collection<ByteString> prefetch_parameter_sets) {
-        // Simply copy the references so we don't allocate more objects
-        this.prefetch_fragments = prefetch_fragments;
-        this.prefetch_parameter_sets = prefetch_parameter_sets;
-    }
-    
-    public Collection<WorkFragment> getPrefetchFragments() {
-        return this.prefetch_fragments;
-    }
-    
-    public Collection<ByteString> getPrefetchParameterSets() {
-        return this.prefetch_parameter_sets;
-    }
+
 }
