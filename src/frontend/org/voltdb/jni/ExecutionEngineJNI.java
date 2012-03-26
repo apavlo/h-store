@@ -250,7 +250,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             for (int i = 0; i < numDependencies; ++i) {
                 depIds[i] = deserializer.readInt();
                 dependencies[i] = deserializer.readObject(VoltTable.class);
-            }
+            } // FOR
             assert(depIds.length == 1);
             return new DependencyPair(depIds[0], dependencies[0]);
         } catch (final IOException ex) {
@@ -381,18 +381,17 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
         // get a copy of the result buffers and make the tables
         // use the copy
-        try {
+        ByteBuffer fullBacking = deserializer.buffer();
+//        try {
             // read the complete size of the buffer used
-            final int totalSize = deserializer.readInt();
+            final int totalSize = fullBacking.getInt();
             // check if anything was changed
-            final boolean dirty = deserializer.readBoolean();
-            if (dirty)
-                m_dirty = true;
+            m_dirty = (fullBacking.get() == 1 ? true : false);
 
             // get a copy of the buffer
             // Because this is a copy, that means we don't have to worry about the EE overwriting us
             // Not sure of the implications for performance.
-            ByteBuffer fullBacking = deserializer.readBuffer(totalSize);
+             // deserializer.readBuffer(totalSize);
             
             // At this point we don't know how many dependencies we expect to get back from our fragments.
             // We're just going to assume that each PlanFragment generated one and only one output dependency
@@ -417,21 +416,26 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                     
                     int tableSize = fullBacking.getInt();
                     assert(tableSize < 10000000);
-                    final ByteBuffer tableBacking = fullBacking.slice();
+                    byte tableBytes[] = new byte[tableSize];
+                    fullBacking.get(tableBytes, 0, tableSize);
+                    final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
+                    
                     fullBacking.position(fullBacking.position() + tableSize);
-                    tableBacking.limit(tableSize);
+//                    tableBacking.limit(tableSize);
                     
                     results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
                     dependencies[dep_ctr] = depid;
+                    LOG.info(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
+                                           txnId, depid, tableSize, results[dep_ctr].toString())); 
                     dep_ctr++;
                 } // FOR
             } // FOR
             
             return (new DependencySet(dependencies, results));
-        } catch (IOException ex) {
-            LOG.error("Failed to deserialze result table" + ex);
-            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
-        }
+//        } catch (IOException ex) {
+//            LOG.error("Failed to deserialze result table" + ex);
+//            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+//        }
     }
 
     /**
