@@ -538,6 +538,13 @@ public final class Hstoreservice {
     public boolean hasPrefetch() { return hasPrefetch; }
     public boolean getPrefetch() { return prefetch_; }
     
+    // optional bool force = 10 [default = false];
+    public static final int FORCE_FIELD_NUMBER = 10;
+    private boolean hasForce;
+    private boolean force_ = false;
+    public boolean hasForce() { return hasForce; }
+    public boolean getForce() { return force_; }
+    
     private void initFields() {
     }
     public final boolean isInitialized() {
@@ -588,6 +595,9 @@ public final class Hstoreservice {
       }
       if (hasPrefetch()) {
         output.writeBool(9, getPrefetch());
+      }
+      if (hasForce()) {
+        output.writeBool(10, getForce());
       }
       getUnknownFields().writeTo(output);
     }
@@ -663,6 +673,10 @@ public final class Hstoreservice {
       if (hasPrefetch()) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(9, getPrefetch());
+      }
+      if (hasForce()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(10, getForce());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -877,6 +891,9 @@ public final class Hstoreservice {
         if (other.hasPrefetch()) {
           setPrefetch(other.getPrefetch());
         }
+        if (other.hasForce()) {
+          setForce(other.getForce());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -965,6 +982,10 @@ public final class Hstoreservice {
             }
             case 72: {
               setPrefetch(input.readBool());
+              break;
+            }
+            case 80: {
+              setForce(input.readBool());
               break;
             }
           }
@@ -1212,6 +1233,24 @@ public final class Hstoreservice {
       public Builder clearPrefetch() {
         result.hasPrefetch = false;
         result.prefetch_ = false;
+        return this;
+      }
+      
+      // optional bool force = 10 [default = false];
+      public boolean hasForce() {
+        return result.hasForce();
+      }
+      public boolean getForce() {
+        return result.getForce();
+      }
+      public Builder setForce(boolean value) {
+        result.hasForce = true;
+        result.force_ = value;
+        return this;
+      }
+      public Builder clearForce() {
+        result.hasForce = false;
+        result.force_ = false;
         return this;
       }
       
@@ -4150,24 +4189,19 @@ public final class Hstoreservice {
     public boolean hasTransactionId() { return hasTransactionId; }
     public long getTransactionId() { return transactionId_; }
     
-    // required int32 source_site = 2;
-    public static final int SOURCE_SITE_FIELD_NUMBER = 2;
-    private boolean hasSourceSite;
-    private int sourceSite_ = 0;
-    public boolean hasSourceSite() { return hasSourceSite; }
-    public int getSourceSite() { return sourceSite_; }
+    // required int32 source_partition = 2;
+    public static final int SOURCE_PARTITION_FIELD_NUMBER = 2;
+    private boolean hasSourcePartition;
+    private int sourcePartition_ = 0;
+    public boolean hasSourcePartition() { return hasSourcePartition; }
+    public int getSourcePartition() { return sourcePartition_; }
     
-    // repeated .edu.brown.hstore.WorkResult results = 3;
-    public static final int RESULTS_FIELD_NUMBER = 3;
-    private java.util.List<edu.brown.hstore.Hstoreservice.WorkResult> results_ =
-      java.util.Collections.emptyList();
-    public java.util.List<edu.brown.hstore.Hstoreservice.WorkResult> getResultsList() {
-      return results_;
-    }
-    public int getResultsCount() { return results_.size(); }
-    public edu.brown.hstore.Hstoreservice.WorkResult getResults(int index) {
-      return results_.get(index);
-    }
+    // required .edu.brown.hstore.WorkResult result = 3;
+    public static final int RESULT_FIELD_NUMBER = 3;
+    private boolean hasResult;
+    private edu.brown.hstore.Hstoreservice.WorkResult result_;
+    public boolean hasResult() { return hasResult; }
+    public edu.brown.hstore.Hstoreservice.WorkResult getResult() { return result_; }
     
     // required .edu.brown.hstore.Status status = 4;
     public static final int STATUS_FIELD_NUMBER = 4;
@@ -4177,15 +4211,15 @@ public final class Hstoreservice {
     public edu.brown.hstore.Hstoreservice.Status getStatus() { return status_; }
     
     private void initFields() {
+      result_ = edu.brown.hstore.Hstoreservice.WorkResult.getDefaultInstance();
       status_ = edu.brown.hstore.Hstoreservice.Status.OK;
     }
     public final boolean isInitialized() {
       if (!hasTransactionId) return false;
-      if (!hasSourceSite) return false;
+      if (!hasSourcePartition) return false;
+      if (!hasResult) return false;
       if (!hasStatus) return false;
-      for (edu.brown.hstore.Hstoreservice.WorkResult element : getResultsList()) {
-        if (!element.isInitialized()) return false;
-      }
+      if (!getResult().isInitialized()) return false;
       return true;
     }
     
@@ -4195,11 +4229,11 @@ public final class Hstoreservice {
       if (hasTransactionId()) {
         output.writeInt64(1, getTransactionId());
       }
-      if (hasSourceSite()) {
-        output.writeInt32(2, getSourceSite());
+      if (hasSourcePartition()) {
+        output.writeInt32(2, getSourcePartition());
       }
-      for (edu.brown.hstore.Hstoreservice.WorkResult element : getResultsList()) {
-        output.writeMessage(3, element);
+      if (hasResult()) {
+        output.writeMessage(3, getResult());
       }
       if (hasStatus()) {
         output.writeEnum(4, getStatus().getNumber());
@@ -4217,13 +4251,13 @@ public final class Hstoreservice {
         size += com.google.protobuf.CodedOutputStream
           .computeInt64Size(1, getTransactionId());
       }
-      if (hasSourceSite()) {
+      if (hasSourcePartition()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(2, getSourceSite());
+          .computeInt32Size(2, getSourcePartition());
       }
-      for (edu.brown.hstore.Hstoreservice.WorkResult element : getResultsList()) {
+      if (hasResult()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(3, element);
+          .computeMessageSize(3, getResult());
       }
       if (hasStatus()) {
         size += com.google.protobuf.CodedOutputStream
@@ -4371,10 +4405,6 @@ public final class Hstoreservice {
           throw new IllegalStateException(
             "build() has already been called on this Builder.");
         }
-        if (result.results_ != java.util.Collections.EMPTY_LIST) {
-          result.results_ =
-            java.util.Collections.unmodifiableList(result.results_);
-        }
         edu.brown.hstore.Hstoreservice.TransactionPrefetchResult returnMe = result;
         result = null;
         return returnMe;
@@ -4394,14 +4424,11 @@ public final class Hstoreservice {
         if (other.hasTransactionId()) {
           setTransactionId(other.getTransactionId());
         }
-        if (other.hasSourceSite()) {
-          setSourceSite(other.getSourceSite());
+        if (other.hasSourcePartition()) {
+          setSourcePartition(other.getSourcePartition());
         }
-        if (!other.results_.isEmpty()) {
-          if (result.results_.isEmpty()) {
-            result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstoreservice.WorkResult>();
-          }
-          result.results_.addAll(other.results_);
+        if (other.hasResult()) {
+          mergeResult(other.getResult());
         }
         if (other.hasStatus()) {
           setStatus(other.getStatus());
@@ -4436,13 +4463,16 @@ public final class Hstoreservice {
               break;
             }
             case 16: {
-              setSourceSite(input.readInt32());
+              setSourcePartition(input.readInt32());
               break;
             }
             case 26: {
               edu.brown.hstore.Hstoreservice.WorkResult.Builder subBuilder = edu.brown.hstore.Hstoreservice.WorkResult.newBuilder();
+              if (hasResult()) {
+                subBuilder.mergeFrom(getResult());
+              }
               input.readMessage(subBuilder, extensionRegistry);
-              addResults(subBuilder.buildPartial());
+              setResult(subBuilder.buildPartial());
               break;
             }
             case 32: {
@@ -4478,72 +4508,58 @@ public final class Hstoreservice {
         return this;
       }
       
-      // required int32 source_site = 2;
-      public boolean hasSourceSite() {
-        return result.hasSourceSite();
+      // required int32 source_partition = 2;
+      public boolean hasSourcePartition() {
+        return result.hasSourcePartition();
       }
-      public int getSourceSite() {
-        return result.getSourceSite();
+      public int getSourcePartition() {
+        return result.getSourcePartition();
       }
-      public Builder setSourceSite(int value) {
-        result.hasSourceSite = true;
-        result.sourceSite_ = value;
+      public Builder setSourcePartition(int value) {
+        result.hasSourcePartition = true;
+        result.sourcePartition_ = value;
         return this;
       }
-      public Builder clearSourceSite() {
-        result.hasSourceSite = false;
-        result.sourceSite_ = 0;
+      public Builder clearSourcePartition() {
+        result.hasSourcePartition = false;
+        result.sourcePartition_ = 0;
         return this;
       }
       
-      // repeated .edu.brown.hstore.WorkResult results = 3;
-      public java.util.List<edu.brown.hstore.Hstoreservice.WorkResult> getResultsList() {
-        return java.util.Collections.unmodifiableList(result.results_);
+      // required .edu.brown.hstore.WorkResult result = 3;
+      public boolean hasResult() {
+        return result.hasResult();
       }
-      public int getResultsCount() {
-        return result.getResultsCount();
+      public edu.brown.hstore.Hstoreservice.WorkResult getResult() {
+        return result.getResult();
       }
-      public edu.brown.hstore.Hstoreservice.WorkResult getResults(int index) {
-        return result.getResults(index);
-      }
-      public Builder setResults(int index, edu.brown.hstore.Hstoreservice.WorkResult value) {
+      public Builder setResult(edu.brown.hstore.Hstoreservice.WorkResult value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        result.results_.set(index, value);
+        result.hasResult = true;
+        result.result_ = value;
         return this;
       }
-      public Builder setResults(int index, edu.brown.hstore.Hstoreservice.WorkResult.Builder builderForValue) {
-        result.results_.set(index, builderForValue.build());
+      public Builder setResult(edu.brown.hstore.Hstoreservice.WorkResult.Builder builderForValue) {
+        result.hasResult = true;
+        result.result_ = builderForValue.build();
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstoreservice.WorkResult value) {
-        if (value == null) {
-          throw new NullPointerException();
+      public Builder mergeResult(edu.brown.hstore.Hstoreservice.WorkResult value) {
+        if (result.hasResult() &&
+            result.result_ != edu.brown.hstore.Hstoreservice.WorkResult.getDefaultInstance()) {
+          result.result_ =
+            edu.brown.hstore.Hstoreservice.WorkResult.newBuilder(result.result_).mergeFrom(value).buildPartial();
+        } else {
+          result.result_ = value;
         }
-        if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstoreservice.WorkResult>();
-        }
-        result.results_.add(value);
+        result.hasResult = true;
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstoreservice.WorkResult.Builder builderForValue) {
-        if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstoreservice.WorkResult>();
-        }
-        result.results_.add(builderForValue.build());
-        return this;
-      }
-      public Builder addAllResults(
-          java.lang.Iterable<? extends edu.brown.hstore.Hstoreservice.WorkResult> values) {
-        if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstoreservice.WorkResult>();
-        }
-        super.addAll(values, result.results_);
-        return this;
-      }
-      public Builder clearResults() {
-        result.results_ = java.util.Collections.emptyList();
+      public Builder clearResult() {
+        result.hasResult = false;
+        result.result_ = edu.brown.hstore.Hstoreservice.WorkResult.getDefaultInstance();
         return this;
       }
       
@@ -12521,117 +12537,118 @@ public final class Hstoreservice {
     java.lang.String[] descriptorData = {
       "\n$edu/brown/hstore/hstoreservice.proto\022\020" +
       "edu.brown.hstore\032$ca/evanjones/protorpc/" +
-      "Protocol.proto\"\271\002\n\014WorkFragment\022\024\n\014parti" +
+      "Protocol.proto\"\317\002\n\014WorkFragment\022\024\n\014parti" +
       "tion_id\030\001 \002(\005\022\027\n\013fragment_id\030\002 \003(\005B\002\020\001\022D" +
       "\n\014input_dep_id\030\003 \003(\0132..edu.brown.hstore." +
       "WorkFragment.InputDependency\022\031\n\routput_d" +
       "ep_id\030\004 \003(\005B\002\020\001\022\026\n\nstmt_index\030\005 \003(\005B\002\020\001\022" +
       "\021\n\tread_only\030\006 \002(\010\022\023\n\013needs_input\030\007 \002(\010\022" +
       "\034\n\rlast_fragment\030\010 \001(\010:\005false\022\027\n\010prefetc" +
-      "h\030\t \001(\010:\005false\032\"\n\017InputDependency\022\017\n\003ids",
-      "\030\001 \003(\005B\002\020\001\"\201\001\n\nWorkResult\022\024\n\014partition_i" +
-      "d\030\001 \002(\005\022\022\n\006dep_id\030\002 \003(\005B\002\020\001\022\020\n\010dep_data\030" +
-      "\003 \003(\014\022(\n\006status\030\004 \002(\0162\030.edu.brown.hstore" +
-      ".Status\022\r\n\005error\030\005 \001(\014\"\323\001\n\026TransactionIn" +
-      "itRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\016bas" +
-      "e_partition\030\002 \002(\005\022\024\n\014procedure_id\030\003 \002(\005\022" +
-      "\026\n\npartitions\030\004 \003(\005B\002\020\001\022:\n\022prefetch_frag" +
-      "ments\030\005 \003(\0132\036.edu.brown.hstore.WorkFragm" +
-      "ent\022\037\n\027prefetch_parameter_sets\030\006 \003(\014\"\254\001\n" +
-      "\027TransactionInitResponse\022\026\n\016transaction_",
-      "id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006stat" +
-      "us\030\003 \002(\0162\030.edu.brown.hstore.Status\022\030\n\020re" +
-      "ject_partition\030\004 \001(\005\022\035\n\025reject_transacti" +
-      "on_id\030\005 \001(\003\"\375\001\n\026TransactionWorkRequest\022\026" +
-      "\n\016transaction_id\030\001 \002(\003\022\030\n\020source_partiti" +
-      "on\030\002 \002(\005\0221\n\tfragments\030\003 \003(\0132\036.edu.brown." +
-      "hstore.WorkFragment\022\026\n\007sysproc\030\004 \002(\010:\005fa" +
-      "lse\022\026\n\016parameter_sets\030\005 \003(\014\022\033\n\017attached_" +
-      "dep_id\030\006 \003(\005B\002\020\001\022\025\n\rattached_data\030\007 \003(\014\022" +
-      "\032\n\016done_partition\030\010 \003(\005B\002\020\001\"\212\001\n\027Transact",
-      "ionWorkResponse\022\026\n\016transaction_id\030\001 \002(\003\022" +
-      "-\n\007results\030\002 \003(\0132\034.edu.brown.hstore.Work" +
-      "Result\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstor" +
-      "e.Status\"\241\001\n\031TransactionPrefetchResult\022\026" +
-      "\n\016transaction_id\030\001 \002(\003\022\023\n\013source_site\030\002 " +
-      "\002(\005\022-\n\007results\030\003 \003(\0132\034.edu.brown.hstore." +
-      "WorkResult\022(\n\006status\030\004 \002(\0162\030.edu.brown.h" +
-      "store.Status\"<\n\"TransactionPrefetchAckno" +
-      "wledgement\022\026\n\016transaction_id\030\001 \002(\003\"[\n\025Tr" +
-      "ansactionMapRequest\022\026\n\016transaction_id\030\001 ",
-      "\002(\003\022\026\n\016base_partition\030\002 \002(\005\022\022\n\ninvocatio" +
-      "n\030\003 \002(\014\"r\n\026TransactionMapResponse\022\026\n\016tra" +
-      "nsaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020" +
-      "\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Sta" +
-      "tus\"^\n\030TransactionReduceRequest\022\026\n\016trans" +
+      "h\030\t \001(\010:\005false\022\024\n\005force\030\n \001(\010:\005false\032\"\n\017",
+      "InputDependency\022\017\n\003ids\030\001 \003(\005B\002\020\001\"\201\001\n\nWor" +
+      "kResult\022\024\n\014partition_id\030\001 \002(\005\022\022\n\006dep_id\030" +
+      "\002 \003(\005B\002\020\001\022\020\n\010dep_data\030\003 \003(\014\022(\n\006status\030\004 " +
+      "\002(\0162\030.edu.brown.hstore.Status\022\r\n\005error\030\005" +
+      " \001(\014\"\323\001\n\026TransactionInitRequest\022\026\n\016trans" +
       "action_id\030\001 \002(\003\022\026\n\016base_partition\030\002 \002(\005\022" +
-      "\022\n\ninvocation\030\003 \002(\014\"\234\002\n\031TransactionReduc" +
-      "eResponse\022\026\n\016transaction_id\030\001 \002(\003\022I\n\007res" +
-      "ults\030\002 \003(\01328.edu.brown.hstore.Transactio" +
-      "nReduceResponse.ReduceResult\022(\n\006status\030\003",
-      " \002(\0162\030.edu.brown.hstore.Status\032r\n\014Reduce" +
-      "Result\022\024\n\014partition_id\030\001 \002(\005\022\014\n\004data\030\002 \002" +
-      "(\014\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.St" +
-      "atus\022\024\n\005error\030\004 \001(\010:\005false\"K\n\031Transactio" +
-      "nPrepareRequest\022\026\n\016transaction_id\030\001 \002(\003\022" +
-      "\026\n\npartitions\030\002 \003(\005B\002\020\001\"v\n\032TransactionPr" +
-      "epareResponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n" +
-      "\npartitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030." +
-      "edu.brown.hstore.Status\"t\n\030TransactionFi" +
-      "nishRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\np",
-      "artitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.ed" +
-      "u.brown.hstore.Status\"K\n\031TransactionFini" +
-      "shResponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npa" +
-      "rtitions\030\002 \003(\005B\002\020\001\"T\n\032TransactionRedirec" +
-      "tRequest\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004work\030\002 " +
-      "\002(\014\022\023\n\013orig_txn_id\030\003 \001(\003\"B\n\033TransactionR" +
-      "edirectResponse\022\023\n\013sender_site\030\001 \002(\005\022\016\n\006" +
-      "output\030\002 \002(\014\"`\n\017SendDataRequest\022\026\n\016trans" +
-      "action_id\030\001 \002(\003\022\023\n\013sender_site\030\002 \002(\005\022\022\n\006" +
-      "dep_id\030\003 \003(\005B\002\020\001\022\014\n\004data\030\004 \003(\014\"\201\001\n\020SendD",
-      "ataResponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\np" +
-      "artitions\030\002 \003(\005B\002\020\001\022\023\n\013sender_site\030\003 \002(\005" +
-      "\022(\n\006status\030\004 \002(\0162\030.edu.brown.hstore.Stat" +
-      "us\"J\n\017ShutdownRequest\022\023\n\013sender_site\030\001 \002" +
-      "(\005\022\023\n\013exit_status\030\002 \002(\005\022\r\n\005error\030\003 \001(\014\"\'" +
-      "\n\020ShutdownResponse\022\023\n\013sender_site\030\001 \002(\005\"" +
-      "4\n\017TimeSyncRequest\022\023\n\013sender_site\030\001 \002(\005\022" +
-      "\014\n\004t0_s\030\002 \002(\003\"Q\n\020TimeSyncResponse\022\023\n\013sen" +
-      "der_site\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002" +
-      "(\003\022\014\n\004t1_s\030\004 \002(\003*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nA",
-      "BORT_USER\020\001\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT" +
-      "_UNEXPECTED\020\003\022\031\n\025ABORT_CONNECTION_LOST\020\004" +
-      "\022\024\n\020ABORT_MISPREDICT\020\005\022\021\n\rABORT_RESTART\020" +
-      "\006\022\020\n\014ABORT_REJECT\020\007\022\023\n\017ABORT_THROTTLED\020\010" +
-      "2\370\010\n\rHStoreService\022f\n\017TransactionInit\022(." +
-      "edu.brown.hstore.TransactionInitRequest\032" +
-      ").edu.brown.hstore.TransactionInitRespon" +
-      "se\022f\n\017TransactionWork\022(.edu.brown.hstore" +
-      ".TransactionWorkRequest\032).edu.brown.hsto" +
-      "re.TransactionWorkResponse\022x\n\023Transactio",
-      "nPrefetch\022+.edu.brown.hstore.Transaction" +
-      "PrefetchResult\0324.edu.brown.hstore.Transa" +
-      "ctionPrefetchAcknowledgement\022c\n\016Transact" +
-      "ionMap\022\'.edu.brown.hstore.TransactionMap" +
-      "Request\032(.edu.brown.hstore.TransactionMa" +
-      "pResponse\022l\n\021TransactionReduce\022*.edu.bro" +
-      "wn.hstore.TransactionReduceRequest\032+.edu" +
-      ".brown.hstore.TransactionReduceResponse\022" +
-      "o\n\022TransactionPrepare\022+.edu.brown.hstore" +
-      ".TransactionPrepareRequest\032,.edu.brown.h",
-      "store.TransactionPrepareResponse\022l\n\021Tran" +
-      "sactionFinish\022*.edu.brown.hstore.Transac" +
-      "tionFinishRequest\032+.edu.brown.hstore.Tra" +
-      "nsactionFinishResponse\022r\n\023TransactionRed" +
-      "irect\022,.edu.brown.hstore.TransactionRedi" +
-      "rectRequest\032-.edu.brown.hstore.Transacti" +
-      "onRedirectResponse\022Q\n\010SendData\022!.edu.bro" +
-      "wn.hstore.SendDataRequest\032\".edu.brown.hs" +
-      "tore.SendDataResponse\022Q\n\010Shutdown\022!.edu." +
-      "brown.hstore.ShutdownRequest\032\".edu.brown",
-      ".hstore.ShutdownResponse\022Q\n\010TimeSync\022!.e" +
-      "du.brown.hstore.TimeSyncRequest\032\".edu.br" +
-      "own.hstore.TimeSyncResponse"
+      "\024\n\014procedure_id\030\003 \002(\005\022\026\n\npartitions\030\004 \003(" +
+      "\005B\002\020\001\022:\n\022prefetch_fragments\030\005 \003(\0132\036.edu." +
+      "brown.hstore.WorkFragment\022\037\n\027prefetch_pa" +
+      "rameter_sets\030\006 \003(\014\"\254\001\n\027TransactionInitRe",
+      "sponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartit" +
+      "ions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.bro" +
+      "wn.hstore.Status\022\030\n\020reject_partition\030\004 \001" +
+      "(\005\022\035\n\025reject_transaction_id\030\005 \001(\003\"\375\001\n\026Tr" +
+      "ansactionWorkRequest\022\026\n\016transaction_id\030\001" +
+      " \002(\003\022\030\n\020source_partition\030\002 \002(\005\0221\n\tfragme" +
+      "nts\030\003 \003(\0132\036.edu.brown.hstore.WorkFragmen" +
+      "t\022\026\n\007sysproc\030\004 \002(\010:\005false\022\026\n\016parameter_s" +
+      "ets\030\005 \003(\014\022\033\n\017attached_dep_id\030\006 \003(\005B\002\020\001\022\025" +
+      "\n\rattached_data\030\007 \003(\014\022\032\n\016done_partition\030",
+      "\010 \003(\005B\002\020\001\"\212\001\n\027TransactionWorkResponse\022\026\n" +
+      "\016transaction_id\030\001 \002(\003\022-\n\007results\030\002 \003(\0132\034" +
+      ".edu.brown.hstore.WorkResult\022(\n\006status\030\003" +
+      " \002(\0162\030.edu.brown.hstore.Status\"\245\001\n\031Trans" +
+      "actionPrefetchResult\022\026\n\016transaction_id\030\001" +
+      " \002(\003\022\030\n\020source_partition\030\002 \002(\005\022,\n\006result" +
+      "\030\003 \002(\0132\034.edu.brown.hstore.WorkResult\022(\n\006" +
+      "status\030\004 \002(\0162\030.edu.brown.hstore.Status\"<" +
+      "\n\"TransactionPrefetchAcknowledgement\022\026\n\016" +
+      "transaction_id\030\001 \002(\003\"[\n\025TransactionMapRe",
+      "quest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\016base_pa" +
+      "rtition\030\002 \002(\005\022\022\n\ninvocation\030\003 \002(\014\"r\n\026Tra" +
+      "nsactionMapResponse\022\026\n\016transaction_id\030\001 " +
+      "\002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 " +
+      "\002(\0162\030.edu.brown.hstore.Status\"^\n\030Transac" +
+      "tionReduceRequest\022\026\n\016transaction_id\030\001 \002(" +
+      "\003\022\026\n\016base_partition\030\002 \002(\005\022\022\n\ninvocation\030" +
+      "\003 \002(\014\"\234\002\n\031TransactionReduceResponse\022\026\n\016t" +
+      "ransaction_id\030\001 \002(\003\022I\n\007results\030\002 \003(\01328.e" +
+      "du.brown.hstore.TransactionReduceRespons",
+      "e.ReduceResult\022(\n\006status\030\003 \002(\0162\030.edu.bro" +
+      "wn.hstore.Status\032r\n\014ReduceResult\022\024\n\014part" +
+      "ition_id\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\022(\n\006status\030\003" +
+      " \002(\0162\030.edu.brown.hstore.Status\022\024\n\005error\030" +
+      "\004 \001(\010:\005false\"K\n\031TransactionPrepareReques" +
+      "t\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030" +
+      "\002 \003(\005B\002\020\001\"v\n\032TransactionPrepareResponse\022" +
+      "\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 " +
+      "\003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hsto" +
+      "re.Status\"t\n\030TransactionFinishRequest\022\026\n",
+      "\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(" +
+      "\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore" +
+      ".Status\"K\n\031TransactionFinishResponse\022\026\n\016" +
+      "transaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005" +
+      "B\002\020\001\"T\n\032TransactionRedirectRequest\022\023\n\013se" +
+      "nder_site\030\001 \002(\005\022\014\n\004work\030\002 \002(\014\022\023\n\013orig_tx" +
+      "n_id\030\003 \001(\003\"B\n\033TransactionRedirectRespons" +
+      "e\022\023\n\013sender_site\030\001 \002(\005\022\016\n\006output\030\002 \002(\014\"`" +
+      "\n\017SendDataRequest\022\026\n\016transaction_id\030\001 \002(" +
+      "\003\022\023\n\013sender_site\030\002 \002(\005\022\022\n\006dep_id\030\003 \003(\005B\002",
+      "\020\001\022\014\n\004data\030\004 \003(\014\"\201\001\n\020SendDataResponse\022\026\n" +
+      "\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(" +
+      "\005B\002\020\001\022\023\n\013sender_site\030\003 \002(\005\022(\n\006status\030\004 \002" +
+      "(\0162\030.edu.brown.hstore.Status\"J\n\017Shutdown" +
+      "Request\022\023\n\013sender_site\030\001 \002(\005\022\023\n\013exit_sta" +
+      "tus\030\002 \002(\005\022\r\n\005error\030\003 \001(\014\"\'\n\020ShutdownResp" +
+      "onse\022\023\n\013sender_site\030\001 \002(\005\"4\n\017TimeSyncReq" +
+      "uest\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\"" +
+      "Q\n\020TimeSyncResponse\022\023\n\013sender_site\030\001 \002(\005" +
+      "\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003\022\014\n\004t1_s\030\004 \002",
+      "(\003*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER\020\001\022\022\n" +
+      "\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECTED\020\003\022" +
+      "\031\n\025ABORT_CONNECTION_LOST\020\004\022\024\n\020ABORT_MISP" +
+      "REDICT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014ABORT_REJ" +
+      "ECT\020\007\022\023\n\017ABORT_THROTTLED\020\0102\370\010\n\rHStoreSer" +
+      "vice\022f\n\017TransactionInit\022(.edu.brown.hsto" +
+      "re.TransactionInitRequest\032).edu.brown.hs" +
+      "tore.TransactionInitResponse\022f\n\017Transact" +
+      "ionWork\022(.edu.brown.hstore.TransactionWo" +
+      "rkRequest\032).edu.brown.hstore.Transaction",
+      "WorkResponse\022x\n\023TransactionPrefetch\022+.ed" +
+      "u.brown.hstore.TransactionPrefetchResult" +
+      "\0324.edu.brown.hstore.TransactionPrefetchA" +
+      "cknowledgement\022c\n\016TransactionMap\022\'.edu.b" +
+      "rown.hstore.TransactionMapRequest\032(.edu." +
+      "brown.hstore.TransactionMapResponse\022l\n\021T" +
+      "ransactionReduce\022*.edu.brown.hstore.Tran" +
+      "sactionReduceRequest\032+.edu.brown.hstore." +
+      "TransactionReduceResponse\022o\n\022Transaction" +
+      "Prepare\022+.edu.brown.hstore.TransactionPr",
+      "epareRequest\032,.edu.brown.hstore.Transact" +
+      "ionPrepareResponse\022l\n\021TransactionFinish\022" +
+      "*.edu.brown.hstore.TransactionFinishRequ" +
+      "est\032+.edu.brown.hstore.TransactionFinish" +
+      "Response\022r\n\023TransactionRedirect\022,.edu.br" +
+      "own.hstore.TransactionRedirectRequest\032-." +
+      "edu.brown.hstore.TransactionRedirectResp" +
+      "onse\022Q\n\010SendData\022!.edu.brown.hstore.Send" +
+      "DataRequest\032\".edu.brown.hstore.SendDataR" +
+      "esponse\022Q\n\010Shutdown\022!.edu.brown.hstore.S",
+      "hutdownRequest\032\".edu.brown.hstore.Shutdo" +
+      "wnResponse\022Q\n\010TimeSync\022!.edu.brown.hstor" +
+      "e.TimeSyncRequest\032\".edu.brown.hstore.Tim" +
+      "eSyncResponse"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -12643,7 +12660,7 @@ public final class Hstoreservice {
           internal_static_edu_brown_hstore_WorkFragment_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_WorkFragment_descriptor,
-              new java.lang.String[] { "PartitionId", "FragmentId", "InputDepId", "OutputDepId", "StmtIndex", "ReadOnly", "NeedsInput", "LastFragment", "Prefetch", },
+              new java.lang.String[] { "PartitionId", "FragmentId", "InputDepId", "OutputDepId", "StmtIndex", "ReadOnly", "NeedsInput", "LastFragment", "Prefetch", "Force", },
               edu.brown.hstore.Hstoreservice.WorkFragment.class,
               edu.brown.hstore.Hstoreservice.WorkFragment.Builder.class);
           internal_static_edu_brown_hstore_WorkFragment_InputDependency_descriptor =
@@ -12699,7 +12716,7 @@ public final class Hstoreservice {
           internal_static_edu_brown_hstore_TransactionPrefetchResult_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionPrefetchResult_descriptor,
-              new java.lang.String[] { "TransactionId", "SourceSite", "Results", "Status", },
+              new java.lang.String[] { "TransactionId", "SourcePartition", "Result", "Status", },
               edu.brown.hstore.Hstoreservice.TransactionPrefetchResult.class,
               edu.brown.hstore.Hstoreservice.TransactionPrefetchResult.Builder.class);
           internal_static_edu_brown_hstore_TransactionPrefetchAcknowledgement_descriptor =

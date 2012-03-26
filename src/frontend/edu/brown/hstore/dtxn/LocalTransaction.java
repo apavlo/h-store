@@ -927,7 +927,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.predict_touchedPartitions);
     }
     
-    public void addPrefetchResults(List<WorkResult> results) {
+    public void addPrefetchResults(WorkResult result) {
         if (this.prefetch_results == null) {
             synchronized (this) {
                 if (this.prefetch_results == null) {
@@ -935,7 +935,7 @@ public class LocalTransaction extends AbstractTransaction {
                 }
             } // SYNCH
         }
-        this.prefetch_results.addAll(results);
+        this.prefetch_results.add(result);
     }
     
     // ----------------------------------------------------------------------------
