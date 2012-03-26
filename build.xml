@@ -670,6 +670,10 @@ NATIVE EE STUFF
         file='${build.dir}/org_voltdb_utils_ThreadUtils.h'
         todir='${src.ee.dir}'
     />
+    <move
+        file='${build.dir}/edu_brown_hashing_ConsistentHasher.h'
+        todir='${src.ee.dir}'
+    />
 </target>
 
 <target name='uptodate_jni_h.check' depends='jnicompile_temp'>
@@ -686,6 +690,10 @@ NATIVE EE STUFF
             <filesmatch
                 file1="${src.ee.dir}/org_voltdb_utils_ThreadUtils.h"
                 file2="${build.dir}/org_voltdb_utils_ThreadUtils.h"
+            />
+            <filesmatch
+                file1="${src.ee.dir}/edu_brown_hashing_ConsistentHasher.h"
+                file2="${build.dir}/edu_brown_hashing_ConsistentHasher.h"
             />
         </and>
     </condition>
@@ -715,6 +723,13 @@ NATIVE EE STUFF
         class="org.voltdb.utils.ThreadUtils"
         destdir="${build.dir}"
     />
+    <javah
+        classpathref="project.classpath"
+        force="yes"
+        verbose="yes"
+        class="edu.brown.hashing.ConsistentHasher"
+        destdir="${build.dir}"
+        />
 </target>
 
 <target name="eecheck" depends="ee"

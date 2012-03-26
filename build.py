@@ -185,6 +185,10 @@ CTX.INPUT['common'] = """
  NValue.cpp
 """
 
+# TODO(yang) - Make new directory 'src/ee/hasher'
+CTX.INPUT['hasher'] = """
+"""
+
 CTX.INPUT['execution'] = """
  JNITopend.cpp
  VoltDBEngine.cpp
