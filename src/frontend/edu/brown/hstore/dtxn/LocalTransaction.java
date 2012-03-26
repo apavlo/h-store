@@ -1160,8 +1160,10 @@ public class LocalTransaction extends AbstractTransaction {
     public void addResult(int partition, int dependency_id, VoltTable result) {
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
-        int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-        this.processResultResponse(partition, dependency_id, key, false, result);
+        if (this.state != null) {
+            int key = this.state.createPartitionDependencyKey(partition, dependency_id);
+            this.processResultResponse(partition, dependency_id, key, false, result);
+        }
     }
     
     /**
@@ -1298,12 +1300,12 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
                 assert(dinfo != null);
-                int num_tables = dinfo.getResults().size();
-                assert(dinfo.getPartitionCount() == num_tables) :
-                    String.format("Number of results retrieved for %s is %d " +
-                                  "but we were expecting %d in %s\n%s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), num_tables, dinfo.getPartitionCount(), this,
-                                  this.toString(), fragment.toString(),
+                assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
+                    String.format("%s - Number of results retrieved for %s is %d " +
+                                  "but we were expecting %d\n%s\n%s\n%s",
+                                  this, debugStmtDep(stmt_index, input_d_id),
+                                  dinfo.getResultsCount(), dinfo.getPartitionCount(),
+                                  fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
                 results.put(input_d_id, dinfo.getResults(hstore_site, true));
                 if (d) LOG.debug(String.format("%s - %s -> %d VoltTables",
@@ -1324,10 +1326,10 @@ public class LocalTransaction extends AbstractTransaction {
         assert(dinfo.isInternal()) :
             String.format("The DependencyInfo for for %s in %s is not marked as internal",
                           debugStmtDep(stmt_index, input_d_id), this);
-        assert(dinfo.getPartitionCount() == dinfo.getResults().size()) :
+        assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
                     String.format("Number of results from partitions retrieved for %s " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitionCount(), this,
+                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResultsCount(), dinfo.getPartitionCount(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
         return (dinfo.getResults(hstore_site, true));
     }
