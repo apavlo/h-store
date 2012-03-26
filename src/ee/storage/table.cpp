@@ -490,9 +490,7 @@ void Table::loadTuplesFrom(bool allowELT,
      */
 
     // todo: just skip ahead to this position
-    int rowstart = serialize_io.readInt(); // rowstart
-    fprintf(stderr, "ROWSTART: %d\n", rowstart);
-
+    serialize_io.readInt(); // rowstart
     serialize_io.readByte(); // status
 
     int16_t colcount = serialize_io.readShort();

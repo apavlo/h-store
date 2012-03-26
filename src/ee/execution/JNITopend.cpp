@@ -89,16 +89,10 @@ int JNITopend::loadNextDependency(int32_t dependencyId, voltdb::Pool *stringPool
     }
 
     jsize length = m_jniEnv->GetArrayLength(jbuf);
-    fprintf(stderr, "Dependency Id %d Length: %d\n", dependencyId, length);
+    VOLT_DEBUG("Dependency Id %d Length: %d", dependencyId, length);
     if (length > 0) {
         jbyte *bytes = m_jniEnv->GetByteArrayElements(jbuf, NULL);
         ReferenceSerializeInput serialize_in(bytes, length);
-        
-        ReferenceSerializeInput serialize_in2(bytes, length);
-        for (int i = 0; i < 10; i++) {
-            fprintf(stderr, "[%02d] -> %d\n", i, serialize_in2.readInt());
-        }
-        
         destination->loadTuplesFrom(true, serialize_in, stringPool);
         return 1;
     }

@@ -1096,8 +1096,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-//                    if (d) 
-                        LOG.info(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>\n" + deps,
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>\n" + deps,
                                                    ts, deps.size(), stmt_index, input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle

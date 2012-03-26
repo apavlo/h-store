@@ -246,8 +246,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         final VoltTable vt =  m_dependencyTracker.nextDependency(dependencyId);
         if (vt != null) {
             ByteBuffer buffer = vt.getDirectDataReference();
-//            if (d) 
-                LOG.info(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]\n%s",
+            if (d) LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]\n%s",
                                            dependencyId,
                                            vt.getRowCount(),
                                            vt.getColumnCount(),
@@ -255,7 +254,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                            buffer.array().length,
                                            vt.toString()));
             assert(buffer.hasArray());
-            LOG.info("FIRST INT: " + buffer.getInt(0));
             return (buffer.array());
         }
         // Note that we will hit this after retrieving all the VoltTables for the given dependencyId
