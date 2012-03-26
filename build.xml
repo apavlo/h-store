@@ -76,6 +76,10 @@
 <property name="build.protobuf.dir"          location="${build.dir}/protobuf" />
 <property name="build.protobuf.dir.protoc"   location="${build.protobuf.dir}/src/protoc" />
 
+<!-- libconhash -->
+<property name="src.libconhash.dir"          location="third_party/cpp/libconhash" />
+<property name="build.libconhash.dir"        location="${build.dir}/objects" />
+
 <!-- TPC-E Generator -->
 <property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
 <property name="build.tpce.dir"              location="${build.dir}/tpceloader" />
@@ -748,7 +752,7 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<target name='ee' depends="buildinfo, jnicompile"
+<target name='ee' depends="buildinfo, jnicompile, libconhash"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
         <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
@@ -2205,6 +2209,34 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>
+</target>
+
+<!--
+***************************************
+LIBCONHASH
+***************************************
+-->
+    
+<target name='libconhash'
+        description="Builds the TPC-E EGenLoader"
+        depends="libconhash.check, getcpus"
+        unless="libconhash.built">
+    
+    <mkdir dir="${build.libconhash.dir}" />
+    <echo message="src.libconhash.dir: ${src.libconhash.dir}" />
+    <exec executable="make" dir="${src.libconhash.dir}" failonerror="true" resolveexecutable="true" >
+        <arg value="-j${numcpus}" />
+        <arg value="PREFIX=${build.libconhash.dir}" />
+        <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
+    </exec>
+</target>
+    
+<target name="libconhash.check">
+    <uptodate property="libconhash.built"
+              targetfile="${build.libconhash.dir}/libconhash.a">
+        <srcfiles dir="${src.libconhash.dir}" includes="*.c" />
+        <srcfiles dir="${src.libconhash.dir}" includes="*.h" />
+    </uptodate>
 </target>
 
 

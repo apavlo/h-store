@@ -1,6 +1,6 @@
 
 # output path
-BIN = ./bin
+PREFIX=bin
 
 # debug stuff 
 ifeq ($(CFLAG), DEBUG)
@@ -9,7 +9,7 @@ endif
 
 AR  = ar -cqs
 # itermidiate objects
-OBJ = $(addprefix $(BIN)/, \
+OBJ = $(addprefix $(PREFIX)/, \
 	  md5.o \
 	  util_rbtree.o  \
 	  conhash_inter.o \
@@ -17,34 +17,26 @@ OBJ = $(addprefix $(BIN)/, \
 	  conhash.o \
 	  )
 
-SAMPLE_OBJS = $(addprefix $(BIN)/, \
+SAMPLE_OBJS = $(addprefix $(PREFIX)/, \
 		sample.o \
 		)
 		
 # include file path
-INC = -I. -I.
+INC = -I.
 
-TARGETS = $(BIN)/libconhash.a $(BIN)/sample
+TARGETS = $(PREFIX)/libconhash.a 
+#$(PREFIX)/sample
  
-all : clean prepare $(TARGETS)
+all : $(TARGETS)
 
 # build libconhash as a static lib 
-$(BIN)/libconhash.a : $(OBJ) 
+$(PREFIX)/libconhash.a : $(OBJ) 
 	$(AR) $@ $(OBJ)
 	
 # build sample
-$(BIN)/sample : $(SAMPLE_OBJS)
+$(PREFIX)/sample : $(SAMPLE_OBJS)
 	gcc -O -o $@ $(SAMPLE_OBJS) -L. -L./bin -lconhash
 
 	
-$(BIN)/%.o : %.c
+$(PREFIX)/%.o : %.c
 	gcc $(INC) $(CFLAGS) -c $< -o $@	
-
-# prepare the bin dir	
-.PHONY : prepare	
-prepare : 
-		-mkdir $(BIN)
-	  
-.PHONY : clean
-clean  :
-		-rm -rf $(BIN)
