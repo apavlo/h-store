@@ -40,7 +40,7 @@ public abstract class HStoreConstants {
     /**
      * Represents a null dependency id
      */
-    public static final int NULL_DEPENDENCY_ID = -999;
+    public static final int NULL_DEPENDENCY_ID = -1;
 
     /**
      * Default token used to indicate that a txn is not using undo buffers
