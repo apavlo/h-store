@@ -785,24 +785,34 @@ public class TestTPCCSuite extends RegressionSuite {
         ClientResponse cr = null;
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         
-        Random rand = new Random(0);
-        int num_tuples = 10;
+        Random rand = new Random();
+        int num_tuples = 11;
         for (Table catalog_tbl : catalog_db.getTables()) {
             VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
             int num_cols = catalog_tbl.getColumns().size();
             VoltType types[] = new VoltType[num_cols];
+            int maxSizes[] = new int[num_cols];
             for (Column catalog_col : catalog_tbl.getColumns()) {
-                types[catalog_col.getIndex()] = VoltType.get(catalog_col.getType());
+                int idx = catalog_col.getIndex();
+                types[idx] = VoltType.get(catalog_col.getType());
+                if (types[idx] == VoltType.STRING) {
+                    maxSizes[idx] = catalog_col.getSize();
+                }
             } // FOR
             
             for (int i = 0; i < num_tuples; i++) {
                 Object row[] = new Object[num_cols];
                 for (int col = 0; col < num_cols; col++) {
                     row[col] = VoltTypeUtil.getRandomValue(types[col], rand);
+                    if (types[col] == VoltType.STRING) {
+                        if (row[col].toString().length() >= maxSizes[col]) {
+                            row[col] = row[col].toString().substring(0, maxSizes[col]-1);
+                        }
+                    }
                 } // FOR (col)
                 vt.addRow(row);
             } // FOR (row)
-            
+//            System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
             cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
             assertEquals(Status.OK, cr.getStatus());
         } // FOR (table)
@@ -811,6 +821,13 @@ public class TestTPCCSuite extends RegressionSuite {
         cr = client.callProcedure(GetTableCounts.class.getSimpleName());
         System.err.println(cr);
         assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        VoltTable vt = cr.getResults()[0];
+        while (vt.advanceRow()) {
+            String tableName = vt.getString(0);
+            int count = (int)vt.getLong(1);
+            assertEquals(tableName, num_tuples, count);
+        } // WHILE
     }
         
 
