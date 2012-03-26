@@ -254,11 +254,14 @@ public class DependencyInfo implements Poolable {
                                                    this.txn_id, this.dependency_id, partition));
                     VoltTable vt = this.results.get(partition);
                     assert(vt != null);
-                    ByteBuffer buffer = vt.getTableDataReference();
-                    byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
-                    buffer.get(arr, 0, arr.length);
-                    ByteBuffer new_buffer = ByteBuffer.wrap(arr);
-                    this.results.set(partition, new VoltTable(new_buffer, true));
+                    
+                    ByteBuffer new_buffer = vt.getTableDataReference();
+//                    byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
+//                    vt.getTableDataReference().get(arr, 0, arr.length);
+//                    ByteBuffer new_buffer = ByteBuffer.wrap(arr);
+//                    LOG.info("COPY:\n" + new VoltTable(ByteBuffer.wrap(arr), true));
+                    VoltTable new_vt = new VoltTable(new_buffer, true);
+                    this.results.set(partition, new_vt);
                 }
             } // FOR
         }
