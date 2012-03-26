@@ -81,7 +81,7 @@ public class Catalog extends CatalogType {
 
         // command comes before the first space (add or set)
         int pos = stmt.indexOf(' ');
-        assert pos != -1;
+        assert pos != -1 : "Invalid statement '" + stmt + "'";
         String cmd = stmt.substring(0, pos);
         stmt = stmt.substring(pos + 1);
 

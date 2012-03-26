@@ -2,6 +2,7 @@ package edu.brown.hstore.dtxn;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -45,12 +46,12 @@ public class DependencyInfo implements Poolable {
     /**
      * List of PartitionIds that we expect to get responses/results back
      */
-    private final List<Integer> partitions = new ArrayList<Integer>();
+    private final BitSet partitions = new BitSet();
     
     /**
      * The list of PartitionIds that have sent results
      */
-    private final List<Integer> results = new ArrayList<Integer>();
+    private final BitSet results = new BitSet();
 
     /**
      * The list of VoltTable results that have been sent back partitions
@@ -89,8 +90,11 @@ public class DependencyInfo implements Poolable {
     public Long getTransactionId() {
         return (this.txn_id);
     }
+    protected int getRound() {
+        return (this.round);
+    }
     
-    public boolean inRound(Long txn_id, int round) {
+    public boolean inSameTxnRound(Long txn_id, int round) {
         return (txn_id.equals(this.txn_id) && this.round == round);
     }
     
@@ -117,9 +121,6 @@ public class DependencyInfo implements Poolable {
     }
     public int getDependencyId() {
         return (this.dependency_id);
-    }
-    protected List<Integer> getPartitions() {
-        return (this.partitions);
     }
     
     public void markInternal() {
@@ -171,7 +172,23 @@ public class DependencyInfo implements Poolable {
      * @param partition
      */
     public void addPartition(int partition) {
-        this.partitions.add(partition);
+        this.partitions.set(partition);
+    }
+    /**
+     * <B>NOTE:</B> This should only be called for DEBUG purposes only
+     */
+    protected int getPartitionCount() {
+        return (this.partitions.cardinality());
+    }
+    /**
+     * <B>NOTE:</B> This should only be called for DEBUG purposes only
+     */
+    protected List<Integer> getPartitions() {
+        List<Integer> p = new ArrayList<Integer>();
+        for (int i = 0, cnt = this.partitions.size(); i < cnt; i++) {
+            if (this.partitions.get(i)) p.add(i);
+        }
+        return (p);
     }
     
     /**
@@ -184,10 +201,10 @@ public class DependencyInfo implements Poolable {
     public synchronized boolean addResult(int partition, VoltTable result) {
         if (d) LOG.debug(String.format("#%s - Storing RESULT for DependencyId #%d from Partition #%d with %d tuples",
                                        this.txn_id, this.dependency_id, partition, result.getRowCount()));
-        assert(this.results.contains(partition) == false) :
+        assert(this.results.get(partition) == false) :
             String.format("Trying to add result for {Partition:%d, Dependency:%d} twice for %s!",
                           partition, this.dependency_id, this.txn_id); 
-        this.results.add(partition);
+        this.results.set(partition);
         this.results_list.add(result);
         return (true); // this.responses.contains(partition)); 
     }
@@ -207,18 +224,19 @@ public class DependencyInfo implements Poolable {
      */
     protected List<VoltTable> getResults(HStoreSite hstore_site, boolean flip_local_partition) {
         if (flip_local_partition) {
-            for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
-                Integer partition = this.results.get(i);
-                if (hstore_site.isLocalPartition(partition.intValue())) {
+            int result_idx = 0;
+            for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {
+                if (this.results.get(partition) == false) continue;
+                if (hstore_site.isLocalPartition(partition)) {
                     if (d) LOG.debug(String.format("%s - Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
                                                    this.txn_id, this.dependency_id, partition));
-                    VoltTable vt = this.results_list.get(i);
+                    VoltTable vt = this.results_list.get(result_idx++);
                     assert(vt != null);
                     ByteBuffer buffer = vt.getTableDataReference();
                     byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
                     buffer.get(arr, 0, arr.length);
                     ByteBuffer new_buffer = ByteBuffer.wrap(arr);
-                    this.results_list.set(i, new VoltTable(new_buffer, true));
+                    this.results_list.set(partition, new VoltTable(new_buffer, true));
                 }
             } // FOR
         }
@@ -232,7 +250,8 @@ public class DependencyInfo implements Poolable {
      */
     public VoltTable getResult() {
         assert(this.results.isEmpty() == false) : "There are no result available for " + this;
-        assert(this.results.size() == 1) : "There are " + this.results.size() + " results for " + this + "\n-------\n" + this.results_list;
+        assert(this.results.cardinality() == 1) : 
+            "There are " + this.results.cardinality() + " results for " + this + "\n-------\n" + this.results_list;
         return (this.results_list.get(0));
     }
     
@@ -241,14 +260,21 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public boolean hasTasksReady() {
-        if (t) {
-            LOG.trace("Block Tasks Not Empty? " + !this.blocked_tasks.isEmpty());
-            LOG.trace(String.format("# of Results:   %d / %d", this.results.size(), this.partitions.size()));
-        }
-        boolean ready = (this.blocked_tasks.isEmpty() == false) &&
-                        (this.blocked_tasks_released == false) &&
-                        (this.results.size() == this.partitions.size());
-        return (ready);
+        if (d) LOG.debug(String.format("txn #%d - hasTasksReady()\n" +
+                                       "Block Tasks Not Empty? %s\n" + 
+                                       "# of Results:   %d\n" +
+                                       "# of Partitions: %d",
+                                       this.txn_id,
+                                       this.blocked_tasks.isEmpty() == false,
+                                       this.results.cardinality(), this.partitions.cardinality()));
+        assert(this.results.cardinality() <= this.partitions.cardinality()) :
+            String.format("Invalid DependencyInfo state for txn #%d. " +
+            		      "There are %d results but %d partitions",
+            		      this.txn_id, this.results.cardinality(), this.partitions.cardinality());
+        
+        return (this.blocked_tasks.isEmpty() == false) &&
+               (this.blocked_tasks_released == false) &&
+               (this.results.cardinality() == this.partitions.cardinality());
     }
     
     public boolean hasTasksBlocked() {
@@ -266,7 +292,7 @@ public class DependencyInfo implements Poolable {
         }
         
         String status = null;
-        if (this.results.size() == this.partitions.size()) {
+        if (this.results.cardinality() == this.partitions.cardinality()) {
             if (this.blocked_tasks_released == false) {
                 status = "READY";
             } else {
@@ -284,11 +310,12 @@ public class DependencyInfo implements Poolable {
         m.put("  Partitions", this.partitions);
         
         Map<String, Object> inner = new ListOrderedMap<String, Object>();
-        for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
-            int partition = this.results.get(i);
-            VoltTable vt = this.results_list.get(i);
+        int result_idx = 0;
+        for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {
+            if (this.results.get(partition) == false) continue;
+            VoltTable vt = this.results_list.get(result_idx++);
             inner.put(String.format("Partition %02d",partition), String.format("{%d tuples}", vt.getRowCount()));  
-        }
+        } // FOR
         m.put("  Results", inner);
         m.put("  Blocked", this.blocked_tasks);
         m.put("  Status", status);

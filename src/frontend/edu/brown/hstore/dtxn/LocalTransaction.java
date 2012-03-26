@@ -399,9 +399,9 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Reset this so that we will call finish() on the cached DependencyInfos
         // before we try to use it again
-        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
-            this.state.dinfo_lastRound[i] = -1;
-        } // FOR
+//        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
+//            this.state.dinfo_lastRound[i] = -1;
+//        } // FOR
     }
     
     public void resetExecutionState() {
@@ -488,7 +488,7 @@ public class LocalTransaction extends AbstractTransaction {
                 for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
                     // Add this DependencyInfo our output list if it's being used in this round for this txn
                     // and if it is not an internal dependency
-                    if (dinfo.inRound(this.txn_id, this.round_ctr[base_partition_offset]) && dinfo.isInternal() == false) {
+                    if (dinfo.inSameTxnRound(this.txn_id, this.round_ctr[base_partition_offset]) && dinfo.isInternal() == false) {
                         this.state.output_order.add(dinfo.getDependencyId());
                     }
                 } // FOR
@@ -546,11 +546,11 @@ public class LocalTransaction extends AbstractTransaction {
         // Same site, different partition
         if (this.base_partition != partition) return;
         
-        if (this.predict_singlePartition == false) {
-            for (int i = 0; i < this.state.batch_size; i++) {
-                this.state.dinfo_lastRound[i]++;
-            } // FOR
-        }
+//        if (this.predict_singlePartition == false) {
+//            for (int i = 0; i < this.state.batch_size; i++) {
+//                this.state.dinfo_lastRound[i] = -1;
+//            } // FOR
+//        }
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {
@@ -980,16 +980,14 @@ public class LocalTransaction extends AbstractTransaction {
         }
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
         int base_partition_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
+        int currentRound = this.round_ctr[base_partition_offset]; 
         
         if (dinfo != null) {
-            int lastRoundUsed = state.dinfo_lastRound[stmt_index];
-            int currentRound = this.round_ctr[base_partition_offset]; 
-            boolean sameTxn = this.txn_id.equals(dinfo.getTransactionId());
             if (d) LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
-                                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d, sameTxn=%s]",
+                                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
                                            this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
-                                           currentRound, lastRoundUsed, sameTxn));
-            if (sameTxn == false || (lastRoundUsed != -1 && lastRoundUsed != currentRound)) {
+                                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
+            if (dinfo.inSameTxnRound(this.txn_id, currentRound) == false) {
                 if (d) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
                                                this, dinfo.hashCode()));
                 dinfo.finish();
@@ -1004,9 +1002,12 @@ public class LocalTransaction extends AbstractTransaction {
             if (d) LOG.debug(String.format("%s - Created new DependencyInfo[%d] for {StmtIndex:%d, Dependency:%d}.",
                                            this, dinfo.hashCode(), stmt_index, dep_id));
         }
+//        if (d) LOG.debug(String.format("%s - state.dinfo_lastRound[%d] = %d",
+//                                       this, stmt_index, currentRound));
+//        this.state.dinfo_lastRound[stmt_index] = currentRound;
         
         if (dinfo.isInitialized() == false) {
-            dinfo.init(this.txn_id, this.round_ctr[base_partition_offset], stmt_index, dep_id.intValue());
+            dinfo.init(this.txn_id, currentRound, stmt_index, dep_id.intValue());
         }
         
         return (dinfo);
@@ -1212,7 +1213,8 @@ public class LocalTransaction extends AbstractTransaction {
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(stmt_index, dependency_id);
         assert(dinfo != null) :
-            "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " [stmt_index=" + stmt_index + "]\n" + result;
+            String.format("Unexpected DependencyId %d from partition %d for %s [stmt_index=%d]\n%s",
+                          dependency_id, partition, this, stmt_index, result); 
         dinfo.addResult(partition, result);
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
@@ -1235,7 +1237,8 @@ public class LocalTransaction extends AbstractTransaction {
             else if (d) {
                 LOG.debug(String.format("%s - No WorkFragments to unblock after storing {Partition:%d, Dependency:%d} " +
                                         "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
-                                        this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
+                                        this, partition, dependency_id,
+                                        this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
         
             if (this.state.dependency_latch != null) {    
@@ -1292,10 +1295,10 @@ public class LocalTransaction extends AbstractTransaction {
                 DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
                 assert(dinfo != null);
                 int num_tables = dinfo.getResults().size();
-                assert(dinfo.getPartitions().size() == num_tables) :
+                assert(dinfo.getPartitionCount() == num_tables) :
                     String.format("Number of results retrieved for %s is %d " +
                                   "but we were expecting %d in %s\n%s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), num_tables, dinfo.getPartitions().size(), this,
+                                  debugStmtDep(stmt_index, input_d_id), num_tables, dinfo.getPartitionCount(), this,
                                   this.toString(), fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
                 results.put(input_d_id, dinfo.getResults(hstore_site, true));
@@ -1317,10 +1320,10 @@ public class LocalTransaction extends AbstractTransaction {
         assert(dinfo.isInternal()) :
             String.format("The DependencyInfo for for %s in %s is not marked as internal",
                           debugStmtDep(stmt_index, input_d_id), this);
-        assert(dinfo.getPartitions().size() == dinfo.getResults().size()) :
+        assert(dinfo.getPartitionCount() == dinfo.getResults().size()) :
                     String.format("Number of results from partitions retrieved for %s " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitions().size(), this,
+                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitionCount(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
         return (dinfo.getResults(hstore_site, true));
     }
