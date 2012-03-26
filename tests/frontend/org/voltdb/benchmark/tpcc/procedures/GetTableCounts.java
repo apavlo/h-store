@@ -45,7 +45,7 @@ public class GetTableCounts extends VoltProcedure {
     public VoltTable[] run() {
         VoltTable ret = new VoltTable(this.columns);
         for (Entry<String, SQLStmt> e : this.table_map.entrySet()) {
-            System.err.println("Retrieving number of tuples for " + e.getKey());
+            // System.err.println("Retrieving number of tuples for " + e.getKey());
             voltQueueSQL(e.getValue());
             VoltTable results[] = voltExecuteSQL();
             assert(results.length == 1) : "Got " + results.length + " results for table " + e.getKey();
