@@ -24,6 +24,7 @@
 package org.voltdb.regressionsuites;
 
 import java.io.IOException;
+import java.util.Random;
 
 import junit.framework.Test;
 
@@ -31,15 +32,22 @@ import org.voltdb.BackendTarget;
 import org.voltdb.TPCDataPrinter;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
+import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 
 /**
@@ -771,6 +779,40 @@ public class TestTPCCSuite extends RegressionSuite {
         assertEquals(D_ID, r.getLong(0));
         assertEquals(O_ID, r.getLong(1));
     }
+    
+    public void testTABLECOUNTS() throws IOException, ProcCallException {
+        Client client = getClient();
+        ClientResponse cr = null;
+        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        
+        Random rand = new Random(0);
+        int num_tuples = 10;
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+            int num_cols = catalog_tbl.getColumns().size();
+            VoltType types[] = new VoltType[num_cols];
+            for (Column catalog_col : catalog_tbl.getColumns()) {
+                types[catalog_col.getIndex()] = VoltType.get(catalog_col.getType());
+            } // FOR
+            
+            for (int i = 0; i < num_tuples; i++) {
+                Object row[] = new Object[num_cols];
+                for (int col = 0; col < num_cols; col++) {
+                    row[col] = VoltTypeUtil.getRandomValue(types[col], rand);
+                } // FOR (col)
+                vt.addRow(row);
+            } // FOR (row)
+            
+            cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+            assertEquals(Status.OK, cr.getStatus());
+        } // FOR (table)
+        
+        // Now get the counts for the tables that we just loaded
+        cr = client.callProcedure(GetTableCounts.class.getSimpleName());
+        System.err.println(cr);
+        assertEquals(Status.OK, cr.getStatus());
+    }
+        
 
     /**
      * Build a list of the tests that will be run when TestTPCCSuite gets run by JUnit.
