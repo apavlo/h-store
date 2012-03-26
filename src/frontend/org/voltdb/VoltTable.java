@@ -920,27 +920,27 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         StringBuffer buffer = new StringBuffer();
 
         // commented out code to print byte by byte content
-        for (int i = 0; i < m_buffer.limit(); i++) {
-            byte b = m_buffer.get(i);
-            char c = (char) b;
-            if (Character.isLetterOrDigit(c))
-                buffer.append(c);
-            else
-                buffer.append("[").append(b).append("]");
-            buffer.append(" ");
-        }
-        buffer.append("\n");
+//        for (int i = 0; i < m_buffer.limit(); i++) {
+//            byte b = m_buffer.get(i);
+//            char c = (char) b;
+//            if (Character.isLetterOrDigit(c))
+//                buffer.append(c);
+//            else
+//                buffer.append("[").append(b).append("]");
+//            buffer.append(" ");
+//        }
+//        buffer.append("\n");
 
-        buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
+//        buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
 
 //        byte statusCode = m_buffer.get(4);
 //        buffer.append(" status code: ").append(statusCode);
 
-        buffer.append(" bytes: ")
-              .append(m_buffer.limit())
-              .append(" / ")
-              .append(m_buffer.array().length)
-              .append("\n");
+//        buffer.append(" bytes: ")
+//              .append(m_buffer.limit())
+//              .append(" / ")
+//              .append(m_buffer.array().length)
+//              .append("\n");
         
         short colCount = m_buffer.getShort(5);
 //        buffer.append(" column count: ").append(colCount).append("\n");

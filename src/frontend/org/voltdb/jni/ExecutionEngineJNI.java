@@ -382,9 +382,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         // get a copy of the result buffers and make the tables
         // use the copy
         ByteBuffer fullBacking = deserializer.buffer();
-//        try {
+        try {
             // read the complete size of the buffer used
-            final int totalSize = fullBacking.getInt();
+            fullBacking.getInt();
             // check if anything was changed
             m_dirty = (fullBacking.get() == 1 ? true : false);
 
@@ -395,9 +395,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             
             // At this point we don't know how many dependencies we expect to get back from our fragments.
             // We're just going to assume that each PlanFragment generated one and only one output dependency
-            int total_deps = numFragmentIds;
-            VoltTable results[] = new VoltTable[total_deps];
-            int dependencies[] = new int[total_deps];
+            VoltTable results[] = new VoltTable[numFragmentIds];
+            int dependencies[] = new int[numFragmentIds];
             int dep_ctr = 0;
             for (int i = 0; i < numFragmentIds; ++i) {
                 int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
@@ -409,7 +408,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 // that the frags were executed in the order that we passed to the EE and that we
                 // can just use the list of output_depIds that we have 
                 for (int ii = 0; ii < numDependencies; ++ii) {
-                    assert(dep_ctr < output_depIds.length) : "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
+                    assert(dep_ctr < output_depIds.length) : 
+                        "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
                     fullBacking.getInt(); // IGNORE 
                     int depid = output_depIds[dep_ctr];
                     assert(depid >= 0);
@@ -419,23 +419,21 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                     byte tableBytes[] = new byte[tableSize];
                     fullBacking.get(tableBytes, 0, tableSize);
                     final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
-                    
-                    fullBacking.position(fullBacking.position() + tableSize);
-//                    tableBacking.limit(tableSize);
+//                    fullBacking.position(fullBacking.position() + tableSize);
                     
                     results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
                     dependencies[dep_ctr] = depid;
-                    LOG.info(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
-                                           txnId, depid, tableSize, results[dep_ctr].toString())); 
+                    if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
+                                                   txnId, depid, tableSize, results[dep_ctr].toString())); 
                     dep_ctr++;
                 } // FOR
             } // FOR
             
             return (new DependencySet(dependencies, results));
-//        } catch (IOException ex) {
-//            LOG.error("Failed to deserialze result table" + ex);
-//            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
-//        }
+        } catch (Throwable ex) {
+            LOG.error("Failed to deserialze result table" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
     }
 
     /**
