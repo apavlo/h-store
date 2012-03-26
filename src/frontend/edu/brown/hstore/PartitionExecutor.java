@@ -869,6 +869,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
+                ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (current_txn != null ? " - " + current_txn : ""), ex), ex);
                 if (current_txn != null) LOG.fatal("TransactionState Dump:\n" + current_txn.debug());
@@ -1655,6 +1656,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
+                        ex.printStackTrace();
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
                                                    dep_id, ts, i, fragment.getFragmentId(i));
                         LOG.error(msg + "\n" + fragment.toString());

@@ -22,8 +22,8 @@
 package org.voltdb.catalog;
 
 import java.util.LinkedHashMap;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import edu.brown.catalog.CatalogUtil;
 

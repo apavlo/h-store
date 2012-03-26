@@ -65,7 +65,15 @@ public class ServerFaultException extends SerializableException {
     
     @Override
     public String getMessage() {
-        return ("Server Fault in txn #" + this.txn_id + " - " + this.errorMessage);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Server Fault");
+        if (this.txn_id != null)
+            sb.append(" in txn #" + this.txn_id);
+        sb.append(" - " + this.errorMessage);
+        if (this.getCause() != null)
+            sb.append("\nCaused By " + this.getCause().getMessage());
+        return (sb.toString());
+            
     }
     
 }
