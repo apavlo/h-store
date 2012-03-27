@@ -1,6 +1,6 @@
-package com.oltpbenchmark.benchmarks.wikipedia.data;
+package edu.brown.benchmark.wikipedia.data;
 
-import com.oltpbenchmark.util.Histogram;
+import edu.brown.statistics.Histogram;
 
 public abstract class UserHistograms {
 
