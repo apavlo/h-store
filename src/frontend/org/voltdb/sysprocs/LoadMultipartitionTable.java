@@ -276,6 +276,9 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (catalog_tbl == null) {
             throw new VoltAbortException("Table '" + tableName + "' does not exist");
         }
+        else if (table.getRowCount() == 0) {
+            throw new VoltAbortException("The VoltTable for table '" + tableName + "' is empty");
+        }
 
         // if tableName is replicated, just send table everywhere.
         if (catalog_tbl.getIsreplicated()) {

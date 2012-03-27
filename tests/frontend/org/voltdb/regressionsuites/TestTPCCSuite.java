@@ -24,7 +24,7 @@
 package org.voltdb.regressionsuites;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Random;
 
 import junit.framework.Test;
 
@@ -32,15 +32,22 @@ import org.voltdb.BackendTarget;
 import org.voltdb.TPCDataPrinter;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
+import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 
 /**
@@ -772,6 +779,57 @@ public class TestTPCCSuite extends RegressionSuite {
         assertEquals(D_ID, r.getLong(0));
         assertEquals(O_ID, r.getLong(1));
     }
+    
+    public void testTABLECOUNTS() throws IOException, ProcCallException {
+        Client client = getClient();
+        ClientResponse cr = null;
+        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        
+        Random rand = new Random();
+        int num_tuples = 11;
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+            int num_cols = catalog_tbl.getColumns().size();
+            VoltType types[] = new VoltType[num_cols];
+            int maxSizes[] = new int[num_cols];
+            for (Column catalog_col : catalog_tbl.getColumns()) {
+                int idx = catalog_col.getIndex();
+                types[idx] = VoltType.get(catalog_col.getType());
+                if (types[idx] == VoltType.STRING) {
+                    maxSizes[idx] = catalog_col.getSize();
+                }
+            } // FOR
+            
+            for (int i = 0; i < num_tuples; i++) {
+                Object row[] = new Object[num_cols];
+                for (int col = 0; col < num_cols; col++) {
+                    row[col] = VoltTypeUtil.getRandomValue(types[col], rand);
+                    if (types[col] == VoltType.STRING) {
+                        if (row[col].toString().length() >= maxSizes[col]) {
+                            row[col] = row[col].toString().substring(0, maxSizes[col]-1);
+                        }
+                    }
+                } // FOR (col)
+                vt.addRow(row);
+            } // FOR (row)
+//            System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
+            cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+            assertEquals(Status.OK, cr.getStatus());
+        } // FOR (table)
+        
+        // Now get the counts for the tables that we just loaded
+        cr = client.callProcedure(GetTableCounts.class.getSimpleName());
+        System.err.println(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        VoltTable vt = cr.getResults()[0];
+        while (vt.advanceRow()) {
+            String tableName = vt.getString(0);
+            int count = (int)vt.getLong(1);
+            assertEquals(tableName, num_tuples, count);
+        } // WHILE
+    }
+        
 
     /**
      * Build a list of the tests that will be run when TestTPCCSuite gets run by JUnit.
@@ -807,12 +865,13 @@ public class TestTPCCSuite extends RegressionSuite {
 //        project.addStmtProcedure("GetOrderLineCount", "SELECT * FROM ORDER_LINE");
 //        project.addStmtProcedure("GetStockCount", "SELECT * FROM STOCK");
         
+        boolean success;
+        
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        //config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        boolean success = config.compile(project);
+        success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 

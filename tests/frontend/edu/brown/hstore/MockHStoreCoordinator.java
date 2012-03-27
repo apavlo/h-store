@@ -18,6 +18,8 @@ import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.TransactionMapRequest;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchAcknowledgement;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectRequest;
@@ -130,7 +132,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                     .setSenderId(hstore_site.getSiteId())
+                                                     .setSenderSite(hstore_site.getSiteId())
                                                      .build();
             System.exit(1);
             done.run(response);
@@ -157,6 +159,13 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
 
         @Override
         public void sendData(RpcController controller, SendDataRequest request, RpcCallback<SendDataResponse> done) {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void transactionPrefetch(RpcController controller, TransactionPrefetchResult request,
+                RpcCallback<TransactionPrefetchAcknowledgement> done) {
             // TODO Auto-generated method stub
             
         }
