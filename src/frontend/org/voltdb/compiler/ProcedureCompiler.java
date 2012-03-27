@@ -69,7 +69,12 @@ public abstract class ProcedureCompiler {
             compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
-    static void compileJavaProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
+    static void compileJavaProcedure(VoltCompiler compiler,
+                                     HSQLInterface hsql,
+                                     DatabaseEstimates estimates,
+                                     Catalog catalog,
+                                     Database db,
+                                     ProcedureDescriptor procedureDescriptor)
             throws VoltCompiler.VoltCompilerException {
 
         final String className = procedureDescriptor.m_className;
@@ -215,7 +220,7 @@ public abstract class ProcedureCompiler {
 
                 // add the statement to the catalog
                 Statement catalogStmt = procedure.getStatements().add(f.getName());
-
+                
                 // compile the statement
                 try {
                     StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, stmt.getText(), info.singlePartition);
@@ -225,10 +230,11 @@ public abstract class ProcedureCompiler {
                     throw compiler.new VoltCompilerException(msg);
                 }
 
-                // TODO(cjl): If this Field has a Prefetchable annotation, then
-                // we will want to
-                // set the "prefetchable" flag in the catalog for the statement
-                if (f.getAnnotation(Prefetchable.class) != null) {
+                // If this Field has a Prefetchable annotation or the Statement was 
+                // identified as prefetchable in the project XML, then we will want to
+                // set the "prefetchable" flag in the catalog for the Statement + Procedure
+                if (f.getAnnotation(Prefetchable.class) != null ||
+                    procedureDescriptor.m_prefetchable.contains(catalogStmt.getName())) {
                     catalogStmt.setPrefetch(true);
                     procedure.setPrefetch(true);
                 }
