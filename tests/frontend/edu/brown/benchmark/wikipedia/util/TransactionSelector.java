@@ -29,35 +29,18 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.oltpbenchmark.api.TransactionTypes;
-import com.oltpbenchmark.util.FileUtil;
-
 public class TransactionSelector {
 
     final Pattern p = Pattern.compile(" ");
     final Pattern clean = Pattern.compile("(.*)[ ]+\\-[ ]*$");
     
-    final File file;
-    BufferedReader reader = null;
-    TransactionTypes transTypes;
+    //TransactionTypes transTypes;
     static final double READ_WRITE_RATIO = 11.8; // from
                                                  // http://www.globule.org/publi/WWADH_comnet2009.html
     
-    public TransactionSelector(File file, TransactionTypes transTypes) throws FileNotFoundException {
-        this.file = file;
-        this.transTypes = transTypes;
-
-        if (this.file == null)
-            throw new FileNotFoundException("You must specify a filename to instantiate the TransactionSelector... (probably missing in your workload configuration?)");
-
-        BufferedReader r = null;
-        try {
-            r = FileUtil.getReader(this.file);
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to open file '" + file + "' for reading", ex);
-        }
-        assert (r != null);
-        this.reader = r;
+    public TransactionSelector() {
+        
+        
     }
 
     public List<WikipediaOperation> readAll() throws IOException {

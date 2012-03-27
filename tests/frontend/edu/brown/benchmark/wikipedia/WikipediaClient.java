@@ -47,30 +47,32 @@ import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
 import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 import edu.brown.benchmark.wikipedia.util.Article;
 import edu.brown.benchmark.wikipedia.util.WikipediaOperation;
-
+import edu.brown.benchmark.wikipedia.util.TextGenerator;
 //import com.oltpbenchmark.api.Worker;  // equals to BenchmarkComponent 
-
-import com.oltpbenchmark.api.Procedure.UserAbortException;
-import com.oltpbenchmark.api.TransactionGenerator;
-import com.oltpbenchmark.api.TransactionType;
-import com.oltpbenchmark.types.TransactionStatus;
-import com.oltpbenchmark.util.TextGenerator;
-//import com.oltpbenchmark.util.RandomDistribution.Flat;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
-	private final TransactionGenerator<WikipediaOperation> generator;
+	//private final TransactionGenerator<WikipediaOperation> generator;
 
 	final Flat usersRng;
 	final int num_users;
+	private Random randGenerator = new Random();
 	
-	public WikipediaWorker(int id, WikipediaBenchmark benchmarkModule,
-	                       TransactionGenerator<WikipediaOperation> generator) {
-		super(benchmarkModule, id);
-		this.generator = generator;
-		this.num_users = (int) Math.round(WikipediaConstants.USERS * this.getWorkloadConfiguration().getScaleFactor());
-		this.usersRng = new Flat(rng(), 1, this.num_users);
-	}
+//	public WikipediaClient(int id, WikipediaProjectBuilder benchmarkModule,
+//	                       TransactionGenerator<WikipediaOperation> generator) {
+//		super(benchmarkModule, id);
+//		this.generator = generator;
+//		this.num_users = (int) Math.round(WikipediaConstants.USERS * this.getWorkloadConfiguration().getScaleFactor());
+//		this.usersRng = new Flat(randGenerator, 1, this.num_users);
+//	}
+	
+	 public WikipediaClient(String[] args) {
+	        super(args);
+	        for (String key : m_extraParams.keySet()) {
+	            // TODO: Retrieve extra configuration parameters
+	        } // FOR
+	 }
+	
 	
     /**
      * Each Transaction element provides an ArgGenerator to create the proper
@@ -88,10 +90,10 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 	
 	private String generateUserIP() {
-	    return String.format("%d.%d.%d.%d", rng().nextInt(255)+1,
-	                                        rng().nextInt(256),
-	                                        rng().nextInt(256),
-	                                        rng().nextInt(256));
+	    return String.format("%d.%d.%d.%d", randGenerator.nextInt(255)+1,
+	                                        randGenerator.nextInt(256),
+	                                        randGenerator.nextInt(256),
+	                                        randGenerator.nextInt(256));
 	}
 	
     /**
@@ -219,32 +221,32 @@ public class WikipediaClient extends BenchmarkComponent {
 	 * @throws UnknownHostException
 	 */
 //	public Article getPageAnonymous(boolean forSelect, String userIp,
-//			                        int nameSpace, String pageTitle) throws SQLException {
+//			                        int nameSpace, String pageTitle) {
 //		GetPageAnonymous proc = this.getProcedure(GetPageAnonymous.class);
 //        assert (proc != null);
 //        return proc.run(conn, forSelect, userIp, nameSpace, pageTitle);
 //	}
 //
 //	public Article getPageAuthenticated(boolean forSelect, String userIp, int userId,
-//			                            int nameSpace, String pageTitle) throws SQLException {
+//			                            int nameSpace, String pageTitle) {
 //		GetPageAuthenticated proc = this.getProcedure(GetPageAuthenticated.class);
 //        assert (proc != null);
 //        return proc.run(conn, forSelect, userIp, userId, nameSpace, pageTitle);
 //	}
 //	
-//	public void addToWatchlist(int userId, int nameSpace, String pageTitle) throws SQLException {
+//	public void addToWatchlist(int userId, int nameSpace, String pageTitle) {
 //		AddWatchList proc = this.getProcedure(AddWatchList.class);
 //        assert (proc != null);
 //        proc.run(conn, userId, nameSpace, pageTitle);
 //	}
 //
-//	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) throws SQLException {
+//	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) {
 //		RemoveWatchList proc = this.getProcedure(RemoveWatchList.class);
 //        assert (proc != null);
 //        proc.run(conn, userId, nameSpace, pageTitle);
 //	}
 //
-//	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) throws SQLException {
+//	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
 //		Article a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
 //		conn.commit();
 //		
@@ -254,7 +256,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //		
 //		WikipediaBenchmark b = this.getBenchmarkModule();
 //		int revCommentLen = b.commentLength.nextValue().intValue();
-//		String revComment = TextGenerator.randomStr(rng(), revCommentLen);
+//		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
 //		int revMinorEdit = b.minorEdit.nextValue().intValue();
 //		
 //		// Permute the original text of the article
