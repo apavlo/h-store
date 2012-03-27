@@ -186,10 +186,9 @@ CTX.INPUT['common'] = """
  NValue.cpp
 """
 
-# TODO(yang) - Make new directory 'src/ee/hasher'
-CTX.INPUT['hasher'] = """
-consistentjni.cpp
-"""
+#CTX.INPUT['hasher'] = """
+ #consistentjni.cpp
+#"""
 
 CTX.INPUT['execution'] = """
  JNITopend.cpp

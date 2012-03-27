@@ -13,7 +13,7 @@ import edu.brown.utils.ClassUtil;
 
 public class ConsistentHasher extends AbstractHasher {
 
-    private long pointer;
+    private long pointer = -1;
     
     public ConsistentHasher(Database catalog_db, int num_partitions) {
         super(catalog_db, num_partitions);
@@ -21,6 +21,9 @@ public class ConsistentHasher extends AbstractHasher {
 
     @Override
     public void init(Database catalog_db) {
+        // Initialize our library
+        org.voltdb.EELibraryLoader.loadExecutionEngineLibrary(true);
+        
         // Allocate a new instance of the C++ consistent hasher
         this.pointer = this.nativeCreate(this.num_partitions);
     }
@@ -41,7 +44,10 @@ public class ConsistentHasher extends AbstractHasher {
 
     @Override
     public int hash(Object obj, int num_partitions) {
-        assert(!ClassUtil.isArray(obj)) : "Value for hashing is an array: " + Arrays.toString((Object[])obj); 
+        assert(this.pointer != -1) :
+            "Calling hash() before init()";
+        assert(!ClassUtil.isArray(obj)) :
+            "Value for hashing is an array: " + Arrays.toString((Object[])obj); 
         
         // First get a hash for the java Object, because this is what
         // the C++ library can handle
@@ -56,7 +62,7 @@ public class ConsistentHasher extends AbstractHasher {
      * Create a new invocation of our C++ ConsistentHasher
      * @return the created pointer casted to a jlong
      */
-    protected native long nativeCreate(int num_partitions);
+    private native long nativeCreate(int num_partitions);
     
     /**
      * Releases all resources held by this hasher instance

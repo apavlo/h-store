@@ -78,7 +78,7 @@
 #include "org_voltdb_jni_ExecutionEngine.h" // the header file output by javah
 #include "org_voltdb_utils_DBBPool.h" //Utility method for DBBContainer
 #include "org_voltdb_utils_ThreadUtils.h"
-
+#include "edu_brown_hashing_ConsistentHasher.h"
 
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_array.hpp"
@@ -92,8 +92,9 @@
 #include "json_spirit/json_spirit.h"
 #include "boost/pool/pool.hpp"
 #include "boost/crc.hpp"
-#include "logging/JNILogProxy.h"
+#include "libconhash/conhash.h"
 
+#include "logging/JNILogProxy.h"
 #include "logging/LogDefs.h"
 #include "logging/Logger.h"
 
@@ -417,8 +418,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeLoadC
  * human-readable text strings separated by line feeds.
  * @return error code
 */
-SHAREDLIB_JNIEXPORT jint JNICALL
-Java_org_voltdb_jni_ExecutionEngine_nativeUpdateCatalog(
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeUpdateCatalog(
     JNIEnv *env, jobject obj,
     jlong engine_ptr, jstring catalog_diffs) {
     VOLT_DEBUG("nativeUpdateCatalog() start");
@@ -460,8 +460,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeUpdateCatalog(
  * @param table_id catalog ID of the table
  * @param serialized_table the table data to be loaded
 */
-SHAREDLIB_JNIEXPORT jint JNICALL
-Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
     JNIEnv *env, jobject obj, jlong engine_ptr, jint table_id,
     jbyteArray serialized_table, jlong txnId, jlong lastCommittedTxnId,
     jlong undoToken, jboolean allowELT)
@@ -594,7 +593,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
  * @param plan_fragment_id ID of the plan fragment to be executed.
  * @return error code
 */
-SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeExecutePlanFragment (
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeExecutePlanFragment(
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
@@ -1159,6 +1158,57 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeELTA
     }
     return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////
+// CONSISTENT HASHING LIBRARY
+////////////////////////////////////////////////////////////////////////////
+
+SHAREDLIB_JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeCreate(
+            JNIEnv *env,
+            jobject obj,
+            jint num_partitions) {
+    
+    int i;
+    char str[128];
+    struct node_s g_nodes[64];
+    /*init conhash instance*/
+    struct conhash_s *conhash = conhash_init(NULL);
+    if (conhash) {
+        for (i = 0; i < num_partitions; i++) {
+            sprintf(str, "%d", i);
+            conhash_set_node(&g_nodes[i], str, 1);
+            conhash_add_node(conhash, &g_nodes[i]);
+        }
+    }
+    return reinterpret_cast<jlong>(conhash);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeDestroy(
+            JNIEnv *env,
+            jobject obj,
+            jlong hash_pointer) {
+    struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
+    conhash_fini(conhash);
+    return static_cast<jint>(1);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeHashinate(
+            JNIEnv *env,
+            jobject obj,
+            jlong hash_pointer,
+            jint value) {
+    
+    char str[128];
+    struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
+    sprintf(str, "%d", value);
+    const struct node_s *node;
+    node = conhash_lookup(conhash, str);
+    return static_cast<jint>(atoi(node->iden));
+}
+
+////////////////////////////////////////////////////////////////////////////
+// THREAD AFFINITY
+////////////////////////////////////////////////////////////////////////////
 
 #ifdef LINUX
 /*

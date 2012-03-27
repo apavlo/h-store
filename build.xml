@@ -662,6 +662,7 @@ NATIVE EE STUFF
     <delete file="${src.ee.dir}/org_voltdb_jni_ExecutionEngine.h" />
     <delete file="${src.ee.dir}/org_voltdb_utils_DBBPool.h" />
     <delete file="${src.ee.dir}/org_voltdb_utils_ThreadUtils.h" />
+    <delete file="${src.ee.dir}/edu_brown_hashing_ConsistentHasher.h" />
     <move
         file='${build.dir}/org_voltdb_jni_ExecutionEngine.h'
         todir='${src.ee.dir}'

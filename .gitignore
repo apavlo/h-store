@@ -11,6 +11,7 @@
 *.arff
 *.pyc
 *.png
+*.*~
 junitvmwatcher*
 buildstring.txt
 debugoutput

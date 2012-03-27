@@ -7,6 +7,7 @@ import org.voltdb.benchmark.tpcc.TPCCConstants;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ProjectType;
 
 public class TestConsistentHasher extends BaseTestCase {
 
@@ -15,8 +16,9 @@ public class TestConsistentHasher extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        super.setUp();
+        super.setUp(ProjectType.TM1);
         hasher = new ConsistentHasher(null, NUM_PARTITIONS);
+        hasher.init(catalog_db);
     }
     
     /**
