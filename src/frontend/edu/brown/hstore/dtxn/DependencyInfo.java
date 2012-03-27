@@ -1,6 +1,5 @@
 package edu.brown.hstore.dtxn;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -13,7 +12,6 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -233,38 +231,6 @@ public class DependencyInfo implements Poolable {
         return (this.results_ctr);
     }
     protected List<VoltTable> getResults() {
-        return (this.results);
-    }
-    
-    /**
-     * This is a very important method but it actually sucks
-     * In order to use a VoltTable that was produce by another partition on the same HStoreSite,
-     * we have to make a copy of this data into a new ByteBuffer.
-     * This is a horrible hack and will need to be revisited once we start figuring things out
-     * @param local_partition
-     * @param flip_local_partition
-     * @return
-     */
-    protected List<VoltTable> getResults(HStoreSite hstore_site, boolean flip_local_partition) {
-        if (flip_local_partition) {
-            for (int partition = 0, cnt = this.results.size(); partition < cnt; partition++) {
-                // FIXME We need to understand why this needs to happen...
-                if (hstore_site.isLocalPartition(partition)) {
-                    if (d) LOG.debug(String.format("%s - Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
-                                                   this.txn_id, this.dependency_id, partition));
-                    VoltTable vt = this.results.get(partition);
-                    assert(vt != null);
-                    
-                    ByteBuffer new_buffer = vt.getTableDataReference();
-//                    byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
-//                    vt.getTableDataReference().get(arr, 0, arr.length);
-//                    ByteBuffer new_buffer = ByteBuffer.wrap(arr);
-//                    LOG.info("COPY:\n" + new VoltTable(ByteBuffer.wrap(arr), true));
-                    VoltTable new_vt = new VoltTable(new_buffer, true);
-                    this.results.set(partition, new_vt);
-                }
-            } // FOR
-        }
         return (this.results);
     }
     
