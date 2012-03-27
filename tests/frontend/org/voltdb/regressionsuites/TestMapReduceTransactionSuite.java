@@ -3,11 +3,9 @@ package org.voltdb.regressionsuites;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.BackendTarget;
@@ -15,7 +13,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
-import org.voltdb.benchmark.tpcc.procedures.MRquery1;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -42,7 +39,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
     
     @Test
     public void testMapReduceTransaction () throws IOException, ProcCallException {
-        int num_partitions = this.getServerConfig().getPartitionCount();
+        //int num_partitions = this.getServerConfig().getPartitionCount();
         Client client = this.getClient();
         final VoltTable vt = this.loadTable(client);
         
@@ -71,7 +68,6 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
                 
                 cont.add(0,key);
                 //rtLists.get(ct).add(0, vt.getLong(3));
-                Object old_value = null;
                 if (cont.size() < 2) cont.add(1, vt.getLong(7));
                 else cont.set(1, vt.getLong(7) + ((Long)cont.get(1)).longValue());
                 if (cont.size() < 3) cont.add(2, vt.getDouble(8));
@@ -94,7 +90,6 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         ClientResponse cr = client.callProcedure("MRquery1");
         assertEquals(Status.OK, cr.getStatus());
         System.out.println("I am here");
-        VoltTable results[] = cr.getResults();
         int index = -1;
         // 0:ol_number,1:sum(ol_quantity),2:SUM(ol_amount),3:weight(ol_quantity),4:weight(ol_amount),5:sum
         for ( VoltTable v : cr.getResults()) {
@@ -182,36 +177,26 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         project.addDefaultPartitioning();
         project.addSupplementalClasses(SUPPLEMENTALS);
         
-//        Class<?> PROCEDURES[] = new Class<?>[] {
-//            MRquery1.class,
-//        };
-//        project.addProcedures(PROCEDURES);
-        
         boolean success = false;
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-//        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
-//        config.compile(project);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
         
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
-//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-        
-        
-        // CLUSTER CONFIG #3
-        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapBlocking_reduceBlocking");
         config.setConfParameter("site.mr_map_blocking", true);
         config.setConfParameter("site.mr_reduce_blocking", true);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-
+        
+        // CLUSTER CONFIG #3
         config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
         config.setConfParameter("site.mr_map_blocking", true);
@@ -220,6 +205,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         assert(success);
         builder.addServerConfig(config);
         
+        // CLUSTER CONFIG #3
         config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapNonBlocking");
         config.setConfParameter("site.mr_map_blocking", false);
