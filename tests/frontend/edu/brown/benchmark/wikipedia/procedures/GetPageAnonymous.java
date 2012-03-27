@@ -24,11 +24,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 import edu.brown.benchmark.wikipedia.util.Article;
 
@@ -69,73 +64,61 @@ public class GetPageAnonymous extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public Article run(Connection conn, boolean forSelect, String userIp,
-			                            int pageNamespace, String pageTitle) throws UserAbortException, SQLException {		
+	public Article run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
 	    int param = 1;
 	    
-		PreparedStatement st = this.getPreparedStatement(conn, selectPage);
-        st.setInt(param++, pageNamespace);
-        st.setString(param++, pageTitle);
-        ResultSet rs = st.executeQuery();
-        if (!rs.next()) {
+		voltQueueSQL(selectPage, pageNamespace, pageTitle);
+        VoltTable rs[] = voltExecuteSQL();
+        if (!rs[0].advanceRow()) {
             String msg = String.format("Invalid Page: Namespace:%d / Title:--%s--", pageNamespace, pageTitle);
-            throw new UserAbortException(msg);
+            throw new VoltAbortException(msg);
         }
-        int pageId = rs.getInt(1);
-        rs.close();
+        int pageId = (int)rs[0].getLong(0);
 
-        st = this.getPreparedStatement(conn, selectPageRestriction);
-        st.setInt(1, pageId);
-        rs = st.executeQuery();
-        while (rs.next()) {
-            byte[] pr_type = rs.getBytes(1);
+        voltQueueSQL(selectPageRestriction,1, pageId);
+        rs = voltExecuteSQL();
+        while (rs[0].advanceRow()) {
+            String pr_type = rs[0].getString(0);
             assert(pr_type != null);
         } // WHILE
-        rs.close();
         // check using blocking of a user by either the IP address or the
         // user_name
 
-        st = this.getPreparedStatement(conn, selectIpBlocks);
-		st.setString(1, userIp);
-        rs = st.executeQuery();
-        while (rs.next()) {
-            byte[] ipb_expiry = rs.getBytes(11);
+        voltQueueSQL(selectIpBlocks,1, userIp);
+        rs = voltExecuteSQL();
+        while (rs[0].advanceRow()) {
+            String ipb_expiry = rs[0].getString(10);
             assert(ipb_expiry != null);
         } // WHILE
-        rs.close();
 
-        st = this.getPreparedStatement(conn, selectPageRevision);
-        st.setInt(1, pageId);
-        st.setInt(2, pageId);
-        rs = st.executeQuery();
-        if (!rs.next()) {
+        voltQueueSQL(selectPageRevision,1, pageId);
+        voltQueueSQL(selectPageRevision,2, pageId);
+        rs = voltExecuteSQL();
+        if (!rs[0].advanceRow()) {
             String msg = String.format("Invalid Page: Namespace:%d / Title:--%s-- / PageId:%d",
                                        pageNamespace, pageTitle, pageId);
-            throw new UserAbortException(msg);
+            throw new VoltAbortException(msg);
         }
 
-        int revisionId = rs.getInt("rev_id");
-        int textId = rs.getInt("rev_text_id");
-        assert !rs.next();
-        rs.close();
+        int revisionId = (int)rs[0].getLong("rev_id");
+        int textId = (int)rs[0].getLong("rev_text_id");
+        //assert !rs[0].advanceRow();
 
         // NOTE: the following is our variation of wikipedia... the original did
         // not contain old_page column!
         // sql =
         // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
         // For now we run the original one, which works on the data we have
-        st = this.getPreparedStatement(conn, selectText);
-        st.setInt(1, textId);
-        rs = st.executeQuery();
-        if (!rs.next()) {
+        voltQueueSQL(selectText,1, textId);
+        rs = voltExecuteSQL();
+        if (!rs[0].advanceRow()) {
             String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace + " page_title:" + pageTitle;
-            throw new UserAbortException(msg);
+            throw new VoltAbortException(msg);
         }
         Article a = null;
         if (!forSelect)
-			a = new Article(userIp, pageId, rs.getString("old_text"), textId, revisionId);
-        assert !rs.next();
-        rs.close();
+			a = new Article(userIp, pageId, rs[0].getString("old_text"), textId, revisionId);
+        assert !rs[0].advanceRow();
         return a;
     }
 

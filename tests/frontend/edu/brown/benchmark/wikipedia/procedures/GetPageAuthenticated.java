@@ -17,19 +17,17 @@
  *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *  See the GNU Lesser General Public License for more details.
  ******************************************************************************/
-package com.oltpbenchmark.benchmarks.wikipedia.procedures;
+package edu.brown.benchmark.wikipedia.procedures;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
-import com.oltpbenchmark.api.Procedure;
-import com.oltpbenchmark.api.SQLStmt;
-import com.oltpbenchmark.benchmarks.wikipedia.WikipediaConstants;
-import com.oltpbenchmark.benchmarks.wikipedia.util.Article;
+import org.voltdb.VoltProcedure;
+import org.voltdb.SQLStmt;
+import edu.brown.benchmark.wikipedia.WikipediaConstants;
+import edu.brown.benchmark.wikipedia.util.Article;
 
-public class GetPageAuthenticated extends Procedure {
+public class GetPageAuthenticated extends VoltProcedure {
 	
     // -----------------------------------------------------------------
     // STATEMENTS
@@ -73,7 +71,7 @@ public class GetPageAuthenticated extends Procedure {
     // RUN
     // -----------------------------------------------------------------
 	
-    public Article run(Connection conn, boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) throws SQLException {
+    public Article run( boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
         // =======================================================
         // LOADING BASIC DATA: txn1
         // =======================================================
@@ -81,22 +79,22 @@ public class GetPageAuthenticated extends Procedure {
 
         // FIXME TOO FREQUENTLY SELECTING BY USER_ID
         String userText = userIp;
-        PreparedStatement st = this.getPreparedStatement(conn, selectUser);
+        PreparedStatement st = voltQueueSQL(selectUser);
         if (userId > 0) {
             st.setInt(1, userId);
-            ResultSet rs = st.executeQuery();
+            VoltTable rs = voltExecuteSQL();
             if (rs.next()) {
                 userText = rs.getString("user_name");
             } else {
                 rs.close();
-                throw new UserAbortException("Invalid UserId: " + userId);
+                throw new VoltAbortException("Invalid UserId: " + userId);
             }
             rs.close();
             // Fetch all groups the user might belong to (access control
             // information)
-            st = this.getPreparedStatement(conn, selectGroup);
+            st = voltQueueSQL(selectGroup);
             st.setInt(1, userId);
-            rs = st.executeQuery();
+            rs = voltExecuteSQL();
             while (rs.next()) {
                 @SuppressWarnings("unused")
                 String userGroupName = rs.getString(1);
@@ -104,22 +102,22 @@ public class GetPageAuthenticated extends Procedure {
             rs.close();
         }
 
-        st = this.getPreparedStatement(conn, selectPage);
+        st = voltQueueSQL(selectPage);
         st.setInt(1, nameSpace);
         st.setString(2, pageTitle);
-        ResultSet rs = st.executeQuery();
+        VoltTable rs = voltExecuteSQL();
 
         if (!rs.next()) {
             rs.close();
-            throw new UserAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
+            throw new VoltAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
         }
-        int pageId = rs.getInt("page_id");
+        int pageId = (int)rs.getLong("page_id");
         assert !rs.next();
         rs.close();
 
-        st = this.getPreparedStatement(conn, selectPageRestriction);
+        st = voltQueueSQL(selectPageRestriction);
         st.setInt(1, pageId);
-        rs = st.executeQuery();
+        rs = voltExecuteSQL();
         while (rs.next()) {
             byte[] pr_type = rs.getBytes(1);
             assert(pr_type != null);
@@ -128,26 +126,26 @@ public class GetPageAuthenticated extends Procedure {
         
         // check using blocking of a user by either the IP address or the
         // user_name
-        st = this.getPreparedStatement(conn, selectIpBlocks);
+        st = voltQueueSQL(selectIpBlocks);
         st.setInt(1, userId);
-        rs = st.executeQuery();
+        rs = voltExecuteSQL();
         while (rs.next()) {
             byte[] ipb_expiry = rs.getBytes(11);
             assert(ipb_expiry != null);
         }
         rs.close();
 
-        st = this.getPreparedStatement(conn, selectPageRevision);
+        st = voltQueueSQL(selectPageRevision);
         st.setInt(1, pageId);
         st.setInt(2, pageId);
-        rs = st.executeQuery();
+        rs = voltExecuteSQL();
         if (!rs.next()) {
             rs.close();
-            throw new UserAbortException("no such revision: page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
+            throw new VoltAbortException("no such revision: page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
         }
 
-        int revisionId = rs.getInt("rev_id");
-        int textId = rs.getInt("rev_text_id");
+        int revisionId = (int)rs.getLong("rev_id");
+        int textId = (int)rs.getLong("rev_text_id");
         assert !rs.next();
         rs.close();
 
@@ -156,12 +154,12 @@ public class GetPageAuthenticated extends Procedure {
         // sql =
         // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
         // For now we run the original one, which works on the data we have
-        st = this.getPreparedStatement(conn, selectText);
+        st = voltQueueSQL(selectText);
         st.setInt(1, textId);
-        rs = st.executeQuery();
+        rs = voltExecuteSQL();
         if (!rs.next()) {
             rs.close();
-            throw new UserAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
+            throw new VoltAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
         }
         Article a = null;
         if (!forSelect)

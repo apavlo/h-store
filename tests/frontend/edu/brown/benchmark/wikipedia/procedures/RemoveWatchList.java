@@ -17,18 +17,14 @@
  *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *  See the GNU Lesser General Public License for more details.
  ******************************************************************************/
-package com.oltpbenchmark.benchmarks.wikipedia.procedures;
+package edu.brown.benchmark.wikipedia.procedures;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
-import com.oltpbenchmark.api.Procedure;
-import com.oltpbenchmark.api.SQLStmt;
-import com.oltpbenchmark.benchmarks.wikipedia.WikipediaConstants;
-import com.oltpbenchmark.util.TimeUtil;
+import org.voltdb.VoltProcedure;
+import org.voltdb.SQLStmt;
+import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
-public class RemoveWatchList extends Procedure {
+public class RemoveWatchList extends VoltProcedure {
 	
 	public SQLStmt removeWatchList = new SQLStmt(
         "DELETE FROM " + WikipediaConstants.TABLENAME_WATCHLIST +
@@ -40,10 +36,10 @@ public class RemoveWatchList extends Procedure {
         " WHERE user_id =  ? "
     ); 
 
-    public void run(Connection conn, int userId, int nameSpace, String pageTitle) throws SQLException {
+    public void run( int userId, int nameSpace, String pageTitle) throws  {
 
         if (userId > 0) {
-            PreparedStatement ps = this.getPreparedStatement(conn, removeWatchList);
+            PreparedStatement ps = voltQueueSQL(removeWatchList);
             ps.setInt(1, userId);
             ps.setInt(2, nameSpace);
             ps.setString(3, pageTitle);
@@ -52,14 +48,14 @@ public class RemoveWatchList extends Procedure {
             if (nameSpace == 0) {
                 // if regular page, also remove a line of
                 // watchlist for the corresponding talk page
-                ps = this.getPreparedStatement(conn, removeWatchList);
+                ps = voltQueueSQL(removeWatchList);
                 ps.setInt(1, userId);
                 ps.setInt(2, 1);
                 ps.setString(3, pageTitle);
                 ps.executeUpdate();
             }
 
-            ps = this.getPreparedStatement(conn, setUserTouched);
+            ps = voltQueueSQL(setUserTouched);
             ps.setString(1, TimeUtil.getCurrentTimeString14());
             ps.setInt(2, userId);
             ps.executeUpdate();

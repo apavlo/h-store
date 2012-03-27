@@ -17,20 +17,17 @@
  *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *  See the GNU Lesser General Public License for more details.
  ******************************************************************************/
-package com.oltpbenchmark.benchmarks.wikipedia.procedures;
+package edu.brown.benchmark.wikipedia.procedures;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 
-import com.oltpbenchmark.api.Procedure;
-import com.oltpbenchmark.api.SQLStmt;
-import com.oltpbenchmark.benchmarks.wikipedia.WikipediaConstants;
-import com.oltpbenchmark.util.TimeUtil;
+import org.voltdb.VoltProcedure;
+import org.voltdb.SQLStmt;
+import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
-public class UpdatePage extends Procedure {
+public class UpdatePage extends VoltProcedure {
 	
     // -----------------------------------------------------------------
     // STATEMENTS
@@ -128,19 +125,19 @@ public class UpdatePage extends Procedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public void run(Connection conn, int textId, int pageId,
+	public void run( int textId, int pageId,
 	                                 String pageTitle, String pageText, int pageNamespace,
 	                                 int userId, String userIp, String userText,
-	                                 int revisionId, String revComment, int revMinorEdit) throws SQLException {
+	                                 int revisionId, String revComment, int revMinorEdit) throws  {
 
 	    boolean adv;
 	    PreparedStatement ps = null;
-	    ResultSet rs = null;
+	    VoltTable rs = null;
 	    int param;
 	    final String timestamp = TimeUtil.getCurrentTimeString14();
 	    
 	    // INSERT NEW TEXT
-		ps = this.getPreparedStatementReturnKeys(conn, insertText, new int[]{1});
+		ps = voltQueueSQLReturnKeys(insertText, new int[]{1});
 		param = 1;
 		ps.setInt(param++, pageId);
 		ps.setString(param++, pageText);
@@ -150,12 +147,12 @@ public class UpdatePage extends Procedure {
 		rs = ps.getGeneratedKeys();
 		adv = rs.next();
 		assert(adv) : "Problem inserting new tuples in table text";
-		int nextTextId = rs.getInt(1);
+		int nextTextId = (int)rs.getLong(1);
 		rs.close();
 		assert(nextTextId >= 0) : "Invalid nextTextId (" + nextTextId + ")";
 
 		// INSERT NEW REVISION
-		ps = this.getPreparedStatementReturnKeys(conn, insertRevision, new int[]{1});
+		ps = voltQueueSQLReturnKeys(insertRevision, new int[]{1});
 		param = 1;
 		ps.setInt(param++, pageId);       // rev_page
 		ps.setInt(param++, nextTextId);   // rev_text_id
@@ -171,14 +168,14 @@ public class UpdatePage extends Procedure {
 		
 		rs = ps.getGeneratedKeys();
 		adv = rs.next();
-		int nextRevId = rs.getInt(1);
+		int nextRevId = (int)rs.getLong(1);
 		rs.close();
 		assert(nextRevId >= 0) : "Invalid nextRevID (" + nextRevId + ")";
 
 		// I'm removing AND page_latest = "+a.revisionId+" from the query, since
 		// it creates sometimes problem with the data, and page_id is a PK
 		// anyway
-		ps = this.getPreparedStatement(conn, updatePage);
+		ps = voltQueueSQL(updatePage);
 		param = 1;
 		ps.setInt(param++, nextRevId);
 		ps.setString(param++, timestamp);
@@ -191,7 +188,7 @@ public class UpdatePage extends Procedure {
 		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
 		// st.addBatch(sql);
 
-		ps = this.getPreparedStatement(conn, insertRecentChanges);
+		ps = voltQueueSQL(insertRecentChanges);
 		param = 1;
 		ps.setString(param++, timestamp);     // rc_timestamp
 		ps.setString(param++, timestamp);     // rc_cur_time
@@ -219,16 +216,16 @@ public class UpdatePage extends Procedure {
 		// st.addBatch(sql);
 
 		// SELECT WATCHING USERS
-		ps = this.getPreparedStatement(conn, selectWatchList);
+		ps = voltQueueSQL(selectWatchList);
 		param = 1;
 		ps.setString(param++, pageTitle);
 		ps.setInt(param++, pageNamespace);
 		ps.setInt(param++, userId);
-		rs = ps.executeQuery();
+		rs = voltExecuteSQL();
 
 		ArrayList<Integer> wlUser = new ArrayList<Integer>();
 		while (rs.next()) {
-			wlUser.add(rs.getInt(1));
+			wlUser.add((int)rs.getLong(1));
 		}
 		rs.close();
 
@@ -242,7 +239,7 @@ public class UpdatePage extends Procedure {
 			// the transaction merge with the following one
 			conn.commit();
 
-			ps = this.getPreparedStatement(conn, updateWatchList);
+			ps = voltQueueSQL(updateWatchList);
 			param = 1;
 			ps.setString(param++, timestamp);
 			ps.setString(param++, pageTitle);
@@ -264,11 +261,11 @@ public class UpdatePage extends Procedure {
 
 			// This seems to be executed only if the page is watched, and once
 			// for each "watcher"
-			ps = this.getPreparedStatement(conn, selectUser);
+			ps = voltQueueSQL(selectUser);
             param = 1;
 			for (Integer otherUserId : wlUser) {
 				ps.setInt(param, otherUserId.intValue());
-				rs = ps.executeQuery();
+				rs = voltExecuteSQL();
 				rs.next();
 				rs.close();
 			} // FOR
@@ -277,7 +274,7 @@ public class UpdatePage extends Procedure {
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
 		
-		ps = this.getPreparedStatement(conn, insertLogging);
+		ps = voltQueueSQL(insertLogging);
 		param = 1;
 		ps.setString(param++, timestamp);
 		ps.setInt(param++, userId);
@@ -288,12 +285,12 @@ public class UpdatePage extends Procedure {
 		ps.setString(param++, String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
 		ps.executeUpdate();
 
-		ps = this.getPreparedStatement(conn, updateUserEdit);
+		ps = voltQueueSQL(updateUserEdit);
 		param = 1;
 		ps.setInt(param++, userId);
 		ps.executeUpdate();
 		
-		ps = this.getPreparedStatement(conn, updateUserTouched);
+		ps = voltQueueSQL(updateUserTouched);
 		param = 1;
 		ps.setString(param++, timestamp);
 		ps.setInt(param++, userId);

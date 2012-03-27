@@ -26,7 +26,6 @@ import org.voltdb.VoltTable;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 //import com.microsoft.sqlserver.jdbc.SQLServerException;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
@@ -55,13 +54,13 @@ public class AddWatchList extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-    public void run(Connection conn, int userId, int nameSpace, String pageTitle) throws VoltAbortException {
+    public void run( int userId, int nameSpace, String pageTitle) throws VoltAbortException {
 		if (userId > 0) {
 		    // TODO: find a way to by pass Unique constraints in SQL server (Replace, Merge ..?)
 		    // Here I am simply catching the right excpetion and move on.
 		    try
 		    {
-    			PreparedStatement ps = this.getPreparedStatement(conn, insertWatchList);
+    			PreparedStatement ps = voltQueueSQL(insertWatchList);
     			ps.setInt(1, userId);
     			ps.setInt(2, nameSpace);
     			ps.setString(3, pageTitle);
@@ -78,7 +77,7 @@ public class AddWatchList extends VoltProcedure {
 		        {
     				// if regular page, also add a line of
     				// watchlist for the corresponding talk page
-    			    PreparedStatement ps = this.getPreparedStatement(conn, insertWatchList);
+    			    PreparedStatement ps = voltQueueSQL(insertWatchList);
     				ps.setInt(1, userId);
     				ps.setInt(2, 1);
     				ps.setString(3, pageTitle);
@@ -90,7 +89,7 @@ public class AddWatchList extends VoltProcedure {
 	            }
 			}
 
-			PreparedStatement ps = this.getPreparedStatement(conn, setUserTouched);
+			PreparedStatement ps = voltQueueSQL(setUserTouched);
 			ps.setString(1, TimeUtil.getCurrentTimeString14());
 			ps.setInt(2, userId);
 			ps.executeUpdate();
