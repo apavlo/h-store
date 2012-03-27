@@ -1,5 +1,5 @@
-#include "edu_brown_hashing_ConsistentHasher.h"
-#include "../../third_party/cpp/libconhash/conhash.h"
+#include "../edu_brown_hashing_ConsistentHasher.h"
+#include "../../../third_party/cpp/libconhash/conhash.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -14,7 +14,7 @@ JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeCreate
  		for(i = 0; i < num_partitions; i++){
  			sprintf(str, "%d", i);
  			conhash_set_node(&g_nodes[i], str, 1);
- 			conhash_add_node(conhash_ &g_nodes[i]);
+ 			conhash_add_node(conhash, &g_nodes[i]);
  		}
 	}
 	return reinterpret_cast<jlong>(conhash);
