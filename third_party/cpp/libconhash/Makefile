@@ -1,4 +1,3 @@
-
 # output path
 PREFIX=bin
 CFLAGS=-fPIC -O3
@@ -24,12 +23,7 @@ SAMPLE_OBJS = $(addprefix $(PREFIX)/, \
 		sample.o \
 		)
 		
-# include file path
 
-
-
-#$(PREFIX)/sample
- 
 all : $(TARGETS)
 
 # build libconhash as a static lib 

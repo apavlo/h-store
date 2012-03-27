@@ -54,7 +54,7 @@ if gcc_major == 4 and gcc_minor >= 3:
 
 # linker flags
 CTX.LDFLAGS = "-g3 -rdynamic -ldl"
-CTX.LDFLAGS += " -l:libconhash/libconhash.a"
+CTX.LDFLAGS += " libconhash/libconhash.a"
 if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
