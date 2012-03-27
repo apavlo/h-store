@@ -68,6 +68,10 @@ message WorkFragment {
 
     // If true, this fragment should be prefetched.
     optional bool prefetch = 9 [default = false];
+    
+    // If true, this fragment should always be executed regardless 
+    // of whether its result is cached.
+    optional bool force = 10 [default = false];
 }
 
 // The output results of WorkFragments
@@ -181,11 +185,11 @@ message TransactionPrefetchResult {
     // Globally unique transaction id
     required int64 transaction_id = 1;
     
-    // The site id where this result came from
-    required int32 source_site = 2;
+    // The partition id where this result came from
+    required int32 source_partition = 2;
     
-    // The results for the prefetched queries
-    repeated WorkResult results = 3;
+    // The results for the prefetched queries at this partition
+    required WorkResult result = 3;
     
     // The global status for this response
     required Status status = 4;

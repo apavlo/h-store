@@ -37,7 +37,7 @@ import edu.brown.utils.PartitionEstimator;
 public class QueryPrefetcher implements Loggable {
     private static final Logger LOG = Logger.getLogger(QueryPrefetcher.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+//    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     // private final Database catalog_db;
     private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
@@ -110,7 +110,8 @@ public class QueryPrefetcher implements Loggable {
             } // FOR
             prefetch_params[i] = new ParameterSet(stmt_params);
 
-            LOG.info(i + ") " + prefetch_params[i]);
+            if (debug.get())
+                LOG.debug(i + ") " + prefetch_params[i]);
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
