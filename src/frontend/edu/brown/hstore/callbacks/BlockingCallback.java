@@ -27,7 +27,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     protected final HStoreSite hstore_site;
-    private Long txn_id = null;
+    protected Long txn_id = null;
     private final AtomicInteger counter = new AtomicInteger(0);
     private int orig_counter;
     private RpcCallback<T> orig_callback;

@@ -21,6 +21,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+import org.apache.log4j.Logger;
+
 /**
  * Encapsulates configuration settings for client statistics loading. This is not production
  * ready and the schema is subject to change and there are no tools provided to initialize a database
@@ -28,6 +30,8 @@ import java.sql.SQLException;
  *
  */
 public class StatsUploaderSettings {
+    private static final Logger LOG = Logger.getLogger(StatsUploaderSettings.class);
+    
     final String databaseURL;
     final String applicationName;
     final String subApplicationName;
@@ -69,6 +73,8 @@ public class StatsUploaderSettings {
             throw new RuntimeException(msg);
         }
 
+        if (LOG.isDebugEnabled())
+            LOG.debug("Creating new connection to stats database [" + databaseURL + "]");
         try {
             conn = DriverManager.getConnection(databaseURL);
             conn.setAutoCommit(false);

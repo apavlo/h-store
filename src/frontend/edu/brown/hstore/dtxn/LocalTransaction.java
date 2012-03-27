@@ -54,6 +54,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -63,6 +64,7 @@ import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
@@ -122,6 +124,12 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean deletable = false;
     private boolean not_deletable = false;
     
+    /**
+     * The timestamp (from EstTime) that our transaction showed up
+     * at this HStoreSite
+     */
+    private long initiateTime;
+    
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -141,9 +149,14 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
 
     /**
+     * 
+     */
+    private List<WorkResult> prefetch_results;
+    
+    /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    protected final BitSet done_partitions;
+    private final BitSet done_partitions;
     
     /**
      * Whether this txn is being executed specutatively
@@ -182,6 +195,12 @@ public class LocalTransaction extends AbstractTransaction {
      * at the same time.
      */
     private ExecutionState state;
+    
+    /**
+     * Whether this transaction's control code was executed on
+     * its base partition.
+     */
+    private boolean executed = false;
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -257,6 +276,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
+        this.initiateTime = EstTime.currentTimeMillis();
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
               
@@ -348,7 +368,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.invocation = null;
         this.client_callback = null;
+        this.initiateTime = 0;
         
+        this.executed = false;
+        this.prefetch_results = null;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
@@ -376,9 +399,9 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Reset this so that we will call finish() on the cached DependencyInfos
         // before we try to use it again
-        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
-            this.state.dinfo_lastRound[i] = -1;
-        } // FOR
+//        for (int i = 0; i < this.state.dinfo_lastRound.length; i++) {
+//            this.state.dinfo_lastRound[i] = -1;
+//        } // FOR
     }
     
     public void resetExecutionState() {
@@ -388,12 +411,26 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Returns true if this LocalTransaction was actually started
-     * in the ExecutionSite.
-     * @return
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
      */
     public boolean wasExecuted() {
-        return (this.state != null);
+        return (this.executed);
+    }
+    
+    /**
+     * Marks that this transaction's control code was executed at its base partition 
+     */
+    public void markAsExecuted() {
+        this.executed = true;
+    }
+    
+    @Override
+    public boolean needsFinish(int partition) {
+        if (this.base_partition == partition) {
+            return (this.executed);
+        }
+        return super.needsFinish(partition);
     }
     
     // ----------------------------------------------------------------------------
@@ -451,7 +488,8 @@ public class LocalTransaction extends AbstractTransaction {
                 for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
                     // Add this DependencyInfo our output list if it's being used in this round for this txn
                     // and if it is not an internal dependency
-                    if (dinfo.inRound(this.txn_id, this.round_ctr[base_partition_offset]) && dinfo.isInternal() == false) {
+                    if (dinfo.inSameTxnRound(this.txn_id, this.round_ctr[base_partition_offset]) &&
+                        dinfo.isInternal() == false) {
                         this.state.output_order.add(dinfo.getDependencyId());
                     }
                 } // FOR
@@ -509,11 +547,11 @@ public class LocalTransaction extends AbstractTransaction {
         // Same site, different partition
         if (this.base_partition != partition) return;
         
-        if (this.predict_singlePartition == false) {
-            for (int i = 0; i < this.state.batch_size; i++) {
-                this.state.dinfo_lastRound[i]++;
-            } // FOR
-        }
+//        if (this.predict_singlePartition == false) {
+//            for (int i = 0; i < this.state.batch_size; i++) {
+//                this.state.dinfo_lastRound[i] = -1;
+//            } // FOR
+//        }
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {
@@ -702,6 +740,13 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.catalog_proc.getMapreduce());
     }
     
+    /**
+     * Get the timestamp that this LocalTransaction handle was initiated
+     */
+    public long getInitiateTime() {
+        return (this.initiateTime);
+    }
+    
     public ClientResponseImpl getClientResponse() {
         assert(this.cresponse != null);
         return (this.cresponse);
@@ -838,12 +883,14 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.output_order);
     }
 
+    /**
+     * Set the flag that indicates whether this transaction was executed speculatively
+     */
     public void setSpeculative(boolean speculative) {
         this.exec_speculative = speculative;
     }
     /**
-     * Returns true if this transaction is being executed speculatively
-     * @return
+     * Returns true if this transaction was executed speculatively
      */
     public boolean isSpeculative() {
         return (this.exec_speculative);
@@ -878,6 +925,17 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
+    }
+    
+    public void addPrefetchResults(WorkResult result) {
+        if (this.prefetch_results == null) {
+            synchronized (this) {
+                if (this.prefetch_results == null) {
+                    this.prefetch_results = new ArrayList<WorkResult>();
+                }
+            } // SYNCH
+        }
+        this.prefetch_results.add(result);
     }
     
     // ----------------------------------------------------------------------------
@@ -923,16 +981,14 @@ public class LocalTransaction extends AbstractTransaction {
         }
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
         int base_partition_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
+        int currentRound = this.round_ctr[base_partition_offset]; 
         
         if (dinfo != null) {
-            int lastRoundUsed = state.dinfo_lastRound[stmt_index];
-            int currentRound = this.round_ctr[base_partition_offset]; 
-            boolean sameTxn = this.txn_id.equals(dinfo.getTransactionId());
             if (d) LOG.debug(String.format("%s - Reusing DependencyInfo[%d] for %s. " +
-                                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d, sameTxn=%s]",
+                                           "Checking whether it needs to be reset [currentRound=%d / lastRound=%d lastTxn=%s]",
                                            this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
-                                           currentRound, lastRoundUsed, sameTxn));
-            if (sameTxn == false || (lastRoundUsed != -1 && lastRoundUsed != currentRound)) {
+                                           currentRound, dinfo.getRound(), dinfo.getTransactionId()));
+            if (dinfo.inSameTxnRound(this.txn_id, currentRound) == false) {
                 if (d) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
                                                this, dinfo.hashCode()));
                 dinfo.finish();
@@ -947,9 +1003,12 @@ public class LocalTransaction extends AbstractTransaction {
             if (d) LOG.debug(String.format("%s - Created new DependencyInfo[%d] for {StmtIndex:%d, Dependency:%d}.",
                                            this, dinfo.hashCode(), stmt_index, dep_id));
         }
+//        if (d) LOG.debug(String.format("%s - state.dinfo_lastRound[%d] = %d",
+//                                       this, stmt_index, currentRound));
+//        this.state.dinfo_lastRound[stmt_index] = currentRound;
         
         if (dinfo.isInitialized() == false) {
-            dinfo.init(this.txn_id, this.round_ctr[base_partition_offset], stmt_index, dep_id.intValue());
+            dinfo.init(this.txn_id, currentRound, stmt_index, dep_id.intValue());
         }
         
         return (dinfo);
@@ -984,16 +1043,19 @@ public class LocalTransaction extends AbstractTransaction {
      * Queues up a WorkFragment for this txn
      * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
      * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
-     * @param ftask
+     * @param fragment
      */
-    public boolean addWorkFragment(WorkFragment ftask) {
+    public boolean addWorkFragment(WorkFragment fragment) {
         assert(this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)] == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)], this, this.base_partition);
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
-        final int partition = ftask.getPartitionId();
-        final int num_fragments = ftask.getFragmentIdCount();
+        final int partition = fragment.getPartitionId();
+        final int num_fragments = fragment.getFragmentIdCount();
+        
+        if (d) LOG.debug(String.format("%s - Adding %s for partition %d with %d fragments",
+                                       this, fragment.getClass().getSimpleName(), partition, num_fragments));
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -1006,16 +1068,16 @@ public class LocalTransaction extends AbstractTransaction {
         // It definitely does not need to be because this is only invoked by the
         // transaction's base partition ExecutionSite
         for (int i = 0; i < num_fragments; i++) {
-            int stmt_index = ftask.getStmtIndex(i);
+            int stmt_index = fragment.getStmtIndex(i);
             
             // If this task produces output dependencies, then we need to make 
             // sure that the txn wait for it to arrive first
-            int output_dep_id = ftask.getOutputDepId(i);
+            int output_dep_id = fragment.getOutputDepId(i);
             if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                 DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, output_dep_id);
                 dinfo.addPartition(partition);
                 if (d) LOG.debug(String.format("%s - Adding new DependencyInfo %s for PlanFragment %d at Partition %d [ctr=%d]\n%s",
-                                               this, debugStmtDep(stmt_index, output_dep_id), ftask.getFragmentId(i), this.state.dependency_ctr, partition, dinfo));
+                                               this, debugStmtDep(stmt_index, output_dep_id), fragment.getFragmentId(i), this.state.dependency_ctr, partition, dinfo));
                 this.state.dependency_ctr++;
                 
                 // Store the stmt_index of when this dependency will show up
@@ -1032,18 +1094,18 @@ public class LocalTransaction extends AbstractTransaction {
             
             // If this task needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
-            WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i);
+            WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             if (input_dep_ids.getIdsCount() > 0) {
                 for (int dependency_id : input_dep_ids.getIdsList()) {
                     if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                         if (d) LOG.debug(String.format("%s - Creating internal input dependency %d for PlanFragment %d", 
-                                                       this, dependency_id, ftask.getFragmentId(i))); 
+                                                       this, dependency_id, fragment.getFragmentId(i))); 
                         
                         DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, dependency_id);
-                        dinfo.addBlockedWorkFragment(ftask);
+                        dinfo.addBlockedWorkFragment(fragment);
                         dinfo.markInternal();
                         if (blocked == false) {
-                            this.state.blocked_tasks.add(ftask);
+                            this.state.blocked_tasks.add(fragment);
                             blocked = true;   
                         }
                     }
@@ -1074,15 +1136,15 @@ public class LocalTransaction extends AbstractTransaction {
                 catalog_stmt = catalog_proc;
             } else {
                 for (int i = 0; i < num_fragments; i++) {
-                    int frag_id = ftask.getFragmentId(i);
+                    int frag_id = fragment.getFragmentId(i);
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
                     catalog_stmt = catalog_frag.getParent();
                     if (catalog_stmt != null) break;
                 } // FOR
             }
             LOG.debug(String.format("%s - Queued up %s WorkFragment on partition %d and marked as %s [fragIds=%s]",
-                                    this, catalog_stmt, partition, (blocked ? "blocked" : "not blocked"), ftask.getFragmentIdList()));
-            if (t) LOG.trace("WorkFragment Contents for txn #" + this.txn_id + ":\n" + ftask);
+                                    this, catalog_stmt, partition, (blocked ? "blocked" : "not blocked"), fragment.getFragmentIdList()));
+            if (d) LOG.debug("WorkFragment Contents for txn #" + this.txn_id + ":\n" + fragment);
         }
         // *********************************** DEBUG ***********************************
         
@@ -1098,8 +1160,10 @@ public class LocalTransaction extends AbstractTransaction {
     public void addResult(int partition, int dependency_id, VoltTable result) {
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
-        int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-        this.processResultResponse(partition, dependency_id, key, false, result);
+        if (this.state != null) {
+            int key = this.state.createPartitionDependencyKey(partition, dependency_id);
+            this.processResultResponse(partition, dependency_id, key, false, result);
+        }
     }
     
     /**
@@ -1155,7 +1219,8 @@ public class LocalTransaction extends AbstractTransaction {
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(stmt_index, dependency_id);
         assert(dinfo != null) :
-            "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " [stmt_index=" + stmt_index + "]\n" + result;
+            String.format("Unexpected DependencyId %d from partition %d for %s [stmt_index=%d]\n%s",
+                          dependency_id, partition, this, stmt_index, result); 
         dinfo.addResult(partition, result);
         
         if (this.predict_singlePartition == false) this.state.lock.lock();
@@ -1178,7 +1243,8 @@ public class LocalTransaction extends AbstractTransaction {
             else if (d) {
                 LOG.debug(String.format("%s - No WorkFragments to unblock after storing {Partition:%d, Dependency:%d} " +
                                         "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
-                                        this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
+                                        this, partition, dependency_id,
+                                        this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
         
             if (this.state.dependency_latch != null) {    
@@ -1203,7 +1269,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         if (d) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
-            m.put("Blocked Tasks", this.state.blocked_tasks.size());
+            m.put("Blocked Tasks", (this.state != null ? this.state.blocked_tasks.size() : null));
             m.put("DependencyInfo", dinfo.toString());
             m.put("hasTasksReady", dinfo.hasTasksReady());
             LOG.debug(this + " - Status Information\n" + StringUtil.formatMaps(m));
@@ -1223,7 +1289,6 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("%s - Retrieving %d internal dependencies for %s WorkFragment:\n%s",
                                        this, fragment.getInputDepIdCount(), fragment));
         
-        Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
@@ -1235,14 +1300,14 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
                 assert(dinfo != null);
-                int num_tables = dinfo.getResults().size();
-                assert(dinfo.getPartitions().size() == num_tables) :
-                    String.format("Number of results retrieved for %s is %d " +
-                                  "but we were expecting %d in %s\n%s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), num_tables, dinfo.getPartitions().size(), this,
-                                  this.toString(), fragment.toString(),
+                assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
+                    String.format("%s - Number of results retrieved for %s is %d " +
+                                  "but we were expecting %d\n%s\n%s\n%s",
+                                  this, debugStmtDep(stmt_index, input_d_id),
+                                  dinfo.getResultsCount(), dinfo.getPartitionCount(),
+                                  fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
-                results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
+                results.put(input_d_id, dinfo.getResults(hstore_site, true));
                 if (d) LOG.debug(String.format("%s - %s -> %d VoltTables",
                                                this, debugStmtDep(stmt_index, input_d_id), results.get(input_d_id).size()));
             } // FOR
@@ -1261,12 +1326,12 @@ public class LocalTransaction extends AbstractTransaction {
         assert(dinfo.isInternal()) :
             String.format("The DependencyInfo for for %s in %s is not marked as internal",
                           debugStmtDep(stmt_index, input_d_id), this);
-        assert(dinfo.getPartitions().size() == dinfo.getResults().size()) :
+        assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
                     String.format("Number of results from partitions retrieved for %s " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResults().size(), dinfo.getPartitions().size(), this,
+                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResultsCount(), dinfo.getPartitionCount(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
-        return (dinfo.getResults(hstore_site.getLocalPartitionIds(), true));
+        return (dinfo.getResults(hstore_site, true));
     }
     
     /**

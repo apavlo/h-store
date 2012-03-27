@@ -37,7 +37,7 @@ import edu.brown.utils.PartitionEstimator;
 public class QueryPrefetcher implements Loggable {
     private static final Logger LOG = Logger.getLogger(QueryPrefetcher.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+//    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     // private final Database catalog_db;
     private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
@@ -110,7 +110,8 @@ public class QueryPrefetcher implements Loggable {
             } // FOR
             prefetch_params[i] = new ParameterSet(stmt_params);
 
-            LOG.info(i + ") " + prefetch_params[i]);
+            if (debug.get())
+                LOG.debug(i + ") " + prefetch_params[i]);
 
             // Serialize this ParameterSet for the TransactionInitRequests
             try {
@@ -126,29 +127,33 @@ public class QueryPrefetcher implements Loggable {
 
         // Generate the WorkFragments that we will need to send in our
         // TransactionInitRequest
-        BatchPlan plan = planner.plan(ts.getTransactionId(), ts.getClientHandle(), ts.getBasePartition(), ts.getPredictTouchedPartitions(), ts.isPredictSinglePartition(), ts.getTouchedPartitions(),
-                prefetch_params);
+        BatchPlan plan = planner.plan(ts.getTransactionId(),
+                                      ts.getClientHandle(),
+                                      ts.getBasePartition(),
+                                      ts.getPredictTouchedPartitions(),
+                                      ts.isPredictSinglePartition(),
+                                      ts.getTouchedPartitions(),
+                                      prefetch_params);
         List<WorkFragment> fragments = new ArrayList<WorkFragment>();
         plan.getWorkFragments(ts.getTransactionId(), fragments);
 
         // TODO: Loop through the fragments and check whether at least one of
-        // them
-        // needs to be executed at the base (local) partition. If so, we need a
-        // separate
-        // TransactionInitRequest per site. Group the WorkFragments by siteID.
+        // them needs to be executed at the base (local) partition. If so, we need a
+        // separate TransactionInitRequest per site. Group the WorkFragments by siteID.
         // If we have a prefetchable query for the base partition, it means that
-        // we will try
-        // to execute it before we actually need it whenever the
-        // PartitionExecutor is idle
-        // That means, we don't want to serialize all this if it's only going to
-        // the base partition.
+        // we will try to execute it before we actually need it whenever the
+        // PartitionExecutor is idle That means, we don't want to serialize all this
+        // if it's only going to the base partition.
         TransactionInitRequest.Builder[] builders = new TransactionInitRequest.Builder[this.num_sites];
         for (WorkFragment frag : fragments) {
             int site_id = this.partition_site_xref[frag.getPartitionId()];
             TransactionInitRequest.Builder builder = builders[site_id];
             if (builder == null) {
-                builders[site_id] = TransactionInitRequest.newBuilder().setTransactionId(ts.getTransactionId().longValue()).setProcedureId(ts.getProcedure().getId())
-                        .addAllPartitions(ts.getPredictTouchedPartitions());
+                builders[site_id] = TransactionInitRequest.newBuilder()
+                                            .setTransactionId(ts.getTransactionId().longValue())
+                                            .setProcedureId(ts.getProcedure().getId())
+                                            .setBasePartition(ts.getBasePartition())
+                                            .addAllPartitions(ts.getPredictTouchedPartitions());
                 builder = builders[site_id];
                 for (ByteString bs : prefetch_params_serialized) {
                     builder.addPrefetchParameterSets(bs);
@@ -171,8 +176,11 @@ public class QueryPrefetcher implements Loggable {
                 // default TransactionInitRequest.
                 if (touched_sites[i]) {
                     if (default_request == null) {
-                        default_request = TransactionInitRequest.newBuilder().setTransactionId(ts.getTransactionId()).setProcedureId(ts.getProcedure().getId())
-                                .addAllPartitions(ts.getPredictTouchedPartitions()).build();
+                        default_request = TransactionInitRequest.newBuilder()
+                                                .setTransactionId(ts.getTransactionId())
+                                                .setProcedureId(ts.getProcedure().getId())
+                                                .setBasePartition(ts.getBasePartition())
+                                                .addAllPartitions(ts.getPredictTouchedPartitions()).build();
                     }
                     init_requests[i] = default_request;
                 }
