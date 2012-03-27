@@ -107,6 +107,7 @@ import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -266,12 +267,13 @@ public class VoltCompiler {
     class ProcedureDescriptor {
         final ArrayList<String> m_authUsers;
         final ArrayList<String> m_authGroups;
+        final ArrayList<String> m_prefetchable;
         final String m_className;
         // for single-stmt procs
         final String m_singleStmt;
         final String m_partitionString;
 
-        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className) {
+        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className, final ArrayList<String> prefetchable) {
             assert(className != null);
 
             m_authUsers = authUsers;
@@ -279,6 +281,7 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = null;
             m_partitionString = null;
+            m_prefetchable = prefetchable;
         }
 
         ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className, final String singleStmt, final String partitionString) {
@@ -290,6 +293,7 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = singleStmt;
             m_partitionString = partitionString;
+            m_prefetchable = new ArrayList<String>();
         }
     }
     
@@ -1003,6 +1007,7 @@ public class VoltCompiler {
     {
         final ArrayList<String> users = new ArrayList<String>();
         final ArrayList<String> groups = new ArrayList<String>();
+        final ArrayList<String> prefetchable = new ArrayList<String>();
 
         // @users
         if (xmlproc.getUsers() != null) {
@@ -1039,7 +1044,10 @@ public class VoltCompiler {
                 "and may not use the @partitioninfo project file procedure attribute.";
                 throw new VoltCompilerException(msg);
             }
-            return new ProcedureDescriptor(users, groups, classattr);
+            if (xmlproc.getPrefetchable() != null) {
+                CollectionUtil.addAll(prefetchable, xmlproc.getPrefetchable().split(","));
+            }
+            return new ProcedureDescriptor(users, groups, classattr, prefetchable);
         }
     }
 
