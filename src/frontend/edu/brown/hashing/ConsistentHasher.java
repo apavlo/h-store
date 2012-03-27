@@ -22,7 +22,7 @@ public class ConsistentHasher extends AbstractHasher {
     @Override
     public void init(Database catalog_db) {
         // Allocate a new instance of the C++ consistent hasher
-        this.pointer = this.nativeCreate();
+        this.pointer = this.nativeCreate(this.num_partitions);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class ConsistentHasher extends AbstractHasher {
      * Create a new invocation of our C++ ConsistentHasher
      * @return the created pointer casted to a jlong
      */
-    protected native long nativeCreate();
+    protected native long nativeCreate(int num_partitions);
     
     /**
      * Releases all resources held by this hasher instance

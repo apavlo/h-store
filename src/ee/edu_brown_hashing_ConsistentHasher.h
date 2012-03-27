@@ -7,13 +7,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Inaccessible static: LOG */
+/* Inaccessible static: _00024assertionsDisabled */
+/* Inaccessible static: _00024assertionsDisabled */
 /*
  * Class:     edu_brown_hashing_ConsistentHasher
  * Method:    nativeCreate
- * Signature: ()J
+ * Signature: (I)J
  */
 JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeCreate
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     edu_brown_hashing_ConsistentHasher
