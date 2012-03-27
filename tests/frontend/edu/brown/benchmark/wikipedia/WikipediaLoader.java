@@ -1,10 +1,11 @@
 package edu.brown.benchmark.wikipedia;
 
-import java.io.File;
-import java.io.PrintStream;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import org.voltdb.VoltTable;
+import org.voltdb.catalog.*;
+import org.voltdb.client.Client;
+import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.catalog.CatalogUtil;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -49,6 +50,8 @@ public class WikipediaLoader extends BenchmarkComponent {
      */
     private final double m_scalefactor;
     
+    private Random randGenerator = new Random();
+    
     /**
      * UserId -> # of Revisions
      */
@@ -69,8 +72,6 @@ public class WikipediaLoader extends BenchmarkComponent {
      */
     private List<Pair<Integer, String>> titles = new ArrayList<Pair<Integer, String>>();
     
-    private Random randomGenerator = new Random();
-
     /**
      * Constructor
      * @param benchmark
@@ -78,7 +79,8 @@ public class WikipediaLoader extends BenchmarkComponent {
      */
     public WikipediaLoader(String[] args) {
         super(args);
-        m_scalefactor = 1.0; // FIXME
+        m_scalefactor = 1.0; // FIXME, scalefactor can be...
+        
         this.num_users = (int) Math.round(WikipediaConstants.USERS * this.m_scalefactor);
         this.num_pages = (int) Math.round(WikipediaConstants.PAGES * this.m_scalefactor);
         
@@ -95,20 +97,24 @@ public class WikipediaLoader extends BenchmarkComponent {
             LOG.debug("# of PAGES: " + this.num_pages);
         }
     }
+    
+    @Override
+    public String[] getTransactionDisplayNames() {
+        // IGNORE: Only needed for Client
+        return new String[] {};
+    }
 
     @Override
     public void runLoop() {
+        final Catalog catalog = this.getCatalog();
+        final Database catalog_db = CatalogUtil.getDatabase(catalog);
+        
         try {
             // Load Data
-            this.loadUsers();
-            this.loadPages();
-            this.loadWatchlist();
-            this.loadRevision();
-            
-        } catch (SQLException e) {
-            e.printStackTrace();
-            if (e.getNextException() != null) e = e.getNextException();
-            throw new RuntimeException(e);
+            this.loadUsers(catalog_db);
+            this.loadPages(catalog_db);
+            this.loadWatchlist(catalog_db);
+            this.loadRevision(catalog_db);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -117,37 +123,39 @@ public class WikipediaLoader extends BenchmarkComponent {
     /**
      * USERACCTS
      */
-    private void loadUsers() throws SQLException {
-        Table catalog_tbl = this.getTableCatalog(WikipediaConstants.TABLENAME_USER);
+    private void loadUsers( Database catalog_db ) {
+        Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
         assert(catalog_tbl != null);
 
 //        String sql = SQLUtil.getInsertSQL(catalog_tbl);
 //        PreparedStatement userInsert = this.conn.prepareStatement(sql);
-//        FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.rng(), UserHistograms.NAME_LENGTH);
-//        FlatHistogram<Integer> h_realNameLength = new FlatHistogram<Integer>(this.rng(), UserHistograms.REAL_NAME_LENGTH);
-//        FlatHistogram<Integer> h_revCount = new FlatHistogram<Integer>(this.rng(), UserHistograms.REVISION_COUNT);
+        FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
+        FlatHistogram<Integer> h_realNameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.REAL_NAME_LENGTH);
+        FlatHistogram<Integer> h_revCount = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.REVISION_COUNT);
 
-        int types[] = catalog_tbl.getColumnTypes();
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        int num_cols = catalog_tbl.getColumns().size();
         int batchSize = 0;
         int lastPercent = -1;
         for (int i = 1; i <= this.num_users; i++) {
             // The name will be prefixed with their UserId. This increases
             // the likelihood that all of our usernames are going to be unique
             // It's not a guarantee, but it's good enough...
-            String name = Integer.toString(i) + TextGenerator.randomStr(rng(), h_nameLength.nextValue().intValue());
-            String realName = TextGenerator.randomStr(rng(), h_realNameLength.nextValue().intValue());
+            String name = Integer.toString(i) + TextGenerator.randomStr(randGenerator, h_nameLength.nextValue().intValue());
+            String realName = TextGenerator.randomStr(randGenerator, h_realNameLength.nextValue().intValue());
             int revCount = h_revCount.nextValue().intValue();
-            String password = StringUtil.repeat("*", rng().nextInt(32));
+            String password = StringUtil.repeat("*", randGenerator.nextInt(32));
             
-            char eChars[] = TextGenerator.randomChars(rng(), rng().nextInt(32) + 5);
-            eChars[4 + rng().nextInt(eChars.length-4)] = '@';
+            char eChars[] = TextGenerator.randomChars(randGenerator, randGenerator.nextInt(32) + 5);
+            eChars[4 + randGenerator.nextInt(eChars.length-4)] = '@';
             String email = new String(eChars);
             
-            String token = TextGenerator.randomStr(rng(), WikipediaConstants.TOKEN_LENGTH);
+            String token = TextGenerator.randomStr(randGenerator, WikipediaConstants.TOKEN_LENGTH);
             String userOptions = "fake_longoptionslist";
-            String newPassTime = new TimestampType();
-            String touched = TimeUtil.getCurrentTimeString14();
+            TimestampType newPassTime = new TimestampType();
+            TimestampType touched = new TimestampType();
 
+            Object row[] = new Object[num_cols];
             int param = 1;
             userInsert.setInt(param++, i);                // user_id
             userInsert.setString(param++, name);          // user_name
@@ -194,24 +202,24 @@ public class WikipediaLoader extends BenchmarkComponent {
     /**
      * PAGE
      */
-    private void loadPages() throws SQLException {
-        Table catalog_tbl = this.getTableCatalog(WikipediaConstants.TABLENAME_PAGE);
+    private void loadPages(Database catalog_db) {
+        Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_PAGE);
         assert(catalog_tbl != null);
 
         String sql = SQLUtil.getInsertSQL(catalog_tbl);
         PreparedStatement pageInsert = this.conn.prepareStatement(sql);
         
-        FlatHistogram<Integer> h_titleLength = new FlatHistogram<Integer>(this.rng(), PageHistograms.TITLE_LENGTH);
-        FlatHistogram<Integer> h_namespace = new FlatHistogram<Integer>(this.rng(), PageHistograms.NAMESPACE);
-        FlatHistogram<String> h_restrictions = new FlatHistogram<String>(this.rng(), PageHistograms.RESTRICTIONS);
+        FlatHistogram<Integer> h_titleLength = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.TITLE_LENGTH);
+        FlatHistogram<Integer> h_namespace = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.NAMESPACE);
+        FlatHistogram<String> h_restrictions = new FlatHistogram<String>(this.randGenerator, PageHistograms.RESTRICTIONS);
 
         int batchSize = 0;
         int lastPercent = -1;
         for (int i = 1; i <= this.num_pages; i++) {
-            String title = TextGenerator.randomStr(rng(), h_titleLength.nextValue().intValue());
+            String title = TextGenerator.randomStr(randGenerator, h_titleLength.nextValue().intValue());
             int namespace = h_namespace.nextValue().intValue();
             String restrictions = h_restrictions.nextValue();
-            double pageRandom = rng().nextDouble();
+            double pageRandom = randGenerator.nextDouble();
             String pageTouched = TimeUtil.getCurrentTimeString14();
             
             int param = 1;
@@ -259,15 +267,15 @@ public class WikipediaLoader extends BenchmarkComponent {
     /**
      * WATCHLIST
      */
-    private void loadWatchlist() throws SQLException {
-        Table catalog_tbl = this.getTableCatalog(WikipediaConstants.TABLENAME_WATCHLIST);
+    private void loadWatchlist(Database catalog_db) {
+        Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_WATCHLIST);
         assert(catalog_tbl != null);
         
         String sql = SQLUtil.getInsertSQL(catalog_tbl, 1);
         PreparedStatement watchInsert = this.conn.prepareStatement(sql);
         
-        Zipf h_numWatches = new Zipf(rng(), 0, this.num_pages, WikipediaConstants.NUM_WATCHES_PER_USER_SIGMA);
-        Zipf h_pageId = new Zipf(rng(), 1, this.num_pages, WikipediaConstants.WATCHLIST_PAGE_SIGMA);
+        Zipf h_numWatches = new Zipf(randGenerator, 0, this.num_pages, WikipediaConstants.NUM_WATCHES_PER_USER_SIGMA);
+        Zipf h_pageId = new Zipf(randGenerator, 1, this.num_pages, WikipediaConstants.WATCHLIST_PAGE_SIGMA);
 
         int batchSize = 0;
         int lastPercent = -1;
@@ -324,10 +332,10 @@ public class WikipediaLoader extends BenchmarkComponent {
     /**
      * REVISIONS
      */
-    private void loadRevision() throws SQLException {
+    private void loadRevision(Database catalog_db) {
         
         // TEXT
-        Table textTable = this.getTableCatalog(WikipediaConstants.TABLENAME_TEXT);
+        Table textTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_TEXT);
         String textSQL = SQLUtil.getInsertSQL(textTable);
         PreparedStatement textInsert = this.conn.prepareStatement(textSQL);
 
@@ -338,12 +346,12 @@ public class WikipediaLoader extends BenchmarkComponent {
 
         WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
         int batchSize = 1;
-        Zipf h_users = new Zipf(this.rng(), 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
-        FlatHistogram<Integer> h_textLength = new FlatHistogram<Integer>(this.rng(), TextHistograms.TEXT_LENGTH);
+        Zipf h_users = new Zipf(this.randGenerator, 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
+        FlatHistogram<Integer> h_textLength = new FlatHistogram<Integer>(this.randGenerator, TextHistograms.TEXT_LENGTH);
         FlatHistogram<Integer> h_commentLength = b.commentLength;
         FlatHistogram<Integer> h_minorEdit = b.minorEdit;
-        FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.rng(), UserHistograms.NAME_LENGTH);
-        FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.rng(), PageHistograms.REVISIONS_PER_PAGE);
+        FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
+        FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
         
         int rev_id = 1;
         int lastPercent = -1;
@@ -354,7 +362,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             // Generate what the new revision is going to be
             int old_text_length = h_textLength.nextValue().intValue();
             assert(old_text_length > 0);
-            char old_text[] = TextGenerator.randomChars(rng(), old_text_length);
+            char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
             
             for (int i = 0; i < num_revised; i++) {
                 // Generate the User who's doing the revision and the Page revised
@@ -369,11 +377,11 @@ public class WikipediaLoader extends BenchmarkComponent {
                     old_text_length = old_text.length;
                 }
                 
-                char rev_comment[] = TextGenerator.randomChars(rng(), h_commentLength.nextValue().intValue());
+                char rev_comment[] = TextGenerator.randomChars(randGenerator, h_commentLength.nextValue().intValue());
 
                 // The REV_USER_TEXT field is usually the username, but we'll just 
                 // put in gibberish for now
-                char user_text[] = TextGenerator.randomChars(rng(), h_nameLength.nextValue().intValue());
+                char user_text[] = TextGenerator.randomChars(randGenerator, h_nameLength.nextValue().intValue());
                 
                 // Insert the text
                 int col = 1;
@@ -492,4 +500,5 @@ public class WikipediaLoader extends BenchmarkComponent {
             LOG.debug("Revision loaded");
         }
     }
+   
 }

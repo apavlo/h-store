@@ -36,7 +36,6 @@ public final class WikipediaOperation extends Operation {
 		this.pageTitle = pageTitle;
 	}
 	
-	@Override
 	public String toString() {
 	    return String.format("<UserId:%d, NameSpace:%d, Title:%s>",
 	                         this.userId, this.nameSpace, this.pageTitle);

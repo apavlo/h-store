@@ -19,102 +19,68 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
-import java.io.File;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.commons.configuration.XMLConfiguration;
 import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
-import edu.brown.benchmark.wikipedia.util.TraceTransactionGenerator;
-import edu.brown.benchmark.wikipedia.util.TransactionSelector;
-import edu.brown.benchmark.wikipedia.util.WikipediaOperation;
-import edu.brown.benchmark.wikipedia.util.TextGenerator;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
+import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
+import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 
-import edu.brown.WorkloadConfiguration;
-import edu.brown.api.BenchmarkModule;
-import edu.brown.api.TransactionGenerator;
-
-public class WikipediaProjectBuilder extends BenchmarkModule {
-    private static final Logger LOG = Logger.getLogger(WikipediaBenchmark.class);
+public class WikipediaProjectBuilder extends AbstractProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(WikipediaProjectBuilder.class);
     
-	@SuppressWarnings("unchecked")
-    public WikipediaBenchmark(WorkloadConfiguration workConf) {		
-		super("wikipedia", workConf, true);
-		
-		this.commentLength = new FlatHistogram<Integer>(this.rng(), RevisionHistograms.COMMENT_LENGTH);
-		this.minorEdit = new FlatHistogram<Integer>(this.rng(), RevisionHistograms.MINOR_EDIT);
-		this.revisionDeltas = (FlatHistogram<Integer>[])new FlatHistogram[RevisionHistograms.REVISION_DELTA_SIZES.length];
-		for (int i = 0; i < this.revisionDeltas.length; i++) {
-		    this.revisionDeltas[i] = new FlatHistogram<Integer>(this.rng(), RevisionHistograms.REVISION_DELTAS[i]);
-		} // FOR
-	}
-
-	
-	/**
-	 * 
-	 * @param orig_text
-	 * @return
-	 */
-	protected char[] generateRevisionText(char orig_text[]) {
-	    // Figure out how much we are going to change
-        // If the delta is greater than the length of the original
-        // text, then we will just cut our length in half. Where is your god now?
-        // There is probably some sort of minimal size that we should adhere to, but
-        // it's 12:30am and I simply don't feel like dealing with that now
-	    FlatHistogram<Integer> h = null;
-	    for (int i = 0; i < this.revisionDeltas.length-1; i++) {
-	        if (orig_text.length <= RevisionHistograms.REVISION_DELTA_SIZES[i]) {
-	            h = this.revisionDeltas[i];
-	        }
-	    } // FOR
-	    if (h == null) h = this.revisionDeltas[this.revisionDeltas.length-1];
-	    assert(h != null);
-	    
-        int delta = h.nextValue().intValue();
-        if (orig_text.length + delta <= 0) {
-            delta = -1 * (int)Math.round(orig_text.length / 1.5);
-            if (Math.abs(delta) == orig_text.length && delta < 0) delta /= 2;
-        }
-        if (delta != 0) orig_text = TextGenerator.resizeText(rng(), orig_text, delta);
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_clientClass = WikipediaClient.class;
+ 
+    // REQUIRED: Retrieved via reflection by BenchmarkController
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = WikipediaLoader.class;
+ 
+    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+        AddWatchList.class,
+        GetPageAnonymous.class,
+        GetPageAuthenticated.class,
+        RemoveWatchList.class,
+        UpdatePage.class,
+    };
+    
+    /**
+     * FIXME how the schemas are partitioned...?
+     */
+    public static final String PARTITIONING[][] = new String[][] {
+        // { "TABLE NAME", "PARTITIONING COLUMN NAME" }
+       
+    };
+ 
+    public WikipediaProjectBuilder() {
+        // TODO Auto-generated constructor stub
+        super("Wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
         
-        // And permute it a little bit. This ensures that the text is slightly
-        // different than the last revision
-        orig_text = TextGenerator.permuteText(rng(), orig_text);
-        
-        return (orig_text);
-	}
+        // Create a single-statement stored procedure named 'DeleteData'
+        //addStmtProcedure("DeleteData", "DELETE FROM TABLEA WHERE A_ID < ?");
+  
+    }
 	
-	@Override
-	protected Package getProcedurePackageImpl() {
-		return (AddWatchList.class.getPackage());
-	}
-	
-	@Override
-	protected List<Worker> makeWorkersImpl(boolean verbose) throws IOException {
-	    LOG.info(String.format("Initializing %d %s using '%s' as the input trace file",
-                               workConf.getTerminals(), WikipediaWorker.class.getSimpleName(), this.traceInput));
-		TransactionSelector transSel = new TransactionSelector(this.traceInput, workConf.getTransTypes());
-		List<WikipediaOperation> trace = Collections.unmodifiableList(transSel.readAll());
-		LOG.info("Total Number of Sample Operations: " + trace.size());
-		
-		ArrayList<Worker> workers = new ArrayList<Worker>();
-		for (int i = 0; i < workConf.getTerminals(); ++i) {
-			TransactionGenerator<WikipediaOperation> generator = new TraceTransactionGenerator(trace);
-			WikipediaWorker worker = new WikipediaWorker(i, this, generator);
-			workers.add(worker);
-		} // FOR
-		return workers;
-	}
-	
-	@Override
-	protected Loader makeLoaderImpl(Connection conn) throws SQLException {
-		return new WikipediaLoader(this, conn);
-	}
+//	@Override
+//	protected List<Worker> makeWorkersImpl(boolean verbose) throws IOException {
+//	    LOG.info(String.format("Initializing %d %s using '%s' as the input trace file",
+//                               workConf.getTerminals(), WikipediaWorker.class.getSimpleName(), this.traceInput));
+//		TransactionSelector transSel = new TransactionSelector(this.traceInput, workConf.getTransTypes());
+//		List<WikipediaOperation> trace = Collections.unmodifiableList(transSel.readAll());
+//		LOG.info("Total Number of Sample Operations: " + trace.size());
+//		
+//		ArrayList<Worker> workers = new ArrayList<Worker>();
+//		for (int i = 0; i < workConf.getTerminals(); ++i) {
+//			TransactionGenerator<WikipediaOperation> generator = new TraceTransactionGenerator(trace);
+//			WikipediaWorker worker = new WikipediaWorker(i, this, generator);
+//			workers.add(worker);
+//		} // FOR
+//		return workers;
+//	}
+//	@Override
+//	protected Loader makeLoaderImpl(Connection conn) {
+//		return new WikipediaLoader(this, conn);
+//	}
 }
