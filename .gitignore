@@ -29,6 +29,7 @@ conf-*.html
 src/ee/org_voltdb_jni_ExecutionEngine.h
 src/ee/org_voltdb_utils_DBBPool.h
 src/ee/org_voltdb_utils_ThreadUtils.h
+src/ee/edu_brown_hashing_ConsistentHasher.h
 
 ## -------------------------------
 ## Catalog Compiler Artifacts
