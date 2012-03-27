@@ -78,7 +78,7 @@
 
 <!-- libconhash -->
 <property name="src.libconhash.dir"          location="third_party/cpp/libconhash" />
-<property name="build.libconhash.dir"        location="${build.dir}/objects" />
+<property name="build.libconhash.dir"        location="${build.dir}/libconhash" />
 
 <!-- TPC-E Generator -->
 <property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
@@ -414,6 +414,9 @@ CLEANING
 
 <target name="clean-protorpc">
     <delete includeemptydirs="true" dir="${build.protorpc.dir}" />
+</target>
+<target name="clean-libconhash">
+    <delete includeemptydirs="true" dir="${build.libconhash.dir}" />
 </target>
 
 <target name="clean-preprocessor">

@@ -1,6 +1,9 @@
 
 # output path
 PREFIX=bin
+CFLAGS=-fPIC -O3
+TARGETS = $(PREFIX)/libconhash.a 
+INC = -I.
 
 # debug stuff 
 ifeq ($(CFLAG), DEBUG)
@@ -22,9 +25,9 @@ SAMPLE_OBJS = $(addprefix $(PREFIX)/, \
 		)
 		
 # include file path
-INC = -I.
 
-TARGETS = $(PREFIX)/libconhash.a 
+
+
 #$(PREFIX)/sample
  
 all : $(TARGETS)
