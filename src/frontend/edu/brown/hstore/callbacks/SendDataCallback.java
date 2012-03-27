@@ -30,7 +30,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
     }
     
     private AbstractTransaction ts;
-    private final int num_remote_sites;
+    private final int num_sites;
     
     /**
      * Constructor
@@ -38,7 +38,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
      */
     public SendDataCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
-        this.num_remote_sites = CatalogUtil.getAllSites(hstore_site.getSite()).size() - 1;
+        this.num_sites = CatalogUtil.getAllSites(hstore_site.getSite()).size();
     }
 
     public void init(AbstractTransaction ts, RpcCallback<AbstractTransaction> orig_callback) {
@@ -48,7 +48,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-        super.init(ts.getTransactionId(), this.num_remote_sites, orig_callback);
+        super.init(ts.getTransactionId(), this.num_sites, orig_callback);
     }
     
     @Override
@@ -119,6 +119,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Send
             this.abort(response.getStatus());
             return (0);
         }
+        if (debug.get()) LOG.debug("SendDataCallback, I am trying to return 1, actually counter is:" + this.getCounter());
         return 1;
     }
 }
