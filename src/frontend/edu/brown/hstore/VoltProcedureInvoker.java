@@ -107,7 +107,6 @@ public class VoltProcedureInvoker {
                                cresponse.getTransactionId(),
                                cresponse.getStatus(),
                                (stop - start) / 1000000d,
-                               StringUtil.formatMaps(m).trim()));
-        LOG.info(cresponse);
+                               cresponse.toString()));
     }
 }

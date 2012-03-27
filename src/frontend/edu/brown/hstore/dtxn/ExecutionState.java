@@ -124,7 +124,7 @@ public class ExecutionState {
      * If the last round doesn't equal the current round, then we will have to call finish()
      * to clean it out before we can use it.
      */
-    protected final int dinfo_lastRound[];
+//    protected final int dinfo_lastRound[];
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -143,7 +143,7 @@ public class ExecutionState {
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
-        this.dinfo_lastRound = new int[max_batch];
+//        this.dinfo_lastRound = new int[max_batch];
         
 //        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);

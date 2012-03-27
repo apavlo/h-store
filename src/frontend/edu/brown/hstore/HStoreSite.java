@@ -331,7 +331,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
-        
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -1474,6 +1473,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null) {
+            ts.setStatus(status);
+            
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
                 if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
                 // TODO(xin): We should not be invoking this callback at the basePartition's site
@@ -1572,6 +1573,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts != null);
         assert(status != Status.OK) :
             "Unexpected requeue status " + status + " for " + ts;
+        ts.setStatus(status);
         this.txnQueueManager.restartTransaction(ts, status);
     }
     
@@ -1584,6 +1586,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                                        ts, status, ts.getClientHandle()));
         
+        ts.setStatus(status);
         ClientResponseImpl cresponse = ts.getClientResponse();
         cresponse.init(ts.getTransactionId(),
                        ts.getClientHandle(),
@@ -1990,7 +1993,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (status != Status.ABORT_MISPREDICT && ts.isRejected() == false) {
+            } else if (status != Status.ABORT_MISPREDICT &&
+                       status != Status.ABORT_REJECT && 
+                       status != Status.ABORT_THROTTLED) {
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }
