@@ -27,7 +27,7 @@ CREATE INDEX IDX_IPB_EXPIRY ON ipblocks (ipb_expiry);
 
 DROP TABLE IF EXISTS useracct;
 CREATE TABLE useracct (
-  user_id serial,
+  user_id int,
   user_name varchar(255) NOT NULL DEFAULT '',
   user_real_name varchar(255) NOT NULL DEFAULT '',
   user_password varchar(255) NOT NULL,

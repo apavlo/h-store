@@ -156,29 +156,27 @@ public class WikipediaLoader extends BenchmarkComponent {
             TimestampType touched = new TimestampType();
 
             Object row[] = new Object[num_cols];
-            int param = 1;
-            userInsert.setInt(param++, i);                // user_id
-            userInsert.setString(param++, name);          // user_name
-            userInsert.setString(param++, realName);      // user_real_name
-            userInsert.setString(param++, password);      // user_password
-            userInsert.setString(param++, password);      // user_newpassword
-            userInsert.setString(param++, newPassTime);   // user_newpass_time
-            userInsert.setString(param++, email);         // user_email
-            userInsert.setString(param++, userOptions);   // user_options
-            userInsert.setString(param++, touched);       // user_touched
-            userInsert.setString(param++, token);         // user_token
-            userInsert.setNull(param++, types[param-2]);    // user_email_authenticated
-            userInsert.setNull(param++, types[param-2]);    // user_email_token
-            userInsert.setNull(param++, types[param-2]);    // user_email_token_expires
-            userInsert.setNull(param++, types[param-2]);    // user_registration
-            userInsert.setInt(param++, revCount);         // user_editcount
-            userInsert.addBatch();
+            int param = 0;
+            row[param++] = i;                // user_id
+            row[param++] = name;          // user_name
+            row[param++] = realName;      // user_real_name
+            row[param++] = password;      // user_password
+            row[param++] = password;      // user_newpassword
+            row[param++] = newPassTime;   // user_newpass_time
+            row[param++] = email;         // user_email
+            row[param++] = userOptions;   // user_options
+            row[param++] = touched;       // user_touched
+            row[param++] = token;         // user_token
+            row[param++] = null;    // user_email_authenticated
+            row[param++] = null;    // user_email_token
+            row[param++] = null;    // user_email_token_expires
+            row[param++] = null;    // user_registration
+            row[param++] = revCount;         // user_editcount
+            vt.addRow(row);
 
             if (++batchSize % WikipediaConstants.BATCH_SIZE == 0) {
-                userInsert.executeBatch();
-                this.conn.commit();
-                userInsert.clearBatch();
-                this.addToTableCount(catalog_tbl.getName(), batchSize);
+                this.loadVoltTable(catalog_tbl.getName(), vt);
+                vt.clearRowData();
                 batchSize = 0;
                 if (LOG.isDebugEnabled()) {
                     int percent = (int) (((double) i / (double) this.num_users) * 100);
@@ -188,12 +186,9 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR
         if (batchSize > 0) {
-            this.addToTableCount(catalog_tbl.getName(), batchSize);
-            userInsert.executeBatch();
-            this.conn.commit();
-            userInsert.clearBatch();
+            this.loadVoltTable(catalog_tbl.getName(), vt);
+            vt.clearRowData();
         }
-        userInsert.close();
         
         if (LOG.isDebugEnabled())
             LOG.debug("Users  % " + this.num_users);
@@ -223,17 +218,17 @@ public class WikipediaLoader extends BenchmarkComponent {
             String pageTouched = TimeUtil.getCurrentTimeString14();
             
             int param = 1;
-            pageInsert.setInt(param++, i);              // page_id
-            pageInsert.setInt(param++, namespace);      // page_namespace
-            pageInsert.setString(param++, title);       // page_title
-            pageInsert.setString(param++, restrictions);// page_restrictions
-            pageInsert.setInt(param++, 0);              // page_counter
-            pageInsert.setInt(param++, 0);              // page_is_redirect
-            pageInsert.setInt(param++, 0);              // page_is_new
-            pageInsert.setDouble(param++, pageRandom);  // page_random
-            pageInsert.setString(param++, pageTouched); // page_touched
-            pageInsert.setInt(param++, 0);              // page_latest
-            pageInsert.setInt(param++, 0);              // page_len
+            row[param++] = i;              // page_id
+            row[param++] = namespace;      // page_namespace
+            row[param++] = title;       // page_title
+            row[param++] = restrictions;// page_restrictions
+            row[param++] = 0;              // page_counter
+            row[param++] = 0;              // page_is_redirect
+            row[param++] = 0;              // page_is_new
+            row[param++] = pageRandom;  // page_random
+            row[param++] = pageTouched; // page_touched
+            row[param++] = 0;              // page_latest
+            row[param++] = 0;              // page_len
             pageInsert.addBatch();
             this.titles.add(Pair.of(namespace, title));
 
@@ -297,10 +292,10 @@ public class WikipediaLoader extends BenchmarkComponent {
                 assert(page != null) : "Invalid PageId " + pageId;
                 
                 int param = 1;
-                watchInsert.setInt(param++, user_id); // wl_user
-                watchInsert.setInt(param++, page.getFirst()); // wl_namespace
-                watchInsert.setString(param++, page.getSecond()); // wl_title
-                watchInsert.setNull(param++, java.sql.Types.VARCHAR); // wl_notificationtimestamp
+                row[param++] = user_id; // wl_user
+                row[param++] = page.getFirst(); // wl_namespace
+                row[param++] = page.getSecond(); // wl_title
+                row[param++] = null; // wl_notificationtimestamp
                 watchInsert.addBatch();
                 batchSize++;
             } // FOR
@@ -344,7 +339,6 @@ public class WikipediaLoader extends BenchmarkComponent {
         String revSQL = SQLUtil.getInsertSQL(revTable);
         PreparedStatement revisionInsert = this.conn.prepareStatement(revSQL);
 
-        WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
         int batchSize = 1;
         Zipf h_users = new Zipf(this.randGenerator, 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
         FlatHistogram<Integer> h_textLength = new FlatHistogram<Integer>(this.randGenerator, TextHistograms.TEXT_LENGTH);
@@ -385,25 +379,25 @@ public class WikipediaLoader extends BenchmarkComponent {
                 
                 // Insert the text
                 int col = 1;
-                textInsert.setInt(col++, rev_id); // old_id
-                textInsert.setString(col++, new String(old_text)); // old_text
-                textInsert.setString(col++, "utf-8"); // old_flags
-                textInsert.setInt(col++, page_id); // old_page
+                row[col++] = rev_id; // old_id
+                row[col++] = new String(old_text); // old_text
+                row[col++] = "utf-8"; // old_flags
+                row[col++] = page_id; // old_page
                 textInsert.addBatch();
 
                 // Insert the revision
                 col = 1;
-                revisionInsert.setInt(col++, rev_id); // rev_id
-                revisionInsert.setInt(col++, page_id); // rev_page
-                revisionInsert.setInt(col++, rev_id); // rev_text_id
-                revisionInsert.setString(col++, new String(rev_comment)); // rev_comment
-                revisionInsert.setInt(col++, user_id); // rev_user
-                revisionInsert.setString(col++, new String(user_text)); // rev_user_text
-                revisionInsert.setString(col++, TimeUtil.getCurrentTimeString14()); // rev_timestamp
-                revisionInsert.setInt(col++, h_minorEdit.nextValue().intValue()); // rev_minor_edit
-                revisionInsert.setInt(col++, 0); // rev_deleted
-                revisionInsert.setInt(col++, 0); // rev_len
-                revisionInsert.setInt(col++, 0); // rev_parent_id
+                row[col++] = rev_id; // rev_id
+                row[col++] = page_id; // rev_page
+                row[col++] = rev_id; // rev_text_id
+                row[col++] = new String(rev_comment); // rev_comment
+                row[col++] = user_id; // rev_user
+                row[col++] = new String(user_text); // rev_user_text
+                row[col++] = TimeUtil.getCurrentTimeString14(); // rev_timestamp
+                row[col++] = h_minorEdit.nextValue().intValue(); // rev_minor_edit
+                row[col++] = 0; // rev_deleted
+                row[col++] = 0; // rev_len
+                row[col++] = 0; // rev_parent_id
                 revisionInsert.addBatch();
                 
                 // Update Last Revision Stuff
@@ -429,10 +423,6 @@ public class WikipediaLoader extends BenchmarkComponent {
         } // FOR (page)
         revisionInsert.close();
         textInsert.close();
-        if (this.getDatabaseType() == DatabaseType.POSTGRES) {
-            this.updateAutoIncrement(textTable.getColumn(0), rev_id);
-            this.updateAutoIncrement(revTable.getColumn(0), rev_id);
-        }
         
         // UPDATE USER
         revTable = this.getTableCatalog(WikipediaConstants.TABLENAME_USER);
@@ -444,9 +434,9 @@ public class WikipediaLoader extends BenchmarkComponent {
         batchSize = 0;
         for (int i = 0; i < this.num_users; i++) {
             int col = 1;
-            userUpdate.setInt(col++, this.user_revision_ctr[i]);
-            userUpdate.setString(col++, TimeUtil.getCurrentTimeString14());
-            userUpdate.setInt(col++, i+1); // ids start at 1
+            row[col++] = this.user_revision_ctr[i];
+            row[col++] = TimeUtil.getCurrentTimeString14();
+            row[col++] = i+1; // ids start at 1
             userUpdate.addBatch();
             if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
                 userUpdate.executeBatch();
@@ -477,10 +467,10 @@ public class WikipediaLoader extends BenchmarkComponent {
             if (this.page_last_rev_id[i] == -1) continue;
             
             int col = 1;
-            pageUpdate.setInt(col++, this.page_last_rev_id[i]);
-            pageUpdate.setString(col++, TimeUtil.getCurrentTimeString14());
-            pageUpdate.setInt(col++, this.page_last_rev_length[i]);
-            pageUpdate.setInt(col++, i+1); // ids start at 1
+            row[col++] = this.page_last_rev_id[i];
+            row[col++] = TimeUtil.getCurrentTimeString14();
+            row[col++] = this.page_last_rev_length[i];
+            row[col++] = i+1; // ids start at 1
             pageUpdate.addBatch();
             if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
                 pageUpdate.executeBatch();

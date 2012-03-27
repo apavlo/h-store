@@ -40,7 +40,6 @@ public class TransactionSelector {
     
     public TransactionSelector() {
         
-        
     }
 
     public List<WikipediaOperation> readAll() throws IOException {
@@ -64,7 +63,6 @@ public class TransactionSelector {
 
             transactions.add(new WikipediaOperation(user, namespace, title.trim()));
         } // WHILE
-        this.reader.close();
         return transactions;
     }
 
