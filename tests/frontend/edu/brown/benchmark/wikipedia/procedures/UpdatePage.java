@@ -19,15 +19,12 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.ArrayList;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
-
-import com.sun.jmx.snmp.Timestamp;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
@@ -135,10 +132,9 @@ public class UpdatePage extends VoltProcedure {
 	                                 int revisionId, String revComment, int revMinorEdit) {
 
 	    boolean adv;
-	    PreparedStatement ps = null;
 	    VoltTable rs[] = null;
 	    int param;
-	    final String timestamp = new Timestamp().toString();
+	    final String timestamp = new TimestampType().toString();
 	    
 	    // INSERT NEW TEXT
 		voltQueueSQL(insertText, new int[]{1});

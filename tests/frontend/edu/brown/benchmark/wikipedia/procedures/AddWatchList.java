@@ -21,16 +21,9 @@ package edu.brown.benchmark.wikipedia.procedures;
 
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
-import com.sun.jmx.snmp.Timestamp;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-
-//import com.microsoft.sqlserver.jdbc.SQLServerException;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
-//import com.oltpbenchmark.util.TimeUtil;
 
 public class AddWatchList extends VoltProcedure {
 
@@ -73,7 +66,7 @@ public class AddWatchList extends VoltProcedure {
                     voltQueueSQL(insertWatchList,3, pageTitle);
                     voltExecuteSQL();
 			}
-			voltQueueSQL(setUserTouched,1, new Timestamp().toString());
+			voltQueueSQL(setUserTouched,1, new TimestampType());
 			voltQueueSQL(setUserTouched,2, userId);
 			
 			voltExecuteSQL();

@@ -22,8 +22,7 @@ package edu.brown.benchmark.wikipedia.procedures;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
-
-import com.sun.jmx.snmp.Timestamp;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
@@ -57,7 +56,7 @@ public class RemoveWatchList extends VoltProcedure {
                 
             }
                         
-            voltQueueSQL(setUserTouched, 1, new Timestamp().toString());
+            voltQueueSQL(setUserTouched, 1, new TimestampType());
             voltQueueSQL(setUserTouched, 2, userId);
             voltExecuteSQL();
         }

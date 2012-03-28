@@ -59,8 +59,18 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         super("Wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
         
         // Create a single-statement stored procedure named 'DeleteData'
-        //addStmtProcedure("DeleteData", "DELETE FROM TABLEA WHERE A_ID < ?");
+        addStmtProcedure("Test", "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
+                            " WHERE page_namespace = ? AND page_title = ? LIMIT 1");
   
+    }
+    
+    public void addDefaultProcedures() {
+        addProcedures(PROCEDURES);
+    }
+    
+    public void addDefaultSchema() {
+        
+        addSchema(this.getDDLURL(true));
     }
 	
 //	@Override

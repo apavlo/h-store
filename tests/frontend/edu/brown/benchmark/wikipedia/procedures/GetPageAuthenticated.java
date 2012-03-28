@@ -19,9 +19,6 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
