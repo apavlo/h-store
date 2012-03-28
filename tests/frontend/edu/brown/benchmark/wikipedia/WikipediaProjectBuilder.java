@@ -56,7 +56,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
  
     public WikipediaProjectBuilder() {
         // TODO Auto-generated constructor stub
-        super("Wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
+        super("wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
         
         // Create a single-statement stored procedure named 'DeleteData'
         addStmtProcedure("Test", "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
