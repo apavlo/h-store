@@ -461,6 +461,10 @@ public class BenchmarkController {
         int hosts_started = 0;
         
         List<String> siteBaseCommand = new ArrayList<String>();
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            siteBaseCommand.add(hstore_conf.global.sshprefix + " && ");
+        }
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
@@ -551,6 +555,10 @@ public class BenchmarkController {
             debugString = " -agentlib:jdwp=transport=dt_socket,address=8002,server=y,suspend=n ";
         }
 
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            loaderCommand.add(hstore_conf.global.sshprefix + " && ");
+        }
         loaderCommand.add("java");
         loaderCommand.add("-Dhstore.tag=loader");
         loaderCommand.add("-XX:-ReduceInitialCardMarks");
@@ -620,9 +628,11 @@ public class BenchmarkController {
      * 
      */
     public void startClients() {
-        
-        // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> allClientArgs = new ArrayList<String>();
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            allClientArgs.add(hstore_conf.global.sshprefix + " && ");
+        }
         allClientArgs.add("java");
         if (m_config.listenForDebugger) {
             allClientArgs.add(""); //placeholder for agent lib
