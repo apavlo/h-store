@@ -22,6 +22,9 @@ package edu.brown.benchmark.wikipedia.procedures;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
+
+import com.sun.jmx.snmp.Timestamp;
+
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 public class RemoveWatchList extends VoltProcedure {
@@ -36,29 +39,27 @@ public class RemoveWatchList extends VoltProcedure {
         " WHERE user_id =  ? "
     ); 
 
-    public void run( int userId, int nameSpace, String pageTitle) throws  {
+    public void run( int userId, int nameSpace, String pageTitle) {
 
         if (userId > 0) {
-            PreparedStatement ps = voltQueueSQL(removeWatchList);
-            ps.setInt(1, userId);
-            ps.setInt(2, nameSpace);
-            ps.setString(3, pageTitle);
-            ps.executeUpdate();
-
+            voltQueueSQL(removeWatchList,1, userId);
+            voltQueueSQL(removeWatchList,2, nameSpace);
+            voltQueueSQL(removeWatchList,3, pageTitle);
+            voltExecuteSQL();
+            
             if (nameSpace == 0) {
                 // if regular page, also remove a line of
                 // watchlist for the corresponding talk page
-                ps = voltQueueSQL(removeWatchList);
-                ps.setInt(1, userId);
-                ps.setInt(2, 1);
-                ps.setString(3, pageTitle);
-                ps.executeUpdate();
+                voltQueueSQL(removeWatchList,1, userId);
+                voltQueueSQL(removeWatchList,2, 1);
+                voltQueueSQL(removeWatchList,3, pageTitle);
+                voltExecuteSQL();
+                
             }
-
-            ps = voltQueueSQL(setUserTouched);
-            ps.setString(1, TimeUtil.getCurrentTimeString14());
-            ps.setInt(2, userId);
-            ps.executeUpdate();
+                        
+            voltQueueSQL(setUserTouched, 1, new Timestamp().toString());
+            voltQueueSQL(setUserTouched, 2, userId);
+            voltExecuteSQL();
         }
     }
 }

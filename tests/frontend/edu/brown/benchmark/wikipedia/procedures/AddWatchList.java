@@ -24,6 +24,8 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+import com.sun.jmx.snmp.Timestamp;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 
@@ -58,41 +60,24 @@ public class AddWatchList extends VoltProcedure {
 		if (userId > 0) {
 		    // TODO: find a way to by pass Unique constraints in SQL server (Replace, Merge ..?)
 		    // Here I am simply catching the right excpetion and move on.
-		    try
-		    {
-    			PreparedStatement ps = voltQueueSQL(insertWatchList);
-    			ps.setInt(1, userId);
-    			ps.setInt(2, nameSpace);
-    			ps.setString(3, pageTitle);
-    			ps.executeUpdate();
-		    }
-		    catch (SQLServerException ex) {
-                if (ex.getErrorCode() != 2627 || !ex.getSQLState().equals("23000"))
-                    throw new RuntimeException("Unique Key Problem in this DBMS");
-            }
+    			voltQueueSQL(insertWatchList,1, userId);
+    			voltQueueSQL(insertWatchList,2, nameSpace);
+    			voltQueueSQL(insertWatchList,3, pageTitle);
+    			voltExecuteSQL();
 		
 			if (nameSpace == 0) 
 			{ 
-		        try
-		        {
     				// if regular page, also add a line of
     				// watchlist for the corresponding talk page
-    			    PreparedStatement ps = voltQueueSQL(insertWatchList);
-    				ps.setInt(1, userId);
-    				ps.setInt(2, 1);
-    				ps.setString(3, pageTitle);
-    				ps.executeUpdate();
-		        }
-	            catch (SQLServerException ex) {
-	                if (ex.getErrorCode() != 2627 || !ex.getSQLState().equals("23000"))
-	                    throw new RuntimeException("Unique Key Problem in this DBMS");
-	            }
+    			    voltQueueSQL(insertWatchList,1, userId);
+                    voltQueueSQL(insertWatchList,2, 1);
+                    voltQueueSQL(insertWatchList,3, pageTitle);
+                    voltExecuteSQL();
 			}
-
-			PreparedStatement ps = voltQueueSQL(setUserTouched);
-			ps.setString(1, TimeUtil.getCurrentTimeString14());
-			ps.setInt(2, userId);
-			ps.executeUpdate();
+			voltQueueSQL(setUserTouched,1, new Timestamp().toString());
+			voltQueueSQL(setUserTouched,2, userId);
+			
+			voltExecuteSQL();
 		}
 	}
     
