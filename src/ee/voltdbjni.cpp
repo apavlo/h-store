@@ -93,6 +93,7 @@
 #include "boost/pool/pool.hpp"
 #include "boost/crc.hpp"
 #include "libconhash/conhash.h"
+#include "libconhash/conhash_main.h"
 
 #include "logging/JNILogProxy.h"
 #include "logging/LogDefs.h"
@@ -1168,18 +1169,8 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_native
             jobject obj,
             jint num_partitions) {
     
-     int i;
-     char str[128];
-     struct node_s g_nodes[64];
      /*init conhash instance*/
-     struct conhash_s *conhash = conhash_init(NULL);
-     if (conhash) {
-         for (i = 0; i < num_partitions; i++) {
-             sprintf(str, "%d", i);
-             conhash_set_node(&g_nodes[i], str, 1);
-			 conhash_add_node(conhash, &g_nodes[i]);
-         }
-     }
+     Conhash *conhash = new Conhash(static_cast<int>(num_partitions));
 	 long ret = (long)conhash;
 	 printf("long pointer is: %ld\n", ret);
 	 return ret;
@@ -1204,10 +1195,10 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
 	char str[128];
 	int val = static_cast<int>(value);
 	printf("passed in value: %d\n", val);
-	struct conhash_s *conhash = (struct conhash_s *)hash_pointer;
+	Conhash *conhash = (Conhash *)hash_pointer;
 	sprintf(str, "%d", val);
 	const struct node_s *node;
-	node = conhash_lookup(conhash, str);
+	node = conhash->lookup(str);
 	printf("return node %16s\n", node->iden);
 	return atoi(node->iden);
     //return static_cast<jint>(1);

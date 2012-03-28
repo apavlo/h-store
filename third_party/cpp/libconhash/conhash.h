@@ -47,7 +47,7 @@ extern "C" {
 	 * @pfhash : hash function, NULL to use default MD5 method
 	 * return a conhash_s instance
 	 */
-	CONHASH_API struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash);
+	CONHASH_API struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, int n, struct node_s *g_nodes);
 
     /* finalize lib */
     CONHASH_API void conhash_fini(struct conhash_s *conhash);

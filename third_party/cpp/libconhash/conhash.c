@@ -4,7 +4,7 @@
 #include "conhash.h"
 #include "conhash_inter.h"
 
-struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash)
+struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, int n, struct node_s *g_nodes)
 {
     /* alloc memory and set to zero */
     struct conhash_s *conhash = (struct conhash_s*)calloc(1, sizeof(struct conhash_s));
@@ -15,6 +15,8 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash)
     do
 	{
         /* setup callback functions */
+        int i;
+        char str[128];
         if(pfhash != NULL)
         {
             conhash->cb_hashfunc = pfhash;
@@ -25,6 +27,11 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash)
             conhash->cb_hashfunc = __conhash_hash_def;
         }
 		util_rbtree_init(&conhash->vnode_tree);
+		for(i = 0; i < n; i ++){
+			sprintf(str, "%d", i);
+			conhash_set_node(&g_nodes[i], str, 1);
+			conhash_add_node(conhash, &g_nodes[i]);
+		}
         return conhash;
 
 	}while(0);
