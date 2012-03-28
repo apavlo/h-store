@@ -197,7 +197,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         builder.addServerConfig(config);
         
         // CLUSTER CONFIG #3
-        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
         config.setConfParameter("site.mr_map_blocking", true);
         config.setConfParameter("site.mr_reduce_blocking", false);
