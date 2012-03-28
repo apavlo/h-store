@@ -45,6 +45,7 @@ int main()
 			sprintf(str, "%d", i);
 			long hash = __conhash_getHash(str);
 			node = conhash_lookup(conhash, str);
+			printf("return node %16s\n", node->iden);
 			a[atoi(node->iden)] ++;
 		}
 		for(i=0; i<10; i++){

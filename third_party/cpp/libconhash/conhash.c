@@ -108,7 +108,9 @@ const struct node_s* conhash_lookup(const struct conhash_s *conhash, const char 
     rbnode = util_rbtree_lookup(&(conhash->vnode_tree), hash);
     if(rbnode != NULL)
     {
+		printf("FIND NODE!!!!  ");
         struct virtual_node_s *vnode = rbnode->data;
+		printf("%s\n", vnode->node->iden);
         return vnode->node;
     }
     return NULL;

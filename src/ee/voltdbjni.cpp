@@ -1180,14 +1180,16 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_native
 			 conhash_add_node(conhash, &g_nodes[i]);
          }
      }
-	 return reinterpret_cast<jlong>(conhash);
+	 long ret = (long)conhash;
+	 printf("long pointer is: %ld\n", ret);
+	 return ret;
 }
 
 SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeDestroy(
             JNIEnv *env,
             jobject obj,
             jlong hash_pointer) {
-     struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
+     struct conhash_s *conhash = (struct conhash_s *)hash_pointer;
      conhash_fini(conhash);
      return static_cast<jint>(1);
 }
@@ -1198,11 +1200,15 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
             jlong hash_pointer,
             jint value) {
     
+	printf("Long pointer is %ld\n", hash_pointer);
 	char str[128];
-	struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
-	sprintf(str, "%d", static_cast<int>(value));
+	int val = static_cast<int>(value);
+	printf("passed in value: %d\n", val);
+	struct conhash_s *conhash = (struct conhash_s *)hash_pointer;
+	sprintf(str, "%d", val);
 	const struct node_s *node;
 	node = conhash_lookup(conhash, str);
+	printf("return node %16s\n", node->iden);
 	return atoi(node->iden);
     //return static_cast<jint>(1);
 }
