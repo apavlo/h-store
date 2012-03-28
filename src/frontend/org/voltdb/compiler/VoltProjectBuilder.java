@@ -260,7 +260,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
-        assert(schemaURL != null);
+        assert(schemaURL != null) :
+            "Invalid null schema file for " + this.project_name;
         addSchema(schemaURL.getPath());
     }
     
