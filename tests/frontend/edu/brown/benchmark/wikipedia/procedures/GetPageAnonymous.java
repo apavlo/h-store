@@ -19,7 +19,6 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
-import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -65,7 +64,7 @@ public class GetPageAnonymous extends VoltProcedure {
     // -----------------------------------------------------------------
 	
 	public Article run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
-	    int param = 1;
+	    //int param = 1;
 	    
 		voltQueueSQL(selectPage, pageNamespace, pageTitle);
         VoltTable rs[] = voltExecuteSQL();
