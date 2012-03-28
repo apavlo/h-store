@@ -16,11 +16,9 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.data.PageHistograms;
 import edu.brown.benchmark.wikipedia.data.TextHistograms;
 import edu.brown.benchmark.wikipedia.data.UserHistograms;
-import edu.brown.benchmark.wikipedia.util.TransactionSelector;
 import org.voltdb.catalog.Table;
 
 import org.voltdb.utils.Pair;
@@ -32,8 +30,6 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
 
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
-import org.voltdb.types.TimestampType; // instead of TimeUtil
-
 import com.sun.jmx.snmp.Timestamp;
 
 /**
@@ -337,9 +333,14 @@ public class WikipediaLoader extends BenchmarkComponent {
         FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
         
         //WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
-        // FIXME fix these two variables
-        FlatHistogram<Integer> h_commentLength = b.commentLength;
-        FlatHistogram<Integer> h_minorEdit = b.minorEdit;
+        
+        // FIXME(xin): fix these two variables, Use a wrong one right now
+        //FlatHistogram<Integer> h_commentLength = b.commentLength;
+        //FlatHistogram<Integer> h_minorEdit = b.minorEdit;
+        FlatHistogram<Integer> h_commentLength = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
+        FlatHistogram<Integer> h_minorEdit = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
+        
+        
         
         int rev_id = 1;
         int lastPercent = -1;
@@ -361,7 +362,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 
                 // Generate what the new revision is going to be
                 if (i > 0) {
-                    old_text = b.generateRevisionText(old_text);
+                    //old_text = b.generateRevisionText(old_text);
                     old_text_length = old_text.length;
                 }
                 
