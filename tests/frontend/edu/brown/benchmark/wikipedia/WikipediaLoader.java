@@ -30,7 +30,6 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
 
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
-import com.sun.jmx.snmp.Timestamp;
 
 /**
  * Synthetic Wikipedia Data Loader
@@ -390,7 +389,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 row[col++] = new String(rev_comment); // rev_comment
                 row[col++] = user_id; // rev_user
                 row[col++] = new String(user_text); // rev_user_text
-                row[col++] = new Timestamp().toString(); // rev_timestamp
+                row[col++] = new TimestampType().toString(); // rev_timestamp
                 row[col++] = h_minorEdit.nextValue().intValue(); // rev_minor_edit
                 row[col++] = 0; // rev_deleted
                 row[col++] = 0; // rev_len
@@ -432,7 +431,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         for (int i = 0; i < this.num_users; i++) {
             int col = 1;
             row[col++] = this.user_revision_ctr[i];
-            row[col++] = new Timestamp().toString();
+            row[col++] = new TimestampType().toString();
             row[col++] = i+1; // ids start at 1
             vtUser.addRow(row);
             
@@ -467,7 +466,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             
             int col = 0;
             newrow[col++] = this.page_last_rev_id[i];
-            newrow[col++] = new Timestamp().toString();
+            newrow[col++] = new TimestampType().toString();
             newrow[col++] = this.page_last_rev_length[i];
             newrow[col++] = i+1; // ids start at 1
             vtPage.addRow(newrow);
