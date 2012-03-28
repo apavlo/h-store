@@ -20,10 +20,9 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.util;
 
-import com.oltpbenchmark.api.Operation;
 
 /** Immutable class containing information about transactions. */
-public final class WikipediaOperation extends Operation {
+public final class WikipediaOperation {
 	
 	public int userId;
 	public final int nameSpace;

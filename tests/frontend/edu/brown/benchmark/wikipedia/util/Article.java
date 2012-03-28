@@ -29,7 +29,6 @@ public class Article {
 
 	public Article(String userText, int pageId, String oldText, int textId,
 			int revisionId) {
-		super();
 		this.userText = userText;
 		this.pageId = pageId;
 		this.oldText = oldText;

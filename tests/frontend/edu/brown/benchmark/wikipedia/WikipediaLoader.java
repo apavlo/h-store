@@ -34,6 +34,8 @@ import edu.brown.utils.StringUtil;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import org.voltdb.types.TimestampType; // instead of TimeUtil
 
+import com.sun.jmx.snmp.Timestamp;
+
 /**
  * Synthetic Wikipedia Data Loader
  * @author pavlo
@@ -201,13 +203,12 @@ public class WikipediaLoader extends BenchmarkComponent {
         Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_PAGE);
         assert(catalog_tbl != null);
 
-        String sql = SQLUtil.getInsertSQL(catalog_tbl);
-        PreparedStatement pageInsert = this.conn.prepareStatement(sql);
-        
         FlatHistogram<Integer> h_titleLength = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.TITLE_LENGTH);
         FlatHistogram<Integer> h_namespace = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.NAMESPACE);
         FlatHistogram<String> h_restrictions = new FlatHistogram<String>(this.randGenerator, PageHistograms.RESTRICTIONS);
-
+        
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        int num_cols = catalog_tbl.getColumns().size();
         int batchSize = 0;
         int lastPercent = -1;
         for (int i = 1; i <= this.num_pages; i++) {
@@ -215,9 +216,10 @@ public class WikipediaLoader extends BenchmarkComponent {
             int namespace = h_namespace.nextValue().intValue();
             String restrictions = h_restrictions.nextValue();
             double pageRandom = randGenerator.nextDouble();
-            String pageTouched = TimeUtil.getCurrentTimeString14();
+            String pageTouched = new TimestampType().toString();
             
-            int param = 1;
+            Object row[] = new Object[num_cols];
+            int param = 0;
             row[param++] = i;              // page_id
             row[param++] = namespace;      // page_namespace
             row[param++] = title;       // page_title
@@ -229,14 +231,13 @@ public class WikipediaLoader extends BenchmarkComponent {
             row[param++] = pageTouched; // page_touched
             row[param++] = 0;              // page_latest
             row[param++] = 0;              // page_len
-            pageInsert.addBatch();
+            
+            vt.addRow(row);
             this.titles.add(Pair.of(namespace, title));
 
             if (++batchSize % WikipediaConstants.BATCH_SIZE == 0) {
-                pageInsert.executeBatch();
-                this.conn.commit();
-                pageInsert.clearBatch();
-                this.addToTableCount(catalog_tbl.getName(), batchSize);
+                this.loadVoltTable(catalog_tbl.getName(), vt);
+                vt.clearRowData();
                 batchSize = 0;
                 if (LOG.isDebugEnabled()) {
                     int percent = (int) (((double) i / (double) this.num_pages) * 100);
@@ -246,14 +247,8 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR
         if (batchSize > 0) {
-            pageInsert.executeBatch();
-            this.conn.commit();
-            pageInsert.clearBatch();
-            this.addToTableCount(catalog_tbl.getName(), batchSize);
-        }
-        pageInsert.close();
-        if (this.getDatabaseType() == DatabaseType.POSTGRES) {
-            this.updateAutoIncrement(catalog_tbl.getColumn(0), this.num_pages);
+            this.loadVoltTable(catalog_tbl.getName(), vt);
+            vt.clearRowData();
         }
         if (LOG.isDebugEnabled())
             LOG.debug("Users  % " + this.num_pages);
@@ -266,12 +261,11 @@ public class WikipediaLoader extends BenchmarkComponent {
         Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_WATCHLIST);
         assert(catalog_tbl != null);
         
-        String sql = SQLUtil.getInsertSQL(catalog_tbl, 1);
-        PreparedStatement watchInsert = this.conn.prepareStatement(sql);
-        
         Zipf h_numWatches = new Zipf(randGenerator, 0, this.num_pages, WikipediaConstants.NUM_WATCHES_PER_USER_SIGMA);
         Zipf h_pageId = new Zipf(randGenerator, 1, this.num_pages, WikipediaConstants.WATCHLIST_PAGE_SIGMA);
 
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        int num_cols = catalog_tbl.getColumns().size();
         int batchSize = 0;
         int lastPercent = -1;
         Set<Integer> userPages = new HashSet<Integer>();
@@ -291,20 +285,19 @@ public class WikipediaLoader extends BenchmarkComponent {
                 Pair<Integer, String> page = this.titles.get(pageId);
                 assert(page != null) : "Invalid PageId " + pageId;
                 
-                int param = 1;
+                Object row[] = new Object[num_cols];
+                int param = 0;
                 row[param++] = user_id; // wl_user
                 row[param++] = page.getFirst(); // wl_namespace
                 row[param++] = page.getSecond(); // wl_title
                 row[param++] = null; // wl_notificationtimestamp
-                watchInsert.addBatch();
+                vt.addRow(row);
                 batchSize++;
             } // FOR
 
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
-                watchInsert.executeBatch();
-                this.conn.commit();
-                watchInsert.clearBatch();
-                this.addToTableCount(catalog_tbl.getName(), batchSize);
+                this.loadVoltTable(catalog_tbl.getName(), vt);
+                vt.clearRowData();
                 batchSize = 0;
                 if (LOG.isDebugEnabled()) {
                     int percent = (int) (((double) user_id / (double) this.num_users) * 100);
@@ -314,12 +307,9 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR
         if (batchSize > 0) {
-            watchInsert.executeBatch();
-            watchInsert.clearBatch();
-            this.conn.commit();
-            this.addToTableCount(catalog_tbl.getName(), batchSize);
+            this.loadVoltTable(catalog_tbl.getName(), vt);
+            vt.clearRowData();
         }
-        watchInsert.close();
         if (LOG.isDebugEnabled())
             LOG.debug("Watchlist Loaded");
     }
@@ -331,21 +321,25 @@ public class WikipediaLoader extends BenchmarkComponent {
         
         // TEXT
         Table textTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_TEXT);
-        String textSQL = SQLUtil.getInsertSQL(textTable);
-        PreparedStatement textInsert = this.conn.prepareStatement(textSQL);
-
+        
         // REVISION
-        Table revTable = this.getTableCatalog(WikipediaConstants.TABLENAME_REVISION);
-        String revSQL = SQLUtil.getInsertSQL(revTable);
-        PreparedStatement revisionInsert = this.conn.prepareStatement(revSQL);
-
+        Table revTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_REVISION);
+        
+        VoltTable vtText = CatalogUtil.getVoltTable(textTable);
+        VoltTable vtRev = CatalogUtil.getVoltTable(revTable);
+        int num_txt_cols = textTable.getColumns().size();
+        int num_rev_cols = revTable.getColumns().size();
         int batchSize = 1;
+        
         Zipf h_users = new Zipf(this.randGenerator, 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
         FlatHistogram<Integer> h_textLength = new FlatHistogram<Integer>(this.randGenerator, TextHistograms.TEXT_LENGTH);
-        FlatHistogram<Integer> h_commentLength = b.commentLength;
-        FlatHistogram<Integer> h_minorEdit = b.minorEdit;
         FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
         FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
+        
+        //WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
+        // FIXME fix these two variables
+        FlatHistogram<Integer> h_commentLength = b.commentLength;
+        FlatHistogram<Integer> h_minorEdit = b.minorEdit;
         
         int rev_id = 1;
         int lastPercent = -1;
@@ -378,27 +372,29 @@ public class WikipediaLoader extends BenchmarkComponent {
                 char user_text[] = TextGenerator.randomChars(randGenerator, h_nameLength.nextValue().intValue());
                 
                 // Insert the text
-                int col = 1;
+                Object row[] = new Object[num_txt_cols];
+                int col = 0;
                 row[col++] = rev_id; // old_id
                 row[col++] = new String(old_text); // old_text
                 row[col++] = "utf-8"; // old_flags
                 row[col++] = page_id; // old_page
-                textInsert.addBatch();
+                vtText.addRow(row);
 
                 // Insert the revision
-                col = 1;
+                col = 0;
+                
                 row[col++] = rev_id; // rev_id
                 row[col++] = page_id; // rev_page
                 row[col++] = rev_id; // rev_text_id
                 row[col++] = new String(rev_comment); // rev_comment
                 row[col++] = user_id; // rev_user
                 row[col++] = new String(user_text); // rev_user_text
-                row[col++] = TimeUtil.getCurrentTimeString14(); // rev_timestamp
+                row[col++] = new Timestamp().toString(); // rev_timestamp
                 row[col++] = h_minorEdit.nextValue().intValue(); // rev_minor_edit
                 row[col++] = 0; // rev_deleted
                 row[col++] = 0; // rev_len
                 row[col++] = 0; // rev_parent_id
-                revisionInsert.addBatch();
+                vtRev.addRow(row);
                 
                 // Update Last Revision Stuff
                 this.page_last_rev_id[page_id-1] = rev_id;
@@ -407,11 +403,10 @@ public class WikipediaLoader extends BenchmarkComponent {
                 batchSize++;
             } // FOR (revision)
             if (batchSize > WikipediaConstants.BATCH_SIZE) {
-                textInsert.executeBatch();
-                revisionInsert.executeBatch();
-                this.conn.commit();
-                this.addToTableCount(textTable.getName(), batchSize);
-                this.addToTableCount(revTable.getName(), batchSize);
+                this.loadVoltTable(textTable.getName(), vtText);
+                this.loadVoltTable(revTable.getName(), vtRev);
+                vtText.clearRowData();
+                vtRev.clearRowData();
                 batchSize = 0;
                 
                 if (LOG.isDebugEnabled()) {
@@ -421,70 +416,71 @@ public class WikipediaLoader extends BenchmarkComponent {
                 }
             }
         } // FOR (page)
-        revisionInsert.close();
-        textInsert.close();
-        
+
         // UPDATE USER
-        revTable = this.getTableCatalog(WikipediaConstants.TABLENAME_USER);
-        String updateUserSql = "UPDATE " + revTable.getEscapedName() + 
+        Table userTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
+        String updateUserSql = "UPDATE " + userTable.getName() + 
                                "   SET user_editcount = ?, " +
                                "       user_touched = ? " +
                                " WHERE user_id = ?";
-        PreparedStatement userUpdate = this.conn.prepareStatement(updateUserSql);
+        VoltTable vtUser = CatalogUtil.getVoltTable(userTable);
+        int num_user_cols = userTable.getColumns().size();
+        Object row[] = new Object [num_user_cols];
         batchSize = 0;
+        
         for (int i = 0; i < this.num_users; i++) {
             int col = 1;
             row[col++] = this.user_revision_ctr[i];
-            row[col++] = TimeUtil.getCurrentTimeString14();
+            row[col++] = new Timestamp().toString();
             row[col++] = i+1; // ids start at 1
-            userUpdate.addBatch();
+            vtUser.addRow(row);
+            
             if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
-                userUpdate.executeBatch();
-                this.conn.commit();
-                userUpdate.clearBatch();
+                this.loadVoltTable(userTable.getName(), vtUser);
+                vtUser.clearRowData();
                 batchSize = 0;
             }
         } // FOR
         if (batchSize > 0) {
-            userUpdate.executeBatch();
-            this.conn.commit();
-            userUpdate.clearBatch();
+            this.loadVoltTable(userTable.getName(), vtUser);
+            vtUser.clearRowData();
         }
-        userUpdate.close();
         
         // UPDATE PAGES
-        revTable = this.getTableCatalog(WikipediaConstants.TABLENAME_PAGE);
-        String updatePageSql = "UPDATE " + revTable.getEscapedName() + 
+        Table pageTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_PAGE);
+        String updatePageSql = "UPDATE " + revTable.getName() + 
                                "   SET page_latest = ?, " +
                                "       page_touched = ?, " +
                                "       page_is_new = 0, " +
                                "       page_is_redirect = 0, " +
                                "       page_len = ? " +
                                " WHERE page_id = ?";
-        PreparedStatement pageUpdate = this.conn.prepareStatement(updatePageSql);
+
+        VoltTable vtPage = CatalogUtil.getVoltTable(pageTable);
+        int num_page_cols = pageTable.getColumns().size();
+        Object newrow[] = new Object [num_page_cols];
         batchSize = 0;
+        
         for (int i = 0; i < this.num_pages; i++) {
             if (this.page_last_rev_id[i] == -1) continue;
             
-            int col = 1;
-            row[col++] = this.page_last_rev_id[i];
-            row[col++] = TimeUtil.getCurrentTimeString14();
-            row[col++] = this.page_last_rev_length[i];
-            row[col++] = i+1; // ids start at 1
-            pageUpdate.addBatch();
+            int col = 0;
+            newrow[col++] = this.page_last_rev_id[i];
+            newrow[col++] = new Timestamp().toString();
+            newrow[col++] = this.page_last_rev_length[i];
+            newrow[col++] = i+1; // ids start at 1
+            vtPage.addRow(newrow);
+            
             if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
-                pageUpdate.executeBatch();
-                this.conn.commit();
-                pageUpdate.clearBatch();
+                this.loadVoltTable(pageTable.getName(), vtPage);
+                vtPage.clearRowData();
                 batchSize = 0;
             }
         } // FOR
         if (batchSize > 0) {
-            pageUpdate.executeBatch();
-            this.conn.commit();
-            pageUpdate.clearBatch();
+            this.loadVoltTable(pageTable.getName(), vtPage);
+            vtPage.clearRowData();
         }
-        pageUpdate.close();
         
         if (LOG.isDebugEnabled()) {
             LOG.debug("Revision loaded");
