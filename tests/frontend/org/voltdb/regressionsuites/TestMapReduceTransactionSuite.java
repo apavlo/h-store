@@ -89,7 +89,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         // execute MapReduce Transaction to check the result
         ClientResponse cr = client.callProcedure("MRquery1");
         assertEquals(Status.OK, cr.getStatus());
-        System.out.println("I am here");
+        System.out.println("I am starting to compare the results...");
         int index = -1;
         // 0:ol_number,1:sum(ol_quantity),2:SUM(ol_amount),3:weight(ol_quantity),4:weight(ol_amount),5:sum
         for ( VoltTable v : cr.getResults()) {
@@ -181,7 +181,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -197,16 +197,16 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         builder.addServerConfig(config);
         
         // CLUSTER CONFIG #3
-        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
         config.setConfParameter("site.mr_map_blocking", true);
         config.setConfParameter("site.mr_reduce_blocking", false);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-        
-        // CLUSTER CONFIG #3
-        config = new LocalCluster(PREFIX + "-twopartition.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+                
+        // CLUSTER CONFIG #4
+        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
         config.setTestNameSuffix("mapNonBlocking");
         config.setConfParameter("site.mr_map_blocking", false);
         config.setConfParameter("site.mr_reduce_blocking", false);
