@@ -25,6 +25,10 @@ import java.util.ArrayList;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
+import org.voltdb.VoltTable;
+
+import com.sun.jmx.snmp.Timestamp;
+
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
 public class UpdatePage extends VoltProcedure {
@@ -128,106 +132,109 @@ public class UpdatePage extends VoltProcedure {
 	public void run( int textId, int pageId,
 	                                 String pageTitle, String pageText, int pageNamespace,
 	                                 int userId, String userIp, String userText,
-	                                 int revisionId, String revComment, int revMinorEdit) throws  {
+	                                 int revisionId, String revComment, int revMinorEdit) {
 
 	    boolean adv;
 	    PreparedStatement ps = null;
-	    VoltTable rs = null;
+	    VoltTable rs[] = null;
 	    int param;
-	    final String timestamp = TimeUtil.getCurrentTimeString14();
+	    final String timestamp = new Timestamp().toString();
 	    
 	    // INSERT NEW TEXT
-		ps = voltQueueSQLReturnKeys(insertText, new int[]{1});
+		voltQueueSQL(insertText, new int[]{1});
 		param = 1;
-		ps.setInt(param++, pageId);
-		ps.setString(param++, pageText);
-		ps.setString(param++, "utf-8");
-		ps.execute();
+		voltQueueSQL(insertText, param++, pageId);
+		voltQueueSQL(insertText, param++, pageText);
+		voltQueueSQL(insertText, param++, "utf-8");
+		rs = voltExecuteSQL();
 
-		rs = ps.getGeneratedKeys();
-		adv = rs.next();
+		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
-		int nextTextId = (int)rs.getLong(1);
-		rs.close();
+		int nextTextId = (int)rs[0].getLong(0);
+		
 		assert(nextTextId >= 0) : "Invalid nextTextId (" + nextTextId + ")";
 
 		// INSERT NEW REVISION
-		ps = voltQueueSQLReturnKeys(insertRevision, new int[]{1});
 		param = 1;
-		ps.setInt(param++, pageId);       // rev_page
-		ps.setInt(param++, nextTextId);   // rev_text_id
-		ps.setString(param++, revComment);// rev_comment
-		ps.setInt(param++, revMinorEdit); // rev_minor_edit
-		ps.setInt(param++, userId);       // rev_user
-		ps.setString(param++, userText);  // rev_user_text
-		ps.setString(param++, timestamp); // rev_timestamp
-		ps.setInt(param++, 0);            // rev_deleted
-		ps.setInt(param++, pageText.length()); // rev_len
-		ps.setInt(param++, revisionId);   // rev_parent_id
-	    ps.execute();
+		voltQueueSQL(insertRevision, new int[]{1});
+		voltQueueSQL(insertRevision, param++, pageId);        // rev_page
+		voltQueueSQL(insertRevision, param++, nextTextId);    // rev_text_id
+		voltQueueSQL(insertRevision, param++, revComment);        // rev_comment
+		voltQueueSQL(insertRevision, param++, revMinorEdit);        // rev_minor_edit
+		voltQueueSQL(insertRevision, param++, userId);        // rev_user
+		voltQueueSQL(insertRevision, param++, userText);        // rev_user_text
+		voltQueueSQL(insertRevision, param++, timestamp);        // rev_timestamp
+		voltQueueSQL(insertRevision, param++, 0);        // rev_deleted
+		voltQueueSQL(insertRevision, param++, pageText.length());        // rev_len
+		voltQueueSQL(insertRevision, param++, revisionId);        // rev_parent_id
 		
-		rs = ps.getGeneratedKeys();
-		adv = rs.next();
-		int nextRevId = (int)rs.getLong(1);
-		rs.close();
+		rs = voltExecuteSQL();
+		
+		adv = rs[0].advanceRow();
+		int nextRevId = (int)rs[0].getLong(0);
+		
 		assert(nextRevId >= 0) : "Invalid nextRevID (" + nextRevId + ")";
 
 		// I'm removing AND page_latest = "+a.revisionId+" from the query, since
 		// it creates sometimes problem with the data, and page_id is a PK
 		// anyway
-		ps = voltQueueSQL(updatePage);
 		param = 1;
-		ps.setInt(param++, nextRevId);
-		ps.setString(param++, timestamp);
-		ps.setInt(param++, pageText.length());
-		ps.setInt(param++, pageId);
-		int numUpdatePages = ps.executeUpdate();
-		assert(numUpdatePages == 1) : "WE ARE NOT UPDATING the page table!";
+		voltQueueSQL(updatePage,param++, nextRevId);
+		voltQueueSQL(updatePage,param++, timestamp);
+		voltQueueSQL(updatePage,param++, pageText.length());
+		voltQueueSQL(updatePage,param++, pageId);
+		
+		//int numUpdatePages = ps.executeUpdate();
+		//assert(numUpdatePages == 1) : "WE ARE NOT UPDATING the page table!";
 
 		// REMOVED
 		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
 		// st.addBatch(sql);
-
-		ps = voltQueueSQL(insertRecentChanges);
+		
 		param = 1;
-		ps.setString(param++, timestamp);     // rc_timestamp
-		ps.setString(param++, timestamp);     // rc_cur_time
-		ps.setInt(param++, pageNamespace);    // rc_namespace
-		ps.setString(param++, pageTitle);     // rc_title
-		ps.setInt(param++, 0);                // rc_type
-		ps.setInt(param++, 0);                // rc_minor
-		ps.setInt(param++, pageId);           // rc_cur_id
-		ps.setInt(param++, userId);           // rc_user
-		ps.setString(param++, userText);      // rc_user_text
-		ps.setString(param++, revComment);    // rc_comment
-		ps.setInt(param++, nextTextId);       // rc_this_oldid
-		ps.setInt(param++, textId);           // rc_last_oldid
-		ps.setInt(param++, 0);                // rc_bot
-		ps.setInt(param++, 0);                // rc_moved_to_ns
-		ps.setString(param++, "");            // rc_moved_to_title
-		ps.setString(param++, userIp);        // rc_ip
-		ps.setInt(param++, pageText.length());// rc_old_len
-        ps.setInt(param++, pageText.length());// rc_new_len
-		int count = ps.executeUpdate();
-		assert(count == 1);
+		voltQueueSQL(insertRecentChanges,param++, timestamp);     // rc_timestamp
+		voltQueueSQL(insertRecentChanges,param++, timestamp);     // rc_cur_time
+		voltQueueSQL(insertRecentChanges,param++, pageNamespace);    // rc_namespace
+		voltQueueSQL(insertRecentChanges,param++, pageTitle);     // rc_title
+		voltQueueSQL(insertRecentChanges,param++, 0);                // rc_type
+		voltQueueSQL(insertRecentChanges,param++, 0);                // rc_minor
+		voltQueueSQL(insertRecentChanges,param++, pageId);           // rc_cur_id
+		voltQueueSQL(insertRecentChanges,param++, userId);           // rc_user
+		voltQueueSQL(insertRecentChanges,param++, userText);      // rc_user_text
+		voltQueueSQL(insertRecentChanges,param++, revComment);    // rc_comment
+		voltQueueSQL(insertRecentChanges,param++, nextTextId);       // rc_this_oldid
+		voltQueueSQL(insertRecentChanges,param++, textId);           // rc_last_oldid
+		voltQueueSQL(insertRecentChanges,param++, 0);                // rc_bot
+		voltQueueSQL(insertRecentChanges,param++, 0);                // rc_moved_to_ns
+		voltQueueSQL(insertRecentChanges,param++, "");            // rc_moved_to_title
+		voltQueueSQL(insertRecentChanges,param++, userIp);        // rc_ip
+		voltQueueSQL(insertRecentChanges,param++, pageText.length());// rc_old_len
+		voltQueueSQL(insertRecentChanges,param++, pageText.length());// rc_new_len
+		voltQueueSQL(insertRecentChanges,param++, timestamp);
+		voltQueueSQL(insertRecentChanges,param++, timestamp);
+		voltQueueSQL(insertRecentChanges,param++, timestamp);
+		voltQueueSQL(insertRecentChanges,param++, timestamp);
+		
+		//int count = ps.executeUpdate();
+		//assert(count == 1);
 
 		// REMOVED
 		// sql="INSERT INTO `cu_changes` () VALUES ();";
 		// st.addBatch(sql);
 
 		// SELECT WATCHING USERS
-		ps = voltQueueSQL(selectWatchList);
 		param = 1;
-		ps.setString(param++, pageTitle);
-		ps.setInt(param++, pageNamespace);
-		ps.setInt(param++, userId);
+		voltQueueSQL(selectWatchList,param++, pageTitle);
+		voltQueueSQL(selectWatchList,param++, pageNamespace);
+		voltQueueSQL(selectWatchList,param++, userId);
+		
 		rs = voltExecuteSQL();
 
 		ArrayList<Integer> wlUser = new ArrayList<Integer>();
-		while (rs.next()) {
-			wlUser.add((int)rs.getLong(1));
+		while (rs[0].advanceRow()) {
+			wlUser.add((int)rs[0].getLong(1));
 		}
-		rs.close();
+		
 
 		// =====================================================================
 		// UPDATING WATCHLIST: txn3 (not always, only if someone is watching the
@@ -237,22 +244,21 @@ public class UpdatePage extends VoltProcedure {
 
 			// NOTE: this commit is skipped if none is watching the page, and
 			// the transaction merge with the following one
-			conn.commit();
-
-			ps = voltQueueSQL(updateWatchList);
-			param = 1;
-			ps.setString(param++, timestamp);
-			ps.setString(param++, pageTitle);
-			ps.setInt(param++, pageNamespace);
+		    param = 1;
+			voltQueueSQL(updateWatchList,param++, timestamp);
+			voltQueueSQL(updateWatchList,param++, pageTitle);
+			voltQueueSQL(updateWatchList,param++, pageNamespace);
+			
 			for (Integer otherUserId : wlUser) {
-				ps.setInt(param, otherUserId.intValue());
-				ps.addBatch();
+			    voltQueueSQL(updateWatchList,param, otherUserId.intValue());
+				
+				//ps.addBatch();// FIXME
 			} // FOR
-			ps.executeUpdate();
-
+			//ps.executeUpdate();
+			voltExecuteSQL();
 			// NOTE: this commit is skipped if none is watching the page, and
 			// the transaction merge with the following one
-			conn.commit();
+			
 
 			// ===================================================================== 
 			// UPDATING USER AND LOGGING STUFF: txn4 (might still be part of
@@ -261,39 +267,41 @@ public class UpdatePage extends VoltProcedure {
 
 			// This seems to be executed only if the page is watched, and once
 			// for each "watcher"
-			ps = voltQueueSQL(selectUser);
-            param = 1;
+			param = 1;
+			
+            
 			for (Integer otherUserId : wlUser) {
-				ps.setInt(param, otherUserId.intValue());
+			    voltQueueSQL(selectUser,param, otherUserId.intValue());
 				rs = voltExecuteSQL();
-				rs.next();
-				rs.close();
+				rs[0].advanceRow();
+				
 			} // FOR
 		}
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
+		param = 1;
+		voltQueueSQL(insertLogging,param++, timestamp);
+		voltQueueSQL(insertLogging,param++, userId);
+		voltQueueSQL(insertLogging,param++, pageTitle);
+		voltQueueSQL(insertLogging,param++, pageNamespace);
+		voltQueueSQL(insertLogging,param++, userText);
+		voltQueueSQL(insertLogging,param++, pageId);
+		voltQueueSQL(insertLogging,param++, String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
+		//ps.executeUpdate();
+		voltExecuteSQL();
 		
-		ps = voltQueueSQL(insertLogging);
-		param = 1;
-		ps.setString(param++, timestamp);
-		ps.setInt(param++, userId);
-		ps.setString(param++, pageTitle);
-		ps.setInt(param++, pageNamespace);
-		ps.setString(param++, userText);
-		ps.setInt(param++, pageId);
-		ps.setString(param++, String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
-		ps.executeUpdate();
-
-		ps = voltQueueSQL(updateUserEdit);
-		param = 1;
-		ps.setInt(param++, userId);
-		ps.executeUpdate();
 		
-		ps = voltQueueSQL(updateUserTouched);
 		param = 1;
-		ps.setString(param++, timestamp);
-		ps.setInt(param++, userId);
-		ps.executeUpdate();
+		voltQueueSQL(updateUserEdit,param++, userId);
+		//ps.executeUpdate();
+		voltExecuteSQL();
+		
+		param = 1;
+		voltQueueSQL(updateUserTouched,param++, timestamp);
+		voltQueueSQL(updateUserTouched,param++, userId);
+		
+		//ps.executeUpdate();
+		voltExecuteSQL();
 	}
 }
