@@ -21,6 +21,7 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash)
         }
         else
         {
+			puts("Default conhasher");
             conhash->cb_hashfunc = __conhash_hash_def;
         }
 		util_rbtree_init(&conhash->vnode_tree);
@@ -49,9 +50,12 @@ void conhash_fini(struct conhash_s *conhash)
 
 void conhash_set_node(struct node_s *node, const char *iden, u_int replica)
 {
+	//puts("Guys, I am here!");
     strncpy(node->iden, iden, sizeof(node->iden)-1);
+	//puts("Cannot believe I am here");
     node->replicas = replica;
     node->flag = NODE_FLAG_INIT;
+	//puts("Impossible!!!");
 }
 
 int conhash_add_node(struct conhash_s *conhash, struct node_s *node)
@@ -100,7 +104,7 @@ const struct node_s* conhash_lookup(const struct conhash_s *conhash, const char 
     }
     /* calc hash value */
     hash = conhash->cb_hashfunc(object);
-    
+   	printf("Hash value is %ld\n", hash); 
     rbnode = util_rbtree_lookup(&(conhash->vnode_tree), hash);
     if(rbnode != NULL)
     {

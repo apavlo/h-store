@@ -1168,32 +1168,28 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_native
             jobject obj,
             jint num_partitions) {
     
-//     int i;
-//     char str[128];
-//     struct node_s g_nodes[64];
-//     /*init conhash instance*/
-//     struct conhash_s *conhash = conhash_init(NULL);
-//     if (conhash) {
-//         for (i = 0; i < num_partitions; i++) {
-//             sprintf(str, "%d", i);
-//             conhash_set_node(&g_nodes[i], str, 1);
-//             conhash_add_node(conhash, &g_nodes[i]);
-//         }
-//     }
-//     return reinterpret_cast<jlong>(conhash);
-
-    fprintf(stderr, "YANG!!!!\n");
-    return static_cast<jlong>(1);
+     int i;
+     char str[128];
+     struct node_s g_nodes[64];
+     /*init conhash instance*/
+     struct conhash_s *conhash = conhash_init(NULL);
+     if (conhash) {
+         for (i = 0; i < num_partitions; i++) {
+             sprintf(str, "%d", i);
+             conhash_set_node(&g_nodes[i], str, 1);
+			 conhash_add_node(conhash, &g_nodes[i]);
+         }
+     }
+	 return reinterpret_cast<jlong>(conhash);
 }
 
 SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeDestroy(
             JNIEnv *env,
             jobject obj,
             jlong hash_pointer) {
-//     struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
-//     conhash_fini(conhash);
-fprintf(stderr, "YANG2222!!!!\n");
-    return static_cast<jint>(1);
+     struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
+     conhash_fini(conhash);
+     return static_cast<jint>(1);
 }
 
 SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeHashinate(
@@ -1202,14 +1198,13 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
             jlong hash_pointer,
             jint value) {
     
-//     char str[128];
-//     struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
-//     sprintf(str, "%d", value);
-//     const struct node_s *node;
-//     node = conhash_lookup(conhash, str);
-//     return static_cast<jint>(atoi(node->iden));
-    fprintf(stderr, "YANG2222!!!!\n");
-    return static_cast<jint>(1);
+	char str[128];
+	struct conhash_s *conhash = reinterpret_cast<struct conhash_s *>(hash_pointer);
+	sprintf(str, "%d", static_cast<int>(value));
+	const struct node_s *node;
+	node = conhash_lookup(conhash, str);
+	return atoi(node->iden);
+    //return static_cast<jint>(1);
 }
 
 ////////////////////////////////////////////////////////////////////////////

@@ -50,6 +50,7 @@ void __conhash_add_replicas(struct conhash_s *conhash, struct node_s *node)
         /* calc hash value of all virtual nodes */
         __conhash_node2string(node, i, buff, &len);
         hash = conhash->cb_hashfunc(buff);
+		printf("hash for node %s is %ld\n", node->iden, hash);
         /* add virtual node, check duplication */
         if(util_rbtree_search(&(conhash->vnode_tree), hash) == NULL)
         {

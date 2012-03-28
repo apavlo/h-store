@@ -2,6 +2,7 @@ package edu.brown.hashing;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 
@@ -11,7 +12,7 @@ import edu.brown.utils.ProjectType;
 
 public class TestConsistentHasher extends BaseTestCase {
 
-    private static final int NUM_PARTITIONS = 100;
+    private static final int NUM_PARTITIONS = 10;
     private ConsistentHasher hasher;
     
     @Override
@@ -25,26 +26,36 @@ public class TestConsistentHasher extends BaseTestCase {
 * testHashValue
 */
     public void testHashValue() throws Exception {
-        // Stupid test for now...
-        long val0 = 0;
-        int hash0 = this.hasher.hash(val0);
-        
-        long val1 = val0+1;
-        int hash1 = this.hasher.hash(val1);
-        System.out.println("hash0: "+hash0 + "hash1: "+hash1);
-        Thread.sleep(1000);
-        assertNotSame(hash0, hash1);
-        System.err.println("hash0[" + val0 + "] = " + hash0);
-        System.err.println("hash1[" + val1 + "] = " + hash1);
+        //Random r = new Random();
+    	// Stupid test for now...
+//        long val0 = r.nextLong();
+//        int hash0 = this.hasher.hash(val0);
+//        
+//        long val1 = r.nextLong();
+//        int hash1 = this.hasher.hash(val1);
+//        System.out.println("hash0: "+hash0 +"\n"+ "hash1: "+hash1);
+//        Thread.sleep(1000);
+//        assertNotSame(hash0, hash1);
+//        System.err.println("hash0[" + val0 + "] = " + hash0);
+//        System.err.println("hash1[" + val1 + "] = " + hash1);
+        int[] a = new int[10];
+        for(int i=0; i<10; i++){
+        	long val = i;
+        	int hash = this.hasher.hash(val);
+        	a[hash] ++;
+        }
+        for(int i=0; i<10; i++){
+        	System.out.println("node:" + i + " number: "+ a[i]);
+        }
     }
 
-//    /**
-//* testMultiValueHash
-//*/
+    /**
+* testMultiValueHash
+*/
 //    public void testMultiValueHash() throws Exception {
 //        int num_values0 = 50; // # of Warehouses
 //        int num_values1 = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
-//        int num_partitions = 100;
+//        int num_partitions = 60;
 //        Histogram<Integer> h = new Histogram<Integer>();
 //        
 //        ConsistentHasher hasher = new ConsistentHasher(null, num_partitions);
