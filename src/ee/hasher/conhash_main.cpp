@@ -1,9 +1,8 @@
-#include "conhash.h"
+#include "libconhash/conhash.h"
 #include "conhash_main.h"
 
 Conhash::Conhash(int n)
 {
-	
 	conhash = conhash_init(NULL, n, g_nodes);
 }
 
@@ -20,3 +19,4 @@ Conhash::lookup(const char *object)
 {
 	return conhash_lookup(conhash, object);
 }
+

@@ -1,4 +1,4 @@
-#include "conhash.h"
+#include "libconhash/conhash.h"
 
 class Conhash {
 	struct conhash_s *conhash;

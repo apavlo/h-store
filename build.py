@@ -186,9 +186,9 @@ CTX.INPUT['common'] = """
  NValue.cpp
 """
 
-#CTX.INPUT['hasher'] = """
- #consistentjni.cpp
-#"""
+CTX.INPUT['hasher'] = """
+ conhash_main.cpp
+"""
 
 CTX.INPUT['execution'] = """
  JNITopend.cpp

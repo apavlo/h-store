@@ -32,8 +32,8 @@ $(PREFIX)/libconhash.a : $(OBJ)
 	
 # build sample
 $(PREFIX)/sample : $(SAMPLE_OBJS)
-	g++ -O -o $@ $(SAMPLE_OBJS) -L. -L./bin -lconhash
+	gcc -O -o $@ $(SAMPLE_OBJS) -L. -L./bin -lconhash
 
 	
 $(PREFIX)/%.o : %.c
-	g++ $(INC) $(CFLAGS) -c $< -o $@	
+	gcc $(INC) $(CFLAGS) -c $< -o $@	
