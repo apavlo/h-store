@@ -99,7 +99,6 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
-import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -1097,7 +1096,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>",
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>\n" + deps,
                                                    ts, deps.size(), stmt_index, input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
@@ -1728,14 +1727,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     /**
      * Executes a FragmentTaskMessage on behalf of some remote site and returns the resulting DependencySet
-     * @param wfrag
+     * @param fragment
      * @return
      * @throws Exception
      */
-    private DependencySet executeWorkFragment(AbstractTransaction ts, WorkFragment wfrag, ParameterSet parameters[]) throws Exception {
+    private DependencySet executeWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet parameters[]) throws Exception {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
-        int fragmentCount = wfrag.getFragmentIdCount();
+        int fragmentCount = fragment.getFragmentIdCount();
         long fragmentIds[] = new long[fragmentCount];
         int outputDepIds[] = new int[fragmentCount];
         int inputDepIds[] = new int[fragmentCount]; // Is this ok?
@@ -1747,16 +1746,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Construct arrays given to the EE
         for (int i = 0; i < fragmentCount; i++) {
-            fragmentIds[i] = wfrag.getFragmentId(i);
-            outputDepIds[i] = wfrag.getOutputDepId(i);
-            for (int input_depId : wfrag.getInputDepId(i).getIdsList()) {
+            fragmentIds[i] = fragment.getFragmentId(i);
+            outputDepIds[i] = fragment.getOutputDepId(i);
+            for (int input_depId : fragment.getInputDepId(i).getIdsList()) {
                 inputDepIds[i] = input_depId; // FIXME!
             } // FOR
         } // FOR
         
         // Input Dependencies
         this.tmp_EEdependencies.clear();
-        this.getFragmentInputs(ts, wfrag, this.tmp_EEdependencies);
+        this.getFragmentInputs(ts, fragment, this.tmp_EEdependencies);
         
         if (d) {
             LOG.debug(String.format("Getting ready to kick %d fragments to EE for %s", fragmentCount, ts));
@@ -1959,7 +1958,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         DependencySet result = null;
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
         if (needs_profiling) ((LocalTransaction)ts).profiler.startExecEE();
-        Throwable t = null;
+        Throwable error = null;
         try {
             if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d",
                                            ts, Arrays.toString(fragmentIds), this.partitionId));
@@ -1976,15 +1975,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             undoToken);
             
         } catch (SerializableException ex) {
-            if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine", ts), ex);
-            t = ex;
+            if (d) LOG.error(String.format("%s - Unexpected error in the ExecutionEngine on partition %d",
+                                           ts, this.partitionId), ex);
+            error = ex;
             throw ex;
         } catch (Throwable ex) {
-            t = ex;
+            error = ex;
             new ServerFaultException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
         } finally {
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
-            if (t == null && result == null) {
+            if (error == null && result == null) {
                 LOG.warn(String.format("%s - Finished executing fragments but got back null results [fragmentIds=%s]",
                                        ts, Arrays.toString(fragmentIds)));
             }
