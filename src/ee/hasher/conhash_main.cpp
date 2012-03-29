@@ -1,7 +1,7 @@
 #include "libconhash/conhash.h"
 #include "conhash_main.h"
 
-Conhash::Conhash(int n)
+Conhash::Conhash(int n, struct node_s *g_nodes)
 {
 	conhash = conhash_init(NULL, n, g_nodes);
 }

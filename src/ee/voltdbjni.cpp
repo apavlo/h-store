@@ -1191,7 +1191,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
             jlong hash_pointer,
             jint value) {
     
-	printf("Long pointer is %ld\n", hash_pointer);
 	char str[128];
 	int val = static_cast<int>(value);
 	printf("passed in value: %d\n", val);
