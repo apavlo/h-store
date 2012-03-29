@@ -188,7 +188,7 @@ CTX.INPUT['common'] = """
 """
 
 CTX.INPUT['hasher'] = """
- conhash_main.cpp
+ conhash.cpp
 """
 
 CTX.INPUT['execution'] = """

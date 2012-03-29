@@ -92,7 +92,7 @@
 #include "json_spirit/json_spirit.h"
 #include "boost/pool/pool.hpp"
 #include "boost/crc.hpp"
-#include "hasher/conhash_main.h"
+#include "hasher/conhash.h"
 #include "libconhash/conhash.h"
 
 #include "logging/JNILogProxy.h"
