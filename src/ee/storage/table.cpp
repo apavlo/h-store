@@ -477,7 +477,7 @@ void Table::loadTuplesFrom(bool allowELT,
     /*
      * directly receives a VoltTable buffer.
      * [00 01]   [02 03]   [04 .. 0x]
-     * rowstart  colcount  colcount * 1 byte (column types)
+     * headersize  colcount  colcount * 1 byte (column types)
      *
      * [0x+1 .. 0y]
      * colcount * strings (column names)
@@ -491,8 +491,7 @@ void Table::loadTuplesFrom(bool allowELT,
 
     // todo: just skip ahead to this position
     serialize_io.readInt(); // rowstart
-
-    serialize_io.readByte();
+    serialize_io.readByte(); // status
 
     int16_t colcount = serialize_io.readShort();
     assert(colcount >= 0);
