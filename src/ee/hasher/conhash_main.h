@@ -6,5 +6,5 @@ public:
 	Conhash(int n);
 	~Conhash(void);
 	struct node_s * lookup(const char *object);		
-}
+};
 

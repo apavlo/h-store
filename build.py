@@ -54,7 +54,6 @@ if gcc_major == 4 and gcc_minor >= 3:
 
 # linker flags
 CTX.LDFLAGS = "-g3 -rdynamic -ldl"
-CTX.LDFLAGS += " libconhash/libconhash.a"
 if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
@@ -154,7 +153,9 @@ if CTX.PLATFORM == "Darwin":
     CTX.JNIFLAGS = "-framework JavaVM,1.6"
 
 if CTX.PLATFORM == "Linux":
-    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC -Wno-unused-but-set-variable"
+    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC"
+    if gcc_major == 4 and gcc_minor > 4:
+        CTX.CPPFLAGS += " -Wno-unused-but-set-variable"
     CTX.NMFLAGS += " --demangle"
 
 ###############################################################################
