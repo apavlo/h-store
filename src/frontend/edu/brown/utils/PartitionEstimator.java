@@ -1236,8 +1236,11 @@ public class PartitionEstimator {
      * @param base_partition
      * @return
      */
-    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions, final Collection<Integer> entry_all_partitions, PartitionEstimator.CacheEntry cache_entry,
-            Object params[], Integer base_partition) throws Exception {
+    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
+                                             final Collection<Integer> entry_all_partitions,
+                                             final PartitionEstimator.CacheEntry cache_entry,
+                                             final Object params[],
+                                             final Integer base_partition) throws Exception {
 
         // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;

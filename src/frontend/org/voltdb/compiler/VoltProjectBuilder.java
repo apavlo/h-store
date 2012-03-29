@@ -32,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -47,6 +48,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
@@ -58,6 +60,7 @@ import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Alternate (programmatic) interface to VoltCompiler. Give the class all of
@@ -188,6 +191,11 @@ public class VoltProjectBuilder {
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
     final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
+    /**
+     * ProcedureName -> StatementName
+     */
+    final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
+    
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
@@ -295,6 +303,30 @@ public class VoltProjectBuilder {
     public void clearProcedures() {
         m_procedures.clear();
         m_procInfoOverrides.clear();
+        m_prefetchQueries.clear();
+    }
+    
+    /**
+     * Mark a Statement as prefetchable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementPrefetchabl(Class<? extends VoltProcedure> procedureClass, String statementName) {
+        this.markStatementPrefetchabl(procedureClass.getSimpleName(), statementName);
+    }
+
+    /**
+     * Mark a Statement as prefetchable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementPrefetchabl(String procedureName, String statementName) {
+        Set<String> stmtNames = m_prefetchQueries.get(procedureName);
+        if (stmtNames == null) {
+            stmtNames = new HashSet<String>();
+            m_prefetchQueries.put(procedureName, stmtNames);
+        }
+        stmtNames.add(statementName);
     }
     
     /**
@@ -663,6 +695,13 @@ public class VoltProjectBuilder {
                 }
                 proc.setAttribute("groups", groupattr.toString());
             }
+            
+            // HACK: Prefetchable Statements
+            if (m_prefetchQueries.containsKey(procedure.cls.getSimpleName())) {
+                Set<String> stmtNames = m_prefetchQueries.get(procedure.cls.getSimpleName());
+                proc.setAttribute("prefetchable", StringUtil.join(",", stmtNames));
+            }
+            
             procedures.appendChild(proc);
         }
 

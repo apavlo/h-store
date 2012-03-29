@@ -54,6 +54,15 @@ public final class HStoreConf {
             experimental=false
         )
         public String sshoptions;
+        
+        @ConfigProperty(
+            description="An optional command that is added as a prefix that is executed before " +
+                        "starting the HStoreSite and clients. The command must exit with " +
+                        "status code zero.",
+            defaultString="",
+            experimental=false
+        )
+        public String sshprefix;
 
         @ConfigProperty(
             description="The default hostname used when generating cluster configurations.",
