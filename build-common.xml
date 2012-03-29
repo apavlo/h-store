@@ -1,6 +1,7 @@
 <!-- GLOBAL -->
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
+<arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
 
@@ -68,6 +69,7 @@
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />

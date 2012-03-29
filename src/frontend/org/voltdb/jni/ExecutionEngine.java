@@ -245,10 +245,14 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public byte[] nextDependencyAsBytes(final int dependencyId) {
         final VoltTable vt =  m_dependencyTracker.nextDependency(dependencyId);
         if (vt != null) {
-            ByteBuffer buffer = vt.getTableDataReference();
-            if (d) 
-                LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]",
-                                        dependencyId, vt.getRowCount(), vt.getColumnCount(), vt.getUnderlyingBufferSize(), buffer.array().length));
+            ByteBuffer buffer = vt.getDirectDataReference();
+            if (d) LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]\n%s",
+                                           dependencyId,
+                                           vt.getRowCount(),
+                                           vt.getColumnCount(),
+                                           vt.getUnderlyingBufferSize(),
+                                           buffer.array().length,
+                                           vt.toString()));
             assert(buffer.hasArray());
             return (buffer.array());
         }

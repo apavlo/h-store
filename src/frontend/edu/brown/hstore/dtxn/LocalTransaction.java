@@ -1316,7 +1316,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   dinfo.getResultsCount(), dinfo.getPartitionCount(),
                                   fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
-                results.put(input_d_id, dinfo.getResults(hstore_site, true));
+                results.put(input_d_id, dinfo.getResults());
                 if (d) LOG.debug(String.format("%s - %s -> %d VoltTables",
                                                this, debugStmtDep(stmt_index, input_d_id), results.get(input_d_id).size()));
             } // FOR
@@ -1340,7 +1340,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
                                   debugStmtDep(stmt_index, input_d_id), dinfo.getResultsCount(), dinfo.getPartitionCount(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
-        return (dinfo.getResults(hstore_site, true));
+        return (dinfo.getResults());
     }
     
     /**
