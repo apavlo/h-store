@@ -1,10 +1,8 @@
 package edu.brown.hstore.util;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
@@ -125,9 +123,6 @@ public class QueryCache {
     // UTILITY CODE
     // ----------------------------------------------------------------------------
     
-    protected int computeHashCode(int fragmentId, ParameterSet params) {
-        return ((fragmentId * 31) + params.hashCode());
-    }
     
     // ----------------------------------------------------------------------------
     // API
@@ -170,6 +165,9 @@ public class QueryCache {
      * @return
      */
     public VoltTable getTransactionCachedResult(Long txnId, int fragmentId, ParameterSet params) {
+        if (debug.get()) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
+                                                 txnId, fragmentId, params));
+        
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries != null) {
             int paramsHash = -1;
@@ -180,7 +178,7 @@ public class QueryCache {
                 // Check whether somebody took our place in the cache or that
                 // we don't even have the same fragmentId
                 if (entry.txnId.equals(txnId) == false ||
-                    entry.fragmentId == fragmentId) {
+                    entry.fragmentId != fragmentId) {
                     continue;
                 }
                 
@@ -197,7 +195,6 @@ public class QueryCache {
                 return (entry.result);
             } // FOR
         }
-        
         return (null);
     }
     
