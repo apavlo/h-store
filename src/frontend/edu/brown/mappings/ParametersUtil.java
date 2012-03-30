@@ -1,4 +1,4 @@
-package edu.brown.catalog;
+package edu.brown.mappings;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,8 +12,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 
-import edu.brown.mappings.ParameterMapping;
-import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -92,6 +91,21 @@ public class ParametersUtil {
             this.stmt_param_idxs.get(stmt_name).put(stmt_param_name, stmt_param);
             this.proc_param_names.put(proc_param, proc_param_name);
             this.proc_param_idxs.put(proc_param_name, proc_param);
+        }
+        
+        /**
+         * Adds a new mapping entry for a particular query in the catalogs.
+         * @param proc_param
+         * @param stmt_name
+         * @param stmt_param
+         */
+        public void add(int proc_param, String stmt_name, int stmt_param) {
+            if (!this.containsKey(stmt_name)) {
+                this.put(stmt_name, new HashMap<Integer, Integer>());
+                this.stmt_param_names.put(stmt_name, new HashMap<Integer, String>());
+                this.stmt_param_idxs.put(stmt_name, new HashMap<String, Integer>());
+            }
+            this.get(stmt_name).put(stmt_param, proc_param);
         }
     } // END CLASS
 
@@ -235,7 +249,7 @@ public class ParametersUtil {
 
                 for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                     String stmt_param_name = catalog_stmt_param.getName();
-                    SortedSet<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
+                    Set<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
 
                     if (m.isEmpty()) {
                         LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
@@ -272,40 +286,37 @@ public class ParametersUtil {
     }
 
     public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping, boolean force) {
-        //
-        // For each Procedure in the catalog, we need to find the matching
-        // record
+        // For each Procedure in the catalog, we need to find the matching record
         // in the mapping and update the catalog elements as necessary
-        //
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            String proc_name = catalog_proc.getName();
-            if (proc_mapping.containsKey(proc_name)) {
-                LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
-                DefaultParameterMapping map = proc_mapping.get(proc_name);
-                for (String stmt_name : map.keySet()) {
-                    Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
-                    if (catalog_stmt == null) {
-                        throw new RuntimeException("Unknown Statement name '" + stmt_name + "' in ParameterMapping");
-                    }
-
-                    for (Integer stmt_param : map.get(stmt_name).keySet()) {
-                        StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(stmt_param);
-
-                        Integer proc_param = map.get(stmt_name).get(stmt_param);
-                        ProcParameter catalog_proc_param = catalog_proc.getParameters().get(proc_param);
-
-                        //
-                        // Skip if it already has the proper ProcParameter set
-                        //
-                        if (!force && catalog_stmt_param.getProcparameter() != null && catalog_stmt_param.getProcparameter().equals(catalog_proc_param)) {
-                            LOG.debug("Skipping ProcParameter mapping in " + catalog_stmt + " because it is already set");
-                        } else {
-                            catalog_stmt_param.setProcparameter(catalog_proc_param);
-                            LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '" + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
-                        }
-                    } // FOR
-                } // FOR
+        for (String proc_name : proc_mapping.keySet()) {
+            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
+            if (catalog_proc == null) {
+                throw new RuntimeException("Unknown Procedure name '" + proc_name + "' in ParameterMapping");
             }
+            LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
+            
+            DefaultParameterMapping map = proc_mapping.get(proc_name);
+            for (String stmt_name : map.keySet()) {
+                Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
+                if (catalog_stmt == null) {
+                    throw new RuntimeException("Unknown Statement name '" + stmt_name + "' in ParameterMapping");
+                }
+
+                for (Integer stmt_param : map.get(stmt_name).keySet()) {
+                    StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(stmt_param);
+
+                    Integer proc_param = map.get(stmt_name).get(stmt_param);
+                    ProcParameter catalog_proc_param = catalog_proc.getParameters().get(proc_param);
+
+                    // Skip if it already has the proper ProcParameter set
+                    if (!force && catalog_stmt_param.getProcparameter() != null && catalog_stmt_param.getProcparameter().equals(catalog_proc_param)) {
+                        LOG.debug("Skipping ProcParameter mapping in " + catalog_stmt + " because it is already set");
+                    } else {
+                        catalog_stmt_param.setProcparameter(catalog_proc_param);
+                        LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '" + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
+                    }
+                } // FOR
+            } // FOR
         } // FOR
         return;
     }

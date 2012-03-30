@@ -53,6 +53,10 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
@@ -61,10 +65,11 @@ import org.w3c.dom.Text;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
-import edu.brown.catalog.ParametersUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
@@ -207,6 +212,12 @@ public class VoltProjectBuilder {
      */
     private File m_paramMappingsFile;
     
+    /**
+     * Values for a ParameterMappingsSet that we will construct
+     * after we have compile the catalog
+     */
+    final LinkedHashMap<String, Map<Integer, Pair<String, Integer>>> m_paramMappings = new LinkedHashMap<String, Map<Integer,Pair<String,Integer>>>();
+    
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
@@ -329,6 +340,34 @@ public class VoltProjectBuilder {
         assert(mappingsFile.exists()) :
             "The ParameterMappingsSet file '" + mappingsFile + "' does not exist";
         m_paramMappingsFile = mappingsFile;
+    }
+
+    /**
+     * Mark a ProcParameter to be mapped to a StmtParameter
+     * @param procedureClass
+     * @param procParamIdx
+     * @param statementName
+     * @param stmtParamIdx
+     */
+    public void mapParameters(Class<? extends VoltProcedure> procedureClass, int procParamIdx, String statementName, int stmtParamIdx) {
+        this.mapParameters(procedureClass.getSimpleName(), procParamIdx, statementName, stmtParamIdx);
+    }
+    
+    /**
+     * Mark a ProcParameter to be mapped to a StmtParameter
+     * @param procedureName
+     * @param procParamIdx
+     * @param statementName
+     * @param stmtParamIdx
+     */
+    public void mapParameters(String procedureName, int procParamIdx, String statementName, int stmtParamIdx) {
+        Map<Integer, Pair<String, Integer>> m = m_paramMappings.get(procedureName);
+        if (m == null) {
+            m = new LinkedHashMap<Integer, Pair<String,Integer>>();
+            m_paramMappings.put(procedureName, m);
+        }
+        Pair<String, Integer> stmtPair = Pair.of(statementName, stmtParamIdx);
+        m.put(procParamIdx, stmtPair);
     }
     
     /**
@@ -614,36 +653,77 @@ public class VoltProjectBuilder {
                                            m_compilerDebugPrintStream,
                                            m_procInfoOverrides);
         
-        // HACK: If we have a ParameterMappingsSet file, then we have 
+        // HACK: If we have a ParameterMappingsSet that we need to apply
+        // either from a file or a fixed mappings, then we have 
         // to load the catalog into this JVM, apply the mappings, and then
         // update the jar file with the new catalog
+        if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
+            this.applyParameterMappings(jarPath);
+        }
+        
+        return success;
+    }
+    
+    private void applyParameterMappings(String jarPath) {
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+        assert(catalog != null);
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        ParameterMappingsSet mappings = new ParameterMappingsSet();        
+        
+        // Load ParameterMappingSet from file
         if (m_paramMappingsFile != null) {
-            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
-            assert(catalog != null);
-            
-            // Load it up!
-            ParameterMappingsSet mappings = new ParameterMappingsSet();
-            Database catalog_db = CatalogUtil.getDatabase(catalog);
             try {
                 mappings.load(m_paramMappingsFile.getAbsolutePath(), catalog_db);
             } catch (IOException ex) {
                 String msg = "Failed to load ParameterMappingsSet file '" + m_paramMappingsFile + "'";
                 throw new RuntimeException(msg, ex);
             }
-            
-            // Apply it!
-            ParametersUtil.applyParameterMappings(catalog_db, mappings);
-            
-            // Write it out!
-            try {
-                CatalogUtil.updateCatalogInJar(jarPath, catalog);
-            } catch (Exception ex) {
-                String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
-                throw new RuntimeException(msg, ex);
-            }
+        }
+        // Build ParameterMappingSet from user-provided inputs
+        else {
+            for (String procName : m_paramMappings.keySet()) {
+                Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+                assert(catalog_proc != null) :
+                    "Invalid Procedure name for ParameterMappings '" + procName + "'";
+                for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
+                    ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
+                    assert(catalog_procParam != null) :
+                        "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
+                    Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
+                    assert(stmtPair != null);
+                    
+                    Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
+                    assert(catalog_stmt != null) :
+                        "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
+                		"for Procedure '" + procName + "'";
+                    StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
+                    assert(catalog_stmtParam != null) :
+                        "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
+                    
+                    // HACK: This assumes that the ProcParameter is not an array
+                    // and that we want to map the first invocation of the Statement
+                    // directly to the ProcParameter.
+                    ParameterMapping pm = new ParameterMapping(catalog_stmt,
+                                                               0,
+                                                               catalog_stmtParam,
+                                                               catalog_procParam,
+                                                               0,
+                                                               1.0);
+                    mappings.add(pm);
+                } // FOR (ProcParameter)
+            } // FOR (Procedure)
         }
         
-        return success;
+        // Apply it!
+        ParametersUtil.applyParameterMappings(catalog_db, mappings);
+        
+        // Write it out!
+        try {
+            CatalogUtil.updateCatalogInJar(jarPath, catalog);
+        } catch (Exception ex) {
+            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+            throw new RuntimeException(msg, ex);
+        }
     }
 
     private void buildDatabaseElement(Document doc, final Element database) {
