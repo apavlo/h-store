@@ -871,7 +871,6 @@ public class TestTPCCSuite extends RegressionSuite {
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
         config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.preload", false);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
@@ -881,7 +880,6 @@ public class TestTPCCSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         
         config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        config.setConfParameter("site.preload", false);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);

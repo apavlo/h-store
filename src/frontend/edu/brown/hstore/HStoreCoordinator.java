@@ -21,6 +21,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
@@ -131,7 +132,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
     
-    private QueryPrefetchPlanner prefetcher;
+    private final QueryPrefetchPlanner queryPrefetchPlanner;
 
     /**
      * 
@@ -243,12 +244,22 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
         
+        // Initialized QueryPrefetchPlanner if we're allowed to execute
+        // prefetch queries and we actually have some in the catalog 
+        QueryPrefetchPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
-            this.transactionPrefetch_callback = new TransactionPrefetchCallback();
-            this.prefetcher = new QueryPrefetchPlanner(hstore_site.getDatabase(), hstore_site.getPartitionEstimator());
-        } else {
-            this.transactionPrefetch_callback = null;
+            boolean has_prefetch = false;
+            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+                if (catalog_proc.getPrefetch()) {
+                    has_prefetch = true;
+                    break;
+                }
+            }
+            if (has_prefetch) tmpPlanner = new QueryPrefetchPlanner(hstore_site.getDatabase(),
+                                                                    hstore_site.getPartitionEstimator());
         }
+        this.queryPrefetchPlanner = tmpPlanner;
+        this.transactionPrefetch_callback = (this.queryPrefetchPlanner != null ? new TransactionPrefetchCallback() : null);
     }
     
     protected HStoreService initHStoreService() {
@@ -640,7 +651,7 @@ public class HStoreCoordinator implements Shutdownable {
         // Look at the Procedure to see whether it has prefetchable queries. If it does, then
         // embed them in the TransactionInitRequest
         if (ts.getProcedure().getPrefetch()) {
-            TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(ts);
+            TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
                 if (site_id == this.local_site_id) {
                     this.transactionInit_handler.sendLocal(ts.getTransactionId(), requests[site_id], ts.getPredictTouchedPartitions(), callback);

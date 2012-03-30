@@ -50,7 +50,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         this.checkDatabase(client, num_tuples);
         
         int a_id = rand.nextInt(num_tuples);
-        ClientResponse cr = client.callProcedure(Squirrels.class.getSimpleName(), a_id);
+        ClientResponse cr = client.callProcedure(Squirrels.class.getSimpleName(), a_id, 1000);
         System.err.println(cr.toString());
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
     }
@@ -149,6 +149,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
         config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 4, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_prefetch_queries", true);
         config.compile(project);
         builder.addServerConfig(config);
  
