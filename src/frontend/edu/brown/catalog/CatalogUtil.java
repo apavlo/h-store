@@ -377,7 +377,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog
      * @throws Exception (VoltCompilerException DNE?)
      */
-    public static void updateCatalogInJar(String jarFileName, Catalog catalog, String catalog_path) throws Exception {
+    public static void updateCatalogInJar(String jarFileName, Catalog catalog) throws Exception {
         catalog.serialize();
         // Read the old jar file into memory with JarReader.
         JarReader reader = new JarReader(jarFileName);
@@ -387,12 +387,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             bytes.add(JarReader.readFileFromJarAtURL(jarFileName, file));
         }
         
-        // Write everything from the old jar except the catalog to the same file with JarBuilder.
+        // Write everything from the old jar except the catalog to the same 
+        // file with JarBuilder.
         JarBuilder builder = new JarBuilder(null);
         for (int i = 0; i < files.size(); ++i) {
             String file = files.get(i);
-            if (file.equals(catalog_path)) {
-                builder.addEntry(catalog_path, catalog.serialize().getBytes());
+            if (file.equals(CatalogUtil.CATALOG_FILENAME)) {
+                builder.addEntry(CatalogUtil.CATALOG_FILENAME,
+                                 catalog.serialize().getBytes());
             }
             else {
                 builder.addEntry(file, bytes.get(i));
@@ -879,10 +881,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Get a reverse mapping from PartitionId -> SiteID
-     * 
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static Map<Integer, Integer> getPartitionSiteXref(CatalogType catalog_item) {
         Map<Integer, Integer> m = new HashMap<Integer, Integer>();
         for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_item)) {
@@ -890,6 +892,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             m.put(catalog_part.getId(), catalog_site.getId());
         } // FOR
         return (m);
+    }
+    
+    /**
+     * Get a reverse mapping array from PartitionId -> SiteID
+     * @param catalog_item
+     * @return
+     */
+    public static int[] getPartitionSiteXrefArray(CatalogType catalog_item) {
+        int partition_site_xref[] = new int[CatalogUtil.getNumberOfPartitions(catalog_item)];
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_item)) {
+            partition_site_xref[catalog_part.getId()] = ((Site)catalog_part.getParent()).getId();
+        } // FOR
+        return (partition_site_xref);
     }
 
     /**

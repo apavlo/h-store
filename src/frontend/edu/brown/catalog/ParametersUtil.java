@@ -217,14 +217,14 @@ public class ParametersUtil {
      * String->ParameterMapping
      * 
      * @param catalog_db
-     * @param correlations
+     * @param mappings
      * @return
      * @throws Exception
      */
-    public static Map<String, DefaultParameterMapping> generateMappingFromCorrelations(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
+    public static Map<String, DefaultParameterMapping> generateXrefFromParameterMappings(Database catalog_db, ParameterMappingsSet mappings) {
         assert (catalog_db != null);
-        assert (correlations != null);
-        Map<String, DefaultParameterMapping> mappings = new HashMap<String, DefaultParameterMapping>();
+        assert (mappings != null);
+        Map<String, DefaultParameterMapping> xrefMap = new HashMap<String, DefaultParameterMapping>();
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             String proc_name = catalog_proc.getName();
@@ -235,14 +235,14 @@ public class ParametersUtil {
 
                 for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
                     String stmt_param_name = catalog_stmt_param.getName();
-                    SortedSet<ParameterMapping> param_correlations = correlations.get(catalog_stmt, catalog_stmt_param);
+                    SortedSet<ParameterMapping> m = mappings.get(catalog_stmt, catalog_stmt_param);
 
-                    if (param_correlations.isEmpty()) {
-                        LOG.debug("No correlations found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
+                    if (m.isEmpty()) {
+                        LOG.debug("No ParameterMapping found for " + CatalogUtil.getDisplayName(catalog_stmt_param) + ". Skipping...");
                         continue;
                     }
                     // HACK: I'm lazy, just take the first one for now
-                    ParameterMapping c = CollectionUtil.first(param_correlations);
+                    ParameterMapping c = CollectionUtil.first(m);
                     assert (c != null);
 
                     Integer proc_param = c.getProcParameter().getIndex();
@@ -250,14 +250,14 @@ public class ParametersUtil {
                     map.add(stmt_name, catalog_stmt_param.getIndex(), stmt_param_name, proc_param, proc_param_name);
                 } // FOR (StmtParameter)
             } // FOR (Statement)
-            mappings.put(proc_name, map);
+            xrefMap.put(proc_name, map);
         } // FOR (Procedure)
-        assert (mappings.size() == catalog_db.getProcedures().size());
-        return (mappings);
+        assert (xrefMap.size() == catalog_db.getProcedures().size());
+        return (xrefMap);
     }
 
-    public static void applyParameterMappings(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
-        Map<String, DefaultParameterMapping> proc_mapping = ParametersUtil.generateMappingFromCorrelations(catalog_db, correlations);
+    public static void applyParameterMappings(Database catalog_db, ParameterMappingsSet mappings) {
+        Map<String, DefaultParameterMapping> proc_mapping = ParametersUtil.generateXrefFromParameterMappings(catalog_db, mappings);
         ParametersUtil.populateCatalog(catalog_db, proc_mapping, true);
         return;
     }
@@ -271,7 +271,7 @@ public class ParametersUtil {
         populateCatalog(catalog_db, proc_mapping, false);
     }
 
-    public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping, boolean force) throws Exception {
+    public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping, boolean force) {
         //
         // For each Procedure in the catalog, we need to find the matching
         // record
@@ -285,7 +285,7 @@ public class ParametersUtil {
                 for (String stmt_name : map.keySet()) {
                     Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
                     if (catalog_stmt == null) {
-                        throw new Exception("Unknown Statement name '" + stmt_name + "' in ParameterMapping");
+                        throw new RuntimeException("Unknown Statement name '" + stmt_name + "' in ParameterMapping");
                     }
 
                     for (Integer stmt_param : map.get(stmt_name).keySet()) {
