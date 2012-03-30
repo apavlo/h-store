@@ -20,6 +20,7 @@ package org.voltdb;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
@@ -75,6 +76,11 @@ public class ParameterSet implements FastSerializable {
     public ParameterSet setParameters(ParameterSet other) {
         this.m_params = other.m_params;
         return (this);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(m_params);
     }
 
     public void clear() {

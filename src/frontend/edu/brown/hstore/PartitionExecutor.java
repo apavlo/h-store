@@ -143,9 +143,9 @@ import edu.brown.utils.TypedPoolableObjectFactory;
  * do other things, but this is where the good stuff happens.
  */
 public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
-    public static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
     private static boolean t;
     static {
@@ -375,7 +375,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * 
      */
-    private final QueryCache queryCache = new QueryCache();
+    private final QueryCache queryCache = new QueryCache(100, 100); // FIXME
     
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
@@ -1569,7 +1569,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * 
+     * Execute a WorkFragment for a distributed transaction
      * @param fragment
      * @throws Exception
      */
@@ -1581,8 +1581,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
-        if (d) LOG.debug(String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
-                                                ts, ts.getBasePartition(), is_local, is_dtxn, fragment.getFragmentIdCount()));
+        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isDtxn=%s, fragments=%s]",
+                                       ts, fragment.getClass().getSimpleName(),
+                                       is_local, is_dtxn, fragment.getFragmentIdCount()));
 
         // If this txn isn't local, then we have to update our undoToken
         if (is_local == false) {
@@ -1651,6 +1652,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // just wait until they come back to execute the query again before 
             // we tell them that something went wrong. It's ghetto, but it's just easier this way...
             if (status == Status.OK) {
+                if (d) LOG.debug(String.format("%s - Storing %d prefetch query results in query cache",
+                                               ts, result.size()));
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     this.queryCache.addTransactionQueryResult(ts.getTransactionId(),
                                                               fragment.getFragmentId(i),
