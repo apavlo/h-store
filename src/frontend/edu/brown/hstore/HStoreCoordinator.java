@@ -75,7 +75,7 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.QueryPrefetcher;
+import edu.brown.hstore.util.QueryPrefetchPlanner;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -131,7 +131,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
     
-    private QueryPrefetcher prefetcher;
+    private QueryPrefetchPlanner prefetcher;
 
     /**
      * 
@@ -245,7 +245,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (hstore_conf.site.exec_prefetch_queries) {
             this.transactionPrefetch_callback = new TransactionPrefetchCallback();
-            this.prefetcher = new QueryPrefetcher(hstore_site.getDatabase(), hstore_site.getPartitionEstimator());
+            this.prefetcher = new QueryPrefetchPlanner(hstore_site.getDatabase(), hstore_site.getPartitionEstimator());
         } else {
             this.transactionPrefetch_callback = null;
         }
