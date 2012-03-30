@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -47,6 +49,7 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
 import org.voltdb.VoltProcedure;
@@ -80,6 +83,7 @@ import edu.brown.utils.StringUtil;
  *
  */
 public class VoltProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(VoltProjectBuilder.class);
 
     final LinkedHashSet<String> m_schemas = new LinkedHashSet<String>();
     protected final String project_name;
@@ -200,6 +204,11 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
+    
+    /**
+     * Replicated SecondaryIndex Info
+     * TableName -> Pair<CreateIndex, ColumnNames>
+     */
     final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
     /**
@@ -327,6 +336,47 @@ public class VoltProjectBuilder {
         m_procedures.clear();
         m_procInfoOverrides.clear();
         m_prefetchQueries.clear();
+    }
+    
+    /**
+     * Remove all of the Procedures whose name matches the given Pattern
+     * @param procNameRegex
+     */
+    public void removeProcedures(Pattern procNameRegex) {
+        Set<ProcedureInfo> toRemove = new HashSet<ProcedureInfo>();
+        for (ProcedureInfo procInfo : m_procedures) {
+            Matcher m = procNameRegex.matcher(procInfo.name);
+            if (m.matches()) {
+                toRemove.add(procInfo);
+            }
+        } // FOR
+        for (ProcedureInfo procInfo : toRemove)
+            this.removeProcedure(procInfo);
+    }
+    
+    /**
+     * Remove a Procedure based on its name
+     * @param procName
+     */
+    public void removeProcedure(String procName) {
+        for (ProcedureInfo procInfo : m_procedures) {
+            if (procInfo.name.equalsIgnoreCase(procName)) {
+                this.removeProcedure(procInfo);
+                break;
+            }
+        } // FOR
+    }
+    
+    /**
+     * Removes the given ProcedureInfo
+     * @param procInfo
+     */
+    protected void removeProcedure(ProcedureInfo procInfo) {
+        m_procedures.remove(procInfo);
+        m_procInfoOverrides.remove(procInfo.name);
+        m_prefetchQueries.remove(procInfo.name);
+        m_paramMappings.remove(procInfo.name);
+        LOG.info("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
     }
     
     /**
