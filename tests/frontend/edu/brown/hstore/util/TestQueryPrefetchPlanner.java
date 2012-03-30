@@ -28,7 +28,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
-public class TestQueryPrefetcher extends BaseTestCase {
+public class TestQueryPrefetchPlanner extends BaseTestCase {
     private static final Long TXN_ID = 1000l;
 
     private static final Class<? extends VoltProcedure> TARGET_PREFETCH_PROCEDURE = NewReservation.class;
@@ -45,7 +45,7 @@ public class TestQueryPrefetcher extends BaseTestCase {
 
     private LocalTransaction ts;
 
-    private QueryPrefetcher prefetcher;
+    private QueryPrefetchPlanner prefetcher;
     private int[] partition_site_xref;
     private Random rand = new Random(0);
 
@@ -79,7 +79,7 @@ public class TestQueryPrefetcher extends BaseTestCase {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
-        this.prefetcher = new QueryPrefetcher(catalog_db, p_estimator);
+        this.prefetcher = new QueryPrefetchPlanner(catalog_db, p_estimator);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
             this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());

@@ -34,8 +34,8 @@ import edu.brown.utils.PartitionEstimator;
  * @author pavlo
  * @author cjl6
  */
-public class QueryPrefetcher implements Loggable {
-    private static final Logger LOG = Logger.getLogger(QueryPrefetcher.class);
+public class QueryPrefetchPlanner implements Loggable {
+    private static final Logger LOG = Logger.getLogger(QueryPrefetchPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
 //    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
@@ -44,7 +44,7 @@ public class QueryPrefetcher implements Loggable {
     private final int[] partition_site_xref;
     private final int num_sites;
 
-    public QueryPrefetcher(Database catalog_db, PartitionEstimator p_estimator) {
+    public QueryPrefetchPlanner(Database catalog_db, PartitionEstimator p_estimator) {
         // this.catalog_db = catalog_db;
         this.num_sites = CatalogUtil.getNumberOfSites(catalog_db);
 
