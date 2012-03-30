@@ -56,7 +56,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     @Override
     public void remoteHandler(RpcController controller, TransactionWorkRequest request,
             RpcCallback<TransactionWorkResponse> callback) {
-        assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+        assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",

@@ -18,7 +18,6 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -60,7 +59,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     @Override
     public void remoteHandler(RpcController controller, TransactionInitRequest request,
             RpcCallback<TransactionInitResponse> callback) {
-        assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+        assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = request.getTransactionId();
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
@@ -82,7 +81,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             throw new RuntimeException(ex);
         }
         
-        // TODO(cjl6): If (request.getPrefetchFragmentsCount() > 0), then we need to
+        // If (request.getPrefetchFragmentsCount() > 0), then we need to
         // make a RemoteTransaction handle for ourselves so that we can keep track of 
         // our state when pre-fetching queries.
         if (request.getPrefetchFragmentsCount() > 0) {
@@ -96,7 +95,10 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             }
             
             // Stick the prefetch information into the transaction
-            ts.attachPrefetchQueries(request.getPrefetchFragmentsList(), request.getPrefetchParameterSetsList());
+            if (debug.get()) LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
+                                                     ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
+            ts.attachPrefetchQueries(request.getPrefetchFragmentsList(),
+                                     request.getPrefetchParameterSetsList());
         }
         
         
