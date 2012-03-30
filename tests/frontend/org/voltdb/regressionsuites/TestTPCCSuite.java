@@ -74,7 +74,8 @@ public class TestTPCCSuite extends RegressionSuite {
      * Supplemental classes needed by TPC-C procs.
      */
     public static final Class<?>[] SUPPLEMENTALS = {
-        ByteBuilder.class, TPCCConstants.class };
+        ByteBuilder.class, TPCCConstants.class
+    };
 
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
