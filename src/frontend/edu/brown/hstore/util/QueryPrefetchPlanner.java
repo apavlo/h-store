@@ -58,22 +58,28 @@ public class QueryPrefetchPlanner implements Loggable {
         // Initialize a BatchPlanner for each Procedure if it has the
         // prefetch flag set to true. We generate an array of the SQLStmt
         // handles that we will want to prefetch for each Procedure
-        List<SQLStmt> prefetchStmts = null;
+        List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (catalog_proc.getPrefetch()) {
-                if (prefetchStmts == null) prefetchStmts = new ArrayList<SQLStmt>();
-                else prefetchStmts.clear();
-                
-                for (Statement catalog_stmt : catalog_proc.getStatements()) {
-                    if (catalog_stmt.getPrefetch()) {
-                        prefetchStmts.add(new SQLStmt(catalog_stmt));
+            if (catalog_proc.getPrefetch() == false) continue;
+            
+            prefetchStmts.clear();
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                if (catalog_stmt.getPrefetch() == false) continue;
+                // Make sure that all of this Statement's input parameters
+                // are mapped to one of the Procedure's ProcParameter
+                boolean valid = true;
+                for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
+                    if (catalog_param.getProcparameter() == null) {
+                        LOG.warn(String.format("Unable to mark %s as prefetchable because %s is not mapped to a ProcParameter",
+                                               catalog_stmt.fullName(), catalog_param.fullName()));
+                        valid = false;
                     }
                 } // FOR
-                assert(prefetchStmts.isEmpty() == false) :
-                    catalog_proc + " is marked as having prefetchable Statements but none were found";
-                SQLStmt stmtArray[] = prefetchStmts.toArray(new SQLStmt[0]);
-                BatchPlanner planner = new BatchPlanner(stmtArray,
-                                                        stmtArray.length,
+                if (valid) prefetchStmts.add(new SQLStmt(catalog_stmt));
+            } // FOR
+            if (prefetchStmts.isEmpty() == false) {
+                BatchPlanner planner = new BatchPlanner(prefetchStmts.toArray(new SQLStmt[0]),
+                                                        prefetchStmts.size(),
                                                         catalog_proc,
                                                         p_estimator);
                 this.planners.put(catalog_proc, planner);
