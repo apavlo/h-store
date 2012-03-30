@@ -649,8 +649,10 @@ public class HStoreCoordinator implements Shutdownable {
         assert(callback != null) :
             String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         
-        // Look at the Procedure to see whether it has prefetchable queries. If it does, then
-        // embed them in the TransactionInitRequest
+        // Look at the Procedure to see whether it has prefetchable queries. If it does, 
+        // then embed them in the TransactionInitRequest
+        // TODO: We probably don't want to bother prefetching for txns that only touch
+        //       partitions that are in its same local HStoreSite
         if (ts.getProcedure().getPrefetch()) {
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             int sent_ctr = 0;

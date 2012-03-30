@@ -3,7 +3,6 @@ package edu.brown.mappings;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
