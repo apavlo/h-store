@@ -330,7 +330,7 @@ public abstract class CatalogCloner {
                     LOG.warn("dest_stmt:      " + dest_stmt_param.getParent());
                     LOG.warn("src_proc_param: " + src_proc_param);
                     LOG.warn("dest_proc.getParameters(): " + CatalogUtil.debug(dest_proc.getParameters()));
-                    CatalogUtil.saveCatalog(dest_catalog, "catalog.txt");
+                    CatalogUtil.saveCatalog(dest_catalog, CatalogUtil.CATALOG_FILENAME);
                 }
 
                 assert (dest_proc_param != null);

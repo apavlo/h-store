@@ -18,6 +18,7 @@
 package org.voltdb.compiler;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
@@ -49,16 +50,21 @@ import javax.xml.transform.stream.StreamResult;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
 import org.voltdb.VoltProcedure;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.ParametersUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
@@ -194,7 +200,12 @@ public class VoltProjectBuilder {
     /**
      * ProcedureName -> StatementName
      */
-    final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
+    private final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
+    
+    /**
+     * File containing ParameterMappingsSet
+     */
+    private File m_paramMappingsFile;
     
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
@@ -308,12 +319,25 @@ public class VoltProjectBuilder {
     }
     
     /**
+     * Provide the path to the ParameterMappingsSet file to use to
+     * populate the Catalog after it has been created.
+     * @param mappingsFile
+     */
+    public void setParameterMappings(File mappingsFile) {
+        assert(mappingsFile != null) :
+            "Invalid ParameterMappingsSet file";
+        assert(mappingsFile.exists()) :
+            "The ParameterMappingsSet file '" + mappingsFile + "' does not exist";
+        m_paramMappingsFile = mappingsFile;
+    }
+    
+    /**
      * Mark a Statement as prefetchable
      * @param procedureName
      * @param statementName
      */
-    public void markStatementPrefetchabl(Class<? extends VoltProcedure> procedureClass, String statementName) {
-        this.markStatementPrefetchabl(procedureClass.getSimpleName(), statementName);
+    public void markStatementPrefetchable(Class<? extends VoltProcedure> procedureClass, String statementName) {
+        this.markStatementPrefetchable(procedureClass.getSimpleName(), statementName);
     }
 
     /**
@@ -321,7 +345,7 @@ public class VoltProjectBuilder {
      * @param procedureName
      * @param statementName
      */
-    public void markStatementPrefetchabl(String procedureName, String statementName) {
+    public void markStatementPrefetchable(String procedureName, String statementName) {
         Set<String> stmtNames = m_prefetchQueries.get(procedureName);
         if (stmtNames == null) {
             stmtNames = new HashSet<String>();
@@ -589,6 +613,35 @@ public class VoltProjectBuilder {
                                            jarPath,
                                            m_compilerDebugPrintStream,
                                            m_procInfoOverrides);
+        
+        // HACK: If we have a ParameterMappingsSet file, then we have 
+        // to load the catalog into this JVM, apply the mappings, and then
+        // update the jar file with the new catalog
+        if (m_paramMappingsFile != null) {
+            Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+            assert(catalog != null);
+            
+            // Load it up!
+            ParameterMappingsSet mappings = new ParameterMappingsSet();
+            Database catalog_db = CatalogUtil.getDatabase(catalog);
+            try {
+                mappings.load(m_paramMappingsFile.getAbsolutePath(), catalog_db);
+            } catch (IOException ex) {
+                String msg = "Failed to load ParameterMappingsSet file '" + m_paramMappingsFile + "'";
+                throw new RuntimeException(msg, ex);
+            }
+            
+            // Apply it!
+            ParametersUtil.applyParameterMappings(catalog_db, mappings);
+            
+            // Write it out!
+            try {
+                CatalogUtil.updateCatalogInJar(jarPath, catalog);
+            } catch (Exception ex) {
+                String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+                throw new RuntimeException(msg, ex);
+            }
+        }
         
         return success;
     }

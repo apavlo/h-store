@@ -10,10 +10,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.messaging.FastSerializer;
@@ -27,6 +25,7 @@ import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
@@ -37,40 +36,56 @@ import edu.brown.utils.PartitionEstimator;
 public class QueryPrefetchPlanner implements Loggable {
     private static final Logger LOG = Logger.getLogger(QueryPrefetchPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-//    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     // private final Database catalog_db;
     private final Map<Procedure, BatchPlanner> planners = new HashMap<Procedure, BatchPlanner>();
     private final int[] partition_site_xref;
     private final int num_sites;
 
+    /**
+     * Contructor
+     * @param catalog_db
+     * @param p_estimator
+     */
     public QueryPrefetchPlanner(Database catalog_db, PartitionEstimator p_estimator) {
         // this.catalog_db = catalog_db;
         this.num_sites = CatalogUtil.getNumberOfSites(catalog_db);
 
         // Initialize a BatchPlanner for each Procedure if it has the
         // prefetch flag set to true. We generate an array of the SQLStmt
-        // handles
-        // that we will want to prefetch for each Procedure
-        for (Procedure proc : catalog_db.getProcedures()) {
-            if (proc.getPrefetch()) {
-                List<SQLStmt> prefetachable = new ArrayList<SQLStmt>();
-                for (Statement catalog_stmt : proc.getStatements()) {
+        // handles that we will want to prefetch for each Procedure
+        List<SQLStmt> prefetchStmts = null;
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getPrefetch()) {
+                if (prefetchStmts == null) prefetchStmts = new ArrayList<SQLStmt>();
+                else prefetchStmts.clear();
+                
+                for (Statement catalog_stmt : catalog_proc.getStatements()) {
                     if (catalog_stmt.getPrefetch()) {
-                        prefetachable.add(new SQLStmt(catalog_stmt));
+                        prefetchStmts.add(new SQLStmt(catalog_stmt));
                     }
                 } // FOR
-                if (prefetachable.isEmpty() == false) {
-                    BatchPlanner planner = new BatchPlanner(prefetachable.toArray(new SQLStmt[0]), prefetachable.size(), proc, p_estimator);
-                    this.planners.put(proc, planner);
-                }
+                assert(prefetchStmts.isEmpty() == false) :
+                    catalog_proc + " is marked as having prefetchable Statements but none were found";
+                SQLStmt stmtArray[] = prefetchStmts.toArray(new SQLStmt[0]);
+                BatchPlanner planner = new BatchPlanner(stmtArray,
+                                                        stmtArray.length,
+                                                        catalog_proc,
+                                                        p_estimator);
+                this.planners.put(catalog_proc, planner);
+                if (debug.get()) LOG.debug(String.format("%s Prefetch Statements: %s",
+                                                         catalog_proc.getName(), prefetchStmts));
             }
         } // FOR (procedure)
 
-        this.partition_site_xref = new int[CatalogUtil.getNumberOfPartitions(catalog_db)];
-        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_db)) {
-            this.partition_site_xref[catalog_part.getId()] = ((Site) catalog_part.getParent()).getId();
-        } // FOR
+        this.partition_site_xref = CatalogUtil.getPartitionSiteXrefArray(catalog_db);
+        if (debug.get()) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
+        		                                 "Procedures with prefetchable Statements",
+        		                                 this.planners.size()));
     }
 
     /**
@@ -78,11 +93,14 @@ public class QueryPrefetchPlanner implements Loggable {
      * @return
      */
     public TransactionInitRequest[] generateWorkFragments(LocalTransaction ts) {
+        if (debug.get()) LOG.debug(ts + " - Generating prefetch WorkFragments");
+        
         Procedure catalog_proc = ts.getProcedure();
-        assert (ts.getProcedureParameters() != null) : "Unexpected null ParameterSet for " + ts;
+        assert (ts.getProcedureParameters() != null) : 
+            "Unexpected null ParameterSet for " + ts;
         Object proc_params[] = ts.getProcedureParameters().toArray();
 
-        // TODO: Use the StmtParameter mappings for the queries we
+        // Use the StmtParameter mappings for the queries we
         // want to prefetch and extract the ProcParameters
         // to populate an array of ParameterSets to use as the batchArgs
         BatchPlanner planner = this.planners.get(catalog_proc);

@@ -143,7 +143,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         project.addStmtProcedure("GetA", "SELECT * FROM TABLEA WHERE A_ID = ?");
         project.addStmtProcedure("GetACount", "SELECT COUNT(*), SUM(A_NUM_B) FROM TABLEA");
         project.addStmtProcedure("GetBCount", "SELECT COUNT(*) FROM TABLEB");
-        project.markStatementPrefetchabl(Squirrels.class, "getRemote");
+        project.markStatementPrefetchable(Squirrels.class, "getRemote");
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM

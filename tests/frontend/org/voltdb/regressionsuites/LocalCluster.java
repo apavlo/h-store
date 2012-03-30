@@ -260,7 +260,7 @@ public class LocalCluster extends VoltServerConfig {
         
         // (3) Write updated catalog back out to jar file
         try {
-            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog, "catalog.txt");
+            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
