@@ -291,7 +291,8 @@ public class ParametersUtil {
         for (String proc_name : proc_mapping.keySet()) {
             Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
             if (catalog_proc == null) {
-                throw new RuntimeException("Unknown Procedure name '" + proc_name + "' in ParameterMapping");
+                // throw new RuntimeException("Unknown Procedure name '" + proc_name + "' in ParameterMapping");
+                continue;
             }
             LOG.debug("Updating parameter mapping for Procedure '" + proc_name + "'");
             
