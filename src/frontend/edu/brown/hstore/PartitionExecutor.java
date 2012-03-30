@@ -1663,7 +1663,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // them our result. Note that we want to send a single message per partition. Unlike
             // with the TransactionWorkRequests, we don't need to wait until all of the partitions
             // that are prefetching for this txn at our local HStoreSite to finish.
-            if (is_dtxn == false) {
+            if (is_dtxn) {
                 WorkResult wr = this.buildWorkResult(ts, result, status, error);
                 TransactionPrefetchResult prefetchResult = TransactionPrefetchResult.newBuilder()
                                                                 .setTransactionId(ts.getTransactionId().longValue())
