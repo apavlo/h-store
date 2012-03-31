@@ -1,8 +1,11 @@
 package edu.brown.hstore.util;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
@@ -10,13 +13,14 @@ import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
+import org.voltdb.utils.EstTime;
 
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.StringUtil;
 
 public class QueryCache {
-    private static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
+    private static final Logger LOG = Logger.getLogger(QueryCache.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -39,13 +43,14 @@ public class QueryCache {
     // INTERNAL CACHE MEMBERS
     // ----------------------------------------------------------------------------
     
-    private class CacheEntry {
+    private static class CacheEntry {
         final Integer idx;
         Long txnId;
         int fragmentId;
         int paramsHash;
         VoltTable result;
         int accessCounter = 0;
+        long accessTimestamp = 0;
         
         public CacheEntry(int idx) {
             this.idx = Integer.valueOf(idx);
@@ -56,12 +61,33 @@ public class QueryCache {
             this.paramsHash = params.hashCode();
             this.result = result;
         }
+        
+        @Override
+        public String toString() {
+            Class<?> confClass = this.getClass();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            for (Field f : confClass.getDeclaredFields()) {
+                Object obj = null;
+                try {
+                    obj = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    throw new RuntimeException(ex);
+                }
+                if (obj instanceof VoltTable) {
+                    obj = "{Rows: " + ((VoltTable)obj).getRowCount() + "}";
+                }
+//                System.err.printf("[%d] %s -> %s\n", this.hashCode(), f.getName(), obj);
+                m.put(f.getName().toUpperCase(), obj);
+            } // FOR
+//            System.err.println();
+            return (StringUtil.formatMaps(m));
+        }
     } // CLASS
     
     /**
      * Simple circular buffer cache
      */
-    private class Cache {
+    private static class Cache {
         private final CacheEntry buffer[];
         private int current = 0;
         
@@ -118,10 +144,6 @@ public class QueryCache {
         this.globalCache = new Cache(globalBufferSize);
         this.txnCache = new Cache(txnBufferSize);
     }
-
-    // ----------------------------------------------------------------------------
-    // UTILITY CODE
-    // ----------------------------------------------------------------------------
     
     
     // ----------------------------------------------------------------------------
@@ -143,6 +165,9 @@ public class QueryCache {
      */
     @SuppressWarnings("unchecked")
     public void addTransactionQueryResult(Long txnId, int fragmentId, ParameterSet params, VoltTable result) {
+        if (debug.get()) LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
+                                                 txnId, fragmentId, params));
+        
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries == null) {
             try {
@@ -150,11 +175,14 @@ public class QueryCache {
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to initialize list from object pool", ex);
             }
+            this.txnCacheXref.put(txnId, entries);
         }
         
         CacheEntry entry = this.txnCache.getNext(txnId);
+        assert(entry != null);
         entry.init(fragmentId, params, result);
         entries.add(entry.idx);
+        if (debug.get()) LOG.debug(String.format("#%d - CacheEntry\n%s", txnId, entry.toString()));
     }
     
     /**
@@ -192,6 +220,7 @@ public class QueryCache {
                 
                 // Bingo!
                 entry.accessCounter++;
+                entry.accessTimestamp = EstTime.currentTimeMillis();
                 return (entry.result);
             } // FOR
         }
@@ -212,5 +241,27 @@ public class QueryCache {
             }
         }
     }
+
+
+    // ----------------------------------------------------------------------------
+    // UTILITY CODE
+    // ----------------------------------------------------------------------------
     
+    @Override
+    public String toString() {
+        @SuppressWarnings("unchecked")
+        LinkedHashMap<String, Object> m[] = (LinkedHashMap<String, Object>[])new LinkedHashMap<?,?>[2];
+        int idx = 0;
+        
+        // Global Cache
+        m[idx] = new LinkedHashMap<String, Object>();
+        m[idx].put("Global Cache", null);
+        
+        // TxnCache
+        m[++idx] = new LinkedHashMap<String, Object>();
+        m[idx].put("Buffer", StringUtil.join("\n", this.txnCache.buffer));
+        m[idx].put("Current Transactions", this.txnCacheXref);
+        
+        return StringUtil.formatMaps(m);
+    }
 }
