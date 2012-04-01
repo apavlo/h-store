@@ -120,6 +120,7 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.IntArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -417,6 +418,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Reusable ParameterSet array cache for WorkFragments
      */
     private final ParameterSetArrayCache tmp_fragmentParams;
+    
+    /**
+     * Reusable int array for output dependency ids
+     */
+    private final IntArrayCache tmp_outputDepIds = new IntArrayCache(10); // FIXME
+    /**
+     * Reusable int array for input dependency ids
+     */
+    private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -1581,10 +1591,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
+        boolean is_prefetch = fragment.getPrefetch();
         if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isDtxn=%s, fragments=%s]",
                                        ts, fragment.getClass().getSimpleName(),
                                        is_local, is_dtxn, fragment.getFragmentIdCount()));
-
+        
         // If this txn isn't local, then we have to update our undoToken
         if (is_local == false) {
             ts.initRound(this.partitionId, this.getNextUndoToken());
@@ -1644,7 +1655,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         // PREFETCH QUERIES
         // -------------------------------
-        if (fragment.getPrefetch()) {
+        if (is_prefetch) {
             // Regardless of whether this txn is running at the same HStoreSite as this PartitionExecutor,
             // we always need to put the result inside of the AbstractTransaction
             // This is so that we can identify if we get request for a query that we have already executed
@@ -1729,7 +1740,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Executes a FragmentTaskMessage on behalf of some remote site and returns the resulting DependencySet
+     * Executes a FragmentTaskMessage on behalf of some remote site and returns the
+     * resulting DependencySet
      * @param fragment
      * @return
      * @throws Exception
@@ -1738,14 +1750,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
         int fragmentCount = fragment.getFragmentIdCount();
-        long fragmentIds[] = new long[fragmentCount];
-        int outputDepIds[] = new int[fragmentCount];
-        int inputDepIds[] = new int[fragmentCount]; // Is this ok?
-
         if (fragmentCount == 0) {
             LOG.warn(String.format("Got a FragmentTask for %s that does not have any fragments?!?", ts));
             return (result);
         }
+        
+        // Check whether we need more space
+        long fragmentIds[] = new long[fragmentCount];
+        int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
+        int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount); // Is this ok?
         
         // Construct arrays given to the EE
         for (int i = 0; i < fragmentCount; i++) {
@@ -1776,10 +1789,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // SYSPROC FRAGMENTS
         // -------------------------------
         if (ts.isSysProc()) {
-            assert(fragmentIds.length == 1);
+            assert(fragmentCount == 1);
             long fragment_id = fragmentIds[0];
-            assert(fragmentIds.length == parameters.length) :
-                String.format("%s - Fragments:%d / Parameters:%d", ts, fragmentIds.length, parameters.length);
+            assert(fragmentCount == parameters.length) :
+                String.format("%s - Fragments:%d / Parameters:%d",
+                              ts, fragmentCount, parameters.length);
             ParameterSet fragmentParams = parameters[0];
 
             VoltSystemProcedure volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
@@ -1918,13 +1932,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 m.put("Fragments", Arrays.toString(fragmentIds));
                 
                 Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
-                for (int i = 0; i < parameterSets.length; i++)
+                for (int i = 0; i < batchSize; i++)
                     inner.put(i, parameterSets[i].toString());
                 m.put("Parameters", inner);
                 
-                if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
+                if (batchSize > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
                     inner = new ListOrderedMap<Integer, Object>();
-                    for (int i = 0; i < input_depIds.length; i++) {
+                    for (int i = 0; i < batchSize; i++) {
                         List<VoltTable> deps = input_deps.get(input_depIds[i]);
                         inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
                     } // FOR
@@ -1941,7 +1955,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (input_deps != null && input_deps.isEmpty() == false) {
             if (d) LOG.debug(String.format("%s - Stashing %d InputDependencies at partition %d",
                                            ts, input_deps.size(), this.partitionId));
-//            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(input_deps);
         }
         
@@ -1996,7 +2009,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // *********************************** DEBUG ***********************************
         if (d) {
             if (result != null) {
-                LOG.debug(String.format("%s - Finished executing fragments and got back %d results", ts, result.depIds.length));
+                LOG.debug(String.format("%s - Finished executing fragments and got back %d results",
+                                        ts, result.depIds.length));
             } else {
                 LOG.warn(String.format("%s - Finished executing fragments but got back null results? That seems bad...", ts));
             }
