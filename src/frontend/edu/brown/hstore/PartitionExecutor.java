@@ -73,6 +73,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -502,6 +503,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public Database getDatabase();
         public Cluster getCluster();
         public Site getSite();
+        public Host getHost();
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
         public long getNextUndo();
@@ -514,6 +516,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public Database getDatabase()               { return cluster.getDatabases().get("database"); }
         public Cluster getCluster()                 { return cluster; }
         public Site getSite()                       { return site; }
+        public Host getHost()                       { return PartitionExecutor.this.getHost(); }
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
         public long getNextUndo()                   { return getNextUndoToken(); }
@@ -981,6 +984,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public int getHostId() {
         return (this.site.getHost().getRelativeIndex());
+    }
+    public Host getHost() {
+        return (this.site.getHost());
     }
     public int getSiteId() {
         return (this.siteId);
