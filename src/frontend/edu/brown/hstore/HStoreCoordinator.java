@@ -21,6 +21,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
@@ -75,7 +76,7 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.QueryPrefetcher;
+import edu.brown.hstore.util.QueryPrefetchPlanner;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -101,7 +102,7 @@ public class HStoreCoordinator implements Shutdownable {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final Site catalog_site;
-    private int num_sites;
+    private final int num_sites;
     private final int local_site_id;
     
     /** SiteId -> HStoreService */
@@ -131,7 +132,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
     
-    private QueryPrefetcher prefetcher;
+    private final QueryPrefetchPlanner queryPrefetchPlanner;
 
     /**
      * 
@@ -188,6 +189,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.hstore_conf = hstore_site.getHStoreConf();
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
+        this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
 
         // Incoming RPC Handler
@@ -243,12 +245,22 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
         
+        // Initialized QueryPrefetchPlanner if we're allowed to execute
+        // prefetch queries and we actually have some in the catalog 
+        QueryPrefetchPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
-            this.transactionPrefetch_callback = new TransactionPrefetchCallback();
-            this.prefetcher = new QueryPrefetcher(hstore_site.getDatabase(), hstore_site.getPartitionEstimator());
-        } else {
-            this.transactionPrefetch_callback = null;
+            boolean has_prefetch = false;
+            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+                if (catalog_proc.getPrefetch()) {
+                    has_prefetch = true;
+                    break;
+                }
+            }
+            if (has_prefetch) tmpPlanner = new QueryPrefetchPlanner(hstore_site.getDatabase(),
+                                                                    hstore_site.getPartitionEstimator());
         }
+        this.queryPrefetchPlanner = tmpPlanner;
+        this.transactionPrefetch_callback = (this.queryPrefetchPlanner != null ? new TransactionPrefetchCallback() : null);
     }
     
     protected HStoreService initHStoreService() {
@@ -266,7 +278,6 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
-        this.num_sites = this.channels.size();
 
         for (Thread t : this.dispatcherThreads) {
             if (debug.get()) LOG.debug("Starting dispatcher thread: " + t.getName());
@@ -639,40 +650,54 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionInit(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
         if (debug.get()) LOG.debug(String.format("%s - Sending TransactionInitRequest to %d partitions %s",
                                    ts, ts.getPredictTouchedPartitions().size(), ts.getPredictTouchedPartitions()));
-
+        assert(callback != null) :
+            String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         
-        // Look at the Procedure to see whether it has prefetchable queries. If it does, then
-        // embed them in the TransactionInitRequest
+        // Look at the Procedure to see whether it has prefetchable queries. If it does, 
+        // then embed them in the TransactionInitRequest
+        // TODO: We probably don't want to bother prefetching for txns that only touch
+        //       partitions that are in its same local HStoreSite
         if (ts.getProcedure().getPrefetch()) {
-            TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(ts);
+            TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
+            int sent_ctr = 0;
+            int prefetch_ctr = 0;
+            assert(requests.length == this.num_sites) :
+                String.format("Expected %d TransactionInitRequests but we got %d", this.num_sites, requests.length); 
             for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                if (requests[site_id] == null) continue;
+                
                 if (site_id == this.local_site_id) {
-                    this.transactionInit_handler.sendLocal(ts.getTransactionId(), requests[site_id], ts.getPredictTouchedPartitions(), callback);
+                    this.transactionInit_handler.sendLocal(ts.getTransactionId(),
+                                                           requests[site_id],
+                                                           ts.getPredictTouchedPartitions(),
+                                                           callback);
                 }
-                if (requests[site_id] != null) {
+                else {
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
-                    this.channels.get(site_id).transactionInit(controller, requests[site_id], callback);
+                    this.channels.get(site_id).transactionInit(controller,
+                                                               requests[site_id],
+                                                               callback);
                 }
+                
+                sent_ctr++;
+                prefetch_ctr += requests[site_id].getPrefetchFragmentsCount();
             } // FOR
+            assert(sent_ctr > 0) : "No TransactionInitRequests available for " + ts;
+            if (debug.get()) LOG.debug(String.format("%s - Sent %d TransactionInitRequests with %d prefetch WorkFragments",
+                                                     ts, sent_ctr, prefetch_ctr));
+            
         }
+        // Otherwise we will send the same TransactionInitRequest to all of the remote sites 
         else {
             TransactionInitRequest request = TransactionInitRequest.newBuilder()
-                    .setTransactionId(ts.getTransactionId())
-                    .setProcedureId(ts.getProcedure().getId())
-                    .setBasePartition(ts.getBasePartition())
-                    .addAllPartitions(ts.getPredictTouchedPartitions())
-                    .build();
-            assert(callback != null) :
-                String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
+                                                .setTransactionId(ts.getTransactionId())
+                                                .setProcedureId(ts.getProcedure().getId())
+                                                .setBasePartition(ts.getBasePartition())
+                                                .addAllPartitions(ts.getPredictTouchedPartitions())
+                                                .build();
+
             this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
         }
-        
-        // TODO(cjl6): In the later version, use a BatchPlanner to identify which WorkFragments need to
-        //             go to which partitions and then generate unique InitRequest objects per partition
-        
-        
-        // TODO(pavlo): Add boolean flag to Procedure catalog object that says whether 
-        // it has pre-fetchable queries or not. Create a quick lookup mechanism to get those queries
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
         //              about the rejection to the other partitions that are included in the InitRequest.
