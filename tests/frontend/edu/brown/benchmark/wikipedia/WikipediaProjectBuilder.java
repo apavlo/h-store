@@ -39,11 +39,11 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = WikipediaLoader.class;
  
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        AddWatchList.class,
-        GetPageAnonymous.class,
-        GetPageAuthenticated.class,
-        RemoveWatchList.class,
-        UpdatePage.class,
+//        AddWatchList.class,
+//        GetPageAnonymous.class,
+//        GetPageAuthenticated.class,
+//        RemoveWatchList.class,
+//        UpdatePage.class,
     };
     
     /**
