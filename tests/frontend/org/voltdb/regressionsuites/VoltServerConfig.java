@@ -111,6 +111,7 @@ public abstract class VoltServerConfig {
     protected final Map<String, String> confParams = new HashMap<String, String>(); 
     {
         this.setConfParameter("site.coordinator_sync_time", false);
+        this.setConfParameter("site.preload", false);
     }
     
     public final void setTestNameSuffix(String suffix) {

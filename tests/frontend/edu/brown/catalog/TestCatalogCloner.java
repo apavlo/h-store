@@ -78,7 +78,6 @@ public class TestCatalogCloner extends BaseTestCase {
      * @param item1
      * @throws Exception
      */
-    @SuppressWarnings("unchecked")
     protected <T extends CatalogType> void checkFields(Class<T> base_class, CatalogType item0, CatalogType item1) throws Exception {
         String base_name = base_class.getSimpleName();
         boolean debug = false;
@@ -108,8 +107,8 @@ public class TestCatalogCloner extends BaseTestCase {
             if (field_val0 instanceof CatalogMap) {
                 assert (field_val1 instanceof CatalogMap);
 
-                CatalogMap map0 = (CatalogMap) field_val0;
-                CatalogMap map1 = (CatalogMap) field_val1;
+                CatalogMap<?> map0 = (CatalogMap<?>) field_val0;
+                CatalogMap<?> map1 = (CatalogMap<?>) field_val1;
                 if (debug)
                     System.err.println(CatalogUtil.debug(map0) + " <-> " + CatalogUtil.debug(map1));
                 assertEquals("Mismatched CatalogMap sizes for " + field_name, map0.size(), map1.size());

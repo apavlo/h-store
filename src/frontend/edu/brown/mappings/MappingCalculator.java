@@ -43,8 +43,6 @@ public class MappingCalculator {
      * Represents the correlation calculations for a single stored procedure
      */
     protected class ProcedureCorrelations {
-        private static final long serialVersionUID = 1L;
-        
         private final Procedure catalog_proc;
         private final Map<Statement, AtomicInteger> query_counters = new TreeMap<Statement, AtomicInteger>();
         private final Map<Statement, Map<Integer, QueryInstance>> query_instances = new TreeMap<Statement, Map<Integer,QueryInstance>>();

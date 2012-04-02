@@ -1390,18 +1390,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * Execute some work on a particular PartitionExecutor
+     * Execute a WorkFragment on a particular PartitionExecutor
      * @param request
      * @param done
      */
     public void transactionWork(AbstractTransaction ts, WorkFragment fragment) {
-        if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                                                fragment.getPartitionId(), ts.getTransactionId()));
-        int partition = fragment.getPartitionId();
-        assert(this.isLocalPartition(partition)) :
-            "Trying to queue work for " + ts + " at non-local partition " + partition;
+        if (d) LOG.debug(String.format("%s - Queuing %s on partition %d [prefetch=%s]",
+                                       ts, fragment.getClass().getSimpleName(),
+                                       fragment.getPartitionId(), fragment.getPrefetch()));
+        assert(this.isLocalPartition(fragment.getPartitionId())) :
+            "Trying to queue work for " + ts + " at non-local partition " + fragment.getPartitionId();
         FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
-        this.executors[partition].queueWork(ts, ftask);
+        this.executors[fragment.getPartitionId()].queueWork(ts, ftask);
     }
 
 
