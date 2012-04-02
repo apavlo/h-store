@@ -25,6 +25,7 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.regex.Pattern;
 
 import junit.framework.Test;
 
@@ -73,7 +74,8 @@ public class TestTPCCSuite extends RegressionSuite {
      * Supplemental classes needed by TPC-C procs.
      */
     public static final Class<?>[] SUPPLEMENTALS = {
-        ByteBuilder.class, TPCCConstants.class };
+        ByteBuilder.class, TPCCConstants.class
+    };
 
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -862,6 +864,10 @@ public class TestTPCCSuite extends RegressionSuite {
         project.addStmtProcedure("InsertDistrict", "INSERT INTO DISTRICT VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "DISTRICT.D_W_ID: 1");
         project.addStmtProcedure("InsertCustomerName", "INSERT INTO CUSTOMER_NAME VALUES (?, ?, ?, ?, ?);");
 
+        // Remove any MapReduce and OLAP transactions
+        project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));
+        project.removeProcedures(Pattern.compile("^OLAP.*", Pattern.CASE_INSENSITIVE));
+        
 //        project.addStmtProcedure("GetOrderLineCount", "SELECT * FROM ORDER_LINE");
 //        project.addStmtProcedure("GetStockCount", "SELECT * FROM STOCK");
         
