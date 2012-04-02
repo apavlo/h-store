@@ -585,7 +585,7 @@ public abstract class AbstractCostModel {
                 cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
             } catch (Exception ex) {
                 LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
-                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), CatalogUtil.CATALOG_FILENAME);
                 throw ex;
             }
             if (upper_bound != null && cost > upper_bound.doubleValue()) {

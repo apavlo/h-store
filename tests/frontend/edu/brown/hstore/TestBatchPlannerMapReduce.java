@@ -54,14 +54,8 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertNotNull(this.catalog_proc);
         this.catalog_stmt = this.catalog_proc.getStatements().get(stmt_name);
         assertNotNull(this.catalog_stmt);
-        
-        CatalogMap<PlanFragment> fragments = null;
-        if (this.catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-            fragments = this.catalog_stmt.getFragments();
-        } else {
-            assert(this.catalog_stmt.getHas_multisited());
-            fragments = this.catalog_stmt.getMs_fragments();
-        }
+        assertTrue(this.catalog_stmt.fullName(), this.catalog_stmt.getHas_singlesited());
+        CatalogMap<PlanFragment> fragments = this.catalog_stmt.getFragments();
 
         // Create a SQLStmt batch
         this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, fragments) };

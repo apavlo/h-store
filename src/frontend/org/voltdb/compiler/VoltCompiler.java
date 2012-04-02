@@ -405,7 +405,7 @@ public class VoltCompiler {
         
         try {
 //            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
-            m_jarBuilder.addEntry("catalog.txt", catalogBytes);
+            m_jarBuilder.addEntry(CatalogUtil.CATALOG_FILENAME, catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
                 m_jarBuilder.addEntry(e.getKey(), new File(e.getValue()));
