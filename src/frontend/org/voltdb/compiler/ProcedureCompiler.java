@@ -160,7 +160,6 @@ public abstract class ProcedureCompiler {
 
             // Initialize the MapOutput table
             // Create an invocation of the VoltMapProcedure so that we can grab
-            // the
             // the MapOutput's schema
             VoltTable.ColumnInfo[] schema = mrInstance.getMapOutputSchema();
             String tableMapOutput = "MAP_" + procedure.getName();
