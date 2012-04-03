@@ -1083,11 +1083,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(fragmentParams.length == num_fragments);
         
         for (int i = 0; i < num_fragments; i++) {
-            int stmt_index = fragment.getStmtIndex(i);
-            assert(stmt_index < allParams.length) :
+            int param_index = fragment.getParamIndex(i);
+            assert(param_index < allParams.length) :
                 String.format("StatementIndex is %d but there are only %d ParameterSets for %s",
-                              stmt_index, allParams.length, ts); 
-            fragmentParams[i].setParameters(allParams[stmt_index]);
+                              param_index, allParams.length, ts); 
+            fragmentParams[i].setParameters(allParams[param_index]);
         } // FOR
         return (fragmentParams);
     }
@@ -1100,7 +1100,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]:\n%s",
                                        ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
-            int stmt_index = fragment.getStmtIndex(i);
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
                 if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
@@ -1108,15 +1107,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // If the Transaction is on the same HStoreSite, then all the 
                 // input dependencies will be internal and can be retrieved locally
                 if (is_local) {
-                    List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(stmt_index, input_dep_id);
+                    List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(input_dep_id);
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d>\n" + deps,
-                                                   ts, deps.size(), stmt_index, input_dep_id));
+                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
+                                                   ts, deps.size(), input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
-                // We should really try to merege these two concepts into a single function call
+                // We should really try to merge these two concepts into a single function call
                 else if (attachedInputs.containsKey(input_dep_id)) {
                     List<VoltTable> deps = attachedInputs.get(input_dep_id);
                     List<VoltTable> pDeps = null;
@@ -1135,8 +1134,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         pDeps = deps;
                     }
                     inputs.put(input_dep_id, pDeps); 
-                    if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for <Stmt #%d, DependencyId #%d> in %s",
-                                                   ts, deps.size(), stmt_index, input_dep_id));
+                    if (d) LOG.debug(String.format("%s - Retrieved %d ATTACHED VoltTables for DependencyId #%d in %s",
+                                                   ts, deps.size(), input_dep_id));
                 }
 
             } // FOR (inputs)
@@ -2168,7 +2167,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.
-            requestBuilder.addStatementIndexes(ftask.getStmtIndexList());
+            requestBuilder.addParamIndexes(ftask.getParamIndexList());
             
             // Input Dependencies
             if (ftask.getNeedsInput()) {
@@ -2248,7 +2247,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param parameters
      * @return
      */
-    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, int batchSize, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
         assert(fragments.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
         
@@ -2304,7 +2303,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // there is a race condition that a task with input dependencies will start running as soon as we
         // get one response back from another executor
         ts.initRound(this.partitionId, this.getNextUndoToken());
-        ts.setBatchSize(parameters.length);
+        ts.setBatchSize(batchSize);
         boolean first = true;
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         boolean serializedParams = false;

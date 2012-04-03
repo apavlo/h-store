@@ -1019,8 +1019,11 @@ public class BatchPlanner implements Loggable {
                     // All fragments will produce some output
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
 
-                    // SQLStmt Index
+                    // SQLStmt Index (in batch)
                     partitionBuilder.addStmtIndex(v.stmt_index);
+                    
+                    // ParameterSet Index
+                    partitionBuilder.addParamIndex(v.stmt_index);
 
                     // Read-Only
                     partitionBuilder.setReadOnly(partitionBuilder.getReadOnly() || v.read_only);
