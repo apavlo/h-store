@@ -70,6 +70,9 @@ public class ArgumentsParser {
     static {
         LoggerUtil.setupLogging();
     }
+    
+    // HACK
+    public static boolean DISABLE_UPDATE_CATALOG = false;
 
     // --------------------------------------------------------------
     // INPUT PARAMETERS
@@ -832,7 +835,7 @@ public class ArgumentsParser {
         }
 
         // Update Cluster Configuration
-        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS) && DISABLE_UPDATE_CATALOG == false) {
             ClusterConfiguration cc = new ClusterConfiguration(this.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
             this.updateCatalog(FixCatalog.addHostInfo(this.catalog, cc), null);
         }

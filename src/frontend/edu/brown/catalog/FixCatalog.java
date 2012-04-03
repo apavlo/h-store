@@ -110,7 +110,8 @@ public abstract class FixCatalog {
               // LOG.debug("Added " + ctr + " partitions for " + catalog_host);
         } // FOR
         catalog_clus.setNum_partitions(partition_ctr);
-        LOG.info("Updated host information in catalog with " + (host_id - 1) + " new hosts and " + partition_ctr + " partitions");
+        LOG.info(String.format("Updated host information in catalog with %d hosts and %d partitions",
+                               catalog_clus.getHosts().size(), partition_ctr));
         return (catalog);
     }
 
@@ -176,6 +177,7 @@ public abstract class FixCatalog {
      * @param args
      */
     public static void main(String[] vargs) throws Exception {
+        ArgumentsParser.DISABLE_UPDATE_CATALOG = true;
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE, ArgumentsParser.PARAM_CATALOG_OUTPUT);
 
