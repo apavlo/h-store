@@ -1779,18 +1779,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.tmp_EEdependencies.clear();
         this.getFragmentInputs(ts, fragment, this.tmp_EEdependencies);
         
+        // *********************************** DEBUG ***********************************
         if (d) {
             LOG.debug(String.format("%s - Getting ready to kick %d fragments to EE",
                                     ts, fragmentCount));
-            if (t) {
-                LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
-                for (int i = 0; i < parameters.length; i++) {
-                    m.put("Parameter[" + i + "]", parameters[i]);
-                } // FOR
-                LOG.trace("Parameters:\n" + StringUtil.formatMaps(m));
-            }
+//            if (t) {
+//                LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
+//                Map<String, Object> m = new ListOrderedMap<String, Object>();
+//                for (int i = 0; i < parameters.length; i++) {
+//                    m.put("Parameter[" + i + "]", parameters[i]);
+//                } // FOR
+//                LOG.trace("Parameters:\n" + StringUtil.formatMaps(m));
+//            }
         }
+        // *********************************** DEBUG ***********************************
         
         // -------------------------------
         // SYSPROC FRAGMENTS
@@ -2256,11 +2258,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                              ts, fragments.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
-                sb.append(ts + " WorkFragments:\n");
+                sb.append(ts + " - WorkFragments:\n");
                 for (WorkFragment fragment : fragments) {
                     sb.append(StringUtil.box(fragment.toString()) + "\n");
                 } // FOR
-                sb.append(ts + " ParameterSets:\n");
+                sb.append(ts + " - ParameterSets:\n");
                 for (ParameterSet ps : parameters) {
                     sb.append(ps + "\n");
                 } // FOR
