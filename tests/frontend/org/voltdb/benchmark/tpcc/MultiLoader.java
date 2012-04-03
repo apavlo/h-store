@@ -77,7 +77,7 @@ public class MultiLoader extends BenchmarkComponent {
     private final LoadThread m_loadThreads[];
     final TPCCConfig m_tpccConfig;
 
-    private int MAX_BATCH_SIZE = 10000;
+    private int MAX_BATCH_SIZE = 5000;
     
     private static final VoltTable.ColumnInfo customerTableColumnInfo[] = new VoltTable.ColumnInfo[] {
             new VoltTable.ColumnInfo("C_ID", VoltType.INTEGER), new VoltTable.ColumnInfo("C_D_ID", VoltType.TINYINT),
@@ -97,9 +97,6 @@ public class MultiLoader extends BenchmarkComponent {
         if (LOG.isDebugEnabled())
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
         
-        // HACK
-        MAX_BATCH_SIZE *= Math.min(1000, (10 / m_tpccConfig.num_warehouses));
-
         HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < m_tpccConfig.num_loadthreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, hstore_conf.client.scalefactor);
