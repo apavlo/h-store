@@ -38,10 +38,10 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
     }
     
     @Test
-    public void testMapReduceTransaction () throws IOException, ProcCallException {
+    public void testMMRquery1 () throws IOException, ProcCallException {
         //int num_partitions = this.getServerConfig().getPartitionCount();
         Client client = this.getClient();
-        final VoltTable vt = this.loadTable(client);
+        final VoltTable vt = this.loadTable_ORDER_LINE(client);
         
         assertEquals(vt.getColumnCount(), 10);
         
@@ -115,7 +115,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
     }
     
     
-    protected VoltTable loadTable(Client client) throws IOException, ProcCallException {
+    protected VoltTable loadTable_ORDER_LINE(Client client) throws IOException, ProcCallException {
         int num_partitions = this.getServerConfig().getPartitionCount();
         int num_tuples = num_partitions * 10;
 

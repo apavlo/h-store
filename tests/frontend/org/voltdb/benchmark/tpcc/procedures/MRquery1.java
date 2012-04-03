@@ -18,10 +18,11 @@ import edu.brown.utils.CollectionUtil;
 public class MRquery1 extends VoltMapReduceProcedure<Long> {
 
     public SQLStmt mapInputQuery = new SQLStmt(
-            "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
-            "COUNT(*) FROM order_line " +
-            //"WHERE ol_delivery_d > ? " +
-            "GROUP BY ol_number order by ol_number"
+            "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), COUNT(*) " +
+            "FROM order_line " +
+            "WHERE ol_delivery_d > '2007-01-02 00:00:00.000000' " +
+            "GROUP BY ol_number " +
+            "ORDER BY ol_number"
     );
 
     @Override
