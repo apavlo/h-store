@@ -130,8 +130,6 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-//         if (PlanNodeUtil.isDistributedQuery(root) &&
-//         if (sql.contains("SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), SUM(i_price), COUNT(*)")) {
 //             LOG.debug("LET 'ER RIP!");
 //         }
 
