@@ -1780,7 +1780,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.getFragmentInputs(ts, fragment, this.tmp_EEdependencies);
         
         if (d) {
-            LOG.debug(String.format("Getting ready to kick %d fragments to EE for %s", fragmentCount, ts));
+            LOG.debug(String.format("%s - Getting ready to kick %d fragments to EE",
+                                    ts, fragmentCount));
             if (t) {
                 LOG.trace("FragmentTaskIds: " + Arrays.toString(fragmentIds));
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -1816,7 +1817,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    (int)fragment_id,
                                                    fragmentParams,
                                                    this.m_systemProcedureContext);
-            if (d) LOG.debug(String.format("Finished executing sysproc fragments for %s\n%s", ts, result));
+            if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d\n%s",
+                                           ts, fragment_id, result));
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
