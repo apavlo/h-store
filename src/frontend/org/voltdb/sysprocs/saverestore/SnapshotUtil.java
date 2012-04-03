@@ -630,10 +630,11 @@ public class SnapshotUtil {
 
     public static final List<Table> getTablesToSave(Database database)
     {
-        CatalogMap<Table> all_tables = database.getTables();
         ArrayList<Table> my_tables = new ArrayList<Table>();
-        for (Table table : all_tables)
+        for (Table table : database.getTables())
         {
+            if (table.getSystable() || table.getMapreduce()) continue;
+            
 //            // Make a list of all non-materialized, non-export only tables
 //            if ((table.getMaterializer() != null) ||
 //                    (CatalogUtil.isTableExportOnly(database, table)))
