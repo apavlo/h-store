@@ -121,34 +121,35 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
     
     private SynthesizedPlanFragment[] createReplicatedPlan(Table catalog_tbl, VoltTable table) {
-        if (debug.get()) LOG.debug(catalog_tbl + " is replicated. Creating " + num_partitions + " fragments to send to all partitions");
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_partitions];
+        if (debug.get()) LOG.debug(String.format("%s - %s is replicated. Creating %d fragments to send to all partitions",
+                                   this.getTransactionState(), catalog_tbl.getName(), num_partitions));
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.num_partitions + 1];
 
         ParameterSet params = new ParameterSet(catalog_tbl.getName(), table);
         
         // create a work unit to invoke super.loadTable() on each site.
-        for (int i = 0; i < num_partitions; ++i) {
-            int partition = i;
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_loadDistribute;
-            pfs[i].outputDependencyIds = new int[] { (int)DEP_distribute };
-            pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].multipartition = false; // true
-            pfs[i].nonExecSites = false;
-            pfs[i].parameters = params;
-            pfs[i].destPartitionId = partition;
+        for (int partition = 0; partition < num_partitions; ++partition) {
+            pfs[partition] = new SynthesizedPlanFragment();
+            pfs[partition].fragmentId = SysProcFragmentId.PF_loadDistribute;
+            pfs[partition].outputDependencyIds = new int[] { (int)DEP_distribute };
+            pfs[partition].inputDependencyIds = new int[] { };
+            pfs[partition].multipartition = false; // true
+            pfs[partition].nonExecSites = false;
+            pfs[partition].parameters = params;
+            pfs[partition].destPartitionId = partition;
         } // FOR
 
         // create a work unit to aggregate the results.
         // MULTIPARTION_DEPENDENCY bit set, requiring result from ea. site
-//        pfs[0] = new SynthesizedPlanFragment();
-//        pfs[0].fragmentId = SysProcFragmentId.PF_loadAggregate;
-//        pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
-//        pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
-//        pfs[0].multipartition = false;
-//        pfs[0].nonExecSites = false;
-//        pfs[0].parameters = new ParameterSet();
-//        pfs[0].destPartitionId = partitionId;
+        int idx = this.num_partitions;
+        pfs[idx] = new SynthesizedPlanFragment();
+        pfs[idx].fragmentId = SysProcFragmentId.PF_loadAggregate;
+        pfs[idx].outputDependencyIds = new int[] { (int)DEP_aggregate };
+        pfs[idx].inputDependencyIds = new int[] { (int)DEP_distribute };
+        pfs[idx].multipartition = false;
+        pfs[idx].nonExecSites = false;
+        pfs[idx].parameters = new ParameterSet();
+        pfs[idx].destPartitionId = this.partitionId;
 
         return (pfs);
     }
@@ -204,7 +205,9 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             sb.append("LoadMultipartition Info for ").append(catalog_tbl.getName()).append(":");
         }
 
-        // generate a plan fragment for each site using the sub-tables
+        // Generate a plan fragment for each site using the sub-tables
+        // Note that we only need to create a PlanFragment for a partition if its portion
+        // of the table that we just split up doesn't have any rows 
         List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
         for (int i = 0; i < partitionedTables.length; ++i) {
             int partition = i;
@@ -305,8 +308,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
         if (debug.get()) LOG.debug(String.format("%s Vertical Partition: %s", catalog_tbl.getName(), catalog_view));
         if (catalog_view != null) {
-            if (debug.get()) 
-                LOG.debug(String.format("Updating %s's vertical partition %s", catalog_tbl.getName(), catalog_view.getDest().getName()));
+            if (debug.get()) LOG.debug(String.format("%s - Updating %s's vertical partition %s",
+                                                     this.m_localTxnState, catalog_tbl.getName(), catalog_view.getDest().getName()));
             executeSysProcPlanFragments(createVerticalPartitionPlan(catalog_view, table), (int)DEP_aggregate);
         }
         
