@@ -125,31 +125,28 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                                    this.getTransactionState(), catalog_tbl.getName(), num_partitions));
         ParameterSet params = new ParameterSet(catalog_tbl.getName(), table);
         
-        // create a work unit to invoke super.loadTable() on each site.
-//        for (int partition = 0; partition < num_partitions; ++partition) {
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[1]; // this.num_partitions];
-        int partition = 0;
-            pfs[partition] = new SynthesizedPlanFragment();
-            pfs[partition].fragmentId = SysProcFragmentId.PF_loadDistribute;
-            pfs[partition].outputDependencyIds = new int[] { (int)DEP_distribute };
-            pfs[partition].inputDependencyIds = new int[] { };
-            pfs[partition].multipartition = true;
-            pfs[partition].nonExecSites = false;
-            pfs[partition].parameters = params;
-//            pfs[partition].destPartitionId = partition;
-//        } // FOR
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
+        int idx = 0;
+        
+        // Create a work unit to invoke super.loadTable() on each partition
+        pfs[idx] = new SynthesizedPlanFragment();
+        pfs[idx].fragmentId = SysProcFragmentId.PF_loadDistribute;
+        pfs[idx].outputDependencyIds = new int[] { (int)DEP_distribute };
+        pfs[idx].inputDependencyIds = new int[] { };
+        pfs[idx].multipartition = true;
+        pfs[idx].nonExecSites = false;
+        pfs[idx].parameters = params;
 
-        // create a work unit to aggregate the results.
-        // MULTIPARTION_DEPENDENCY bit set, requiring result from ea. site
-//        int idx = this.num_partitions;
-//        pfs[idx] = new SynthesizedPlanFragment();
-//        pfs[idx].fragmentId = SysProcFragmentId.PF_loadAggregate;
-//        pfs[idx].outputDependencyIds = new int[] { (int)DEP_aggregate };
-//        pfs[idx].inputDependencyIds = new int[] { (int)DEP_distribute };
-//        pfs[idx].multipartition = false;
-//        pfs[idx].nonExecSites = false;
-//        pfs[idx].parameters = new ParameterSet();
-//        pfs[idx].destPartitionId = this.partitionId;
+        // Create a work unit to aggregate the results.
+        idx += 1;
+        pfs[idx] = new SynthesizedPlanFragment();
+        pfs[idx].fragmentId = SysProcFragmentId.PF_loadAggregate;
+        pfs[idx].outputDependencyIds = new int[] { (int)DEP_aggregate };
+        pfs[idx].inputDependencyIds = new int[] { (int)DEP_distribute };
+        pfs[idx].multipartition = false;
+        pfs[idx].nonExecSites = false;
+        pfs[idx].parameters = new ParameterSet();
+        pfs[idx].destPartitionId = this.partitionId;
 
         return (pfs);
     }
