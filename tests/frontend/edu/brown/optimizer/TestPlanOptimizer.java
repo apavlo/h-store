@@ -95,7 +95,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   " FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_B_A_ID");
             
             this.addStmtProcedure("OrderBy",
-                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
+                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID DESC, TABLEC.C_VALUE0 ASC");
             
             this.addStmtProcedure("LimitOrderBy",
                                   "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
