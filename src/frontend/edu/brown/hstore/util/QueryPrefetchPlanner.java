@@ -185,7 +185,7 @@ public class QueryPrefetchPlanner implements Loggable {
                                             .setBasePartition(ts.getBasePartition())
                                             .addAllPartitions(ts.getPredictTouchedPartitions());
                 for (ByteString bs : prefetchParamsSerialized) {
-                    builders[site_id].addPrefetchParameterSets(bs);
+                    builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
             builders[site_id].addPrefetchFragments(frag);

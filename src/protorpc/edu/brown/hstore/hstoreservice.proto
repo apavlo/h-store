@@ -55,23 +55,26 @@ message WorkFragment {
     repeated int32 output_dep_id = 4 [packed=true];
     
     // What SQLStmt in the batch this PlanFragment belongs to
-    repeated int32 stmt_index = 5 [packed=true];
+    repeated int32 stmt_index = 6 [packed=true];
+    
+    // What ParameterSet offset do we need for each PlanFragment
+    repeated int32 param_index = 7 [packed=true];
     
     // Are all of the PlanFragments read only?
-    required bool read_only = 6;
+    required bool read_only = 8;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    required bool needs_input = 7;
+    required bool needs_input = 9;
     
-    // If true, this is the final fragment for this transaction at this partition.
-    optional bool last_fragment = 8 [default = false];
+    // If true, then this is the final fragment for this transaction at this partition.
+    optional bool last_fragment = 10 [default = false];
 
-    // If true, this fragment should be prefetched.
-    optional bool prefetch = 9 [default = false];
+    // If true, then this is a prefetch fragment
+    optional bool prefetch = 11 [default = false];
     
-    // If true, this fragment should always be executed regardless 
+    // If true, then this fragment should always be executed regardless 
     // of whether its result is cached.
-    optional bool force = 10 [default = false];
+    optional bool force = 12 [default = false];
 }
 
 // The output results of WorkFragments
@@ -120,8 +123,8 @@ message TransactionInitRequest {
     repeated WorkFragment prefetch_fragments = 5;
     
     // Serialized ParameterSets (one per Statment).
-    // The order of these elements must match Work.stmtIndex
-    repeated bytes prefetch_parameter_sets = 6;
+    // The order of these elements must match WorkFragment.paramIndex
+    repeated bytes prefetch_params = 6;
 }
 
 message TransactionInitResponse {
@@ -151,8 +154,8 @@ message TransactionWorkRequest {
     required bool sysproc = 4 [default = false];
     
     // Serialized ParameterSets (one per Statment).
-    // The order of these elements must match Work.stmtIndex
-    repeated bytes parameter_sets = 5;
+    // The order of these elements must match WorkFragment.paramIndex
+    repeated bytes params = 5;
     
     // We can attach input dependencies to each message
     // Unique Dependency Identifers

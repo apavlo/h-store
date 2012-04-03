@@ -873,11 +873,10 @@ public class LocalTransaction extends AbstractTransaction {
     }
     /**
      * 
-     * @param stmt_index Statement Index
      * @param d_id Output Dependency Id
      * @return
      */
-    protected DependencyInfo getDependencyInfo(int stmt_index, int d_id) {
+    protected DependencyInfo getDependencyInfo(int d_id) {
         return (this.state.dependencies.get(d_id));
         // return (this.state.dependencies[stmt_index].get(d_id));
     }
@@ -978,11 +977,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     private DependencyInfo getOrCreateDependencyInfo(int stmt_index, Integer dep_id) {
-        Map<Integer, DependencyInfo> stmt_dinfos = this.state.dependencies; // [stmt_index];
-//        if (stmt_dinfos == null) {
-//            stmt_dinfos = new HashMap<Integer, DependencyInfo>();
-//            this.state.dependencies[stmt_index] = stmt_dinfos;
-//        }
+        Map<Integer, DependencyInfo> stmt_dinfos = this.state.dependencies;
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
         int base_partition_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         int currentRound = this.round_ctr[base_partition_offset]; 
@@ -1007,10 +1002,6 @@ public class LocalTransaction extends AbstractTransaction {
             if (d) LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
                                            this, debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
         }
-//        if (d) LOG.debug(String.format("%s - state.dinfo_lastRound[%d] = %d",
-//                                       this, stmt_index, currentRound));
-//        this.state.dinfo_lastRound[stmt_index] = currentRound;
-        
         if (dinfo.isInitialized() == false) {
             dinfo.init(this.txn_id, currentRound, stmt_index, dep_id.intValue());
         }
@@ -1073,6 +1064,7 @@ public class LocalTransaction extends AbstractTransaction {
         // transaction's base partition PartitionExecutor
         for (int i = 0; i < num_fragments; i++) {
             int stmt_index = fragment.getStmtIndex(i);
+//            int param_index = fragment.getParamIndex(i);
             
             // If this task produces output dependencies, then we need to make 
             // sure that the txn wait for it to arrive first
@@ -1217,7 +1209,7 @@ public class LocalTransaction extends AbstractTransaction {
             } // SYNCH
         }
             
-        // Each partition+dependency_id should be unique for a Statement batch.
+        // Each partition+dependency_id should be unique within the Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
         DependencyInfo dinfo = null;
         Queue<Integer> queue = this.state.results_dependency_stmt_ctr.get(key);
@@ -1229,7 +1221,7 @@ public class LocalTransaction extends AbstractTransaction {
                           debugPartDep(partition, dependency_id), this, key, this.state.results_dependency_stmt_ctr);
 
         int stmt_index = queue.remove().intValue();
-        dinfo = this.getDependencyInfo(stmt_index, dependency_id);
+        dinfo = this.getDependencyInfo(dependency_id);
         assert(dinfo != null) :
             String.format("Unexpected %s for %s [stmt_index=%d]\n%s",
                           debugPartDep(partition, dependency_id), this, stmt_index, result); 
@@ -1309,7 +1301,7 @@ public class LocalTransaction extends AbstractTransaction {
             for (int input_d_id : input_dep_ids.getIdsList()) {
                 if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
                 
-                DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+                DependencyInfo dinfo = this.getDependencyInfo(input_d_id);
                 assert(dinfo != null);
                 assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
                     String.format("%s - Number of results retrieved for %s is %d " +
@@ -1326,21 +1318,21 @@ public class LocalTransaction extends AbstractTransaction {
         return (results);
     }
     
-    public List<VoltTable> getInternalDependency(int stmt_index, int input_d_id) {
-        if (d) LOG.debug(String.format("%s - Retrieving internal dependencies for %s",
-                                       this, debugStmtDep(stmt_index, input_d_id)));
+    public List<VoltTable> getInternalDependency(int input_d_id) {
+        if (d) LOG.debug(String.format("%s - Retrieving internal dependencies for Dependency %d",
+                                       this, input_d_id));
         
-        DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+        DependencyInfo dinfo = this.getDependencyInfo(input_d_id);
         assert(dinfo != null) :
-            String.format("No DependencyInfo object for %s in %s",
-                          debugStmtDep(stmt_index, input_d_id), this);
+            String.format("No DependencyInfo object for Dependency %d in %s",
+                          input_d_id, this);
         assert(dinfo.isInternal()) :
-            String.format("The DependencyInfo for for %s in %s is not marked as internal",
-                          debugStmtDep(stmt_index, input_d_id), this);
+            String.format("The DependencyInfo for Dependency %s in %s is not marked as internal",
+                          input_d_id, this);
         assert(dinfo.getPartitionCount() == dinfo.getResultsCount()) :
-                    String.format("Number of results from partitions retrieved for %s " +
+                    String.format("Number of results from partitions retrieved for Dependency %s " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
-                                  debugStmtDep(stmt_index, input_d_id), dinfo.getResultsCount(), dinfo.getPartitionCount(), this,
+                                  input_d_id, dinfo.getResultsCount(), dinfo.getPartitionCount(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
         return (dinfo.getResults());
     }

@@ -191,15 +191,13 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 if (debug.get()) 
                     LOG.debug(String.format("%s - Creating %s WorkFragment for partition %s",
                                             ts, this.getClass().getSimpleName(), destPartitionId));
-                // IMPORTANT: All of the WorkFragments must always be assigned to the
-                // same statement index. This ensures that the output from earlier fragments
-                // will be fed into the next one.
                 WorkFragment.Builder builder = WorkFragment.newBuilder()
                                                         .setPartitionId(destPartitionId)
                                                         .setReadOnly(false)
                                                         .setLastFragment(pf.last_task)
                                                         .addFragmentId(pf.fragmentId)
-                                                        .addStmtIndex(i); // 0
+                                                        .addStmtIndex(0)
+                                                        .addParamIndex(i);
                 
                 // Input Dependencies
                 boolean needs_input = false;
@@ -225,6 +223,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         if (hstore_conf.site.txn_profiling) ts.profiler.disableProfiling();
         
         // Bombs away!
-        return (this.executor.dispatchWorkFragments(ts, this.fragments, parameters));
+        return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));
     }
 }
