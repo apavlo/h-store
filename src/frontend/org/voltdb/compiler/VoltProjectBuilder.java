@@ -376,7 +376,8 @@ public class VoltProjectBuilder {
         m_procInfoOverrides.remove(procInfo.name);
         m_prefetchQueries.remove(procInfo.name);
         m_paramMappings.remove(procInfo.name);
-        LOG.info("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
+        if (LOG.isDebugEnabled())
+            LOG.debug("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
     }
     
     /**

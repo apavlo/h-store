@@ -117,7 +117,7 @@ public class BatchPlanner implements Loggable {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
-    private int last_id = FIRST_DEPENDENCY_ID;
+//    private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
     private final Map<Integer, WorkFragment.Builder> round_builders = new HashMap<Integer, WorkFragment.Builder>();
@@ -1079,6 +1079,7 @@ public class BatchPlanner implements Loggable {
         this.sorted_vertices.clear();
         this.output_dependency_xref_clear.clear();
 
+        int last_id = FIRST_DEPENDENCY_ID;
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
             assert (frag_partitions != null) : 
@@ -1098,8 +1099,8 @@ public class BatchPlanner implements Loggable {
                     String.format("No PartitionIds for [%02d] %s in Statement #%d",
                                   round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                Integer output_id = new Integer(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() :
-                                                                         this.last_id++);
+                Integer output_id = new Integer(this.enable_unique_ids ?
+                                                    BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : last_id++);
 
                 PlanVertex v = new PlanVertex(catalog_frag, stmt_index, round, last_output_id, output_id.intValue(), f_local);
 
