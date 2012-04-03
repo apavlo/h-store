@@ -31,7 +31,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -484,12 +483,12 @@ public class LocalTransaction extends AbstractTransaction {
             // Create our output counters
             for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
                 if (t) LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
-                                               this, this.state.dependencies[stmt_index].size(), stmt_index));
-                for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
+                                               this, this.state.dependencies.size(), stmt_index));
+                for (DependencyInfo dinfo : this.state.dependencies.values()) {
                     // Add this DependencyInfo our output list if it's being used in this round for this txn
                     // and if it is not an internal dependency
                     if (dinfo.inSameTxnRound(this.txn_id, this.round_ctr[base_partition_offset]) &&
-                        dinfo.isInternal() == false) {
+                        dinfo.isInternal() == false && dinfo.getStatementIndex() == stmt_index) {
                         this.state.output_order.add(dinfo.getDependencyId());
                     }
                 } // FOR
@@ -839,7 +838,7 @@ public class LocalTransaction extends AbstractTransaction {
 //        }
     }
     
-    protected Set<WorkFragment> getBlockedWorkFragments() {
+    protected Collection<WorkFragment> getBlockedWorkFragments() {
         return (this.state.blocked_tasks);
     }
     public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
@@ -870,7 +869,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.state.batch_size);
     }
     protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
-        return (this.state.dependencies[stmt_index]);
+        return (this.state.dependencies); // [stmt_index]);
     }
     /**
      * 
@@ -879,7 +878,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     protected DependencyInfo getDependencyInfo(int stmt_index, int d_id) {
-        return (this.state.dependencies[stmt_index].get(d_id));
+        return (this.state.dependencies.get(d_id));
+        // return (this.state.dependencies[stmt_index].get(d_id));
     }
     
     
@@ -978,11 +978,11 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     private DependencyInfo getOrCreateDependencyInfo(int stmt_index, Integer dep_id) {
-        Map<Integer, DependencyInfo> stmt_dinfos = this.state.dependencies[stmt_index];
-        if (stmt_dinfos == null) {
-            stmt_dinfos = new HashMap<Integer, DependencyInfo>();
-            this.state.dependencies[stmt_index] = stmt_dinfos;
-        }
+        Map<Integer, DependencyInfo> stmt_dinfos = this.state.dependencies; // [stmt_index];
+//        if (stmt_dinfos == null) {
+//            stmt_dinfos = new HashMap<Integer, DependencyInfo>();
+//            this.state.dependencies[stmt_index] = stmt_dinfos;
+//        }
         DependencyInfo dinfo = stmt_dinfos.get(dep_id);
         int base_partition_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         int currentRound = this.round_ctr[base_partition_offset]; 
@@ -1031,12 +1031,12 @@ public class LocalTransaction extends AbstractTransaction {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
                 "Null output dependency id for Statement index " + stmt_index + " in txn #" + this.txn_id;
-            assert(this.state.dependencies[stmt_index] != null) :
-                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
-            assert(this.state.dependencies[stmt_index].containsKey(dependency_id)) :
+//            assert(this.state.dependencies[stmt_index] != null) :
+//                "Missing dependency set for stmt_index #" + stmt_index + " in txn #" + this.txn_id;
+            assert(this.state.dependencies.containsKey(dependency_id)) :
                 String.format("Missing info for %s in %s", debugStmtDep(stmt_index, dependency_id), this); 
             
-            results[stmt_index] = this.state.dependencies[stmt_index].get(dependency_id).getResult();
+            results[stmt_index] = this.state.dependencies.get(dependency_id).getResult();
             assert(results[stmt_index] != null) :
                 "Null output result for Statement index " + stmt_index + " in txn #" + this.txn_id;
         } // FOR
@@ -1121,14 +1121,16 @@ public class LocalTransaction extends AbstractTransaction {
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 int output_ctr = 0;
-                for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
+                int dep_ctr = 0;
+                for (DependencyInfo dinfo : this.state.dependencies.values()) {
+                    if (dinfo.getStatementIndex() == stmt_index) dep_ctr++;
                     if (dinfo.isInternal() == false) {
                         output_ctr++;
                         sb.append("  Output -> " + dinfo.toString());
                     }
                 } // FOR
                 LOG.trace(String.format("%s - Number of Output Dependencies for StmtIndex #%d: %d out of %d\n%s", 
-                                        this, stmt_index, output_ctr, this.state.dependencies[stmt_index].size(), sb));
+                                        this, stmt_index, output_ctr, dep_ctr, sb));
             }
             // *********************************** DEBUG ***********************************
             
@@ -1469,11 +1471,12 @@ public class LocalTransaction extends AbstractTransaction {
 //                String.format("Expected %d SQLStmts but we only got %d", stmt_debug.length, stmts.length); 
             
             for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
-                Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.state.dependencies[stmt_index]); 
-                Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
-                String inner = "";
+                Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>();
+                for (DependencyInfo dinfo : this.state.dependencies.values()) {
+                    if (dinfo.getStatementIndex() == stmt_index) s_dependencies.put(dinfo.getDependencyId(), dinfo);
+                } // FOR
                 
-                inner += "  Statement #" + stmt_index;
+                String inner = "  Statement #" + stmt_index;
                 if (stmts != null && stmt_index < stmts.length) { 
                     inner += " - " + stmts[stmt_index].getStatement().getName();
                 }
@@ -1481,12 +1484,12 @@ public class LocalTransaction extends AbstractTransaction {
 //                inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
                 
                 inner += "  Dependency Partitions:\n";
-                for (Integer dependency_id : dependency_ids) {
+                for (Integer dependency_id : s_dependencies.keySet()) {
                     inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getPartitions() + "\n";
                 } // FOR
                 
                 inner += "  Dependency Results:\n";
-                for (Integer dependency_id : dependency_ids) {
+                for (Integer dependency_id : s_dependencies.keySet()) {
                     inner += "    [" + dependency_id + "] => [";
                     String add = "";
                     for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
@@ -1498,7 +1501,7 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 inner += "  Blocked WorkFragments:\n";
                 boolean none = true;
-                for (Integer dependency_id : dependency_ids) {
+                for (Integer dependency_id : s_dependencies.keySet()) {
                     DependencyInfo d = s_dependencies.get(dependency_id);
                     for (WorkFragment task : d.getBlockedWorkFragments()) {
                         if (task == null) continue;

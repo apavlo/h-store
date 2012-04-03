@@ -847,7 +847,6 @@ public class TestTPCCSuite extends RegressionSuite {
 
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();
-        //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
         project.addDefaultSchema();
         project.addDefaultProcedures();
         project.addDefaultPartitioning();
@@ -868,23 +867,27 @@ public class TestTPCCSuite extends RegressionSuite {
         project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));
         project.removeProcedures(Pattern.compile("^OLAP.*", Pattern.CASE_INSENSITIVE));
         
-//        project.addStmtProcedure("GetOrderLineCount", "SELECT * FROM ORDER_LINE");
-//        project.addStmtProcedure("GetStockCount", "SELECT * FROM STOCK");
-        
         boolean success;
         
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer("tpcc-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+        config = new LocalSingleProcessServer("tpcc-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        
         config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);
         assert(success);

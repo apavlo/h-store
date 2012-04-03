@@ -203,11 +203,11 @@ public class SerializableException extends VoltProcedure.VoltAbortException {
 
     @Override
     public void printStackTrace(PrintStream s) {
-        s.print(getMessage());
+        s.print(m_message);
     }
 
     @Override
     public void printStackTrace(PrintWriter p) {
-        p.print(getMessage());
+        p.print(m_message);
     }
 }

@@ -35,6 +35,7 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 
 /**
@@ -172,10 +173,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             int partitions[] = null;
             if (pf.destPartitionId < 0) {
                 if (pf.multipartition) {
-                    partitions = new int[hstore_site.getAllPartitionIds().size()];
-                    for (int p = 0; p < partitions.length; p++) {
-                        partitions[p] = p;
-                    } // FOR
+                    partitions = CollectionUtil.toIntArray(hstore_site.getAllPartitionIds());
                 }
                 // If it's not multipartitioned and they still don't have a destPartitionId,
                 // then we'll make it just go to this PartitionExecutor's local partition
@@ -201,7 +199,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                         .setReadOnly(false)
                                                         .setLastFragment(pf.last_task)
                                                         .addFragmentId(pf.fragmentId)
-                                                        .addStmtIndex(0);
+                                                        .addStmtIndex(i); // 0
                 
                 // Input Dependencies
                 boolean needs_input = false;
