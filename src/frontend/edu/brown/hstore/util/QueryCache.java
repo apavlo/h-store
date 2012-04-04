@@ -264,7 +264,12 @@ public class QueryCache {
         
         // TxnCache
         m[++idx] = new LinkedHashMap<String, Object>();
-        m[idx].put("Buffer", StringUtil.join("\n", this.txnCache.buffer));
+        List<CacheEntry> entries = new ArrayList<CacheEntry>();
+        for (CacheEntry entry : this.txnCache.buffer) {
+            if (entry.txnId != null) entries.add(entry);
+        } // FOR
+        m[idx].put(String.format("TxnCache[%d]", entries.size()),
+                   StringUtil.join("\n", entries).trim());
         m[idx].put("Current Transactions", this.txnCacheXref);
         
         return StringUtil.formatMaps(m);

@@ -35,8 +35,8 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author cjl6
  */
-public class QueryPrefetchPlanner implements Loggable {
-    private static final Logger LOG = Logger.getLogger(QueryPrefetchPlanner.class);
+public class PrefetchQueryPlanner implements Loggable {
+    private static final Logger LOG = Logger.getLogger(PrefetchQueryPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -55,7 +55,7 @@ public class QueryPrefetchPlanner implements Loggable {
      * @param catalog_db
      * @param p_estimator
      */
-    public QueryPrefetchPlanner(Database catalog_db, PartitionEstimator p_estimator) {
+    public PrefetchQueryPlanner(Database catalog_db, PartitionEstimator p_estimator) {
         // this.catalog_db = catalog_db;
         this.num_sites = CatalogUtil.getNumberOfSites(catalog_db);
         this.touched_sites = new BitSet(this.num_sites);

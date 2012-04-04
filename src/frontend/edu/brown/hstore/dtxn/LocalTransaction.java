@@ -146,11 +146,14 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
     // ----------------------------------------------------------------------------
-
+    
     /**
-     * 
+     * A handle to the execution state of this transaction
+     * This will only get set when the transaction starts running.
+     * No two transactions are allowed to hold the same ExecutionState
+     * at the same time.
      */
-    private List<WorkResult> prefetch_results;
+    private ExecutionState state;
     
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
@@ -186,14 +189,7 @@ public class LocalTransaction extends AbstractTransaction {
      * TODO: We need to remove the need for this
      */
     private final InitiateTaskMessage itask;
-    
-    /**
-     * A handle to the execution state of this transaction
-     * This will only get set when the transaction starts running.
-     * No two transactions are allowed to hold the same ExecutionState
-     * at the same time.
-     */
-    private ExecutionState state;
+
     
     /**
      * Whether this transaction's control code was executed on
@@ -370,7 +366,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.initiateTime = 0;
         
         this.executed = false;
-        this.prefetch_results = null;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
@@ -384,6 +379,10 @@ public class LocalTransaction extends AbstractTransaction {
         
         if (this.profiler != null) this.profiler.finish();
     }
+    
+    // ----------------------------------------------------------------------------
+    // SPECIAL SETTER METHODS
+    // ----------------------------------------------------------------------------
     
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
@@ -410,26 +409,10 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Returns true if the control code for this LocalTransaction was actually started
-     * in the PartitionExecutor
-     */
-    public boolean wasExecuted() {
-        return (this.executed);
-    }
-    
-    /**
      * Marks that this transaction's control code was executed at its base partition 
      */
     public void markAsExecuted() {
         this.executed = true;
-    }
-    
-    @Override
-    public boolean needsFinish(int partition) {
-        if (this.base_partition == partition) {
-            return (this.executed);
-        }
-        return super.needsFinish(partition);
     }
     
     // ----------------------------------------------------------------------------
@@ -438,7 +421,9 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void initRound(int partition, long undoToken) {
-        assert(this.state != null);
+        assert(this.state != null) :
+            String.format("Trying to initalize new round for %s on partition %d but the ExecutionState is null",
+                          this, partition);
         assert(this.state.queued_results.isEmpty()) : 
             String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
                            this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
@@ -677,6 +662,22 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * Returns true if the control code for this LocalTransaction was actually started
+     * in the PartitionExecutor
+     */
+    public boolean wasExecuted() {
+        return (this.executed);
+    }
+    
+    @Override
+    public boolean needsFinish(int partition) {
+        if (this.base_partition == partition) {
+            return (this.executed);
+        }
+        return super.needsFinish(partition);
+    }
     
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
@@ -930,15 +931,13 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.predict_touchedPartitions);
     }
     
+    // ----------------------------------------------------------------------------
+    // PREFETCHABLE QUERIES
+    // ----------------------------------------------------------------------------
+    
     public void addPrefetchResults(WorkResult result) {
-        if (this.prefetch_results == null) {
-            synchronized (this) {
-                if (this.prefetch_results == null) {
-                    this.prefetch_results = new ArrayList<WorkResult>();
-                }
-            } // SYNCH
-        }
-        this.prefetch_results.add(result);
+        assert(this.prefetch != null);
+        this.prefetch.results.add(result);
     }
     
     // ----------------------------------------------------------------------------
