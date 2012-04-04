@@ -1764,7 +1764,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // Construct arrays given to the EE
-        long fragmentIds[] = new long[fragmentCount]; // tmp_fragmentIds.getArray(fragmentCount);
+        long fragmentIds[] = tmp_fragmentIds.getArray(fragmentCount);
         int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
         int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount); // Is this ok?
         for (int i = 0; i < fragmentCount; i++) {
@@ -1774,6 +1774,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 inputDepIds[i] = input_depId; // FIXME!
             } // FOR
         } // FOR
+        System.err.printf("fragmentIds[%d]: %s\n", fragmentCount, Arrays.toString(fragmentIds));
         
         // Input Dependencies
         this.tmp_EEdependencies.clear();
@@ -1928,7 +1929,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param input_depIds
      * @return
      */
-    private DependencySet executePlanFragments(AbstractTransaction ts, long undoToken, int batchSize, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[], Map<Integer, List<VoltTable>> input_deps) {
+    private DependencySet executePlanFragments(AbstractTransaction ts,
+                                               long undoToken,
+                                               int batchSize, 
+                                               long fragmentIds[],
+                                               ParameterSet parameterSets[],
+                                               int output_depIds[],
+                                               int input_depIds[],
+                                               Map<Integer, List<VoltTable>> input_deps) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         Long txn_id = ts.getTransactionId();
         
