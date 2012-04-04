@@ -76,7 +76,7 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.QueryPrefetchPlanner;
+import edu.brown.hstore.util.PrefetchQueryPlanner;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -132,7 +132,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
     
-    private final QueryPrefetchPlanner queryPrefetchPlanner;
+    private final PrefetchQueryPlanner queryPrefetchPlanner;
 
     /**
      * 
@@ -247,7 +247,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         // Initialized QueryPrefetchPlanner if we're allowed to execute
         // prefetch queries and we actually have some in the catalog 
-        QueryPrefetchPlanner tmpPlanner = null;
+        PrefetchQueryPlanner tmpPlanner = null;
         if (hstore_conf.site.exec_prefetch_queries) {
             boolean has_prefetch = false;
             for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
@@ -256,7 +256,7 @@ public class HStoreCoordinator implements Shutdownable {
                     break;
                 }
             }
-            if (has_prefetch) tmpPlanner = new QueryPrefetchPlanner(hstore_site.getDatabase(),
+            if (has_prefetch) tmpPlanner = new PrefetchQueryPlanner(hstore_site.getDatabase(),
                                                                     hstore_site.getPartitionEstimator());
         }
         this.queryPrefetchPlanner = tmpPlanner;
@@ -655,6 +655,10 @@ public class HStoreCoordinator implements Shutdownable {
         //       partitions that are in its same local HStoreSite
         if (ts.getProcedure().getPrefetch()) {
             if (debug.get()) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
+            
+            // Make sure that we initialize our internal PrefetchState for this txn
+            ts.initializePrefetch();
+            
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             int sent_ctr = 0;
             int prefetch_ctr = 0;

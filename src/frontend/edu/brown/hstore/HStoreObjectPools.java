@@ -6,6 +6,7 @@ import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
@@ -17,6 +18,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.DependencyInfo;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.dtxn.PrefetchState;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.utils.TypedStackObjectPool;
 
@@ -76,6 +78,11 @@ public abstract class HStoreObjectPools {
      */
     public static TypedStackObjectPool<DependencyInfo> STATES_DEPENDENCYINFO;
 
+    /**
+     * PrefetchState ObjectPool
+     */
+    public static TypedStackObjectPool<PrefetchState> STATES_PREFETCH;
+    
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -112,17 +119,36 @@ public abstract class HStoreObjectPools {
         STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                 (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
-                (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
         STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
                 (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
                 (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
+        
+        // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
+        // create these special object pools
+        STATES_PREFETCH = null;
+        STATES_TXN_MAPREDUCE = null;
+        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+            if (catalog_proc.getPrefetch()) {
+                STATES_PREFETCH = TypedStackObjectPool.factory(PrefetchState.class,
+                        (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
+                        hstore_conf.site.pool_profiling);
+            }
+            if (STATES_TXN_MAPREDUCE == null && catalog_proc.getMapreduce()) {
+                STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
+                        (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
+                        hstore_conf.site.pool_profiling, hstore_site);
+            }
+        } // FOR
+        
+        // Sanity Check: Make sure that we allocated an object pool for all of the 
+        // fields that we have defined except for STATES_PREFETCH_STATE
         for (Entry<String, StackObjectPool> e : getAllPools().entrySet()) {
-            assert(e.getValue() != null) : e.getKey() + " is null!";
+            String poolName = e.getKey();
+            if (poolName.equals("STATES_PREFETCH") || poolName.equals("STATES_TXN_MAPREDUCE")) continue;
+            assert(e.getValue() != null) : poolName + " is null!";
         } // FOR
     }
     

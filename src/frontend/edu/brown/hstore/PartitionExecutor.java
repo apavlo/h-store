@@ -377,7 +377,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * 
      */
-    private final QueryCache queryCache = new QueryCache(100, 100); // FIXME
+    private final QueryCache queryCache = new QueryCache(10, 10); // FIXME
     
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
@@ -1670,14 +1670,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // just wait until they come back to execute the query again before 
             // we tell them that something went wrong. It's ghetto, but it's just easier this way...
             if (status == Status.OK) {
-                if (d) LOG.debug(String.format("%s - Storing %d prefetch query results in query cache",
-                                               ts, result.size()));
+                if (d) LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
+                                               ts, result.size(), ts.getBasePartition()));
+                PartitionExecutor other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    this.queryCache.addTransactionQueryResult(ts.getTransactionId(),
-                                                              fragment.getFragmentId(i),
-                                                              parameters[i],
-                                                              result.dependencies[i]);
+                    other.queryCache.addTransactionQueryResult(ts.getTransactionId(),
+                                                               fragment.getFragmentId(i),
+                                                               parameters[i],
+                                                               result.dependencies[i]);
                 } // FOR
+                System.err.println("Query Cache Dump:\n" + other.queryCache.toString());
             }
             
             // Now if it's a remote transaction, we need to use the coordinator to send
@@ -2309,7 +2311,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ts.initRound(this.partitionId, this.getNextUndoToken());
         ts.setBatchSize(batchSize);
         boolean first = true;
-        final boolean predict_singlePartition = ts.isPredictSinglePartition();
+        boolean predict_singlePartition = ts.isPredictSinglePartition();
         boolean serializedParams = false;
         CountDownLatch latch = null;
         
@@ -2329,13 +2331,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_remote = 0;
         int total = 0;
         
-        
-        
         // Run through this loop if:
-        //  (1) This is our first time in the loop (first == true)
-        //  (2) If we know that there are still messages being blocked
-        //  (3) If we know that there are still unblocked messages that we need to process
-        //  (4) The latch for this round is still greater than zero
+        //  (1) We have no pending errors
+        //  (2) This is our first time in the loop (first == true)
+        //  (3) If we know that there are still messages being blocked
+        //  (4) If we know that there are still unblocked messages that we need to process
+        //  (5) The latch for this round is still greater than zero
         while (ts.hasPendingError() == false && 
                (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
             if (t) LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
@@ -2371,7 +2372,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // transaction's current SQLStmt batch. That means we can just wait 
             // until all the results return to us.
             if (fragments.isEmpty()) {
-                if (t) LOG.trace(String.format("%s - Got an empty list of WorkFragments. Blocking until dependencies arrive", ts)); 
+                if (t) LOG.trace(String.format("%s - Got an empty list of WorkFragments. Blocking until dependencies arrive",
+                                               ts)); 
                 break;
             }
 
@@ -2400,6 +2402,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     latch = ts.getDependencyLatch();
                 }
                 
+                // Execute all of our WorkFragments quickly at our local ExecutionEngine
                 for (WorkFragment fragment : this.tmp_localWorkFragmentList) {
                     if (d) LOG.debug(String.format("Got unblocked FragmentTaskMessage for %s. Executing locally...", ts));
                     assert(fragment.getPartitionId() == this.partitionId) :
@@ -2407,18 +2410,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                       ts, this.partitionId, fragment.getPartitionId(), predict_singlePartition, fragment);
                     ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
                     this.processWorkFragment(ts, fragment, fragmentParams);
-//                    read_only = read_only && ftask.isReadOnly();
                 } // FOR
             }
             // -------------------------------
             // SLOW PATH: Mixed local and remote messages
             // -------------------------------
             else {
-                // Look at each task and figure out whether it should be executed remotely or locally
+                // Look at each task and figure out whether it needs to be executed at a remote
+                // HStoreSite or whether we can execute it at one of our local PartitionExecutors.
                 for (WorkFragment ftask : fragments) {
                     int partition = ftask.getPartitionId();
                     is_localSite = hstore_site.isLocalPartition(partition);
-                    is_localPartition = (is_localSite && partition == this.partitionId);
+                    is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
                     if (first == false || ts.addWorkFragment(ftask) == false) {
                         total++;

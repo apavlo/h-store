@@ -4,6 +4,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.ThreadUtil;
 
 public class Squirrels extends VoltProcedure {
@@ -25,8 +26,11 @@ public class Squirrels extends VoltProcedure {
         final VoltTable a_results[] = voltExecuteSQL();
         assert(a_results.length == 1);
         
-        // Force a delay
-        ThreadUtil.sleep(sleep);
+        // Force a delay if we're a distributed transaction
+        if (((LocalTransaction)this.getTransactionState()).isPredictSinglePartition() == false) {
+            System.err.printf("Sleeping for %.01f seconds\n", sleep / 1000d);
+            ThreadUtil.sleep(sleep);
+        }
         
         voltQueueSQL(getRemote, a_id);
         final VoltTable b_results[] = voltExecuteSQL();

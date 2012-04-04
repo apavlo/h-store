@@ -776,6 +776,13 @@ public final class HStoreConf {
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
+            description="The max number of PrefetchStates to keep in the pool.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int pool_prefetchstates_idle;
+        
+        @ConfigProperty(
             description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
             defaultInt=10000,
             experimental=false
