@@ -198,41 +198,6 @@ public class LocalCluster extends VoltServerConfig {
         // processes of VoltDBs using the compiled jar file.
         m_cluster = new ArrayList<Process>();
         m_pipes = new ArrayList<PipeToFile>();
-//        m_procBuilder = new ProcessBuilder("java",
-//                                           "-Djava.library.path=" + m_buildDir + "/nativelibs",
-//                                           "-Dlog4j.configuration=log.xml",
-//                                           "-ea",
-//                                           "-Xmx2048m",
-//                                           "-XX:+HeapDumpOnOutOfMemoryError",
-//                                           "-classpath",
-//                                           classPath,
-//                                           "org.voltdb.VoltDB",
-//                                           "catalog",
-//                                           m_jarFileName,
-//                                           "port",
-//                                           "-1");
-        
-        // Construct the base command that we will want to use to start
-        // all of the "remote" HStoreSites 
-        List<String> siteCommand = new ArrayList<String>();
-        CollectionUtil.addAll(siteCommand, 
-            "ant",
-            "hstore-site",
-            "-Djar=" + m_jarFileName
-        );
-        // Be sure to include our HStoreConf parameters
-        for (Entry<String, String> e : this.confParams.entrySet()) {
-            siteCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
-        }
-        // Lastly, we will include the site.id as the last parameter
-        // so that we can easily change it
-        siteCommand.add("-Dsite.id=-1");
-        
-        m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
-        m_procBuilder.redirectErrorStream(true);
-        // set the working directory to obj/release/prod
-        //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
-        
         Thread shutdownThread = new Thread(new ShutDownHookThread());
         java.lang.Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
@@ -267,6 +232,28 @@ public class LocalCluster extends VoltServerConfig {
         
         tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
         // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        
+        // Construct the base command that we will want to use to start
+        // all of the "remote" HStoreSites 
+        List<String> siteCommand = new ArrayList<String>();
+        CollectionUtil.addAll(siteCommand, 
+            "ant",
+            "hstore-site",
+            "-Djar=" + m_jarFileName
+        );
+        // Be sure to include our HStoreConf parameters
+        for (Entry<String, String> e : this.confParams.entrySet()) {
+            siteCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
+        }
+        // Lastly, we will include the site.id as the last parameter
+        // so that we can easily change it
+        siteCommand.add("-Dsite.id=-1");
+        
+        m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
+        m_procBuilder.redirectErrorStream(true);
+        // set the working directory to obj/release/prod
+        //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
+
         
         return m_compiled;
     }
