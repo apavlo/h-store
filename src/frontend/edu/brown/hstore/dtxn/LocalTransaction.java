@@ -1141,7 +1141,7 @@ public class LocalTransaction extends AbstractTransaction {
                     if (catalog_obj != null) break;
                 } // FOR
             }
-            LOG.debug(String.format("%s - Queued up %s WorkFragment on partition %d and marked as %s [fragIds=%s]\n",
+            LOG.debug(String.format("%s - Queued up %s WorkFragment for partition %d and marked as %s [fragIds=%s]",
                                     this, catalog_obj, partition,
                                     (blocked ? "blocked" : "not blocked"),
                                     fragment.getFragmentIdList()));

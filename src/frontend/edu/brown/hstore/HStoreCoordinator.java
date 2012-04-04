@@ -654,6 +654,7 @@ public class HStoreCoordinator implements Shutdownable {
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
         if (ts.getProcedure().getPrefetch()) {
+            if (debug.get()) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
             TransactionInitRequest[] requests = this.queryPrefetchPlanner.generateWorkFragments(ts);
             int sent_ctr = 0;
             int prefetch_ctr = 0;

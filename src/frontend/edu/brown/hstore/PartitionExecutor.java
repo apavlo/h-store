@@ -262,7 +262,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final ExecutionEngine ee;
     private final HsqlBackend hsql;
     private final DBBPool buffer_pool = new DBBPool(false, false);
-
+    private final FastSerializer fs = new FastSerializer(this.buffer_pool);
+    
     /**
      * Runtime Estimators
      */
@@ -1497,15 +1498,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // We assume that most transactions are not speculatively executed and are successful
         // Therefore we don't want to grab the exec_mode lock here.
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, before_mode)) {
-            if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
-                                           ts, cresponse.getStatus()));
             this.processClientResponse(ts, cresponse);
-        } else {
+        }
+        // Otherwise acquire the lock and then figure out what we can do with this guy
+        else {
             exec_lock.lock();
             try {
                 if (this.canProcessClientResponseNow(ts, status, before_mode)) {
-                    if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
-                                                   ts, cresponse.getStatus()));
                     this.processClientResponse(ts, cresponse);
                 // Otherwise always queue our response, since we know that whatever thread is out there
                 // is waiting for us to finish before it drains the queued responses
@@ -2091,21 +2090,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Push dependencies back to the remote partition that needs it
         if (status == Status.OK) {
-            final FastSerializer fs = new FastSerializer(this.buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 builder.addDepId(result.depIds[i]);
-                fs.clear();
-                
+                this.fs.clear();
                 try {
-                    result.dependencies[i].writeExternal(fs);
-                    ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
+                    result.dependencies[i].writeExternal(this.fs);
+                    ByteString bs = ByteString.copyFrom(this.fs.getBBContainer().b);
                     builder.addDepData(bs);
                 } catch (Exception ex) {
                     throw new ServerFaultException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts), ex);
                 }
-                if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
+                if (t) LOG.trace(String.format("%s - Serialized Output Dependency %d\n%s",
+                                               ts, result.depIds[i], result.dependencies[i]));  
             } // FOR
-            fs.getBBContainer().discard();
+            this.fs.getBBContainer().discard();
         }
         
         return (builder.build());
@@ -2184,19 +2182,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 tmp_removeDependenciesMap.clear();
                 this.getFragmentInputs(ts, ftask, tmp_removeDependenciesMap);
 
-                FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (requestBuilder.hasInputDependencyId(e.getKey())) continue;
 
                     if (d) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
                                      ts, e.getValue().size(), HStoreThreadManager.formatSiteName(target_site)));
                     for (VoltTable vt : e.getValue()) {
-                        if (fs == null) fs = new FastSerializer(this.buffer_pool);
-                        else fs.clear();
+                        this.fs.clear();
                         try {
-                            fs.writeObject(vt);
+                            this.fs.writeObject(vt);
                             builder.addAttachedDepId(e.getKey().intValue());
-                            builder.addAttachedData(ByteString.copyFrom(fs.getBBContainer().b));
+                            builder.addAttachedData(ByteString.copyFrom(this.fs.getBBContainer().b));
                         } catch (Exception ex) {
                             String msg = String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts);
                             throw new ServerFaultException(msg, ts.getTransactionId());
@@ -2208,7 +2204,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     } // FOR
                     requestBuilder.addInputDependencyId(e.getKey());
                 } // FOR
-                if (fs != null) fs.getBBContainer().discard();
+                this.fs.getBBContainer().discard();
             }
             builder.addFragments(ftask);
         } // FOR (tasks)
@@ -2333,7 +2329,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_remote = 0;
         int total = 0;
         
-        final FastSerializer fs = new FastSerializer(this.buffer_pool);
+        
         
         // Run through this loop if:
         //  (1) This is our first time in the loop (first == true)
@@ -2462,10 +2458,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             if (parameters[i] == null) {
                                 tmp_serializedParams.add(ByteString.EMPTY);
                             } else {
-                                fs.clear();
+                                this.fs.clear();
                                 try {
-                                    parameters[i].writeExternal(fs);
-                                    ByteString bs = ByteString.copyFrom(fs.getBBContainer().b);
+                                    parameters[i].writeExternal(this.fs);
+                                    ByteString bs = ByteString.copyFrom(this.fs.getBBContainer().b);
                                     tmp_serializedParams.add(bs);
                                 } catch (Exception ex) {
                                     throw new ServerFaultException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
@@ -2474,15 +2470,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         } // FOR
                         if (hstore_conf.site.txn_profiling) ts.profiler.stopSerialization();
                     }
-                    if (d) LOG.debug(String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions for %s", num_remote, ts));
+                    if (d) LOG.debug(String.format("%s - Requesting %d FragmentTaskMessages to be executed on remote partitions", ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
                 }
                 
                 // Then dispatch the task that are needed at the same HStoreSite but 
                 // at a different partition than this one
                 if (num_localSite > 0) {
-                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local site's partitions for %s",
-                                                   num_localSite, ts));
+                    if (d) LOG.debug(String.format("%s - Executing %d FragmentTaskMessages on local site's partitions",
+                                                   ts, num_localSite));
                     for (WorkFragment fragment : this.tmp_localSiteFragmentList) {
                         FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
                         hstore_site.getPartitionExecutor(fragment.getPartitionId()).queueWork(ts, ftask);
@@ -2505,7 +2501,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                            ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
-        fs.getBBContainer().discard();
+        this.fs.getBBContainer().discard();
         
         if (t) LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
                                        ts, first, ts.stillHasWorkFragments(), latch));
@@ -2613,7 +2609,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
+            LOG.debug(String.format("%s - Processing ClientResponse at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
                                     ts, this.partitionId, cresponse.getClientHandle(), status,
                                     ts.isPredictSinglePartition(), ts.isExecLocal(this.partitionId)));
             if (t) {

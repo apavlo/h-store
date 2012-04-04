@@ -170,12 +170,17 @@ public class QueryCache {
         
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries == null) {
-            try {
-                entries = (List<Integer>)this.listPool.borrowObject();
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to initialize list from object pool", ex);
-            }
-            this.txnCacheXref.put(txnId, entries);
+            synchronized (this) {
+                entries = this.txnCacheXref.get(txnId);
+                if (entries == null) {
+                    try {
+                        entries = (List<Integer>)this.listPool.borrowObject();
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to initialize list from object pool", ex);
+                    }
+                    this.txnCacheXref.put(txnId, entries);
+                }
+            } // SYNCH
         }
         
         CacheEntry entry = this.txnCache.getNext(txnId);

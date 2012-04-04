@@ -134,8 +134,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                     // Go through all the prefetch WorkFragments and send them off to 
                     // the right PartitionExecutor at this HStoreSite.
                     for (WorkFragment frag : ts.getPrefetchFragments()) {
-                        // XXX: We want to skip any WorkFragments for this txn's
-                        // base partition.
+                        // XXX: We want to skip any WorkFragments for this txn's base partition.
                         if (frag.getPartitionId() != ts.getBasePartition())
                             hstore_site.transactionWork(ts, frag);
                     } // FOR
