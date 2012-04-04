@@ -7,7 +7,7 @@ CREATE TABLE clientInstances (
 );
 
 CREATE TABLE clientConnectionStats (
-    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    instanceId                  INTEGER NOT NULL REFERENCES clientInstances,
     tsEvent                     bigint NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
@@ -17,14 +17,16 @@ CREATE TABLE clientConnectionStats (
     numInvocations              bigint NOT NULL,
     numAborts                   bigint NOT NULL,
     numFailures                 bigint NOT NULL,
+    numThrottled                bigint NOT NULL,
     numBytesRead                bigint NOT NULL,
     numMessagesRead             bigint NOT NULL,
     numBytesWritten             bigint NOT NULL,
-    numMessagesWritten          bigint NOT NULL
+    numMessagesWritten          bigint NOT NULL--,
+--    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
 
 CREATE TABLE clientProcedureStats (
-    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    instanceId                  INTEGER NOT NULL REFERENCES clientInstances,
     tsEvent                     bigint NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
@@ -41,5 +43,6 @@ CREATE TABLE clientProcedureStats (
     numInvocations              bigint NOT NULL,
     numAborts                   bigint NOT NULL,
     numFailures                 bigint NOT NULL,
-    numRestarts                 bigint NOT NULL
+    numRestarts                 bigint NOT NULL--,
+--    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
