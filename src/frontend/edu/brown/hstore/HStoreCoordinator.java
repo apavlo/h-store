@@ -973,7 +973,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void syncClusterTimes() {
         // We don't need to do this if there is only one site
-        if (this.num_sites == 0) return;
+        if (this.num_sites == 1) return;
         
         final CountDownLatch latch = new CountDownLatch(this.num_sites);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());

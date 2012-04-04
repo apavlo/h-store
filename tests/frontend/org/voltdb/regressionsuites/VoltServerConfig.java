@@ -128,5 +128,6 @@ public abstract class VoltServerConfig {
         assert(HStoreConf.isConfParameter(name)) :
             "Invalid HStoreConf parameter '" + name + "'";
         this.confParams.put(name, (value != null ? value.toString() : null));
+        HStoreConf.singleton(true).set(name, value);
     }
 }
