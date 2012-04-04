@@ -56,7 +56,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         // queued up waiting for the first txn to finish. This will guarantee that our 
         // prefetch query gets executed before the txn's control code is invoked
         int a_id = 0; // rand.nextInt(num_tuples);
-        int sleep = 10000;
+        int sleep = 2000;
         client.callProcedure(new NullCallback(), SquirrelsSingle.class.getSimpleName(), a_id, sleep);
         
         ClientResponse cr = client.callProcedure(SquirrelsDistributed.class.getSimpleName(), a_id);

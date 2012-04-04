@@ -33,6 +33,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -155,7 +156,15 @@ public abstract class StringUtil {
 
     /**
      * Split the multi-lined strings into separate columns
-     * 
+     * @param strs
+     * @return
+     */
+    public static String columns(Collection<String> strs) {
+        return StringUtil.columns(strs.toArray(new String[0]));
+    }
+    
+    /**
+     * Split the multi-lined strings into separate columns
      * @param strs
      * @return
      */
