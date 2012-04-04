@@ -13,7 +13,7 @@ public abstract class ArrayCache<T> {
     private ArrayCache(int size) {
         this.cache = this.createCache(size);
         for (int i = 0; i < size; i++) {
-            this.cache[i] = this.createArray(size);
+            this.cache[i] = this.createArray(i);
         } // FOR
     }
     
