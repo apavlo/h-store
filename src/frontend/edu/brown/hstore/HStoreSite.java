@@ -961,8 +961,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         
         // DB2-style Transaction Redirection
-        if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
+            if (d) LOG.debug(String.format("Using embedded base partition from %s request [basePartition=%d]",
+                                           request.getProcName(), request.getBasePartition()));
             assert(base_partition == request.getBasePartition());    
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
@@ -1002,9 +1003,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
-            if (t) 
-                LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                        request.getProcName(), hstore_conf.site.exec_force_localexecution));
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                                           request.getProcName(), hstore_conf.site.exec_force_localexecution));
             int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
             base_partition = this.local_partitions_arr[idx].intValue();
         }
@@ -1078,8 +1078,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // Use the @ProcInfo flags in the catalog
         else if (hstore_conf.site.exec_voltdb_procinfo) {
-            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d]",
-                                            request.getProcName(), request.getClientHandle()));
+            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
+                                            request.getProcName(), request.getClientHandle(), catalog_proc.getSinglepartition()));
             if (catalog_proc.getSinglepartition()) {
                 predict_touchedPartitions = this.single_partition_sets[base_partition];
             } else {
@@ -1172,8 +1172,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         } else {
-            ts.init(
-                    txn_id, request.getClientHandle(), base_partition,
+            ts.init(txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         }
@@ -1199,7 +1198,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
-        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
+        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
+        		         "Returning back to listen on incoming socket");
         
     }
 

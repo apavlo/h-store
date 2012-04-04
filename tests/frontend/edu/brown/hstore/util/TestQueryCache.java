@@ -51,6 +51,7 @@ public class TestQueryCache extends BaseTestCase {
     public void testTxnCacheGet() throws Exception {
         Long txnId = new Long(123456);
         int baseFragmentId = 1111;
+        int partitionId = 1;
         long baseValue = 9900;
         ParameterSet params = new ParameterSet("Squirrels", 1981);
         
@@ -63,7 +64,7 @@ public class TestQueryCache extends BaseTestCase {
             expectedValues.put(fragmentId, expected);
         
             // First store it in the cache
-            this.cache.addTransactionQueryResult(txnId, fragmentId, params, result);
+            this.cache.addTransactionQueryResult(txnId, fragmentId, partitionId, params, result);
         } // FOR
 //        System.err.println(StringUtil.formatMaps(expectedValues));
 //        System.err.println("---------------");
@@ -74,7 +75,7 @@ public class TestQueryCache extends BaseTestCase {
         Collections.shuffle(fragmentIds);
         for (Integer fragmentId : fragmentIds) {
             long expected = expectedValues.get(fragmentId);
-            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, params);
+            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, partitionId, params);
             assertNotNull(fragmentId.toString(), cacheResult);
             assertEquals(1, cacheResult.getRowCount());
             assertEquals(expected, cacheResult.asScalarLong());
@@ -83,7 +84,7 @@ public class TestQueryCache extends BaseTestCase {
         // If we change the params, we should never get back our results
         params = new ParameterSet("WuTang!", 1981);
         for (Integer fragmentId : fragmentIds) {
-            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, params);
+            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, partitionId, params);
             assertNull(fragmentId.toString(), cacheResult);
         } // FOR
         
@@ -92,7 +93,7 @@ public class TestQueryCache extends BaseTestCase {
         params = new ParameterSet("Squi" + "rrels", 1981);
         for (Integer fragmentId : fragmentIds) {
             long expected = expectedValues.get(fragmentId);
-            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, params);
+            VoltTable cacheResult = this.cache.getTransactionCachedResult(txnId, fragmentId, partitionId, params);
             assertNotNull(fragmentId.toString(), cacheResult);
             assertEquals(1, cacheResult.getRowCount());
             assertEquals(expected, cacheResult.asScalarLong());
