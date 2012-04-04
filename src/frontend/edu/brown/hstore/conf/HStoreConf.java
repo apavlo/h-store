@@ -1314,6 +1314,42 @@ public final class HStoreConf {
     // LOADING METHODS
     // ----------------------------------------------------------------------------
     
+    public void set(String k, Object value) {
+        Matcher m = REGEX_PARSE.matcher(k);
+        boolean found = m.matches();
+        if (m == null || found == false) {
+            LOG.warn("Invalid key '" + k + "'");
+            return;
+        }
+        assert(m != null);
+        Conf handle = confHandles.get(m.group(1));
+        this.set(handle, m.group(2), value);
+    }
+    
+    private void set(Conf handle, String f_name, Object value) {
+        Class<?> confClass = handle.getClass();
+        assert(confClass != null);
+        Field f = null;
+        
+        try {
+            f = confClass.getField(f_name);
+        } catch (Exception ex) {
+            if (debug.get()) LOG.warn(String.format("Invalid configuration property '%s.%s'. Ignoring...",
+                                      handle.prefix, f_name));
+            return;
+        }
+        ConfigProperty cp = handle.getConfigProperties().get(f);
+        assert(cp != null) : "Missing ConfigProperty for " + f;
+        
+        try {
+            f.set(handle, value);
+            if (debug.get()) LOG.debug(String.format("SET %s.%s = %s",
+                                       handle.prefix, f_name, value));
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+        }
+    }
+    
     /**
      * 
      */
@@ -1566,8 +1602,8 @@ public final class HStoreConf {
         return singleton(false);
     }
     
-    public synchronized static HStoreConf singleton(boolean init) {
-        if (conf == null && init == true) return init(null);
+    public synchronized static HStoreConf singleton(boolean init_if_null) {
+        if (conf == null && init_if_null == true) return init(null, null);
         if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
         return (conf);
     }

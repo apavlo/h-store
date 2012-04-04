@@ -1357,7 +1357,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 error = SerializableException.deserializeFromBuffer(buffer);
             } catch (Exception ex) {
                 throw new ServerFaultException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
-                                           result.getPartitionId(), ts, result.getError().size()), ex);
+                                                             result.getPartitionId(), ts, result.getError().size()), ex);
             } finally {
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
             }
