@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
 /**
@@ -31,6 +32,8 @@ import org.voltdb.VoltTable;
  *
  */
 public class ClientStatsLoader {
+    private static final Logger LOG = Logger.getLogger(ClientStatsLoader.class);
+    
     private final Connection m_conn;
     private final String m_applicationName;
     private final String m_subApplicationName;
@@ -51,9 +54,9 @@ public class ClientStatsLoader {
 
     private static final String insertConnectionStatsStatement = "insert into " + connectionStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
-            " serverConnectionId, numInvocations, numAborts, numFailures, numBytesRead, " +
+            " serverConnectionId, numInvocations, numAborts, numFailures, numThrottled, numBytesRead, " +
             " numMessagesRead, numBytesWritten, numMessagesWritten) " +
-            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
+            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
 
     private static final String insertProcedureStatsStatement = "insert into " + procedureStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
@@ -104,6 +107,7 @@ public class ClientStatsLoader {
         insertProcedureStatsStmt.setInt( 1, m_instanceId);
         m_conn.commit();
         m_loadThread.start();
+        LOG.info("ClientStatsLoader has been started");
     }
 
     public synchronized void stop() throws InterruptedException {
@@ -142,17 +146,13 @@ public class ClientStatsLoader {
                         final VoltTable procedureStats = m_distributer
                                 .getProcedureStats(true);
 
-                        boolean first = true;
                         try {
                             while (ioStats.advanceRow()) {
-                                int index = 2;
-                                if (first) {
-                                    insertConnectionStatsStmt.setTimestamp(
-                                            index++, new Timestamp(ioStats
-                                                    .getLong("TIMESTAMP")));
-                                } else {
-                                    index++;
-                                }
+                                int index = 1;
+                                insertConnectionStatsStmt.setInt(index++,
+                                        m_instanceId);
+                                insertConnectionStatsStmt.setTimestamp(index++,
+                                        new Timestamp(ioStats.getLong("TIMESTAMP")));
                                 insertConnectionStatsStmt.setString(index++,
                                         ioStats.getString("HOSTNAME"));
                                 insertConnectionStatsStmt.setLong(index++,
@@ -177,6 +177,8 @@ public class ClientStatsLoader {
                                 insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("INVOCATIONS_FAILED"));
                                 insertConnectionStatsStmt.setLong(index++,
+                                        ioStats.getLong("INVOCATIONS_THROTTLED"));
+                                insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("BYTES_READ"));
                                 insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("MESSAGES_READ"));
@@ -194,18 +196,13 @@ public class ClientStatsLoader {
                             e.printStackTrace();
                         }
 
-                        first = true;
                         try {
                             while (procedureStats.advanceRow()) {
-                                int index = 2;
-                                if (first) {
-                                    insertProcedureStatsStmt.setTimestamp(
-                                            index++,
-                                            new Timestamp(procedureStats
-                                                    .getLong("TIMESTAMP")));
-                                } else {
-                                    index++;
-                                }
+                                int index = 1;
+                                insertProcedureStatsStmt.setInt(index++,
+                                        m_instanceId);
+                                insertProcedureStatsStmt.setTimestamp(index++,
+                                        new Timestamp(procedureStats.getLong("TIMESTAMP")));
                                 insertProcedureStatsStmt.setString(index++,
                                         procedureStats.getString("HOSTNAME"));
                                 insertProcedureStatsStmt

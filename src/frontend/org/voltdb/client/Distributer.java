@@ -635,6 +635,7 @@ class Distributer {
             long timestamp = numbers[2];
             int addr = (int)numbers[3];
             m_clusterInstanceId = new Object[] { timestamp, addr };
+            LOG.info("statsLoader = " + m_statsLoader);
             if (m_statsLoader != null) {
                 try {
                     m_statsLoader.start( timestamp, addr);
@@ -960,6 +961,7 @@ class Distributer {
         long totalInvocations = 0;
         long totalAbortedInvocations = 0;
         long totalFailedInvocations = 0;
+        long totalThrottledInvocations = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -972,6 +974,8 @@ class Distributer {
                     totalInvocations += counters[0];
                     totalAbortedInvocations += counters[1];
                     totalFailedInvocations += counters[2];
+                    totalThrottledInvocations += counters[3];
+                    
                     final long networkCounters[] = networkStats.get(cxn.connectionId()).getSecond();
                     final String hostname = networkStats.get(cxn.connectionId()).getFirst();
                     long bytesRead = 0;
@@ -1015,6 +1019,7 @@ class Distributer {
                 totalInvocations,
                 totalAbortedInvocations,
                 totalFailedInvocations,
+                totalThrottledInvocations,
                 globalIOStats[0],
                 globalIOStats[1],
                 globalIOStats[2],
