@@ -168,6 +168,10 @@ public class TestPrefetchableSuite extends RegressionSuite {
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
 //        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        config.setConfParameter("site.exec_prefetch_queries", true);
+//        config.setConfParameter("site.exec_force_singlepartitioned", false);
+//        config.setConfParameter("site.exec_voltdb_procinfo", true);
+//        config.setConfParameter("client.txn_hints", false);
 //        config.compile(project);
 //        builder.addServerConfig(config);
  
