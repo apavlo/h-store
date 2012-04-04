@@ -197,14 +197,14 @@ public final class HStoreConf {
         public boolean exec_avoid_coordinator;
         
         @ConfigProperty(
-            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will " +
-                        "execute as a single-partition transaction at a random partition on the node that the request " +
-                        "originally arrives on. When the transaction makes a query request that needs to touch data from " +
-                        "a partition that is different than its base partition, then that transaction is immediately aborted, " +
-                        "rolled back, and restarted on the partition that has the data that it was requesting. If the " +
-                        "transaction requested more than partition when it was aborted, then it will be executed as a " +
-                        "multi-partition transaction on the partition that was requested most often by queries " +
-                        "(using random tie breakers). " +
+            description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
+            		    "Each request will execute as a single-partition transaction at a random partition on the node " +
+            		    "that the request originally arrives on. When the transaction makes a query request that needs " +
+            		    "to touch data from a partition that is different than its base partition, then that transaction " +
+            		    "is immediately aborted, rolled back, and restarted on the partition that has the data that it " +
+            		    "was requesting. If the transaction requested more than partition when it was aborted, then it " +
+            		    "will be executed as a multi-partition transaction on the partition that was requested most often " +
+            		    "by queries using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
             defaultBoolean=true,
             experimental=true
@@ -221,6 +221,16 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_singlepartitioned;
+        
+        @ConfigProperty(
+            description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
+            		    "a new request will be executed as a single-partitioned or distributed transaction. " +
+            		    "Note that if this option is enabled, any distributed transaction will have to lock all " +
+            		    "of the partitions in the cluster.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean exec_voltdb_procinfo;
         
         @ConfigProperty(
             description="Always execute each transaction on a random partition on the node where the request originally " +
