@@ -69,11 +69,13 @@ public abstract class TPCEConstants {
     }
 
     // Data Parameters
-    public static final int DEFAULT_NUM_CUSTOMERS = 1000;
+    public static final long DEFAULT_NUM_CUSTOMERS = 5000;
     public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the
                                                         // EGenClientDriver to
                                                         // have problems
     public static final int DEFAULT_INITIAL_DAYS = 1;
+    public static final int DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
+    public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this   
 
     //
     // Table Names

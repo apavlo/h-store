@@ -1546,6 +1546,7 @@ BENCHMARKS
         <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
+        <arg value="benchmark.egenloader_home=${benchmark.egenloader_home}"/>
 
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
