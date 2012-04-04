@@ -1676,6 +1676,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     other.queryCache.addTransactionQueryResult(ts.getTransactionId(),
                                                                fragment.getFragmentId(i),
+                                                               fragment.getPartitionId(),
                                                                parameters[i],
                                                                result.dependencies[i]);
                 } // FOR
@@ -2253,7 +2254,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param parameters
      * @return
      */
-    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, int batchSize, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+    public VoltTable[] dispatchWorkFragments(final LocalTransaction ts,
+                                             final int batchSize,
+                                             Collection<WorkFragment> fragments,
+                                             final ParameterSet parameters[]) {
         assert(fragments.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
         
@@ -2310,10 +2314,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // get one response back from another executor
         ts.initRound(this.partitionId, this.getNextUndoToken());
         ts.setBatchSize(batchSize);
-        boolean first = true;
-        boolean predict_singlePartition = ts.isPredictSinglePartition();
-        boolean serializedParams = false;
-        CountDownLatch latch = null;
+        
+        final boolean prefetch = ts.hasPrefetchQueries();
+        final boolean predict_singlePartition = ts.isPredictSinglePartition();
         
         // Attach the ParameterSets to our transaction handle so that anybody on this HStoreSite
         // can access them directly without needing to deserialize them from the WorkFragments
@@ -2323,12 +2326,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
         LinkedBlockingDeque<Collection<WorkFragment>> queue = ts.getUnblockedWorkFragmentsQueue();
 
+        boolean first = true;
+        boolean serializedParams = false;
+        CountDownLatch latch = null;
         boolean all_local = true;
         boolean is_localSite;
         boolean is_localPartition;
         int num_localPartition = 0;
         int num_localSite = 0;
         int num_remote = 0;
+        int num_skipped = 0;
         int total = 0;
         
         // Run through this loop if:
@@ -2350,6 +2357,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 num_localPartition = 0;
                 num_localSite = 0;
                 num_remote = 0;
+                num_skipped = 0;
                 total = 0;
                 
                 if (t) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
@@ -2372,8 +2380,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // transaction's current SQLStmt batch. That means we can just wait 
             // until all the results return to us.
             if (fragments.isEmpty()) {
-                if (t) LOG.trace(String.format("%s - Got an empty list of WorkFragments. Blocking until dependencies arrive",
-                                               ts)); 
+                if (t) LOG.trace(ts + " - Got an empty list of WorkFragments. Blocking until dependencies arrive");
                 break;
             }
 
@@ -2418,27 +2425,59 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             else {
                 // Look at each task and figure out whether it needs to be executed at a remote
                 // HStoreSite or whether we can execute it at one of our local PartitionExecutors.
-                for (WorkFragment ftask : fragments) {
-                    int partition = ftask.getPartitionId();
+                for (WorkFragment fragment : fragments) {
+                    int partition = fragment.getPartitionId();
                     is_localSite = hstore_site.isLocalPartition(partition);
                     is_localPartition = (partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || ts.addWorkFragment(ftask) == false) {
+                    if (first == false || ts.addWorkFragment(fragment) == false) {
                         total++;
+                        
+                        // At this point we know that all the WorkFragment has been registered
+                        // in the LocalTransaction, so then it's safe for us to look to see
+                        // whether we already have a prefetched result that we need
+                        if (prefetch && is_localPartition == false) {
+                            boolean skip_queue = true;
+                            for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+                                int fragId = fragment.getFragmentId(i);
+                                int paramIdx = fragment.getParamIndex(i);
+                                
+                                VoltTable vt = this.queryCache.getTransactionCachedResult(ts.getTransactionId(),
+                                                                                          fragId,
+                                                                                          partition,
+                                                                                          parameters[paramIdx]);
+                                if (vt != null) {
+                                    ts.addResult(partition, fragment.getOutputDepId(i), vt);
+                                } else {
+                                    skip_queue = false;
+                                }
+                            } // FOR
+                            if (skip_queue) {
+                                if (d) LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
+                                                               ts, partition));
+                                num_skipped++;
+                                continue;
+                            }
+                        }
+                        
+                        // Otherwise add it to our list of WorkFragments that we want
+                        // queue up right now
                         if (is_localPartition) {
-                            this.tmp_localWorkFragmentList.add(ftask);
+                            this.tmp_localWorkFragmentList.add(fragment);
                             num_localPartition++;
                         } else if (is_localSite) {
-                            this.tmp_localSiteFragmentList.add(ftask);
+                            this.tmp_localSiteFragmentList.add(fragment);
                             num_localSite++;
                         } else {
-                            this.tmp_remoteFragmentList.add(ftask);
+                            this.tmp_remoteFragmentList.add(fragment);
                             num_remote++;
                         }
                     }
                 } // FOR
-                assert(total == (num_remote + num_localSite + num_localPartition));
-                if (num_localPartition == 0 && num_localSite == 0 && num_remote == 0) {
+                assert(total == (num_remote + num_localSite + num_localPartition + num_skipped)) :
+                    String.format("Total:%d / Remote:%d / LocalSite:%d / LocalPartition:%d / Skipped:%d",
+                                  total, num_remote, num_localSite, num_localPartition, num_skipped);
+                if (num_localPartition == 0 && num_localSite == 0 && num_remote == 0 && num_skipped == 0) {
                     String msg = String.format("Deadlock! All tasks for %s are blocked waiting on input!", ts);
                     throw new ServerFaultException(msg, ts.getTransactionId());
                 }

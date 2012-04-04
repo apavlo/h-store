@@ -47,6 +47,7 @@ public class QueryCache {
         final Integer idx;
         Long txnId;
         int fragmentId;
+        int partitionId;
         int paramsHash;
         VoltTable result;
         int accessCounter = 0;
@@ -56,8 +57,9 @@ public class QueryCache {
             this.idx = Integer.valueOf(idx);
         }
         
-        public void init(int fragmentId, ParameterSet params, VoltTable result) {
+        public void init(int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
             this.fragmentId = fragmentId;
+            this.partitionId = partitionId;
             this.paramsHash = params.hashCode();
             this.result = result;
         }
@@ -164,7 +166,7 @@ public class QueryCache {
      * @param result
      */
     @SuppressWarnings("unchecked")
-    public void addTransactionQueryResult(Long txnId, int fragmentId, ParameterSet params, VoltTable result) {
+    public void addTransactionQueryResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
         if (debug.get()) LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
                                                  txnId, fragmentId, params));
         
@@ -185,7 +187,7 @@ public class QueryCache {
         
         CacheEntry entry = this.txnCache.getNext(txnId);
         assert(entry != null);
-        entry.init(fragmentId, params, result);
+        entry.init(fragmentId, partitionId, params, result);
         entries.add(entry.idx);
         if (debug.get()) LOG.debug(String.format("#%d - CacheEntry\n%s", txnId, entry.toString()));
     }
@@ -197,7 +199,7 @@ public class QueryCache {
      * @param params
      * @return
      */
-    public VoltTable getTransactionCachedResult(Long txnId, int fragmentId, ParameterSet params) {
+    public VoltTable getTransactionCachedResult(Long txnId, int fragmentId, int partitionId, ParameterSet params) {
         if (debug.get()) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
                                                  txnId, fragmentId, params));
         
@@ -209,9 +211,10 @@ public class QueryCache {
                 assert(entry != null);
                 
                 // Check whether somebody took our place in the cache or that
-                // we don't even have the same fragmentId
+                // we don't even have the same fragmentId or partitionId
                 if (entry.txnId.equals(txnId) == false ||
-                    entry.fragmentId != fragmentId) {
+                    entry.fragmentId != fragmentId ||
+                    entry.partitionId != partitionId) {
                     continue;
                 }
                 
