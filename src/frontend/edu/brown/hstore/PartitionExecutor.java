@@ -121,7 +121,8 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.IntArrayCache;
+import edu.brown.hstore.util.ArrayCache.IntArrayCache;
+import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -239,8 +240,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
 
     private Thread self;
-    
-
 
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
@@ -420,6 +419,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final ParameterSetArrayCache tmp_fragmentParams;
     
+    /**
+     * Reusable long array for fragment ids
+     */
+    private final LongArrayCache tmp_fragmentIds = new LongArrayCache(10); // FIXME
     /**
      * Reusable int array for output dependency ids
      */
@@ -1760,12 +1763,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             return (result);
         }
         
-        // Check whether we need more space
-        long fragmentIds[] = new long[fragmentCount];
+        // Construct arrays given to the EE
+        long fragmentIds[] = new long[fragmentCount]; // tmp_fragmentIds.getArray(fragmentCount);
         int outputDepIds[] = tmp_outputDepIds.getArray(fragmentCount);
         int inputDepIds[] = tmp_inputDepIds.getArray(fragmentCount); // Is this ok?
-        
-        // Construct arrays given to the EE
         for (int i = 0; i < fragmentCount; i++) {
             fragmentIds[i] = fragment.getFragmentId(i);
             outputDepIds[i] = fragment.getOutputDepId(i);
