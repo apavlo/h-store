@@ -583,9 +583,8 @@ public class HStoreCoordinator implements Shutdownable {
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
             SerializableException error = null;
-            if (request.hasError()) {
-                ByteString bytes = request.getError();
-                error = SerializableException.deserializeFromBuffer(bytes.asReadOnlyByteBuffer());
+            if (request.hasError() && request.getError().isEmpty() == false) {
+                error = SerializableException.deserializeFromBuffer(request.getError().asReadOnlyByteBuffer());
 //                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
             }
             
@@ -726,10 +725,10 @@ public class HStoreCoordinator implements Shutdownable {
         this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), request, callback);
     }
     
-    public void transactionPrefetch(RemoteTransaction ts, TransactionPrefetchResult request) {
-        if (debug.get()) LOG.debug(String.format("%s - Sending %s back to base partition %d [numResults=%d]",
+    public void transactionPrefetchResult(RemoteTransaction ts, TransactionPrefetchResult request) {
+        if (debug.get()) LOG.debug(String.format("%s - Sending %s back to base partition %d",
                                                  ts, request.getClass().getSimpleName(),
-                                                 ts.getBasePartition(), request.hasResult()));
+                                                 ts.getBasePartition()));
         assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
         int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
