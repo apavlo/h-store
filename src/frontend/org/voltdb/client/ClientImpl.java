@@ -118,7 +118,7 @@ final class ClientImpl implements Client {
         m_hstoreConf = HStoreConf.singleton(true);
         m_backpressureWait = m_hstoreConf.client.throttle_backoff;
         
-        if (catalog != null) {
+        if (catalog != null && m_hstoreConf.client.txn_hints) {
             m_catalog = catalog;
             m_pEstimator = new PartitionEstimator(CatalogUtil.getDatabase(m_catalog));
             m_partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(m_catalog);
