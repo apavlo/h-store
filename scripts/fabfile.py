@@ -129,6 +129,7 @@ ENV_DEFAULT = {
     "client.blocking":             True,
     
     ## H-Store Options
+    "hstore.basedir":               "h-store",
     "hstore.git":                   "git://github.com/apavlo/h-store.git",
     "hstore.git_branch":            "master",
     "hstore.git_options":           "",
@@ -145,6 +146,9 @@ for k, v in ENV_DEFAULT.items():
         LOG.debug("%s [%s] => %s" % (k, t, env[k]))
         env[k] = t(env[k])
 ## FOR
+
+## H-Store Directory
+HSTORE_DIR = os.path.join("/home", env.user, env["hstore.basedir"])
 
 ## Setup EC2 Connection
 ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key"])
@@ -429,11 +433,11 @@ def setup_env():
     ## FOR
     
     # Bash Aliases
-    code_dir = os.path.join("$HOME", "hstore", env["hstore.git_branch"])
-    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs/sites"))
+    
+    log_dir = env.get("site.log_dir", os.path.join(HSTORE_DIR, "obj/logs/sites"))
     aliases = {
         # H-Store Home
-        'hh':  'cd ' + code_dir,
+        'hh':  'cd ' + HSTORE_DIR,
         # H-Store Site Logs
         'hl':  'cd ' + log_dir,
         # General Aliases
@@ -445,13 +449,12 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    hstore_dir = "/home/%s/hstore" % env.user
     with settings(warn_only=True):
         # Install the real H-Store directory in /home/
-        if run("test -d %s" % hstore_dir).failed:
-            run("mkdir " + hstore_dir)
+        if run("test -d %s" % HSTORE_DIR).failed:
+            run("mkdir " + HSTORE_DIR)
     ## WITH
-    # sudo("chown -R %s %s" % (env.user, hstore_dir))
+    # sudo("chown -R %s %s" % (env.user, HSTORE_DIR))
     
     return (first_setup)
 ## DEF
@@ -464,12 +467,10 @@ def setup_nfshead(rebootInst=True):
     """Deploy the NFS head node"""
     __getInstances__()
     
-    hstore_dir = "/home/%s/hstore" % env.user
-    
     sudo("apt-get --yes remove %s" % " ".join(NFSCLIENT_PACKAGES))
     sudo("apt-get --yes autoremove")
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
-    append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
+    append("/etc/exports", "%s *(rw,async,no_subtree_check)" % HSTORE_DIR, use_sudo=True)
     sudo("exportfs -a")
     sudo("/etc/init.d/portmap start")
     sudo("/etc/init.d/nfs-kernel-server start")
@@ -495,8 +496,6 @@ def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
     
-    hstore_dir = "/home/%s/hstore" % env.user
-    
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
     hosts_line = "%s hstore-nfs" % env["ec2.running_instances"][0].private_ip_address
@@ -507,8 +506,8 @@ def setup_nfsclient(rebootInst=True):
             append("/etc/hosts", hosts_line, use_sudo=True)
     
         sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
-        append("/etc/auto.master", "%s /etc/auto.hstore" % hstore_dir, use_sudo=True)
-        append("/etc/auto.hstore", "* hstore-nfs:%s/&" % hstore_dir, use_sudo=True)
+        append("/etc/auto.master", "%s /etc/auto.hstore" % HSTORE_DIR, use_sudo=True)
+        append("/etc/auto.hstore", "* hstore-nfs:%s/&" % HSTORE_DIR, use_sudo=True)
         sudo("/etc/init.d/autofs start")
     ## IF
     
@@ -532,43 +531,39 @@ def setup_nfsclient(rebootInst=True):
 ## ----------------------------------------------
 @task
 def deploy_hstore(build=True, update=True):
-    code_dir = env["hstore.git_branch"]
     need_files = False
-    with cd("hstore"):
-        with settings(warn_only=True):
-            if run("test -d %s" % code_dir).failed:
-                LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
-                run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
-                                                        env["hstore.git_options"], \
-                                                        env["hstore.git"], code_dir))
-                update = True
-                need_files = True
-        ## WITH
-            
-        with cd(env["hstore.git_branch"]):
-            if update:
-                run("git checkout -- properties")
-                run("git pull %s" % env["hstore.git_options"])
-            
-            ## Checkout Extra Files
-            if need_files:
+    with settings(warn_only=True):
+        if run("test -d %s" % env["hstore.basedir"]).failed:
+            LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
+            run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
+                                                    env["hstore.git_options"], \
+                                                    env["hstore.git"], code_dir))
+            update = True
+            need_files = True
+    ## WITH
+        
+    with cd(env["hstore.basedir"]):
+        run("git checkout %s" % env["hstore.git_branch"])
+        if update:
+            run("git checkout -- properties")
+            run("git pull %s" % env["hstore.git_options"])
+        
+        ## Checkout Extra Files
+        if need_files:
+            with cd(env["hstore.basedir"]):
                 LOG.debug("Initializing H-Store research files directory for branch '%s'" % env["hstore.git_branch"])
-                run("git submodule init")
-                run("git submodule update")
-                files_repo = env["hstore.git"].replace("h-store", "h-store-files")
-                with cd("files"):
-                    run("git checkout master")
-                    run("git pull %s %s" % (env["hstore.git_options"], files_repo))
-                ## WITH
-                
-            if build:
-                LOG.debug("Building H-Store from source code")
-                if env["hstore.clean"]:
-                    run("ant clean-all")
-                run("ant build")
+                run("ant junit-getfiles")
+            ## WITH
+        ## IF
+            
+        if build:
+            LOG.debug("Building H-Store from source code")
+            if env["hstore.clean"]:
+                run("ant clean-all")
+            run("ant build")
         ## WITH
     ## WITH
-    run("cd " + os.path.join("hstore", code_dir))
+    run("cd %s" % env["hstore.basedir"])
 ## DEF
 
 ## ----------------------------------------------
@@ -579,8 +574,7 @@ def get_version():
     """Get the current Git commit id and date in the deployment directory"""
     from datetime import datetime
     
-    code_dir = os.path.join("hstore", env["hstore.git_branch"])
-    with cd(code_dir):
+    with cd(HSTORE_DIR):
         output = run("git log --pretty=format:' %h %at ' -n 1")
     data = map(string.strip, output.split(" "))
     rev_id = str(data[1])
@@ -595,7 +589,6 @@ def get_version():
 @task
 def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, updateLog4j=False):
     __getInstances__()
-    code_dir = os.path.join("hstore", env["hstore.git_branch"])
     
     ## Make sure we have enough instances
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
@@ -673,7 +666,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     ## a properties file
     workloads = None
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
-    with cd(code_dir):
+    with cd(HSTORE_DIR):
         prefix = env["hstore.exec_prefix"]
         if updateJar:
             LOG.info("Updating H-Store %s project jar file" % (project.upper()))
@@ -712,7 +705,6 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 def write_conf(project, removals=[ ], revertFirst=False):
     assert project
     prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
-    code_dir = os.path.join("hstore", env["hstore.git_branch"])
     
     hstoreConf_updates = { }
     hstoreConf_removals = set()
@@ -744,7 +736,7 @@ def write_conf(project, removals=[ ], revertFirst=False):
         ("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals),
     ]
     
-    with cd(code_dir):
+    with cd(HSTORE_DIR):
         for _file, _updates, _removals in toUpdate:
             if revertFirst:
                 LOG.info("Reverting '%s'" % _file)
@@ -862,7 +854,6 @@ def __syncTime__():
     sudo("echo 1 > /proc/sys/xen/independent_wallclock")
     sudo("ntpdate-debian -b")
 ## DEF
-
 
 ## ----------------------------------------------
 ## __startInstances__
