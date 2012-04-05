@@ -129,7 +129,7 @@ ENV_DEFAULT = {
     "client.blocking":             True,
     
     ## H-Store Options
-    "hstore.basedir":               "h-store",
+    "hstore.basedir":               "workspace",
     "hstore.git":                   "git://github.com/apavlo/h-store.git",
     "hstore.git_branch":            "master",
     "hstore.git_options":           "",
@@ -148,7 +148,7 @@ for k, v in ENV_DEFAULT.items():
 ## FOR
 
 ## H-Store Directory
-HSTORE_DIR = os.path.join("/home", env.user, env["hstore.basedir"])
+HSTORE_DIR = os.path.join("/home", env.user, env["hstore.basedir"], "h-store")
 
 ## Setup EC2 Connection
 ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key"])
@@ -449,12 +449,12 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    #with settings(warn_only=True):
-        ## Install the real H-Store directory in /home/
-        #if run("test -d %s" % HSTORE_DIR).failed:
-            #run("mkdir " + HSTORE_DIR)
-    ### WITH
-    # sudo("chown -R %s %s" % (env.user, HSTORE_DIR))
+    with settings(warn_only=True):
+        # Install the real H-Store directory in /home/
+        if run("test -d %s" % env["hstore.basedir"]).failed:
+            run("mkdir " + env["hstore.basedir"])
+    ## WITH
+    sudo("chown -R %s %s" % (env.user, env["hstore.basedir"]))
     
     return (first_setup)
 ## DEF
@@ -522,7 +522,7 @@ def setup_nfsclient(rebootInst=True):
         __waitUntilStatus__(inst, 'running')
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
-    run("cd %s" % env["hstore.basedir"])
+    run("cd %s" % HSTORE_DIR)
 ## DEF
 
 ## ----------------------------------------------
@@ -531,17 +531,18 @@ def setup_nfsclient(rebootInst=True):
 @task
 def deploy_hstore(build=True, update=True):
     need_files = False
+    
     with settings(warn_only=True):
-        if run("test -d %s" % env["hstore.basedir"]).failed:
-            LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
-            run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
-                                                    env["hstore.git_options"], \
-                                                    env["hstore.git"]))
-            update = True
-            need_files = True
+        if run("test -d %s" % HSTORE_DIR).failed:
+            with cd(env["hstore.basedir"]):
+                LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
+                run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
+                                                        env["hstore.git_options"], \
+                                                        env["hstore.git"]))
+                update = True
+                need_files = True
     ## WITH
-        
-    with cd(env["hstore.basedir"]):
+    with cd(HSTORE_DIR):
         run("git checkout %s" % env["hstore.git_branch"])
         if update:
             run("git checkout -- properties")
