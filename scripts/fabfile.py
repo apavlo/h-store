@@ -449,11 +449,11 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    with settings(warn_only=True):
-        # Install the real H-Store directory in /home/
-        if run("test -d %s" % HSTORE_DIR).failed:
-            run("mkdir " + HSTORE_DIR)
-    ## WITH
+    #with settings(warn_only=True):
+        ## Install the real H-Store directory in /home/
+        #if run("test -d %s" % HSTORE_DIR).failed:
+            #run("mkdir " + HSTORE_DIR)
+    ### WITH
     # sudo("chown -R %s %s" % (env.user, HSTORE_DIR))
     
     return (first_setup)
@@ -522,8 +522,7 @@ def setup_nfsclient(rebootInst=True):
         __waitUntilStatus__(inst, 'running')
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
-    
-    run("cd " + os.path.join("hstore", env["hstore.git_branch"]))
+    run("cd %s" % env["hstore.basedir"])
 ## DEF
 
 ## ----------------------------------------------
@@ -535,9 +534,9 @@ def deploy_hstore(build=True, update=True):
     with settings(warn_only=True):
         if run("test -d %s" % env["hstore.basedir"]).failed:
             LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
-            run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
+            run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
                                                     env["hstore.git_options"], \
-                                                    env["hstore.git"], code_dir))
+                                                    env["hstore.git"]))
             update = True
             need_files = True
     ## WITH
@@ -550,10 +549,8 @@ def deploy_hstore(build=True, update=True):
         
         ## Checkout Extra Files
         if need_files:
-            with cd(env["hstore.basedir"]):
-                LOG.debug("Initializing H-Store research files directory for branch '%s'" % env["hstore.git_branch"])
-                run("ant junit-getfiles")
-            ## WITH
+            LOG.debug("Initializing H-Store research files directory for branch '%s'" % env["hstore.git_branch"])
+            run("ant junit-getfiles")
         ## IF
             
         if build:
@@ -828,7 +825,7 @@ def clear_logs():
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
             with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
-                log_dir = os.path.join("hstore", env["hstore.git_branch"], "obj/release/logs")
+                log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
                 run("rm -rf %s/*" % log_dir)
             break
         ## IF
