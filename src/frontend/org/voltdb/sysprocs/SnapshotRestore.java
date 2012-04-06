@@ -62,13 +62,12 @@ import org.voltdb.sysprocs.saverestore.TableSaveFileState;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.PartitionEstimator;
 
-@ProcInfo (
-    singlePartition = false
-)
+@ProcInfo (singlePartition = false)
 public class SnapshotRestore extends VoltSystemProcedure
 {
     private static final Logger LOG = Logger.getLogger(SnapshotRestore.class);
@@ -184,10 +183,9 @@ public class SnapshotRestore extends VoltSystemProcedure
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+            Host catalog_host = context.getHost();
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+            Integer lowest_site_id = catalog_site.getId();
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
@@ -929,8 +927,7 @@ public class SnapshotRestore extends VoltSystemProcedure
         for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
         {
             for (Partition partition : site.getPartitions()) {
-                sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
-                                        partition.getId());
+                sites_to_partitions.put(catalog_host.getId());
             }
         }
 
