@@ -676,8 +676,8 @@ public class ArgumentsParser {
 
         // Workload Statistics
         if (this.catalog_db != null) {
-            this.stats = new WorkloadStatistics(this.catalog_db);
             if (this.params.containsKey(PARAM_STATS)) {
+                this.stats = new WorkloadStatistics(this.catalog_db);
                 String path = this.params.get(PARAM_STATS);
                 if (debug)
                     LOG.debug("Loading in workload statistics from '" + path + "'");
@@ -690,7 +690,7 @@ public class ArgumentsParser {
             }
 
             // Scaling
-            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR)) {
+            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR) && this.stats != null) {
                 double scale_factor = this.getDoubleParam(PARAM_STATS_SCALE_FACTOR);
                 LOG.info("Scaling TableStatistics: " + scale_factor);
                 AbstractTableStatisticsGenerator generator = AbstractTableStatisticsGenerator.factory(this.catalog_db, this.catalog_type, scale_factor);
