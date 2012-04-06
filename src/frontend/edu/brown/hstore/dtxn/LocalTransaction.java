@@ -129,6 +129,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private long initiateTime;
     
+    private DistributedState dtxnState;
+    
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -171,6 +173,7 @@ public class LocalTransaction extends AbstractTransaction {
      * were touched the most if end up needing to redirect it later on
      */
     private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
+//    private final FastIntHistogram exec_touchedPartitions;
     
     /**
      * 
@@ -178,49 +181,15 @@ public class LocalTransaction extends AbstractTransaction {
     public final TransactionProfile profiler;
 
     /**
-     * Cached ProtoRpcControllers
-     */
-    private final ProtoRpcController rpc_transactionInit[];
-    private final ProtoRpcController rpc_transactionWork[];
-    private final ProtoRpcController rpc_transactionPrepare[];
-    private final ProtoRpcController rpc_transactionFinish[];
-    
-    /**
      * TODO: We need to remove the need for this
      */
     private final InitiateTaskMessage itask;
 
-    
     /**
      * Whether this transaction's control code was executed on
      * its base partition.
      */
     private boolean executed = false;
-    
-    // ----------------------------------------------------------------------------
-    // CALLBACKS
-    // ----------------------------------------------------------------------------
-    
-    /**
-     * This callback is used to release the transaction once we get
-     * the acknowledgments back from all of the partitions that we're going to access.
-     * This is only needed for distributed transactions. 
-     */
-    private TransactionInitCallback init_callback;
-    
-    /**
-     * This callback is used to keep track of what partitions have replied that they are 
-     * ready to commit/abort our transaction.
-     * This is only needed for distributed transactions.
-     */
-    private TransactionPrepareCallback prepare_callback; 
-    
-    /**
-     * This callback will keep track of whether we have gotten all the 2PC acknowledgments
-     * from the remote partitions. Once this is finished, we can then invoke
-     * HStoreSite.deleteTransaction()
-     */
-    private TransactionFinishCallback finish_callback;
     
     /**
      * Final RpcCallback to the client
@@ -244,12 +213,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
         this.done_partitions = new BitSet(num_partitions);
-        
-        int num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
-        this.rpc_transactionInit = new ProtoRpcController[num_sites];
-        this.rpc_transactionWork = new ProtoRpcController[num_sites];
-        this.rpc_transactionPrepare = new ProtoRpcController[num_sites];
-        this.rpc_transactionFinish = new ProtoRpcController[num_sites];
+//        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
 
     /**
@@ -291,10 +255,12 @@ public class LocalTransaction extends AbstractTransaction {
         this.itask.setStoredProcedureInvocation(invocation);
         this.itask.setSysProc(catalog_proc.getSystemproc());
         
+        // Grab a DistributedState that will have all the goodies that we need
+        // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
-                this.init_callback.init(this);
+                this.dtxnState = HStoreObjectPools.STATES_DISTRIBUTED.borrowObject(); 
+                this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
             }
@@ -339,20 +305,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.resetExecutionState();
         super.finish();
         
-        // Return our LocalTransactionInitCallback
-        if (this.init_callback != null) {
-            HStoreObjectPools.CALLBACKS_TXN_INIT.returnObject(this.init_callback);
-            this.init_callback = null;
-        }
-        // Return our TransactionPrepareCallback
-        if (this.prepare_callback != null) {
-            HStoreObjectPools.CALLBACKS_TXN_PREPARE.returnObject(this.prepare_callback);
-            this.prepare_callback = null;
-        }
-        // Return our TransactionFinishCallback
-        if (this.finish_callback != null) {
-            HStoreObjectPools.CALLBACKS_TXN_FINISH.returnObject(this.finish_callback);
-            this.finish_callback = null;
+        // Return our DistributedState
+        if (this.dtxnState != null) {
+            HStoreObjectPools.STATES_DISTRIBUTED.returnObject(this.dtxnState);
+            this.dtxnState = null;
         }
         // Return our TransactionEstimator.State handle
         if (this.estimator_state != null) {
@@ -608,25 +564,17 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     public TransactionInitCallback getTransactionInitCallback() {
-        return (this.init_callback);
+        return (this.dtxnState.init_callback);
     }
     public TransactionPrepareCallback initTransactionPrepareCallback() {
-        assert(this.prepare_callback == null) :
+        assert(this.dtxnState.prepare_callback.isInitialized() == false) :
             "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
-        try {
-            this.prepare_callback = HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to initialize TransactionPrepareCallback for " + this, ex);
-        }
-        this.prepare_callback.init(this);
-        return (this.prepare_callback);
-    }
-    public boolean hasTransactionPrepareCallback() {
-        return (this.prepare_callback != null);
+        this.dtxnState.prepare_callback.init(this);
+        return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
-        assert(this.prepare_callback != null);
-        return (this.prepare_callback);
+        assert(this.dtxnState != null);
+        return (this.dtxnState.prepare_callback);
     }
     
     /**
@@ -637,25 +585,17 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
-        assert(this.finish_callback == null) :
+        assert(this.dtxnState.finish_callback.isInitialized() == false) :
             "Trying initialize the TransactionFinishCallback for " + this + " more than once";
         // Don't initialize this until later, because we need to know 
         // what the final status of the txn
-        try {
-            this.finish_callback = HStoreObjectPools.CALLBACKS_TXN_FINISH.borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to initialize TransactionFinishCallback for " + this, ex);
-        }
-        this.finish_callback.init(this, status);
-        return (this.finish_callback);
-    }
-    public boolean hasTransactionFinishCallback() {
-        return (this.finish_callback != null);
+        this.dtxnState.finish_callback.init(this, status);
+        return (this.dtxnState.finish_callback);
     }
     public TransactionFinishCallback getTransactionFinishCallback() {
-        assert(this.finish_callback != null) :
+        assert(this.dtxnState.finish_callback.isInitialized()) :
             "Trying to use TransactionFinishCallback for " + this + " before it is intialized";
-        return (this.finish_callback);
+        return (this.dtxnState.finish_callback);
     }
     
     /**
@@ -706,14 +646,16 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.isInitialized() == false) {
             return (false);
         }
-        if (this.init_callback != null && this.init_callback.allCallbacksFinished() == false) {
-            return (false);
-        }
-        if (this.prepare_callback != null && this.prepare_callback.allCallbacksFinished() == false) {
-            return (false);
-        }
-        if (this.finish_callback != null && this.finish_callback.allCallbacksFinished() == false) {
-            return (false);
+        if (this.dtxnState != null) {
+            if (this.dtxnState.init_callback.allCallbacksFinished() == false) {
+                return (false);
+            }
+            if (this.dtxnState.prepare_callback.allCallbacksFinished() == false) {
+                return (false);
+            }
+            if (this.dtxnState.finish_callback.allCallbacksFinished() == false) {
+                return (false);
+            }
         }
         if (this.needs_restart || this.not_deletable) {
             return (false);
@@ -956,26 +898,17 @@ public class LocalTransaction extends AbstractTransaction {
     // ProtoRpcController CACHE
     // ----------------------------------------------------------------------------
     
-    private ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
-        if (cache[site_id] == null) {
-            cache[site_id] = new ProtoRpcController();
-        } else {
-            cache[site_id].reset();
-        }
-        return (cache[site_id]);
-    }
-    
     public ProtoRpcController getTransactionInitController(int site_id) {
-        return this.getProtoRpcController(this.rpc_transactionInit, site_id);
+        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionInit, site_id);
     }
     public ProtoRpcController getTransactionWorkController(int site_id) {
-        return this.getProtoRpcController(this.rpc_transactionWork, site_id);
+        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionWork, site_id);
     }
     public ProtoRpcController getTransactionPrepareController(int site_id) {
-        return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
+        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionPrepare, site_id);
     }
     public ProtoRpcController getTransactionFinishController(int site_id) {
-        return this.getProtoRpcController(this.rpc_transactionFinish, site_id);
+        return this.dtxnState.getProtoRpcController(this.dtxnState.rpc_transactionFinish, site_id);
     }
     
     // ----------------------------------------------------------------------------
@@ -1450,9 +1383,11 @@ public class LocalTransaction extends AbstractTransaction {
         // Additional Info
         m = new ListOrderedMap<String, Object>();
         m.put("Client Callback", this.client_callback);
-        m.put("Init Callback", this.init_callback);
-        m.put("Prepare Callback", this.prepare_callback);
-        m.put("Finish Callback", this.finish_callback);
+        if (this.dtxnState != null) {
+            m.put("Init Callback", this.dtxnState.init_callback);
+            m.put("Prepare Callback", this.dtxnState.prepare_callback);
+            m.put("Finish Callback", this.dtxnState.finish_callback);
+        }
         maps.add(m);
 
         // Profile Times

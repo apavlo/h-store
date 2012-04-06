@@ -786,6 +786,13 @@ public final class HStoreConf {
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
+            description="The max number of DistributedStates to keep in the pool.",
+            defaultInt=500,
+            experimental=false
+        )
+        public int pool_dtxnstates_idle;
+        
+        @ConfigProperty(
             description="The max number of PrefetchStates to keep in the pool.",
             defaultInt=100,
             experimental=false
@@ -811,6 +818,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txninit_idle;
         
         @ConfigProperty(
@@ -833,6 +841,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txnprepare_idle;
     }
     
