@@ -921,7 +921,7 @@ public class ArgumentsParser {
         // -------------------------------------------------------
         // TRANSACTION ESTIMATION COMPONENTS
         // -------------------------------------------------------
-        if (this.params.containsKey(PARAM_MAPPINGS)) {
+        if (this.params.containsKey(PARAM_MAPPINGS) && DISABLE_UPDATE_CATALOG == false) {
             assert (this.catalog_db != null);
             File path = new File(this.params.get(PARAM_MAPPINGS));
             if (path.exists()) {
