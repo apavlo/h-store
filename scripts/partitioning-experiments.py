@@ -415,6 +415,10 @@ if __name__ == '__main__':
         "clear-logs",
         "trace",
         
+        "statsdatabase-url=",
+        "statsdatabase-jdbc=",
+        "statsdatabase-tag=",
+        
         "codespeed-url=",
         "codespeed-benchmark=",
         "codespeed-revision=",
@@ -554,6 +558,17 @@ if __name__ == '__main__':
     if OPT_RETRY_ON_ZERO:
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
     
+    # BenchmarkController Parameters
+    controllerParams = { }
+    for key in options:
+        if key == "statsdatabase-url":
+            controllerParams["statsDatabaseURL"] = options[key][0]
+        elif key == "statsdatabase-jdbc":
+            controllerParams["statsDatabaseJDBC"] = options[key][0]
+        elif key == "statsdatabase-tag":
+            controllerParams["statsDatabaseTag"] = options[key][0]
+    ## FOR
+    
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
@@ -667,7 +682,8 @@ if __name__ == '__main__':
                                                                     updateJar=updateJar, \
                                                                     updateConf=updateConf, \
                                                                     updateRepo=needUpdate, \
-                                                                    updateLog4j=needUpdate)
+                                                                    updateLog4j=needUpdate, \
+                                                                    controllerParams)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
                                 for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
