@@ -496,6 +496,8 @@ def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
     
+    nfs_dir = os.path.dirname(HSTORE_DIR[:-1])
+    
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
     hosts_line = "%s hstore-nfs" % env["ec2.running_instances"][0].private_ip_address
@@ -506,8 +508,8 @@ def setup_nfsclient(rebootInst=True):
             append("/etc/hosts", hosts_line, use_sudo=True)
     
         sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
-        append("/etc/auto.master", "%s /etc/auto.hstore" % HSTORE_DIR, use_sudo=True)
-        append("/etc/auto.hstore", "* hstore-nfs:%s/&" % env["hstore.basedir"], use_sudo=True)
+        append("/etc/auto.master", "%s /etc/auto.hstore" % nfs_dir, use_sudo=True)
+        append("/etc/auto.hstore", "* hstore-nfs:%s/&" % nfs_dir, use_sudo=True)
         sudo("/etc/init.d/autofs start")
     ## IF
     
