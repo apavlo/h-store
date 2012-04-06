@@ -1,6 +1,7 @@
 package org.voltdb.utils;
 
 import java.util.Arrays;
+import java.util.Collection;
 
 import org.voltdb.VoltTable;
 import org.voltdb.types.SortDirectionType;
@@ -27,6 +28,27 @@ public abstract class VoltTableUtil {
         } // FOR
         
         return (clone);
+    }
+    
+    /**
+     * Combine multiple VoltTables into a single object
+     * This assumes that all of the tables have the same schema
+     * @param tables
+     * @return
+     */
+    public static VoltTable combine(Collection<VoltTable> tables) {
+        VoltTable result = null;
+        for (VoltTable vt : tables) {
+            if (vt == null) continue;
+            if (result == null) {
+                result = new VoltTable(vt);
+            }
+            vt.resetRowPosition();
+            while (vt.advanceRow()) {
+                result.add(vt);
+            } // WHILE
+        } // FOR
+        return (result);
     }
     
 }
