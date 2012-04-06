@@ -653,8 +653,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
         
         // ParameterSet Array Caches
-        this.procParameterSets = new ParameterSetArrayCache(hstore_conf.site.planner_max_batch_size / 2);
-        this.tmp_fragmentParams = new ParameterSetArrayCache(hstore_conf.site.planner_max_round_size / 2);
+        this.procParameterSets = new ParameterSetArrayCache(10);
+        this.tmp_fragmentParams = new ParameterSetArrayCache(5);
 
         // Initialize temporary data structures
         int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
