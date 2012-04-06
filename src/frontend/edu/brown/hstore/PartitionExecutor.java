@@ -1828,11 +1828,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
             ts.markExecNotReadOnly(this.partitionId);
-            result = volt_proc.executePlanFragment(ts.getTransactionId(),
-                                                   this.tmp_EEdependencies,
-                                                   (int)fragment_id,
-                                                   fragmentParams,
-                                                   this.m_systemProcedureContext);
+            try {
+                result = volt_proc.executePlanFragment(ts.getTransactionId(),
+                                                       this.tmp_EEdependencies,
+                                                       (int)fragment_id,
+                                                       fragmentParams,
+                                                       this.m_systemProcedureContext);
+            } catch (Throwable ex) {
+                String msg = "Unexpected error when executing system procedure";
+                throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            }
             if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d\n%s",
                                            ts, fragment_id, result));
         // -------------------------------
