@@ -585,7 +585,7 @@ def get_version():
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, updateLog4j=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, updateLog4j=False, extraParams={ }):
     __getInstances__()
     
     ## Make sure we have enough instances
@@ -659,6 +659,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
         LOG.debug("Enabling trace files that will be output to '%s'" % hstore_options["trace"])
     LOG.debug("H-Store Config:\n" + pformat(hstore_options))
+    
+    ## Extra Parameters
+    if extraParams:
+        hstore_options = dict(hstore_options.items() + extraParams.items())
     
     ## Any other option not listed in the above dict should be written to 
     ## a properties file

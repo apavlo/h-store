@@ -1571,7 +1571,7 @@ BENCHMARKS
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
         <arg value="NUMCONNECTIONS=${numconnections}" />
-        <arg value="STATSTAG=${statsTag}" />
+        <arg value="STATSDATABASETAG=${statsDatabaseTag}" />
         <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
         <arg value="STATSDATABASEJDBC=${statsDatabaseJDBC}" />
 
