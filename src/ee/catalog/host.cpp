@@ -32,6 +32,7 @@ Host::Host(Catalog *catalog, CatalogType *parent, const string &path, const stri
   m_cpus(catalog, this, path + "/" + "cpus")
 {
     CatalogValue value;
+    m_fields["id"] = value;
     m_fields["ipaddr"] = value;
     m_fields["num_cpus"] = value;
     m_fields["corespercpu"] = value;
