@@ -683,7 +683,7 @@ if __name__ == '__main__':
                                                                     updateConf=updateConf, \
                                                                     updateRepo=needUpdate, \
                                                                     updateLog4j=needUpdate, \
-                                                                    controllerParams)
+                                                                    extraParams=controllerParams)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
                                 for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
