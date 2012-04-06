@@ -470,7 +470,7 @@ def setup_nfshead(rebootInst=True):
     sudo("apt-get --yes remove %s" % " ".join(NFSCLIENT_PACKAGES))
     sudo("apt-get --yes autoremove")
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
-    append("/etc/exports", "%s *(rw,async,no_subtree_check)" % env["hstore.basedir"], use_sudo=True)
+    append("/etc/exports", "%s *(rw,async,no_subtree_check)" % os.path.dirname(HSTORE_DIR[:-1]), use_sudo=True)
     sudo("exportfs -a")
     sudo("/etc/init.d/portmap start")
     sudo("/etc/init.d/nfs-kernel-server start")
