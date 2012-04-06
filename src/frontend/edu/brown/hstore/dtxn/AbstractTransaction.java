@@ -185,9 +185,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.finish_task = new FinishTaskMessage(this, Status.OK);
         this.work_task = new FragmentTaskMessage[cnt];
-        for (int i = 0; i < this.work_task.length; i++) {
-            this.work_task[i] = new FragmentTaskMessage();
-        } // FOR
         
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
@@ -522,6 +519,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     public FragmentTaskMessage getFragmentTaskMessage(WorkFragment fragment) {
         int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
+        if (this.work_task[offset] == null) {
+            this.work_task[offset] = new FragmentTaskMessage();
+        }
         return (this.work_task[offset].setWorkFragment(this.txn_id, fragment));
     }
     
