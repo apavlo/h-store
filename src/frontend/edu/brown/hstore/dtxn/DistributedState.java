@@ -8,10 +8,14 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.Poolable;
 
+/**
+ * Contrainer class for all of the objects needed by a distributed txn
+ * @author pavlo
+ */
 public class DistributedState implements Poolable {
 
     // ----------------------------------------------------------------------------
-    // CURRENT STATE
+    // CURRENT TXN
     // ----------------------------------------------------------------------------
     
     private LocalTransaction ts = null;
