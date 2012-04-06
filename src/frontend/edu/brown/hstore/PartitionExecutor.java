@@ -780,8 +780,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     LOG.error(msg + "\n" + work.toString());
                     throw new ServerFaultException(msg, this.currentTxnId);
                 }
-                // If this transaction has already been aborted, we won't bother processing it
-                else if (current_txn.isAborted()) {
+                // If this transaction has already been aborted and they are trying to give us
+                // something that isn't a FinishTaskMessage, then we won't bother processing it
+                else if (current_txn.isAborted() && (work instanceof FinishTaskMessage) == false) {
                     if (d) LOG.debug(String.format("%s - Was marked as aborted. Will not process %s on partition %d",
                                                    current_txn, work.getClass().getSimpleName(), this.partitionId));
                     continue;
