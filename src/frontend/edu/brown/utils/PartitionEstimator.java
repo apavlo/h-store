@@ -533,8 +533,7 @@ public class PartitionEstimator {
                 // If it's not in there, then this query has to be broadcasted
                 // to all nodes
                 // Note that we pass all the tables that are part of the
-                // fragment, since we need
-                // to be able to handle joins
+                // fragment, since we need to be able to handle joins
                 ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, tables_arr);
                 assert (cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
@@ -549,8 +548,8 @@ public class PartitionEstimator {
                     stmt_cache.markAsBroadcast(tables_arr);
                     frag_cache.markAsBroadcast(tables_arr);
 
-                    // Fragment references the columns for our tables. Pick them
-                    // apart!
+                // Fragment references the columns for our tables. Pick them
+                // apart!
                 } else {
                     // First go through all the entries and add any mappings
                     // from
