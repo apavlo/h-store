@@ -26,6 +26,7 @@
 package edu.brown.hstore;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +52,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
@@ -134,6 +136,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * to clients.
      */
     private final DBBPool buffer_pool = new DBBPool(false, false);
+    
+    /**
+     * Incoming request deserializer
+     */
+    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
     private final HStoreThreadManager threadManager;
     
@@ -932,9 +939,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
+    public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
+
+        this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
+        StoredProcedureInvocation request = null;
+        try {
+            request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();

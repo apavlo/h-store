@@ -556,15 +556,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (transactionRedirect_dispatcher != null) {
                 transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
             } else {
-                FastDeserializer fds = new FastDeserializer(serializedRequest);
-                StoredProcedureInvocation invocation = null;
-                try {
-                    invocation = fds.readObject(StoredProcedureInvocation.class);
-                } catch (Exception ex) {
-                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
-                    throw new RuntimeException(ex);
-                }
-                hstore_site.procedureInvocation(invocation, serializedRequest, callback);
+                hstore_site.procedureInvocation(serializedRequest, callback);
             }
         }
         
