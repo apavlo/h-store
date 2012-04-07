@@ -128,7 +128,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     
     // ----------------------------------------------------------------------------
-    // OBJECT POOLS
+    // INSTANCE MEMBERS
     // ----------------------------------------------------------------------------
 
     /**
@@ -459,7 +459,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // CACHED MESSAGES
-        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
+        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
     }
     
 
