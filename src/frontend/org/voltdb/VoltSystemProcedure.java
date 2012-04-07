@@ -189,8 +189,9 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             // Create a WorkFragment for each target partition
             for (int destPartitionId : partitions) {
                 if (debug.get()) 
-                    LOG.debug(String.format("%s - Creating %s WorkFragment for partition %s",
-                                            ts, this.getClass().getSimpleName(), destPartitionId));
+                    LOG.debug(String.format("%s - Creating %s WorkFragment for partition %s [%d]",
+                                            ts, this.getClass().getSimpleName(),
+                                            destPartitionId, pf.fragmentId));
                 WorkFragment.Builder builder = WorkFragment.newBuilder()
                                                         .setPartitionId(destPartitionId)
                                                         .setReadOnly(false)
@@ -214,7 +215,11 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 } // FOR
     
                 builder.setNeedsInput(needs_input);
-                this.fragments.add(builder.build());
+                WorkFragment fragment = builder.build(); 
+                this.fragments.add(fragment);
+                
+                if (debug.get()) 
+                    LOG.debug(String.format("%s - WorkFragment\n%s", ts, fragment));
             } // FOR
         } // FOR
 

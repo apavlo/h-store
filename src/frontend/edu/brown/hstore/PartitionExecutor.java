@@ -653,8 +653,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
         
         // ParameterSet Array Caches
-        this.procParameterSets = new ParameterSetArrayCache(hstore_conf.site.planner_max_batch_size / 2);
-        this.tmp_fragmentParams = new ParameterSetArrayCache(hstore_conf.site.planner_max_round_size / 2);
+        this.procParameterSets = new ParameterSetArrayCache(10);
+        this.tmp_fragmentParams = new ParameterSetArrayCache(5);
 
         // Initialize temporary data structures
         int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
@@ -780,8 +780,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     LOG.error(msg + "\n" + work.toString());
                     throw new ServerFaultException(msg, this.currentTxnId);
                 }
-                // If this transaction has already been aborted, we won't bother processing it
-                else if (current_txn.isAborted()) {
+                // If this transaction has already been aborted and they are trying to give us
+                // something that isn't a FinishTaskMessage, then we won't bother processing it
+                else if (current_txn.isAborted() && (work instanceof FinishTaskMessage) == false) {
                     if (d) LOG.debug(String.format("%s - Was marked as aborted. Will not process %s on partition %d",
                                                    current_txn, work.getClass().getSimpleName(), this.partitionId));
                     continue;
@@ -1672,15 +1673,27 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (status == Status.OK) {
                 if (d) LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
                                                ts, result.size(), ts.getBasePartition()));
-                PartitionExecutor other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
+                PartitionExecutor other = null; // 
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    other.queryCache.addTransactionQueryResult(ts.getTransactionId(),
-                                                               fragment.getFragmentId(i),
-                                                               fragment.getPartitionId(),
-                                                               parameters[i],
-                                                               result.dependencies[i]);
+                    // We're going to store the result in the base partition cache if they're 
+                    // on the same HStoreSite as us
+                    if (hstore_site.isLocalPartition(ts.getBasePartition())) {
+                        if (other == null) other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
+                        other.queryCache.addTransactionQueryResult(ts.getTransactionId(),
+                                                                   fragment.getFragmentId(i),
+                                                                   fragment.getPartitionId(),
+                                                                   parameters[i],
+                                                                   result.dependencies[i]);
+                    }
+                    // We also need to store it in our own cache in case we need to retrieve it
+                    // if they come at us with the same query request
+                    this.queryCache.addTransactionQueryResult(ts.getTransactionId(),
+                                                              fragment.getFragmentId(i),
+                                                              fragment.getPartitionId(),
+                                                              parameters[i],
+                                                              result.dependencies[i]);
+
                 } // FOR
-                System.err.println("Query Cache Dump:\n" + other.queryCache.toString());
             }
             
             // Now if it's a remote transaction, we need to use the coordinator to send
@@ -1695,7 +1708,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                                 .setResult(wr)
                                                                 .setStatus(status)
                                                                 .build();
-                hstore_coordinator.transactionPrefetch((RemoteTransaction)ts, prefetchResult);
+                hstore_coordinator.transactionPrefetchResult((RemoteTransaction)ts, prefetchResult);
             }
         }
         // -------------------------------
@@ -1816,11 +1829,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
             ts.markExecNotReadOnly(this.partitionId);
-            result = volt_proc.executePlanFragment(ts.getTransactionId(),
-                                                   this.tmp_EEdependencies,
-                                                   (int)fragment_id,
-                                                   fragmentParams,
-                                                   this.m_systemProcedureContext);
+            try {
+                result = volt_proc.executePlanFragment(ts.getTransactionId(),
+                                                       this.tmp_EEdependencies,
+                                                       (int)fragment_id,
+                                                       fragmentParams,
+                                                       this.m_systemProcedureContext);
+            } catch (Throwable ex) {
+                String msg = "Unexpected error when executing system procedure";
+                throw new ServerFaultException(msg, ex, ts.getTransactionId());
+            }
             if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d\n%s",
                                            ts, fragment_id, result));
         // -------------------------------
@@ -1843,7 +1861,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Execute a BatcPlan directly on this PartitionExecutor without having to covert it
+     * Execute a BatchPlan directly on this PartitionExecutor without having to covert it
      * to FragmentTaskMessages first. This is big speed improvement over having to queue things up
      * @param ts
      * @param plan
@@ -2200,10 +2218,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             String msg = String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts);
                             throw new ServerFaultException(msg, ts.getTransactionId());
                         }
-                        if (d)
-                            LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
-                                                    ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
-                                                    CollectionUtil.last(builder.getAttachedDataList()).size()));
+                        if (d) LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
+                                                       ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
+                                                       CollectionUtil.last(builder.getAttachedDataList()).size()));
                     } // FOR
                     requestBuilder.addInputDependencyId(e.getKey());
                 } // FOR
@@ -2452,6 +2469,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                     skip_queue = false;
                                 }
                             } // FOR
+                            // If we were able to get cached results for all of the fragmentIds in
+                            // this WorkFragment, then there is no need for us to send the message
+                            // So we'll just skip queuing it up! How nice!
                             if (skip_queue) {
                                 if (d) LOG.debug(String.format("%s - Using prefetch result for all fragments from partition %d",
                                                                ts, partition));

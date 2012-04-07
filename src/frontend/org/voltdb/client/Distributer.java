@@ -635,8 +635,8 @@ class Distributer {
             long timestamp = numbers[2];
             int addr = (int)numbers[3];
             m_clusterInstanceId = new Object[] { timestamp, addr };
-            LOG.info("statsLoader = " + m_statsLoader);
             if (m_statsLoader != null) {
+                if (debug.get()) LOG.debug("statsLoader = " + m_statsLoader);
                 try {
                     m_statsLoader.start( timestamp, addr);
                 } catch (SQLException e) {

@@ -164,7 +164,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         while (table.advanceRow()) {
             int p = -1;
             try {
-                p = this.p_estimator.getTableRowPartition(catalog_tbl, table.fetchRow(table.getActiveRowIndex()));
+                p = this.p_estimator.getTableRowPartition(catalog_tbl, table);
             } catch (Exception e) {
                 LOG.fatal("Failed to split input table into partitions", e);
                 throw new RuntimeException(e.getMessage());
@@ -283,7 +283,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
         // if tableName is replicated, just send table everywhere.
         if (catalog_tbl.getIsreplicated()) {
-            // If they haven't locked all of the partitions in teh cluster, then we'll 
+            // If they haven't locked all of the partitions in the cluster, then we'll 
             // stop them right here and force them to get those
             if (this.m_localTxnState.getPredictTouchedPartitions().size() != this.allPartitionsHistogram.getValueCount()) { 
                 throw new MispredictionException(this.getTransactionId(), this.allPartitionsHistogram);

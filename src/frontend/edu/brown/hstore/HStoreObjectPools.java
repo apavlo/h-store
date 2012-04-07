@@ -1,21 +1,19 @@
 package edu.brown.hstore;
 
 import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.DependencyInfo;
+import edu.brown.hstore.dtxn.DistributedState;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.PrefetchState;
@@ -29,21 +27,10 @@ public abstract class HStoreObjectPools {
     // ----------------------------------------------------------------------------
     
     /**
-     * 
-     */
-    public static TypedStackObjectPool<TransactionInitCallback> CALLBACKS_TXN_INIT;
-    /**
-     * 
+     * TransactionInitQueueCallback Pool
      */
     public static TypedStackObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
-    /**
-     * 
-     */
-    public static TypedStackObjectPool<TransactionPrepareCallback> CALLBACKS_TXN_PREPARE;
-    /**
-     * 
-     */
-    public static TypedStackObjectPool<TransactionFinishCallback> CALLBACKS_TXN_FINISH;
+    
     /**
      * ForwardTxnRequestCallback Pool
      */
@@ -83,6 +70,11 @@ public abstract class HStoreObjectPools {
      */
     public static TypedStackObjectPool<PrefetchState> STATES_PREFETCH;
     
+    /**
+     * DistributedState ObjectPool
+     */
+    public static TypedStackObjectPool<DistributedState> STATES_DISTRIBUTED;
+    
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -96,17 +88,8 @@ public abstract class HStoreObjectPools {
         assert(hstore_site != null);
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         
-        CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
-                (int)(hstore_conf.site.pool_txninit_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
         CALLBACKS_TXN_INITQUEUE = TypedStackObjectPool.factory(TransactionInitQueueCallback.class,
                 (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
-        CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
-                (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling, hstore_site);
-        CALLBACKS_TXN_FINISH = TypedStackObjectPool.factory(TransactionFinishCallback.class,
-                (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         
         CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
@@ -125,6 +108,9 @@ public abstract class HStoreObjectPools {
         STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
                 (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
+        STATES_DISTRIBUTED = TypedStackObjectPool.factory(DistributedState.class,
+                (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling, hstore_site);
         
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools
@@ -153,8 +139,7 @@ public abstract class HStoreObjectPools {
     }
     
     public static Map<String, StackObjectPool> getAllPools() {
-        Map<String, StackObjectPool> m = new ListOrderedMap<String, StackObjectPool>();
-        
+        Map<String, StackObjectPool> m = new LinkedHashMap<String, StackObjectPool>();
         Object val = null;
         for (Field f : HStoreObjectPools.class.getFields()) {
             try {
