@@ -1387,7 +1387,7 @@ public class BenchmarkController {
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
                 statsDatabaseJDBC = parts[1];
             }
-            else if (parts[0].equalsIgnoreCase("STATSTAG")) {
+            else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {

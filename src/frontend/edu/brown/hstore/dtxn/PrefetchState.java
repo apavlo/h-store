@@ -13,6 +13,12 @@ import edu.brown.utils.Poolable;
 
 public class PrefetchState implements Poolable {
 
+    /**
+     * The list of the FragmentIds that were sent out in a prefetch request
+     * This should only be access from LocalTransaction
+     */
+    protected final List<Integer> fragmentIds = new ArrayList<Integer>();
+    
     /** 
      * The list of prefetchable WorkFragments that were sent for this transaction, if any
      */
@@ -42,6 +48,7 @@ public class PrefetchState implements Poolable {
 
     @Override
     public void finish() {
+        this.fragmentIds.clear();
         this.fragments = null;
         this.paramsRaw = null;
         this.params = null;
