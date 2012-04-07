@@ -69,7 +69,6 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.seats.SEATSConstants.ErrorType;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.FindFlights;
 import edu.brown.benchmark.seats.procedures.FindOpenSeats;
@@ -77,6 +76,7 @@ import edu.brown.benchmark.seats.procedures.NewReservation;
 import edu.brown.benchmark.seats.procedures.UpdateCustomer;
 import edu.brown.benchmark.seats.procedures.UpdateReservation;
 import edu.brown.benchmark.seats.util.CustomerId;
+import edu.brown.benchmark.seats.util.ErrorType;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
