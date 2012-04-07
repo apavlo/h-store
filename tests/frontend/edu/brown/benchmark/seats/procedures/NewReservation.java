@@ -34,8 +34,8 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.benchmark.seats.SEATSConstants.ErrorType;
 import edu.brown.benchmark.seats.util.CustomerId;
+import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
     partitionInfo = "RESERVATION.R_F_ID: 2"

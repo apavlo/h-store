@@ -27,13 +27,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.seats.util;
 
-import java.io.IOException;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONStringer;
-import org.voltdb.catalog.Database;
 import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.seats.SEATSConstants;
+import edu.brown.utils.CompositeId;
 
 public class FlightId extends CompositeId {
     
@@ -72,7 +69,7 @@ public class FlightId extends CompositeId {
      * @param benchmark_start - the base date of when the benchmark data starts (including past days)
      * @param flight_date - when departure date of the flight
      */
-    public FlightId(long airline_id, long depart_airport_id, long arrive_airport_id, Timestamp benchmark_start, Timestamp flight_date) {
+    public FlightId(long airline_id, long depart_airport_id, long arrive_airport_id, TimestampType benchmark_start, TimestampType flight_date) {
         this.airline_id = (int)airline_id;
         this.depart_airport_id = (int)depart_airport_id;
         this.arrive_airport_id = (int)arrive_airport_id;
@@ -124,8 +121,8 @@ public class FlightId extends CompositeId {
      * @param flight_date
      * @return
      */
-    protected static final long calculateFlightDate(TimestampType benchmark_start, TimestampType flight_date) {
-        return (flight_date.getMSTime() - benchmark_start.getMSTime()) / 3600000; // 60s * 60m * 1000
+    protected static final int calculateFlightDate(TimestampType benchmark_start, TimestampType flight_date) {
+        return (int)(flight_date.getMSTime() - benchmark_start.getMSTime()) / 3600000; // 60s * 60m * 1000
     }
     
     /**
@@ -156,9 +153,9 @@ public class FlightId extends CompositeId {
         return (new TimestampType(benchmark_start.getTime() + (this.depart_date * SEATSConstants.MICROSECONDS_PER_MINUTE * 60)));
     }
     
-    public boolean isUpcoming(Timestamp benchmark_start, long past_days) {
-        Timestamp depart_date = this.getDepartDate(benchmark_start);
-        return ((depart_date.getTime() - benchmark_start.getTime()) >= (past_days * SEATSConstants.MILLISECONDS_PER_DAY)); 
+    public boolean isUpcoming(TimestampType benchmark_start, long past_days) {
+        TimestampType depart_date = this.getDepartDate(benchmark_start);
+        return ((depart_date.getTime() - benchmark_start.getTime()) >= (past_days * SEATSConstants.MICROSECONDS_PER_DAY)); 
     }
     
     @Override
