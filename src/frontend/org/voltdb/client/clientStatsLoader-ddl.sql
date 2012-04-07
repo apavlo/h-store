@@ -1,5 +1,9 @@
+DROP TABLE IF EXISTS clientInstances;
+DROP TABLE IF EXISTS clientConnectionStats;
+DROP TABLE IF EXISTS clientProcedureStats;
+
 CREATE TABLE clientInstances (
-    instanceId                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    instanceId                  INTEGER PRIMARY KEY AUTO_INCREMENT,
     clusterStartTime            bigint NOT NULL,
     clusterLeaderAddress        varchar(64) NOT NULL,
     applicationName             varchar(32) NOT NULL,
@@ -21,7 +25,7 @@ CREATE TABLE clientConnectionStats (
     numBytesRead                bigint NOT NULL,
     numMessagesRead             bigint NOT NULL,
     numBytesWritten             bigint NOT NULL,
-    numMessagesWritten          bigint NOT NULL--,
+    numMessagesWritten          bigint NOT NULL
 --    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
 
@@ -43,6 +47,6 @@ CREATE TABLE clientProcedureStats (
     numInvocations              bigint NOT NULL,
     numAborts                   bigint NOT NULL,
     numFailures                 bigint NOT NULL,
-    numRestarts                 bigint NOT NULL--,
+    numRestarts                 bigint NOT NULL
 --    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
