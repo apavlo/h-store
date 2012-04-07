@@ -549,7 +549,7 @@ public class SnapshotRestore extends VoltSystemProcedure
 
    // private final VoltSampler m_sampler = new VoltSampler(10, "sample" + String.valueOf(new Random().nextInt() % 10000) + ".txt");
 
-    public VoltTable[] run(String path, String nonce, int allowExport) throws VoltAbortException
+    public VoltTable[] run(String path, String nonce, long allowExport) throws VoltAbortException
     {
       //  m_sampler.start();
         final long startTime = System.currentTimeMillis();
@@ -562,7 +562,7 @@ public class SnapshotRestore extends VoltSystemProcedure
         ClusterSaveFileState savefile_state = null;
         try
         {
-            savefile_state = new ClusterSaveFileState(savefile_data[0], allowExport);
+            savefile_state = new ClusterSaveFileState(savefile_data[0], (int)allowExport);
         }
         catch (IOException e)
         {
