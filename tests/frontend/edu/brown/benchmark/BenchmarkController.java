@@ -1382,7 +1382,7 @@ public class BenchmarkController {
                 
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-                databaseURL[0] = parts[1];
+                databaseURL[0] = parts[1].replace("&", "\\&"); // HACK
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
                 statsDatabaseJDBC = parts[1];

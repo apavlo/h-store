@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS clientProcedureStats;
 
 CREATE TABLE clientInstances (
     instanceId                  INTEGER PRIMARY KEY AUTO_INCREMENT,
-    clusterStartTime            bigint NOT NULL,
+    clusterStartTime            TIMESTAMP NOT NULL,
     clusterLeaderAddress        varchar(64) NOT NULL,
     applicationName             varchar(32) NOT NULL,
     subApplicationName          varchar(32)
@@ -12,7 +12,7 @@ CREATE TABLE clientInstances (
 
 CREATE TABLE clientConnectionStats (
     instanceId                  INTEGER NOT NULL REFERENCES clientInstances,
-    tsEvent                     bigint NOT NULL,
+    tsEvent                     TIMESTAMP NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
     serverHostId                bigint NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE clientConnectionStats (
 
 CREATE TABLE clientProcedureStats (
     instanceId                  INTEGER NOT NULL REFERENCES clientInstances,
-    tsEvent                     bigint NOT NULL,
+    tsEvent                     TIMESTAMP NOT NULL,
     hostname                    varchar(64) NOT NULL,
     connectionId                bigint NOT NULL,
     serverHostId                bigint NOT NULL,
