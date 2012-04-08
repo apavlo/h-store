@@ -1433,7 +1433,7 @@ public abstract class BenchmarkComponent {
      * This Client will already be connected to the database cluster
      * @return
      */
-    public final Client getClientHandle() {
+    public Client getClientHandle() {
         return (m_voltClient);
     }
     /**

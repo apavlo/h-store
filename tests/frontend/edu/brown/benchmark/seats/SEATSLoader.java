@@ -55,7 +55,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.Loader;
 import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.CustomerIdIterable;
 import edu.brown.benchmark.seats.util.DistanceUtil;
@@ -75,7 +75,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
 
-public class SEATSLoader extends BenchmarkComponent {
+public class SEATSLoader extends Loader {
     private static final Logger LOG = Logger.getLogger(SEATSLoader.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -165,19 +165,17 @@ public class SEATSLoader extends BenchmarkComponent {
         this.rng = new RandomGenerator(0); // FIXME
         this.profile = new SEATSProfile(this.getCatalog(), this.rng);
     }
-
-    @Override
-    protected String[] getTransactionDisplayNames() {
-        // TODO Auto-generated method stub
-        return null;
-    }
     
+    public SEATSProfile getProfile() {
+        return (this.profile);
+    }
+
     // -----------------------------------------------------------------
     // LOADING METHODS
     // -----------------------------------------------------------------
     
     @Override
-    protected void runLoop() throws IOException {
+    public void load() throws IOException {
         if (debug.get()) LOG.debug("Begin to load tables...");
         
         // Load Histograms
@@ -360,8 +358,6 @@ public class SEATSLoader extends BenchmarkComponent {
         } // FOR
 
         int row_idx = 0;
-        int row_batch = 0;
-        
         try {
             for (Object tuple[] : iterable) {
                 assert(tuple[0] != null) : "The primary key for " + catalog_tbl.getName() + " is null";
