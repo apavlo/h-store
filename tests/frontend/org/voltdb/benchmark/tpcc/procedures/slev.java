@@ -82,12 +82,18 @@ public class slev extends VoltProcedure {
     
     public VoltTable[] run(short w_id, byte d_id, int threshold) {
         voltQueueSQL(GetOId, w_id, d_id);
-        final VoltTable result = voltExecuteSQL()[0];
-        long o_id = result.asScalarLong(); //if invalid (i.e. no matching o_id), we expect a fail here.
-        voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
+        final VoltTable results[] = voltExecuteSQL();
+        long o_id = results[0].asScalarLong(); //if invalid (i.e. no matching o_id), we expect a fail here.
         
+        // FIXME: Something is terribly wrong with this query and it is super slow
+        // I've disabled it for the time being until I can figure out what the hell
+        // is going on. I think the join order is all out of whack.
+        // voltQueueSQL(GetStockCount, w_id, d_id, o_id, o_id - 20, w_id, threshold);
         // Return assumes that o_id is a temporary variable, 
         // and that stock_count is a necessarily returned variable.
-        return voltExecuteSQL();
+        // return voltExecuteSQL();
+        
+        results[0].resetRowPosition();
+        return (results);
     }
 }

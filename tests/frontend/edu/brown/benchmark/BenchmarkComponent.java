@@ -901,8 +901,7 @@ public abstract class BenchmarkComponent {
                                         (isLoader ? "LOADER" : "CLIENT"),
                                         statsPollInterval);
             } catch (Exception e) {
-                LOG.error("Failed to initialize StatsUploader", e);
-                statsSettings = null;
+                throw new RuntimeException("Failed to initialize StatsUploader", e);
             }
         }
         
