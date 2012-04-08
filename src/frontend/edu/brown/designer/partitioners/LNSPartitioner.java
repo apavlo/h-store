@@ -239,7 +239,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 continue;
             }
             // Or if there are not transactions in the sample workload
-            else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0l) == 0) {
+            else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0) == 0) {
                 LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
