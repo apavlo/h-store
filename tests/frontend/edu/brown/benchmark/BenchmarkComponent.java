@@ -229,7 +229,7 @@ public abstract class BenchmarkComponent {
     /**
      * Client initialized here and made available for use in derived classes
      */
-    private final Client m_voltClient;
+    private Client m_voltClient;
 
     /**
      * Manage input and output to the framework
@@ -1433,8 +1433,16 @@ public abstract class BenchmarkComponent {
      * This Client will already be connected to the database cluster
      * @return
      */
-    public Client getClientHandle() {
+    public final Client getClientHandle() {
         return (m_voltClient);
+    }
+    /**
+     * Special hook for setting the DBMS client handle
+     * This should only be invoked for RegressionSuite test cases
+     * @param client
+     */
+    protected void setClientHandle(Client client) {
+        m_voltClient = client;
     }
     /**
      * Return the unique client id for this invocation of BenchmarkComponent

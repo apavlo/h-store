@@ -1,35 +1,22 @@
 package edu.brown.benchmark.seats;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Random;
 import java.util.regex.Pattern;
 
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.regressionsuites.LocalCluster;
 import org.voltdb.regressionsuites.LocalSingleProcessServer;
 import org.voltdb.regressionsuites.MultiConfigSuiteBuilder;
 import org.voltdb.regressionsuites.RegressionSuite;
-import org.voltdb.regressionsuites.RegressionSuiteUtil;
 import org.voltdb.regressionsuites.VoltServerConfig;
 
-import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.benchmark.seats.SEATSLoader;
-import edu.brown.benchmark.seats.SEATSProfile;
-import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.seats.procedures.GetTableCounts;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * SEATS Benchmark Regression Tests
@@ -64,12 +51,13 @@ public class TestSEATSSuite extends RegressionSuite {
         final Client client = this.getClient();
         SEATSProfile.clearCachedProfile();
         SEATSLoader loader = new SEATSLoader(loaderArgs) {
-            public Catalog getCatalog() {
-                return (catalog);
+            {
+                this.setClientHandle(client);
+                this.setCatalog(catalog);
             }
             @Override
-            public Client getClientHandle() {
-                return (client);
+            public Catalog getCatalog() {
+                return (catalog);
             }
         };
         loader.load();
@@ -165,10 +153,10 @@ public class TestSEATSSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

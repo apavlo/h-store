@@ -349,7 +349,7 @@ public class SEATSProfile {
     
     private final void loadConfigHistograms(VoltTable vt) {
         while (vt.advanceRow()) {
-            int col = 1;
+            int col = 0;
             String name = vt.getString(col++);
             Histogram<String> h = JSONUtil.fromJSONString(new Histogram<String>(), vt.getString(col++));
             boolean is_airline = (vt.getLong(col++) == 1);
