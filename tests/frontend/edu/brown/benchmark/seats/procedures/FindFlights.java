@@ -102,14 +102,17 @@ public class FindFlights extends VoltProcedure {
             final VoltTable[] nearby_results = voltExecuteSQL();
             assert(nearby_results.length == 1);
             while (nearby_results[0].advanceRow()) {
-                if (debug) LOG.debug("DEPART NEARBY: " + nearby_results[0].getLong(0) + " distance=" + nearby_results[0].getLong(1) + " miles");
-                arrive_aids.add(nearby_results[0].getLong(0));
+                long aid = nearby_results[0].getLong(0);
+                double aid_distance = nearby_results[0].getLong(1);
+                if (debug) LOG.debug("DEPART NEARBY: " + aid + " distance=" + aid_distance + " miles");
+                arrive_aids.add(aid);
             } // WHILE
         }
         
         final VoltTable finalResults = new VoltTable(RESULT_COLS);
         
-        // H-Store doesn't support IN clauses, so we'll only get nearby flights to nearby arrival cities
+        // H-Store doesn't support IN clauses, so we'll only get nearby flights to 
+        // up to three nearby arrival cities
         int num_nearby = arrive_aids.size(); 
         if (num_nearby > 0) {
             if (num_nearby == 1) {
@@ -126,51 +129,47 @@ public class FindFlights extends VoltProcedure {
                                                flightResults[0].getRowCount(), depart_aid, arrive_aids,
                                                start_date, end_date));
             
-            if (flightResults[0].getRowCount() > 0) {
-                while (flightResults[0].advanceRow()) {
-                    long f_depart_airport = flightResults[0].getLong(3);
-                    long f_arrive_airport = flightResults[0].getLong(5);
-                    voltQueueSQL(GetAirportInfo, f_depart_airport);
-                    voltQueueSQL(GetAirportInfo, f_arrive_airport);
-                } // WHILE
-                final VoltTable[] airportResults = voltExecuteSQL(true);
-                assert(flightResults[0].getRowCount()*2 == airportResults.length);
+            while (flightResults[0].advanceRow()) {
+                long f_depart_airport = flightResults[0].getLong(3);
+                long f_arrive_airport = flightResults[0].getLong(5);
+                voltQueueSQL(GetAirportInfo, f_depart_airport);
+                voltQueueSQL(GetAirportInfo, f_arrive_airport);
+            } // WHILE
+            final VoltTable[] airportResults = voltExecuteSQL(true);
+            assert(flightResults[0].getRowCount()*2 == airportResults.length);
+            
+            flightResults[0].resetRowPosition();
+            int i = -1;
+            boolean adv;
+            while (flightResults[0].advanceRow()) {
+                Object row[] = new Object[RESULT_COLS.length];
+                int r = 0;
                 
-                flightResults[0].resetRowPosition();
-                int i = -1;
-                boolean adv;
-                while (flightResults[0].advanceRow()) {
-                    Object row[] = new Object[RESULT_COLS.length];
-                    int r = 0;
-                    
-                    row[r++] = flightResults[0].getLong(0);             // [00] F_ID
-                    row[r++] = flightResults[0].getLong(2);             // [01] SEATS_LEFT
-                    row[r++] = flightResults[0].getString(7);           // [02] AL_NAME
-                    
-                    adv = airportResults[++i].advanceRow();
-                    assert(adv);
-                    row[r++] = flightResults[i].getTimestampAsLong(4);  // [03] DEPART_TIME
-                    row[r++] = airportResults[i].getString(0);          // [04] DEPART_AP_CODE
-                    row[r++] = airportResults[i].getString(1);          // [05] DEPART_AP_NAME
-                    row[r++] = airportResults[i].getString(2);          // [06] DEPART_AP_CITY
-                    row[r++] = airportResults[i].getString(6);          // [07] DEPART_AP_COUNTRY
-                    
-                    adv = airportResults[++i].advanceRow();
-                    assert(adv);
-                    row[r++] = flightResults[i].getTimestampAsLong(6);  // [08] ARRIVE_TIME
-                    row[r++] = airportResults[i].getString(0);          // [09] ARRIVE_AP_CODE
-                    row[r++] = airportResults[i].getString(1);          // [10] ARRIVE_AP_NAME
-                    row[r++] = airportResults[i].getString(2);          // [11] ARRIVE_AP_CITY
-                    row[r++] = airportResults[i].getString(6);          // [12] ARRIVE_AP_COUNTRY
-                    
-                    finalResults.addRow(row);
-                    if (debug)
-                        LOG.debug(String.format("Flight %d / %s /  %s -> %s / %s",
-                                                row[0], row[2], row[4], row[9], row[03]));
-                } // WHILE
-            } else {
+                row[r++] = flightResults[0].getLong(0);             // [00] F_ID
+                row[r++] = flightResults[0].getLong(2);             // [01] SEATS_LEFT
+                row[r++] = flightResults[0].getString(7);           // [02] AL_NAME
                 
-            }
+                adv = airportResults[++i].advanceRow();
+                assert(adv);
+                row[r++] = flightResults[0].getTimestampAsLong(4);  // [03] DEPART_TIME
+                row[r++] = airportResults[i].getString(0);          // [04] DEPART_AP_CODE
+                row[r++] = airportResults[i].getString(1);          // [05] DEPART_AP_NAME
+                row[r++] = airportResults[i].getString(2);          // [06] DEPART_AP_CITY
+                row[r++] = airportResults[i].getString(6);          // [07] DEPART_AP_COUNTRY
+                
+                adv = airportResults[++i].advanceRow();
+                assert(adv);
+                row[r++] = flightResults[0].getTimestampAsLong(6);  // [08] ARRIVE_TIME
+                row[r++] = airportResults[i].getString(0);          // [09] ARRIVE_AP_CODE
+                row[r++] = airportResults[i].getString(1);          // [10] ARRIVE_AP_NAME
+                row[r++] = airportResults[i].getString(2);          // [11] ARRIVE_AP_CITY
+                row[r++] = airportResults[i].getString(6);          // [12] ARRIVE_AP_COUNTRY
+                
+                finalResults.addRow(row);
+                if (debug)
+                    LOG.debug(String.format("Flight %d / %s /  %s -> %s / %s",
+                                            row[0], row[2], row[4], row[9], row[03]));
+            } // WHILE
         }
         if (debug && finalResults.getRowCount() > 0) LOG.debug("Flight Information:\n" + finalResults);
         return (finalResults);

@@ -6,24 +6,30 @@ import java.util.regex.Pattern;
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.regressionsuites.LocalCluster;
 import org.voltdb.regressionsuites.LocalSingleProcessServer;
 import org.voltdb.regressionsuites.MultiConfigSuiteBuilder;
 import org.voltdb.regressionsuites.RegressionSuite;
 import org.voltdb.regressionsuites.VoltServerConfig;
+import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.seats.procedures.FindFlights;
 import edu.brown.benchmark.seats.procedures.GetTableCounts;
+import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * SEATS Benchmark Regression Tests
  */
 public class TestSEATSSuite extends RegressionSuite {
 
-    private static final double SCALE_FACTOR = 0.1;
+    private static final double SCALE_FACTOR = 0.05;
     private static final int RANDOM_SEED = 1;
     
     private final String loaderArgs[] = {
@@ -47,27 +53,12 @@ public class TestSEATSSuite extends RegressionSuite {
      */
     @org.junit.Test
     public void testLOADER() throws IOException, ProcCallException {
-        final Catalog catalog = this.getCatalog();
-        final Client client = this.getClient();
-        SEATSProfile.clearCachedProfile();
-        SEATSLoader loader = new SEATSLoader(loaderArgs) {
-            {
-                this.setClientHandle(client);
-                this.setCatalog(catalog);
-            }
-            @Override
-            public Catalog getCatalog() {
-                return (catalog);
-            }
-        };
-        loader.load();
-        
-        // Now check to make sure that if we load the profile back in
-        // that it has the values that we expect it to have
-        SEATSProfile orig = loader.getProfile();
+        // Load the mofo up and then check to make sure that if we load 
+        // the profile back in that it has the values that we expect it to have
+        SEATSProfile orig = this.loadDatabase();
         assertNotNull(orig);
         
-        SEATSProfile copy = new SEATSProfile(catalog, new RandomGenerator(RANDOM_SEED));
+        SEATSProfile copy = new SEATSProfile(this.getCatalog(), new RandomGenerator(RANDOM_SEED));
         assert(copy.airport_histograms.isEmpty());
         copy.loadProfile(this.getClient());
         
@@ -82,6 +73,48 @@ public class TestSEATSSuite extends RegressionSuite {
         assertEquals(orig.num_reservations, copy.num_reservations);
         assertEquals(orig.histograms, copy.histograms);
         assertEquals(orig.airport_histograms, copy.airport_histograms);
+    }
+    
+    /**
+     * testFINDFLIGHTS
+     */
+    @org.junit.Test
+    public void testFINDFLIGHTS() throws IOException, ProcCallException {
+        SEATSProfile profile = this.loadDatabase();
+        assertNotNull(profile);
+        
+        FlightId flight = profile.getRandomFlightId();
+        assertNotNull(flight);
+        
+        Object params[] = {
+            flight.getDepartAirportId(),
+            flight.getArriveAirportId(),
+            profile.flight_start_date,
+            new TimestampType(2524626000l * 1000000), // 2050-01-01
+            50 // miles
+        };
+        
+        Client client = this.getClient();
+        ClientResponse cr = client.callProcedure(FindFlights.class.getSimpleName(), params);
+        assertNotNull(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        
+        // We should at least the flight that we already knew about
+        VoltTable vt = cr.getResults()[0];
+        assertNotNull(vt);
+        boolean found = false;
+        long expected = flight.encode();
+        while (vt.advanceRow()) {
+            long f_id = vt.getLong("F_ID");
+            if (f_id == expected) {
+                found = true;
+            }
+        } // WHILE
+        assertTrue(flight.toString(), found);
+        System.err.println(flight);
+        System.err.println("==================");
+        System.err.println(vt.toString());
     }
 
 //    /**
@@ -111,6 +144,25 @@ public class TestSEATSSuite extends RegressionSuite {
 //        } // WHILE
 //    }
         
+    
+    protected SEATSProfile loadDatabase() throws IOException, ProcCallException {
+        final Catalog catalog = this.getCatalog();
+        final Client client = this.getClient();
+        SEATSProfile.clearCachedProfile();
+        SEATSLoader loader = new SEATSLoader(loaderArgs) {
+            {
+                this.setClientHandle(client);
+                this.setCatalog(catalog);
+            }
+            @Override
+            public Catalog getCatalog() {
+                return (catalog);
+            }
+        };
+        loader.load();
+        return (loader.getProfile());
+    }
+    
 
     /**
      * Build a list of the tests that will be run when TestSEATSSuite gets run by JUnit.
@@ -153,10 +205,10 @@ public class TestSEATSSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         return builder;
     }
