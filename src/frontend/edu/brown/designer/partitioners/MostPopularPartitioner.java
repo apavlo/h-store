@@ -165,10 +165,10 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                             continue;
                         if (catalog_col.getNullable())
                             continue;
-                        long cnt = cset_histogram.get(catalog_col);
+                        int cnt = cset_histogram.get(catalog_col);
                         if (trace.get())
                             LOG.trace("Found Match: " + catalog_col.fullName() + " [cnt=" + cnt + "]");
-                        column_histogram.put(catalog_col, Math.round(cnt * edge_weight));
+                        column_histogram.put(catalog_col, (int)Math.round(cnt * edge_weight));
                     } // FOR
                     // System.err.println(cset.debug());
                     // LOG.info("[" + e.getTotalWeight() + "]: " + cset);

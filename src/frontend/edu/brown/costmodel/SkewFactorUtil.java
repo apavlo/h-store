@@ -68,10 +68,10 @@ public abstract class SkewFactorUtil {
         double log = 0.0d;
         double ratio = 0.0d;
         double orig_ratio = 0.0d;
-        ArrayList<Long> counts = new ArrayList<Long>();
+        ArrayList<Integer> counts = new ArrayList<Integer>();
         StringBuilder sb = (debug ? new StringBuilder() : null);
         for (int i = 0; i < num_partitions; i++) {
-            long current = h.get(i, 0l);
+            int current = h.get(i, 0);
             counts.add(current);
 
             orig_ratio = ratio = current / (double) total_ctr;

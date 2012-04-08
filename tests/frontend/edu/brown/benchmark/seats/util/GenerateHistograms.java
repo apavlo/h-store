@@ -120,7 +120,7 @@ public class GenerateHistograms {
         Map<String, Histogram<?>> histograms = new HashMap<String, Histogram<?>>();
         histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES, gh.flights_per_time);
         // histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE, gh.flights_per_airline);
-        histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT, HistogramUtil.collapseAirportFlights(gh.flights_per_airport));
+        histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT, SEATSHistogramUtil.collapseAirportFlights(gh.flights_per_airport));
         
         for (Entry<String, Histogram<?>> e : histograms.entrySet()) {
             String output_file = output_path.getAbsolutePath() + "/" + e.getKey() + ".histogram";
