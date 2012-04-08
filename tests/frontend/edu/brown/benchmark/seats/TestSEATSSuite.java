@@ -1,12 +1,14 @@
 package edu.brown.benchmark.seats;
 
 import java.io.IOException;
+import java.util.Random;
 import java.util.regex.Pattern;
 
 import junit.framework.Test;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -18,7 +20,9 @@ import org.voltdb.regressionsuites.RegressionSuite;
 import org.voltdb.regressionsuites.VoltServerConfig;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.FindFlights;
+import edu.brown.benchmark.seats.procedures.FindOpenSeats;
 import edu.brown.benchmark.seats.procedures.GetTableCounts;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
@@ -39,6 +43,7 @@ public class TestSEATSSuite extends RegressionSuite {
         "NOCONNECTIONS=true",
         "BENCHMARK.DATADIR=" + SEATSHistogramUtil.findDataDir()
     };
+    private final Random rand = new Random();
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -76,10 +81,74 @@ public class TestSEATSSuite extends RegressionSuite {
     }
     
     /**
-     * testFINDFLIGHTS
+     * testDeleteReservation
      */
     @org.junit.Test
-    public void testFINDFLIGHTS() throws IOException, ProcCallException {
+    public void testDeleteReservation() throws IOException, ProcCallException {
+        SEATSProfile profile = this.loadDatabase();
+        assertNotNull(profile);
+        
+        // First we need to find a customer that we want to delete a reservation
+        Client client = this.getClient();
+        ClientResponse cr = client.callProcedure("GetReservations");
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        
+        VoltTable vt = cr.getResults()[0];
+        int row_idx = Math.max(0, rand.nextInt(vt.getRowCount() - 2));
+        System.err.println("row_idx = " + row_idx + " / " + vt.getRowCount());
+        // This doesn't work??? vt.advanceToRow(row_idx);
+        while (row_idx-- > 0) {
+            boolean adv = vt.advanceRow();
+            assert(adv);
+        }
+        
+        // Now we're try deleting the reservation
+        // The first time we'lll use the integer C_ID, then
+        // we'll try the next record using the C_ID_STR
+        long deleted[] = new long[2];
+        for (int i = 0; i < 2; i++) {
+            boolean use_str = (i == 1);
+            long r_id = vt.getLong(0);
+            long f_id = vt.getLong(1);
+            long c_id = vt.getLong(2);
+            
+            Object params[] = new Object[] {
+                f_id,                                       // F_ID
+                (use_str ? VoltType.NULL_BIGINT : c_id),    // C_ID
+                (use_str ? Long.toString(c_id) : ""),       // C_ID_STR
+                "",                                         // FF_C_ID_STR
+                VoltType.NULL_BIGINT                        // FF_AL_ID
+            };
+            
+            cr = client.callProcedure(DeleteReservation.class.getSimpleName(), params);
+            assertNotNull(cr);
+            assertEquals(Status.OK, cr.getStatus());
+            assertEquals(1, cr.getResults().length);
+            assertEquals(1l, cr.getResults()[0].asScalarLong());
+            
+            deleted[i] = r_id;
+            vt.advanceRow();
+        } // FOR
+        
+        // Now grab the RESERVATIONS again and make sure our boys aren't there
+        cr = client.callProcedure("GetReservations");
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        vt = cr.getResults()[0];
+        while (vt.advanceRow()) {
+            long id = vt.getLong(0);
+            for (long r_id : deleted) 
+                assert(id != r_id);
+        } // WHILE
+        
+    }
+    
+    /**
+     * testFindFlights
+     */
+    @org.junit.Test
+    public void testFindFlights() throws IOException, ProcCallException {
         SEATSProfile profile = this.loadDatabase();
         assertNotNull(profile);
         
@@ -96,13 +165,11 @@ public class TestSEATSSuite extends RegressionSuite {
         
         Client client = this.getClient();
         ClientResponse cr = client.callProcedure(FindFlights.class.getSimpleName(), params);
-        assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());
         assertEquals(1, cr.getResults().length);
         
         // We should at least the flight that we already knew about
         VoltTable vt = cr.getResults()[0];
-        assertNotNull(vt);
         boolean found = false;
         long expected = flight.encode();
         while (vt.advanceRow()) {
@@ -115,6 +182,33 @@ public class TestSEATSSuite extends RegressionSuite {
         System.err.println(flight);
         System.err.println("==================");
         System.err.println(vt.toString());
+    }
+    
+    /**
+     * testFindOpenSeats
+     */
+    @org.junit.Test
+    public void testFindOpenSeats() throws IOException, ProcCallException {
+        SEATSProfile profile = this.loadDatabase();
+        assertNotNull(profile);
+        
+        FlightId flight = profile.getRandomFlightId();
+        assertNotNull(flight);
+        
+        Client client = this.getClient();
+        ClientResponse cr = client.callProcedure("GetFlight", flight.encode());
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        VoltTable vt = cr.getResults()[0];
+        boolean adv = vt.advanceRow();
+        assertTrue(adv);
+        int seats_left = (int)vt.getLong("F_SEATS_LEFT");
+        
+        cr = client.callProcedure(FindOpenSeats.class.getSimpleName(), flight.encode());
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        vt = cr.getResults()[0];
+        assertEquals(seats_left, vt.getRowCount());
     }
 
 //    /**
@@ -180,6 +274,11 @@ public class TestSEATSSuite extends RegressionSuite {
         project.addAllDefaults();
         project.addProcedure(GetTableCounts.class);
 
+        project.addStmtProcedure("GetFlight",
+                                 "SELECT * FROM " + SEATSConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
+        project.addStmtProcedure("GetReservations",
+                                 "SELECT R_ID, R_F_ID, R_C_ID FROM " + SEATSConstants.TABLENAME_RESERVATION);
+        
         // Remove any MapReduce and OLAP transactions
         project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));
         project.removeProcedures(Pattern.compile("^OLAP.*", Pattern.CASE_INSENSITIVE));
