@@ -196,7 +196,7 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
      * testGetFixedIterable
      */
     public void testGetFixedIterable() throws Exception {
-        for (String table_name : SEATSConstants.TABLE_DATA_FILES) {
+        for (String table_name : SEATSConstants.TABLES_DATAFILES) {
             Table catalog_tbl = this.getTable(table_name);
             Iterable<Object[]> it = loader.getFixedIterable(catalog_tbl);
             assertNotNull(catalog_tbl.getName(), it);

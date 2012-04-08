@@ -1092,7 +1092,7 @@ public abstract class BenchmarkComponent {
      * Return the scale factor for this benchmark instance
      * @return
      */
-    public final double getScaleFactor() {
+    public double getScaleFactor() {
         return (m_hstoreConf.client.scalefactor);
     }
     
