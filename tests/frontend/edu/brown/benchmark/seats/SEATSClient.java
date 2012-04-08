@@ -338,7 +338,7 @@ public class SEATSClient extends BenchmarkComponent {
         this.profile = new SEATSProfile(this.getCatalog(), this.rng);
     
         if (this.noClientConnections() == false) {
-            this.profile.loadProfile(this);
+            this.profile.loadProfile(this.getClientHandle());
             if (trace.get()) LOG.trace("Airport Max Customer Id:\n" + this.profile.airport_max_customer_id);
         
             // Make sure we have the information we need in the BenchmarkProfile

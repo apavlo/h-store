@@ -282,7 +282,7 @@ public class SEATSProfile {
      * Load the profile information stored in the database
      */
     private static SEATSProfile cachedProfile;
-    protected final void loadProfile(BenchmarkComponent baseClient) {
+    protected final void loadProfile(Client client) {
         synchronized (SEATSProfile.class) {
             // Check whether we have a cached Profile we can copy from
             if (cachedProfile != null) {
@@ -291,21 +291,18 @@ public class SEATSProfile {
                 return;
             }
             
-        if (debug.get()) LOG.debug("Loading SEATSProfile for the first time");
-            
             // Otherwise we have to go fetch everything again
-        Client client = baseClient.getClientHandle();
-        
-        ClientResponse response = null;
-        try {
-            response = client.callProcedure(LoadConfig.class.getSimpleName());
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed retrieve data from " + SEATSConstants.TABLENAME_CONFIG_PROFILE, ex);
-        }
-        assert(response != null);
-        assert(response.getStatus() == Status.OK) : "Unexpected " + response;
-
-        VoltTable results[] = response.getResults();
+            if (debug.get()) LOG.debug("Loading SEATSProfile for the first time");
+            ClientResponse response = null;
+            try {
+                response = client.callProcedure(LoadConfig.class.getSimpleName());
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed retrieve data from " + SEATSConstants.TABLENAME_CONFIG_PROFILE, ex);
+            }
+            assert(response != null);
+            assert(response.getStatus() == Status.OK) : "Unexpected " + response;
+    
+            VoltTable results[] = response.getResults();
             int result_idx = 0;
             
             // CONFIG_PROFILE

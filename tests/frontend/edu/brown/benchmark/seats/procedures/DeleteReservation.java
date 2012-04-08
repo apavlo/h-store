@@ -88,7 +88,7 @@ public class DeleteReservation extends VoltProcedure {
             " WHERE FF_C_ID = ? " +
             "   AND FF_AL_ID = ?");
     
-    public void run(long f_id, long c_id, String c_id_str, String ff_c_id_str, long ff_al_id) {
+    public long run(long f_id, long c_id, String c_id_str, String ff_c_id_str, long ff_al_id) {
         final boolean debug = LOG.isDebugEnabled();
         
         // If we weren't given the customer id, then look it up
@@ -154,7 +154,7 @@ public class DeleteReservation extends VoltProcedure {
         
         if (debug)
             LOG.debug(String.format("Deleted reservation on flight %d for customer %d [seatsLeft=%d]", f_id, c_id, seats_left+1));        
-        return;
+        return (1l);
     }
 
 }
