@@ -112,6 +112,7 @@ public abstract class VoltServerConfig {
     {
         this.setConfParameter("site.coordinator_sync_time", false);
         this.setConfParameter("site.preload", false);
+        this.setConfParameter("site.status_enable", false);
     }
     
     public final void setTestNameSuffix(String suffix) {

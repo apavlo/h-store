@@ -269,7 +269,6 @@ public final class HStoreConf {
         )
         public int exec_postprocessing_thread_count;
         
-
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
@@ -303,6 +302,10 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_prefetch_queries;
+        
+        // ----------------------------------------------------------------------------
+        // MapReduce Options
+        // ----------------------------------------------------------------------------
         
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",

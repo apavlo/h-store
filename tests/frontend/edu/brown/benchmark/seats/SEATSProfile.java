@@ -82,7 +82,7 @@ public class SEATSProfile {
     /**
      * The date when flights total data set begins
      */
-    protected TimestampType flight_start_date = new TimestampType(0);
+    protected TimestampType flight_start_date = new TimestampType();
     /**
      * The date for when the flights are considered upcoming and are eligible for reservations
      */
@@ -647,6 +647,10 @@ public class SEATSProfile {
         return (h);
     }
     
+    /**
+     * Get the list airport codes that have flights
+     * @return
+     */
     public Collection<String> getAirportsWithFlights() {
         return this.airport_histograms.keySet();
     }
