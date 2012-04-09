@@ -923,7 +923,7 @@ public abstract class BenchmarkComponent {
         
         // Parse workload transaction weights
         if (m_hstoreConf.client.weights != null) {
-            for (String entry : m_hstoreConf.client.weights.split(",")) {
+            for (String entry : m_hstoreConf.client.weights.split("(,|;)")) {
                 String data[] = entry.split(":");
                 if (data.length != 2) {
                     LOG.warn("Invalid transaction weight entry '" + entry + "'");
@@ -1171,6 +1171,16 @@ public abstract class BenchmarkComponent {
      * @return
      */
     protected final Integer getTransactionWeight(String txnName) {
+        return (this.getTransactionWeight(txnName, null));
+    }
+    
+    /**
+     * 
+     * @param txnName
+     * @param weightIfNull
+     * @return
+     */
+    protected final Integer getTransactionWeight(String txnName, Integer weightIfNull) {
         Integer val = this.m_txnWeights.get(txnName.toUpperCase()); 
         if (val != null) {
             return (val);
@@ -1178,7 +1188,7 @@ public abstract class BenchmarkComponent {
         else if (m_txnWeightsDefault != null) {
             return (m_txnWeightsDefault);
         }
-        return (null);
+        return (weightIfNull);
     }
     
     /**

@@ -54,6 +54,7 @@ public class SEATSProjectBuilder extends AbstractProjectBuilder {
         
         // Non-Workload Procedure
         LoadConfig.class,
+        GetTableCounts.class
     };
     
     // Transaction Frequencies

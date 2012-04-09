@@ -176,7 +176,7 @@ public class SEATSProfile {
             if (this.code_columns.containsKey(codeCol) == false) {
                 this.code_columns.put(codeCol, idCol);
                 this.code_id_xref.put(idCol, new HashMap<String, Long>());
-                if (LOG.isDebugEnabled()) LOG.debug(String.format("Added %s mapping from Code Column '%s' to Id Column '%s'", tableName, codeCol, idCol));
+                if (debug.get()) LOG.debug(String.format("Added %s mapping from Code Column '%s' to Id Column '%s'", tableName, codeCol, idCol));
             }
         } // FOR
         
@@ -193,7 +193,7 @@ public class SEATSProfile {
                 Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(catalog_col);
                 if (catalog_fkey_col != null && this.code_id_xref.containsKey(catalog_fkey_col.getName())) {
                     this.fkey_value_xref.put(catalog_col.getName(), catalog_fkey_col.getName());
-                    if (LOG.isDebugEnabled()) LOG.debug(String.format("Added ForeignKey mapping from %s to %s", catalog_col.fullName(), catalog_fkey_col.fullName()));
+                    if (debug.get()) LOG.debug(String.format("Added ForeignKey mapping from %s to %s", catalog_col.fullName(), catalog_fkey_col.fullName()));
                 }
             } // FOR
         } // FOR
@@ -286,7 +286,7 @@ public class SEATSProfile {
         synchronized (SEATSProfile.class) {
             // Check whether we have a cached Profile we can copy from
             if (cachedProfile != null) {
-                if (LOG.isDebugEnabled()) LOG.debug("Using cached SEATSProfile");
+                if (debug.get()) LOG.debug("Using cached SEATSProfile");
                 this.copy(cachedProfile);
                 return;
             }
@@ -321,7 +321,7 @@ public class SEATSProfile {
             // CACHED FLIGHT IDS
             this.loadCachedFlights(results[result_idx++]);
             
-            if (LOG.isDebugEnabled())
+            if (debug.get())
                 LOG.debug("Loaded profile:\n" + this.toString());
             if (LOG.isTraceEnabled())
                 LOG.trace("Airport Max Customer Id:\n" + this.airport_max_customer_id);
@@ -332,7 +332,8 @@ public class SEATSProfile {
     
     private final void loadConfigProfile(VoltTable vt) {
         boolean adv = vt.advanceRow();
-        assert(adv);
+        assert(adv) : "No data in " + SEATSConstants.TABLENAME_CONFIG_PROFILE + ". " +
+        		      "Did you forget to load the database first?";
         int col = 0;
         this.scale_factor = vt.getDouble(col++);
         JSONUtil.fromJSONString(this.airport_max_customer_id, vt.getString(col++));
@@ -343,7 +344,7 @@ public class SEATSProfile {
         this.flight_upcoming_offset = vt.getLong(col++);
         this.reservation_upcoming_offset = vt.getLong(col++);
         this.num_reservations = vt.getLong(col++);
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug(String.format("Loaded %s data", SEATSConstants.TABLENAME_CONFIG_PROFILE));
     }
     
@@ -638,7 +639,7 @@ public class SEATSProfile {
     
     public Histogram<String> getAirportCustomerHistogram() {
         Histogram<String> h = new Histogram<String>();
-        if (LOG.isDebugEnabled()) LOG.debug("Generating Airport-CustomerCount histogram [numAirports=" + this.getAirportCount() + "]");
+        if (debug.get()) LOG.debug("Generating Airport-CustomerCount histogram [numAirports=" + this.getAirportCount() + "]");
         for (Long airport_id : this.airport_max_customer_id.values()) {
             String airport_code = this.getAirportCode(airport_id);
             int count = this.airport_max_customer_id.get(airport_id).intValue();
