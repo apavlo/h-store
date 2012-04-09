@@ -209,6 +209,11 @@ public class TestSEATSSuite extends RegressionSuite {
         assertEquals(1, cr.getResults().length);
         vt = cr.getResults()[0];
         assertEquals(seats_left, vt.getRowCount());
+        while (vt.advanceRow()) {
+            int seatnum = (int)vt.getLong(1);
+            assertTrue(seatnum >= 0);
+            assertTrue(seatnum < SEATSConstants.FLIGHTS_NUM_SEATS);
+        } // WHILE
     }
 
 //    /**
@@ -304,10 +309,10 @@ public class TestSEATSSuite extends RegressionSuite {
         ////////////////////////////////////////////////////////////
         // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
-//        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster("seats-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

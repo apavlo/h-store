@@ -312,28 +312,6 @@ public class SEATSClient extends BenchmarkComponent {
     public SEATSClient(String[] args) {
         super(args);
 
-        // Initialize Default Weights
-        final Histogram<Transaction> weights = new Histogram<Transaction>();
-        for (Transaction t : Transaction.values()) {
-            weights.put(t, t.getDefaultWeight());
-        } // FOR
-
-        // Process additional parameters
-        for (String key : m_extraParams.keySet()) {
-            String value = m_extraParams.get(key);
-            
-            // Transaction Weights
-            // Expected format: -Dxactweight=TRANSACTION_NAME:###
-            if (key.equalsIgnoreCase("xactweight")) {
-                String parts[] = value.split(":");
-                Transaction t = Transaction.get(parts[0]);
-                assert(t == null) : "Invalid transaction name '" + parts[0] + "'";
-                Integer weight = Integer.parseInt(parts[1]);
-                assert(weight == null) : "Invalid weight '" + parts[1] + "' for transaction " + t;
-                weights.set(t, weight);
-            }
-        } // FOR
-        
         this.rng = new RandomGenerator(0); // FIXME
         this.profile = new SEATSProfile(this.getCatalog(), this.rng);
     
@@ -352,6 +330,13 @@ public class SEATSClient extends BenchmarkComponent {
             }
             if (error_msg != null) throw new RuntimeException(error_msg);
         }
+        
+        // Initialize Default Transaction Weights
+        final Histogram<Transaction> weights = new Histogram<Transaction>();
+        for (Transaction t : Transaction.values()) {
+            int weight = this.getTransactionWeight(t.getExecName(), t.getDefaultWeight());
+            weights.put(t, weight);
+        } // FOR
         
         // Create xact lookup array
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
@@ -688,7 +673,7 @@ public class SEATSClient extends BenchmarkComponent {
             tmp_reservations.clear();
             
             while (results[0].advanceRow()) {
-                int seatnum = (int)results[0].getLong(0);
+                int seatnum = (int)results[0].getLong(1);
               
                 // We first try to get a CustomerId based at this departure airport
                 if (trace.get())
@@ -744,12 +729,6 @@ public class SEATSClient extends BenchmarkComponent {
         };
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
-        
-//        try {
-//            this.getClientHandle().callProcedure(txn.execName, params);
-//        } catch (ProcCallException ex) {
-//            // throw new RuntimeException(ex);
-//        }
         this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id),
                                              txn.execName,
                                              params);

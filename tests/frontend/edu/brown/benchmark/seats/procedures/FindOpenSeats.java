@@ -141,6 +141,8 @@ public class FindOpenSeats extends VoltProcedure {
 //        assert(seats_left == returnResults.getRowCount()) :
 //            String.format("Flight %d - Expected[%d] != Actual[%d]", f_id, seats_left, returnResults.getRowCount());
        
+        if (LOG.isTraceEnabled())
+            LOG.trace(String.format("Flight %d Open Seats:\n%s", f_id, returnResults));
         return returnResults;
     }
             
