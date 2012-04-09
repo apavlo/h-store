@@ -209,8 +209,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final LinkedBlockingDeque<LocalTransaction> ready_responses = new LinkedBlockingDeque<LocalTransaction>();
     
     /**
-     * TODO(xin): MapReduceHelperThread
+     * (xin): MapReduceHelperThread
      */
+    private boolean mr_helper_started = false;
     private final MapReduceHelperThread mr_helper;
     
     // ----------------------------------------------------------------------------
@@ -759,14 +760,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-        // Start the MapReduceHelperThread
-        if (this.mr_helper != null) {
-            t = new Thread(this.mr_helper);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(handler);
-            t.start();
-        }
-        
         // Then we need to start all of the PartitionExecutor in threads
         if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions_arr.length + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions_arr) {
@@ -892,7 +885,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             p.shutdown();
         }
         // Tell the MapReduceHelperThread to shutdown too
-        if (this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
@@ -1153,6 +1146,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         if (catalog_proc.getMapreduce()) {
+            // Start the MapReduceHelperThread
+            if (!this.mr_helper_started && this.mr_helper != null) {
+                EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
+                EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
+                    @Override
+                    public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                        Thread thread = arg.getFirst();
+                        Throwable error = arg.getSecond();
+                        LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
+                        hstore_coordinator.shutdownClusterBlocking(error);
+                    }
+                };
+                handler.addObserver(observer);
+                
+                Thread t = new Thread(this.mr_helper);
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(handler);
+                t.start();
+                
+                this.mr_helper_started = true;
+            }
+            
             ((MapReduceTransaction)ts).init(
                     txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
