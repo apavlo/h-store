@@ -125,7 +125,7 @@ public class TPCELoader extends BenchmarkComponent {
         // Scaling Tables
         // Load them in batches based on the customer ids
         //
-/*        LOG.info("Generating and loading scaling TPC-E tables");
+        LOG.info("Generating and loading scaling TPC-E tables");
         try {
             for (int start_idx = 0, cnt = this.egenloader.getTotalCustomers(); start_idx < cnt; start_idx += 1000) {
                 this.egenloader.generateScalingTables(start_idx);
@@ -140,7 +140,7 @@ public class TPCELoader extends BenchmarkComponent {
             LOG.error("Failed to generate and load scaling tables", ex);
             System.exit(1);
         }
-*/
+
         //
         // Growing Tables
         // Load them in batches based on the customer ids

@@ -50,7 +50,7 @@ public class TPCEGenerator {
     private static final String AREA_FILE        = "AREACODE.txt";
     private static final String CHARGE_FILE      = "CHARGE.txt";
     private static final String COMMRATE_FILE    = "COMMISSION_RATE.txt";
-//    private static final String COMPANY_FILE     = "COMPANY.txt";
+    private static final String COMPANY_FILE     = "COMPANY.txt";
     private static final String COMPANYCOMP_FILE = "COMPANY_COMPETITOR.txt";
     private static final String COMPANYSP_FILE   = "COMPANYSPRATE.txt";
     private static final String EXCHANGE_FILE    = "EXCHANGE.txt";
@@ -77,7 +77,7 @@ public class TPCEGenerator {
         AREA,
         CHARGE,
         COMMRATE,
-//        COMPANY,
+        COMPANY,
         COMPANYCOMP,
         COMPANYSP,
         EXCHANGE,
@@ -108,6 +108,7 @@ public class TPCEGenerator {
      */
     private static final Map<String, Class<? extends TableGenerator>> genClasses = new HashMap<String, Class<? extends TableGenerator>>();
     static {
+        // Fixed tables
         genClasses.put(TPCEConstants.TABLENAME_ZIP_CODE, ZipCodeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_CHARGE, ChargeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_EXCHANGE, ExchangeGenerator.class);
@@ -119,9 +120,18 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_TAXRATE, TaxRateGenerator.class);
     }
     
+    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
+    static {
+        // Mixed tables
+        genClasses.put(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
+        genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
+    }
+    
     /*
      * Generator parameters
      */
+    private long currentCustomers;
+    private long customerStartId;
     private final long total_customers;
     private final int scaling_factor;
     private final int initial_days;
@@ -141,6 +151,7 @@ public class TPCEGenerator {
         
         inputFiles.put(InputFile.CHARGE, new FlatFile(new File(inputDir + File.separator + CHARGE_FILE)));
         inputFiles.put(InputFile.COMMRATE, new FlatFile(new File(inputDir + File.separator + COMMRATE_FILE)));
+        inputFiles.put(InputFile.COMPANY, new FlatFile(new File(inputDir + File.separator + COMPANY_FILE)));
         inputFiles.put(InputFile.COMPANYCOMP, new FlatFile(new File(inputDir + File.separator + COMPANYCOMP_FILE)));
         inputFiles.put(InputFile.EXCHANGE, new FlatFile(new File(inputDir + File.separator + EXCHANGE_FILE)));
         inputFiles.put(InputFile.INDUSTRY, new FlatFile(new File(inputDir + File.separator + INDUSTRY_FILE)));
@@ -153,9 +164,24 @@ public class TPCEGenerator {
         inputFiles.put(InputFile.TAXCOUNTRY, new ArrayFile(new File(inputDir + File.separator + TAXCOUNTRY_FILE)));
         inputFiles.put(InputFile.TAXDIV, new ArrayFile(new File(inputDir + File.separator + TAXDIV_FILE)));
         
+        this.currentCustomers = total_customers;
+        this.customerStartId = 1;
         this.total_customers = total_customers;
         this.scaling_factor = scaling_factor;
         this.initial_days = initial_days;
+    }
+    
+    public void changeSessionParams(long numCustomers, long startCustomer) {
+        this.currentCustomers = numCustomers;
+        this.customerStartId = startCustomer;
+    }
+    
+    public long getCustomersNum() {
+        return currentCustomers;
+    }
+    
+    public long getStartCustomer() {
+        return customerStartId;
     }
     
     public void parseInputFiles() {
@@ -168,23 +194,50 @@ public class TPCEGenerator {
         TableGenerator gen = null;
         
         try {
-            Constructor<?> ctor = genClasses.get(tableName).getDeclaredConstructor(Table.class, TPCEGenerator.class);
+            Constructor<?> ctor = genClassesMixed.get(tableName).getDeclaredConstructor(Table.class, TPCEGenerator.class);
             gen = (TableGenerator)ctor.newInstance(catalogTable, this);
         }
         catch (NoSuchMethodException e) {
-            LOG.error("Cannot create a generator for: " + tableName);
+            LOG.error("Cannot create a generator for: '" + tableName + "'");
             System.exit(1);
         }
         catch (InvocationTargetException e) {
-            LOG.error("Cannot create a generator for: " + tableName);
+            LOG.error("Cannot create a generator for: '" + tableName + "'");
             System.exit(1);
         }
         catch (IllegalAccessException e) {
-            LOG.error("Cannot create a generator for: " + tableName);
+            LOG.error("Cannot create a generator for: '" + tableName + "'");
             System.exit(1);
         }
         catch (InstantiationException e) {
-            LOG.error("Cannot create a generator for: " + tableName);
+            LOG.error("Cannot create a generator for: '" + tableName + "'");
+            System.exit(1);
+        }
+        
+        return gen;
+    }
+    
+    public TableMixedGenerator getTableGen(String tableName1, String tableName2, Table catalogTable1, Table catalogTable2) {
+        TableMixedGenerator gen = null;
+        
+        try {
+            Constructor<?> ctor = genClassesMixed.get(tableName1).getDeclaredConstructor(Table.class, Table.class, TPCEGenerator.class);
+            gen = (TableMixedGenerator)ctor.newInstance(catalogTable1, catalogTable2, this);
+        }
+        catch (NoSuchMethodException e) {
+            LOG.error("Cannot create a generator for mixed: '" + tableName1 + "'/'" + tableName2 + "'");
+            System.exit(1);
+        }
+        catch (InvocationTargetException e) {
+            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
+            System.exit(1);
+        }
+        catch (IllegalAccessException e) {
+            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
+            System.exit(1);
+        }
+        catch (InstantiationException e) {
+            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
             System.exit(1);
         }
         

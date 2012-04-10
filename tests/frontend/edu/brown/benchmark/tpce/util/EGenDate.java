@@ -27,56 +27,58 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
-package edu.brown.benchmark.tpce.generators;
+package edu.brown.benchmark.tpce.util;
 
-import org.voltdb.catalog.Table;
+import java.util.Calendar;
+import java.util.Date;
 
-import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
-
-public class StatusTypeGenerator extends TableGenerator {
-    public enum StatusTypeId {
-        E_COMPLETED(0),
-        E_ACTIVE(1),
-        E_SUBMITTED(2),
-        E_PENDING(3),
-        E_CANCELED(4);
-        
-        private final int id;
-        
-        private StatusTypeId(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
-    }
-
-    private final InputFileHandler st_file;
-    private int counter = 0;
-    private final int table_size;
-    
-    public StatusTypeGenerator(Table catalog_tbl, TPCEGenerator generator) {
-        super(catalog_tbl, generator);
-        
-        st_file = generator.getInputFile(InputFile.ZIPCODE);
-        table_size = st_file.getRecordsNum();
+public class EGenDate {
+    public static int getYear() {
+        return Calendar.getInstance().get(Calendar.YEAR);
     }
     
-    @Override
-    public boolean hasNext() {
-        return counter < table_size;
+    public static int getMonth() {
+        return Calendar.getInstance().get(Calendar.MONTH);
     }
     
-    @Override
-    public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
-        String st_record[] = st_file.getTupleByIndex(counter++);
-        int col = 0;
-
-        tuple[col++] = st_record[0]; // st_id
-        tuple[col++] = st_record[1]; // st_name
-
-        return tuple;
+    public static int getDay() {
+        return Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+    }
+    
+    /*
+     * Get day number from 01/01/0001 (1 AD)
+     */
+    public static int getDayNo(int year, int month, int day) {
+        Calendar cal = Calendar.getInstance();
+        
+        cal.set(year, month, day);
+        long dateEpochMillis = cal.getTimeInMillis();
+        
+        // months start from 0 -- we need January here 
+        cal.set(1, 0, 1);
+        long startEpochMillis = cal.getTimeInMillis();
+        
+        long dateMillis = dateEpochMillis - startEpochMillis;
+        assert(dateMillis >= 0);
+        
+        // return day number: 1sec = 1000msecs, 1hour = 3600secs, 1day = 24hours; 'int' should be enough
+        return (int)(dateMillis / 1000 / 3600 / 24);
+    }
+    
+    public static Date getDateFromDayNo(int dayNo) {
+        Calendar cal = Calendar.getInstance();
+        
+        // to msec based on 01/01/01: 1sec = 1000msecs, 1hour = 3600secs, 1day = 24hours; 'int' should be enough
+        long dateMillis = (long)dayNo * 24 * 3600 * 1000;
+        
+        // months start from 0 -- we need January here 
+        cal.set(1, 0, 1);
+        long startEpochMillis = cal.getTimeInMillis();
+        
+        // we need msecs from the Epoch to set up the date
+        long dateEpochMillis = dateMillis + startEpochMillis;
+        cal.setTimeInMillis(dateEpochMillis);
+        
+        return cal.getTime();
     }
 }

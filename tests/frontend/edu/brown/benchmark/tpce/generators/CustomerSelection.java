@@ -29,54 +29,53 @@
 
 package edu.brown.benchmark.tpce.generators;
 
-import org.voltdb.catalog.Table;
 
-import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
+/******************************************************************************
+*   Description:        This class encapsulates customer tier distribution
+*                       functions and provides functionality to:
+*                       - Generate customer tier based on customer ID
+*                       - Generate non-uniform customer ID
+*                       - Generate customer IDs in a specified partition, and
+*                         outside the specified partition a set percentage of
+*                         the time.
+******************************************************************************/
 
-public class StatusTypeGenerator extends TableGenerator {
-    public enum StatusTypeId {
-        E_COMPLETED(0),
-        E_ACTIVE(1),
-        E_SUBMITTED(2),
-        E_PENDING(3),
-        E_CANCELED(4);
-        
-        private final int id;
-        
-        private StatusTypeId(int id) {
-            this.id = id;
+public class CustomerSelection {
+
+
+    // lower 3 difgits
+    private static long lowDigits(long cid) {
+        return (cid - 1) % 1000;
+    }
+
+    // higher 3 digits
+    private static long highDigits(long cid) {
+        return (cid - 1) / 1000;
+    }
+    
+    public static long permute(long low, long high) {
+        return  (677 * low + 33 * (high + 1)) % 1000;
+    }
+
+    // Inverse permutation.
+    public static long inversePermute(long low, long high) {
+        // Extra mod to make the result always positive
+        return  (((613 * (low - 33 * (high + 1))) % 1000) + 1000) % 1000;
+    }
+    
+    public static short getTier(long cid) {
+        long revCid = inversePermute(lowDigits(cid), highDigits(cid));
+
+        if (revCid < 200) {
+            return 1;
         }
-        
-        public int getValue() {
-            return id;
+        else {
+            if (revCid < 800) {
+                return 2;
+            }
+            else {
+                return 3;
+            }
         }
-    }
-
-    private final InputFileHandler st_file;
-    private int counter = 0;
-    private final int table_size;
-    
-    public StatusTypeGenerator(Table catalog_tbl, TPCEGenerator generator) {
-        super(catalog_tbl, generator);
-        
-        st_file = generator.getInputFile(InputFile.ZIPCODE);
-        table_size = st_file.getRecordsNum();
-    }
-    
-    @Override
-    public boolean hasNext() {
-        return counter < table_size;
-    }
-    
-    @Override
-    public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
-        String st_record[] = st_file.getTupleByIndex(counter++);
-        int col = 0;
-
-        tuple[col++] = st_record[0]; // st_id
-        tuple[col++] = st_record[1]; // st_name
-
-        return tuple;
     }
 }

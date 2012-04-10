@@ -97,6 +97,18 @@ JNIEXPORT void JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_setSeed
 
 /*
  * Class:     edu_brown_benchmark_tpce_util_EGenRandom
+ * Method:    setSeedNth
+ * Signature: (JJJ)V
+ */
+JNIEXPORT void JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_setSeedNth
+  (JNIEnv *env, jobject obj, jlong rnd_ptr, jlong seed, jlong count)
+{
+	CRandom *rnd = reinterpret_cast<CRandom *>(rnd_ptr);
+	rnd->SetSeed(rnd->RndNthElement(static_cast<RNGSEED>(seed), static_cast<RNGSEED>(count)));
+}
+
+/*
+ * Class:     edu_brown_benchmark_tpce_util_EGenRandom
  * Method:    intRange
  * Signature: (JII)I
  */

@@ -30,12 +30,94 @@
 package edu.brown.benchmark.tpce.util;
 
 public class EGenRandom {
+    /*
+     * These are different seed bases for pseudo-random EGen generator.
+     */
+    
+    // Default seed used for all tables.
+    public static final long RNG_SEED_TABLE_DEFAULT = 37039940;
+
+    // This value is added to the AD_ID when seeding the RNG for
+    // generating a threshold into the TownDivisionZipCode list.
+    public static final long RNG_SEED_BASE_TOWN_DIV_ZIP = 26778071;
+
+    // This is the base seed used when generating C_TIER.
+    public static final long RNG_SEED_BASE_C_TIER = 16225173;
+
+    // Base seeds used for generating C_AREA_1, C_AREA_2, C_AREA_3
+    public static final long RNG_SEED_BASE_C_AREA_1 = 97905013;
+    public static final long RNG_SEED_BASE_C_AREA_2 = 68856487;
+    public static final long RNG_SEED_BASE_C_AREA_3 = 67142295;
+
+    // Base seed used when generating names.
+    public static final long RNG_SEED_BASE_FIRST_NAME = 95066470;
+    public static final long RNG_SEED_BASE_MIDDLE_INITIAL = 71434514;
+    public static final long RNG_SEED_BASE_LAST_NAME = 35846049;
+
+    // Base seed used when generating gender.
+    public static final long RNG_SEED_BASE_GENDER = 9568922;
+
+    // Base seed used when generating tax ID
+    public static final long RNG_SEED_BASE_TAX_ID = 8731255;
+
+    // Base seed used when generating the number of accounts for a customer
+    //public static final long RNG_SEED_BASE_NUMBER_OF_ACCOUNTS = 37486207;
+
+    // Base seed used when generating the number of permissions on an account
+    public static final long RNG_SEED_BASE_NUMBER_OF_ACCOUNT_PERMISSIONS = 27794203;
+
+    // Base seeds used when generating CIDs for additional account permissions
+    public static final long RNG_SEED_BASE_CID_FOR_PERMISSION1 = 76103629;
+    public static final long RNG_SEED_BASE_CID_FOR_PERMISSION2 = 103275149;
+
+    // Base seed used when generating acount tax status
+    public static final long RNG_SEED_BASE_ACCOUNT_TAX_STATUS = 34376701;
+
+    // Base seed for determining account broker id
+    public static final long RNG_SEED_BASE_BROKER_ID = 75607774;
+
+    // Base seed used when generating tax rate row
+    public static final long RNG_SEED_BASE_TAX_RATE_ROW = 92740731;
+
+    // Base seed used when generating the number of holdings for an account
+    public static final long RNG_SEED_BASE_NUMBER_OF_SECURITIES = 23361736;
+
+    // Base seed used when generating the starting security ID for the
+    // set of securities associated with a particular account.
+    public static final long RNG_SEED_BASE_STARTING_SECURITY_ID = 12020070;
+
+    // Base seed used when generating a company's SP Rate
+    public static final long RNG_SEED_BASE_SP_RATE = 56593330;
+
+    // Base seed for initial trade generation class
+    public static final long RNG_SEED_TRADE_GEN = 32900134;
+
+    // Base seed for the MEESecurity class
+    public static final long RNG_SEED_BASE_MEES_ECURITY = 75791232;
+
+    // Base seed for non-uniform customer selection
+    public static final long RNG_SEED_CUSTOMER_SELECTION = 9270899;
+
+    // Base seed for MEE Ticker Tape
+    public static final long RNG_SEED_BASE_MEE_TICKER_TAPE = 42065035;
+
+    // Base seed for MEE Trading Floor
+    public static final long RNG_SEED_BASE_MEE_TRADING_FLOOR = 25730774;
+
+    // Base seed for TxnMixGenerator
+    public static final long RNG_SEED_BASE_TXN_MIX_GENERATOR = 87944308;
+
+    // Base seed for TxnInputGenerator
+    public static final long RNG_SEED_BASE_TXN_INPUT_GENERATOR = 80534927;
+    
+    
     private long rnd;
     private native long newEGenRandom(long seed);
     
     private native long rndNthElement(long rnd, long baseSeed, long count);
     private native long getSeed(long rnd);
     private native void setSeed(long rnd, long seed);
+    private native void setSeedNth(long rnd, long seed, long count);
     
     private native int intRange(long rnd, int min, int max);
     private native long int64Range(long rnd, long min, long max);
@@ -76,6 +158,10 @@ public class EGenRandom {
         setSeed(rnd, seed);
     }
 
+    public void setSeedNth(long seed, long count) {
+        setSeedNth(rnd, seed, count);        
+    }
+    
     public int intRange(int min, int max) {
         return intRange(rnd, min, max);
     }
@@ -147,4 +233,9 @@ public class EGenRandom {
     public String rndAlphaNumFormatted(String format) {
         return rndAlphaNumFormatted(rnd, format);
     }
+    
+    public boolean rndPercent(int percent) {
+        return intRange(1, 100) <= percent;
+    }
+
 }
