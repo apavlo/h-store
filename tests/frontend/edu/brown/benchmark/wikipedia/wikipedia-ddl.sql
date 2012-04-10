@@ -5,12 +5,12 @@ CREATE TABLE ipblocks (
   ipb_by int DEFAULT '0' NOT NULL,
   ipb_by_text varchar(255) DEFAULT '' NOT NULL,
   ipb_reason varchar(255) NOT NULL,
-  ipb_timestamp varchar(14) DEFAULT '' NOT NULL,
+  ipb_timestamp timestamp NOT NULL,
   ipb_auto smallint DEFAULT '0' NOT NULL,
   ipb_anon_only smallint DEFAULT '0' NOT NULL ,
   ipb_create_account smallint DEFAULT '1' NOT NULL ,
   ipb_enable_autoblock smallint DEFAULT '1' NOT NULL ,
-  ipb_expiry varchar(14) DEFAULT '' NOT NULL ,
+  ipb_expiry timestamp NOT NULL ,
   ipb_range_start varchar(255) NOT NULL,
   ipb_range_end varchar(255) NOT NULL,
   ipb_deleted smallint DEFAULT '0' NOT NULL,
@@ -25,20 +25,20 @@ CREATE INDEX IDX_IPB_TIMESTAMP ON ipblocks (ipb_timestamp);
 CREATE INDEX IDX_IPB_EXPIRY ON ipblocks (ipb_expiry);
 
 CREATE TABLE useracct (
-  user_id int,
+  user_id int NOT NULL,
   user_name varchar(255) DEFAULT '' NOT NULL,
   user_real_name varchar(255) DEFAULT '' NOT NULL,
   user_password varchar(255) NOT NULL,
   user_newpassword varchar(255) NOT NULL,
-  user_newpass_time varchar(14) DEFAULT NULL,
+  user_newpass_time timestamp DEFAULT NULL,
   user_email varchar(255) NOT NULL,
   user_options varchar(255) NOT NULL,
-  user_touched varchar(14) DEFAULT '' NOT NULL ,
+  user_touched timestamp NOT NULL ,
   user_token varchar(32) DEFAULT '' NOT NULL,
-  user_email_authenticated varchar(14) DEFAULT NULL,
+  user_email_authenticated timestamp DEFAULT NULL,
   user_email_token varchar(32) DEFAULT NULL,
-  user_email_token_expires varchar(14) DEFAULT NULL,
-  user_registration varchar(14) DEFAULT NULL,
+  user_email_token_expires timestamp DEFAULT NULL,
+  user_registration timestamp DEFAULT NULL,
   user_editcount int DEFAULT NULL,
   PRIMARY KEY (user_id),
   UNIQUE (user_name)
@@ -49,7 +49,7 @@ CREATE TABLE logging (
   log_id int,
   log_type varchar(32) NOT NULL,
   log_action varchar(32) NOT NULL,
-  log_timestamp varchar(14) DEFAULT '19700101000000' NOT NULL,
+  log_timestamp timestamp NOT NULL,
   log_user int DEFAULT '0' NOT NULL,
   log_namespace int DEFAULT '0' NOT NULL,
   log_title varchar(255) DEFAULT '' NOT NULL,
@@ -68,7 +68,7 @@ CREATE INDEX IDX_LOG_USER_TYPE_TIME ON logging (log_user,log_type,log_timestamp)
 CREATE INDEX IDX_LOG_PAGE_ID_TIME ON logging (log_page,log_timestamp);
 
 CREATE TABLE page (
-  page_id int,
+  page_id int NOT NULL,
   page_namespace int NOT NULL,
   page_title varchar(255) NOT NULL,
   page_restrictions varchar(255) NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE page (
   page_is_redirect smallint DEFAULT '0' NOT NULL,
   page_is_new smallint DEFAULT '0' NOT NULL,
   page_random float precision NOT NULL,
-  page_touched varchar(14) DEFAULT '' NOT NULL,
+  page_touched timestamp NOT NULL,
   page_latest int NOT NULL,
   page_len int NOT NULL,
   PRIMARY KEY (page_id),
@@ -94,7 +94,7 @@ CREATE TABLE page_backup (
   page_is_redirect smallint DEFAULT '0' NOT NULL,
   page_is_new smallint DEFAULT '0' NOT NULL,
   page_random float precision NOT NULL,
-  page_touched varchar(14) DEFAULT '' NOT NULL,
+  page_touched timestamp NOT NULL,
   page_latest int NOT NULL,
   page_len int NOT NULL,
   PRIMARY KEY (page_id),
@@ -109,7 +109,7 @@ CREATE TABLE page_restrictions (
   pr_level varchar(60) NOT NULL,
   pr_cascade smallint NOT NULL,
   pr_user int DEFAULT NULL,
-  pr_expiry varchar(14) DEFAULT NULL,
+  pr_expiry timestamp DEFAULT NULL,
   pr_id int NOT NULL,
   PRIMARY KEY (pr_id),
   UNIQUE (pr_page,pr_type)
@@ -120,8 +120,8 @@ CREATE INDEX IDX_PR_CASCADE ON page_restrictions (pr_cascade);
 
 CREATE TABLE recentchanges (
   rc_id int,
-  rc_timestamp varchar(14) DEFAULT '' NOT NULL,
-  rc_cur_time varchar(14) DEFAULT '' NOT NULL,
+  rc_timestamp timestamp NOT NULL,
+  rc_cur_time timestamp NOT NULL,
   rc_user int DEFAULT '0' NOT NULL,
   rc_user_text varchar(255) NOT NULL,
   rc_namespace int DEFAULT '0' NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE revision (
   rev_comment varchar(255) NOT NULL,
   rev_user int DEFAULT '0' NOT NULL,
   rev_user_text varchar(255) DEFAULT '' NOT NULL,
-  rev_timestamp varchar(14) DEFAULT '' NOT NULL ,
+  rev_timestamp timestamp NOT NULL ,
   rev_minor_edit smallint DEFAULT '0' NOT NULL,
   rev_deleted smallint DEFAULT '0' NOT NULL,
   rev_len int DEFAULT NULL,
@@ -200,7 +200,7 @@ CREATE TABLE watchlist (
   wl_user int NOT NULL,
   wl_namespace int DEFAULT '0' NOT NULL,
   wl_title varchar(255) DEFAULT '' NOT NULL,
-  wl_notificationtimestamp varchar(14) DEFAULT NULL,
+  wl_notificationtimestamp timestamp DEFAULT NULL,
   UNIQUE (wl_user,wl_namespace,wl_title)
 );
 CREATE INDEX IDX_WL_NAMESPACE_TITLE ON watchlist (wl_namespace, wl_title);

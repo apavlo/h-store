@@ -24,7 +24,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
-import edu.brown.benchmark.wikipedia.util.Article;
 
 public class GetPageAnonymous extends VoltProcedure {
 	
@@ -63,7 +62,7 @@ public class GetPageAnonymous extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public Article run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
+	public VoltTable run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
 	    //int param = 1;
 	    
 		voltQueueSQL(selectPage, pageNamespace, pageTitle);
@@ -74,50 +73,57 @@ public class GetPageAnonymous extends VoltProcedure {
         }
         int pageId = (int)rs[0].getLong(0);
 
-        voltQueueSQL(selectPageRestriction,1, pageId);
+        voltQueueSQL(selectPageRestriction, 1, pageId);
+        voltQueueSQL(selectIpBlocks, 1, userIp);
+        voltQueueSQL(selectPageRevision, 1, pageId);
+        voltQueueSQL(selectPageRevision, 2, pageId);
         rs = voltExecuteSQL();
+        assert(rs.length == 4);
+        
+        // Grab Page Restrictions
         while (rs[0].advanceRow()) {
             String pr_type = rs[0].getString(0);
             assert(pr_type != null);
         } // WHILE
+        
         // check using blocking of a user by either the IP address or the
         // user_name
-
-        voltQueueSQL(selectIpBlocks,1, userIp);
-        rs = voltExecuteSQL();
-        while (rs[0].advanceRow()) {
-            String ipb_expiry = rs[0].getString(10);
+        while (rs[1].advanceRow()) {
+            String ipb_expiry = rs[1].getString(10);
             assert(ipb_expiry != null);
         } // WHILE
 
-        voltQueueSQL(selectPageRevision,1, pageId);
-        voltQueueSQL(selectPageRevision,2, pageId);
-        rs = voltExecuteSQL();
-        if (!rs[0].advanceRow()) {
+        
+        if (!rs[2].advanceRow()) {
             String msg = String.format("Invalid Page: Namespace:%d / Title:--%s-- / PageId:%d",
                                        pageNamespace, pageTitle, pageId);
             throw new VoltAbortException(msg);
         }
-
-        int revisionId = (int)rs[0].getLong("rev_id");
-        int textId = (int)rs[0].getLong("rev_text_id");
+        int revisionId = (int)rs[2].getLong("rev_id");
+        int textId = (int)rs[2].getLong("rev_text_id");
         //assert !rs[0].advanceRow();
 
         // NOTE: the following is our variation of wikipedia... the original did
         // not contain old_page column!
         // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
         // For now we run the original one, which works on the data we have
-        voltQueueSQL(selectText,1, textId);
+        voltQueueSQL(selectText, 1, textId);
         rs = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
             String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace + " page_title:" + pageTitle;
             throw new VoltAbortException(msg);
         }
-        Article a = null;
-        if (!forSelect)
-			a = new Article(userIp, pageId, rs[0].getString("old_text"), textId, revisionId);
+        
+        VoltTable result = new VoltTable(WikipediaConstants.GETPAGE_OUTPUT_COLS);
+        if (forSelect == false) {
+            result.addRow(userIp,
+                          pageId,
+                          rs[0].getString("old_text"),
+                          textId,
+                          revisionId);
+        }
         assert !rs[0].advanceRow();
-        return a;
+        return (result);
     }
 
 }

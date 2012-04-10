@@ -22,6 +22,7 @@ package edu.brown.benchmark.wikipedia.procedures;
 
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
+import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
@@ -38,13 +39,12 @@ public class RemoveWatchList extends VoltProcedure {
         " WHERE user_id =  ? "
     ); 
 
-    public void run( int userId, int nameSpace, String pageTitle) {
+    public VoltTable[] run( int userId, int nameSpace, String pageTitle) {
 
         if (userId > 0) {
             voltQueueSQL(removeWatchList,1, userId);
             voltQueueSQL(removeWatchList,2, nameSpace);
             voltQueueSQL(removeWatchList,3, pageTitle);
-            voltExecuteSQL();
             
             if (nameSpace == 0) {
                 // if regular page, also remove a line of
@@ -52,13 +52,11 @@ public class RemoveWatchList extends VoltProcedure {
                 voltQueueSQL(removeWatchList,1, userId);
                 voltQueueSQL(removeWatchList,2, 1);
                 voltQueueSQL(removeWatchList,3, pageTitle);
-                voltExecuteSQL();
-                
             }
                         
             voltQueueSQL(setUserTouched, 1, new TimestampType());
             voltQueueSQL(setUserTouched, 2, userId);
-            voltExecuteSQL();
         }
+        return (voltExecuteSQL());
     }
 }
