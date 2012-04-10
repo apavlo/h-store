@@ -78,66 +78,62 @@ public class GetPageAuthenticated extends VoltProcedure {
 
         // FIXME TOO FREQUENTLY SELECTING BY USER_ID
         String userText = userIp;
+
+        assert (userId >= 0);
         
-        if (userId > 0) {
-            voltQueueSQL(selectUser,1, userId);
-            voltQueueSQL(selectGroup,1, userId);
-            VoltTable rs[] = voltExecuteSQL();
-            if (rs[0].advanceRow()) {
-                userText = rs[0].getString("user_name");
-            } else {
-                throw new VoltAbortException("Invalid UserId: " + userId);
-            }
-            
-            // Fetch all groups the user might belong to (access control
-            // information)
-            rs = voltExecuteSQL();
-            while (rs[1].advanceRow()) {
-                @SuppressWarnings("unused")
-                String userGroupName = rs[1].getString(0);
-            }
-            
+        voltQueueSQL(selectUser, userId);
+        voltQueueSQL(selectGroup, userId);
+        voltQueueSQL(selectPage, nameSpace, pageTitle);
+        voltQueueSQL(selectIpBlocks, userId);
+
+        VoltTable rs[] = voltExecuteSQL();
+        
+        if (rs[0].advanceRow()) {
+            userText = rs[0].getString("user_name");
+        } else {
+            throw new VoltAbortException("Invalid UserId: " + userId);
         }
 
-        voltQueueSQL(selectPage, 1, nameSpace);
-        voltQueueSQL(selectPage, 2, pageTitle);
-        VoltTable rs[] = voltExecuteSQL();
+        // Fetch all groups the user might belong to (access control
+        // information)
+        while (rs[1].advanceRow()) {
+            @SuppressWarnings("unused")
+            String userGroupName = rs[1].getString(0);
+        }
 
-        if (!rs[0].advanceRow()) {
+
+        if (!rs[2].advanceRow()) {
             throw new VoltAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
         }
-        int pageId = (int)rs[0].getLong("page_id");
-        assert !rs[0].advanceRow();
+        int pageId = (int)rs[2].getLong("page_id");
+        assert (!rs[2].advanceRow());
         
+        
+        // check using blocking of a user by either the IP address or the
+        // user_name
+        rs = voltExecuteSQL();
+        while (rs[3].advanceRow()) {
+            String ipb_expiry = rs[3].getString(10);
+            assert(ipb_expiry != null);
+        }
 
-        voltQueueSQL(selectPageRestriction,1, pageId);
+        
+        voltQueueSQL(selectPageRestriction, pageId);
+        voltQueueSQL(selectPageRevision, pageId, pageId);
         rs = voltExecuteSQL();
         while (rs[0].advanceRow()) {
             String pr_type = rs[0].getString(0);
             assert(pr_type != null);
         }
         
-        
-        // check using blocking of a user by either the IP address or the
-        // user_name
-        voltQueueSQL(selectIpBlocks,1, userId);
-        rs = voltExecuteSQL();
-        while (rs[0].advanceRow()) {
-            String ipb_expiry = rs[0].getString(10);
-            assert(ipb_expiry != null);
-        }
-        
-
-        voltQueueSQL(selectPageRevision,1, pageId);
-        voltQueueSQL(selectPageRevision,2, pageId);
-        rs = voltExecuteSQL();
-        if (!rs[0].advanceRow()) {
+        // check page revision
+        if (!rs[1].advanceRow()) {
             throw new VoltAbortException("no such revision: page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
         }
 
-        int revisionId = (int)rs[0].getLong("rev_id");
-        int textId = (int)rs[0].getLong("rev_text_id");
-        assert !rs[0].advanceRow();
+        int revisionId = (int)rs[1].getLong("rev_id");
+        int textId = (int)rs[1].getLong("rev_text_id");
+        assert (!rs[1].advanceRow());
         
 
         // NOTE: the following is our variation of wikipedia... the original did
@@ -145,7 +141,7 @@ public class GetPageAuthenticated extends VoltProcedure {
         // sql =
         // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
         // For now we run the original one, which works on the data we have
-        voltQueueSQL(selectText,1, textId);
+        voltQueueSQL(selectText, textId);
         rs = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
             throw new VoltAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);

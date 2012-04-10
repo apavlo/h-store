@@ -138,9 +138,7 @@ public class UpdatePage extends VoltProcedure {
 	    final TimestampType timestamp = new TimestampType();
 	    
 	    // INSERT NEW TEXT
-		voltQueueSQL(insertText, pageId);
-		voltQueueSQL(insertText, param++, pageText);
-		voltQueueSQL(insertText, param++, "utf-8");
+		voltQueueSQL(insertText, pageId, pageText, "utf-8");
 		rs = voltExecuteSQL();
 
 		adv = rs[0].advanceRow();
@@ -151,8 +149,7 @@ public class UpdatePage extends VoltProcedure {
 
 		// INSERT NEW REVISION
 		param = 1;
-		voltQueueSQL(insertRevision, pageId);        // rev_page
-		voltQueueSQL(insertRevision, param++, nextTextId);    // rev_text_id
+		voltQueueSQL(insertRevision, pageId, nextTextId);    // rev_text_id
 		voltQueueSQL(insertRevision, param++, revComment);        // rev_comment
 		voltQueueSQL(insertRevision, param++, revMinorEdit);        // rev_minor_edit
 		voltQueueSQL(insertRevision, param++, userId);        // rev_user

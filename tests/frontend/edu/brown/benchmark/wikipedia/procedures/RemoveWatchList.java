@@ -40,22 +40,17 @@ public class RemoveWatchList extends VoltProcedure {
     ); 
 
     public VoltTable[] run( int userId, int nameSpace, String pageTitle) {
-
+        
         if (userId > 0) {
-            voltQueueSQL(removeWatchList,1, userId);
-            voltQueueSQL(removeWatchList,2, nameSpace);
-            voltQueueSQL(removeWatchList,3, pageTitle);
+            voltQueueSQL(removeWatchList, userId, nameSpace, pageTitle);
             
             if (nameSpace == 0) {
                 // if regular page, also remove a line of
                 // watchlist for the corresponding talk page
-                voltQueueSQL(removeWatchList,1, userId);
-                voltQueueSQL(removeWatchList,2, 1);
-                voltQueueSQL(removeWatchList,3, pageTitle);
+                voltQueueSQL(removeWatchList, userId, 1, pageTitle);
             }
                         
-            voltQueueSQL(setUserTouched, 1, new TimestampType());
-            voltQueueSQL(setUserTouched, 2, userId);
+            voltQueueSQL(setUserTouched, new TimestampType(), userId);
         }
         return (voltExecuteSQL());
     }

@@ -73,10 +73,9 @@ public class GetPageAnonymous extends VoltProcedure {
         }
         int pageId = (int)rs[0].getLong(0);
 
-        voltQueueSQL(selectPageRestriction, 1, pageId);
-        voltQueueSQL(selectIpBlocks, 1, userIp);
-        voltQueueSQL(selectPageRevision, 1, pageId);
-        voltQueueSQL(selectPageRevision, 2, pageId);
+        voltQueueSQL(selectPageRestriction, pageId);
+        voltQueueSQL(selectIpBlocks, userIp);
+        voltQueueSQL(selectPageRevision, pageId, pageId);
         rs = voltExecuteSQL();
         assert(rs.length == 4);
         
@@ -107,7 +106,7 @@ public class GetPageAnonymous extends VoltProcedure {
         // not contain old_page column!
         // "SELECT old_text,old_flags FROM `text` WHERE old_id = '"+textId+"' AND old_page = '"+pageId+"' LIMIT 1";
         // For now we run the original one, which works on the data we have
-        voltQueueSQL(selectText, 1, textId);
+        voltQueueSQL(selectText, textId);
         rs = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
             String msg = "No such text: " + textId + " for page_id:" + pageId + " page_namespace: " + pageNamespace + " page_title:" + pageTitle;
