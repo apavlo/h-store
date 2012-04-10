@@ -1,5 +1,8 @@
 package edu.brown.benchmark.wikipedia;
 
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+
 public abstract class WikipediaConstants {
 
     /**
@@ -28,6 +31,22 @@ public abstract class WikipediaConstants {
 	 * Number of baseline Users
 	 */
 	public static final int USERS = 2000;
+	
+	public static final String UPDATEPAGE_LOG_TYPE = "patrol";
+	
+	public static final String UPDATEPAGE_LOG_ACTION = "patrol";
+	
+    // -----------------------------------------------------------------
+    // GET PAGE OUTPUT COLUMNS
+    // -----------------------------------------------------------------
+    
+    public static final VoltTable.ColumnInfo[] GETPAGE_OUTPUT_COLS = {
+        new VoltTable.ColumnInfo("USER_TEXT", VoltType.STRING),
+        new VoltTable.ColumnInfo("PAGE_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("OLD_TEXT", VoltType.STRING),
+        new VoltTable.ColumnInfo("TEXT_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("REVISION_ID", VoltType.INTEGER),
+    };
 	
     // ----------------------------------------------------------------
 	// DISTRIBUTION CONSTANTS

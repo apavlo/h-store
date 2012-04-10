@@ -101,14 +101,15 @@ public class UpdatePage extends VoltProcedure {
 	    "   AND wl_user = ?"
     );
 	public SQLStmt selectUser = new SQLStmt(
-        "SELECT * FROM " + WikipediaConstants.TABLENAME_USER + " WHERE user_id = ?"
+        "SELECT * FROM " + WikipediaConstants.TABLENAME_USER + 
+        " WHERE user_id = ?"
     );
 	public SQLStmt insertLogging = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_LOGGING + " (" +
 		"log_type, log_action, log_timestamp, log_user, log_user_text, " +
         "log_namespace, log_title, log_page, log_comment, log_params" +
         ") VALUES (" +
-        "'patrol','patrol',?,?,?,?,?,?,'',?" +
+        "?,?,?,?,?,?,?,?,'',?" +
         ")"
     );
 	public SQLStmt updateUserEdit = new SQLStmt(
@@ -133,27 +134,24 @@ public class UpdatePage extends VoltProcedure {
 
 	    boolean adv;
 	    VoltTable rs[] = null;
-	    int param;
-	    final String timestamp = new TimestampType().toString();
+	    int param = 1; // TODO: REMOVE
+	    final TimestampType timestamp = new TimestampType();
 	    
 	    // INSERT NEW TEXT
-		voltQueueSQL(insertText, new int[]{1});
-		param = 1;
-		voltQueueSQL(insertText, param++, pageId);
+		voltQueueSQL(insertText, pageId);
 		voltQueueSQL(insertText, param++, pageText);
 		voltQueueSQL(insertText, param++, "utf-8");
 		rs = voltExecuteSQL();
 
 		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
-		int nextTextId = (int)rs[0].getLong(0);
+		int nextTextId = (int)rs[0].getLong(0); // TODO: Pass in as argument to run()
 		
 		assert(nextTextId >= 0) : "Invalid nextTextId (" + nextTextId + ")";
 
 		// INSERT NEW REVISION
 		param = 1;
-		voltQueueSQL(insertRevision, new int[]{1});
-		voltQueueSQL(insertRevision, param++, pageId);        // rev_page
+		voltQueueSQL(insertRevision, pageId);        // rev_page
 		voltQueueSQL(insertRevision, param++, nextTextId);    // rev_text_id
 		voltQueueSQL(insertRevision, param++, revComment);        // rev_comment
 		voltQueueSQL(insertRevision, param++, revMinorEdit);        // rev_minor_edit
@@ -167,7 +165,7 @@ public class UpdatePage extends VoltProcedure {
 		rs = voltExecuteSQL();
 		
 		adv = rs[0].advanceRow();
-		int nextRevId = (int)rs[0].getLong(0);
+		int nextRevId = (int)rs[0].getLong(0); // TODO: Should be passed in as argument to run()
 		
 		assert(nextRevId >= 0) : "Invalid nextRevID (" + nextRevId + ")";
 
@@ -277,13 +275,15 @@ public class UpdatePage extends VoltProcedure {
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
 		param = 1;
-		voltQueueSQL(insertLogging,param++, timestamp);
-		voltQueueSQL(insertLogging,param++, userId);
-		voltQueueSQL(insertLogging,param++, pageTitle);
-		voltQueueSQL(insertLogging,param++, pageNamespace);
-		voltQueueSQL(insertLogging,param++, userText);
-		voltQueueSQL(insertLogging,param++, pageId);
-		voltQueueSQL(insertLogging,param++, String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
+		voltQueueSQL(insertLogging, WikipediaConstants.UPDATEPAGE_LOG_TYPE,
+		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
+		                            timestamp,
+		                            userId,
+		                            pageTitle,
+		                            pageNamespace,
+		                            userText,
+		                            pageId,
+		                            String.format("%d\n%d\n%d", nextRevId, revisionId, 1));
 		//ps.executeUpdate();
 		voltExecuteSQL();
 		

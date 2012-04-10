@@ -3,8 +3,11 @@ package edu.brown.benchmark.wikipedia;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.*;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +32,7 @@ import edu.brown.rand.RandomDistribution.Zipf;
 //import com.oltpbenchmark.util.SQLUtil;  // ignore
 import edu.brown.utils.StringUtil;
 
+import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 
 /**
@@ -211,7 +215,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             int namespace = h_namespace.nextValue().intValue();
             String restrictions = h_restrictions.nextValue();
             double pageRandom = randGenerator.nextDouble();
-            String pageTouched = new TimestampType().toString();
+            TimestampType pageTouched = new TimestampType();
             
             Object row[] = new Object[num_cols];
             int param = 0;
@@ -352,6 +356,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             assert(old_text_length > 0);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
             
+            TimestampType timestamp = new TimestampType();
             for (int i = 0; i < num_revised; i++) {
                 // Generate the User who's doing the revision and the Page revised
                 // Makes sure that we always update their counter
@@ -389,7 +394,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 row[col++] = new String(rev_comment); // rev_comment
                 row[col++] = user_id; // rev_user
                 row[col++] = new String(user_text); // rev_user_text
-                row[col++] = new TimestampType().toString(); // rev_timestamp
+                row[col++] = timestamp; // rev_timestamp
                 row[col++] = h_minorEdit.nextValue().intValue(); // rev_minor_edit
                 row[col++] = 0; // rev_deleted
                 row[col++] = 0; // rev_len
@@ -418,33 +423,17 @@ public class WikipediaLoader extends BenchmarkComponent {
         } // FOR (page)
 
         // UPDATE USER
-        Table userTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
-        String updateUserSql = "UPDATE " + userTable.getName() + 
-                               "   SET user_editcount = ?, " +
-                               "       user_touched = ? " +
-                               " WHERE user_id = ?";
-        VoltTable vtUser = CatalogUtil.getVoltTable(userTable);
-        int num_user_cols = userTable.getColumns().size();
-        Object row[] = new Object [num_user_cols];
         batchSize = 0;
-        
-        for (int i = 0; i < this.num_users; i++) {
-            int col = 1;
-            row[col++] = this.user_revision_ctr[i];
-            row[col++] = new TimestampType().toString();
-            row[col++] = i+1; // ids start at 1
-            vtUser.addRow(row);
-            
-            if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
-                this.loadVoltTable(userTable.getName(), vtUser);
-                vtUser.clearRowData();
-                batchSize = 0;
-            }
-        } // FOR
-        if (batchSize > 0) {
-            this.loadVoltTable(userTable.getName(), vtUser);
-            vtUser.clearRowData();
+        Client client = this.getClientHandle();
+        ClientResponse cr = null;
+        try {
+            cr = client.callProcedure(UpdateRevisionCounters.class.getSimpleName(),
+                                      this.user_revision_ctr);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to update users", ex);
         }
+        assert(cr != null);
+        assert(cr.getStatus() == Status.OK);
         
         // UPDATE PAGES
         Table pageTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_PAGE);
@@ -466,7 +455,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             
             int col = 0;
             newrow[col++] = this.page_last_rev_id[i];
-            newrow[col++] = new TimestampType().toString();
+            newrow[col++] = new TimestampType();
             newrow[col++] = this.page_last_rev_length[i];
             newrow[col++] = i+1; // ids start at 1
             vtPage.addRow(newrow);
