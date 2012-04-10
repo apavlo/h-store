@@ -692,6 +692,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.prefetch.params);
     }
     
+    public final void markExecPrefetchQuery(int partition) {
+        assert(this.prefetch != null);
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.prefetch.partitions.set(offset);
+    }
+    
     // ----------------------------------------------------------------------------
     // PREFETCH QUERIES
     // ----------------------------------------------------------------------------

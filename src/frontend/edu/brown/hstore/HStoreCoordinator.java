@@ -726,7 +726,8 @@ public class HStoreCoordinator implements Shutdownable {
         int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
         assert(site_id != this.local_site_id);
         
-        this.channels.get(site_id).transactionPrefetch(ts.getTransactionPrefetchController(),
+        ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
+        this.channels.get(site_id).transactionPrefetch(controller,
                                                        request,
                                                        this.transactionPrefetch_callback);
     }
