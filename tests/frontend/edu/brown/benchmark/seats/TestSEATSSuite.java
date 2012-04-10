@@ -277,7 +277,7 @@ public class TestSEATSSuite extends RegressionSuite {
         // build up a project builder for the SEATS app
         SEATSProjectBuilder project = new SEATSProjectBuilder();
         project.addAllDefaults();
-        project.addProcedure(GetTableCounts.class);
+//        project.addProcedure(GetTableCounts.class);
 
         project.addStmtProcedure("GetFlight",
                                  "SELECT * FROM " + SEATSConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
