@@ -43,7 +43,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         //GetPageAnonymous.class,
         //GetPageAuthenticated.class,
         RemoveWatchList.class,
-        //UpdatePage.class,
+        UpdatePage.class,
     };
     
     /**

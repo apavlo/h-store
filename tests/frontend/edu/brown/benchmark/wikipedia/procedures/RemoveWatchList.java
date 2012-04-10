@@ -40,7 +40,7 @@ public class RemoveWatchList extends VoltProcedure {
     ); 
 
     public VoltTable[] run( int userId, int nameSpace, String pageTitle) {
-        
+        final TimestampType timestamp = new TimestampType();
         if (userId > 0) {
             voltQueueSQL(removeWatchList, userId, nameSpace, pageTitle);
             
@@ -50,7 +50,7 @@ public class RemoveWatchList extends VoltProcedure {
                 voltQueueSQL(removeWatchList, userId, 1, pageTitle);
             }
                         
-            voltQueueSQL(setUserTouched, new TimestampType(), userId);
+            voltQueueSQL(setUserTouched, timestamp, userId);
         }
         return (voltExecuteSQL());
     }
