@@ -22,6 +22,7 @@ package edu.brown.benchmark.wikipedia.procedures;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
@@ -63,9 +64,8 @@ public class GetPageAnonymous extends VoltProcedure {
     // -----------------------------------------------------------------
 	
 	public VoltTable run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
-	    //int param = 1;
 	    
-		voltQueueSQL(selectPage, pageNamespace, pageTitle);
+	    voltQueueSQL(selectPage, pageNamespace, pageTitle);
         VoltTable rs[] = voltExecuteSQL();
         if (!rs[0].advanceRow()) {
             String msg = String.format("Invalid Page: Namespace:%d / Title:--%s--", pageNamespace, pageTitle);

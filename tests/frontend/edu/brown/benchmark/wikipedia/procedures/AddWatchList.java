@@ -53,6 +53,8 @@ public class AddWatchList extends VoltProcedure {
     // -----------------------------------------------------------------
 
     public VoltTable[] run(int userId, int nameSpace, String pageTitle) throws VoltAbortException {
+        final TimestampType timestamp = new TimestampType();
+        
         if (userId > 0) {
             // TODO: find a way to by pass Unique constraints in SQL server
             // (Replace, Merge ..?)
@@ -64,7 +66,7 @@ public class AddWatchList extends VoltProcedure {
                 // watchlist for the corresponding talk page
                 voltQueueSQL(insertWatchList, userId, 1,  pageTitle,  null);
             }
-            voltQueueSQL(setUserTouched, new TimestampType(), userId);
+            voltQueueSQL(setUserTouched, timestamp, userId);
         }
         return (voltExecuteSQL());
     }
