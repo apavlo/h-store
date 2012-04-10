@@ -33,50 +33,21 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 
-public class StatusTypeGenerator extends TableGenerator {
-    public enum StatusTypeId {
-        E_COMPLETED(0),
-        E_ACTIVE(1),
-        E_SUBMITTED(2),
-        E_PENDING(3),
-        E_CANCELED(4);
-        
-        private final int id;
-        
-        private StatusTypeId(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
-    }
+public class CustomerAccsAndAccsPermissions extends TableMixedGenerator {
 
-    private final InputFileHandler st_file;
+    private final InputFileHandler comm_file;
     private int counter = 0;
     private final int table_size;
     
-    public StatusTypeGenerator(Table catalog_tbl, TPCEGenerator generator) {
-        super(catalog_tbl, generator);
-        
-        st_file = generator.getInputFile(InputFile.ZIPCODE);
-        table_size = st_file.getRecordsNum();
+    public CustomerAccsAndAccsPermissions(Table catalog_tbl1, Table catalog_tbl2, TPCEGenerator generator) {
+        super(catalog_tbl1, catalog_tbl2, generator);
     }
     
     @Override
     public boolean hasNext() {
-        return counter < table_size;
     }
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
-        String st_record[] = st_file.getTupleByIndex(counter++);
-        int col = 0;
-
-        tuple[col++] = st_record[0]; // st_id
-        tuple[col++] = st_record[1]; // st_name
-
-        return tuple;
     }
 }

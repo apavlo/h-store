@@ -64,6 +64,6 @@ public class WeightedFile extends FlatFile {
 
     @Override
     public int getMaxKey() {
-        return keys.size();
+        return keys.size() - 1;
     }
 }

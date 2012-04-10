@@ -174,6 +174,14 @@ public abstract class TPCEConstants {
             TABLE_TYPES.put(table_name, TableType.GROWING);
         }
     };
+    
+    /*
+     * These are tables that are loaded together, by one generator
+     */
+    public static final Map<String, String> MIXED_TABLES = new HashMap<String, String>();
+    static {
+        MIXED_TABLES.put(TABLENAME_ACCOUNT_PERMISSION, TABLENAME_CUSTOMER_ACCOUNT);
+    }
 
     public static TableType getTableType(String table_name) {
         return (TPCEConstants.TABLE_TYPES.get(table_name));

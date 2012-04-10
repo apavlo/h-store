@@ -119,6 +119,6 @@ public abstract class InputFileHandler {
      * Used for specifying the maximum in random functions
      */
     public int getMaxKey() {
-        return getRecordsNum();
+        return getRecordsNum() - 1;
     }
 }
