@@ -7,7 +7,9 @@ import org.junit.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -20,6 +22,7 @@ import org.voltdb.regressionsuites.prefetchprocs.SquirrelsSingle;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Special test cases for checking complex operations in the PlanOptimizer
@@ -62,6 +65,14 @@ public class TestPrefetchableSuite extends RegressionSuite {
         ClientResponse cr = client.callProcedure(SquirrelsDistributed.class.getSimpleName(), a_id);
         System.err.println(cr.toString());
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        
+        // Make sure that the transactions have committed at each partition
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_db)) {
+            cr = client.callProcedure("@ExecutorStatus", catalog_part.getId());
+            System.err.println(cr.toString());
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());    
+        } // FOR
+        
     }
     
     protected void checkDatabase(Client client, int a_expected) throws IOException, ProcCallException {
@@ -157,23 +168,23 @@ public class TestPrefetchableSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-//        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        config.setConfParameter("site.exec_prefetch_queries", true);
-//        config.setConfParameter("site.exec_force_singlepartitioned", false);
-//        config.setConfParameter("site.exec_voltdb_procinfo", true);
-//        config.setConfParameter("client.txn_hints", false);
-//        config.compile(project);
-//        builder.addServerConfig(config);
- 
-        // CLUSTER CONFIG #2
-        // Two sites, each with two partitions running in separate JVMs
-        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
         config.setConfParameter("site.exec_prefetch_queries", true);
         config.setConfParameter("site.exec_force_singlepartitioned", false);
         config.setConfParameter("site.exec_voltdb_procinfo", true);
         config.setConfParameter("client.txn_hints", false);
         config.compile(project);
         builder.addServerConfig(config);
+ 
+        // CLUSTER CONFIG #2
+        // Two sites, each with two partitions running in separate JVMs
+//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+//        config.setConfParameter("site.exec_prefetch_queries", true);
+//        config.setConfParameter("site.exec_force_singlepartitioned", false);
+//        config.setConfParameter("site.exec_voltdb_procinfo", true);
+//        config.setConfParameter("client.txn_hints", false);
+//        config.compile(project);
+//        builder.addServerConfig(config);
  
         return builder;
     }

@@ -201,6 +201,9 @@ message TransactionPrefetchResult {
 message TransactionPrefetchAcknowledgement {
     // Globally unique transaction id
     required int64 transaction_id = 1;
+    
+    // The target partition id for this acknowledgement
+    required int32 target_partition = 2;
 }
 
 // -----------------------------------

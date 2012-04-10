@@ -2336,7 +2336,7 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <!-- <jvmarg value="-Djava.library.path=${build.dir}/nativelibs:${jprofiler.dir}/bin/linux-x64:/usr/lib" /> -->
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
-        <jvmarg value="-Xcheck:jni" />
+<!--         <jvmarg value="-Xcheck:jni" /> -->
 
         <arg value="catalog.jar=${jar}" />
         <arg value="conf=${conf}" />

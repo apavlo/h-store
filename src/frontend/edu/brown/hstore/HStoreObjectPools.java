@@ -120,7 +120,7 @@ public abstract class HStoreObjectPools {
             if (STATES_PREFETCH == null && catalog_proc.getPrefetch() && hstore_conf.site.exec_prefetch_queries) {
                 STATES_PREFETCH = TypedStackObjectPool.factory(PrefetchState.class,
                         (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
-                        hstore_conf.site.pool_profiling);
+                        hstore_conf.site.pool_profiling, hstore_site);
             }
             if (STATES_TXN_MAPREDUCE == null && catalog_proc.getMapreduce()) {
                 STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
