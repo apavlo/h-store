@@ -70,7 +70,7 @@ public class GetPageAuthenticated extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-    public Article run( boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
+    public VoltTable run( boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
         // =======================================================
         // LOADING BASIC DATA: txn1
         // =======================================================
@@ -81,6 +81,7 @@ public class GetPageAuthenticated extends VoltProcedure {
         
         if (userId > 0) {
             voltQueueSQL(selectUser,1, userId);
+            voltQueueSQL(selectGroup,1, userId);
             VoltTable rs[] = voltExecuteSQL();
             if (rs[0].advanceRow()) {
                 userText = rs[0].getString("user_name");
@@ -90,22 +91,19 @@ public class GetPageAuthenticated extends VoltProcedure {
             
             // Fetch all groups the user might belong to (access control
             // information)
-            voltQueueSQL(selectGroup,1, userId);
-            
             rs = voltExecuteSQL();
-            while (rs[0].advanceRow()) {
+            while (rs[1].advanceRow()) {
                 @SuppressWarnings("unused")
-                String userGroupName = rs[0].getString(0);
+                String userGroupName = rs[1].getString(0);
             }
             
         }
 
-        voltQueueSQL(selectPage,1, nameSpace);
-        voltQueueSQL(selectPage,2, pageTitle);
+        voltQueueSQL(selectPage, 1, nameSpace);
+        voltQueueSQL(selectPage, 2, pageTitle);
         VoltTable rs[] = voltExecuteSQL();
 
         if (!rs[0].advanceRow()) {
-            
             throw new VoltAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
         }
         int pageId = (int)rs[0].getLong("page_id");
@@ -152,14 +150,14 @@ public class GetPageAuthenticated extends VoltProcedure {
         if (!rs[0].advanceRow()) {
             throw new VoltAbortException("no such text: " + textId + " for page_id:" + pageId + " page_namespace: " + nameSpace + " page_title:" + pageTitle);
         }
-        Article a = null;
-        if (!forSelect)
-            a = new Article(userText, pageId, rs[0].getString("old_text"), textId, revisionId);
+        VoltTable result = new VoltTable(WikipediaConstants.GETPAGE_OUTPUT_COLS);
+        if (forSelect == false)
+            result.addRow(userText, 
+                          pageId, 
+                          rs[0].getString("old_text"), 
+                          textId, revisionId);
         assert !rs[0].advanceRow();
-        
-        // FIXME can not return Article, return voltTable
-
-        return a;
+        return (result);
     }
 
 }
