@@ -157,7 +157,7 @@ public class NewPurchase extends VoltProcedure{
         }
 
         // Set item_purchase_id
-        long ip_id = ItemId.getUniqueElementId(item_id, 1);
+        long ip_id = -1; // FIXME ItemId.getUniqueElementId(item_id, 1);
 
         // Insert a new purchase
         // System.err.println(String.format("NewPurchase: ip_id=%d, ib_bid=%.2f, item_id=%d, seller_id=%d", ip_id, ib_bid, item_id, seller_id));

@@ -136,8 +136,8 @@ public abstract class PartitionerUtil {
             if (catalog_proc.getSystemproc())
                 continue;
             String proc_key = CatalogKey.createKey(catalog_proc);
-            Long weight = hist.get(proc_key);
-            if (weight != null && weight > 0) {
+            Integer weight = hist.get(proc_key);
+            if (weight != null && weight.intValue() > 0) {
                 proc_weights.put(catalog_proc, weight.doubleValue());
                 proc_visit_order.add(catalog_proc);
             }
@@ -519,8 +519,8 @@ public abstract class PartitionerUtil {
                 for (Column catalog_col : cset_histogram.values()) {
                     if (!catalog_col.getParent().equals(catalog_tbl))
                         continue;
-                    long cnt = cset_histogram.get(catalog_col);
-                    column_histogram.put(catalog_col, Math.round(cnt * edge_weight));
+                    int cnt = cset_histogram.get(catalog_col);
+                    column_histogram.put(catalog_col, (int)Math.round(cnt * edge_weight));
                 } // FOR
             } // FOR (EDGE)
         } // FOR (TABLE)

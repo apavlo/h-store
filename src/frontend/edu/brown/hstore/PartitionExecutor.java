@@ -1089,7 +1089,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Returns the number of txns that have been invoked on this partition
      * @return
      */
-    public long getTransactionCounter() {
+    public int getTransactionCounter() {
         return (this.work_exec_time.getInvocations());
     }
     

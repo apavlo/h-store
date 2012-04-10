@@ -229,7 +229,7 @@ public abstract class BenchmarkComponent {
     /**
      * Client initialized here and made available for use in derived classes
      */
-    private final Client m_voltClient;
+    private Client m_voltClient;
 
     /**
      * Manage input and output to the framework
@@ -901,8 +901,7 @@ public abstract class BenchmarkComponent {
                                         (isLoader ? "LOADER" : "CLIENT"),
                                         statsPollInterval);
             } catch (Exception e) {
-                LOG.error("Failed to initialize StatsUploader", e);
-                statsSettings = null;
+                throw new RuntimeException("Failed to initialize StatsUploader", e);
             }
         }
         
@@ -924,7 +923,7 @@ public abstract class BenchmarkComponent {
         
         // Parse workload transaction weights
         if (m_hstoreConf.client.weights != null) {
-            for (String entry : m_hstoreConf.client.weights.split(",")) {
+            for (String entry : m_hstoreConf.client.weights.split("(,|;)")) {
                 String data[] = entry.split(":");
                 if (data.length != 2) {
                     LOG.warn("Invalid transaction weight entry '" + entry + "'");
@@ -1089,6 +1088,14 @@ public abstract class BenchmarkComponent {
     }
     
     /**
+     * Return the scale factor for this benchmark instance
+     * @return
+     */
+    public double getScaleFactor() {
+        return (m_hstoreConf.client.scalefactor);
+    }
+    
+    /**
      * This method will load a VoltTable into the database for the given tableName.
      * The database will automatically split the tuples and send to the correct partitions
      * The current thread will block until the the database cluster returns the result.
@@ -1099,10 +1106,10 @@ public abstract class BenchmarkComponent {
     public ClientResponse loadVoltTable(String tableName, VoltTable vt) {
         assert(vt != null) : "Null VoltTable for '" + tableName + "'";
         
-        long rowCount = vt.getRowCount();
-        long rowTotal = m_tableTuples.get(tableName, 0l);
-        long byteCount = vt.getUnderlyingBufferSize();
-        long byteTotal = m_tableBytes.get(tableName, 0l);
+        int rowCount = vt.getRowCount();
+        int rowTotal = m_tableTuples.get(tableName, 0);
+        int byteCount = vt.getUnderlyingBufferSize();
+        int byteTotal = m_tableBytes.get(tableName, 0);
         
         if (trace.get())
             LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
@@ -1164,14 +1171,24 @@ public abstract class BenchmarkComponent {
      * @return
      */
     protected final Integer getTransactionWeight(String txnName) {
-        Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
+        return (this.getTransactionWeight(txnName, null));
+    }
+    
+    /**
+     * 
+     * @param txnName
+     * @param weightIfNull
+     * @return
+     */
+    protected final Integer getTransactionWeight(String txnName, Integer weightIfNull) {
+        Integer val = this.m_txnWeights.get(txnName.toUpperCase()); 
         if (val != null) {
-            return (val.intValue());
+            return (val);
         }
         else if (m_txnWeightsDefault != null) {
             return (m_txnWeightsDefault);
         }
-        return (null);
+        return (weightIfNull);
     }
     
     /**
@@ -1179,8 +1196,8 @@ public abstract class BenchmarkComponent {
      * @param tableName
      * @return
      */
-    public final long getTableTupleCount(String tableName) {
-        return (m_tableTuples.get(tableName, 0l));
+    public final int getTableTupleCount(String tableName) {
+        return (m_tableTuples.get(tableName, 0));
     }
     
     /**
@@ -1197,8 +1214,8 @@ public abstract class BenchmarkComponent {
      * @param tableName
      * @return
      */
-    public final long getTableBytes(String tableName) {
-        return (m_tableBytes.get(tableName, 0l));
+    public final int getTableBytes(String tableName) {
+        return (m_tableBytes.get(tableName, 0));
     }
     
     /**
@@ -1427,6 +1444,14 @@ public abstract class BenchmarkComponent {
      */
     public final Client getClientHandle() {
         return (m_voltClient);
+    }
+    /**
+     * Special hook for setting the DBMS client handle
+     * This should only be invoked for RegressionSuite test cases
+     * @param client
+     */
+    protected void setClientHandle(Client client) {
+        m_voltClient = client;
     }
     /**
      * Return the unique client id for this invocation of BenchmarkComponent
