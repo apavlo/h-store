@@ -26,7 +26,6 @@ import org.voltdb.types.TimestampType;
 import org.apache.log4j.Logger;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
-import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class AddWatchList extends VoltProcedure {
@@ -58,19 +57,14 @@ public class AddWatchList extends VoltProcedure {
             // TODO: find a way to by pass Unique constraints in SQL server
             // (Replace, Merge ..?)
             // Here I am simply catching the right excpetion and move on.
-            voltQueueSQL(insertWatchList, 1, userId, null);
-            voltQueueSQL(insertWatchList, 2, nameSpace, null);
-            voltQueueSQL(insertWatchList, 3, pageTitle, null);
+            voltQueueSQL(insertWatchList, userId, nameSpace, pageTitle, null);
 
             if (nameSpace == 0) {
                 // if regular page, also add a line of
                 // watchlist for the corresponding talk page
-                voltQueueSQL(insertWatchList, 1, userId, null);
-                voltQueueSQL(insertWatchList, 2, 1, null);
-                voltQueueSQL(insertWatchList, 3, pageTitle, null);
+                voltQueueSQL(insertWatchList, userId, 1,  pageTitle,  null);
             }
-            voltQueueSQL(setUserTouched, 1, new TimestampType());
-            voltQueueSQL(setUserTouched, 2, userId);
+            voltQueueSQL(setUserTouched, new TimestampType(), userId);
         }
         return (voltExecuteSQL());
     }
