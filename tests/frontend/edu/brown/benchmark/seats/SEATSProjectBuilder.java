@@ -27,6 +27,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.seats;
 
+import java.io.File;
+import java.net.URL;
+
+import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
@@ -50,6 +54,7 @@ public class SEATSProjectBuilder extends AbstractProjectBuilder {
         
         // Non-Workload Procedure
         LoadConfig.class,
+        GetTableCounts.class
     };
     
     // Transaction Frequencies
@@ -82,5 +87,27 @@ public class SEATSProjectBuilder extends AbstractProjectBuilder {
 
     public SEATSProjectBuilder() {
         super("seats", SEATSProjectBuilder.class, PROCEDURES, PARTITIONING);
+    }
+    
+    public static File getDataDir() {
+        URL url = SEATSProjectBuilder.class.getResource("data");
+        if (url != null) {
+            return new File(url.getPath());
+        }
+        return (null);
+    }
+    
+    /**
+     * Return the path of the CSV file that has data for the given Table catalog handle
+     * @param data_dir
+     * @param catalog_tbl
+     * @return
+     */
+    public static final File getTableDataFile(File data_dir, Table catalog_tbl) {
+        File f = new File(String.format("%s%stable.%s.csv", data_dir.getAbsolutePath(),
+                                                            File.separator,
+                                                            catalog_tbl.getName().toLowerCase()));
+        if (f.exists() == false) f = new File(f.getAbsolutePath() + ".gz");
+        return (f);
     }
 }

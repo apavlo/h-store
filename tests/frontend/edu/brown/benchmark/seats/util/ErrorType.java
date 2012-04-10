@@ -27,59 +27,39 @@
  ***************************************************************************/
 package edu.brown.benchmark.seats.util;
 
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.apache.commons.collections15.set.ListOrderedSet;
-
-import edu.brown.statistics.Histogram;
-
-public class CustomerIdIterable implements Iterable<CustomerId> {
-    private final Histogram<Long> airport_max_customer_id;
-    private final ListOrderedSet<Long> airport_ids = new ListOrderedSet<Long>();
-    private Long last_airport_id = null;
-    private int last_id = -1;
-    private long last_max_id = -1;
+/**
+ * Internal Error Codes
+ * @author pavlo
+ */
+public enum ErrorType {
+    INVALID_FLIGHT_ID,
+    INVALID_CUSTOMER_ID,
+    NO_MORE_SEATS,
+    SEAT_ALREADY_RESERVED,
+    CUSTOMER_ALREADY_HAS_SEAT,
+    VALIDITY_ERROR,
+    UNKNOWN;
     
-    public CustomerIdIterable(Histogram<Long> airport_max_customer_id, long...airport_ids) {
-        this.airport_max_customer_id = airport_max_customer_id;
-        for (long id : airport_ids) {
-            this.airport_ids.add(id);
-        } // FOR
+    private final String errorCode;
+    private final static Pattern p = Pattern.compile("^(USER ABORT:[\\s]+)?E([\\d]{4})");
+    
+    private ErrorType() {
+        this.errorCode = String.format("E%04d", this.ordinal());
     }
     
-    public CustomerIdIterable(Histogram<Long> airport_max_customer_id) {
-        this.airport_max_customer_id = airport_max_customer_id;
-        this.airport_ids.addAll(airport_max_customer_id.values());
+    public static ErrorType getErrorType(String msg) {
+        Matcher m = p.matcher(msg);
+        if (m.find()) {
+            int idx = Integer.parseInt(m.group(2));
+            return ErrorType.values()[idx];
+        }
+        return (ErrorType.UNKNOWN);
     }
-    
-    public CustomerIdIterable(Histogram<Long> airport_max_customer_id, Collection<Long> airport_ids) {
-        this.airport_max_customer_id = airport_max_customer_id;
-        this.airport_ids.addAll(airport_ids);
-    }
-    
     @Override
-    public Iterator<CustomerId> iterator() {
-        return new Iterator<CustomerId>() {
-            @Override
-            public boolean hasNext() {
-                return (!CustomerIdIterable.this.airport_ids.isEmpty() || (last_id != -1 && last_id < last_max_id));
-            }
-            @Override
-            public CustomerId next() {
-                if (last_airport_id == null) {
-                    last_airport_id = airport_ids.remove(0);
-                    last_id = 0;
-                    last_max_id = airport_max_customer_id.get(last_airport_id);
-                } 
-                CustomerId next_id = new CustomerId(last_id, last_airport_id);
-                if (++last_id == last_max_id) last_airport_id = null;
-                return next_id;
-            }
-            @Override
-            public void remove() {
-                // Not implemented
-            }
-        };
+    public String toString() {
+        return this.errorCode;
     }
-} // END CLASS
+}
