@@ -32,7 +32,7 @@ import edu.brown.rand.RandomDistribution.Zipf;
 //import com.oltpbenchmark.util.SQLUtil;  // ignore
 import edu.brown.utils.StringUtil;
 
-import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
+//import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 
 /**
@@ -427,7 +427,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         Client client = this.getClientHandle();
         ClientResponse cr = null;
         try {
-            cr = client.callProcedure(UpdateRevisionCounters.class.getSimpleName(),
+            cr = client.callProcedure("", // FIXME(xin) UpdateRevisionCounters.class.getSimpleName(),
                                       this.user_revision_ctr);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to update users", ex);
