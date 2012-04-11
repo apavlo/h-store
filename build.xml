@@ -932,7 +932,7 @@ TEST CASES
                 <exclude name="**/TestSqlUpdateSuite.class" />
                 
                 <!-- Tests that use too much memory -->
-                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite*'/>
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -989,6 +989,15 @@ TEST CASES
         <tests>
             <fileset dir='${build.test.dir}'>
                 <exclude name="**/*$*.class"/>
+                
+                <!-- Brown Tests -->
+                <include name='edu/brown/**/Test*.class'/>
+                <include name='edu/brown/**/*Test.class'/>
+
+                <!-- Canadian Tests -->
+                <include name='ca/evanjones/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/Test*.class'/>
 
                 <!-- VoltDB Tests -->
                 <include name='org/hsqldb/**/Test*.class'/>
@@ -1020,18 +1029,10 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
-
-                <!-- Brown Tests -->
-                <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/**/*Test.class'/>
                 
-                <!-- We run out of memory on this one -->
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
-
-                <!-- Canadian Tests -->
-                <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
-                <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
     </run_junit>
