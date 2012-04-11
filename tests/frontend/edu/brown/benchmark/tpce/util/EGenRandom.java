@@ -237,5 +237,8 @@ public class EGenRandom {
     public boolean rndPercent(int percent) {
         return intRange(1, 100) <= percent;
     }
-
+    
+    public int rndPercentage() {
+        return intRange(1, 100);
+    }
 }

@@ -123,15 +123,16 @@ public class TPCEGenerator {
         // Scaling tables
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER, CustomerGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_ADDRESS, AddressGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, CustomerAccountsGenerator.class);
     }
     
-    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
+/*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
     static {
         // Mixed tables
         genClasses.put(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
     }
-    
+*/    
     /*
      * Generator parameters
      */
@@ -227,7 +228,7 @@ public class TPCEGenerator {
         return gen;
     }
     
-    public TableMixedGenerator getTableGen(String tableName1, String tableName2, Table catalogTable1, Table catalogTable2) {
+/*    public TableMixedGenerator getTableGenMixed(String tableName1, String tableName2, Table catalogTable1, Table catalogTable2) {
         TableMixedGenerator gen = null;
         
         try {
@@ -252,7 +253,7 @@ public class TPCEGenerator {
         }
         
         return gen;
-    }
+    }*/
     
     public InputFileHandler getInputFile(InputFile file) {
         return inputFiles.get(file);

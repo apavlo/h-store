@@ -97,7 +97,7 @@ public class CustomerGenerator extends TableGenerator {
         rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT, (counter + startCustomerId - 1) * RNG_SKIP_ONE_ROW_CUSTOMER);
     }
     
-    public long getCustomerId() {
+    public long generateCustomerId() {
         if (counter % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
             initNextLoadUnit();
         }
@@ -221,7 +221,7 @@ public class CustomerGenerator extends TableGenerator {
     public Object[] next() {
         Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
         
-        long cid = getCustomerId();
+        long cid = generateCustomerId();
         String[] namesAndtaxId = person.getFirstNameLastNameTaxID(cid);
         
         tuple[0] = cid;                     // c_id
@@ -231,7 +231,7 @@ public class CustomerGenerator extends TableGenerator {
         tuple[4] = namesAndtaxId[0]; // c_f_name
         tuple[5] = person.getMiddleName(cid); // c_m_name
         tuple[6] = person.getGender(cid); // c_gndr
-        tuple[7] = CustomerSelection.getTier(cid); // c_tier
+        tuple[7] = (short)CustomerSelection.getTier(cid).getValue(); // c_tier
         tuple[8] = new TimestampType(getDOB()); // c_dob
         tuple[9] = getAddrID(cid); // c_ad_id
         
