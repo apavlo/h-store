@@ -73,24 +73,24 @@ public class PersonHandler {
         return res;
     }
     
-    public char getMiddleName(long cid) {
+    public String getMiddleName(long cid) {
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_MIDDLE_INITIAL, cid);
-        return rnd.rndAlphaNumFormatted("a").charAt(0);
+        return rnd.rndAlphaNumFormatted("a");
     }
     
-    public char getGender(long cid) {
+    public String getGender(long cid) {
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_GENDER, cid);
         
         if (rnd.rndPercent(PERCENT_GENDER_MALE)) {
-            return 'M';
+            return "M";
         }
         else {
-            return 'F';
+            return "F";
         }
     }
     
     public boolean isMalGender(long cid) {
-        return getGender(cid) == 'M';
+        return getGender(cid).equals("M");
     }
     
     public String getTaxID(long cid) {

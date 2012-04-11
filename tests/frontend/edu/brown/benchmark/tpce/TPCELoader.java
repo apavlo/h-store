@@ -127,8 +127,9 @@ public class TPCELoader extends BenchmarkComponent {
         //
         LOG.info("Generating and loading scaling TPC-E tables");
         try {
-            for (int start_idx = 0, cnt = this.egenloader.getTotalCustomers(); start_idx < cnt; start_idx += 1000) {
-                this.egenloader.generateScalingTables(start_idx);
+            for (long start_idx = 0, cnt = this.generator.getTotalCustomers(); start_idx < cnt; start_idx += TPCEConstants.DEFAULT_LOAD_UNIT) {
+                //this.egenloader.generateScalingTables(start_idx);
+                this.generator.changeSessionParams(TPCEConstants.DEFAULT_LOAD_UNIT, start_idx + 1);
                 for (String table_name : TPCEConstants.SCALING_TABLES) {
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     assert (catalog_tbl != null);
@@ -178,10 +179,13 @@ public class TPCELoader extends BenchmarkComponent {
                 Object tuple[] = table_gen.next();
                 
                 if (debug) {
-                    for (int i = 0; i < tuple.length; i++) {
-                        System.out.println("[" + i + "]: " + tuple[i].toString());
-                    } // FOR
-                } // IF
+                        StringBuilder sb = new StringBuilder();
+                        for (Object o: tuple) {
+                            sb.append(o.toString());
+                            sb.append('|');
+                        }
+                        LOG.trace("Table[" + catalog_tbl.getName() + "], Tuple[" + row_idx + "]: "+ sb);
+                }
 
                 vt.addRow(tuple);
                 row_idx++;

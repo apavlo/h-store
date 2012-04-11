@@ -31,26 +31,55 @@ package edu.brown.benchmark.tpce.util;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
+
+import org.apache.log4j.Logger;
+
+import edu.brown.benchmark.tpce.generators.CustomerGenerator;
 
 public class EGenDate {
+    /*
+     * The idea here is to set up a pure Gregorian calendar without a time zone offset
+     * to use it for generating day numbers properly. This will correspond with the
+     * canonical EGen implementation.
+     * 
+     * However, it should be noted that since the TIMESTAMP is used for the corresponding SQL data type,
+     * the interpretation of the generated value depends on current time zone and daylight saving settings since
+     * the generated value is just a number of milliseconds from the Epoch.
+     * 
+     * For example, the generated '1990-12-13' will be interpreted as '1990-12-12, 19:00' in EDT (daylight saving)
+     *              the generated '1953-09-26' will be interpreted as '1953-09-25, 20:00' in EDT (no daylight saving)
+     */
+    private static final GregorianCalendar cal = new GregorianCalendar(TimeZone.getTimeZone("GMT")); // no time zone
+    private static final int cur_year;
+    private static final int cur_month;
+    private static final int cur_day;
+    
+    static {
+        cal.setGregorianChange(new Date(Long.MIN_VALUE)); // pure Gregorian calendar
+        cur_year = cal.get(Calendar.YEAR);
+        cur_month = cal.get(Calendar.MONTH);
+        cur_day = cal.get(Calendar.DAY_OF_MONTH);;
+        cal.setTimeInMillis(0);
+    }
+    
     public static int getYear() {
-        return Calendar.getInstance().get(Calendar.YEAR);
+        return cur_year;
     }
     
     public static int getMonth() {
-        return Calendar.getInstance().get(Calendar.MONTH);
+        return cur_month;
     }
     
     public static int getDay() {
-        return Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+        return cur_day;
     }
     
     /*
      * Get day number from 01/01/0001 (1 AD)
      */
     public static int getDayNo(int year, int month, int day) {
-        Calendar cal = Calendar.getInstance();
-        
         cal.set(year, month, day);
         long dateEpochMillis = cal.getTimeInMillis();
         
@@ -66,8 +95,6 @@ public class EGenDate {
     }
     
     public static Date getDateFromDayNo(int dayNo) {
-        Calendar cal = Calendar.getInstance();
-        
         // to msec based on 01/01/01: 1sec = 1000msecs, 1hour = 3600secs, 1day = 24hours; 'int' should be enough
         long dateMillis = (long)dayNo * 24 * 3600 * 1000;
         

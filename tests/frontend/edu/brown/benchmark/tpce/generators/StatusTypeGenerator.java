@@ -59,7 +59,7 @@ public class StatusTypeGenerator extends TableGenerator {
     public StatusTypeGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
         
-        st_file = generator.getInputFile(InputFile.ZIPCODE);
+        st_file = generator.getInputFile(InputFile.STATUS);
         table_size = st_file.getRecordsNum();
     }
     

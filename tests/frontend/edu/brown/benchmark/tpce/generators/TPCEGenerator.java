@@ -35,6 +35,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Table;
 
@@ -118,6 +119,10 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_STATUS_TYPE, StatusTypeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_TRADE_TYPE, TradeTypeGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_TAXRATE, TaxRateGenerator.class);
+        
+        // Scaling tables
+        genClasses.put(TPCEConstants.TABLENAME_CUSTOMER, CustomerGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_ADDRESS, AddressGenerator.class);
     }
     
     private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
@@ -165,7 +170,7 @@ public class TPCEGenerator {
         inputFiles.put(InputFile.TAXDIV, new ArrayFile(new File(inputDir + File.separator + TAXDIV_FILE)));
         
         this.currentCustomers = total_customers;
-        this.customerStartId = 1;
+        this.customerStartId = TPCEConstants.DEFAULT_START_CUSTOMER_ID;
         this.total_customers = total_customers;
         this.scaling_factor = scaling_factor;
         this.initial_days = initial_days;
@@ -184,6 +189,11 @@ public class TPCEGenerator {
         return customerStartId;
     }
     
+    // the number of companies depends on the total number of companies
+    public long getCompanyCount() {
+        return total_customers / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANIES_PER_UNIT;
+    }
+    
     public void parseInputFiles() {
         for (InputFileHandler file: inputFiles.values()) {
             file.parseFile();
@@ -194,15 +204,15 @@ public class TPCEGenerator {
         TableGenerator gen = null;
         
         try {
-            Constructor<?> ctor = genClassesMixed.get(tableName).getDeclaredConstructor(Table.class, TPCEGenerator.class);
+            Constructor<?> ctor = genClasses.get(tableName).getDeclaredConstructor(Table.class, TPCEGenerator.class);
             gen = (TableGenerator)ctor.newInstance(catalogTable, this);
         }
         catch (NoSuchMethodException e) {
-            LOG.error("Cannot create a generator for: '" + tableName + "'");
+            LOG.error("Cannot create a generator for: '" + tableName + "' -- no constructor");
             System.exit(1);
         }
         catch (InvocationTargetException e) {
-            LOG.error("Cannot create a generator for: '" + tableName + "'");
+            LOG.error("Cannot create a generator for: '" + tableName + "' -- constructor call error");
             System.exit(1);
         }
         catch (IllegalAccessException e) {

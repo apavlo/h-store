@@ -75,7 +75,10 @@ public abstract class TPCEConstants {
                                                         // have problems
     public static final int DEFAULT_INITIAL_DAYS = 1;
     public static final int DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
-    public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this   
+    public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this
+    public static final long DEFAULT_START_CUSTOMER_ID = 1;
+    
+    public static final long DEFAULT_COMPANIES_PER_UNIT = 500;
 
     //
     // Table Names
@@ -133,21 +136,21 @@ public abstract class TPCEConstants {
 
     public static final Set<String> SCALING_TABLES = new HashSet<String>();
     static {
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_ADDRESS);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY_COMPETITOR);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY_COMPETITOR);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
     };
 
     public static final Set<String> GROWING_TABLES = new HashSet<String>();

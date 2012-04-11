@@ -31,7 +31,9 @@ package edu.brown.benchmark.tpce.generators;
 
 import java.util.Date;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.StatusTypeGenerator.StatusTypeId;
@@ -40,6 +42,8 @@ import edu.brown.benchmark.tpce.util.EGenDate;
 import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class CustomerGenerator extends TableGenerator {
+    private static final Logger LOG = Logger.getLogger(CustomerGenerator.class);
+    
     // percent of people in ages: <= 18, 19-24, 25-34, 35-44, 45-54, 55-64, 65-74, 75-84, >=85
     private static final int[] agePercents  = {5, 16, 17, 19, 16, 11, 8, 7, 1};
     
@@ -69,7 +73,7 @@ public class CustomerGenerator extends TableGenerator {
     private final InputFileHandler statusType;
     private final InputFileHandler areaCodes;
     
-    private long counter = 0;
+    private long counter;
 
     public CustomerGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
@@ -85,19 +89,25 @@ public class CustomerGenerator extends TableGenerator {
         
         exchNum = generator.getInputFile(InputFile.EXCHANGE).getRecordsNum();
         compNum = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
+        
+        LOG.debug("Loading customer table for '" + customersNum + "'customers, starting from '" + startCustomerId + "'");
     }
     
     private void initNextLoadUnit() {
         rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT, (counter + startCustomerId - 1) * RNG_SKIP_ONE_ROW_CUSTOMER);
     }
     
-    private long getCustomerId() {
+    public long getCustomerId() {
         if (counter % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
             initNextLoadUnit();
         }
         
         counter++;
         
+        return counter + startCustomerId - 1 + TPCEConstants.IDENT_SHIFT;
+    }
+    
+    public long getCurrentCId() {
         return counter + startCustomerId - 1 + TPCEConstants.IDENT_SHIFT;
     }
     
@@ -222,7 +232,7 @@ public class CustomerGenerator extends TableGenerator {
         tuple[5] = person.getMiddleName(cid); // c_m_name
         tuple[6] = person.getGender(cid); // c_gndr
         tuple[7] = CustomerSelection.getTier(cid); // c_tier
-        tuple[8] = getDOB(); // c_dob
+        tuple[8] = new TimestampType(getDOB()); // c_dob
         tuple[9] = getAddrID(cid); // c_ad_id
         
         tuple[10] = usCountryCode; // c_ctry_1
