@@ -79,6 +79,8 @@ public abstract class TPCEConstants {
     public static final long DEFAULT_START_CUSTOMER_ID = 1;
     
     public static final long DEFAULT_COMPANIES_PER_UNIT = 500;
+    public static final int  BROKERS_DIV = 100;  // by what number to divide the customer count to get the broker count
+
 
     //
     // Table Names
@@ -140,7 +142,7 @@ public abstract class TPCEConstants {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_ADDRESS);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY_COMPETITOR);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);

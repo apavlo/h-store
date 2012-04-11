@@ -41,7 +41,21 @@ package edu.brown.benchmark.tpce.generators;
 ******************************************************************************/
 
 public class CustomerSelection {
-
+    public enum TierId {
+        eCustomerTierOne(1),
+        eCustomerTierTwo(2),
+        eCustomerTierThree(3);
+        
+        private final int id;
+        
+        private TierId(int id) {
+            this.id = id;
+        }
+        
+        public int getValue() {
+            return id;
+        }
+    }
 
     // lower 3 difgits
     private static long lowDigits(long cid) {
@@ -63,18 +77,38 @@ public class CustomerSelection {
         return  (((613 * (low - 33 * (high + 1))) % 1000) + 1000) % 1000;
     }
     
-    public static short getTier(long cid) {
+    public static TierId getTier(long cid) {
         long revCid = inversePermute(lowDigits(cid), highDigits(cid));
 
         if (revCid < 200) {
-            return 1;
+            return TierId.eCustomerTierOne;
         }
         else {
             if (revCid < 800) {
-                return 2;
+                return TierId.eCustomerTierTwo;
             }
             else {
-                return 3;
+                return TierId.eCustomerTierThree;
+            }
+        }
+    }
+    
+    /*
+     *   Return scrambled inverse customer id in range of 0 to 999.
+     */
+    public static int getInverseCid(long cid) {
+        int cHigh      =  (int)highDigits(cid);
+        int inverseCid =  (int)inversePermute(lowDigits(cid), cHigh);
+
+        if (inverseCid < 200) {     // Tier 1: value 0 to 199
+            return ((3 * inverseCid + (cHigh + 1)) % 200);
+        }
+        else {
+            if (inverseCid < 800) { // Tier 2: value 200 to 799
+                return (((59 * inverseCid + 47 * (cHigh + 1)) % 600) + 200);
+            }
+            else {                   // Tier 3: value 800 to 999
+                return (((23 * inverseCid + 17 * (cHigh + 1)) % 200) + 800);
             }
         }
     }

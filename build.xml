@@ -2226,6 +2226,7 @@ TPC-E EGenLoader
     <copy todir="${build.tpce.dir}/flat_in">
         <fileset dir="${src.tpce.dir}/flat_in"/>
     </copy>
+    <copy todir="${build.dir}/nativelibs" file="${build.tpce.dir}/lib/libegen_random.so"/>
 </target>
 
 <target name="tpceloader.javah">
@@ -2254,7 +2255,7 @@ TPC-E EGenLoader
     </uptodate>
 -->
     <uptodate property="tpceloader.built"
-              targetfile="${build.tpce.dir}/lib/libegen_random.so">
+              targetfile="{build.dir}/nativelibs/libegen_random.so">
         <srcfiles dir="${src.tpce.dir}" includes="random/*.cpp" />
         <srcfiles dir="${src.tpce.dir}" includes="random/*.h" />
     </uptodate>
