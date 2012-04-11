@@ -33,7 +33,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestSEATSSuite extends RegressionSuite {
 
-    private static final double SCALE_FACTOR = 0.05;
+    private static final double SCALE_FACTOR = 0.001;
     private static final int RANDOM_SEED = 1;
     
     private final String loaderArgs[] = {
