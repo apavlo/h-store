@@ -931,6 +931,9 @@ TEST CASES
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
                 
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite*'/>
+                
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>

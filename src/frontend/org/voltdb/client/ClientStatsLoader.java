@@ -106,8 +106,10 @@ public class ClientStatsLoader {
         insertConnectionStatsStmt.setInt( 1, m_instanceId);
         insertProcedureStatsStmt.setInt( 1, m_instanceId);
         m_conn.commit();
+        m_loadThread.setDaemon(true);
         m_loadThread.start();
-        LOG.info("ClientStatsLoader has been started");
+        if (LOG.isDebugEnabled())
+            LOG.debug("ClientStatsLoader has been started");
     }
 
     public synchronized void stop() throws InterruptedException {
