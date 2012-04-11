@@ -889,7 +889,10 @@ public abstract class BenchmarkComponent {
         
         StatsUploaderSettings statsSettings = null;
         if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
-            LOG.info("statsDatabaseURL => " + statsDatabaseURL);
+            if (debug.get()) {
+                LOG.debug("statsDatabaseURL => " + statsDatabaseURL);
+                LOG.debug("statsDatabaseJDBC => " + statsDatabaseJDBC);
+            }
             
             try {
                 if (statsDatabaseJDBC != null && statsDatabaseJDBC.isEmpty() == false) {
