@@ -47,7 +47,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     };
     
     /**
-     * FIXME how the schemas are partitioned...?
+     * FIXME how the schemas are partitioned...
      */
     public static final String PARTITIONING[][] = new String[][] {
         { "page", "page_id" },

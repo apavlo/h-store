@@ -25,8 +25,6 @@ import edu.brown.benchmark.wikipedia.data.UserHistograms;
 import org.voltdb.catalog.Table;
 
 import org.voltdb.utils.Pair;
-import edu.brown.rand.RandomDistribution;
-import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 //import com.oltpbenchmark.util.SQLUtil;  // ignore
@@ -39,6 +37,7 @@ import edu.brown.benchmark.wikipedia.util.TextGenerator;
  * Synthetic Wikipedia Data Loader
  * @author pavlo
  * @author djellel
+ * @author xin
  */
 public class WikipediaLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaLoader.class);
@@ -327,7 +326,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         VoltTable vtText = CatalogUtil.getVoltTable(textTable);
         VoltTable vtRev = CatalogUtil.getVoltTable(revTable);
         int num_txt_cols = textTable.getColumns().size();
-        int num_rev_cols = revTable.getColumns().size();
+        //int num_rev_cols = revTable.getColumns().size();
         int batchSize = 1;
         
         Zipf h_users = new Zipf(this.randGenerator, 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
@@ -337,7 +336,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         
         //WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
         
-        // FIXME(xin): fix these two variables, Use a wrong one right now
+        // FIXME(xin): fix these two variables, Use a wrong one right now ???
         //FlatHistogram<Integer> h_commentLength = b.commentLength;
         //FlatHistogram<Integer> h_minorEdit = b.minorEdit;
         FlatHistogram<Integer> h_commentLength = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
@@ -422,54 +421,21 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR (page)
 
-        // UPDATE USER
+        // UPDATE USER & UPDATE PAGES
         batchSize = 0;
         Client client = this.getClientHandle();
         ClientResponse cr = null;
         try {
             cr = client.callProcedure(UpdateRevisionCounters.class.getSimpleName(),
-                                      this.user_revision_ctr);
+                                      this.user_revision_ctr,
+                                      this.num_pages,
+                                      this.page_last_rev_id,
+                                      this.page_last_rev_length);
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to update users", ex);
+            throw new RuntimeException("Failed to update users and pages", ex);
         }
         assert(cr != null);
         assert(cr.getStatus() == Status.OK);
-        
-        // UPDATE PAGES
-        Table pageTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_PAGE);
-        String updatePageSql = "UPDATE " + revTable.getName() + 
-                               "   SET page_latest = ?, " +
-                               "       page_touched = ?, " +
-                               "       page_is_new = 0, " +
-                               "       page_is_redirect = 0, " +
-                               "       page_len = ? " +
-                               " WHERE page_id = ?";
-
-        VoltTable vtPage = CatalogUtil.getVoltTable(pageTable);
-        int num_page_cols = pageTable.getColumns().size();
-        Object newrow[] = new Object [num_page_cols];
-        batchSize = 0;
-        
-        for (int i = 0; i < this.num_pages; i++) {
-            if (this.page_last_rev_id[i] == -1) continue;
-            
-            int col = 0;
-            newrow[col++] = this.page_last_rev_id[i];
-            newrow[col++] = new TimestampType();
-            newrow[col++] = this.page_last_rev_length[i];
-            newrow[col++] = i+1; // ids start at 1
-            vtPage.addRow(newrow);
-            
-            if ((++batchSize % WikipediaConstants.BATCH_SIZE) == 0) {
-                this.loadVoltTable(pageTable.getName(), vtPage);
-                vtPage.clearRowData();
-                batchSize = 0;
-            }
-        } // FOR
-        if (batchSize > 0) {
-            this.loadVoltTable(pageTable.getName(), vtPage);
-            vtPage.clearRowData();
-        }
         
         if (LOG.isDebugEnabled()) {
             LOG.debug("Revision loaded");

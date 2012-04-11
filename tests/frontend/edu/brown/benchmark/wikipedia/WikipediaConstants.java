@@ -47,6 +47,15 @@ public abstract class WikipediaConstants {
         new VoltTable.ColumnInfo("TEXT_ID", VoltType.INTEGER),
         new VoltTable.ColumnInfo("REVISION_ID", VoltType.INTEGER),
     };
+    
+    // -----------------------------------------------------------------
+    // GET UPDATE USER&PAGE COLUMNS
+    // -----------------------------------------------------------------
+    
+    public static final VoltTable.ColumnInfo[] GET_USER_PAGE_UPDATE_COLS = {
+        new VoltTable.ColumnInfo("USER_TEXT", VoltType.STRING),
+        new VoltTable.ColumnInfo("PAGE_ID", VoltType.INTEGER),
+    };
 	
     // ----------------------------------------------------------------
 	// DISTRIBUTION CONSTANTS
