@@ -85,7 +85,7 @@ public class ClientStatsLoader {
                     PreparedStatement.RETURN_GENERATED_KEYS);
         insertConnectionStatsStmt = m_conn.prepareStatement(insertConnectionStatsStatement);
         insertProcedureStatsStmt = m_conn.prepareStatement(insertProcedureStatsStatement);
-        instanceStmt.setLong( 1, startTime);
+        instanceStmt.setTimestamp( 1, new Timestamp(startTime));
         instanceStmt.setInt( 2, leaderAddress);
         instanceStmt.setString( 3, m_applicationName);
         if (m_subApplicationName != null) {
