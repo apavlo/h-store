@@ -125,7 +125,9 @@ public class WikipediaLoader extends BenchmarkComponent {
      * USERACCTS
      */
     private void loadUsers( Database catalog_db ) {
+        assert(catalog_db != null);
         Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
+        // LOG.info("TABLES: " + CatalogUtil.debug(catalog_db.getTables()));
         assert(catalog_tbl != null);
 
 //        String sql = SQLUtil.getInsertSQL(catalog_tbl);
@@ -320,9 +322,13 @@ public class WikipediaLoader extends BenchmarkComponent {
         
         // TEXT
         Table textTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_TEXT);
+        assert(textTable != null) :
+            "Failed to find " + WikipediaConstants.TABLENAME_TEXT;
         
         // REVISION
         Table revTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_REVISION);
+        assert(revTable != null) :
+            "Failed to find " + WikipediaConstants.TABLENAME_REVISION;
         
         VoltTable vtText = CatalogUtil.getVoltTable(textTable);
         VoltTable vtRev = CatalogUtil.getVoltTable(revTable);

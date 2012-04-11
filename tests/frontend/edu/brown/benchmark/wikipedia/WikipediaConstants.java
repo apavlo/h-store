@@ -74,18 +74,18 @@ public abstract class WikipediaConstants {
     /**
      * Table Names
      */
-	public static final String TABLENAME_IPBLOCKS          = "ipblocks";
-	public static final String TABLENAME_LOGGING           = "logging";
-	public static final String TABLENAME_PAGE              = "page";
-	public static final String TABLENAME_PAGE_BACKUP       = "page_backup";
-	public static final String TABLENAME_PAGE_RESTRICTIONS = "page_restrictions";
-	public static final String TABLENAME_RECENTCHANGES     = "recentchanges";
-	public static final String TABLENAME_REVISION          = "revision";
-	public static final String TABLENAME_TEXT              = "text";
-	public static final String TABLENAME_USER              = "useracct";
-	public static final String TABLENAME_USER_GROUPS       = "user_groups";
-	public static final String TABLENAME_VALUE_BACKUP      = "value_backup";
-	public static final String TABLENAME_WATCHLIST         = "watchlist";
+	public static final String TABLENAME_IPBLOCKS          = "IPBLOCKS";
+	public static final String TABLENAME_LOGGING           = "LOGGING";
+	public static final String TABLENAME_PAGE              = "PAGE";
+	public static final String TABLENAME_PAGE_BACKUP       = "PAGE_BACKUP";
+	public static final String TABLENAME_PAGE_RESTRICTIONS = "PAGE_RESTRICTIONS";
+	public static final String TABLENAME_RECENTCHANGES     = "RECENTCHANGES";
+	public static final String TABLENAME_REVISION          = "REVISION";
+	public static final String TABLENAME_TEXT              = "TEXT";
+	public static final String TABLENAME_USER              = "USERACCT";
+	public static final String TABLENAME_USER_GROUPS       = "USER_GROUPS";
+	public static final String TABLENAME_VALUE_BACKUP      = "VALUE_BACKUP";
+	public static final String TABLENAME_WATCHLIST         = "WATCHLIST";
 	
 	// ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION

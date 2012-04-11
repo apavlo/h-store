@@ -52,7 +52,7 @@ public class UpdateRevisionCounters extends VoltProcedure {
                 voltExecuteSQL();
             }
         }
-        voltExecuteSQL(true);
+        voltExecuteSQL();
         
         for (int i = 0; i < num_pages; i++) {
             if (page_last_rev_id[i] == -1) continue;
