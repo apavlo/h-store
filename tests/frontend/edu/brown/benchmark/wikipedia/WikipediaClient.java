@@ -47,7 +47,7 @@ import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
 import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
 import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 import edu.brown.benchmark.wikipedia.util.Article;
-import edu.brown.benchmark.wikipedia.util.WikipediaOperation;
+import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 //import com.oltpbenchmark.api.Worker;  // equals to BenchmarkComponent 
 
