@@ -20,8 +20,14 @@ package org.voltdb.client;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
+
+import edu.brown.utils.StringUtil;
 
 /**
  * Encapsulates configuration settings for client statistics loading. This is not production
@@ -33,6 +39,9 @@ public class StatsUploaderSettings {
     private static final Logger LOG = Logger.getLogger(StatsUploaderSettings.class);
     
     final String databaseURL;
+    final String databaseUser;
+    final String databasePass;
+    final String databaseJDBC;
     final String applicationName;
     final String subApplicationName;
     final int pollInterval;
@@ -50,12 +59,18 @@ public class StatsUploaderSettings {
      * @throws SQLException Thrown if a connection to the database can't be created or if the appropriate JDBC
      * driver can't be found.
      */
-    public StatsUploaderSettings(
+    private StatsUploaderSettings(
             String databaseURL,
+            String databaseUser,
+            String databasePass,
+            String databaseJDBC,
             String applicationName,
             String subApplicationName,
             int pollInterval) {
         this.databaseURL = databaseURL;
+        this.databaseUser = databaseUser;
+        this.databasePass = databasePass;
+        this.databaseJDBC = databaseJDBC;
         this.applicationName = applicationName;
         this.subApplicationName = subApplicationName;
         this.pollInterval = pollInterval;
@@ -76,7 +91,13 @@ public class StatsUploaderSettings {
         if (LOG.isDebugEnabled())
             LOG.debug("Creating new connection to stats database [" + databaseURL + "]");
         try {
-            conn = DriverManager.getConnection(databaseURL);
+            if (this.databaseJDBC != null && this.databaseJDBC.isEmpty() == false) {
+                Class.forName(this.databaseJDBC);
+            }
+            
+            conn = DriverManager.getConnection(this.databaseURL,
+                                               this.databaseUser,
+                                               this.databasePass);
             conn.setAutoCommit(false);
             conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         }
@@ -85,5 +106,62 @@ public class StatsUploaderSettings {
             msg += e.getMessage();
             throw new RuntimeException(msg);
         }
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("URL", this.databaseURL);
+        m.put("User", this.databaseUser);
+        m.put("Pass", this.databasePass);
+        m.put("JDBC", this.databaseJDBC);
+        m.put("Application", this.applicationName);
+        m.put("Sub-Application", this.subApplicationName);
+        m.put("Poll Interval", this.pollInterval);
+        return (StringUtil.formatMaps(m));
+    }
+    
+    // -----------------------------------------------------------
+    
+    private static final Map<Integer, StatsUploaderSettings> cache = new HashMap<Integer, StatsUploaderSettings>();
+    
+    public static StatsUploaderSettings singleton(
+            String databaseURL,
+            String databaseUser,
+            String databasePass,
+            String databaseJDBC,
+            String applicationName,
+            String subApplicationName,
+            int pollInterval) {
+        
+        Object params[] = {
+            databaseURL,
+            databaseUser,
+            databasePass,
+            databaseJDBC,
+            applicationName,
+            subApplicationName,
+            pollInterval
+        };
+        int hash = Arrays.hashCode(params);
+        StatsUploaderSettings singleton = null;
+        synchronized (StatsUploaderSettings.class) {
+            singleton = cache.get(hash);
+            if (singleton == null) {
+                singleton = new StatsUploaderSettings(
+                    databaseURL,
+                    databaseUser,
+                    databasePass,
+                    databaseJDBC,
+                    applicationName,
+                    subApplicationName,
+                    pollInterval);
+                cache.put(hash, singleton);
+            }
+        } // SYNCH
+        
+        return (singleton);
+        
+        
     }
 }

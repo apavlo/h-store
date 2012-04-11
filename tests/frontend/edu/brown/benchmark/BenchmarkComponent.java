@@ -764,14 +764,17 @@ public abstract class BenchmarkComponent {
         boolean checkTables = false;
         boolean noConnections = false;
         boolean noUploading = false;
-        String statsDatabaseURL = null;
-        String statsDatabaseJDBC = null;
-        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
         String partitionPlanPath = null;
         boolean partitionPlanIgnoreMissing = false;
         long startupWait = -1;
+        
+        String statsDatabaseURL = null;
+        String statsDatabaseUser = null;
+        String statsDatabasePass = null;
+        String statsDatabaseJDBC = null;
+        int statsPollInterval = 10000;
         
         // scan the inputs once to read everything but host names
         Map<String, Object> componentParams = new TreeMap<String, Object>();
@@ -841,8 +844,14 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 statsDatabaseURL = parts[1];
             }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEUSER")) {
+                if (parts[1].isEmpty() == false) statsDatabaseUser = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEPASS")) {
+                if (parts[1].isEmpty() == false) statsDatabasePass = parts[1];
+            }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
-                statsDatabaseJDBC = parts[1];
+                if (parts[1].isEmpty() == false) statsDatabaseJDBC = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
                 statsPollInterval = Integer.parseInt(parts[1]); 
@@ -889,23 +898,20 @@ public abstract class BenchmarkComponent {
         
         StatsUploaderSettings statsSettings = null;
         if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
-            if (debug.get()) {
-                LOG.debug("statsDatabaseURL => " + statsDatabaseURL);
-                LOG.debug("statsDatabaseJDBC => " + statsDatabaseJDBC);
-            }
-            
             try {
-                if (statsDatabaseJDBC != null && statsDatabaseJDBC.isEmpty() == false) {
-                    Class.forName(statsDatabaseJDBC);
-                }
-                statsSettings = new StatsUploaderSettings(
+                statsSettings = StatsUploaderSettings.singleton(
                                         statsDatabaseURL,
+                                        statsDatabaseUser,
+                                        statsDatabasePass,
+                                        statsDatabaseJDBC,
                                         projectName,
                                         (isLoader ? "LOADER" : "CLIENT"),
                                         statsPollInterval);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to initialize StatsUploader", e);
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }
+            if (debug.get())
+                LOG.debug("StatsUploaderSettings:\n" + statsSettings);
         }
         
         // If we were told to sleep, do that here before we try to load in the catalog
