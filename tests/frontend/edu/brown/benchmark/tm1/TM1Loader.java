@@ -38,6 +38,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.catalog.CatalogUtil;
 
@@ -48,15 +49,11 @@ public class TM1Loader extends TM1BaseClient {
     public volatile boolean notDone = true;
 
     public static void main(String[] args) {
-        if (d)
-            LOG.debug("MAIN: " + TM1Loader.class.getName());
-        edu.brown.benchmark.BenchmarkComponent.main(TM1Loader.class, args, true);
+        BenchmarkComponent.main(TM1Loader.class, args, true);
     }
 
     public TM1Loader(String[] args) {
         super(args);
-        if (d)
-            LOG.debug("CONSTRUCTOR: " + TM1Loader.class.getName());
     }
 
     @Override

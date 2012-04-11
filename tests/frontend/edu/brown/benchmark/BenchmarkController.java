@@ -579,6 +579,9 @@ public class BenchmarkController {
         allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
+        allLoaderArgs.add("LOADER=true");
+        allLoaderArgs.add("EXITONCOMPLETION=false");
+        
         if (m_config.statsDatabaseURL != null) {
             allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
             allLoaderArgs.add("STATSDATABASEUSER=" + m_config.statsDatabaseUser);
@@ -586,8 +589,6 @@ public class BenchmarkController {
             allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
         }
-            
-        allLoaderArgs.add("LOADER=true");
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
             String arg = String.format("%s=%s", e.getKey(), e.getValue());
@@ -596,9 +597,16 @@ public class BenchmarkController {
 
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
-        allLoaderArgs.add("EXITONCOMPLETION=false");
+        
         try {
-            BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allLoaderArgs.toArray(new String[0]), true);
+            if (trace.get()) {
+                LOG.trace("Loader Class: " + m_loaderClass);
+                LOG.trace("Parameters: " + StringUtil.join(" ", allLoaderArgs));
+            }
+            BenchmarkComponent.main(m_loaderClass,
+                                    m_clientFileUploader,
+                                    allLoaderArgs.toArray(new String[0]),
+                                    true);
         } catch (Throwable ex) {
             this.failed = true;
             throw new RuntimeException("Failed to load data using " + m_loaderClass.getSimpleName(), ex);
