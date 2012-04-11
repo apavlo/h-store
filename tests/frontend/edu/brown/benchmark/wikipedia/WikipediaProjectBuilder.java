@@ -19,8 +19,6 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
-import org.apache.log4j.Logger;
-
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
@@ -30,7 +28,6 @@ import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
 import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 
 public class WikipediaProjectBuilder extends AbstractProjectBuilder {
-    private static final Logger LOG = Logger.getLogger(WikipediaProjectBuilder.class);
     
     // REQUIRED: Retrieved via reflection by BenchmarkController
     public static final Class<? extends BenchmarkComponent> m_clientClass = WikipediaClient.class;
@@ -40,8 +37,8 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
  
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         AddWatchList.class,
-        //GetPageAnonymous.class,
-        //GetPageAuthenticated.class,
+        GetPageAnonymous.class,
+        GetPageAuthenticated.class,
         RemoveWatchList.class,
         UpdatePage.class,
     };
@@ -50,18 +47,18 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
      * FIXME how the schemas are partitioned...
      */
     public static final String PARTITIONING[][] = new String[][] {
-        { "page", "page_id" },
-        { "useracct", "user_id" }
-       
+        { WikipediaConstants.TABLENAME_LOGGING, "log_id" },
+        { WikipediaConstants.TABLENAME_PAGE, "page_id" },
+        { WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS, "pr_page" },
+        { WikipediaConstants.TABLENAME_RECENTCHANGES, "rc_id" },
+        { WikipediaConstants.TABLENAME_REVISION, "rev_page" },
+        { WikipediaConstants.TABLENAME_TEXT, "old_page" },
+        { WikipediaConstants.TABLENAME_WATCHLIST, "wl_user" },
+        { WikipediaConstants.TABLENAME_USER, "user_id" }
     };
  
     public WikipediaProjectBuilder() {
-        // TODO Auto-generated constructor stub
         super("wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
-        
-        // Create a single-statement stored procedure named 'DeleteData'
-        addStmtProcedure("Test", "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
-                            " WHERE page_namespace = ? AND page_title = ? LIMIT 1");
   
     }
     
@@ -70,28 +67,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     }
     
     public void addDefaultSchema() {
-        
         addSchema(this.getDDLURL(true));
     }
-	
-//	@Override
-//	protected List<Worker> makeWorkersImpl(boolean verbose) throws IOException {
-//	    LOG.info(String.format("Initializing %d %s using '%s' as the input trace file",
-//                               workConf.getTerminals(), WikipediaWorker.class.getSimpleName(), this.traceInput));
-//		TransactionSelector transSel = new TransactionSelector(this.traceInput, workConf.getTransTypes());
-//		List<WikipediaOperation> trace = Collections.unmodifiableList(transSel.readAll());
-//		LOG.info("Total Number of Sample Operations: " + trace.size());
-//		
-//		ArrayList<Worker> workers = new ArrayList<Worker>();
-//		for (int i = 0; i < workConf.getTerminals(); ++i) {
-//			TransactionGenerator<WikipediaOperation> generator = new TraceTransactionGenerator(trace);
-//			WikipediaWorker worker = new WikipediaWorker(i, this, generator);
-//			workers.add(worker);
-//		} // FOR
-//		return workers;
-//	}
-//	@Override
-//	protected Loader makeLoaderImpl(Connection conn) {
-//		return new WikipediaLoader(this, conn);
-//	}
+
 }
