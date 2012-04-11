@@ -46,7 +46,7 @@ CREATE TABLE useracct (
 CREATE INDEX IDX_USER_EMAIL_TOKEN ON useracct (user_email_token);
 
 CREATE TABLE logging (
-  log_id int,
+  log_id int DEFAULT '0' NOT NULL,
   log_type varchar(32) NOT NULL,
   log_action varchar(32) NOT NULL,
   log_timestamp timestamp NOT NULL,
@@ -85,26 +85,8 @@ CREATE TABLE page (
 CREATE INDEX IDX_PAGE_RANDOM ON page (page_random);
 CREATE INDEX IDX_PAGE_LEN ON page (page_len);
 
-CREATE TABLE page_backup (
-  page_id int,
-  page_namespace int NOT NULL,
-  page_title varchar(255) NOT NULL,
-  page_restrictions varchar(255) NOT NULL,
-  page_counter bigint DEFAULT '0' NOT NULL,
-  page_is_redirect smallint DEFAULT '0' NOT NULL,
-  page_is_new smallint DEFAULT '0' NOT NULL,
-  page_random float precision NOT NULL,
-  page_touched timestamp NOT NULL,
-  page_latest int NOT NULL,
-  page_len int NOT NULL,
-  PRIMARY KEY (page_id),
-  UNIQUE (page_namespace,page_title)
-);
-CREATE INDEX IDX_PAGE_BACKUP_RANDOM ON page_backup (page_random);
-CREATE INDEX IDX_PAGE_BACKUP_LEN ON page_backup (page_len);
-
 CREATE TABLE page_restrictions (
-  pr_page int NOT NULL,
+  pr_page int NOT NULL REFERENCES page (page_id),
   pr_type varchar(60) NOT NULL,
   pr_level varchar(60) NOT NULL,
   pr_cascade smallint NOT NULL,
@@ -119,7 +101,7 @@ CREATE INDEX IDX_PR_LEVEL ON page_restrictions (pr_level);
 CREATE INDEX IDX_PR_CASCADE ON page_restrictions (pr_cascade);
 
 CREATE TABLE recentchanges (
-  rc_id int,
+  rc_id int DEFAULT '0' NOT NULL,
   rc_timestamp timestamp NOT NULL,
   rc_cur_time timestamp NOT NULL,
   rc_user int DEFAULT '0' NOT NULL,
@@ -155,12 +137,20 @@ CREATE INDEX IDX_RC_IP ON recentchanges (rc_ip);
 CREATE INDEX IDX_RC_NS_USERTEXT ON recentchanges (rc_namespace,rc_user_text);
 CREATE INDEX IDX_RC_USER_TEXT ON recentchanges (rc_user_text,rc_timestamp);
 
+CREATE TABLE text (
+  old_id int DEFAULT '0' NOT NULL,
+  old_text varchar(255) NOT NULL,
+  old_flags varchar(255) NOT NULL,
+  old_page int NOT NULL REFERENCES page (page_id),
+  PRIMARY KEY (old_id)
+);
+
 CREATE TABLE revision (
-  rev_id int,
-  rev_page int NOT NULL,
-  rev_text_id int NOT NULL,
+  rev_id int DEFAULT '0' NOT NULL,
+  rev_page int NOT NULL REFERENCES page (page_id),
+  rev_text_id int NOT NULL REFERENCES text (old_id),
   rev_comment varchar(255) NOT NULL,
-  rev_user int DEFAULT '0' NOT NULL,
+  rev_user int DEFAULT '0' NOT NULL REFERENCES useracct (user_id),
   rev_user_text varchar(255) DEFAULT '' NOT NULL,
   rev_timestamp timestamp NOT NULL ,
   rev_minor_edit smallint DEFAULT '0' NOT NULL,
@@ -174,15 +164,6 @@ CREATE INDEX IDX_REV_TIMESTAMP ON revision (rev_timestamp);
 CREATE INDEX IDX_PAGE_TIMESTAMP ON revision (rev_page,rev_timestamp);
 CREATE INDEX IDX_USER_TIMESTAMP ON revision (rev_user,rev_timestamp);
 CREATE INDEX IDX_USERTEXT_TIMESTAMP ON revision (rev_user_text,rev_timestamp);
-
-CREATE TABLE text (
-  old_id int,
-  old_text varchar(255) NOT NULL,
-  old_flags varchar(255) NOT NULL,
-  old_page int DEFAULT NULL,
-  PRIMARY KEY (old_id)
-);
-
 
 CREATE TABLE user_groups (
   ug_user int DEFAULT '0' NOT NULL,

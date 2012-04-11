@@ -30,6 +30,7 @@ import edu.brown.rand.RandomDistribution.Zipf;
 //import com.oltpbenchmark.util.SQLUtil;  // ignore
 import edu.brown.utils.StringUtil;
 
+//import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 
@@ -431,6 +432,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                                       this.num_pages,
                                       this.page_last_rev_id,
                                       this.page_last_rev_length);
+
         } catch (Exception ex) {
             throw new RuntimeException("Failed to update users and pages", ex);
         }
