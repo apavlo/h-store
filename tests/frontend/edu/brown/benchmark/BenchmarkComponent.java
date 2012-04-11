@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
@@ -181,6 +182,7 @@ public abstract class BenchmarkComponent {
     private static Client globalClient;
     private static Catalog globalCatalog;
     private static PartitionPlan globalPartitionPlan;
+    private static boolean globalHasConnections = false;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
 //        Client newClient = ClientFactory.createClient(
@@ -987,61 +989,12 @@ public abstract class BenchmarkComponent {
 
         // scan the inputs again looking for host connections
         if (m_noConnections == false) {
-            boolean atLeastOneConnection = false;
-            
-            // 2012-04-11
-            // This seems retarded. Why do we need to pass in the list of hosts
-            // when we already have a catalog?
-            for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
-                int site_id = catalog_site.getId();
-                String host = catalog_site.getHost().getIpaddr();
-                int port = catalog_site.getProc_port();
-//                if (debug.get())
-                    LOG.info(String.format("Creating connection to %s at %s:%d",
-                                            HStoreThreadManager.formatSiteName(site_id),
-                                            host, port));
-                try {
-                    this.createConnection(site_id, host, port);
-                } catch (IOException ex) {
-                    String msg = String.format("Failed to connect to %s on %s:%d",
-                                               HStoreThreadManager.formatSiteName(site_id), host, port);
-                    LOG.error(msg, ex);
-                    setState(ControlState.ERROR, msg + ": " + ex.getMessage());
-                    break;
+            synchronized (BenchmarkComponent.class) {
+                if (globalHasConnections == false) {
+                    this.setupConnections();
+                    globalHasConnections = true;
                 }
-                atLeastOneConnection = true;
-            } // FOR
-            
-//            Pattern p = Pattern.compile(":");
-//            for (final String arg : args) {
-//                final String[] parts = arg.split("=", 2);
-//                if (parts.length == 1) {
-//                    continue;
-//                }
-//                else if (parts[0].equals("HOST")) {
-//                    String hostInfo[] = p.split(parts[1]);
-//                    assert(hostInfo.length == 3) : parts[1];
-//                    m_host = hostInfo[0];
-//                    m_port = Integer.valueOf(hostInfo[1]);
-//                    Integer site_id = (m_hstoreConf.client.txn_hints ? Integer.valueOf(hostInfo[2]) : null);
-//                    try {
-//                        if (debug.get())
-//                            LOG.debug(String.format("Creating connection to %s at %s:%d",
-//                                                    (site_id != null ? HStoreThreadManager.formatSiteName(site_id) : ""),
-//                                                    m_host, m_port));
-//                        createConnection(site_id, m_host, m_port);
-//                        atLeastOneConnection = true;
-//                    }
-//                    catch (final Exception ex) {
-//                        setState(ControlState.ERROR, "createConnection to " + arg
-//                            + " failed: " + ex.getMessage());
-//                    }
-//                }
-//            }
-            if (!atLeastOneConnection) {
-                setState(ControlState.ERROR, "No HOSTS specified on command line.");
-                throw new RuntimeException("Failed to establish connections to H-Store cluster");
-            }
+            } // SYNCH
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;
@@ -1567,6 +1520,33 @@ public abstract class BenchmarkComponent {
             m_reason = reason;
     }
 
+    private void setupConnections() {
+        boolean atLeastOneConnection = false;
+        for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
+            int site_id = catalog_site.getId();
+            String host = catalog_site.getHost().getIpaddr();
+            int port = catalog_site.getProc_port();
+            if (debug.get())
+                LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                        HStoreThreadManager.formatSiteName(site_id),
+                                        host, port));
+            try {
+                this.createConnection(site_id, host, port);
+            } catch (IOException ex) {
+                String msg = String.format("Failed to connect to %s on %s:%d",
+                                           HStoreThreadManager.formatSiteName(site_id), host, port);
+                LOG.error(msg, ex);
+                setState(ControlState.ERROR, msg + ": " + ex.getMessage());
+                break;
+            }
+            atLeastOneConnection = true;
+        } // FOR
+        if (!atLeastOneConnection) {
+            setState(ControlState.ERROR, "No HOSTS specified on command line.");
+            throw new RuntimeException("Failed to establish connections to H-Store cluster");
+        }
+    }
+    
     private void createConnection(final Integer site_id, final String hostname, final int port)
         throws UnknownHostException, IOException {
         if (debug.get())
