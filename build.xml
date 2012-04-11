@@ -1577,6 +1577,8 @@ BENCHMARKS
         <arg value="NUMCONNECTIONS=${numconnections}" />
         <arg value="STATSDATABASETAG=${statsDatabaseTag}" />
         <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
+        <arg value="STATSDATABASEUSER=${statsDatabaseUser}" />
+        <arg value="STATSDATABASEPASS=${statsDatabasePass}" />
         <arg value="STATSDATABASEJDBC=${statsDatabaseJDBC}" />
 
         <!-- measureoverhead parameters -->

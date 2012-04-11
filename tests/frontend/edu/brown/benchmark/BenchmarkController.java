@@ -579,8 +579,14 @@ public class BenchmarkController {
         allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
-        allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allLoaderArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
+        if (m_config.statsDatabaseURL != null) {
+            allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+            allLoaderArgs.add("STATSDATABASEUSER=" + m_config.statsDatabaseUser);
+            allLoaderArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
+            allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
+            allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+        }
+            
         allLoaderArgs.add("LOADER=true");
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
@@ -672,11 +678,16 @@ public class BenchmarkController {
         allClientArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
-        allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
-        allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
-        // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         allClientArgs.add("LOADER=false");
+        
+        if (m_config.statsDatabaseURL != null) {
+            allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+            allClientArgs.add("STATSDATABASEUSER=" + m_config.statsDatabaseUser);
+            allClientArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
+            allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
+            allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+            // allClientArgs.add("STATSTAG=" + m_config.statsTag);
+        }
         
         int threads_per_client = hstore_conf.client.processesperclient;
         if (hstore_conf.client.processesperclient_per_partition) {
@@ -1222,6 +1233,12 @@ public class BenchmarkController {
         boolean checkTables = false;
         
         String statsTag = null;
+        String statsDatabaseURL = null;
+        String statsDatabaseUser = null;
+        String statsDatabasePass = null;
+        String statsDatabaseJDBC = null;
+        int statsPollInterval = 1000;
+        
         String applicationName = null;
         String subApplicationName = null;
         
@@ -1257,9 +1274,7 @@ public class BenchmarkController {
         // try to read connection string for reporting database
         // from a "mysqlp" file
         // set value to null on failure
-        String[] databaseURL = { "", "" };
-        String statsDatabaseJDBC = null;
-        int statsPollInterval = 1000;
+
 //        try {
 //            databaseURL = readConnectionStringFromFile(remotePath);
 //            assert(databaseURL.length == 2);
@@ -1382,10 +1397,16 @@ public class BenchmarkController {
                 
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-                databaseURL[0] = parts[1];
+                statsDatabaseURL = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
                 statsDatabaseJDBC = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEUSER")) {
+                statsDatabaseUser = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEPASS")) {
+                statsDatabasePass = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
@@ -1587,8 +1608,9 @@ public class BenchmarkController {
                 snapshotPrefix,
                 snapshotFrequency, 
                 snapshotRetain, 
-                databaseURL[0], 
-                databaseURL[1],
+                statsDatabaseURL, 
+                statsDatabaseUser,
+                statsDatabasePass,
                 statsDatabaseJDBC,
                 statsPollInterval,
                 statsTag,
