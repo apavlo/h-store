@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.data.PageHistograms;
+import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
 import edu.brown.benchmark.wikipedia.data.TextHistograms;
 import edu.brown.benchmark.wikipedia.data.UserHistograms;
 import org.voltdb.catalog.Table;
@@ -33,6 +34,7 @@ import edu.brown.utils.StringUtil;
 //import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
+import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
 
 /**
  * Synthetic Wikipedia Data Loader
@@ -115,7 +117,9 @@ public class WikipediaLoader extends BenchmarkComponent {
             this.loadUsers(catalog_db);
             this.loadPages(catalog_db);
             this.loadWatchlist(catalog_db);
+            LOG.info("Finish loadWatchlist... ");
             this.loadRevision(catalog_db);
+            LOG.info("Finish loadRevision... ");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -126,10 +130,16 @@ public class WikipediaLoader extends BenchmarkComponent {
      */
     private void loadUsers( Database catalog_db ) {
         assert(catalog_db != null);
-        Table catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
-        // LOG.info("TABLES: " + CatalogUtil.debug(catalog_db.getTables()));
+        Table catalog_tbl = null;
+        try {
+            catalog_tbl = catalog_db.getTables().get(WikipediaConstants.TABLENAME_USER);
+        } catch (Exception e) {
+            
+            e.printStackTrace();
+        }
+        LOG.info("TABLES: " + CatalogUtil.debug(catalog_db.getTables()));
         assert(catalog_tbl != null);
-
+        
 //        String sql = SQLUtil.getInsertSQL(catalog_tbl);
 //        PreparedStatement userInsert = this.conn.prepareStatement(sql);
         FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
@@ -324,6 +334,12 @@ public class WikipediaLoader extends BenchmarkComponent {
         Table textTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_TEXT);
         assert(textTable != null) :
             "Failed to find " + WikipediaConstants.TABLENAME_TEXT;
+        Column textTableColumn = textTable.getColumns().getIgnoreCase("OLD_TEXT");
+        //Column textTableColumn = textTable.getColumns().get("OLD_TEXT");
+        assert(textTableColumn != null) :
+            "Failed to find " + WikipediaConstants.TABLENAME_TEXT + ".OLD_TEXT";
+        int max_text_length = textTableColumn.getSize();
+        //int max_text_length = 100000;
         
         // REVISION
         Table revTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_REVISION);
@@ -333,7 +349,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         VoltTable vtText = CatalogUtil.getVoltTable(textTable);
         VoltTable vtRev = CatalogUtil.getVoltTable(revTable);
         int num_txt_cols = textTable.getColumns().size();
-        //int num_rev_cols = revTable.getColumns().size();
+        int num_rev_cols = revTable.getColumns().size();
         int batchSize = 1;
         
         Zipf h_users = new Zipf(this.randGenerator, 1, this.num_users, WikipediaConstants.REVISION_USER_SIGMA);
@@ -343,11 +359,8 @@ public class WikipediaLoader extends BenchmarkComponent {
         
         //WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
         
-        // FIXME(xin): fix these two variables, Use a wrong one right now ???
-        //FlatHistogram<Integer> h_commentLength = b.commentLength;
-        //FlatHistogram<Integer> h_minorEdit = b.minorEdit;
-        FlatHistogram<Integer> h_commentLength = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
-        FlatHistogram<Integer> h_minorEdit = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
+        FlatHistogram<Integer> h_commentLength = new FlatHistogram<Integer>(this.randGenerator, RevisionHistograms.COMMENT_LENGTH);
+        FlatHistogram<Integer> h_minorEdit = new FlatHistogram<Integer>(this.randGenerator, RevisionHistograms.MINOR_EDIT);
         
         
         
@@ -359,7 +372,9 @@ public class WikipediaLoader extends BenchmarkComponent {
             
             // Generate what the new revision is going to be
             int old_text_length = h_textLength.nextValue().intValue();
+            LOG.info("Max length:" + max_text_length + " old_text_length:" + old_text_length);
             assert(old_text_length > 0);
+            assert(old_text_length < max_text_length);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);
             
             TimestampType timestamp = new TimestampType();
@@ -372,7 +387,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 
                 // Generate what the new revision is going to be
                 if (i > 0) {
-                    //old_text = b.generateRevisionText(old_text);
+                    old_text = WikipediaUtil.generateRevisionText(old_text);
                     old_text_length = old_text.length;
                 }
                 
@@ -393,7 +408,7 @@ public class WikipediaLoader extends BenchmarkComponent {
 
                 // Insert the revision
                 col = 0;
-                
+                row = new Object[num_rev_cols];
                 row[col++] = rev_id; // rev_id
                 row[col++] = page_id; // rev_page
                 row[col++] = rev_id; // rev_text_id
@@ -413,7 +428,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 rev_id++;
                 batchSize++;
             } // FOR (revision)
-            if (batchSize > WikipediaConstants.BATCH_SIZE) {
+            if (batchSize >= WikipediaConstants.BATCH_SIZE) {
                 this.loadVoltTable(textTable.getName(), vtText);
                 this.loadVoltTable(revTable.getName(), vtRev);
                 vtText.clearRowData();
