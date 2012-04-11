@@ -90,8 +90,8 @@ public class UpdatePage extends VoltProcedure {
         "SELECT wl_user FROM " + WikipediaConstants.TABLENAME_WATCHLIST +
         " WHERE wl_title = ?" +
         "   AND wl_namespace = ?" +
-		"   AND wl_user != ?" 
-		//"   AND wl_notificationtimestamp IS NULL"
+		"   AND wl_user != ?" +
+		"   AND wl_notificationtimestamp = ?"
     );
 	public SQLStmt updateWatchList = new SQLStmt(
         "UPDATE " + WikipediaConstants.TABLENAME_WATCHLIST +
@@ -206,7 +206,7 @@ public class UpdatePage extends VoltProcedure {
 		//assert(count == 1);
 
 		// SELECT WATCHING USERS
-		voltQueueSQL(selectWatchList, pageTitle, pageNamespace, userId);
+		voltQueueSQL(selectWatchList, pageTitle, pageNamespace, userId, null);
 		
 		rs = voltExecuteSQL();
 
