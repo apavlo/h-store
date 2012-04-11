@@ -89,7 +89,7 @@ public class TestVoltProcedureListener extends TestCase {
         // Prop up a VoltProcedureListener and then the tests will iteratively try
         // the various pieces of the Volt proc protocol
         this.handler = new MockHandler();
-        this.listener = new VoltProcedureListener(this.eventLoop, this.handler);
+        this.listener = new VoltProcedureListener(0, this.eventLoop, this.handler);
         this.listener.bind();
 
         // Run the event loop (and therefore the listener) in another thread
@@ -174,7 +174,7 @@ public class TestVoltProcedureListener extends TestCase {
     public void testBlockedWrites() {
         // Create a fake listener
         MockEventLoop mockEvent = new MockEventLoop();
-        VoltProcedureListener listener = new VoltProcedureListener(mockEvent, handler);
+        VoltProcedureListener listener = new VoltProcedureListener(0, mockEvent, handler);
         MockServerSocketChannel mockServer = new MockServerSocketChannel();
         listener.setServerSocketForTest(mockServer);
 

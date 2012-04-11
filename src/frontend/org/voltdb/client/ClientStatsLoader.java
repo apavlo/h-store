@@ -79,13 +79,17 @@ public class ClientStatsLoader {
     }
 
     public void start(long startTime, int leaderAddress) throws SQLException {
+        Timestamp timestamp = new Timestamp(startTime);
+        if (LOG.isDebugEnabled())
+            LOG.debug(String.format("Cluster Start Time: %s [%d]", timestamp, startTime));
+        
         PreparedStatement instanceStmt =
             m_conn.prepareStatement(
                     createInstanceStatement,
                     PreparedStatement.RETURN_GENERATED_KEYS);
         insertConnectionStatsStmt = m_conn.prepareStatement(insertConnectionStatsStatement);
         insertProcedureStatsStmt = m_conn.prepareStatement(insertProcedureStatsStatement);
-        instanceStmt.setTimestamp( 1, new Timestamp(startTime));
+        instanceStmt.setTimestamp( 1, timestamp);
         instanceStmt.setInt( 2, leaderAddress);
         instanceStmt.setString( 3, m_applicationName);
         if (m_subApplicationName != null) {

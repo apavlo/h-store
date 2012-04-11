@@ -49,7 +49,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = MultiLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCCLoader.class;
 
     /**
      * All procedures needed for TPC-C tests + benchmark

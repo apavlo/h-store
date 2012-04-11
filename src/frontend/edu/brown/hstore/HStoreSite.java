@@ -48,6 +48,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -191,6 +192,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /** Catalog Stuff **/
     private final HStoreConf hstore_conf;
+    private final Host catalog_host;
+    private final int host_id;
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
@@ -322,6 +325,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.hstore_conf = hstore_conf;
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
+        this.catalog_host = this.catalog_site.getHost(); 
+        this.host_id = this.catalog_host.getId();
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
@@ -420,7 +425,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.threadManager = new HStoreThreadManager(this);
         
         // Incoming Txn Request Listener
-        this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
+        this.voltListener = new VoltProcedureListener(this.host_id,
+                                                      this.procEventLoop,
+                                                      this);
         
         if (hstore_conf.site.status_show_executor_info) {
             this.idle_time.resetOnEvent(this.startWorkload_observable);
