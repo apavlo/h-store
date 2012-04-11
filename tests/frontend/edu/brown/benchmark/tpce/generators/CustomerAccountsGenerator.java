@@ -31,36 +31,61 @@ package edu.brown.benchmark.tpce.generators;
 
 import org.voltdb.catalog.Table;
 
+import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
+import edu.brown.benchmark.tpce.util.EGenRandom;
 
-public class SectorGenerator extends TableGenerator {
+public class CustomerAccountsGenerator extends TableGenerator {
 
-    private final InputFileHandler sec_file;
-    private int counter = 0;
-    private final int table_size;
+    private int accsToGenerate; // every customer can have a different number of accs
+    private int accsGenerated; // the number of accs already generated for the current customer
+    private final CustomerGenerator customerGenerator; // is used for geenrating just customer ids
+    private final EGenRandom rnd;
     
-    public SectorGenerator(Table catalog_tbl, TPCEGenerator generator) {
+    /*
+     * Number of RNG calls to skip for one row in order
+     * to not use any of the random values from the previous row.
+     */
+    private final static int rngSkipOneRowCustomerAccount = 10;   // real max count in v3.5: 7
+    private final static int maxAccountsPerCust = 10;
+    
+    public CustomerAccountsGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
         
-        sec_file = generator.getInputFile(InputFile.SECTOR);
-        table_size = sec_file.getRecordsNum();
+        // do not need the Table for this. Nasty, though. Have to use type casting since we need specific functions
+        customerGenerator = (CustomerGenerator)generator.getTableGen(TPCEConstants.TABLENAME_CUSTOMER, null);
+        rnd = new EGenRandom(EGenRandom.RNG_SEED_TABLE_DEFAULT);
+    }
+    
+    private void initNextLoadUnit() {
+        rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT,
+                customerGenerator.getCurrentCId() * maxAccountsPerCust * rngSkipOneRowCustomerAccount); 
+    }
+    
+    private long generateAccountId() {
+        if (customerGenerator.getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
+            initNextLoadUnit();
+        }
+        
+        if (accsToGenerate == accsGenerated) {
+            customerGenerator.getCustomerId();
+            
+        }
+        
+        return 0;
+
     }
     
     @Override
     public boolean hasNext() {
-        return counter < table_size;
+        // we either have more customers or are still generating acounts for the last one
+        return customerGenerator.hasNext() || accsGenerated < accsToGenerate;
     }
     
     @Override
     public Object[] next() {
         Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
-        String sec_record[] = sec_file.getTupleByIndex(counter++);
-        int col = 0;
-
-        tuple[col++] = sec_record[0]; // sc_id
-        tuple[col++] = sec_record[1]; // sc_name
-
-        return tuple;
+        
+        return null;       
     }
-
 }

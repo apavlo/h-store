@@ -64,6 +64,8 @@ public abstract class InputFileHandler {
                 insertTuple(tupleString.split("\t"));
                 tupleString = reader.readLine();
             }
+            
+            LOG.trace("Input file parsed: '" + inputFile + "', maxKey = " + getMaxKey() + ", RecordsNum = " + getRecordsNum()); 
         }
         catch (FileNotFoundException e) {
             LOG.error("Unable to start benchmark. Missing '" + inputFile.toString() + "' input file");

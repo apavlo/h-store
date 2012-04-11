@@ -42,7 +42,7 @@ public class TradeTypeGenerator extends TableGenerator {
     public TradeTypeGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
         
-        tt_file = generator.getInputFile(InputFile.ZIPCODE);
+        tt_file = generator.getInputFile(InputFile.TRADETYPE);
         table_size = tt_file.getRecordsNum();
     }
     

@@ -42,7 +42,7 @@ public class IndustryGenerator extends TableGenerator {
     public IndustryGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
         
-        ind_file = generator.getInputFile(InputFile.ZIPCODE);
+        ind_file = generator.getInputFile(InputFile.INDUSTRY);
         table_size = ind_file.getRecordsNum();
     }
     
