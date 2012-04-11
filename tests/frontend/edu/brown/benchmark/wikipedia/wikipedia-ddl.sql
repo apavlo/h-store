@@ -46,7 +46,7 @@ CREATE TABLE useracct (
 CREATE INDEX IDX_USER_EMAIL_TOKEN ON useracct (user_email_token);
 
 CREATE TABLE logging (
-  log_id int DEFAULT '0' NOT NULL,
+  log_id int DEFAULT '0' NOT NULL, -- TODO: REMOVE
   log_type varchar(32) NOT NULL,
   log_action varchar(32) NOT NULL,
   log_timestamp timestamp NOT NULL,
