@@ -69,7 +69,7 @@ public abstract class TPCEConstants {
     }
 
     // Data Parameters
-    public static final long DEFAULT_NUM_CUSTOMERS = 5000;
+    public static final int DEFAULT_NUM_CUSTOMERS = 5000; // Default total number of customers (EGen uses 'long' here) 
     public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the
                                                         // EGenClientDriver to
                                                         // have problems

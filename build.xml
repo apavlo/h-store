@@ -2215,6 +2215,8 @@ TPC-E EGenLoader
     </exec>
 -->
     <echo message="src.tpce.dir: ${src.tpce.dir}" />
+    <mkdir dir="${build.tpce.dir}/obj"/>
+    <mkdir dir="${build.tpce.dir}/lib"/>
     <exec executable="make" dir="${src.tpce.dir}/random" failonerror="true" resolveexecutable="true" >
         <arg value="-j${numcpus}" />
         <arg value="PREFIX=${build.tpce.dir}" />
