@@ -92,6 +92,10 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
     protected HStoreService initHStoreService() {
         return new MockServiceHandler();
     }
+    @Override
+    protected void initCluster() {
+        // Nothing to do...
+    }
     
     private class MockServiceHandler extends HStoreService {
 
