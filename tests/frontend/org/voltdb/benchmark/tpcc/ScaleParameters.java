@@ -55,27 +55,36 @@ public class ScaleParameters {
     
     public ScaleParameters(int items, int warehouses, int firstWarehouse, int districtsPerWarehouse,
             int customersPerDistrict, int newOrdersPerDistrict) {
-        assert 1 <= items && items <= TPCCConstants.NUM_ITEMS;
+        
+        // ITEMS
+        assert(items > 0) : "Invalid # of items: " + items; 
         this.items = items;
+        
+        // WAREHOUSES
         assert warehouses > 0;
         this.warehouses = warehouses;
         this.starting_warehouse = firstWarehouse;
-        assert 1 <= districtsPerWarehouse &&
-                districtsPerWarehouse <= TPCCConstants.DISTRICTS_PER_WAREHOUSE;
+        
+        // DISTRICTS
+        assert(districtsPerWarehouse > 0) : "Invalid # of districtsPerWarehouse: " + districtsPerWarehouse;
         this.districtsPerWarehouse = districtsPerWarehouse;
-        assert 1 <= customersPerDistrict &&
-                customersPerDistrict <= TPCCConstants.CUSTOMERS_PER_DISTRICT;
+        
+        // CUSTOMERS
+        assert(customersPerDistrict > 0) : "Invalid # of customersPerDistrict: " + customersPerDistrict;
         this.customersPerDistrict = customersPerDistrict;
-        assert 0 <= newOrdersPerDistrict &&
-                newOrdersPerDistrict <= TPCCConstants.CUSTOMERS_PER_DISTRICT;
-        assert newOrdersPerDistrict <= TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT;
+        
+        // NEWORDERS
+        assert(newOrdersPerDistrict > 0) : "Invalid # of newOrdersPerDistrict: " + newOrdersPerDistrict;
         this.newOrdersPerDistrict = newOrdersPerDistrict;
     }
 
     public static ScaleParameters makeDefault(int warehouses) {
-        return new ScaleParameters(TPCCConstants.NUM_ITEMS, warehouses, TPCCConstants.STARTING_WAREHOUSE,
-                TPCCConstants.DISTRICTS_PER_WAREHOUSE, TPCCConstants.CUSTOMERS_PER_DISTRICT,
-                TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT);
+        return new ScaleParameters(TPCCConstants.NUM_ITEMS,
+                                   warehouses,
+                                   TPCCConstants.STARTING_WAREHOUSE,
+                                   TPCCConstants.DISTRICTS_PER_WAREHOUSE,
+                                   TPCCConstants.CUSTOMERS_PER_DISTRICT,
+                                   TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT);
     }
 
     public static ScaleParameters makeWithScaleFactor(int warehouses, double scaleFactor) {
@@ -83,7 +92,7 @@ public class ScaleParameters {
     }
     
     public static ScaleParameters makeWithScaleFactor(int warehouses, int firstWarehouse, double scaleFactor) {
-        int items = (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
+        int items = TPCCConstants.NUM_ITEMS; // (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
         int districts = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
         int customers = (int)Math.max(1, TPCCConstants.CUSTOMERS_PER_DISTRICT * scaleFactor);
         int newOrders = (int)Math.max(1, TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT * scaleFactor);

@@ -588,6 +588,7 @@ public class BenchmarkController {
             allLoaderArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
             allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+            LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
         }
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
@@ -694,6 +695,7 @@ public class BenchmarkController {
             allClientArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
             allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+            LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
             // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         }
         
