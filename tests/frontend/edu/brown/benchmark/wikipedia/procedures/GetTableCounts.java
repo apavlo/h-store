@@ -15,16 +15,16 @@ import org.voltdb.VoltType;
 public class GetTableCounts extends VoltProcedure {
     
     public final SQLStmt ipblocks = new SQLStmt("SELECT COUNT(*) FROM IPBLOCKS");
-    public final SQLStmt useracct  = new SQLStmt("SELECT COUNT(*) FROM USERACCT");
-    public final SQLStmt logging  = new SQLStmt("SELECT COUNT(*) FROM LOGGING");
-    public final SQLStmt page    = new SQLStmt("SELECT COUNT(*) FROM PAGE");
-    public final SQLStmt page_restrictions  = new SQLStmt("SELECT COUNT(*) FROM PAGE_RESTRICTIONS");
+    public final SQLStmt useracct = new SQLStmt("SELECT COUNT(*) FROM USERACCT");
+    public final SQLStmt logging = new SQLStmt("SELECT COUNT(*) FROM LOGGING");
+    public final SQLStmt page = new SQLStmt("SELECT COUNT(*) FROM PAGE");
+    public final SQLStmt page_restrictions = new SQLStmt("SELECT COUNT(*) FROM PAGE_RESTRICTIONS");
     public final SQLStmt recentchanges = new SQLStmt("SELECT COUNT(*) FROM RECENTCHANGES");
-    public final SQLStmt text   = new SQLStmt("SELECT COUNT(*) FROM TEXT");
-    public final SQLStmt revision      = new SQLStmt("SELECT COUNT(*) FROM REVISION");
-    public final SQLStmt user_groups      = new SQLStmt("SELECT COUNT(*) FROM USER_GROUPS");
-    public final SQLStmt value_backup       = new SQLStmt("SELECT COUNT(*) FROM VALUE_BACKUP ");
-    public final SQLStmt watchlist     = new SQLStmt("SELECT COUNT(*) FROM WATCHLIST");
+    public final SQLStmt text = new SQLStmt("SELECT COUNT(*) FROM TEXT");
+    public final SQLStmt revision = new SQLStmt("SELECT COUNT(*) FROM REVISION");
+    public final SQLStmt user_groups = new SQLStmt("SELECT COUNT(*) FROM USER_GROUPS");
+    public final SQLStmt value_backup = new SQLStmt("SELECT COUNT(*) FROM VALUE_BACKUP ");
+    public final SQLStmt watchlist = new SQLStmt("SELECT COUNT(*) FROM WATCHLIST");
     
     private final HashMap<String, SQLStmt> table_map = new HashMap<String, SQLStmt>();
     {
