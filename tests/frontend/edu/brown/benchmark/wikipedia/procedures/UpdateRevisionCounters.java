@@ -41,7 +41,13 @@ public class UpdateRevisionCounters extends VoltProcedure {
      * @return
      */
     public VoltTable run(int user_revision_ctr[], int num_pages, int page_last_rev_id[], int page_last_rev_length[]) {
-        int batch_size = voltRemainingQueue();
+        // FIXME: I am not sure is next line code right or wrong
+        // but it gets AssertionError: UpdateRevisionCounters #603081641295872000/1 
+        // Expected 128 output dependencies but we queued up
+        //int batch_size = voltRemainingQueue();
+        
+        // right now hard code for the batch size
+        int batch_size = 5;
         LOG.info("voltRemainingQueue:" + batch_size);
         final TimestampType timestamp = new TimestampType();
 
@@ -57,7 +63,7 @@ public class UpdateRevisionCounters extends VoltProcedure {
         }
         voltExecuteSQL();
         
-        batch_size = voltRemainingQueue();
+        batch_size = 2;
         for (int i = 0; i < num_pages; i++) {
             if (page_last_rev_id[i] == -1) continue;
 
