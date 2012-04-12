@@ -80,7 +80,7 @@ public class AddressGenerator extends TableGenerator {
         rnd = new EGenRandom(EGenRandom.RNG_SEED_TABLE_DEFAULT);
         
         exchangeCount = generator.getInputFile(InputFile.EXCHANGE).getRecordsNum();
-        companyCount = generator.getCompanyCount();
+        companyCount = generator.getCompanyCount(generator.getTotalCustomers());
         
         if (customersOnly) {
             // assume we have already generated addresses for exchanges and companies

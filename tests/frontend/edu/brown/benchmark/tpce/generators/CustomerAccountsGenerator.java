@@ -124,7 +124,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
         return ((cid - 1) * maxAccountsPerCust + 1);
     }
     
-    private long generateAccountId() {
+    public long generateAccountId() {
         if (customerGenerator.getCurrentCId() % TPCEConstants.DEFAULT_LOAD_UNIT == 0) {
             initNextLoadUnit();
         }
@@ -141,6 +141,10 @@ public class CustomerAccountsGenerator extends TableGenerator {
         accsGenerated++;
         
         return startingAccId + accsGenerated - 1;
+    }
+    
+    public long getCurrentCid() {
+        return customerGenerator.getCurrentCId();
     }
     
     private long generateBrokerId(long accId) {

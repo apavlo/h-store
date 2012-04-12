@@ -124,6 +124,8 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER, CustomerGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_ADDRESS, AddressGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, CustomerAccountsGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, AccountPermsGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_COMPANY, CompanyGenerator.class);
     }
     
 /*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
@@ -191,8 +193,8 @@ public class TPCEGenerator {
     }
     
     // the number of companies depends on the total number of companies
-    public long getCompanyCount() {
-        return total_customers / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANIES_PER_UNIT;
+    public long getCompanyCount(long customersNum) {
+        return customersNum / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANIES_PER_UNIT;
     }
     
     public void parseInputFiles() {
