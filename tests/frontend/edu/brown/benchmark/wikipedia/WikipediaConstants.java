@@ -53,7 +53,7 @@ public abstract class WikipediaConstants {
     // -----------------------------------------------------------------
     
     public static final VoltTable.ColumnInfo[] GET_USER_PAGE_UPDATE_COLS = {
-        new VoltTable.ColumnInfo("USER_TEXT", VoltType.STRING),
+        new VoltTable.ColumnInfo("USER_TEXT", VoltType.INTEGER),
         new VoltTable.ColumnInfo("PAGE_ID", VoltType.INTEGER),
     };
 	

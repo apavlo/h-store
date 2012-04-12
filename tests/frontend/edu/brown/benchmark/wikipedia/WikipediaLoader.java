@@ -335,11 +335,9 @@ public class WikipediaLoader extends BenchmarkComponent {
         assert(textTable != null) :
             "Failed to find " + WikipediaConstants.TABLENAME_TEXT;
         Column textTableColumn = textTable.getColumns().getIgnoreCase("OLD_TEXT");
-        //Column textTableColumn = textTable.getColumns().get("OLD_TEXT");
         assert(textTableColumn != null) :
             "Failed to find " + WikipediaConstants.TABLENAME_TEXT + ".OLD_TEXT";
         int max_text_length = textTableColumn.getSize();
-        //int max_text_length = 100000;
         
         // REVISION
         Table revTable = catalog_db.getTables().get(WikipediaConstants.TABLENAME_REVISION);
@@ -372,7 +370,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             
             // Generate what the new revision is going to be
             int old_text_length = h_textLength.nextValue().intValue();
-            LOG.info("Max length:" + max_text_length + " old_text_length:" + old_text_length);
+            //LOG.info("Max length:" + max_text_length + " old_text_length:" + old_text_length);
             assert(old_text_length > 0);
             assert(old_text_length < max_text_length);
             char old_text[] = TextGenerator.randomChars(randGenerator, old_text_length);

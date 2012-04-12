@@ -26,6 +26,7 @@ import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
 import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
 import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
+import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 
 public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     
@@ -36,6 +37,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = WikipediaLoader.class;
  
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
+        UpdateRevisionCounters.class,
         AddWatchList.class,
         GetPageAnonymous.class,
         GetPageAuthenticated.class,
