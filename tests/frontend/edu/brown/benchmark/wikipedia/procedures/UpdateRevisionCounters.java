@@ -1,5 +1,6 @@
 package edu.brown.benchmark.wikipedia.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -9,10 +10,11 @@ import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
+import edu.brown.benchmark.wikipedia.WikipediaLoader;
 
 @ProcInfo(singlePartition = false)
 public class UpdateRevisionCounters extends VoltProcedure {
-    
+    private static final Logger LOG = Logger.getLogger(UpdateRevisionCounters.class);
     public final SQLStmt updateUser = new SQLStmt(
             "UPDATE " + WikipediaConstants.TABLENAME_USER + 
             "   SET user_editcount = ?, " +
@@ -21,7 +23,7 @@ public class UpdateRevisionCounters extends VoltProcedure {
             );
 
     public final SQLStmt updatePage = new SQLStmt (
-            "UPDATE " + WikipediaConstants.TABLENAME_REVISION + 
+            "UPDATE " + WikipediaConstants.TABLENAME_PAGE + 
             "   SET page_latest = ?, " +
             "       page_touched = ?, " +
             "       page_is_new = 0, " +
@@ -39,7 +41,8 @@ public class UpdateRevisionCounters extends VoltProcedure {
      * @return
      */
     public VoltTable run(int user_revision_ctr[], int num_pages, int page_last_rev_id[], int page_last_rev_length[]) {
-        final int batch_size = voltRemainingQueue();
+        int batch_size = voltRemainingQueue();
+        LOG.info("voltRemainingQueue:" + batch_size);
         final TimestampType timestamp = new TimestampType();
 
         for (int i = 0; i < user_revision_ctr.length; i++) {
@@ -54,13 +57,15 @@ public class UpdateRevisionCounters extends VoltProcedure {
         }
         voltExecuteSQL();
         
+        batch_size = voltRemainingQueue();
         for (int i = 0; i < num_pages; i++) {
             if (page_last_rev_id[i] == -1) continue;
 
             voltQueueSQL(updatePage, page_last_rev_id[i], 
                     timestamp, 
                     page_last_rev_length[i], 
-                    i + 1);
+                    i + 1
+            );
 
             if (i % batch_size == 0) {
                 voltExecuteSQL();
@@ -74,9 +79,8 @@ public class UpdateRevisionCounters extends VoltProcedure {
         // #2 -> Number of pages updated
 
         VoltTable result = new VoltTable(WikipediaConstants.GET_USER_PAGE_UPDATE_COLS);
-        Object rows[] = {user_revision_ctr.length, page_last_rev_length};
         
-        result.addRow(rows);
+        result.addRow(user_revision_ctr.length, page_last_rev_length.length);
         
         return (result);
     }
