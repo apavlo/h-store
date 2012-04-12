@@ -431,7 +431,7 @@ public class SEATSClient extends BenchmarkComponent {
             } // SWITCH
             if (ret && debug.get()) LOG.debug("Executed a new invocation of " + txn);
         }
-        if (tries == 0) LOG.warn("I have nothing to do!");
+        if (tries == 0 && debug.get()) LOG.warn("I have nothing to do!");
         return (tries > 0);
     }
     

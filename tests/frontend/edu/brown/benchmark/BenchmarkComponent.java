@@ -245,13 +245,6 @@ public abstract class BenchmarkComponent {
     private volatile ControlState m_controlState = ControlState.PREPARING;
 
     /**
-     * A host, can be any one. This is only used by data verification
-     * at the end of run.
-     */
-    private String m_host;
-    private int m_port;
-
-    /**
      * Username supplied to the Volt client
      */
     private final String m_username;
@@ -690,7 +683,6 @@ public abstract class BenchmarkComponent {
     public BenchmarkComponent(final Client client) {
         m_voltClient = client;
         m_exitOnCompletion = false;
-        m_host = "localhost";
         m_password = "";
         m_username = "";
         m_txnRate = -1;
@@ -1098,9 +1090,9 @@ public abstract class BenchmarkComponent {
         assert(vt != null) : "Null VoltTable for '" + tableName + "'";
         
         int rowCount = vt.getRowCount();
-        int rowTotal = m_tableTuples.get(tableName, 0);
+        long rowTotal = m_tableTuples.get(tableName, 0);
         int byteCount = vt.getUnderlyingBufferSize();
-        int byteTotal = m_tableBytes.get(tableName, 0);
+        long byteTotal = m_tableBytes.get(tableName, 0);
         
         if (trace.get())
             LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
@@ -1172,9 +1164,9 @@ public abstract class BenchmarkComponent {
      * @return
      */
     protected final Integer getTransactionWeight(String txnName, Integer weightIfNull) {
-        Integer val = this.m_txnWeights.get(txnName.toUpperCase()); 
+        Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
         if (val != null) {
-            return (val);
+            return (val.intValue());
         }
         else if (m_txnWeightsDefault != null) {
             return (m_txnWeightsDefault);
@@ -1187,7 +1179,7 @@ public abstract class BenchmarkComponent {
      * @param tableName
      * @return
      */
-    public final int getTableTupleCount(String tableName) {
+    public final long getTableTupleCount(String tableName) {
         return (m_tableTuples.get(tableName, 0));
     }
     
@@ -1205,7 +1197,7 @@ public abstract class BenchmarkComponent {
      * @param tableName
      * @return
      */
-    public final int getTableBytes(String tableName) {
+    public final long getTableBytes(String tableName) {
         return (m_tableBytes.get(tableName, 0));
     }
     

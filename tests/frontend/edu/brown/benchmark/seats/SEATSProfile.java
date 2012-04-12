@@ -519,7 +519,7 @@ public class SEATSProfile {
      * @return
      */
     public CustomerId getRandomCustomerId(Long airport_id) {
-        Integer cnt = this.getCustomerIdCount(airport_id);
+        Long cnt = this.getCustomerIdCount(airport_id);
         if (cnt != null) {
             int base_id = rng.nextInt(cnt.intValue());
             return (new CustomerId(base_id, airport_id));
@@ -591,7 +591,7 @@ public class SEATSProfile {
         this.airport_max_customer_id.put(airport_id);
         return (next_id);
     }
-    public Integer getCustomerIdCount(Long airport_id) {
+    public Long getCustomerIdCount(Long airport_id) {
         return (this.airport_max_customer_id.get(airport_id));
     }
     public long getCustomerIdCount() {

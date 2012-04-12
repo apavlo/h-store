@@ -76,7 +76,7 @@ public class TransformTransactionTraces {
             if (!hist.contains(txn_partitions.toString())) {
                 hist.put(txn_partitions.toString(), 1);
             } else {
-                int count = hist.get(txn_partitions.toString());
+                long count = hist.get(txn_partitions.toString());
                 count++;
                 hist.put(txn_partitions.toString(), count);
             }

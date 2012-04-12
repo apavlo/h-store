@@ -322,7 +322,7 @@ public class TPCCLoader extends BenchmarkComponent {
             String c_first = m_generator.astring(TPCCConstants.MIN_FIRST, TPCCConstants.MAX_FIRST);
             String c_middle = TPCCConstants.MIDDLE;
 
-            assert 1 <= c_id && c_id <= TPCCConstants.CUSTOMERS_PER_DISTRICT;
+            assert 1 <= c_id;
             String c_last;
             if (c_id <= 1000) {
                 c_last = m_generator.makeLastName((int) c_id - 1);
