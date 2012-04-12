@@ -191,6 +191,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     /** Catalog Stuff **/
+    private long instanceId;
     private final HStoreConf hstore_conf;
     private final Host catalog_host;
     private final int host_id;
@@ -479,6 +480,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+    
+    @Override
+    public long getInstanceId() {
+        return (this.instanceId);
+    }
+    protected void setInstanceId(long instanceId) {
+        if (d) LOG.debug("Setting Cluster InstanceId: " + instanceId);
+        this.instanceId = instanceId;
     }
     
     /**
@@ -950,13 +960,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
 
-        this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
         StoredProcedureInvocation request = null;
-        try {
-            request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
+        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
+        synchronized (this) {
+            this.incomingDeserializer.setBuffer(buffer);
+            try {
+                request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        } // SYNCH
         
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
