@@ -564,17 +564,11 @@ if __name__ == '__main__':
     
     # BenchmarkController Parameters
     controllerParams = { }
-    statsParams = {
-        "url": "URL",
-        "jdbc": "JDBC",
-        "tag": "Tag",
-        "user": "User",
-        "pass": "Pass"
-    }
-    for key in statsParams.keys():
-        optParam = "statsdatabase-%s" % statsParams[key]
+    statsParams = [ "URL", "JDBC", "Tag", "User", "Pass" ]
+    for key in statsParams:
+        optParam = "statsdatabase-%s" % key.lower()
         if optParam in options and options[optParam][0]:
-            controllerParams[statsParams[key]] = options[optParam][0]
+            controllerParams["statsDatabase%s" % key] = options[optParam][0]
     ## FOR
     
     needUpdate = (OPT_NO_UPDATE == False)

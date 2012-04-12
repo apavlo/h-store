@@ -85,7 +85,7 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
         public long getCustomerIdCount() {
             return (this.profile.getCustomerIdCount());
         }
-        public Integer getCustomerIdCount(Long airport_id) {
+        public Long getCustomerIdCount(Long airport_id) {
             return (this.profile.airport_max_customer_id.get(airport_id));
         }
         
@@ -159,7 +159,7 @@ public class TestSEATSLoader extends SEATSBaseTestCase {
     public void testIncrementAirportCustomerCount() {
         this.initializeLoader(loader);
         for (long airport_id = 0; airport_id < this.num_airports; airport_id++) {
-            Integer cnt = loader.getCustomerIdCount(airport_id);
+            Long cnt = loader.getCustomerIdCount(airport_id);
             assertNotNull(cnt);
             assertEquals(this.num_customers[(int)airport_id], cnt.intValue());
         } // FOR
