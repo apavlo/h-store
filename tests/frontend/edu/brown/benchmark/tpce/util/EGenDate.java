@@ -76,6 +76,10 @@ public class EGenDate {
         return cur_day;
     }
     
+    public static int getCurrentDayNo() {
+        return getDayNo(cur_year, cur_month, cur_day);
+    }
+    
     /*
      * Get day number from 01/01/0001 (1 AD)
      */
