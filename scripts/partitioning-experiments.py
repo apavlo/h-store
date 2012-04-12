@@ -416,6 +416,8 @@ if __name__ == '__main__':
         "trace",
         
         "statsdatabase-url=",
+        "statsdatabase-user=",
+        "statsdatabase-pass=",
         "statsdatabase-jdbc=",
         "statsdatabase-tag=",
         
@@ -560,13 +562,17 @@ if __name__ == '__main__':
     
     # BenchmarkController Parameters
     controllerParams = { }
-    for key in options:
-        if key == "statsdatabase-url":
-            controllerParams["statsDatabaseURL"] = options[key][0]
-        elif key == "statsdatabase-jdbc":
-            controllerParams["statsDatabaseJDBC"] = options[key][0]
-        elif key == "statsdatabase-tag":
-            controllerParams["statsDatabaseTag"] = options[key][0]
+    statsParams = {
+        "url": "URL",
+        "jdbc": "JDBC",
+        "tag": "Tag",
+        "user": "User",
+        "pass": "Pass"
+    }
+    for key in statsParams.keys():
+        optParam = "statsdatabase-%s" % statsParams[key]
+        if optParam in options and options[optParam][0]:
+            controllerParams[statsParams[key]] = options[optParam][0]
     ## FOR
     
     needUpdate = (OPT_NO_UPDATE == False)
