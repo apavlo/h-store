@@ -64,12 +64,12 @@ public class BenchmarkResults {
     }
 
     public static class Result {
-        public Result(long benchmarkTimeDelta, int transactionCount) {
+        public Result(long benchmarkTimeDelta, long transactionCount) {
             this.benchmarkTimeDelta = benchmarkTimeDelta;
             this.transactionCount = transactionCount;
         }
         public final long benchmarkTimeDelta;
-        public final int transactionCount;
+        public final long transactionCount;
         
         @Override
         public String toString() {
@@ -355,7 +355,7 @@ public class BenchmarkResults {
             String.format("Null results for txn '%s' from client '%s'\n%s",
                           transactionName, clientName, StringUtil.formatMaps(txnResults));
         
-        int txnsTillNow = 0;
+        long txnsTillNow = 0;
         Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);

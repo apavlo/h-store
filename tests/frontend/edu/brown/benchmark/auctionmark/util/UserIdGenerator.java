@@ -43,7 +43,7 @@ public class UserIdGenerator implements Iterator<UserId> {
     
     private UserId next = null;
     private Long currentItemCount = null;
-    private int currentOffset;
+    private long currentOffset;
     private int currentPosition = 0;
     
     /**
