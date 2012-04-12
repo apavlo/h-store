@@ -102,7 +102,7 @@ OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
-OPT_BASE_SCALE_FACTOR = float(0.1)
+OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
@@ -235,6 +235,8 @@ OPT_BREAKDOWNS = [ "norouting", "noindexes", "full" ]
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     global OPT_BASE_TXNRATE_PER_PARTITION
+  
+    env["client.scalefactor"] = float(OPT_BASE_SCALE_FACTOR * env["site.partitions"])
   
     ## ----------------------------------------------
     ## MOTIVATION
