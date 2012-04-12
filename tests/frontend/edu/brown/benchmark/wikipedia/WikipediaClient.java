@@ -90,7 +90,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 Object procParams[] = null; // TODO
  
                 // Create a new Callback handle that will be executed when the transaction completes
-                Callback callback = new Callback(procIdx);
+                WikipediaCallback callback = new WikipediaCallback(procIdx);
  
                 // Invoke the stored procedure through the client handle. This is non-blocking
                 client.callProcedure(callback, procName, procIdx);
@@ -111,10 +111,11 @@ public class WikipediaClient extends BenchmarkComponent {
         }
     }
  
-    private class Callback implements ProcedureCallback {
+    private class WikipediaCallback implements ProcedureCallback {
         private final int idx;
  
-        public Callback(int idx) {
+        public WikipediaCallback(int idx) {
+            super();
             this.idx = idx;
         }
         @Override
