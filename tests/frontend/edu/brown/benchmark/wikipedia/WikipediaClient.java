@@ -19,37 +19,16 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
-import java.net.UnknownHostException;
-import java.sql.SQLException;
-
-import org.apache.log4j.Logger;
-
 import java.io.IOException;
-import java.util.Map;
 import java.util.Random;
 
+import org.apache.log4j.Logger;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Procedure;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.rand.AbstractRandomGenerator;
-import edu.brown.rand.RandomDistribution.Flat;
-import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.statistics.Histogram;
-
-import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
-import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
-import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
-import edu.brown.benchmark.wikipedia.util.Article;
-import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
-import edu.brown.benchmark.wikipedia.util.TextGenerator;
-//import com.oltpbenchmark.api.Worker;  // equals to BenchmarkComponent 
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);

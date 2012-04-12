@@ -24,7 +24,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
-import edu.brown.benchmark.wikipedia.util.Article;
 
 public class GetPageAuthenticated extends VoltProcedure {
 	
