@@ -695,7 +695,6 @@ public class BenchmarkController {
             allClientArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
             allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
             allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
-            LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
             // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         }
         
@@ -858,6 +857,9 @@ public class BenchmarkController {
                                 (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
                                 
         ));
+        if (m_config.statsDatabaseURL != null) {
+            LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
+        }
         
         // HACK
         int gdb_sleep = 0;

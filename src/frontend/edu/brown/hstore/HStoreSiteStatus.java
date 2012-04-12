@@ -512,8 +512,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (first) header[0] = "";
             for (TxnCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");
-                Integer cnt = tc.getHistogram().get(proc_name);
-                rows[i][j++] = (cnt != null ? Integer.toString(cnt) : "-");
+                Long cnt = tc.getHistogram().get(proc_name);
+                rows[i][j++] = (cnt != null ? cnt.toString() : "-");
             } // FOR
             first = false;
         } // FOR

@@ -53,7 +53,7 @@ public class TestWorkloadFile extends BaseTestCase {
         
         System.err.println(h);
         for (int interval = 0; interval < NUM_INTERVALS; interval++) {
-            Integer count = h.get(interval);
+            Long count = h.get(interval);
             assertNotNull("No results for Interval #" + interval, count);
         } // FOR
 

@@ -108,7 +108,7 @@ public class TestUserIdGenerator extends TestCase {
         assertEquals(NUM_USERS, all_seen.size());
         
         // Make sure that they all have the same number of UserIds
-        Integer last_cnt = null; 
+        Long last_cnt = null; 
         for (Integer client : clients_h.values()) {
             if (last_cnt != null) {
                 assertEquals(client.toString(), last_cnt, clients_h.get(client));
