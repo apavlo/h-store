@@ -102,7 +102,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             output.put((byte) 0x0);  // login response code. 0 = OK
             output.putInt(VoltProcedureListener.this.hostId);  // hostId
             output.putLong(VoltProcedureListener.this.connectionId.incrementAndGet());  // connectionId
-            output.putLong(EstTime.currentTimeMillis());  // timestamp (part of instanceId)
+            output.putLong(VoltProcedureListener.this.handler.getInstanceId());  // timestamp (part of instanceId)
             output.putInt(0x0);  // leaderAddress (part of instanceId)
             final String BUILD_STRING = "hstore"; // FIXME
             output.putInt(BUILD_STRING.length());
@@ -264,6 +264,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public static interface Handler {
+        public long getInstanceId();
         public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
     }
 
@@ -271,6 +272,10 @@ public class VoltProcedureListener extends AbstractEventHandler {
         // Example of using VoltProcedureListener: prints procedure name, returns empty array
         NIOEventLoop eventLoop = new NIOEventLoop();
         class PrintHandler implements Handler {
+            @Override
+            public long getInstanceId() {
+                return 0;
+            }
             public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
                 StoredProcedureInvocation invocation = null;
                 try {

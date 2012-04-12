@@ -333,7 +333,22 @@ message SendDataResponse {
 }
 
 // -----------------------------------
-// SHUTDOWN MESSAGE
+// CLUSTER INITIALIZE MESSAGE
+// -----------------------------------
+
+message InitializeRequest {
+    required int32 sender_site = 1;
+    required int64 instance_id = 2;
+}
+
+message InitializeResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+}
+
+
+// -----------------------------------
+// CLUSTER SHUTDOWN MESSAGE
 // -----------------------------------
 
 message ShutdownRequest {
@@ -384,6 +399,7 @@ service HStoreService {
     rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
     rpc SendData(SendDataRequest) returns (SendDataResponse);
+    rpc Initialize(InitializeRequest) returns (InitializeResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }
