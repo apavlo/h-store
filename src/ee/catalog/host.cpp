@@ -32,6 +32,7 @@ Host::Host(Catalog *catalog, CatalogType *parent, const string &path, const stri
   m_cpus(catalog, this, path + "/" + "cpus")
 {
     CatalogValue value;
+    m_fields["id"] = value;
     m_fields["ipaddr"] = value;
     m_fields["num_cpus"] = value;
     m_fields["corespercpu"] = value;
@@ -41,6 +42,7 @@ Host::Host(Catalog *catalog, CatalogType *parent, const string &path, const stri
 }
 
 void Host::update() {
+    m_id = m_fields["id"].intValue;
     m_ipaddr = m_fields["ipaddr"].strValue.c_str();
     m_num_cpus = m_fields["num_cpus"].intValue;
     m_corespercpu = m_fields["corespercpu"].intValue;
@@ -68,6 +70,10 @@ void Host::removeChild(const std::string &collectionName, const std::string &chi
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
     if (collectionName.compare("cpus") == 0)
         return m_cpus.remove(childName);
+}
+
+int32_t Host::id() const {
+    return m_id;
 }
 
 const string & Host::ipaddr() const {

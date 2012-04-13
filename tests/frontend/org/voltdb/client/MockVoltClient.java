@@ -167,6 +167,12 @@ public class MockVoltClient implements Client {
                 // TODO Auto-generated method stub
                 return 0;
             }
+
+            @Override
+            public int getRestartCounter() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
         };
     }
 

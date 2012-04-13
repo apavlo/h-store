@@ -30,6 +30,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
@@ -138,6 +139,9 @@ public abstract class StatementCompiler {
 
         // PAVLO: Super Hack!
         // Always compile the multi-partition and single-partition query plans!
+        // We don't need the multi-partition query plans for MapReduce transactions
+        Procedure catalog_proc = catalogStmt.getParent();
+        boolean isMapReduce = catalog_proc.getMapreduce();
 
         CompiledPlan plan = null;
         CompiledPlan last_plan = null;
@@ -147,6 +151,8 @@ public abstract class StatementCompiler {
 
         Throwable first_exception = null;
         for (boolean _singleSited : new boolean[]{ true, false }) {
+            if (_singleSited == false && isMapReduce) continue;
+            
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             String msg = "Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited;
             if (trace.get()) 

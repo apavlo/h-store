@@ -61,7 +61,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     @Override
     public void remoteHandler(RpcController controller, TransactionFinishRequest request,
             RpcCallback<TransactionFinishResponse> callback) {
-        assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+        assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [status=%s]",

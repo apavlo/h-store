@@ -5,6 +5,7 @@ import java.util.Collection;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.ByteString;
@@ -13,7 +14,6 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
@@ -49,42 +49,42 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     public void remoteQueue(RpcController controller, TransactionWorkRequest request, 
             RpcCallback<TransactionWorkResponse> callback) {
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Executing %s using remote handler for txn #%d",
+            LOG.debug(String.format("Executing %s using remote handler for txn #%d",
                       request.getClass().getSimpleName(), request.getTransactionId()));
         this.remoteHandler(controller, request, callback);
     }
     @Override
     public void remoteHandler(RpcController controller, TransactionWorkRequest request,
             RpcCallback<TransactionWorkResponse> callback) {
-        assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+        assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [partitionFragments=%d]",
+            LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",
                                    request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
         
         // If this is the first time we've been here, then we need to create a RemoteTransaction handle
         RemoteTransaction ts = hstore_site.getTransaction(txn_id);
         if (ts == null) {
-            ts = hstore_site.createRemoteTransaction(txn_id, request);
+            ts = hstore_site.createRemoteTransaction(txn_id, request.getSourcePartition(), request.getSysproc());
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("Created new transaction handke %s", ts));
+                LOG.debug(String.format("Created new transaction handke %s", ts));
         }
         
         // Deserialize embedded ParameterSets and store it in the RemoteTransaction handle
         // This way we only do it once per HStoreSite. This will also force us to avoid having
         // to do it for local work
-        ParameterSet parameterSets[] = new ParameterSet[request.getParameterSetsCount()]; // TODO: Cache!
+        ParameterSet parameterSets[] = new ParameterSet[request.getParamsCount()]; // TODO: Cache!
         for (int i = 0; i < parameterSets.length; i++) {
-            ByteString paramData = request.getParameterSets(i);
+            ByteString paramData = request.getParams(i);
             if (paramData != null && paramData.isEmpty() == false) {
                 final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
-                if (trace.get()) LOG.trace("__FILE__:__LINE__ " + String.format("Txn #%d paramData[%d] => %s",
-                                                                  txn_id, i, fds.buffer()));
+                if (trace.get()) LOG.trace(String.format("Txn #%d paramData[%d] => %s",
+                                                         txn_id, i, fds.buffer()));
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
                 } catch (Exception ex) {
-                    LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to deserialize ParameterSet[%d] for txn #%d TransactionRequest", i, txn_id), ex);
-                    throw new RuntimeException(ex);
+                    String msg = String.format("Failed to deserialize ParameterSet[%d] for txn #%d TransactionRequest", i, txn_id);
+                    throw new ServerFaultException(msg, ex, txn_id);
                 }
                 // LOG.info("PARAMETER[" + i + "]: " + parameterSets[i]);
             } else {
@@ -94,27 +94,30 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         ts.attachParameterSets(parameterSets);
         
         // Deserialize attached VoltTable input dependencies
-        for (DataFragment d : request.getAttachedList()) {
-            int input_dep_id = d.getId();
-            for (ByteString data : d.getDataList()) {
-                if (data.isEmpty()) {
-                    String msg = String.format("%s input dependency %d is empty", ts, input_dep_id); 
-                    LOG.warn(msg + "\n" + request);
-                    throw new RuntimeException(msg);
-                }
-                FastDeserializer fds = new FastDeserializer(data.asReadOnlyByteBuffer());
-                VoltTable vt = null;
-                try {
-                    vt = fds.readObject(VoltTable.class);
-                } catch (Exception ex) {
-                    LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to deserialize VoltTable[%d] for txn #%d", input_dep_id, txn_id), ex);
-                    throw new RuntimeException(ex);
-                }
-                assert(vt != null);
-                ts.attachInputDependency(input_dep_id, vt);
-            } // FOR
-        } // FOR
+        FastDeserializer fds = null;
+        VoltTable vt = null;
+        for (int i = 0, cnt = request.getAttachedDataCount(); i < cnt; i++) {
+            int input_dep_id = request.getAttachedDepId(i);
+            ByteString data = request.getAttachedData(i);
+            if (data.isEmpty()) {
+                String msg = String.format("%s input dependency %d is empty", ts, input_dep_id); 
+                LOG.warn(msg + "\n" + request);
+                throw new ServerFaultException(msg, txn_id);
+            }
+            
+            if (fds == null) fds = new FastDeserializer(data.asReadOnlyByteBuffer());
+            else fds.setBuffer(data.asReadOnlyByteBuffer());
 
+            vt = null;
+            try {
+                vt = fds.readObject(VoltTable.class);
+            } catch (Exception ex) {
+                String msg = String.format("Failed to deserialize VoltTable[%d] for txn #%d", input_dep_id, txn_id); 
+                throw new ServerFaultException(msg, ex, txn_id);
+            }
+            assert(vt != null);
+            ts.attachInputDependency(input_dep_id, vt);
+        } // FOR
         
         // This is work from a transaction executing at another node
         // Any other message can just be sent along to the ExecutionSite without sending
@@ -131,13 +134,13 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
                 if (work_callback.isInitialized()) work_callback.finish();
                 work_callback.init(txn_id, request.getFragmentsCount(), callback);
                 if (debug.get())
-                    LOG.debug("__FILE__:__LINE__ " + String.format("Initializing %s for %s",
+                    LOG.debug(String.format("Initializing %s for %s",
                               work_callback.getClass().getSimpleName(), ts));
             }
             
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("Invoking transactionWork for %s [first=%s]", ts, first));
-            hstore_site.transactionWork(ts, request, fragment);
+                LOG.debug(String.format("Invoking transactionWork for %s [first=%s]", ts, first));
+            hstore_site.transactionWork(ts, fragment);
             first = false;
         } // FOR
         assert(ts != null);

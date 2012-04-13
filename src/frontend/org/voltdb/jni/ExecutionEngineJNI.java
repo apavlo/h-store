@@ -250,7 +250,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             for (int i = 0; i < numDependencies; ++i) {
                 depIds[i] = deserializer.readInt();
                 dependencies[i] = deserializer.readObject(VoltTable.class);
-            }
+            } // FOR
             assert(depIds.length == 1);
             return new DependencyPair(depIds[0], dependencies[0]);
         } catch (final IOException ex) {
@@ -381,24 +381,22 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
         // get a copy of the result buffers and make the tables
         // use the copy
+        ByteBuffer fullBacking = deserializer.buffer();
         try {
             // read the complete size of the buffer used
-            final int totalSize = deserializer.readInt();
+            fullBacking.getInt();
             // check if anything was changed
-            final boolean dirty = deserializer.readBoolean();
-            if (dirty)
-                m_dirty = true;
+            m_dirty = (fullBacking.get() == 1 ? true : false);
 
             // get a copy of the buffer
             // Because this is a copy, that means we don't have to worry about the EE overwriting us
             // Not sure of the implications for performance.
-            ByteBuffer fullBacking = deserializer.readBuffer(totalSize);
+             // deserializer.readBuffer(totalSize);
             
             // At this point we don't know how many dependencies we expect to get back from our fragments.
             // We're just going to assume that each PlanFragment generated one and only one output dependency
-            int total_deps = numFragmentIds;
-            VoltTable results[] = new VoltTable[total_deps];
-            int dependencies[] = new int[total_deps];
+            VoltTable results[] = new VoltTable[numFragmentIds];
+            int dependencies[] = new int[numFragmentIds];
             int dep_ctr = 0;
             for (int i = 0; i < numFragmentIds; ++i) {
                 int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
@@ -410,25 +408,29 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 // that the frags were executed in the order that we passed to the EE and that we
                 // can just use the list of output_depIds that we have 
                 for (int ii = 0; ii < numDependencies; ++ii) {
-                    assert(dep_ctr < output_depIds.length) : "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
+                    assert(dep_ctr < output_depIds.length) : 
+                        "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
                     fullBacking.getInt(); // IGNORE 
                     int depid = output_depIds[dep_ctr];
                     assert(depid >= 0);
                     
                     int tableSize = fullBacking.getInt();
                     assert(tableSize < 10000000);
-                    final ByteBuffer tableBacking = fullBacking.slice();
-                    fullBacking.position(fullBacking.position() + tableSize);
-                    tableBacking.limit(tableSize);
+                    byte tableBytes[] = new byte[tableSize];
+                    fullBacking.get(tableBytes, 0, tableSize);
+                    final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
+//                    fullBacking.position(fullBacking.position() + tableSize);
                     
                     results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
                     dependencies[dep_ctr] = depid;
+                    if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
+                                                   txnId, depid, tableSize, results[dep_ctr].toString())); 
                     dep_ctr++;
                 } // FOR
             } // FOR
             
             return (new DependencySet(dependencies, results));
-        } catch (IOException ex) {
+        } catch (Throwable ex) {
             LOG.error("Failed to deserialze result table" + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }

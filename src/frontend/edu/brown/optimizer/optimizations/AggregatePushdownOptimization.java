@@ -4,7 +4,9 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltType;
 import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanAssembler;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.plannodes.AbstractPlanNode;
@@ -34,62 +36,57 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(AbstractPlanNode rootNode) {
         Collection<HashAggregatePlanNode> nodes = PlanNodeUtil.getPlanNodes(rootNode, HashAggregatePlanNode.class);
-        if (nodes.size() != 1)
+        if (nodes.size() != 1) {
+            if (debug.get()) LOG.debug("SKIP - Not an aggregate query plan");
             return Pair.of(false, rootNode);
+        }
         final HashAggregatePlanNode node = CollectionUtil.first(nodes);
-
-        // String orig_root_debug2 = PlanNodeUtil.debug(root);
-        if (debug.get())
-            LOG.debug("Trying to apply Aggregate pushdown optimization!");
-
+        
         // Skip single-partition query plans
         if (PlanNodeUtil.isDistributedQuery(rootNode) == false) {
-            if (debug.get())
-                LOG.debug("SKIP - Not a distributed query plan");
+            if (debug.get()) LOG.debug("SKIP - Not a distributed query plan");
             return (Pair.of(false, rootNode));
         }
-        // TODO: Can only do single aggregates
-        if (node.getAggregateTypes().size() != 1) {
-            if (debug.get())
-                LOG.debug("SKIP - Multiple aggregates");
-            return (Pair.of(false, rootNode));
-        }
-        // Can't do averages
-        if (node.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_AVG) {
-            if (debug.get())
-                LOG.debug("SKIP - Can't optimize AVG()");
-            return (Pair.of(false, rootNode));
-        }
+//        // Right now, Can't do averages
+//        for (ExpressionType et: node.getAggregateTypes()) {
+//            if (et.equals(ExpressionType.AGGREGATE_AVG)) {
+//                if (debug.get()) LOG.debug("SKIP - Right now can't optimize AVG()");
+//                return (Pair.of(false, rootNode));
+//            }
+//        }
+        
         // Get the AbstractScanPlanNode that is directly below us
         Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(node, AbstractScanPlanNode.class);
+        if (debug.get()) LOG.debug("<ScanPlanNodes>: "+ scans);
         if (scans.size() != 1) {
             if (debug.get())
                 LOG.debug("SKIP - Multiple scans!");
             return (Pair.of(false, rootNode));
         }
-
+        
+        if (debug.get()) LOG.debug("Trying to apply Aggregate pushdown optimization!");
         AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
         assert (scan_node != null);
-        // For some reason we have to do this??
-        for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
-            int col_guid = scan_node.getOutputColumnGUIDs().get(col);
-            assert (state.plannerContext.get(col_guid) != null) : "Failed [" + col_guid + "]";
-            // PlanColumn retval = new PlanColumn(guid, expression, columnName,
-            // sortOrder, storage);
-        } // FOR
-
-        // Skip if we're already directly after the scan (meaning no network
-        // traffic)
+        
+//        // For some reason we have to do this??
+//        for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
+//            int col_guid = scan_node.getOutputColumnGUIDs().get(col);
+//            assert (state.plannerContext.get(col_guid) != null) : "Failed [" + col_guid + "]";
+//            // PlanColumn retval = new PlanColumn(guid, expression, columnName,
+//            // sortOrder, storage);
+//        } // FOR
+        
+        // Skip if we're already directly after the scan (meaning no network traffic)
         if (scan_node.getParent(0).equals(node)) {
             if (debug.get())
                 LOG.debug("SKIP - Aggregate does not need to be distributed");
             return (Pair.of(false, rootNode));
         }
-
-        // Check if this is count(distinct) query
+        
+        // Check if this is COUNT(DISTINCT) query
         // If it is then we can only pushdown the DISTINCT
         AbstractPlanNode clone_node = null;
-        if (node.getAggregateTypes().get(0) == ExpressionType.AGGREGATE_COUNT) {
+        if (node.getAggregateTypes().contains(ExpressionType.AGGREGATE_COUNT)) {
             for (AbstractPlanNode child : node.getChildren()) {
                 if (child.getClass().equals(DistinctPlanNode.class)) {
                     try {
@@ -102,69 +99,17 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                 }
             } // FOR
         }
-
+        
         // Note that we don't want actually move the existing aggregate. We just
-        // want to clone it and then
-        // attach it down below the SEND/RECIEVE so that we calculate the
-        // aggregate in parallel
+        // want to clone it and then attach it down below the SEND/RECIEVE so 
+        // that we calculate the aggregates in parallel
         if (clone_node == null) {
-            try {
-                clone_node = (HashAggregatePlanNode) node.clone(false, true);
-            } catch (CloneNotSupportedException ex) {
-                throw new RuntimeException(ex);
-            }
-            state.markDirty(clone_node);
-            HashAggregatePlanNode clone_agg = (HashAggregatePlanNode) clone_node;
-
-            // Set original AggregateNode to contain sum
-            if (clone_agg.getAggregateTypes().size() > 0) {
-                List<ExpressionType> exp_types = node.getAggregateTypes();
-                exp_types.clear();
-
-                ExpressionType origType = clone_agg.getAggregateTypes().get(0);
-                switch (origType) {
-                    case AGGREGATE_COUNT:
-                    case AGGREGATE_COUNT_STAR:
-                    case AGGREGATE_SUM:
-                        exp_types.add(ExpressionType.AGGREGATE_SUM);
-                        break;
-                    case AGGREGATE_MAX:
-                    case AGGREGATE_MIN:
-                        exp_types.add(origType);
-                        break;
-                    default:
-                        throw new RuntimeException("Unexpected ExpressionType " + origType);
-                } // SWITCH
-            }
-
-            // IMPORTANT: If we have GROUP BY columns, thn we need to make sure
-            // that
-            // those columns are always passed up the query tree at the pushed
-            // down
-            // node, even if the final answer doesn't need it
-            if (node.getGroupByColumnGuids().isEmpty() == false) {
-                for (Integer guid : clone_agg.getGroupByColumnGuids()) {
-                    if (clone_agg.getOutputColumnGUIDs().contains(guid) == false) {
-                        clone_agg.getOutputColumnGUIDs().add(guid);
-                    }
-                } // FOR
-            }
-
-            assert (clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
-            assert (clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
-            assert (clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) : clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
-            assert (clone_agg.getAggregateTypes().size() == node.getAggregateTypes().size());
-            assert (clone_agg.getAggregateColumnGuids().size() == node.getAggregateColumnGuids().size());
-            assert (clone_agg.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
-            assert (clone_agg.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
-            // assert(clone_agg.getOutputColumnGUIDs().size() ==
-            // node.getOutputColumnGUIDs().size());
+            clone_node = this.cloneAggregatePlanNode(node);
         }
         assert (clone_node != null);
-
+        
         // But this means we have to also update the RECEIVE to only expect the
-        // columns that
-        // the AggregateNode will be sending along
+        // columns that the AggregateNode will be sending along
         ReceivePlanNode recv_node = null;
         if (clone_node instanceof DistinctPlanNode) {
             recv_node = (ReceivePlanNode) node.getChild(0).getChild(0);
@@ -185,8 +130,13 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         // 2011-12-08: We now need to correct the aggregate columns for the
         // original plan node
         if ((clone_node instanceof DistinctPlanNode) == false) {
+            // If we have a AGGREGATE_WEIGHTED_AVG in our node, then we know that
+            // we can skip the last column because that's the COUNT from the remote partition
+            boolean has_weightedAvg = node.getAggregateTypes().contains(ExpressionType.AGGREGATE_WEIGHTED_AVG);
             node.getAggregateColumnGuids().clear();
-            for (Integer aggOutput : clone_node.getOutputColumnGUIDs()) {
+            int num_cols = clone_node.getOutputColumnGUIDCount() - (has_weightedAvg ? 1 : 0);
+            for (int i = 0; i < num_cols; i++) {
+                Integer aggOutput = clone_node.getOutputColumnGUID(i);
                 PlanColumn planCol = state.plannerContext.get(aggOutput);
                 assert (planCol != null);
                 AbstractExpression exp = planCol.getExpression();
@@ -206,6 +156,110 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         }
 
         return Pair.of(true, rootNode);
+    }
+    
+    /**
+     * 
+     * @param node
+     * @return
+     */
+    protected HashAggregatePlanNode cloneAggregatePlanNode(final HashAggregatePlanNode node) {
+        HashAggregatePlanNode clone_agg = null;
+        try {
+            clone_agg = (HashAggregatePlanNode) node.clone(false, true);
+        } catch (CloneNotSupportedException ex) {
+            throw new RuntimeException(ex);
+        }
+        state.markDirty(clone_agg);
+
+        // Update the cloned AggregateNode to handle distributed averages 
+        List<ExpressionType> clone_types = clone_agg.getAggregateTypes();
+        
+        // For now we'll always put a COUNT at the end of the AggregatePlanNode
+        // This makes it easier for us to find it in the EE
+        boolean has_count = false;
+//        boolean has_count = (clone_types.contains(ExpressionType.AGGREGATE_COUNT) ||
+//                             clone_types.contains(ExpressionType.AGGREGATE_COUNT_STAR));
+
+        int orig_cnt = clone_types.size();
+        for (int i = 0; i < orig_cnt; i++) {
+            ExpressionType cloneType = clone_types.get(i);
+            // Ok, strap on your helmets boys, here's what we got going on here...
+            // In order to do a distributed average, we need to send the average
+            // AND the count (in order to compute the weight average at the base partition).
+            // We need check whether we already have a count already in our list
+            // If not, then we'll want to insert it here.
+            if (cloneType == ExpressionType.AGGREGATE_AVG) {
+                if (has_count == false) {
+                    // But now because we add a new output column that we're going to use internally,
+                    // we need to make sure that our output columns reflect this.
+                    clone_types.add(ExpressionType.AGGREGATE_COUNT_STAR);
+                    has_count = true;
+                    
+                    // Aggregate Input Column
+                    // We just need to do it against the first column in the child's output
+                    // Picking the column that we want to use doesn't matter even if there is a GROUP BY
+                    clone_agg.getAggregateColumnGuids().add(node.getChild(0).getOutputColumnGUID(0));
+
+                    // Aggregate Output Column
+                    TupleValueExpression exp = new TupleValueExpression();
+                    exp.setValueType(VoltType.BIGINT);
+                    exp.setValueSize(VoltType.BIGINT.getLengthInBytesForFixedTypes());
+                    exp.setTableName(PlanAssembler.AGGREGATE_TEMP_TABLE);
+                    exp.setColumnName("");
+                    exp.setColumnAlias("_DTXN_COUNT");
+                    exp.setColumnIndex(clone_agg.getOutputColumnGUIDCount());
+                    PlanColumn new_pc = state.plannerContext.getPlanColumn(exp, exp.getColumnAlias());
+                    clone_agg.getAggregateOutputColumns().add(clone_agg.getOutputColumnGUIDCount());
+                    clone_agg.getAggregateColumnNames().add(new_pc.getDisplayName());
+                    clone_agg.getOutputColumnGUIDs().add(new_pc.guid());
+                }
+            }
+        } // FOR
+        
+        // Now go through the original AggregateNode (the one at the top of tree)
+        // and change the ExpressiontTypes for the aggregates to handle ahat we're
+        // doing down below in the distributed query
+        List<ExpressionType> exp_types = node.getAggregateTypes();
+        exp_types.clear();
+        for (int i = 0; i < orig_cnt; i++) {
+            ExpressionType cloneType = clone_types.get(i);
+            switch (cloneType) {
+                case AGGREGATE_COUNT:
+                case AGGREGATE_COUNT_STAR:
+                case AGGREGATE_SUM:
+                    exp_types.add(ExpressionType.AGGREGATE_SUM);
+                    break;
+                case AGGREGATE_MAX:
+                case AGGREGATE_MIN:
+                    exp_types.add(cloneType);
+                    break;
+                case AGGREGATE_AVG:
+                    // This is a special internal marker that allows us to compute
+                    // a weighted average from the count
+                    exp_types.add(ExpressionType.AGGREGATE_WEIGHTED_AVG);
+                    break;
+                default:
+                    throw new RuntimeException("Unexpected ExpressionType " + cloneType);
+            } // SWITCH
+        } // FOR
+        
+        // IMPORTANT: If we have GROUP BY columns, then we need to make sure
+        // that those columns are always passed up the query tree at the pushed
+        // down node, even if the final answer doesn't need it
+        if (node.getGroupByColumnGuids().isEmpty() == false) {
+            for (Integer guid : clone_agg.getGroupByColumnGuids()) {
+                if (clone_agg.getOutputColumnGUIDs().contains(guid) == false) {
+                    clone_agg.getOutputColumnGUIDs().add(guid);
+                }
+            } // FOR
+        }
+
+        assert(clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
+        assert(clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
+        assert(clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) : clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
+        
+        return (clone_agg);
     }
 
 }

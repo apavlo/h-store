@@ -173,7 +173,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
         Integer internal_d_id = this.internal_dependency_ids.get(0);
         assertNotNull(internal_d_id);
-        DependencyInfo internal_dinfo = this.ts.getDependencyInfo(0, internal_d_id);
+        DependencyInfo internal_dinfo = this.ts.getDependencyInfo(internal_d_id);
         assertNotNull(internal_dinfo);
         
         // System.err.println(this.ts);
@@ -186,7 +186,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(first_ftask);
         int partition = first_ftask.getPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
-        DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
+        DependencyInfo first_dinfo = this.ts.getDependencyInfo(first_output_dependency_id);
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedWorkFragments().size());
         this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
@@ -194,7 +194,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
         first_ftask = CollectionUtil.first(first_dinfo.getBlockedWorkFragments());
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, first_ftask.getOutputDepId(0));
+        DependencyInfo second_dinfo = this.ts.getDependencyInfo(first_ftask.getOutputDepId(0));
         for (WorkFragment ftask : first_dinfo.getBlockedWorkFragments()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getPartitionId();
