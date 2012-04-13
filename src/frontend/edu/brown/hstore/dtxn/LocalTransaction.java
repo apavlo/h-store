@@ -841,6 +841,7 @@ public class LocalTransaction extends AbstractTransaction {
     public void setSpeculative(boolean speculative) {
         this.exec_speculative = speculative;
     }
+
     /**
      * Returns true if this transaction is being executed speculatively
      * @return

@@ -48,6 +48,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.interfaces.Prefetchable;
+import edu.brown.hstore.interfaces.Deferred;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -237,6 +238,12 @@ public abstract class ProcedureCompiler {
                 // only
                 if (catalogStmt.getReadonly() == false)
                     procHasWriteStmts = true;
+                
+                // If deferred query, set it to run asynchrnously
+                if (f.getAnnotation(Deferred.class) != null) {
+                	catalogStmt.setAsynchronous(true);
+                    procedure.setDeferred(true);
+                }
             }
         }
 
