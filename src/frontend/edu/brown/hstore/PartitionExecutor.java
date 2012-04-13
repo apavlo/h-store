@@ -131,6 +131,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
+import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -257,6 +258,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected int siteId;
     private Partition partition;
     private int partitionId;
+    private Integer partitionIdObj;
 
     private final BackendTarget backend_target;
     private final ExecutionEngine ee;
@@ -388,6 +390,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
     // TEMPORARY DATA COLLECTIONS
     // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     */
+    private final List<WorkFragment> partitionFragments = new ArrayList<WorkFragment>(); 
     
     /**
      * WorkFragments that we need to send to a remote HStoreSite for execution
@@ -587,6 +594,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.partition = CatalogUtil.getPartitionById(this.catalog, partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
         this.partitionId = this.partition.getId();
+        this.partitionIdObj = Integer.valueOf(this.partitionId);
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
@@ -2102,6 +2110,107 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                      allowELT != 0);
     }
 
+    /**
+     * Execute a SQLStmt batch at this partition.
+     * @param ts
+     * @param batchSize
+     * @param batchStmts
+     * @param batchParams
+     * @param finalTask
+     * @param forceSinglePartition
+     * @return
+     */
+    public VoltTable[] executeSQLStmtBatch(LocalTransaction ts, int batchSize, SQLStmt batchStmts[], ParameterSet batchParams[], boolean finalTask, boolean forceSinglePartition) {
+        // Calculate the hash code for this batch to see whether we already have a planner
+        final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
+        BatchPlanner planner = this.batchPlanners.get(batchHashCode);
+        if (planner == null) { // Assume fast case
+            planner = new BatchPlanner(batchStmts,
+                                       batchSize,
+                                       ts.getProcedure(),
+                                       this.p_estimator,
+                                       forceSinglePartition);
+            this.batchPlanners.put(batchHashCode, planner);
+        }
+        assert(planner != null);
+        
+        // At this point we have to calculate exactly what we need to do on each partition
+        // for this batch. So somehow right now we need to fire this off to either our
+        // local executor or to Evan's magical distributed transaction manager
+        BatchPlanner.BatchPlan plan = planner.plan(ts.getTransactionId(),
+                                                   ts.getClientHandle(),
+                                                   this.partitionIdObj, 
+                                                   ts.getPredictTouchedPartitions(),
+                                                   ts.isPredictSinglePartition(),
+                                                   ts.getTouchedPartitions(),
+                                                   batchParams);
+        
+        assert(plan != null);
+        if (d) LOG.debug("BatchPlan for " + ts + ":\n" + plan.toString());
+        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecPlanning();
+        
+        // Tell the TransactionEstimator that we're about to execute these mofos
+        TransactionEstimator.State t_state = ts.getEstimatorState();
+        if (t_state != null) {
+            if (hstore_conf.site.txn_profiling) ts.profiler.startExecEstimation();
+            this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
+            if (hstore_conf.site.txn_profiling) ts.profiler.stopExecEstimation();
+        }
+
+        // Check whether our plan was caused a mispredict
+        // Doing it this way allows us to update the TransactionEstimator before we abort the txn
+        if (plan.getMisprediction() != null) {
+            MispredictionException ex = plan.getMisprediction(); 
+            ts.setPendingError(ex, false);
+
+            MarkovGraph markov = (t_state != null ? t_state.getMarkovGraph() : null); 
+            if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
+                if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + ts + " mispredicted");
+                // FIXME this.executor.helper.queueMarkovToRecompute(markov);
+            }
+            
+            // Print Misprediction Debug
+            if (d || hstore_conf.site.exec_mispredict_crash) {
+                // FIXME LOG.warn("\n" + mispredictDebug(batchStmts, batchParams, markov, t_state, ex, batchSize));
+            }
+            
+            // Crash on Misprediction!
+            if (hstore_conf.site.exec_mispredict_crash) {
+                LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", ts));
+                this.crash(ex);
+            } else if (d) {
+                LOG.debug(ts + " mispredicted! Aborting and restarting!");
+            }
+            throw ex;
+        }
+        
+        VoltTable results[] = null;
+        if (plan.isReadOnly() == false) ts.markExecNotReadOnlyAllPartitions();
+        
+        // If the BatchPlan only has WorkFragments that are for this partition, then
+        // we can use the fast-path executeLocalPlan() method
+        if (plan.isSingledPartitionedAndLocal()) {
+            if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
+            results = this.executeLocalPlan(ts, plan, batchParams);
+        }
+        // Otherwise, we need to generate WorkFragments and then send the messages out 
+        // to our remote partitions using the HStoreCoordinator
+        else {
+            this.partitionFragments.clear();
+            plan.getWorkFragments(ts.getTransactionId(), this.partitionFragments);
+            if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + ts);
+
+            // Block until we get all of our responses.
+            results = this.dispatchWorkFragments(ts, batchSize, this.partitionFragments, batchParams);
+        }
+        if (d && results == null)
+            LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
+
+        if (hstore_conf.site.txn_profiling) ts.profiler.startExecJava();
+        
+        return (results);
+    }
+    
     /**
      * 
      * @param fresponse
