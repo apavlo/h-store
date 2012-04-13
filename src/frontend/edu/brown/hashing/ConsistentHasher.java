@@ -52,7 +52,6 @@ public class ConsistentHasher extends AbstractHasher {
         // First get a hash for the java Object, because this is what
         // the C++ library can handle
         int value = TheHashinator.hashToPartition(obj, Integer.MAX_VALUE);
-        System.out.println("Java hash value: "+value);
         // Then invoke the C++ library to figure out what partition we need to go to
         int partition = this.nativeHashinate(this.pointer, value);
         return (partition);

@@ -1,7 +1,7 @@
 #include "libconhash/conhash.h"
 #include "conhash.h"
 
-Conhash::Conhash(int n)
+Conhash::Conhash(unsigned int n)
 {
 	conhash = conhash_init(NULL, n, g_nodes);
 }
@@ -14,7 +14,7 @@ Conhash::~Conhash()
 	}
 }
 
-const struct node_s * Conhash::lookup(const char *object)
+const struct node_s * Conhash::lookup(const unsigned int object)
 {
 	return conhash_lookup(conhash, object);
 }

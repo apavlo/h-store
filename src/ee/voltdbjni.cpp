@@ -1172,7 +1172,6 @@ SHAREDLIB_JNIEXPORT jlong JNICALL Java_edu_brown_hashing_ConsistentHasher_native
      /*init conhash instance*/
      Conhash *conhash = new Conhash(static_cast<int>(num_partitions));
 	 long ret = (long)conhash;
-	 printf("long pointer is: %ld\n", ret);
 	 return ret;
 }
 
@@ -1191,15 +1190,11 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
             jlong hash_pointer,
             jint value) {
     
-	char str[128];
 	int val = static_cast<int>(value);
-	printf("passed in value: %d\n", val);
 	Conhash *conhash = (Conhash *)hash_pointer;
-	sprintf(str, "%d", val);
 	const struct node_s *node;
-	node = conhash->lookup(str);
-	printf("return node %16s\n", node->iden);
-	return atoi(node->iden);
+	node = conhash->lookup(val);
+	return node->iden;
     //return static_cast<jint>(1);
 }
 

@@ -39,7 +39,7 @@ public class TestConsistentHasher extends BaseTestCase {
 //        System.err.println("hash0[" + val0 + "] = " + hash0);
 //        System.err.println("hash1[" + val1 + "] = " + hash1);
         Histogram<Integer> h = new Histogram<Integer>();
-        for(int i=0; i<10; i++){
+        for(int i=0; i<Integer.MAX_VALUE/100; i++){
         	long val = i;
         	int hash = this.hasher.hash(val);
         	h.put(hash);

@@ -4,7 +4,7 @@
 #include "conhash.h"
 #include "conhash_inter.h"
 
-struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, int n, struct node_s *g_nodes)
+struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, u_int n, struct node_s *g_nodes)
 {
     /* alloc memory and set to zero */
     struct conhash_s *conhash = (struct conhash_s*)calloc(1, sizeof(struct conhash_s));
@@ -15,21 +15,20 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, int n, struct node_s 
     do
 	{
         /* setup callback functions */
-        int i;
-        char str[128];
+        u_int i;
+        u_int step = 1000;
+        u_int hash = 0;
         if(pfhash != NULL)
         {
             conhash->cb_hashfunc = pfhash;
         }
         else
         {
-			puts("Default conhasher");
-            conhash->cb_hashfunc = __conhash_hash_def;
+            conhash->cb_hashfunc = __conhash_hash_java_def;
         }
 		util_rbtree_init(&conhash->vnode_tree);
-		for(i = 0; i < n; i ++){
-			sprintf(str, "%d", i);
-			conhash_set_node(&g_nodes[i], str, 1);
+		for(i = 0; i < n; i ++, hash +=step){
+			conhash_set_node(&g_nodes[i], hash % INT_MAX, 1);
 			conhash_add_node(conhash, &g_nodes[i]);
 		}
         return conhash;
@@ -55,14 +54,11 @@ void conhash_fini(struct conhash_s *conhash)
 	}
 }
 
-void conhash_set_node(struct node_s *node, const char *iden, u_int replica)
+void conhash_set_node(struct node_s *node, const u_int iden, u_int replica)
 {
-	//puts("Guys, I am here!");
-    strncpy(node->iden, iden, sizeof(node->iden)-1);
-	//puts("Cannot believe I am here");
+    node->iden = iden;
     node->replicas = replica;
     node->flag = NODE_FLAG_INIT;
-	//puts("Impossible!!!");
 }
 
 int conhash_add_node(struct conhash_s *conhash, struct node_s *node)
@@ -101,23 +97,20 @@ int conhash_del_node(struct conhash_s *conhash, struct node_s *node)
     return 0;
 }
 
-const struct node_s* conhash_lookup(const struct conhash_s *conhash, const char *object)
+const struct node_s* conhash_lookup(const struct conhash_s *conhash, const u_int object)
 {
     long hash;
     const util_rbtree_node_t *rbnode;
-    if((conhash==NULL) || (conhash->ivnodes==0) || (object==NULL)) 
+    if((conhash==NULL) || (conhash->ivnodes==0)) 
     {
         return NULL;
     }
     /* calc hash value */
     hash = conhash->cb_hashfunc(object);
-   	printf("Hash value is %ld\n", hash); 
     rbnode = util_rbtree_lookup(&(conhash->vnode_tree), hash);
     if(rbnode != NULL)
     {
-		printf("FIND NODE!!!!  ");
         struct virtual_node_s *vnode = rbnode->data;
-		printf("%s\n", vnode->node->iden);
         return vnode->node;
     }
     return NULL;

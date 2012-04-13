@@ -43,11 +43,13 @@ u_int conhash_get_vnodes_num(const struct conhash_s *conhash)
     return conhash->ivnodes;
 }
 
-void conhash_mapPartionToHash(long *map, int partition_num, long hash){
+void conhash_mapPartionToHash(long *map, int partition_num, long hash)
+{
 	map[partition_num] = hash;
 }
 
-long conhash_getMigrationHash(long *map, int map_len, int partition_num, int factor){
+long conhash_getMigrationHash(long *map, int map_len, int partition_num, int factor)
+{
 	/*factor is used for fine grained hash chosen: unused now*/
 	char str[100]; /*the magic number 100 is for temperary usage*/
 	int i;

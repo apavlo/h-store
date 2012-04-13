@@ -6,6 +6,7 @@
 
 #include "configure.h"
 #include <stdlib.h>
+#include <limits.h>
 
 #ifdef CONHASH_EXPORTS
 
@@ -26,7 +27,7 @@
 /* nodes structure */
 struct node_s
 {
-	char iden[64]; /* node name or some thing identifies the node */
+	u_int iden; /* node name or some thing identifies the node */
     u_int replicas; /* number of replica virtual nodes */
     u_int flag;
 };
@@ -35,7 +36,7 @@ struct node_s
  * callback function to calculate hash value 
  * @instr: input string
  */
-typedef long (*conhash_cb_hashfunc)(const char *instr);
+typedef long (*conhash_cb_hashfunc)(const u_int object);
 
 struct conhash_s;
 
@@ -47,13 +48,13 @@ extern "C" {
 	 * @pfhash : hash function, NULL to use default MD5 method
 	 * return a conhash_s instance
 	 */
-	CONHASH_API struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, int n, struct node_s *g_nodes);
+	CONHASH_API struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, u_int n, struct node_s *g_nodes);
 
     /* finalize lib */
     CONHASH_API void conhash_fini(struct conhash_s *conhash);
 
     /* set node */
-    CONHASH_API void conhash_set_node(struct node_s *node, const char *iden, u_int replica);
+    CONHASH_API void conhash_set_node(struct node_s *node, const u_int iden, u_int replica);
 
 	/* 
      * add a new node 
@@ -76,7 +77,7 @@ extern "C" {
      * @object: the input string which indicates an object
      * return the server_s structure, do not modify the value, or it will cause a disaster
      */
-	CONHASH_API const struct node_s* conhash_lookup(const struct conhash_s *conhash, const char *object);
+	CONHASH_API const struct node_s* conhash_lookup(const struct conhash_s *conhash, const u_int object);
 
     /* some utility functions export*/    
     CONHASH_API void  conhash_md5_digest(const u_char *instr, u_char digest[16]); 

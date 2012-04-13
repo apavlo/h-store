@@ -1,0 +1,1 @@
+1. For consistent hashing, now the ring is too large. Maybe I can use a small ring size like from 0 to 10000. And the key mapped the this ring will be key % 10000. However, this is the furture work. --Yang

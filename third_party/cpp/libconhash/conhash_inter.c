@@ -30,36 +30,33 @@ long __conhash_hash_def(const char *instr)
 	return abs(hash);
 }
 
-void __conhash_node2string(const struct node_s *node, u_int replica_idx, char buf[128], u_int *len)
+long __conhash_hash_java_def(const u_int hash){
+    return (long)hash;
+}
+
+void __conhash_node2string(const struct node_s *node, u_int replica_idx, u_int *buf, u_int *len)
 {
-#if (defined (WIN32) || defined (__WIN32))
-    _snprintf_s(buf, 127, _TRUNCATE, "%s-%03d", node->iden, replica_idx);
-#else
-    snprintf(buf, 127, "%s-%03d", node->iden, replica_idx);
-#endif
+    *buf = node->iden / replica_idx;
 }
 
 void __conhash_add_replicas(struct conhash_s *conhash, struct node_s *node)
 {
     u_int i, len;
-    long hash;
-    char buff[128];
+    u_int hash;
+    u_int buff;
     util_rbtree_node_t *rbnode;
-    for(i = 0; i < node->replicas; i++)
-    {
-        /* calc hash value of all virtual nodes */
-        __conhash_node2string(node, i, buff, &len);
-        hash = conhash->cb_hashfunc(buff);
-		printf("hash for node %s is %ld\n", node->iden, hash);
-        /* add virtual node, check duplication */
-        if(util_rbtree_search(&(conhash->vnode_tree), hash) == NULL)
+    
+   /* calc hash value of all virtual nodes */
+   __conhash_node2string(node, node->replicas, &buff, &len);
+   hash = conhash->cb_hashfunc(buff);
+   /* add virtual node, check duplication */
+   if(util_rbtree_search(&(conhash->vnode_tree), hash) == NULL)
+   {
+        rbnode = __conhash_get_rbnode(node, hash);
+        if(rbnode != NULL)
         {
-            rbnode = __conhash_get_rbnode(node, hash);
-            if(rbnode != NULL)
-            {
-                util_rbtree_insert(&(conhash->vnode_tree), rbnode);
-                conhash->ivnodes++;
-            }
+            util_rbtree_insert(&(conhash->vnode_tree), rbnode);
+            conhash->ivnodes++; 
         }
     }
 }
@@ -68,13 +65,13 @@ void __conhash_del_replicas(struct conhash_s *conhash, struct node_s *node)
 {
     u_int i, len;
     long hash;
-    char buff[128];
+    u_int buff;
     struct virtual_node_s *vnode;
     util_rbtree_node_t *rbnode;
     for(i = 0; i < node->replicas; i++)
     {
         /* calc hash value of all virtual nodes */
-        __conhash_node2string(node, i, buff, &len);
+        __conhash_node2string(node, i, &buff, &len);
         hash = conhash->cb_hashfunc(buff);
         rbnode = util_rbtree_search(&(conhash->vnode_tree), hash);
         if(rbnode != NULL)

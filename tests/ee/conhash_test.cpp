@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../third_party/cpp/libconhash/conhash.h"
-#include "../../third_party/cpp/libconhash/conhash_main.h"
+#include "/gpfs/main/home/yang/cs227/h-store/src/ee/hasher/conhash.h"
 int main()
 {
 	Conhash *test = new Conhash(10);
@@ -20,7 +19,7 @@ int main()
 		for(i = 0; i < mapIndex; i ++){
 			printf("partition %d\t hash: %u\n", i, map[i]);
 		}*/
-		struct node_s *node;
+		const struct node_s *node;
 		for(i=0; i<10; i++){
 			sprintf(str, "%d", i);
 			node = test->lookup(str);

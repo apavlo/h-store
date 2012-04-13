@@ -26,7 +26,7 @@ struct conhash_s
 {
 	util_rbtree_t vnode_tree; /* rbtree of virtual nodes */
     u_int ivnodes; /* virtual node number */
-	long (*cb_hashfunc)(const char *);
+	long (*cb_hashfunc)(const u_int);
 };
 
 struct __get_vnodes_s
@@ -38,8 +38,9 @@ struct __get_vnodes_s
 
 int __conhash_vnode_cmp(const void *v1, const void *v2);
 
-void __conhash_node2string(const struct node_s *node, u_int replica_idx, char buf[128], u_int *len);
+void __conhash_node2string(const struct node_s *node, u_int replica_idx, u_int *buf, u_int *len);
 long __conhash_hash_def(const char *instr);
+long __conhash_hash_java_def(const u_int object);
 void __conhash_add_replicas(struct conhash_s *conhash, struct node_s *node);
 void __conhash_del_replicas(struct conhash_s *conhash, struct node_s *node);
 
