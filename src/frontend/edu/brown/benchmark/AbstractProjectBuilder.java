@@ -41,6 +41,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     protected final String partitioning[][];
     
     private URL ddlURL;
+    private final File parameterMappings;
     
     protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
 
@@ -85,6 +86,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         this.supplementals = supplementals;
         
         this.ddlURL = this.base_class.getResource(this.getDDLName(true));
+        this.parameterMappings = this.getParameterMappings();
     }
     
     public void addTransactionFrequency(Class<? extends VoltProcedure> procClass, int frequency) {
@@ -125,6 +127,18 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (this.project_name + "-ddl" + ".sql");
     }
     
+    public final File getParameterMappings() {
+        File file = null;
+        String name = this.project_name + ".mappings";
+        URL url = this.base_class.getResource(name);
+        if (debug.get())
+            LOG.debug(this.project_name.toUpperCase() + ": " + url);
+        if (url != null) {
+            file = new File(url.getPath());
+        }
+        return (file);
+    }
+    
     /**
      * Get the base file name for this benchmark's project jar
      * The file name will include a test suffix if it is being used in unit tests
@@ -161,6 +175,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     public void addAllDefaults() {
         addProcedures(this.procedures);
         addSchema(this.ddlURL);
+        addParameterMappings(this.parameterMappings);
         addPartitions();
     }
     

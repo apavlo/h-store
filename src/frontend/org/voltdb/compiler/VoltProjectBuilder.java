@@ -385,7 +385,7 @@ public class VoltProjectBuilder {
      * populate the Catalog after it has been created.
      * @param mappingsFile
      */
-    public void setParameterMappings(File mappingsFile) {
+    public void addParameterMappings(File mappingsFile) {
         assert(mappingsFile != null) :
             "Invalid ParameterMappingsSet file";
         assert(mappingsFile.exists()) :
