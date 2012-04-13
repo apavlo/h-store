@@ -24,6 +24,8 @@
 package org.voltdb.regressionsuites;
 
 import java.io.IOException;
+import java.util.Random;
+import java.util.regex.Pattern;
 
 import junit.framework.Test;
 
@@ -31,13 +33,23 @@ import org.voltdb.BackendTarget;
 import org.voltdb.TPCDataPrinter;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
+import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.VoltTypeUtil;
+
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * Run each of the main procedures from TPC-C one or more times
@@ -62,7 +74,8 @@ public class TestTPCCSuite extends RegressionSuite {
      * Supplemental classes needed by TPC-C procs.
      */
     public static final Class<?>[] SUPPLEMENTALS = {
-        ByteBuilder.class, TPCCConstants.class };
+        ByteBuilder.class, TPCCConstants.class
+    };
 
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -80,31 +93,31 @@ public class TestTPCCSuite extends RegressionSuite {
             TimestampType timestamp = new TimestampType();
 
             results = client.callProcedure("InsertWarehouse", 8L, "EZ Street WHouse", "Headquarters", "77 Mass. Ave.", "Cambridge", "AZ", "12938", .1234, 18837.57).getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertDistrict", 7L, 3L, "A District", "Street Addy", "meh", "westerfield", "BA", "99999", .0825, 15241.45, 21L).getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertItem", 5L, 21L, "An Item", 7.33, "Some Data").getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(m_config.getPartitionCount(), results[0].asScalarLong());
 
             results = client.callProcedure("InsertCustomer", 2L, 7L, 8L, "I", "Is", "Name", "Place", "Place2", "BiggerPlace", "AL", "91083", "(913) 909 - 0928", new TimestampType(), "GC", 19298943.12, .13, 15.75, 18832.45, 45L, 15L, "Some History").getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertHistory", 13L, 2L, 7L, 5L, 6L, timestamp, 23.334, "Some History").getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertStock", 5L, 3L, 45L, "INFO", "INFO", "INFO", "INFO", "INFO", "INFO", "INFO", "INFO", "INFO", "INFO", 5582L, 152L, 32L, "DATA").getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertOrders", 2L, 7L, 5L, 6L, timestamp, 2L, 7L, 5L).getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertNewOrder", 7L, 5L, 6L).getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             results = client.callProcedure("InsertOrderLine", 6L, 7L, 3L, 1L, 4L, 3L, timestamp, 45L, 152.15, "blah blah blah").getResults();
-            assertTrue(results[0].asScalarLong() == 1L);
+            assertEquals(1L, results[0].asScalarLong());
 
             TPCDataPrinter.printAllData(client);
 
@@ -155,7 +168,7 @@ public class TestTPCCSuite extends RegressionSuite {
 
         try {
             // We expect this to fail because the stock table is empty.
-            results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 1L).getResults();
+            results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 1).getResults();
 
             //
             // If this is true SLEV procedure, then we want to check that we got nothing
@@ -213,13 +226,23 @@ public class TestTPCCSuite extends RegressionSuite {
                 "INFO", "INFO", 5582L, 152L, 32L, "DATA").getResults();
         assertEquals(1L, is2results[0].asScalarLong());
 
-        results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 5000).getResults();
+        ClientResponse cr = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 5000);
+        assertEquals(Status.OK, cr.getStatus());
+        results = cr.getResults();
         // check one table was returned
         assertEquals(1, results.length);
         // check one tuple was modified
         result = results[0];
         assertNotNull(result);
         stockCount = result.asScalarLong();
+        
+//        cr = client.callProcedure("GetOrderLineCount");
+//        System.err.println(cr.toString());
+//        
+//        cr = client.callProcedure("GetStockCount");
+//        System.err.println(cr.toString());
+//        
+        
         // check count is 2, (not 3 or 1).
         assertEquals(2L, stockCount);
     }
@@ -285,8 +308,11 @@ public class TestTPCCSuite extends RegressionSuite {
 
         final double PRICE = 2341.23;
         // long i_id, long i_im_id, String i_name, double i_price, String i_data
-        VoltTable item1 = client.callProcedure("InsertItem", 4L, 4L, "ITEM1",
-                PRICE, TPCCConstants.ORIGINAL_STRING).getResults()[0];
+        ClientResponse cr = 
+        client.callProcedure("InsertItem", 4L, 4L, "ITEM1",
+                PRICE, TPCCConstants.ORIGINAL_STRING);
+        VoltTable item1 = cr.getResults()[0];
+        
         VoltTable item2 = client.callProcedure("InsertItem", 5L, 5L, "ITEM2",
                 PRICE, TPCCConstants.ORIGINAL_STRING).getResults()[0];
         VoltTable item3 = client.callProcedure("InsertItem", 6L, 6L, "ITEM3",
@@ -295,9 +321,11 @@ public class TestTPCCSuite extends RegressionSuite {
         assertEquals(1L, stock1.asScalarLong());
         assertEquals(1L, stock2.asScalarLong());
         assertEquals(1L, stock3.asScalarLong());
-        assertEquals(1L, item1.asScalarLong());
-        assertEquals(1L, item2.asScalarLong());
-        assertEquals(1L, item3.asScalarLong());
+//        assertEquals(1L, item1.asScalarLong());
+//        assertEquals(1L, item2.asScalarLong());
+        assertEquals(m_config.getPartitionCount(), item1.asScalarLong());
+        assertEquals(m_config.getPartitionCount(), item2.asScalarLong());
+        assertEquals(m_config.getPartitionCount(), item3.asScalarLong());
 
         // call the neworder transaction:
         // if(ol_supply_w_id != w_id) all_local = 0;
@@ -311,7 +339,7 @@ public class TestTPCCSuite extends RegressionSuite {
 
         TPCDataPrinter.printAllData(client);
         TimestampType timestamp = new TimestampType();
-        VoltTable[] neworder = client.callProcedure("neworder", W_ID, D_ID, C_ID,
+        VoltTable[] neworder = client.callProcedure(TPCCConstants.NEWORDER, W_ID, D_ID, C_ID,
                 timestamp, items, warehouses, quantities).getResults();
 
         // Now to check returns are correct. We assume that inserts and such
@@ -443,8 +471,8 @@ public class TestTPCCSuite extends RegressionSuite {
         // long d_id, long w_id, double h_amount, String c_last, long c_w_id,
         // long c_d_id
         final double paymentAmount = 500.25;
-        VoltTable[] results = client.callProcedure("paymentByCustomerName", W_ID,
-                D_ID, paymentAmount, W_ID, D_ID, "Customer".getBytes("UTF-8"), new TimestampType()).getResults();
+        VoltTable[] results = client.callProcedure(TPCCConstants.PAYMENT_BY_NAME, W_ID,
+                D_ID, paymentAmount, W_ID, D_ID, "Customer", new TimestampType()).getResults();
         assertEquals(3, results.length);
         // check that the middle "Customer" was returned
         assertEquals(C_ID + 1, results[2].fetchRow(0).getLong("c_id"));
@@ -581,8 +609,8 @@ public class TestTPCCSuite extends RegressionSuite {
         // long d_id, long w_id, double h_amount, String c_last, long c_w_id,
         // long c_d_id
         // w_id =Warehouse2 but c_w_id=warehouse1 !
-        VoltTable[] results = client.callProcedure("paymentByCustomerName", W2_ID,
-                D2_ID, paymentAmount, W_ID, D_ID, "Customer".getBytes("UTF-8"), new TimestampType()).getResults();
+        VoltTable[] results = client.callProcedure(TPCCConstants.PAYMENT_BY_NAME, W2_ID,
+                D2_ID, paymentAmount, W_ID, D_ID, "Customer", new TimestampType()).getResults();
         assertEquals(3, results.length);
         assertTrue(results[0].getRowCount() > 0);
         // only customer2 should be returned as this is a query on warehouse1
@@ -684,7 +712,7 @@ public class TestTPCCSuite extends RegressionSuite {
         TPCDataPrinter.printAllData(client);
 
         VoltTable[] results = client.callProcedure("ostatByCustomerName", (byte)3, (byte)7,
-                "Customer".getBytes("UTF-8")).getResults();
+                "Customer").getResults();
         assertEquals(3, results.length);
 
         results = client.callProcedure("ostatByCustomerId", (byte)3, (byte)7, 5).getResults();
@@ -741,7 +769,7 @@ public class TestTPCCSuite extends RegressionSuite {
         System.out.println("DATA before DELIVERY transaction");
         TPCDataPrinter.printAllData(client);
 
-        VoltTable[] results = client.callProcedure("delivery", W_ID, 10,
+        VoltTable[] results = client.callProcedure(TPCCConstants.DELIVERY, W_ID, 10,
                 new TimestampType()).getResults();
 
         System.out.println("DATA after DELIVERY transaction");
@@ -753,6 +781,57 @@ public class TestTPCCSuite extends RegressionSuite {
         assertEquals(D_ID, r.getLong(0));
         assertEquals(O_ID, r.getLong(1));
     }
+    
+    public void testTABLECOUNTS() throws IOException, ProcCallException {
+        Client client = getClient();
+        ClientResponse cr = null;
+        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        
+        Random rand = new Random();
+        int num_tuples = 11;
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+            int num_cols = catalog_tbl.getColumns().size();
+            VoltType types[] = new VoltType[num_cols];
+            int maxSizes[] = new int[num_cols];
+            for (Column catalog_col : catalog_tbl.getColumns()) {
+                int idx = catalog_col.getIndex();
+                types[idx] = VoltType.get(catalog_col.getType());
+                if (types[idx] == VoltType.STRING) {
+                    maxSizes[idx] = catalog_col.getSize();
+                }
+            } // FOR
+            
+            for (int i = 0; i < num_tuples; i++) {
+                Object row[] = new Object[num_cols];
+                for (int col = 0; col < num_cols; col++) {
+                    row[col] = VoltTypeUtil.getRandomValue(types[col], rand);
+                    if (types[col] == VoltType.STRING) {
+                        if (row[col].toString().length() >= maxSizes[col]) {
+                            row[col] = row[col].toString().substring(0, maxSizes[col]-1);
+                        }
+                    }
+                } // FOR (col)
+                vt.addRow(row);
+            } // FOR (row)
+//            System.err.printf("Loading %d rows for %s\n%s\n\n", vt.getRowCount(), catalog_tbl, vt.toString());
+            cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+            assertEquals(Status.OK, cr.getStatus());
+        } // FOR (table)
+        
+        // Now get the counts for the tables that we just loaded
+        cr = client.callProcedure(GetTableCounts.class.getSimpleName());
+        System.err.println(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        assertEquals(1, cr.getResults().length);
+        VoltTable vt = cr.getResults()[0];
+        while (vt.advanceRow()) {
+            String tableName = vt.getString(0);
+            int count = (int)vt.getLong(1);
+            assertEquals(tableName, num_tuples, count);
+        } // WHILE
+    }
+        
 
     /**
      * Build a list of the tests that will be run when TestTPCCSuite gets run by JUnit.
@@ -768,23 +847,46 @@ public class TestTPCCSuite extends RegressionSuite {
 
         // build up a project builder for the TPC-C app
         TPCCProjectBuilder project = new TPCCProjectBuilder();
-        //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
         project.addDefaultSchema();
         project.addDefaultProcedures();
         project.addDefaultPartitioning();
         project.addSupplementalClasses(SUPPLEMENTALS);
+        
+        project.addStmtProcedure("InsertCustomer", "INSERT INTO CUSTOMER VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "CUSTOMER.C_W_ID: 2");
+        project.addStmtProcedure("InsertWarehouse", "INSERT INTO WAREHOUSE VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);", "WAREHOUSE.W_ID: 0");
+        project.addStmtProcedure("InsertStock", "INSERT INTO STOCK VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "STOCK.S_W_ID: 1");
+        project.addStmtProcedure("InsertOrders", "INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?, ?, ?, ?);", "ORDERS.O_W_ID: 2");
+        project.addStmtProcedure("InsertOrderLine", "INSERT INTO ORDER_LINE VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "ORDER_LINE.OL_W_ID: 2");
+        project.addStmtProcedure("InsertNewOrder", "INSERT INTO NEW_ORDER VALUES (?, ?, ?);", "NEW_ORDER.NO_W_ID: 2");
+        project.addStmtProcedure("InsertItem", "INSERT INTO ITEM VALUES (?, ?, ?, ?, ?);");
+        project.addStmtProcedure("InsertHistory", "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?);", "HISTORY.H_W_ID: 4");
+        project.addStmtProcedure("InsertDistrict", "INSERT INTO DISTRICT VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "DISTRICT.D_W_ID: 1");
+        project.addStmtProcedure("InsertCustomerName", "INSERT INTO CUSTOMER_NAME VALUES (?, ?, ?, ?, ?);");
 
+        // Remove any MapReduce and OLAP transactions
+        project.removeProcedures(Pattern.compile("^MR.*", Pattern.CASE_INSENSITIVE));
+        project.removeProcedures(Pattern.compile("^OLAP.*", Pattern.CASE_INSENSITIVE));
+        
+        boolean success;
+        
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
-        config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_JNI);
-        //config = new LocalSingleProcessServer("tpcc.jar", 1, BackendTarget.NATIVE_EE_IPC);
-        boolean success = config.compile(project);
+        config = new LocalSingleProcessServer("tpcc-1part.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
+        
+        /////////////////////////////////////////////////////////////
+        // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
+        /////////////////////////////////////////////////////////////
+//        config = new LocalSingleProcessServer("tpcc-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
 
         ////////////////////////////////////////////////////////////
-        // CONFIG #2: cluster of 2 nodes running 2 site each, one replica
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
         ////////////////////////////////////////////////////////////
         config = new LocalCluster("tpcc-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
         success = config.compile(project);

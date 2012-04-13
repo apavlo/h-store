@@ -19,6 +19,7 @@ begin Cluster           "A set of connected hosts running one or more database a
 end
 
 begin Host      "A single host participating in the cluster"
+    int id             "Unique host id"
     string ipaddr "The ip address or hostname of the host"
     int num_cpus  "The max number of cpus on this host"
     int corespercpu "The number of cores per CPU on this host"

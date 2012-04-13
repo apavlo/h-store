@@ -32,6 +32,7 @@ import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -49,6 +50,7 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private final TransactionWorkCallback fragment_callback;
     private final TransactionCleanupCallback cleanup_callback;
+    private ProtoRpcController rpc_transactionPrefetch;
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
@@ -65,6 +67,10 @@ public class RemoteTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
         this.cleanup_callback.finish();
+        if (this.rpc_transactionPrefetch != null) {
+            this.rpc_transactionPrefetch.startCancel();
+            this.rpc_transactionPrefetch = null;
+        }
     }
     
     @Override
@@ -88,6 +94,12 @@ public class RemoteTransaction extends AbstractTransaction {
         return (this.cleanup_callback);
     }
 
+    public ProtoRpcController getTransactionPrefetchController() {
+        assert(this.rpc_transactionPrefetch == null);
+        this.rpc_transactionPrefetch = new ProtoRpcController();
+        return (this.rpc_transactionPrefetch);
+    }
+    
     @Override
     public String toString() {
         if (this.isInitialized()) {

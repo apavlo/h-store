@@ -225,7 +225,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         m_currentTxnState = txnState;
     }
 
-    public AbstractTransaction getTransactionState() {
+    /**
+     * Get the Transaction state handle for the current invocation
+     * This should only be used for debugging
+     * @return
+     */
+    protected final AbstractTransaction getTransactionState() {
         return m_currentTxnState;
     }
     
@@ -688,6 +693,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
             hstore_site.getHStoreCoordinator().shutdownCluster(ex);
         } finally {
+            this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
             this.param_cache.reset();
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
@@ -1171,7 +1177,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
 
             // Block until we get all of our responses.
-            results = this.executor.dispatchWorkFragments(this.m_localTxnState, this.partitionFragments, params);
+            results = this.executor.dispatchWorkFragments(this.m_localTxnState, batchSize, this.partitionFragments, params);
         }
         if (d && results == null)
             LOG.warn("Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString());
@@ -1324,7 +1330,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
          * Constructor requires no args because it has access to the enclosing classes members.
          */
         public ProcedureStatsCollector() {
-            super("XXX", 1);
+            super("XXX", 1, false);
 //            super(m_site.getCorrespondingSiteId() + " " + catProc.getClassname(),
 //                  m_site.getCorrespondingSiteId());
         }

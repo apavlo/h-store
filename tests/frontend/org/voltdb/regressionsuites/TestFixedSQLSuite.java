@@ -1004,11 +1004,10 @@ public class TestFixedSQLSuite extends RegressionSuite {
         builder.addServerConfig(config);*/
 
         // CLUSTER!
-        // 2012-03-16 - DISABLED UNTIL WE GET A BETTER BUILD AND TEST SERVER
-//        config = new LocalCluster("fixedsql-cluster.jar", 2, 2,
-//                                  1, BackendTarget.NATIVE_EE_JNI);
-//        config.compile(project);
-//        builder.addServerConfig(config);
+        config = new LocalCluster("fixedsql-cluster.jar", 2, 2,
+                                  1, BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
 
         return builder;
     }

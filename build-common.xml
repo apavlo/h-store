@@ -1,11 +1,14 @@
 <!-- GLOBAL -->
 <arg value="global.temp_dir=${global.temp_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
+<arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
+<arg value="global.hasherClass=${global.hasherClass}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
 <arg value="client.log_backup=${client.log_backup}" />
+<arg value="client.jar_dir=${client.jar_dir}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
 <arg value="client.txnrate=${client.txnrate}" />
@@ -45,6 +48,7 @@
 <arg value="site.log_dir=${site.log_dir}" />
 <arg value="site.log_backup=${site.log_backup}" />
 <arg value="site.memory=${site.memory}" />
+<arg value="site.preload=${site.preload}" />
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
 <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
@@ -56,6 +60,7 @@
 <arg value="site.exec_avoid_coordinator=${site.exec_avoid_coordinator}" />
 <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
 <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
+<arg value="site.exec_voltdb_procinfo=${site.exec_voltdb_procinfo}" />
 <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
 <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
 <arg value="site.exec_postprocessing_thread=${site.exec_postprocessing_thread}" />
@@ -63,6 +68,7 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
+<arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.mapreduce_reduce_blocking=${site.mapreduce_reduce_blocking}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
@@ -116,6 +122,7 @@
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
 <arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
+<arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
 <arg value="site.pool_txninit_idle=${site.pool_txninit_idle}" />

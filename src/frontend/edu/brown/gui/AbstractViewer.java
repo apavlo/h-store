@@ -60,7 +60,7 @@ public abstract class AbstractViewer extends JFrame {
     // WINDOW OPTIONS
     // ----------------------------------------------
     public static final Integer DEFAULT_WINDOW_WIDTH  = 800;
-    public static final Integer DEFAULT_WINDOW_HEIGHT = 800;
+    public static final Integer DEFAULT_WINDOW_HEIGHT = 850;
     
     // ----------------------------------------------
     // MENU OPTIONS

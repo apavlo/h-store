@@ -319,6 +319,10 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         buf.rewind();
         return buf;
     }
+    
+    public ByteBuffer getDirectDataReference() {
+        return (m_buffer);
+    }
 
     /**
      * Delete all row data. Column data is preserved.
@@ -558,7 +562,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         final Object[] values = new Object[m_colCount];
         for (int i = 0; i < m_colCount; i++) {
             try {
-                values[i] = row.get(i, getColumnType(i));
+                values[i] = row.get(i); // , getColumnType(i));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -916,27 +920,32 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         StringBuffer buffer = new StringBuffer();
 
         // commented out code to print byte by byte content
-        /*for (int i = 0; i < m_buffer.limit(); i++) {
-            byte b = m_buffer.get(i);
-            char c = (char) b;
-            if (Character.isLetterOrDigit(c))
-                buffer.append(c);
-            else
-                buffer.append("[").append(b).append("]");
-            buffer.append(" ");
-        }
-        buffer.append("\n");*/
+//        for (int i = 0; i < m_buffer.limit(); i++) {
+//            byte b = m_buffer.get(i);
+//            char c = (char) b;
+//            if (Character.isLetterOrDigit(c))
+//                buffer.append(c);
+//            else
+//                buffer.append("[").append(b).append("]");
+//            buffer.append(" ");
+//        }
+//        buffer.append("\n");
 
-        // buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
+//        buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
 
 //        byte statusCode = m_buffer.get(4);
 //        buffer.append(" status code: ").append(statusCode);
 
-        short colCount = m_buffer.getShort(5);
-        buffer.append(" column count: ").append(colCount).append("\n");
-        assert(colCount == m_colCount);
+//        buffer.append(" bytes: ")
+//              .append(m_buffer.limit())
+//              .append(" / ")
+//              .append(m_buffer.array().length)
+//              .append("\n");
         
-        buffer.append(" cols ");
+        short colCount = m_buffer.getShort(5);
+//        buffer.append(" column count: ").append(colCount).append("\n");
+        assert(colCount == m_colCount);
+        buffer.append(String.format(" cols[%d] ", colCount));
         for (int i = 0; i < colCount; i++)
             buffer.append("(").append(getColumnName(i)).append(":").append(getColumnType(i).name()).append("), ");
         buffer.append("\n");
@@ -998,6 +1007,9 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                     }
                 }
                 buffer.append("\n");
+//                buffer.append("Final Position: ").append(m_buffer.position()).append("\n");
+//                if (m_buffer.hasRemaining())
+//                    buffer.append("WARN: There are still " + m_buffer.remaining() + " bytes left!\n");
             }
         } else {
             buffer.append(" rows - " + this.getRowCount() + "\n");
@@ -1144,7 +1156,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     @Override
     public int getRowSize() {
         // FIXME
-        int total_size = VoltTable.this.getUnderlyingBufferSize();
+        int total_size = this.getUnderlyingBufferSize();
         return (total_size / m_rowCount);
     }
 

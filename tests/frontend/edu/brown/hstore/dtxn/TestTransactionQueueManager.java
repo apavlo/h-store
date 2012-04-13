@@ -71,7 +71,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assert(ret);
         
         int tries = 10;
-        while (queue.isEmpty() == false && tries-- > 0) {
+        while (queue.isLockQueuesEmpty() == false && tries-- > 0) {
             queue.checkLockQueues();
             ThreadUtil.sleep(100);
         }
@@ -124,7 +124,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         t.setUncaughtExceptionHandler(this);
         t.start();
         
-        while (queue.isEmpty() == false) {
+        while (queue.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }
@@ -196,11 +196,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
         while (queue.checkLockQueues() == false) {
             ThreadUtil.sleep(10);
         }
-        assertTrue(queue.isEmpty());
+        assertTrue(queue.isLockQueuesEmpty());
         
         // add the third txn and wait for it
         this.queue.lockInsert(txn_id2, partitions2, outer_callback2);
-        while (queue.isEmpty() == false) {
+        while (queue.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }
@@ -262,9 +262,9 @@ public class TestTransactionQueueManager extends BaseTestCase {
         while (queue.checkLockQueues() == false) {
             ThreadUtil.sleep(10);
         }
-        assertFalse(queue.isEmpty());
+        assertFalse(queue.isLockQueuesEmpty());
         
-        while (queue.isEmpty() == false) {
+        while (queue.isLockQueuesEmpty() == false) {
             queue.checkLockQueues();
             ThreadUtil.sleep(10);
         }

@@ -47,7 +47,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     @Override
     public void run(TransactionRedirectResponse parameter) {
         if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
-                                                          HStoreThreadManager.formatSiteName(parameter.getSenderId()), parameter.getOutput().size()));
+                                                          HStoreThreadManager.formatSiteName(parameter.getSenderSite()), parameter.getOutput().size()));
         byte data[] = parameter.getOutput().toByteArray();
         try {
             this.orig_callback.run(data);

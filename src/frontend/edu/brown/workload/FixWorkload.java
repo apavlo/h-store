@@ -9,7 +9,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ParametersUtil;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution;

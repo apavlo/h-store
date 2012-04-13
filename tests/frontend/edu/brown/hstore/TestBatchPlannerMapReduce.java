@@ -11,7 +11,6 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.types.QueryType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
@@ -32,7 +31,6 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final int LOCAL_PARTITION = 0;
-    private static final int REMOTE_PARTITION = 0;
     private static final int NUM_PARTITIONS = 10;
     
     private Procedure catalog_proc;
@@ -54,14 +52,8 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertNotNull(this.catalog_proc);
         this.catalog_stmt = this.catalog_proc.getStatements().get(stmt_name);
         assertNotNull(this.catalog_stmt);
-        
-        CatalogMap<PlanFragment> fragments = null;
-        if (this.catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) {
-            fragments = this.catalog_stmt.getFragments();
-        } else {
-            assert(this.catalog_stmt.getHas_multisited());
-            fragments = this.catalog_stmt.getMs_fragments();
-        }
+        assertTrue(this.catalog_stmt.fullName(), this.catalog_stmt.getHas_singlesited());
+        CatalogMap<PlanFragment> fragments = this.catalog_stmt.getFragments();
 
         // Create a SQLStmt batch
         this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, fragments) };
