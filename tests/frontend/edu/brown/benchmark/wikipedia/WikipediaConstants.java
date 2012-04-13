@@ -36,6 +36,8 @@ public abstract class WikipediaConstants {
 	
 	public static final String UPDATEPAGE_LOG_ACTION = "patrol";
 	
+	public static final int CLIENT_NEXT_ID_OFFSET = 100000;
+	
     // -----------------------------------------------------------------
     // GET PAGE OUTPUT COLUMNS
     // -----------------------------------------------------------------
