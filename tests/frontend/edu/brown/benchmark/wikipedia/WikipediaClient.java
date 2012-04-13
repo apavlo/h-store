@@ -37,6 +37,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final Flat usersRng;
 //	final int num_users;
 	private Random randGenerator = new Random();
+	private int nextRevId;
 	
 //	public WikipediaClient(int id, WikipediaProjectBuilder benchmarkModule,
 //	                       TransactionGenerator<WikipediaOperation> generator) {
@@ -46,11 +47,13 @@ public class WikipediaClient extends BenchmarkComponent {
 //		this.usersRng = new Flat(randGenerator, 1, this.num_users);
 //	}
 	
-	 public WikipediaClient(String[] args) {
-	        super(args);
-	        for (String key : m_extraParams.keySet()) {
-	            // TODO: Retrieve extra configuration parameters
-	        } // FOR
+    public WikipediaClient(String[] args) {
+        super(args);
+        for (String key : m_extraParams.keySet()) {
+            // TODO: Retrieve extra configuration parameters
+        } // FOR
+        
+        this.nextRevId = this.getClientId() * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
 	 }
 	
 	
@@ -250,7 +253,6 @@ public class WikipediaClient extends BenchmarkComponent {
 //
 //	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
 //		Article a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
-//		conn.commit();
 //		
 //		// TODO: If the Article is null, then we want to insert a new page.
 //		//       But we don't support that right now.
@@ -269,7 +271,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	        LOG.trace("UPDATING: Page: id:"+a.pageId+" ns:"+nameSpace +" title"+ pageTitle);
 //		UpdatePage proc = this.getProcedure(UpdatePage.class);
 //        assert (proc != null);
-//        proc.run(conn, a.textId, a.pageId, pageTitle, new String(newText),
+//        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
 //                       nameSpace, userId, userIp, a.userText,
 //                       a.revisionId, revComment, revMinorEdit);
 //	}
