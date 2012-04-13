@@ -367,6 +367,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * FragmentTaskMessage (i.e., execute some fragments on behalf of another transaction)
      */
     private final PartitionExecutorQueue work_queue = new PartitionExecutorQueue();
+    
+    
+    /**
+     * This is the queue for work deferred .
+     */
+    private final PartitionExecutorDeferredQueue deferred_queue = new PartitionExecutorDeferredQueue();
         
     /**
      * Special wrapper around the PartitionExecutorQueue that can determine whether this
@@ -758,7 +764,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     work = this.work_queue.poll();
                     if (work == null) {
                         // See if there is anything that we can do while we wait
-                        this.utilityWork();
+                        // XXX this.utilityWork(null);
                         
                         if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
@@ -927,15 +933,25 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Special function that allows us to do some utility work while 
      * we are waiting for a response or something real to do.
      */
-    protected void utilityWork() {
-        // Try to free some memory
-        this.tmp_fragmentParams.reset();
-        this.tmp_serializedParams.clear();
-        this.tmp_EEdependencies.clear();
+    protected void utilityWork(CountDownLatch dtxnLatch) {
         
-//        while (this.work_queue.isEmpty()) {
-//            
-//        }
+        
+       /* We need to start popping from the deferred_queue here. There is no need
+        * for a while loop if we're going to requeue each popped txn in wthe work_queue,
+        * because we know we this.work_queue.isEmpty() will be false as soon as we
+        * pop one local txn off of deferred_queue. We will arrive back in utilityWork() 
+        * when that txn finishes if no new txn's have entered.*/
+    	do {
+    		LocalTransaction ts = deferred_queue.poll();
+    		if (ts == null) break;
+    		this.queueNewTransaction(ts);
+        } while ((dtxnLatch != null && dtxnLatch.getCount() > 0) || (dtxnLatch == null && this.work_queue.isEmpty()));
+        //while (this.work_queue.isEmpty()) {
+        //}
+	     // Try to free some memory
+//	        this.tmp_fragmentParams.reset();
+//	        this.tmp_serializedParams.clear();
+//	        this.tmp_EEdependencies.clear();
     }
 
     public void tick() {
@@ -1256,9 +1272,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.currentExecMode != ExecutionMode.DISABLED) {
             if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             success = this.work_throttler.offer(task, false);
-            
         // Otherwise figure out whether this txn needs to be blocked or not
-        } else {
+        }
+        else {
             if (d) LOG.debug(String.format("%s - Attempting to add %s to partition %d queue [currentTxn=%s]",
                                            ts, task.getClass().getSimpleName(), this.partitionId, this.currentTxnId));
             
@@ -2606,6 +2622,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
             boolean done = false;
+            // XXX this.utilityWork(latch);
             try {
                 done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
