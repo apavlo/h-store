@@ -36,6 +36,7 @@ public class Procedure extends CatalogType {
     boolean m_systemproc;
     boolean m_mapreduce;
     boolean m_prefetch;
+    boolean m_deferred;
     String m_mapInputQuery = new String();
     String m_mapEmitTable = new String();
     String m_reduceInputQuery = new String();
@@ -254,6 +255,11 @@ public class Procedure extends CatalogType {
         m_prefetch = value; m_fields.put("prefetch", value);
     }
 
+    /** SETTER: Does this Procedure have Statements can be pre-fetched for distributed transactions? */
+    public void setDeferred(boolean value) {
+        m_deferred = value; m_fields.put("deferred", value);
+    }
+    
     /** SETTER: The name of the query that gets executed and fed into the Map function */
     public void setMapinputquery(String value) {
         m_mapInputQuery = value; m_fields.put("mapInputQuery", value);
