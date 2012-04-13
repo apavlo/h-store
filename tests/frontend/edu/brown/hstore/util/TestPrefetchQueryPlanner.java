@@ -63,8 +63,8 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
         Procedure catalog_proc = this.getProcedure(TARGET_PREFETCH_PROCEDURE);
         Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_PREFETCH_STATEMENT);
-        catalog_stmt.setPrefetch(true);
-        catalog_proc.setPrefetch(true);
+        catalog_stmt.setPrefetchable(true);
+        catalog_proc.setPrefetchable(true);
 
         // Hard-code ParameterMapping
         int mappings[][] = {

@@ -253,7 +253,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (hstore_conf.site.exec_prefetch_queries) {
             boolean has_prefetch = false;
             for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-                if (catalog_proc.getPrefetch()) {
+                if (catalog_proc.getPrefetchable()) {
                     has_prefetch = true;
                     break;
                 }
@@ -702,7 +702,7 @@ public class HStoreCoordinator implements Shutdownable {
         // then embed them in the TransactionInitRequest
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
-        if (ts.getProcedure().getPrefetch()) {
+        if (ts.getProcedure().getPrefetchable()) {
             if (debug.get()) LOG.debug(String.format("%s - Generating TransactionInitRequests with prefetchable queries", ts));
             
             // Make sure that we initialize our internal PrefetchState for this txn
