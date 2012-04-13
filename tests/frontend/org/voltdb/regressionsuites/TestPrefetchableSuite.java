@@ -43,7 +43,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         int prefetch_ctr = 0;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             assertNotNull(catalog_stmt);
-            if (catalog_stmt.getPrefetch()) prefetch_ctr++;
+            if (catalog_stmt.getPrefetchable()) prefetch_ctr++;
         } // FOR
         assertEquals(1, prefetch_ctr);
         
