@@ -1,5 +1,41 @@
 {"MAPPINGS": [
  {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'slev':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
   "STATEMENT": "{'slev':'GetOId'}",
   "STATEMENT_INDEX": 0,
   "STATEMENT_PARAMETER": "{'slev.GetOId':'1'}",

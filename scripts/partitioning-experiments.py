@@ -568,7 +568,7 @@ if __name__ == '__main__':
     for key in statsParams:
         optParam = "statsdatabase-%s" % key.lower()
         if optParam in options and options[optParam][0]:
-            controllerParams["statsDatabase%s" % key] = options[optParam][0]
+            controllerParams["statsaDaktabase%s" % key] = options[optParam][0]
     ## FOR
     
     needUpdate = (OPT_NO_UPDATE == False)

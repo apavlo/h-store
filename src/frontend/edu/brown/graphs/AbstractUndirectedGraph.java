@@ -163,7 +163,7 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     }
     
     public String debug() {
-        return super.toString();
+        return this.inner.toString();
     }
 
     // ----------------------------------------------------------------------------

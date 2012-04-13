@@ -3,6 +3,7 @@ package edu.brown.graphs;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +14,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.algorithms.shortestpath.ShortestPathUtils;
 import edu.uci.ics.jung.algorithms.shortestpath.UnweightedShortestPath;
 import edu.uci.ics.jung.graph.util.EdgeType;
@@ -302,6 +304,14 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
         this.name = name;
     }
     
+    @Override
+    public String toString() {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        m.put("Vertices", StringUtil.join("\n", this.graph.getVertices()));
+        m.put("Edges", StringUtil.join("\n", this.graph.getEdges()));
+        return StringUtil.formatMaps(m);
+    }
+    
     public String toString(E e, boolean verbose) {
         String edge_marker = null;
         V source = null;
@@ -332,6 +342,6 @@ public class InnerGraphInformation<V extends AbstractVertex, E extends AbstractE
             source_lbl = source_lbl.substring(0, 2);
             dest_lbl = dest_lbl.substring(0, 2);
         }
-        return (String.format("%s %s %s", source_lbl, edge_marker, dest_lbl));
+        return (source_lbl + edge_marker + dest_lbl);
     }
 }
