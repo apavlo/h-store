@@ -138,7 +138,7 @@ CREATE INDEX IDX_RC_NS_USERTEXT ON recentchanges (rc_namespace,rc_user_text);
 CREATE INDEX IDX_RC_USER_TEXT ON recentchanges (rc_user_text,rc_timestamp);
 
 CREATE TABLE text (
-  old_id int DEFAULT '0' NOT NULL, -- TODO: Remove fixed id
+  old_id bigint NOT NULL,
   old_text varchar(1000000) NOT NULL,
   old_flags varchar(255) NOT NULL,
   old_page int NOT NULL REFERENCES page (page_id),
