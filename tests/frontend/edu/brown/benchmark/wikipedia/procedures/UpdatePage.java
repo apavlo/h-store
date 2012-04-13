@@ -36,9 +36,9 @@ public class UpdatePage extends VoltProcedure {
     
 	public SQLStmt insertText = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_TEXT + " (" +
-        "old_page,old_text,old_flags" + 
+        "old_id,old_page,old_text,old_flags" + 
         ") VALUES (" +
-        "?,?,?" +
+        "?,?,?,?" +
         ")"
     ); 
 	public SQLStmt insertRevision = new SQLStmt(
@@ -127,7 +127,7 @@ public class UpdatePage extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public long run( int textId, int pageId,
+	public long run( long nextId, int pageId,
 	                                 String pageTitle, String pageText, int pageNamespace,
 	                                 int userId, String userIp, String userText,
 	                                 int revisionId, String revComment, int revMinorEdit) {
@@ -137,18 +137,15 @@ public class UpdatePage extends VoltProcedure {
 	    final TimestampType timestamp = new TimestampType();
 	    
 	    // INSERT NEW TEXT
-		voltQueueSQL(insertText, pageId, pageText, "utf-8");
+		voltQueueSQL(insertText, nextId, pageId, pageText, "utf-8");
 		rs = voltExecuteSQL();
-
 		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
-		int nextTextId = (int)rs[0].getLong(0); // TODO: Pass in as argument to run()
-		
-		assert(nextTextId >= 0) : "Invalid nextTextId (" + nextTextId + ")";
 
 		// INSERT NEW REVISION
-		voltQueueSQL(insertRevision, pageId, 
-		                            nextTextId, 
+		voltQueueSQL(insertRevision, nextId,
+		                             pageId, 
+		                            nextId, 
 		                            revComment, 
 		                            revMinorEdit,
 		                            userId, 
@@ -189,8 +186,8 @@ public class UpdatePage extends VoltProcedure {
 		                                  userId, 
 		                                  userText,
 		                                  revComment,
-		                                  nextTextId,
-		                                  textId, 
+//		                                  nextTextId, // FIXME :
+//		                                  textId,  // FIXME : auto_incremented key sent from client
 		                                  0, 
 		                                  0, 
 		                                  "", 
