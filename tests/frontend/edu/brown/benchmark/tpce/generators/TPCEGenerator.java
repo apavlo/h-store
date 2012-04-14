@@ -61,7 +61,7 @@ public class TPCEGenerator {
     private static final String MALEFNAME_FILE   = "MALEFIRSTNAME.txt";
     private static final String NONTAXACC_FILE   = "NONTAXABLEACCOUNTNAME.txt";
     private static final String SECTOR_FILE      = "SECTOR.txt";
-//    private static final String SECURITY_FILE    = "SECURITY.txt";
+    private static final String SECURITY_FILE    = "SECURITY.txt";
     private static final String STATUS_FILE      = "STATUS_TYPE.txt";
     private static final String STNAME_FILE      = "STREETNAME.txt";
     private static final String STSUFFIX_FILE    = "STREETSUFFIX.txt";
@@ -88,7 +88,7 @@ public class TPCEGenerator {
         MALEFNAME,
         NONTAXACC,
         SECTOR,
-//        SECURITY,
+        SECURITY,
         STATUS,
         STNAME,
         STSUFFIX,
@@ -126,6 +126,8 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, CustomerAccountsGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, AccountPermsGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_COMPANY, CompanyGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_COMPANY_COMPETITOR, CompanyCompetitorsGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE, CustomerTaxRatesGenerator.class);
     }
     
 /*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
@@ -165,6 +167,7 @@ public class TPCEGenerator {
         inputFiles.put(InputFile.INDUSTRY, new FlatFile(new File(inputDir + File.separator + INDUSTRY_FILE)));
         inputFiles.put(InputFile.NONTAXACC, new FlatFile(new File(inputDir + File.separator + NONTAXACC_FILE)));
         inputFiles.put(InputFile.SECTOR, new FlatFile(new File(inputDir + File.separator + SECTOR_FILE)));
+        inputFiles.put(InputFile.SECURITY, new FlatFile(new File(inputDir + File.separator + SECURITY_FILE)));
         inputFiles.put(InputFile.STATUS, new FlatFile(new File(inputDir + File.separator + STATUS_FILE)));
         inputFiles.put(InputFile.TAXACC, new FlatFile(new File(inputDir + File.separator + TAXACC_FILE)));
         inputFiles.put(InputFile.TRADETYPE, new FlatFile(new File(inputDir + File.separator + TRADETYPE_FILE)));
@@ -192,9 +195,14 @@ public class TPCEGenerator {
         return customerStartId;
     }
     
-    // the number of companies depends on the total number of companies
+    // the number of companies depends on the total number of customers
     public long getCompanyCount(long customersNum) {
         return customersNum / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANIES_PER_UNIT;
+    }
+    
+    // the number of company competitors depends on the total number of customers
+    public long getCompanyCompetitorCount(long customersNum) {
+        return customersNum / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_COMPANY_COMPETITORS_PER_UNIT;
     }
     
     public void parseInputFiles() {

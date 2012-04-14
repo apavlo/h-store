@@ -49,12 +49,11 @@ public class AddressGenerator extends TableGenerator {
     private static final int USACtryCode = 1;     //must be the same as the code in country tax rates file
     private static final int CanadaCtryCode = 2;  //must be the same as the code in country tax rates file
     
-    private final boolean customersOnly; // are we generating only customer addresses
     private final long customersNum;
     private final long customersStart;
     
     private long counter;
-    private final long totalAddresses; // not really "total", just the last row number for hasNext() purposes
+    private long totalAddresses; // not really "total", just the last row number for hasNext() purposes
     private boolean isCustomerAddress; // is the currently generated address for a customer?
     private final long exchangeCount;
     private final long companyCount;
@@ -75,13 +74,21 @@ public class AddressGenerator extends TableGenerator {
         
         customersNum = generator.getCustomersNum();
         customersStart = generator.getStartCustomer();
-        customersOnly = (customersStart != TPCEConstants.DEFAULT_START_CUSTOMER_ID);
         
         rnd = new EGenRandom(EGenRandom.RNG_SEED_TABLE_DEFAULT);
         
         exchangeCount = generator.getInputFile(InputFile.EXCHANGE).getRecordsNum();
         companyCount = generator.getCompanyCount(generator.getTotalCustomers());
         
+        streetFile = generator.getInputFile(InputFile.STNAME);
+        streetSuffFile = generator.getInputFile(InputFile.STSUFFIX);
+        zipFile = generator.getInputFile(InputFile.ZIPCODE);
+        
+        // if we are generating another portion of customers, do not generate exchange/company addresses
+        setCounter(customersStart != TPCEConstants.DEFAULT_START_CUSTOMER_ID);
+    }
+    
+    public void setCounter(boolean customersOnly) {
         if (customersOnly) {
             // assume we have already generated addresses for exchanges and companies
             counter = exchangeCount + companyCount + customersStart - 1;
@@ -91,17 +98,13 @@ public class AddressGenerator extends TableGenerator {
             counter = customersStart - 1;
             totalAddresses = counter + exchangeCount + companyCount + customersNum;
         }
-        
-        streetFile = generator.getInputFile(InputFile.STNAME);
-        streetSuffFile = generator.getInputFile(InputFile.STSUFFIX);
-        zipFile = generator.getInputFile(InputFile.ZIPCODE);
     }
     
     private void initNextLoadUnit() {
         rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT, counter * rngSkipOneRowAddress);
     }
 
-    private long generateAddrId() {
+    public long generateAddrId() {
         // if we are generating customer addresses, then reset the generator if needed
         if (counter > (exchangeCount + companyCount) &&
                 ((counter - (exchangeCount + companyCount)) % TPCEConstants.DEFAULT_LOAD_UNIT == 0)) {
@@ -112,6 +115,10 @@ public class AddressGenerator extends TableGenerator {
         
         isCustomerAddress = (counter >= exchangeCount + companyCount);
         
+        return counter + TPCEConstants.IDENT_SHIFT;
+    }
+    
+    public long getCurrentAddrId() {
         return counter + TPCEConstants.IDENT_SHIFT;
     }
     
@@ -156,6 +163,18 @@ public class AddressGenerator extends TableGenerator {
         else {
             return CanadaCtryCode;
         }
+    }
+    
+    // returns division and country codes (for tax rate)
+    public int[] getCountryAndDivCodes(long adId) {
+        int[] res = new int[2];
+        
+        String[] zipRecord = zipFile.getTupleByKey(getZipRecKey(adId));
+        
+        res[0] = getCountryCode(zipRecord[1]);  // country tax code
+        res[1] = Integer.valueOf(zipRecord[0]); // division tax code
+        
+        return res;
     }
     
     private String[] generateZipAndCountry(long adId) {

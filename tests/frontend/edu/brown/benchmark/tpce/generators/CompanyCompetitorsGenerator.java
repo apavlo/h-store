@@ -29,66 +29,54 @@
 
 package edu.brown.benchmark.tpce.generators;
 
-import java.util.List;
-
-import org.apache.log4j.Logger;
 import org.voltdb.catalog.Table;
 
+import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 
-public class TaxRateGenerator extends TableGenerator {
-    private final InputFileHandler tr_country_file;
-    private final InputFileHandler tr_div_file;
+public class CompanyCompetitorsGenerator extends TableGenerator {
     
-    private final int countrySize;
-    private final int divSize;
-    private int countryCnt = 0;
-    private int divCnt = 0;
-    private int tuplesCnt = 0;
+    private final long companyCompsTotal;
+    private final long companyCompsStart;
+    private long counter;
     
-    public TaxRateGenerator(Table catalog_tbl, TPCEGenerator generator) {
+    private final InputFileHandler compCompFile;
+    private final int compCompRecords; 
+
+    public CompanyCompetitorsGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
         
-        tr_country_file = generator.getInputFile(InputFile.TAXCOUNTRY);
-        tr_div_file = generator.getInputFile(InputFile.TAXDIV);
+        companyCompsTotal = generator.getCompanyCompetitorCount(generator.getCustomersNum());
+        companyCompsStart = generator.getCompanyCompetitorCount(generator.getStartCustomer());
         
-        countrySize = tr_country_file.getRecordsNum();
-        divSize = tr_div_file.getRecordsNum();
+        counter = companyCompsStart;
+        
+        compCompFile = generator.getInputFile(InputFile.COMPANYCOMP);
+        compCompRecords = compCompFile.getRecordsNum();
     }
     
     @Override
     public boolean hasNext() {
-        return (countryCnt < countrySize || divCnt < divSize);
+        return counter < companyCompsStart + companyCompsTotal;
     }
-    
+
     @Override
     public Object[] next() {
         Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
-        List<String[]> tuples;
         
-        if (countryCnt < countrySize) {
-            tuples = tr_country_file.getTuplesByIndex(countryCnt);
-        }
-        else {
-            tuples = tr_div_file.getTuplesByIndex(divCnt);
-        }
+        /*
+         * Note that the number of company competitors to generate may be more that the number in the file.
+         * That is why it wraps around every 15000 records (the number of records in the file).
+         */
+        String[] compCompRecord = compCompFile.getTupleByIndex((int)(counter % compCompRecords));
+        long coId = Long.valueOf(compCompRecord[0]) + TPCEConstants.IDENT_SHIFT + counter / compCompRecords * compCompRecords;
+        long coCompId = Long.valueOf(compCompRecord[1]) + TPCEConstants.IDENT_SHIFT + counter / compCompRecords * compCompRecords;
         
-        String[] tr_record = tuples.get(tuplesCnt++);
-        int col = 0;
-
-        tuple[col++] = tr_record[0]; // tr_id
-        tuple[col++] = tr_record[1]; // tr_name
-        tuple[col++] = Double.valueOf(tr_record[2]); // tr_rate
+        tuple[0] = coId; // cp_co_id
+        tuple[1] = coCompId; // cp_comp_id
+        tuple[2] = compCompRecord[2]; // cp_in_id
         
-        if (tuplesCnt == tuples.size()) {
-            tuplesCnt = 0;
-            if (countryCnt < countrySize) {
-                countryCnt++;
-            }
-            else {
-                divCnt++;
-            }
-        }
+        counter++;
         
         return tuple;
     }
