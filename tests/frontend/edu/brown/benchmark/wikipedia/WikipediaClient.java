@@ -23,12 +23,22 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltProcedure.VoltAbortException;
+import org.voltdb.VoltTable;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
+import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
+import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
@@ -139,9 +149,9 @@ public class WikipediaClient extends BenchmarkComponent {
         return (procNames);
     }
 	
-    /**
-     * Set of transactions structs with their appropriate parameters
-     */
+//    /**
+//     * Set of transactions structs with their appropriate parameters
+//     */
 //    public static enum Transaction {
 //        ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
 //            @Override
@@ -164,9 +174,9 @@ public class WikipediaClient extends BenchmarkComponent {
 //            
 //        }),;
 //	}
-
+//
 //    @Override
-//    protected TransactionStatus executeWork(TransactionType nextTransaction) throws UserAbortException, SQLException {
+//    protected Status executeWork(TransactionType nextTransaction) throws VoltAbortException {
 //        WikipediaOperation t = null;
 //        
 //        Class<? extends Procedure> procClass = nextTransaction.getProcedureClass();
@@ -206,10 +216,11 @@ public class WikipediaClient extends BenchmarkComponent {
 //            getPageAuthenticated(true, this.generateUserIP(), t.userId, t.nameSpace, t.pageTitle);
 //        }
 //        
-//        return (TransactionStatus.SUCCESS);
+//        return (Status.OK);
 //    }
-
-	/**
+    
+    
+    /**
 	 * Implements wikipedia selection of last version of an article (with and
 	 * without the user being logged in)
 	 * 
@@ -225,55 +236,53 @@ public class WikipediaClient extends BenchmarkComponent {
 	 * @throws SQLException
 	 * @throws UnknownHostException
 	 */
-//	public Article getPageAnonymous(boolean forSelect, String userIp,
+//	public VoltTable getPageAnonymous(boolean forSelect, String userIp,
 //			                        int nameSpace, String pageTitle) {
 //		GetPageAnonymous proc = this.getProcedure(GetPageAnonymous.class);
 //        assert (proc != null);
-//        return proc.run(conn, forSelect, userIp, nameSpace, pageTitle);
+//        return proc.run(forSelect, userIp, nameSpace, pageTitle);
 //	}
 //
-//	public Article getPageAuthenticated(boolean forSelect, String userIp, int userId,
+//	public VoltTable getPageAuthenticated(boolean forSelect, String userIp, int userId,
 //			                            int nameSpace, String pageTitle) {
 //		GetPageAuthenticated proc = this.getProcedure(GetPageAuthenticated.class);
 //        assert (proc != null);
-//        return proc.run(conn, forSelect, userIp, userId, nameSpace, pageTitle);
+//        return proc.run( forSelect, userIp, userId, nameSpace, pageTitle);
 //	}
 //	
 //	public void addToWatchlist(int userId, int nameSpace, String pageTitle) {
 //		AddWatchList proc = this.getProcedure(AddWatchList.class);
 //        assert (proc != null);
-//        proc.run(conn, userId, nameSpace, pageTitle);
+//        proc.run( userId, nameSpace, pageTitle);
 //	}
 //
 //	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) {
 //		RemoveWatchList proc = this.getProcedure(RemoveWatchList.class);
 //        assert (proc != null);
-//        proc.run(conn, userId, nameSpace, pageTitle);
+//        proc.run( userId, nameSpace, pageTitle);
 //	}
 //
 //	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
-//		Article a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
+//	    VoltTable a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
 //		
 //		// TODO: If the Article is null, then we want to insert a new page.
 //		//       But we don't support that right now.
 //		if (a == null) return;
 //		
-//		WikipediaBenchmark b = this.getBenchmarkModule();
-//		int revCommentLen = b.commentLength.nextValue().intValue();
-//		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
-//		int revMinorEdit = b.minorEdit.nextValue().intValue();
-//		
-//		// Permute the original text of the article
-//		// Important: We have to make sure that we fill in the entire array
-//		char newText[] = b.generateRevisionText(a.oldText.toCharArray());
-//		
-//	    if (LOG.isTraceEnabled())
-//	        LOG.trace("UPDATING: Page: id:"+a.pageId+" ns:"+nameSpace +" title"+ pageTitle);
+////		WikipediaBenchmark b = this.getBenchmarkModule();
+////		int revCommentLen = b.commentLength.nextValue().intValue();
+////		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
+////		int revMinorEdit = b.minorEdit.nextValue().intValue();
+////		
+////		// Permute the original text of the article
+////		// Important: We have to make sure that we fill in the entire array
+////		char newText[] = b.generateRevisionText(a.oldText.toCharArray());
+//
 //		UpdatePage proc = this.getProcedure(UpdatePage.class);
 //        assert (proc != null);
-//        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
-//                       nameSpace, userId, userIp, a.userText,
-//                       a.revisionId, revComment, revMinorEdit);
+////        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
+////                       nameSpace, userId, userIp, a.userText,
+////                       a.revisionId, revComment, revMinorEdit);
 //	}
-
+//
 }
