@@ -521,6 +521,7 @@ JAVA COMPILATION
     <copy flatten='false' todir='${build.test.dir}'>
         <fileset dir="${src.test.dir}">
             <include name="**/*.sql"/>
+            <include name="**/*.mappings"/>
         </fileset>
     </copy>
 
@@ -1030,6 +1031,7 @@ TEST CASES
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
                 <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestPrefetchableSuite.class" />
                 
                 <!-- Tests that use too much memory -->
                 <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
