@@ -45,7 +45,7 @@ public class ArrayFile extends InputFileHandler {
     @Override
     protected void insertTuple(String[] tuple) {
         // treat first element as index
-        Integer index = Integer.valueOf(tuple[0]);
+        Integer index = Integer.valueOf(tuple[0]) - 1; // indexes in the file are 1-based
         String[] new_tuple = Arrays.copyOfRange(tuple, 1, tuple.length);
         
         if (index >= tuples_list.size()) {
@@ -58,7 +58,6 @@ public class ArrayFile extends InputFileHandler {
 
     /*
      * Strictly, we do not need this for this type of file, but why not?
-     * 
      */
     @Override
     public String[] getTupleByIndex(int index) {

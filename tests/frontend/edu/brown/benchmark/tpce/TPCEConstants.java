@@ -73,12 +73,22 @@ public abstract class TPCEConstants {
     public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the
                                                         // EGenClientDriver to
                                                         // have problems
-    public static final int DEFAULT_INITIAL_DAYS = 1;
-    public static final int DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
+    
+    /*
+     * Miscellaneous loader parameters
+     */
+    public static final int  DEFAULT_INITIAL_DAYS = 1;
+    public static final int  DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
     public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this
     public static final long DEFAULT_START_CUSTOMER_ID = 1;
     
+    /*
+     * Parameters for scaling tables
+     */
     public static final long DEFAULT_COMPANIES_PER_UNIT = 500;
+    public static final long DEFAULT_COMPANY_COMPETITORS_PER_UNIT  = 3 * DEFAULT_COMPANIES_PER_UNIT;
+    public static final long DEFAULT_SECURITIES_PER_UNIT = 685;
+
     public static final int  BROKERS_DIV = 100;  // by what number to divide the customer count to get the broker count
 
 
@@ -140,10 +150,10 @@ public abstract class TPCEConstants {
     static {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_ADDRESS);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY_COMPETITOR);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY_COMPETITOR);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_COMPANY);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
