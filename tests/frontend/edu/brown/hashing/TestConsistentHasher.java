@@ -12,7 +12,7 @@ import edu.brown.utils.ProjectType;
 
 public class TestConsistentHasher extends BaseTestCase {
 
-    private static final int NUM_PARTITIONS = 10;
+    private static final int NUM_PARTITIONS = 20;
     private ConsistentHasher hasher;
     
     @Override
@@ -26,7 +26,7 @@ public class TestConsistentHasher extends BaseTestCase {
 * testHashValue
 */
     public void testHashValue() throws Exception {
-        //Random r = new Random();
+        Random r = new Random();
     	// Stupid test for now...
 //        long val0 = r.nextLong();
 //        int hash0 = this.hasher.hash(val0);
@@ -39,9 +39,8 @@ public class TestConsistentHasher extends BaseTestCase {
 //        System.err.println("hash0[" + val0 + "] = " + hash0);
 //        System.err.println("hash1[" + val1 + "] = " + hash1);
         Histogram<Integer> h = new Histogram<Integer>();
-        for(int i=0; i<Integer.MAX_VALUE/100; i++){
-        	long val = i;
-        	int hash = this.hasher.hash(val);
+        for(int i=0; i<Integer.MAX_VALUE/1000; i++){
+        	int hash = this.hasher.hash(r.nextInt());
         	h.put(hash);
         }
         System.out.println(h);

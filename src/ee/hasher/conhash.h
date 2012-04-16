@@ -1,6 +1,6 @@
 #include "../../../third_party/cpp/libconhash/conhash.h"
 
-#define HANLDED_PARTIONS 100
+#define HANLDED_PARTIONS 9999
 class Conhash {
 private:
     struct conhash_s *conhash;

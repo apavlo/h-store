@@ -16,8 +16,8 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, u_int n, struct node_
 	{
         /* setup callback functions */
         u_int i;
-        u_int step = 1000;
-        u_int hash = 0;
+        u_int step = INT_MAX / n;
+        u_int hash = step;
         if(pfhash != NULL)
         {
             conhash->cb_hashfunc = pfhash;
@@ -27,11 +27,12 @@ struct conhash_s* conhash_init(conhash_cb_hashfunc pfhash, u_int n, struct node_
             conhash->cb_hashfunc = __conhash_hash_java_def;
         }
 		util_rbtree_init(&conhash->vnode_tree);
+		
 		for(i = 0; i < n; i ++, hash +=step){
 			conhash_set_node(&g_nodes[i], hash % INT_MAX, 1);
 			conhash_add_node(conhash, &g_nodes[i]);
 		}
-        return conhash;
+		return conhash;
 
 	}while(0);
 
