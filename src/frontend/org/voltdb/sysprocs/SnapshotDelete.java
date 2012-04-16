@@ -33,13 +33,18 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.catalog.*;
+
 
 @ProcInfo(singlePartition = false)
 public class SnapshotDelete extends VoltSystemProcedure {
@@ -76,10 +81,9 @@ public class SnapshotDelete extends VoltSystemProcedure {
         {
             // Choose the lowest site ID on this host to do the deletion.
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+        	Host catalog_host = context.getHost();
+        	Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+        	Integer lowest_site_id = catalog_site.getId();
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
@@ -96,7 +100,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
                     List<File> relevantFiles = retrieveRelevantFiles(paths[ii], nonces[ii]);
                     if (relevantFiles == null) {
                         result.addRow(
-                                      Integer.parseInt(context.getSite().getHost().getTypeName()),
+                                      catalog_host.getId(),
                                       hostname,
                                       paths[ii],
                                       nonces[ii],
