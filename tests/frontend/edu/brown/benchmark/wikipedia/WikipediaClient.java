@@ -23,22 +23,15 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltProcedure;
-import org.voltdb.VoltProcedure.VoltAbortException;
-import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
-import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
-import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
-import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.benchmark.tm1.TM1Client.Transaction;
+import edu.brown.rand.RandomDistribution.FlatHistogram;
+import edu.brown.statistics.Histogram;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
@@ -49,25 +42,9 @@ public class WikipediaClient extends BenchmarkComponent {
 	private Random randGenerator = new Random();
 	private int nextRevId;
 	
-//	public WikipediaClient(int id, WikipediaProjectBuilder benchmarkModule,
-//	                       TransactionGenerator<WikipediaOperation> generator) {
-//		super(benchmarkModule, id);
-//		this.generator = generator;
-//		this.num_users = (int) Math.round(WikipediaConstants.USERS * this.getWorkloadConfiguration().getScaleFactor());
-//		this.usersRng = new Flat(randGenerator, 1, this.num_users);
-//	}
-	
-    public WikipediaClient(String[] args) {
-        super(args);
-        for (String key : m_extraParams.keySet()) {
-            // TODO: Retrieve extra configuration parameters
-        } // FOR
-        
-        this.nextRevId = this.getClientId() * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
-	 }
 	
 	
-    /**
+	/**
      * Each Transaction element provides an ArgGenerator to create the proper
      * arguments used to invoke the stored procedure
      */
@@ -82,13 +59,154 @@ public class WikipediaClient extends BenchmarkComponent {
         public Object[] genArgs(long subscriberSize);
     }
 	
-	private String generateUserIP() {
-	    return String.format("%d.%d.%d.%d", randGenerator.nextInt(255)+1,
-	                                        randGenerator.nextInt(256),
-	                                        randGenerator.nextInt(256),
-	                                        randGenerator.nextInt(256));
-	}
-	
+    /**
+     * Set of transactions structs with their appropriate parameters
+     */
+    public static enum Transaction {
+        ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
+            @Override
+            public Object[] genArgs(long subscriberSize) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+            
+        }),
+        GET_PAGE_ANONYMOUS("Get page anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS, new ArgGenerator() {
+
+            @Override
+            public Object[] genArgs(long subscriberSize) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+            
+        }),
+        GET_PAGE_AUTHENTICATED("Get page authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED, new ArgGenerator() {
+            @Override
+            public Object[] genArgs(long subscriberSize) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+        }),
+        REMOVE_WATCHLIST("Remove watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST, new ArgGenerator() {
+            @Override
+            public Object[] genArgs(long subscriberSize) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+        }),
+        UPDATE_PAGE("Update page", WikipediaConstants.FREQUENCY_UPDATE_PAGE, new ArgGenerator() {
+
+            @Override
+            public Object[] genArgs(long subscriberSize) {
+                // TODO Auto-generated method stub
+                return null;
+            }
+            
+        }),;
+
+
+
+        /**
+         * Constructor
+         */
+        private Transaction (String displayName, int weight, ArgGenerator ag) {
+            this.displayName = displayName;
+            this.callName = displayName.replace(" ", "");
+            this.weight = weight;
+            this.ag = ag;
+
+        }
+        public final String displayName;
+        public final String callName;
+        public final int weight; // probability (in terms of percentage) the
+        // transaction gets executed
+        public final ArgGenerator ag;
+    }
+    /**
+     * Callback Class
+     * @author xin
+     *
+     */
+    
+    private class WikipediaCallback implements ProcedureCallback {
+        private final int idx;
+ 
+        public WikipediaCallback(int idx) {
+            super();
+            this.idx = idx;
+        }
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            // Increment the BenchmarkComponent's internal counter on the
+            // number of transactions that have been completed
+            incrementTransactionCounter(clientResponse,this.idx);
+        }
+    } // END CLASS
+    
+    
+    /**
+     * Data Members
+     */
+
+    // Storing the ordinals of transaction per tm1 probability distribution
+    private final FlatHistogram<Transaction> txnWeights;
+//    private final int[] txnWeights = new int[100];
+
+    // Callbacks
+    protected final WikipediaCallback callbacks[];
+
+    /**
+     * Main method
+     * 
+     * @param args
+     */
+    public static void main(String[] args) {
+        BenchmarkComponent.main(WikipediaClient.class, args, false);
+    }
+    
+    /**
+     * Constructor
+     * @param args
+     */
+    
+    public WikipediaClient ( String[] args ) {
+        super(args);
+        
+        // Initialize the sampling table
+        Histogram<Transaction> txns = new Histogram<Transaction>(); 
+        for (Transaction t : Transaction.values()) {
+            Integer weight = this.getTransactionWeight(t.callName);
+            if (weight == null) weight = t.weight;
+            txns.put(t, weight);
+        } // FOR
+        assert(txns.getSampleCount() == 100) : txns;
+        Random rand = new Random(); // FIXME
+        this.txnWeights = new FlatHistogram<Transaction>(rand, txns);
+        if (LOG.isDebugEnabled())
+            LOG.debug("Transaction Workload Distribution:\n" + txns);
+        
+     // Setup callbacks
+        int num_txns = Transaction.values().length;
+        this.callbacks = new WikipediaCallback[num_txns];
+        for (int i = 0; i < num_txns; i++) {
+            this.callbacks[i] = new WikipediaCallback(i);
+        } // FOR
+        
+        this.nextRevId = this.getClientId() * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
+    }
+    
+    /**
+     * Return a transaction randomly selected per TM1 probability specs
+     */
+    private Transaction selectTransaction() {
+        // Transaction force = null; // (this.getClientId() == 0 ?
+        // Transaction.INSERT_CALL_FORWARDING :
+        // Transaction.GET_SUBSCRIBER_DATA); //
+        // Transaction.INSERT_CALL_FORWARDING;
+        // if (force != null) return (force);
+        return this.txnWeights.nextValue();
+    }
+ 
 	@Override
     public void runLoop() {
         try {
@@ -123,22 +241,28 @@ public class WikipediaClient extends BenchmarkComponent {
             // get spammed, but will miss lost connections at runtime
         }
     }
+	
+	 @Override
+	    protected boolean runOnce() throws IOException {
+	        final Transaction target = this.selectTransaction();
+
+	        this.startComputeTime(target.displayName);
+	        Object params[] = target.ag.genArgs(10);
+	        this.stopComputeTime(target.displayName);
+
+	        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
+	        LOG.debug("Executing txn " + target);
+	        return (ret);
+	    }
  
-    private class WikipediaCallback implements ProcedureCallback {
-        private final int idx;
- 
-        public WikipediaCallback(int idx) {
-            super();
-            this.idx = idx;
-        }
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse,this.idx);
-        }
-    } // END CLASS
- 
+	private String generateUserIP() {
+        return String.format("%d.%d.%d.%d", randGenerator.nextInt(255)+1,
+                                            randGenerator.nextInt(256),
+                                            randGenerator.nextInt(256),
+                                            randGenerator.nextInt(256));
+    }
+    
+   
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
@@ -149,31 +273,7 @@ public class WikipediaClient extends BenchmarkComponent {
         return (procNames);
     }
 	
-//    /**
-//     * Set of transactions structs with their appropriate parameters
-//     */
-//    public static enum Transaction {
-//        ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
-//            @Override
-//            public Object[] genArgs(long subscriberSize) {
-//                // TODO Auto-generated method stub
-//                return null;
-//            }
-//            
-//        }),
-//        GET_PAGE_ANONYMOUS("Get page anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS, new ArgGenerator() {
-//            
-//        }),
-//        GET_PAGE_AUTHENTICATED("Get page authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED, new ArgGenerator() {
-//            
-//        }),
-//        REMOVE_WATCHLIST("Remove watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST, new ArgGenerator() {
-//           
-//        }),
-//        UPDATE_PAGE("Update page", WikipediaConstants.FREQUENCY_UPDATE_PAGE, new ArgGenerator() {
-//            
-//        }),;
-//	}
+   
 //
 //    @Override
 //    protected Status executeWork(TransactionType nextTransaction) throws VoltAbortException {
