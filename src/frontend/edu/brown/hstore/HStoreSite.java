@@ -235,7 +235,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * AdHoc: This thread waits for AdHoc queries. 
      */
     //private AsyncCompilerWorkThread m_asyncCompilerWorkThread;
-    private PeriodicWorkTimerThread m_periodicWorkTimerThread;
+    private PeriodicWorkTimerThread periodicWorkTimer_thread;
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -837,9 +837,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers();
         
-        // Start threads for processing AdHoc queries
+        // Start threads for processing AdHoc queries TODO: check that this thread is started correctly
         //m_asyncCompilerWorkThread = new AsyncCompilerWorkThread();
-        m_periodicWorkTimerThread = new PeriodicWorkTimerThread(this);
+        periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
+        periodicWorkTimer_thread.start();
         
         return (this);
     }
@@ -902,7 +903,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      * This should only be called by HStoreMessenger 
      */
-    @Override
+    @SuppressWarnings("deprecation")
+	@Override
     public synchronized void shutdown() {
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
@@ -915,6 +917,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
+        
+        // Stop AdHoc thread TODO:is this the proper way to stop thread execution?
+        if (this.periodicWorkTimer_thread.isAlive()) this.periodicWorkTimer_thread.interrupt();
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
@@ -1028,25 +1033,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Check for AdHoc 
             // new for AdHoc start **********************************************************************
             if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
-            	
-                task.buildParameterSet();
-                if (task.params.toArray().length != 1) {
+            	// TODO: check that variable 'request' in this func. is same as 'task' in ClientInterface.handleRead()
+            	request.buildParameterSet();
+                if (request.getParams().toArray().length != 1) {
                     final ClientResponseImpl errorResponse =
-                        new ClientResponseImpl(-1, task.clientHandle, -1,
+                        new ClientResponseImpl(-1, request.getClientHandle(), -1,
                                                Hstoreservice.Status.ABORT_UNEXPECTED,
                                                new VoltTable[0],
                                                "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
-                    c.writeStream().enqueue(errorResponse);
+                    //TODO: write error message to client
+                    //c.writeStream().enqueue(errorResponse);
                     return;
                 }
-                String sql = (String) task.params.toArray()[0];
-                m_asyncCompilerWorkThread.planSQL(
-                                                  sql,
-                                                  task.clientHandle,
-                                                  handler.connectionId(),
-                                                  handler.m_hostname,
-                                                  handler.sequenceId(),
-                                                  c);
+                String sql = (String) request.getParams().toArray()[0];
+//                m_asyncCompilerWorkThread.planSQL(
+//                                                  sql,
+//                                                  request.getClientHandle(),
+//                                                  handler.connectionId(),
+//                                                  handler.m_hostname,
+//                                                  handler.sequenceId(),
+//                                                  c);
+					periodicWorkTimer_thread.planSQL(
+										              sql,
+										              this,//TODO: is this the client handle?
+										              this.site_id,
+										              this.site_name,
+										              0,//TODO: what is this supposed to be?
+										              null);//TODO: same question
                 return;
             }
             // new for AdHoc end **********************************************************************            
@@ -2185,45 +2198,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		if (m_asyncCompilerWorkThread == null) return;
+		if (periodicWorkTimer_thread == null) return;
 
         AsyncCompilerResult result = null;
 
-        while ((result = m_asyncCompilerWorkThread.getPlannedStmt()) != null) {
+        //TODO: This part is confusing b/c periodicWorkTimerThread vs. AsyncCompilerWorkThread... 
+        while ((result = periodicWorkTimer_thread.getPlannedStmt()) != null) {
             if (result.errorMsg == null) {
                 if (result instanceof AdHocPlannedStmt) {
-                    AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
+                	 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
                     // create the execution site task
                     StoredProcedureInvocation task = new StoredProcedureInvocation();
-                    task.procName = "@AdHoc";
-                    task.params = new ParameterSet(
+                    task.setProcName("@AdHoc");
+                    task.setParams(new ParameterSet(
                             plannedStmt.aggregatorFragment, plannedStmt.collectorFragment,
                             plannedStmt.sql, plannedStmt.isReplicatedTableDML ? 1 : 0
-                    );
-                    task.clientHandle = plannedStmt.clientHandle;
+                    		));
+                    task.setClientHandle( (int) plannedStmt.clientHandle);//TODO: ask Andy if this is safe enough
 
                     // initiate the transaction
-                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
-                                                  task, false, false, false, m_allPartitions,
-                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
+                    //TODO: need a replacement for this FIX!!
+//                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
+//                                                  task, false, false, false, m_allPartitions,
+//                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
                 }
-                else if (result instanceof CatalogChangeResult) {
-                    CatalogChangeResult changeResult = (CatalogChangeResult) result;
-                    // create the execution site task
-                    StoredProcedureInvocation task = new StoredProcedureInvocation();
-                    task.procName = "@UpdateApplicationCatalog";
-                    task.params = new ParameterSet(
-                            changeResult.encodedDiffCommands, changeResult.catalogURL,
-                            changeResult.expectedCatalogVersion
-                    );
-                    task.clientHandle = changeResult.clientHandle;
-
-                    // initiate the transaction. These hard-coded values from catalog
-                    // procedure are horrible, horrible, horrible.
-                    m_initiator.createTransaction(changeResult.connectionId, changeResult.hostname,
-                                                  task, false, true, true, m_allPartitions,
-                                                  m_allPartitions.length, changeResult.clientData, 0, 0);
-                }
+                //TODO: removed the stuff about change catalog result... was this right?
                 else {
                     throw new RuntimeException(
                             "Should not be able to get here (ClientInterface.checkForFinishedCompilerWork())");
