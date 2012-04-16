@@ -30,25 +30,36 @@ import org.voltdb.client.ConnectionUtil;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
+//import com.sun.org.apache.xml.internal.resolver.Catalog;
+
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.CollectionUtil;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotSave extends VoltSystemProcedure
 {
     private static final Logger LOG = Logger.getLogger(SnapshotSave.class);
 
+
     private static final int DEP_saveTest = (int)
         SysProcFragmentId.PF_saveTest | DtxnConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_saveTestResults = (int)
         SysProcFragmentId.PF_saveTestResults;
+    
     private static final int DEP_createSnapshotTargets = (int)
         SysProcFragmentId.PF_createSnapshotTargets | DtxnConstants.MULTIPARTITION_DEPENDENCY;
     private static final int DEP_createSnapshotTargetsResults = (int)
         SysProcFragmentId.PF_createSnapshotTargetsResults;
+ 
+    private static final int DEP_snapshotSaveQuiesce = (int)
+    	SysProcFragmentId.PF_snapshotSaveQuiesce | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    private static final int DEP_snapshotSaveQuiesceResults = (int)
+    	SysProcFragmentId.PF_snapshotSaveQuiesceResults;
+    
 
     public static final ColumnInfo nodeResultsColumns[] =
         new ColumnInfo[] {
@@ -87,6 +98,8 @@ public class SnapshotSave extends VoltSystemProcedure
         site.registerPlanFragment(SysProcFragmentId.PF_saveTestResults, this);
         site.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargets, this);
         site.registerPlanFragment(SysProcFragmentId.PF_createSnapshotTargetsResults, this);
+        site.registerPlanFragment(SysProcFragmentId.PF_snapshotSaveQuiesce, this);
+        site.registerPlanFragment(SysProcFragmentId.PF_snapshotSaveQuiesceResults, this);
     }
 
     @Override
@@ -128,6 +141,28 @@ public class SnapshotSave extends VoltSystemProcedure
         {
             return createSnapshotTargetsResults(dependencies);
         }
+        
+        
+        
+        else if (fragmentId == SysProcFragmentId.PF_snapshotSaveQuiesce) 
+        {
+        	//tell each site to quiesce
+        	
+        	context.getExecutionEngine().quiesce(context.getLastCommittedTxnId());
+        	VoltTable results = new VoltTable(new ColumnInfo("id", VoltType.INTEGER));
+        	results.addRow(context.getHost().getId());
+        	return new DependencySet(DEP_snapshotSaveQuiesce, results);
+        }
+        else if (fragmentId == SysProcFragmentId.PF_snapshotSaveQuiesceResults) {
+            VoltTable dummy = new VoltTable(VoltSystemProcedure.STATUS_SCHEMA);
+            dummy.addRow(VoltSystemProcedure.STATUS_OK);
+            return new DependencySet(DEP_snapshotSaveQuiesceResults, dummy);
+        }
+        
+        
+        
+        
+        
         assert (false);
         return null;
     }
@@ -174,6 +209,7 @@ public class SnapshotSave extends VoltSystemProcedure
             Host catalog_host = context.getHost();
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
             Integer lowest_site_id = catalog_site.getId();
+            
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 LOG.trace("Checking feasibility of save with path and nonce: "
@@ -181,7 +217,7 @@ public class SnapshotSave extends VoltSystemProcedure
 
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
                     result.addRow(
-                                  Integer.parseInt(context.getSite().getHost().getTypeName()),
+                                  catalog_host.getId(),
                                   hostname,
                                   "",
                                   "FAILURE",
@@ -191,9 +227,9 @@ public class SnapshotSave extends VoltSystemProcedure
 
                 for (Table table : SnapshotUtil.getTablesToSave(context.getDatabase()))
                 {
-                    File saveFilePath =
-                        SnapshotUtil.constructFileForTable(table, file_path, file_nonce,
-                                              context.getSite().getHost().getTypeName());
+                    File saveFilePath = SnapshotUtil.constructFileForTable(table, file_path, 
+                    		file_nonce, context.getSite().getHost().getTypeName());
+                    
                     LOG.trace("Host ID " + context.getSite().getHost().getTypeName() +
                                     " table: " + table.getTypeName() +
                                     " to path: " + saveFilePath);
@@ -213,7 +249,10 @@ public class SnapshotSave extends VoltSystemProcedure
                     {
                         try
                         {
-                            saveFilePath.createNewFile();
+                            //saveFilePath.createNewFile();
+                            if (saveFilePath.createNewFile()) {
+                                saveFilePath.delete();
+                            }
                         }
                         catch (IOException ex)
                         {
@@ -257,6 +296,14 @@ public class SnapshotSave extends VoltSystemProcedure
         final long startTime = System.currentTimeMillis();
         LOG.info("Saving database to path: " + path + ", ID: " + nonce + " at " + startTime);
 
+
+        
+ //       ColumnInfo[] result_columns = new ColumnInfo[2];
+ //       int ii = 0;
+ //       result_columns[ii++] = new ColumnInfo("RESULT", VoltType.STRING);
+//        result_columns[ii++] = new ColumnInfo("ERR_MSG", VoltType.STRING);
+        
+        
         if (path == null || path.equals("")) {
             ColumnInfo[] result_columns = new ColumnInfo[1];
             int ii = 0;
@@ -296,12 +343,18 @@ public class SnapshotSave extends VoltSystemProcedure
             {
                 // Something lost, bomb out and just return the whole
                 // table of results to the client for analysis
+            	results[0].resetRowPosition();
                 return results;
             }
         }
 
+        performQuiesce();
+        
         results = performSnapshotCreationWork( path, nonce, startTime, (byte)block);
 
+
+        
+        
         final long finishTime = System.currentTimeMillis();
         final long duration = finishTime - startTime;
         LOG.info("Snapshot initiation took " + duration + " milliseconds");
@@ -367,4 +420,32 @@ public class SnapshotSave extends VoltSystemProcedure
         results = executeSysProcPlanFragments(pfs, DEP_createSnapshotTargetsResults);
         return results;
     }
+    
+    private final VoltTable[] performQuiesce()
+    {
+        SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
+
+        // This fragment causes each execution site flush export
+        // data to disk with a sync
+        pfs[0] = new SynthesizedPlanFragment();
+        pfs[0].fragmentId = SysProcFragmentId.PF_snapshotSaveQuiesce;
+        pfs[0].outputDependencyIds = new int[]{ DEP_createSnapshotTargetsResults };
+        pfs[0].inputDependencyIds = new int[] {};
+        pfs[0].multipartition = true;
+        pfs[0].parameters = new ParameterSet();
+
+        // This fragment aggregates the quiesce results
+        pfs[1] = new SynthesizedPlanFragment();
+        pfs[1].fragmentId = SysProcFragmentId.PF_snapshotSaveQuiesceResults;
+        pfs[1].outputDependencyIds = new int[]{ DEP_createSnapshotTargetsResults };
+        pfs[1].inputDependencyIds = new int[] { DEP_snapshotSaveQuiesce };
+        pfs[1].multipartition = false;
+        pfs[1].parameters = new ParameterSet();
+
+        VoltTable[] results;
+        results = executeSysProcPlanFragments(pfs, DEP_snapshotSaveQuiesceResults);
+        return results;
+    }
+    
+    
 }

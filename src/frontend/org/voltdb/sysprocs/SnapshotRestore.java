@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.catalog.*;
 import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
@@ -65,6 +66,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.CollectionUtil;
 
 @ProcInfo (
     singlePartition = false
@@ -80,6 +82,9 @@ public class SnapshotRestore extends VoltSystemProcedure
 
     private static HashSet<String>  m_initializedTableSaveFiles = new HashSet<String>();
     private static ArrayDeque<TableSaveFile> m_saveFiles = new ArrayDeque<TableSaveFile>();
+    
+    /*see if restore sysproc has been done*/
+    public static volatile boolean m_haveDoneRestore = false;
 
     private static synchronized void initializeTableSaveFiles(
             String filePath,
@@ -184,10 +189,9 @@ public class SnapshotRestore extends VoltSystemProcedure
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+            Host catalog_host = context.getExecutionSite().getHost();
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+            Integer lowest_site_id = catalog_site.getId(); 
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
