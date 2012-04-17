@@ -201,7 +201,7 @@ public class AddressGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         long adId = generateAddrId();
         String[] zip_cntr = generateZipAndCountry(adId);

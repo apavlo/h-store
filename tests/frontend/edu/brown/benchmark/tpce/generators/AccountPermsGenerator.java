@@ -127,7 +127,7 @@ public class AccountPermsGenerator extends TableGenerator {
             switchAccount();
         }
         
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         tuple[0] = currentAccId; // ap_ca_id
         tuple[1] = permACLs[permsGenerated]; // ap_acl

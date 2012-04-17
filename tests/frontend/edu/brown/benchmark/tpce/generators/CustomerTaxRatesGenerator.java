@@ -90,7 +90,7 @@ public class CustomerTaxRatesGenerator extends TableGenerator {
 
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         long cid, ad_id; 
         if (recsGenerated % TAXRATES_PER_CUSTOMER == 0) {

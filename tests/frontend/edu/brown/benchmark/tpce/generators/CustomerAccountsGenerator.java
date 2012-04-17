@@ -213,7 +213,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         long accId = generateAccountId();
         long cid = customerGenerator.getCurrentCId();

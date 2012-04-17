@@ -102,7 +102,7 @@ public class EGenDate {
         // to msec based on 01/01/01: 1sec = 1000msecs, 1hour = 3600secs, 1day = 24hours; 'int' should be enough
         long dateMillis = (long)dayNo * 24 * 3600 * 1000;
         
-        // months start from 0 -- we need January here 
+        // months start from 0 -- we need January here
         cal.set(1, 0, 1);
         long startEpochMillis = cal.getTimeInMillis();
         

@@ -37,10 +37,18 @@ import edu.brown.benchmark.tpce.generators.TPCEGenerator;
 
 public abstract class TableGenerator implements Iterator<Object[]>{
     protected final Table catalog_tbl;
+    protected final int columnsNum;
     protected final TPCEGenerator generator;
     
     public TableGenerator(Table catalog_tbl, TPCEGenerator generator) {
         this.catalog_tbl = catalog_tbl;
+        
+        if (catalog_tbl == null) {  // some generators are called without tables (e.g., for generating cids)
+            this.columnsNum = 0;
+        }
+        else {
+            this.columnsNum = catalog_tbl.getColumns().size();
+        }
         this.generator = generator;
     }
     

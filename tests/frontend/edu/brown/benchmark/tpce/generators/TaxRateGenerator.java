@@ -63,7 +63,7 @@ public class TaxRateGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         List<String[]> tuples;
         
         if (countryCnt < countrySize) {

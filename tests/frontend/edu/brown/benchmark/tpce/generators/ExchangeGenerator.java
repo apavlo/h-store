@@ -73,7 +73,7 @@ public class ExchangeGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         String ex_record[] = exchange_file.getTupleByIndex(counter++);
         int col = 0;
 

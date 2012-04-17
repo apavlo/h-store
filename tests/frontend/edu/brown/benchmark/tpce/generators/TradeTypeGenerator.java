@@ -53,7 +53,7 @@ public class TradeTypeGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         String tt_record[] = tt_file.getTupleByIndex(counter++);
         int col = 0;
 

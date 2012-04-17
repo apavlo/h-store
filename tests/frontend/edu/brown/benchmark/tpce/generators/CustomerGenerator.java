@@ -219,7 +219,7 @@ public class CustomerGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         long cid = generateCustomerId();
         String[] namesAndtaxId = person.getFirstNameLastNameTaxID(cid);
