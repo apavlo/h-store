@@ -91,6 +91,24 @@ public abstract class TPCEConstants {
 
     public static final int  BROKERS_DIV = 100;  // by what number to divide the customer count to get the broker count
 
+    /*
+     * Some importand dates for the generator
+     */
+    public static final int dailyMarketBaseYear    = 2000;
+    public static final int dailyMarketBaseMonth   = 0; // January, since months are zero-based in Java
+    public static final int dailyMarketBaseDay     = 3; // it should be Monday, since skipping weekends depends on this
+    public static final int dailyMarketBaseHour    = 0;
+    public static final int dailyMarketBaseMinute  = 0;
+    public static final int dailyMarketBaseSecond  = 0;
+    public static final int dailyMarketBaseMsec    = 0;
+    
+    public static final int daysPerWorkWeek = 5;
+    
+    /*
+     * Constants for securities
+     */
+    public static final double minSecPrice = 20.00;
+    public static final double maxSecPrice = 30.00;
 
     //
     // Table Names
@@ -155,7 +173,7 @@ public abstract class TPCEConstants {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);

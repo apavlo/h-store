@@ -53,7 +53,7 @@ public class ChargeGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         String charge_record[] = charge_file.getTupleByIndex(counter++);
         int col = 0;
 

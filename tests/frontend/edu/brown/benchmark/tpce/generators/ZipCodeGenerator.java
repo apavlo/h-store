@@ -53,7 +53,7 @@ public class ZipCodeGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         String zip_record[] = zip_file.getTupleByIndex(counter++);
         int col = 0;
 

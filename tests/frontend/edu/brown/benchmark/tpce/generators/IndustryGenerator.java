@@ -53,7 +53,7 @@ public class IndustryGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         String ind_record[] = ind_file.getTupleByIndex(counter++);
         int col = 0;
 

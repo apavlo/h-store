@@ -113,7 +113,7 @@ public class CompanyGenerator extends TableGenerator {
     
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         if (counter % TPCEConstants.DEFAULT_COMPANIES_PER_UNIT == 0) {
             initNextLoadUnit();

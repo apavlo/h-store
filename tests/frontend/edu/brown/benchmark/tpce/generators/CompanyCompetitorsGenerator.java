@@ -62,7 +62,7 @@ public class CompanyCompetitorsGenerator extends TableGenerator {
 
     @Override
     public Object[] next() {
-        Object tuple[] = new Object[this.catalog_tbl.getColumns().size()];
+        Object tuple[] = new Object[columnsNum];
         
         /*
          * Note that the number of company competitors to generate may be more that the number in the file.
