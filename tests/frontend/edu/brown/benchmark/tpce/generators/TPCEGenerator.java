@@ -129,6 +129,8 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_COMPANY_COMPETITOR, CompanyCompetitorsGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE, CustomerTaxRatesGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_DAILY_MARKET, DailyMarketGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_FINANCIAL, FinancialGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_LAST_TRADE, LastTradeGenerator.class);
     }
     
 /*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();

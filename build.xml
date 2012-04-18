@@ -2220,7 +2220,8 @@ TPC-E EGenLoader
     <exec executable="make" dir="${src.tpce.dir}/random" failonerror="true" resolveexecutable="true" >
         <arg value="-j${numcpus}" />
         <arg value="PREFIX=${build.tpce.dir}" />
-        <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
+        <!--<arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />-->
+        <arg value="CCFLAGS=-g -ggdb -O3 -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -DLINUX -fPIC $(DEBUG_OPTS) -I$(JNI)"/>
     </exec>
 
     <!-- Copy Input Files -->

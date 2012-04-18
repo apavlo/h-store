@@ -1,9 +1,9 @@
 /*
  * Legal Notice
  *
- * This document and associated source code (the "Work") is a part of a
- * benchmark specification maintained by the TPC.
- *
+ * This document and associated source code (the "Work") is a preliminary
+ * version of a benchmark specification being developed by the TPC. The
+ * Work is being made available to the public for review and comment only.
  * The TPC reserves all right, title, and interest to the Work as provided
  * under U.S. and international laws, including without limitation all patent
  * and trademark rights therein.
@@ -31,12 +31,18 @@
  *     ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
  *
  * Contributors
- * - Charles Levine, Philip Durr, Doug Johnson, Cecil Reames, Matt Emmerton
+ * - Charles Levine, Philip Durr, Doug Johnson
  */
 
 #include "Random.h"
 
 using namespace TPCE;
+
+// These two arrays are used for platform independence
+const char      UpperCaseLetters[]  =   "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const char      LowerCaseLetters[]  =   "abcdefghijklmnopqrstuvwxyz";
+const char      Numerals[]          =   "0123456789";
+const int       MaxLowerCaseLetters =   sizeof(LowerCaseLetters) - 1;
 
 inline RNGSEED CRandom::UInt64Rand(void){
 
@@ -106,8 +112,6 @@ void CRandom::SetSeed(RNGSEED seed)
     m_seed = seed;
 }
 
-#ifdef EGEN_USE_DEPRECATED_CODE
-
 // returns a random value in the range [0 .. 0.99999999999999999994578989137572]
 // care should be taken in casting the result as a float because of the
 // potential loss of precision.
@@ -116,67 +120,65 @@ double CRandom::RndDouble(void)
     return ((double)UInt64Rand()) * (double) UInt64Rand_RECIPROCAL_2_POWER_64;
 }
 
-#endif // EGEN_USE_DEPRECATED_CODE
+//return Nth element in the sequence converted to double
+double CRandom::RndNthDouble(RNGSEED Seed, RNGSEED N)
+{
+    return ((double)RndNthElement(Seed, N)) * (double) UInt64Rand_RECIPROCAL_2_POWER_64;
+}
 
 int CRandom::RndIntRange(int min, int max)
 {
-    if ( max <= min )
-        return min;        // max <= min
-
-    UINT range = (max - min + 1);
-
-    if ( range <= 1 )
-        return min;        // overflow happened
-
-    UInt64Rand();          // generate next seed value
-
-    return (min + (int)Mul6432WithShiftRight64(m_seed,range));
-}
-
-INT64 CRandom::RndInt64Range(INT64 min, INT64 max)
-{
-    if ( max <= min )
+    if ( min == max ) {
         return min;
+    }
+    // Check on system symbol for MAXINT
+    // assert( max < MAXINT );
+    // This assert would detect when the next line would
+    // cause an overflow.
+    max++;
+    if ( max <= min ) {
+        return max;
+    }
 
-    UINT64 range = (max - min + 1);
+    return min + (int)(RndDouble() * (double)(max - min));
+}
+INT64 CRandom::RndInt64Range( INT64 min, INT64 max)
+{
+    if ( min == max )
+        return min;
+    // Check on system symbol for 64-bit MAXINT
+    //assert( max < MAXINT );
+    // This assert would detect when the next line would
+    // cause an overflow.
+    max++;
+    if ( max <= min )
+        return max;
 
-    if ( range <= 1 )
-        return min;        // overflow happened
-
-    UInt64Rand();          // generate next seed value
-
-    return (min + (INT64)Mul6464WithShiftRight64(m_seed,range));
+    return min + (INT64)(RndDouble() * (double)(max - min));
 }
 
+//return Nth element in the sequence over the integer range
 int CRandom::RndNthIntRange(RNGSEED Seed, RNGSEED N, int min, int max)
 {
+    if ( min == max )
+        return min;
+    max++;
     if ( max <= min )
-        return min;        // max <= min
+        return max;
 
-    UINT range = (max - min + 1);
-
-    if ( range <= 1 )
-        return min;        // overflow happened
-
-    RNGSEED nseed = RndNthElement(Seed, N);    // generate next seed value
-
-    return (min + (int)Mul6432WithShiftRight64(nseed, range));
+    return min + (int)(RndNthDouble(Seed, N) * (double)(max - min));
 }
 
 //return Nth element in the sequence over the integer range
 INT64 CRandom::RndNthInt64Range(RNGSEED Seed, RNGSEED N, INT64 min, INT64 max)
 {
-    if ( max <= min )
+    if ( min == max )
         return min;
+    max++;
+    if ( max <= min )
+        return max;
 
-    UINT64 range = (max - min + 1);
-
-    if ( range <= 1 )
-        return min;        // overflow happened
-
-    RNGSEED nseed = RndNthElement(Seed, N);    // generate next seed value
-
-    return (min + (INT64)Mul6464WithShiftRight64(nseed,range));
+    return min + (INT64)(RndNthDouble(Seed, N) * (double)(max - min));
 }
 
 int CRandom::RndIntRangeExclude(int low, int high, int exclude)
@@ -201,25 +203,20 @@ INT64 CRandom::RndInt64RangeExclude(INT64 low, INT64 high, INT64 exclude)
     return temp;
 }
 
-#ifdef EGEN_USE_DEPRECATED_CODE
+float CRandom::RndFloatRange(float min, float max)
+{
+    return min + (float) RndDouble() * (max - min);
+}
 
 double CRandom::RndDoubleRange(double min, double max)
 {
     return min + RndDouble() * (max - min);
 }
 
-#endif // EGEN_USE_DEPRECATED_CODE
-
 double CRandom::RndDoubleIncrRange(double min, double max, double incr)
 {
     INT64 width = (INT64)((max - min) / incr);  // need [0..width], so no +1
     return min + ((double)RndInt64Range(0, width) * incr);
-}
-
-// returns a random double value from a negative exponential distribution with the given mean
-double CRandom::RndDoubleNegExp(double mean)
-{
-    return ((-1.0 * log(RndDoubleIncrRange(0.0, 1.0, 0.000000000001))) * mean);
 }
 
 /* Returns a non-uniform random 64-bit integer in range of [P .. Q].
@@ -252,10 +249,6 @@ INT64 CRandom::NURnd( INT64 P, INT64 Q, INT32 A, INT32 s )
 /*
 *   Returns an alphanumeric string in a specified format;
 */
-
-// These two arrays are used for platform independence
-const char      UpperCaseLetters[]  =   "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const char      Numerals[]          =   "0123456789";
 
 void CRandom::RndAlphaNumFormatted(char *szReturnString, const char *szFormat)
 {
