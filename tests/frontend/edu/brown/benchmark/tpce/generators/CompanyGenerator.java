@@ -60,8 +60,10 @@ public class CompanyGenerator extends TableGenerator {
     private final InputFileHandler companyFile;
     private final InputFileHandler spFile;
     private final int companyRecords;
+    private String[] compRecord;
     
     private final PersonHandler person;
+    
     
     public CompanyGenerator(Table catalog_tbl, TPCEGenerator generator) {
         super(catalog_tbl, generator);
@@ -87,7 +89,7 @@ public class CompanyGenerator extends TableGenerator {
     private String generateCompanyName(String basicName) {
         String res = basicName;
         
-        long add = counter / companyRecords;
+        long add = (counter - 1) / companyRecords; // need the previous counter value here
         
         if (add > 0) {
             res = res + " #" + Long.toString(add);
@@ -106,6 +108,22 @@ public class CompanyGenerator extends TableGenerator {
         return spFile.getTupleByKey(key)[0];
     }
     
+    public long generateCompId() {
+        if (counter % TPCEConstants.DEFAULT_COMPANIES_PER_UNIT == 0) {
+            initNextLoadUnit();
+        }
+        
+        /*
+         * Note that the number of companies to generate may be more that the number in the file.
+         * That is why it wraps around every 5000 records (the number of records in the file).
+         */
+        this.compRecord = companyFile.getTupleByIndex((int)(counter % companyRecords));
+        long coId = Long.valueOf(compRecord[0]) + TPCEConstants.IDENT_SHIFT + counter / companyRecords * companyRecords;
+        
+        counter++;
+        return coId;
+    }
+    
     @Override
     public boolean hasNext() {
         return counter < startingCompany + companyCount;
@@ -115,16 +133,7 @@ public class CompanyGenerator extends TableGenerator {
     public Object[] next() {
         Object tuple[] = new Object[columnsNum];
         
-        if (counter % TPCEConstants.DEFAULT_COMPANIES_PER_UNIT == 0) {
-            initNextLoadUnit();
-        }
-        
-        /*
-         * Note that the number of companies to generate may be more that the number in the file.
-         * That is why it wraps around every 5000 records (the number of records in the file).
-         */
-        String[] compRecord = companyFile.getTupleByIndex((int)(counter % companyRecords));
-        long coId = Long.valueOf(compRecord[0]) + TPCEConstants.IDENT_SHIFT + counter / companyRecords * companyRecords;
+        long coId = generateCompId();
         int openDay = rnd.intRange(dayJan1_1800, dayJan2_2000);
         
         tuple[0] = coId; // co_id

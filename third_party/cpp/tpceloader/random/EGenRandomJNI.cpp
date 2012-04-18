@@ -229,21 +229,6 @@ JNIEXPORT jdouble JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_doubleIn
 
 /*
  * Class:     edu_brown_benchmark_tpce_util_EGenRandom
- * Method:    doubleNegExp
- * Signature: (JD)D
- */
-JNIEXPORT jdouble JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_doubleNegExp
-  (JNIEnv *env, jobject obj, jlong rnd_ptr, jdouble mean)
-{
-	CRandom *rnd = reinterpret_cast<CRandom *>(rnd_ptr);
-
-	double n = rnd->RndDoubleNegExp(static_cast<double>(mean));
-
-	return static_cast<jdouble>(n);
-}
-
-/*
- * Class:     edu_brown_benchmark_tpce_util_EGenRandom
  * Method:    rndNU
  * Signature: (JJJII)J
  */

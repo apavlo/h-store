@@ -77,7 +77,7 @@ public abstract class TPCEConstants {
     /*
      * Miscellaneous loader parameters
      */
-    public static final int  DEFAULT_INITIAL_DAYS = 1;
+    public static final int  DEFAULT_INITIAL_DAYS = 300;
     public static final int  DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
     public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this
     public static final long DEFAULT_START_CUSTOMER_ID = 1;
@@ -102,6 +102,14 @@ public abstract class TPCEConstants {
     public static final int dailyMarketBaseSecond  = 0;
     public static final int dailyMarketBaseMsec    = 0;
     
+    public static final int initialTradePopulationBaseYear      = 2005;
+    public static final int initialTradePopulationBaseMonth     = 0; // January, since months are zero-based in Java
+    public static final int initialTradePopulationBaseDay       = 3;
+    public static final int initialTradePopulationBaseHour      = 9;
+    public static final int initialTradePopulationBaseMinute    = 0;
+    public static final int initialTradePopulationBaseSecond    = 0;
+    public static final int initialTradePopulationBaseFraction  = 0;
+
     public static final int daysPerWorkWeek = 5;
     
     /*
@@ -173,9 +181,9 @@ public abstract class TPCEConstants {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
-        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
+//        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);

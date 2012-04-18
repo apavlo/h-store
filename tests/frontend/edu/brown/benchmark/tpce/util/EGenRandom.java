@@ -93,7 +93,7 @@ public class EGenRandom {
     public static final long RNG_SEED_TRADE_GEN = 32900134;
 
     // Base seed for the MEESecurity class
-    public static final long RNG_SEED_BASE_MEES_ECURITY = 75791232;
+    public static final long RNG_SEED_BASE_MEE_SECURITY = 75791232;
 
     // Base seed for non-uniform customer selection
     public static final long RNG_SEED_CUSTOMER_SELECTION = 9270899;
@@ -130,7 +130,6 @@ public class EGenRandom {
     
     private native double doubleRange(long rnd, double min, double max);
     private native double doubleIncrRange(long rnd, double min, double max, double incr); // incr -- precision
-    private native double doubleNegExp(long rnd, double mean); // negative exponential distribution
     
     private native long rndNU(long rnd, long p, long q, int a, int s);
     private native String rndAlphaNumFormatted(long rnd, String format);
@@ -195,11 +194,6 @@ public class EGenRandom {
         return doubleIncrRange(rnd, min, max, incr);
     }
     
-    // negative exponential distribution
-    public double doubleNegExp(double mean) {
-        return doubleNegExp(rnd, mean);
-    }
-
    /* 
     *  Returns a non-uniform random 64-bit integer in range of [P .. Q].
     *  

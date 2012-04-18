@@ -34,9 +34,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
-import org.apache.log4j.Logger;
-
-import edu.brown.benchmark.tpce.generators.CustomerGenerator;
+import edu.brown.benchmark.tpce.TPCEConstants;
 
 public class EGenDate {
     /*
@@ -109,6 +107,31 @@ public class EGenDate {
         // we need msecs from the Epoch to set up the date
         long dateEpochMillis = dateMillis + startEpochMillis;
         cal.setTimeInMillis(dateEpochMillis);
+        
+        return cal.getTime();
+    }
+    
+    public static Date getDateFromYMD(int year, int month, int day) {
+        cal.set(year, month, day);
+        
+        return cal.getTime();
+    }
+    
+    public static Date getDateFromTime(int year, int month, int day, int hour, int min, int sec, int msec) {
+        cal.set(year, month, day, hour, min, sec);
+        cal.set(Calendar.MILLISECOND, msec);
+        
+        return cal.getTime();
+    }
+    
+    public static Date addDaysMsecs(Date time, int daysAdd, int msecsAdd, boolean adjustWeekend) {
+        if (adjustWeekend) {
+            daysAdd = ((daysAdd / TPCEConstants.daysPerWorkWeek) * 7) + (daysAdd % TPCEConstants.daysPerWorkWeek);
+        }
+        
+        cal.setTime(time);
+        cal.add(Calendar.DAY_OF_MONTH, daysAdd);
+        cal.add(Calendar.MILLISECOND, msecsAdd);
         
         return cal.getTime();
     }
