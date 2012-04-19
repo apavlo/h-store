@@ -111,6 +111,7 @@ public abstract class TPCEConstants {
     public static final int initialTradePopulationBaseFraction  = 0;
 
     public static final int daysPerWorkWeek = 5;
+    public static final int newsItemsPerCompany = 2;
     
     /*
      * Constants for securities
@@ -184,8 +185,8 @@ public abstract class TPCEConstants {
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
