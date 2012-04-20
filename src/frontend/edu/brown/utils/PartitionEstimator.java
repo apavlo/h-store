@@ -69,6 +69,7 @@ import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.ConsistentHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -284,7 +285,7 @@ public class PartitionEstimator {
      * Convenience constructor that uses DefaultHasher
      */
     public PartitionEstimator(Database catalog_db) {
-        this(catalog_db, new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db)));
+        this(catalog_db, new ConsistentHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db)));
     }
 
     /**

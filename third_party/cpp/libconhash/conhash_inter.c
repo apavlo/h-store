@@ -30,8 +30,8 @@ long __conhash_hash_def(const char *instr)
 	return abs(hash);
 }
 
-long __conhash_hash_java_def(const u_int hash){
-    return (long)hash;
+unsigned int __conhash_hash_java_def(const u_int hash){
+    return (unsigned int)hash;
 }
 
 void __conhash_node2string(const struct node_s *node, u_int replica_idx, u_int *buf, u_int *len)
@@ -136,9 +136,9 @@ long __conhash_getHash(const char *object){
 //    quickSort(&myArray[0],5); // sorts elements 0, 1, 2, 3, and 4
 //    quickSort(&myArray[3],5); // sorts elements 3, 4, 5, 6, and 7
 
-int __conhash_quicksort(long *arr, int elements) {
+int __conhash_quicksort(unsigned int *arr, int elements) {
 
-  long  piv, beg[MAX_LEVELS], end[MAX_LEVELS], i=0, L, R ;
+  unsigned int  piv, beg[MAX_LEVELS], end[MAX_LEVELS], i=0, L, R ;
 
   beg[0]=0; end[0]=elements;
   while (i>=0) {
