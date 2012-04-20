@@ -87,7 +87,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  */
 public class WriteAheadLogger {
     
-    public static final String WAL_PATH = "/ltmp/hstore/wal2.log"; //"/research/hstore/mkirsch/testwal.log";
+    public static final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
     //"/ltmp/hstore/wal2.log";
     private static long txn_count = 0;
     
