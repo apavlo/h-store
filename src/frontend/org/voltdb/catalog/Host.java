@@ -26,6 +26,7 @@ package org.voltdb.catalog;
  */
 public class Host extends CatalogType {
 
+    int m_id;
     String m_ipaddr = new String();
     int m_num_cpus;
     int m_corespercpu;
@@ -35,6 +36,7 @@ public class Host extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
+        this.addField("id", m_id);
         this.addField("ipaddr", m_ipaddr);
         this.addField("num_cpus", m_num_cpus);
         this.addField("corespercpu", m_corespercpu);
@@ -45,11 +47,17 @@ public class Host extends CatalogType {
     }
 
     public void update() {
+        m_id = (Integer) m_fields.get("id");
         m_ipaddr = (String) m_fields.get("ipaddr");
         m_num_cpus = (Integer) m_fields.get("num_cpus");
         m_corespercpu = (Integer) m_fields.get("corespercpu");
         m_threadspercore = (Integer) m_fields.get("threadspercore");
         m_memory = (Integer) m_fields.get("memory");
+    }
+
+    /** GETTER: Unique host id */
+    public int getId() {
+        return m_id;
     }
 
     /** GETTER: The ip address or hostname of the host */
@@ -80,6 +88,11 @@ public class Host extends CatalogType {
     /** GETTER: The representation of a physical CPU on this Host */
     public CatalogMap<HardwareCPU> getCpus() {
         return m_cpus;
+    }
+
+    /** SETTER: Unique host id */
+    public void setId(int value) {
+        m_id = value; m_fields.put("id", value);
     }
 
     /** SETTER: The ip address or hostname of the host */

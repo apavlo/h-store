@@ -65,6 +65,25 @@ public abstract class AbstractScanPlanNode extends AbstractPlanNode {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if ((obj instanceof AbstractScanPlanNode) == false) {
+            return (false);
+        }
+        AbstractScanPlanNode other = (AbstractScanPlanNode)obj;
+        if (this.m_targetTableName != null) {
+            if (this.m_targetTableName.equals(other.m_targetTableName) == false) return (false);
+        } else if (other.m_targetTableName != null) return (false);
+        if (this.m_targetTableAlias != null) {
+            if (this.m_targetTableAlias.equals(other.m_targetTableAlias) == false) return (false);
+        } else if (other.m_targetTableAlias != null) return (false);
+        if (this.m_predicate != null) {
+            if (other.m_predicate == null) return (false);
+            if (this.m_predicate.equals(other.m_predicate) == false) return (false);
+        } else if (other.m_predicate != null) return (false);
+        return super.equals(obj);
+    }
+    
+    @Override
     public void validate() throws Exception {
         super.validate();
         // TargetTableId

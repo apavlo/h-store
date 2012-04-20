@@ -23,9 +23,8 @@ import com.google.protobuf.ByteString;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
+import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -291,14 +290,13 @@ public class TestPartitionExecutor extends BaseTestCase {
         RemoteTransaction ts = new RemoteTransaction(hstore_site);
         WorkResult partitionResult = executor.buildWorkResult(ts, result, Status.OK, null);
         assertNotNull(partitionResult);
-        assertEquals(result.size(), partitionResult.getOutputCount());
+        assertEquals(result.size(), partitionResult.getDepDataCount());
         
-        for (DataFragment d : partitionResult.getOutputList()) {
-            assertNotNull(d);
-            assertEquals(1, d.getDataCount());
-            assertEquals(dep_id, d.getId());
+        assertEquals(1, partitionResult.getDepDataCount());
+        for (int i = 0; i < partitionResult.getDepDataCount(); i++) {
+            assertEquals(dep_id, partitionResult.getDepId(i));
             
-            ByteString bs = d.getData(0);
+            ByteString bs = partitionResult.getDepData(i);
             assertFalse(bs.isEmpty());
             System.err.println("SIZE: " + StringUtil.md5sum(bs.asReadOnlyByteBuffer()));
             

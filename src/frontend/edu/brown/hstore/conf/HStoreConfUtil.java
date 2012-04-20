@@ -28,13 +28,13 @@ public abstract class HStoreConfUtil {
     
     static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
     static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
-    
+
     // ----------------------------------------------------------------------------
     // OUTPUT METHODS
     // ----------------------------------------------------------------------------
     
     public static String makeIndexHTML(HStoreConf conf, String group) {
-        final Conf handle = conf.confHandles.get(group);
+        final Conf handle = conf.getHandles().get(group);
         
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
@@ -50,7 +50,7 @@ public abstract class HStoreConfUtil {
     }
     
     public static String makeHTML(HStoreConf conf, String group) {
-        final Conf handle = conf.confHandles.get(group);
+        final Conf handle = conf.getHandles().get(group);
         
         StringBuilder sb = new StringBuilder();
         sb.append("<ul class=\"property-list\">\n\n");
@@ -136,7 +136,7 @@ public abstract class HStoreConfUtil {
     }
     
     public static String makeBuildXML(HStoreConf conf, String group) {
-        final Conf handle = conf.confHandles.get(group);
+        final Conf handle = conf.getHandles().get(group);
         
         StringBuilder sb = new StringBuilder();
         sb.append("<!-- " + group.toUpperCase() + " -->\n");
@@ -163,8 +163,8 @@ public abstract class HStoreConfUtil {
     
     public static String makeConfig(HStoreConf conf, boolean experimental) {
         StringBuilder sb = new StringBuilder();
-        for (String group : conf.confHandles.keySet()) {
-            Conf handle = conf.confHandles.get(group);
+        for (String group : conf.getHandles().keySet()) {
+            Conf handle = conf.getHandles().get(group);
 
             sb.append("## ").append(StringUtil.repeat("-", 100)).append("\n")
               .append("## ").append(StringUtil.title(group)).append(" Parameters\n")

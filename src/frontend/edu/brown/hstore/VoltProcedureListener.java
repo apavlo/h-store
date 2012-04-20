@@ -31,7 +31,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final EventLoop eventLoop;
     private final Handler handler;
     private ServerSocketChannel serverSocket;
-    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
+    
     
 //    private final HStoreSite hstore_site;
 
@@ -187,9 +187,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             
             // Execute store procedure!
             try {
-                this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
-                StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
-                handler.procedureInvocation(invocation, request, eventLoopCallback);
+                handler.procedureInvocation(request, eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -261,16 +259,20 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public static interface Handler {
-        public void procedureInvocation(StoredProcedureInvocation request,
-                                        byte[] serializedRequest,
-                                        RpcCallback<byte[]> done);
+        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
     }
 
     public static void main(String[] vargs) throws Exception {
         // Example of using VoltProcedureListener: prints procedure name, returns empty array
         NIOEventLoop eventLoop = new NIOEventLoop();
         class PrintHandler implements Handler {
-            public void procedureInvocation(StoredProcedureInvocation invocation, byte[] serializedRequest, RpcCallback<byte[]> done) {
+            public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+                StoredProcedureInvocation invocation = null;
+                try {
+                    invocation = FastDeserializer.deserialize(serializedRequest, StoredProcedureInvocation.class);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
                 LOG.debug("request: " + invocation.getProcName() + " " +
                         invocation.getParams().toArray().length);
                 done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));

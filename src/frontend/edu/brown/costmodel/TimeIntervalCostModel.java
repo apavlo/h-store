@@ -737,7 +737,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     }
                 }
             } catch (Exception ex) {
-                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), CatalogUtil.CATALOG_FILENAME);
                 throw new RuntimeException("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i, ex);
             }
         }

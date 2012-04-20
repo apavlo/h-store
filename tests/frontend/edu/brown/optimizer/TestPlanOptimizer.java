@@ -37,10 +37,16 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     final Set<String> DEBUG = new HashSet<String>();
     {
         DEBUG.add("DistinctAggregate");
+        DEBUG.add("MultipleAggregates");
     }
     
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt") {
         {
+            this.addStmtProcedure("MultipleAggregates",
+                                  "SELECT C_B_ID, SUM(C_VALUE0), SUM(C_VALUE1), " +
+                                  "       AVG(C_VALUE0), AVG(C_VALUE1) " +
+                                  "FROM TABLEC GROUP BY C_B_ID");
+            
             this.addStmtProcedure("DistinctAggregate",
                                   "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER " +
                                   "FROM TABLEA, TABLEB " +
@@ -89,7 +95,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   " FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_B_A_ID");
             
             this.addStmtProcedure("OrderBy",
-                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
+                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID DESC, TABLEC.C_VALUE0 ASC");
             
             this.addStmtProcedure("LimitOrderBy",
                                   "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
@@ -116,11 +122,21 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         for (boolean dtxn : new boolean[]{ true, false }) {
             AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, dtxn);
             assertNotNull(root);
-            if (DEBUG.contains(catalog_stmt.getName())) 
+            if (DEBUG.contains(catalog_stmt.getParent().getName())) 
                 System.err.println(PlanNodeUtil.debug(root));
             BasePlanOptimizerTestCase.validate(root);
         } // FOR
     }
+    
+    /**
+     * testMultipleAggregates
+     */
+    @Test
+    public void testMultipleAggregates() throws Exception {
+        Procedure catalog_proc = this.getProcedure("MultipleAggregates");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        this.check(catalog_stmt);
+    }   
     
     /**
      * testExtractReferencedColumns

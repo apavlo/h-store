@@ -333,11 +333,10 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         // CONFIG #4: Local Cluster (of processes)
         /////////////////////////////////////////////////////////////
 
-        // 2012-03-16 - DISABLED UNTIL WE GET A BETTER BUILD AND TEST SERVER
-//        config = new LocalCluster("sqlfeatures-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster("sqlfeatures-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }

@@ -443,6 +443,14 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         return (this.lockQueuesLastTxn[partition]);
     }
     
+    
+    protected boolean isLockQueuesEmpty() {
+        for (int i = 0; i < this.lockQueues.length; ++i) {
+            if (this.lockQueues[i].isEmpty() == false) return (false);
+        }
+        return (true);
+    }
+    
     // ----------------------------------------------------------------------------
     // INTERNAL METHODS
     // ----------------------------------------------------------------------------
@@ -675,13 +683,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
-    
-    protected boolean isEmpty() {
-        for (int i = 0; i < this.lockQueues.length; ++i) {
-            if (this.lockQueues[i].isEmpty() == false) return (false);
-        }
-        return (true);
-    }
     
     /**
      * Return the current transaction that is executing at this partition

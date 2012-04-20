@@ -45,6 +45,15 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<TransactionInf
         public int compare(TransactionInfoBaseMessage msg0, TransactionInfoBaseMessage msg1) {
             assert(msg0 != null);
             assert(msg1 != null);
+
+            Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
+            Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
+            
+            // (3) Otherwise, always let the FinishTaskMessage go first
+            boolean isFinish0 = class0.equals(FinishTaskMessage.class);
+            boolean isFinish1 = class1.equals(FinishTaskMessage.class);
+            if (isFinish0 && !isFinish1) return (-1);
+            else if (!isFinish0 && isFinish1) return (1);
             
             // (1) SysProcs always go first
             if (msg0.isSysProc() != msg1.isSysProc()) {
@@ -53,15 +62,7 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<TransactionInf
             }
             
             // (2) If they're the same message type, go by their txnIds
-            Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
-            Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
             if (class0.equals(class1)) return (msg0.getTxnId().compareTo(msg1.getTxnId()));
-
-            // (3) Otherwise, always let the FinishTaskMessage go first
-            boolean isFinish0 = class0.equals(FinishTaskMessage.class);
-            boolean isFinish1 = class1.equals(FinishTaskMessage.class);
-            if (isFinish0 && !isFinish1) return (-1);
-            else if (!isFinish0 && isFinish1) return (1);
             
             // (4) Then let a FragmentTaskMessage go before anything else
             boolean isWork0 = class0.equals(FragmentTaskMessage.class);

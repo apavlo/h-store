@@ -54,13 +54,30 @@ public final class HStoreConf {
             experimental=false
         )
         public String sshoptions;
+        
+        @ConfigProperty(
+            description="An optional command that is added as a prefix that is executed before " +
+                        "starting the HStoreSite and clients. The command must exit with " +
+                        "status code zero.",
+            defaultString="",
+            experimental=false
+        )
+        public String sshprefix;
 
         @ConfigProperty(
             description="The default hostname used when generating cluster configurations.",
             defaultString="localhost",
             experimental=false
         )
-        public String defaulthost = "localhost";
+        public String defaulthost;
+        
+        @ConfigProperty(
+            description="The name of the AbstractHasher class to use to figure out what partitions " +
+                        "transactions and queries need to go to. We should not need to change this.",
+            defaultString="edu.brown.hashing.DefaultHasher",
+            experimental=true
+        )
+        public String hasherClass;
     }
     
     // ============================================================================
@@ -88,6 +105,14 @@ public final class HStoreConf {
             experimental=false
         )
         public int memory;
+        
+        @ConfigProperty(
+            description="When enabled, the HStoreSite will preload objects when the system is started. " +
+            		    "This should only be disabled for regression test cases.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean preload;
 
         @ConfigProperty(
             description="When enabled, the PartitionExecutor threads will be pinned to the first n CPU cores (where " +
@@ -172,14 +197,14 @@ public final class HStoreConf {
         public boolean exec_avoid_coordinator;
         
         @ConfigProperty(
-            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will " +
-                        "execute as a single-partition transaction at a random partition on the node that the request " +
-                        "originally arrives on. When the transaction makes a query request that needs to touch data from " +
-                        "a partition that is different than its base partition, then that transaction is immediately aborted, " +
-                        "rolled back, and restarted on the partition that has the data that it was requesting. If the " +
-                        "transaction requested more than partition when it was aborted, then it will be executed as a " +
-                        "multi-partition transaction on the partition that was requested most often by queries " +
-                        "(using random tie breakers). " +
+            description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
+            		    "Each request will execute as a single-partition transaction at a random partition on the node " +
+            		    "that the request originally arrives on. When the transaction makes a query request that needs " +
+            		    "to touch data from a partition that is different than its base partition, then that transaction " +
+            		    "is immediately aborted, rolled back, and restarted on the partition that has the data that it " +
+            		    "was requesting. If the transaction requested more than partition when it was aborted, then it " +
+            		    "will be executed as a multi-partition transaction on the partition that was requested most often " +
+            		    "by queries using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
             defaultBoolean=true,
             experimental=true
@@ -196,6 +221,16 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_singlepartitioned;
+        
+        @ConfigProperty(
+            description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
+            		    "a new request will be executed as a single-partitioned or distributed transaction. " +
+            		    "Note that if this option is enabled, any distributed transaction will have to lock all " +
+            		    "of the partitions in the cluster.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean exec_voltdb_procinfo;
         
         @ConfigProperty(
             description="Always execute each transaction on a random partition on the node where the request originally " +
@@ -267,6 +302,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_command_logging;
+        
+        @ConfigProperty(
+            description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
+            		    "queries on remote partitions for distributed transactions.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_prefetch_queries;
         
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
@@ -750,6 +793,20 @@ public final class HStoreConf {
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
+            description="The max number of DistributedStates to keep in the pool.",
+            defaultInt=500,
+            experimental=false
+        )
+        public int pool_dtxnstates_idle;
+        
+        @ConfigProperty(
+            description="The max number of PrefetchStates to keep in the pool.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int pool_prefetchstates_idle;
+        
+        @ConfigProperty(
             description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
             defaultInt=10000,
             experimental=false
@@ -768,6 +825,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txninit_idle;
         
         @ConfigProperty(
@@ -790,6 +848,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txnprepare_idle;
     }
     
@@ -812,6 +871,13 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean log_backup;
+        
+        @ConfigProperty(
+            description="The directory that benchmark project jars will be stored in.",
+            defaultString="",
+            experimental=false
+        )
+        public String jar_dir = ".";
         
         @ConfigProperty(
             description="The amount of memory to allocate for each client process (in MB)",
@@ -1203,7 +1269,7 @@ public final class HStoreConf {
     /**
      * Prefix -> Configuration
      */
-    protected final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
+    private final Map<String, Conf> confHandles = new ListOrderedMap<String, Conf>();
     
     /**
      * Easy Access Handles
@@ -1263,6 +1329,42 @@ public final class HStoreConf {
     // ----------------------------------------------------------------------------
     // LOADING METHODS
     // ----------------------------------------------------------------------------
+    
+    public void set(String k, Object value) {
+        Matcher m = REGEX_PARSE.matcher(k);
+        boolean found = m.matches();
+        if (m == null || found == false) {
+            LOG.warn("Invalid key '" + k + "'");
+            return;
+        }
+        assert(m != null);
+        Conf handle = confHandles.get(m.group(1));
+        this.set(handle, m.group(2), value);
+    }
+    
+    private void set(Conf handle, String f_name, Object value) {
+        Class<?> confClass = handle.getClass();
+        assert(confClass != null);
+        Field f = null;
+        
+        try {
+            f = confClass.getField(f_name);
+        } catch (Exception ex) {
+            if (debug.get()) LOG.warn(String.format("Invalid configuration property '%s.%s'. Ignoring...",
+                                      handle.prefix, f_name));
+            return;
+        }
+        ConfigProperty cp = handle.getConfigProperties().get(f);
+        assert(cp != null) : "Missing ConfigProperty for " + f;
+        
+        try {
+            f.set(handle, value);
+            if (debug.get()) LOG.debug(String.format("SET %s.%s = %s",
+                                       handle.prefix, f_name, value));
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+        }
+    }
     
     /**
      * 
@@ -1458,6 +1560,9 @@ public final class HStoreConf {
     }
     
 
+    protected Map<String, Conf> getHandles() {
+        return (this.confHandles);
+    }
     
     @Override
     public String toString() {
@@ -1513,8 +1618,8 @@ public final class HStoreConf {
         return singleton(false);
     }
     
-    public synchronized static HStoreConf singleton(boolean init) {
-        if (conf == null && init == true) return init(null);
+    public synchronized static HStoreConf singleton(boolean init_if_null) {
+        if (conf == null && init_if_null == true) return init(null, null);
         if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
         return (conf);
     }

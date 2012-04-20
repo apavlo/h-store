@@ -26,6 +26,7 @@
 package edu.brown.hstore;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,9 +52,11 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -62,7 +65,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
@@ -97,6 +99,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
@@ -134,6 +137,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * to clients.
      */
     private final DBBPool buffer_pool = new DBBPool(false, false);
+    
+    /**
+     * Incoming request deserializer
+     */
+    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
     private final HStoreThreadManager threadManager;
     
@@ -318,38 +326,44 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        // TODO: Pull the PartitionEstimator info from HStoreConf
-        this.p_estimator = new PartitionEstimator(this.catalog_db);
-        
-        // **IMPORTANT**
-        // We have to setup the partition offsets before we do anything else here
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
+        
+        // Get the hasher we will use for this HStoreSite
+        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
+                                            new Object[]{ this.catalog_db, num_partitions },
+                                            new Class<?>[]{ Database.class, int.class });
+        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
+        
+        // **IMPORTANT**
+        // We have to setup the partition offsets before we do anything else here
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         this.single_partition_sets = new Collection[num_partitions];
 
         // **IMPORTANT**
-        // Always clear out our various caches before we start our new HStoreSite
-        if (d) LOG.debug("Preloading cached objects");
-        try {
-            // Don't forget our CatalogUtil friend!
-            CatalogUtil.clearCache(this.catalog_db);
-            CatalogUtil.preload(this.catalog_db);
-            
-            // Load up everything the QueryPlanUtil
-            PlanNodeUtil.preload(this.catalog_db);
-            
-            // Then load up everything in the PartitionEstimator
-            this.p_estimator.preload();
-            
-            // And the BatchPlanner
-            BatchPlanner.clear(this.all_partitions.size());
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to prepare HStoreSite", ex);
+        // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
+        CatalogUtil.clearCache(this.catalog_db);
+        BatchPlanner.clear(this.all_partitions.size());
+
+        // Only preload stuff if we were asked to
+        if (hstore_conf.site.preload) {
+            if (d) LOG.debug("Preloading cached objects");
+            try {
+                // Don't forget our CatalogUtil friend!
+                CatalogUtil.preload(this.catalog_db);
+                
+                // Load up everything the QueryPlanUtil
+                PlanNodeUtil.preload(this.catalog_db);
+                
+                // Then load up everything in the PartitionEstimator
+                this.p_estimator.preload();
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to prepare HStoreSite", ex);
+            }
         }
         
         // Offset Hack
@@ -375,7 +389,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // General Stuff
-        this.hasher = this.p_estimator.getHasher();
+        
         this.thresholds = new EstimationThresholds(); // default values
         
         // MapReduce Transaction helper thread
@@ -650,7 +664,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * For the given partition id, return its offset in the list of 
+     * all the local partition ids managed by this HStoreSite.
+     * This will fail if the given partition is not local to this HStoreSite.
      * @param partition
      * @return
      */
@@ -662,9 +678,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * 
+     * For the given local partition offset generated by getLocalPartitionOffset(),
+     * return its corresponding partition id
      * @param offset
      * @return
+     * @see HStoreSite.getLocalPartitionOffset
      */
     public int getLocalPartitionFromOffset(int offset) {
         return this.local_partition_reverse[offset];
@@ -922,8 +940,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
+    public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+        EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
+
+        this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
+        StoredProcedureInvocation request = null;
+        try {
+            request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
         
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
@@ -950,8 +977,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         
         // DB2-style Transaction Redirection
-        if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
+            if (d) LOG.debug(String.format("Using embedded base partition from %s request [basePartition=%d]",
+                                           request.getProcName(), request.getBasePartition()));
             assert(base_partition == request.getBasePartition());    
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
@@ -991,9 +1019,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
-            if (t) 
-                LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                        request.getProcName(), hstore_conf.site.exec_force_localexecution));
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                                           request.getProcName(), hstore_conf.site.exec_force_localexecution));
             int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
             base_partition = this.local_partitions_arr[idx].intValue();
         }
@@ -1064,7 +1091,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                              request.getProcName(), base_partition, request.getClientHandle()));
             predict_touchedPartitions = this.single_partition_sets[base_partition];
-        }    
+        }
+        // Use the @ProcInfo flags in the catalog
+        else if (hstore_conf.site.exec_voltdb_procinfo) {
+            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
+                                            request.getProcName(), request.getClientHandle(), catalog_proc.getSinglepartition()));
+            if (catalog_proc.getSinglepartition()) {
+                predict_touchedPartitions = this.single_partition_sets[base_partition];
+            } else {
+                predict_touchedPartitions = this.all_partitions;
+            }
+        }
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
         else if (hstore_conf.site.exec_neworder_cheat) {
@@ -1151,8 +1188,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         } else {
-            ts.init(
-                    txn_id, request.getClientHandle(), base_partition,
+            ts.init(txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         }
@@ -1178,8 +1214,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
+        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
+        		         "Returning back to listen on incoming socket");
         
-        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
     }
 
     /**
@@ -1317,14 +1354,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @return
      */
-    public RemoteTransaction createRemoteTransaction(Long txn_id, TransactionWorkRequest request) {
+    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, boolean sysproc) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-            ts.init(txn_id, request.getSourcePartition(), request.getSysproc(), true);
+            ts.init(txn_id, base_partition, sysproc, true);
             if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
-                                           ts, request.getSourcePartition(), false, ts.hashCode()));
+                                           ts, base_partition, false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -1377,16 +1414,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * Execute some work on a particular PartitionExecutor
+     * Execute a WorkFragment on a particular PartitionExecutor
      * @param request
      * @param done
      */
-    public void transactionWork(RemoteTransaction ts, TransactionWorkRequest request, WorkFragment fragment) {
-        if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                                                fragment.getPartitionId(), ts.getTransactionId()));
-        int partition = fragment.getPartitionId();
+    public void transactionWork(AbstractTransaction ts, WorkFragment fragment) {
+        if (d) LOG.debug(String.format("%s - Queuing %s on partition %d [prefetch=%s]",
+                                       ts, fragment.getClass().getSimpleName(),
+                                       fragment.getPartitionId(), fragment.getPrefetch()));
+        assert(this.isLocalPartition(fragment.getPartitionId())) :
+            "Trying to queue work for " + ts + " at non-local partition " + fragment.getPartitionId();
         FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
-        this.executors[partition].queueWork(ts, ftask);
+        this.executors[fragment.getPartitionId()].queueWork(ts, ftask);
     }
 
 
@@ -1462,6 +1501,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 WriteAheadLogger.writeCombined((LocalTransaction)ts, status);
             }*/
+            ts.setStatus(status);
+            
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
                 if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
                 cleanup_callback = ts.getCleanupCallback();
@@ -1487,7 +1528,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
+            if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p)) {
                 if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
                     this.executors[p].queueFinish(ts, status);
@@ -1557,6 +1598,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts != null);
         assert(status != Status.OK) :
             "Unexpected requeue status " + status + " for " + ts;
+        ts.setStatus(status);
         this.txnQueueManager.restartTransaction(ts, status);
     }
     
@@ -1569,6 +1611,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                                        ts, status, ts.getClientHandle()));
         
+        ts.setStatus(status);
         ClientResponseImpl cresponse = ts.getClientResponse();
         cresponse.init(ts.getTransactionId(),
                        ts.getClientHandle(),
@@ -1824,6 +1867,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         cresponse.setRequestCounter(this.getNextRequestCounter());
         cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
         
+        long now = System.currentTimeMillis();
+        EstTimeUpdater.update(now);
+        cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
+        cresponse.setRestartCounter(ts.getRestartCounter());
+        
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
         // that we can serialize the ClientResponse out to a byte array
@@ -1957,6 +2005,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
+                case ABORT_GRACEFUL:
                     // TODO: Make new counter?
                     break;
                 default:
@@ -1974,7 +2023,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (status != Status.ABORT_MISPREDICT && ts.isRejected() == false) {
+            } else if (status != Status.ABORT_MISPREDICT &&
+                       status != Status.ABORT_REJECT && 
+                       status != Status.ABORT_THROTTLED) {
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }

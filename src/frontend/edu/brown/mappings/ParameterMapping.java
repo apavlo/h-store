@@ -123,6 +123,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         
         // Sort them by their attributes as they appear in the catalog
         // No! We want to sort them by their coefficients!
+        @SuppressWarnings("rawtypes")
         final Comparable items0[] = new Comparable<?>[] {
                 this.coefficient,
                 this.statement,
@@ -131,6 +132,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
                 this.procedure_parameter,
                 this.procedure_parameter_index,
         };
+        @SuppressWarnings("rawtypes")
         final Comparable items1[] = new Comparable<?>[] {
                 o.coefficient,
                 o.statement,
