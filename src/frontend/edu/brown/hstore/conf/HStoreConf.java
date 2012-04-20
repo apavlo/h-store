@@ -260,6 +260,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_validate_work;
+
+        @ConfigProperty(
+            description="If enabled, log all transaction requests to a file",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_command_logging;
         
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
@@ -267,7 +274,7 @@ public final class HStoreConf {
                 experimental=true
         )
         public boolean mapreduce_reduce_blocking;
-        
+       
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------

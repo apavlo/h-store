@@ -1809,8 +1809,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
-        if (cresponse.getStatus() == Status.OK && ts.isExecSinglePartition()) //this.local_partitions.contains(new Integer(cresponse.getBasePartition()))) //Committed                                                      
-            WriteAheadLogger.writeCommitted(ts);
+        if (hstore_conf.site.exec_command_logging) {
+            if (cresponse.getStatus() == Status.OK && ts.isExecSinglePartition()) //this.local_partitions.contains(new Integer(cresponse.getBasePartition()))) //Committed                                                      
+                WriteAheadLogger.writeCommitted(ts);
+        }
 
         // Don't send anything back if it's a mispredict because it's as waste of time...
         // If the txn committed/aborted, then we can send the response directly back to the
