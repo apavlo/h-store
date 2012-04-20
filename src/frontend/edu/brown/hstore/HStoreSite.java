@@ -221,6 +221,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final MapReduceHelperThread mr_helper;
     
+    private final WriteAheadLogger commandLogger;
+    
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
     // ----------------------------------------------------------------------------
@@ -419,6 +421,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // HStoreSite Thread Manager
         this.threadManager = new HStoreThreadManager(this);
+        
+        // Command Logger
+        if (hstore_conf.site.exec_command_logging) {
+            this.commandLogger = new WriteAheadLogger(catalog_db, hstore_conf.site.exec_command_logging_file);
+        } else {
+            this.commandLogger = null;
+        }
         
         // Incoming Txn Request Listener
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
@@ -1852,9 +1861,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
-        if (hstore_conf.site.exec_command_logging) {
-            if (cresponse.getStatus() == Status.OK && ts.isExecSinglePartition()) //this.local_partitions.contains(new Integer(cresponse.getBasePartition()))) //Committed                                                      
-                WriteAheadLogger.writeCommitted(ts);
+        if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
+            this.commandLogger.writeCommitted(ts);
         }
 
         // Don't send anything back if it's a mispredict because it's as waste of time...

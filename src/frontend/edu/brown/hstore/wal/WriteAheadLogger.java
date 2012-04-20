@@ -25,102 +25,116 @@
  ***************************************************************************/
 package edu.brown.hstore.wal;
 
-/*
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.log4j.Logger;
-import org.voltdb.ParameterSet;
-import org.voltdb.SQLStmt;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.PlanFragment;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Statement;
-import org.voltdb.exceptions.MispredictionException;
-
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hashing.AbstractHasher;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Loggable;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
-import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
-*/
-
-import java.util.List;
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 
 import org.voltdb.ParameterSet;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.dtxn.LocalTransaction;
-
-
-
-
 
 /**
  * @author mkirsch
  */
 public class WriteAheadLogger {
     
-    public static final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
+    public final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
     //"/ltmp/hstore/wal2.log";
-    private static long txn_count = 0;
+    private long txn_count = 0;
+    
+    final Database catalog_db;
+    final FileChannel fstream;
+    final ByteBuffer buffer;
+    
+    public WriteAheadLogger(Database catalog_db, String path) {
+        this.catalog_db = catalog_db;
+        
+        FileOutputStream f = null;
+        try {
+            f = new FileOutputStream(new File(path), false);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        this.fstream = f.getChannel();
+        
+        // TODO(pavlo): Use a buffer pool instead of hardcoded memory size
+        byte bytes[] = new byte[102400];
+        this.buffer = ByteBuffer.wrap(bytes);
+        
+        this.writeHeader();
+    }
+    
+    public boolean writeHeader() {
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            int procId = catalog_proc.getId();
+            
+            // TODO: Write out a header that contains a mapping from Procedure name to ids
+        } // FOR
+        return (true);
+    }
+    
+    /**
+     * 
+     * @return
+     */
+    public Map<Integer, String> readHeader() {
+        
+        return (null);
+    }
     
     /**
      * @param ts
      * @param st
      */
-    public static boolean writeCommitted(final LocalTransaction ts) {
-        txn_count++;
-        //Called from HStoreSite.transactionFinish()
-        Long txn_id = ts.getTransactionId();
+    public boolean writeCommitted(final LocalTransaction ts) {
+        this.buffer.rewind();
+        this.buffer.putLong(ts.getTransactionId().longValue());
+        this.buffer.putLong(EstTime.currentTimeMillis());
         
-        String pn = ts.getProcedureName();
-        ParameterSet pp = ts.getProcedureParameters();
-        
-        String parameters = pp.toString();
-        if (parameters.length() > 0) parameters = "params";
-        long time = System.currentTimeMillis();
-        
+        /* If we have a header with a mapping to Procedure names to ProcIds, we can do this
+        int procId = ts.getProcedure().getId();
+        this.buffer.putInt(procId);
+        */
 
+        // TODO: Remove this once we have the header stuff working...
+        String pn = ts.getProcedureName();
+        this.buffer.putInt(pn.length());
+        this.buffer.put(pn.getBytes()); // TODO: Remove having to copy bytes
+        
+        ParameterSet pp = ts.getProcedureParameters();
+        byte pp_bytes[] = null;
         try {
-            FileWriter fstream = new FileWriter(WAL_PATH, true);
-            BufferedWriter out = new BufferedWriter(fstream);
-            out.write(txn_count + "><" + time + "><" + txn_id.toString() + "><" + pn + "><" + parameters + "><COMMIT\n");
-            out.flush();
-            out.close();
+            pp_bytes = FastSerializer.serialize(pp); // XXX: This sucks
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to serialize ParameterSet for " + ts, ex);
+        }
+        this.buffer.put(pp_bytes);
+        
+        try {
+            // TODO(pavlo): Figure out how to mark the position in the ByteBuffer so that
+            //              we only write out the byte array up to that point instead of the whole thing
+            fstream.write(this.buffer);
+            fstream.force(true);
             //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
         } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         
 
         return true;
     }
+
 
     /**
      * @param cp
@@ -133,29 +147,29 @@ public class WriteAheadLogger {
     /**
      * 
      */
-    public static List<LocalTransaction> getLog() {
-        List<LocalTransaction> result;
-        try {
-            BufferedReader in = new BufferedReader(new FileReader(WAL_PATH));
-            String strLine;
-            while ((strLine = in.readLine()) != null)   {
-                //System.out.println(strLine);
-                String[] data = strLine.split("><");
-                System.out.println(data[2]);
-                if (data.length == 6 && data[5].equals("COMMIT")) {
-                    long txn_count = Long.parseLong(data[0]);
-                    long time = Long.parseLong(data[1]);
-                    long txn_id = Long.parseLong(data[2]);
-                    String pn = data[3];
-                    String params = data[4];
-                    String status = data[5];
-                    //System.out.println(txn_id);
-                }
-            }
-            in.close();
-        } catch (Exception e) {
-            //e.printStackTrace();
-        }
-        return null;
-    }
+//    public static List<LocalTransaction> getLog() {
+//        List<LocalTransaction> result;
+//        try {
+//            BufferedReader in = new BufferedReader(new FileReader(WAL_PATH));
+//            String strLine;
+//            while ((strLine = in.readLine()) != null)   {
+//                //System.out.println(strLine);
+//                String[] data = strLine.split("><");
+//                System.out.println(data[2]);
+//                if (data.length == 6 && data[5].equals("COMMIT")) {
+//                    long txn_count = Long.parseLong(data[0]);
+//                    long time = Long.parseLong(data[1]);
+//                    long txn_id = Long.parseLong(data[2]);
+//                    String pn = data[3];
+//                    String params = data[4];
+//                    String status = data[5];
+//                    //System.out.println(txn_id);
+//                }
+//            }
+//            in.close();
+//        } catch (Exception e) {
+//            //e.printStackTrace();
+//        }
+//        return null;
+//    }
 }
