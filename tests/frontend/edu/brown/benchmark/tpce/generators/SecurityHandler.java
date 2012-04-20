@@ -45,10 +45,12 @@ public class SecurityHandler {
     
     private final InputFileHandler secFile;
     private final int secRecords;
+    private final int compRecords;
     
     public SecurityHandler(TPCEGenerator generator) {
         secFile = generator.getInputFile(InputFile.SECURITY);
         secRecords = secFile.getRecordsNum();
+        compRecords = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
     }
     
     /**
@@ -89,6 +91,19 @@ public class SecurityHandler {
         }
         
         return suff;
+    }
+    
+    public long getCompanyId(long counter) {
+        
+        return Long.valueOf(getSecRecord(counter)[5]) + TPCEConstants.IDENT_SHIFT +
+                + counter / secRecords * compRecords;
+    }
+    
+    /**
+     * Return the record based on the counter. The file wraps around.
+     */
+    public String[] getSecRecord(long counter) {
+        return secFile.getTupleByIndex((int)(counter % secRecords));
     }
     
     /**
