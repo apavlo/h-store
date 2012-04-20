@@ -124,4 +124,10 @@ public interface ClientResponse {
      * @return Time in milliseconds the procedure took to roundtrip from the client to the server
      */
     public int getClientRoundtrip();
+    
+    /**
+     * Get the number of times this transaction was restarted on the server side for whatever reason.
+     * @return The number of times this transaction has been restarted.
+     */
+    public int getRestartCounter();
 }

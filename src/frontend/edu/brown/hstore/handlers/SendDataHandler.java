@@ -7,14 +7,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
-import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
@@ -70,37 +68,34 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
         SendDataResponse.Builder builder = SendDataResponse.newBuilder()
                                                              .setTransactionId(txn_id)
                                                              .setStatus(Hstoreservice.Status.OK)
-                                                             .setSenderId(hstore_site.getSiteId());
+                                                             .setSenderSite(hstore_site.getSiteId());
         
-        for (DataFragment frag : request.getFragmentsList()) {
-            int partition = frag.getId();
-            
+        for (int i = 0, cnt = request.getDataCount(); i < cnt; i++) {
+            int partition = request.getDepId(i);
             assert(hstore_site.getLocalPartitionIds().contains(partition));
-            for (ByteString bs : frag.getDataList()) {
-                ByteBuffer data = bs.asReadOnlyByteBuffer();
-                assert(data != null);
+            
+            ByteBuffer data = request.getData(i).asReadOnlyByteBuffer();
+            assert(data != null);
                 
-                // Deserialize the VoltTable object for the given byte array
-                VoltTable vt = null;
-                try {
-                    vt = FastDeserializer.deserialize(data, VoltTable.class);
-                    
-                } catch (Exception ex) {
-                    LOG.warn("Unexpected error when deserializing VoltTable", ex);
-                }
-                assert(vt != null);
-                if (debug.get()) {
-                    byte bytes[] = bs.toByteArray();
-                    LOG.debug(String.format("Inbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
-                                            partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));
-                }
+            // Deserialize the VoltTable object for the given byte array
+            VoltTable vt = null;
+            try {
+                vt = FastDeserializer.deserialize(data, VoltTable.class);
+            } catch (Exception ex) {
+                LOG.warn("Unexpected error when deserializing VoltTable", ex);
+            }
+            assert(vt != null);
+            if (debug.get()) {
+                byte bytes[] = request.getData(i).toByteArray();
+                LOG.debug(String.format("Inbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
+                                        partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));
+            }
                 
-                if (debug.get())
-                    LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
-                Hstoreservice.Status status = ts.storeData(partition, vt);
-                if (status != Hstoreservice.Status.OK) builder.setStatus(status);
-                builder.addPartitions(partition);
-            } // FOR
+            if (debug.get())
+                LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
+            Hstoreservice.Status status = ts.storeData(partition, vt);
+            if (status != Hstoreservice.Status.OK) builder.setStatus(status);
+            builder.addPartitions(partition);
         } // FOR
         
         callback.run(builder.build());

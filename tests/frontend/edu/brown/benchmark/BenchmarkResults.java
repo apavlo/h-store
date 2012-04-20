@@ -411,7 +411,7 @@ public class BenchmarkResults {
         return (CACHE_computeTotalAndDelta); 
     }
 
-    public BenchmarkResults addPollResponseInfo(String clientName, int pollIndex, long time, BenchmarkComponent.TransactionCounter tc, String errMsg) {
+    public BenchmarkResults addPollResponseInfo(String clientName, int pollIndex, long time, TransactionCounter tc, String errMsg) {
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
 

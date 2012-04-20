@@ -102,7 +102,8 @@ public enum ExpressionType {
     AGGREGATE_SUM                 (AggregateExpression.class, 42),
     AGGREGATE_MIN                 (AggregateExpression.class, 43),
     AGGREGATE_MAX                 (AggregateExpression.class, 44),
-    AGGREGATE_AVG                 (AggregateExpression.class, 45)
+    AGGREGATE_AVG                 (AggregateExpression.class, 45),
+    AGGREGATE_WEIGHTED_AVG     (AggregateExpression.class, 46),
     ;
 
     private final int val;

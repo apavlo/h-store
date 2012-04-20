@@ -52,21 +52,21 @@ public abstract class ThreadUtil {
     /**
      * Convenience wrapper around Thread.sleep() for when we don't care about
      * exceptions
-     * 
      * @param millis
      */
     public static void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ex) {
-            // IGNORE!
+        if (millis > 0) {
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException ex) {
+                // IGNORE!
+            }
         }
     }
 
     /**
      * Executes the given command and returns a pair containing the PID and
      * Process handle
-     * 
      * @param command
      * @return
      */

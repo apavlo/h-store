@@ -19,7 +19,6 @@ package org.voltdb.client;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -71,7 +70,7 @@ final class ClientImpl implements Client {
      */
     private Catalog m_catalog;
     private PartitionEstimator m_pEstimator;
-    private Map<Integer, Integer> m_partitionSiteXref;
+    private int m_partitionSiteXref[];
     private final HStoreConf m_hstoreConf;
     private final ProfileMeasurement m_queueTime = new ProfileMeasurement("queue");
     
@@ -119,10 +118,10 @@ final class ClientImpl implements Client {
         m_hstoreConf = HStoreConf.singleton(true);
         m_backpressureWait = m_hstoreConf.client.throttle_backoff;
         
-        if (catalog != null) {
+        if (catalog != null && m_hstoreConf.client.txn_hints) {
             m_catalog = catalog;
             m_pEstimator = new PartitionEstimator(CatalogUtil.getDatabase(m_catalog));
-            m_partitionSiteXref = CatalogUtil.getPartitionSiteXref(m_catalog);
+            m_partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(m_catalog);
         }
         
         m_distributer = new Distributer(
@@ -177,7 +176,7 @@ final class ClientImpl implements Client {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
                 if (partition != null) {
-                    site_id = m_partitionSiteXref.get(partition);
+                    site_id = m_partitionSiteXref[partition.intValue()];
                     invocation.setBasePartition(partition.intValue());
                 }
             } catch (Exception ex) {
@@ -261,7 +260,7 @@ final class ClientImpl implements Client {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
                 if (partition != null) {
-                    site_id = m_partitionSiteXref.get(partition);
+                    site_id = m_partitionSiteXref[partition.intValue()];
                     invocation.setBasePartition(partition.intValue());
                 }
             } catch (Exception ex) {

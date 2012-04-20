@@ -18,7 +18,6 @@ import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn;
-import org.voltdb.planner.PlanColumn.Storage;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
@@ -280,15 +279,17 @@ public abstract class PlanOptimizerUtil {
                     // JOIN
                     // ---------------------------------------------------
                     if (element instanceof AbstractJoinPlanNode) {
-                        if ((state.areChildrenDirty(element) || force) && PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
-                        // ---------------------------------------------------
-                        // ORDER BY
-                        // ---------------------------------------------------
+                    // ---------------------------------------------------
+                    // ORDER BY
+                    // ---------------------------------------------------
                     } else if (element instanceof OrderByPlanNode) {
-                        if ((state.areChildrenDirty(element) || force) && PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
@@ -297,7 +298,8 @@ public abstract class PlanOptimizerUtil {
                     // AGGREGATE
                     // ---------------------------------------------------
                     else if (element instanceof AggregatePlanNode) {
-                        if ((state.areChildrenDirty(element) || force) && PlanOptimizerUtil.updateAggregateColumns(state, (AggregatePlanNode) element) == false) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateAggregateColumns(state, (AggregatePlanNode) element) == false) {
                             this.stop();
                             return;
                         }
@@ -306,7 +308,8 @@ public abstract class PlanOptimizerUtil {
                     // DISTINCT
                     // ---------------------------------------------------
                     else if (element instanceof DistinctPlanNode) {
-                        if ((state.areChildrenDirty(element) || force) && PlanOptimizerUtil.updateDistinctColumns(state, (DistinctPlanNode) element) == false) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateDistinctColumns(state, (DistinctPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
@@ -315,7 +318,8 @@ public abstract class PlanOptimizerUtil {
                     // PROJECTION
                     // ---------------------------------------------------
                     else if (element instanceof ProjectionPlanNode) {
-                        if ((state.areChildrenDirty(element) || force) && PlanOptimizerUtil.updateProjectionColumns(state, (ProjectionPlanNode) element) == false) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateProjectionColumns(state, (ProjectionPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
@@ -390,14 +394,23 @@ public abstract class PlanOptimizerUtil {
         // // the guid
         // node.setDistinctColumnGuid(new_pc.guid());
 
-        for (Integer guid : node.getOutputColumnGUIDs()) {
-            node.setDistinctColumnGuid(guid);
+        PlanColumn found = null;
+        for (Integer new_guid : node.getOutputColumnGUIDs()) {
+            PlanColumn new_pc = state.plannerContext.get(new_guid);
+            assert (new_pc != null);
+            if (new_pc.equals(orig_pc, true, true)) {
+                found = new_pc;
+                break;
+            }
         } // FOR
+        assert(found != null) :
+            "Failed to find DistinctColumn " + orig_pc + " in " + node + " output columns";
+        node.setDistinctColumnGuid(found.guid());
 
         state.markDirty(node);
-        // if (debug.get())
-        // LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]",
-        // node, orig_guid, new_pc.guid()));
+        if (debug.get())
+            LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]",
+                                    node, orig_guid, found.guid()));
 
         return (true);
     }
@@ -489,25 +502,21 @@ public abstract class PlanOptimizerUtil {
             int new_idx = 0;
             for (Integer guid : child_node.getOutputColumnGUIDs()) {
                 PlanColumn pc = state.plannerContext.get(guid);
-                if (pc.getStorage().equals(Storage.kTemporary)) {
+                assert (pc != null);
+                if (pc.equals(orig_pc, true, true)) {
+                    if (trace.get())
+                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                     new_pc = pc;
                     break;
-                } else {
-                    assert (pc != null);
-                    if (pc.equals(orig_pc, true, true)) {
-                        if (trace.get())
-                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
-                        new_pc = pc;
-                        break;
-                    }
                 }
                 new_idx++;
             } // FOR
             if (new_pc == null) {
-                LOG.error(String.format("Couldn't find %d => %s\n", new_idx, new_pc));
+                LOG.error(String.format("Failed to find %d => %s\n", new_idx, new_pc));
                 LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
             }
-            assert (new_pc != null);
+            assert (new_pc != null) :
+                String.format("Failed to find %s at offset %d for %s", orig_pc, i, node);
             node.getAggregateColumnGuids().set(i, new_pc.guid());
         } // FOR
 
@@ -893,9 +902,9 @@ public abstract class PlanOptimizerUtil {
             if (trace.get())
                 LOG.trace("New Inner Input GUIDs:      " + inner_new_input_guids);
 
-            // ---------------------------------------------------
-            // NEST LOOP INDEX
-            // ---------------------------------------------------
+        // ---------------------------------------------------
+        // NEST LOOP INDEX
+        // ---------------------------------------------------
         } else {
             // Otherwise, just grab all of the columns for the target table in
             // the inline scan
@@ -1235,10 +1244,10 @@ public abstract class PlanOptimizerUtil {
                   // it
                 if (exists == false) {
                     ref_columns.add(above_pc);
-                    if (debug.get())
-                        LOG.debug(String.format("Added PlanColumn #%d to list of referenced columns. [%s]", col_guid, above_pc.getDisplayName()));
-                } else if (debug.get()) {
-                    LOG.debug("Skipped PlanColumn #" + col_guid + " because it already exists.");
+                    if (trace.get())
+                        LOG.trace(String.format("Added PlanColumn #%d to list of referenced columns. [%s]", col_guid, above_pc.getDisplayName()));
+                } else if (trace.get()) {
+                    LOG.trace("Skipped PlanColumn #" + col_guid + " because it already exists.");
                 }
             }
         } // FOR

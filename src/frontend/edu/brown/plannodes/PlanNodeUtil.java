@@ -900,7 +900,10 @@ public abstract class PlanNodeUtil {
      * singlePartition flag is true, then it will return the tree for the
      * single-partition query Otherwise, it will return the distributed query
      * plan tree
-     * 
+     * <B>IMPORTANT:</B> Note that the AbstractPlanNodes returned by this method will
+     *                   be different than the ones returned by getPlanNodeTreeForPlanFragment()
+     *                   because the roots of the PlanFragment trees will not have any parents,
+     *                   whereas in this tree they could.
      * @param catalog_stmt
      * @param singlePartition
      * @return
@@ -930,8 +933,7 @@ public abstract class PlanNodeUtil {
 
         // Check whether we have this cached already
         // This is probably not thread-safe because the AbstractPlanNode tree
-        // has pointers to
-        // specific table catalog objects
+        // has pointers to specific table catalog objects
         String cache_key = CatalogKey.createKey(catalog_stmt);
         Map<String, AbstractPlanNode> cache = (singlePartition ? PlanNodeUtil.CACHE_DESERIALIZE_SP_STATEMENT : PlanNodeUtil.CACHE_DESERIALIZE_MP_STATEMENT);
         AbstractPlanNode ret = cache.get(cache_key);
@@ -1023,7 +1025,7 @@ public abstract class PlanNodeUtil {
      * @return
      * @throws Exception
      */
-    public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frag) throws Exception {
+    public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frag) {
         String id = catalog_frag.getName();
         AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
         if (ret == null) {
@@ -1031,18 +1033,43 @@ public abstract class PlanNodeUtil {
                 LOG.warn("No cached object for " + catalog_frag.fullName());
             Database catalog_db = CatalogUtil.getDatabase(catalog_frag);
             String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
-            JSONObject jsonObject = null;
+            PlanNodeList list = null;
             try {
-                jsonObject = new JSONObject(jsonString);
+                JSONObject jsonObject = new JSONObject(jsonString);
+                list = (PlanNodeList) PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
             } catch (JSONException ex) {
-                String msg = String.format("Invalid PlanNodeTree for %s [plantreeLength=%d, jsonLength=%d]", catalog_frag.fullName(), catalog_frag.getPlannodetree().length(), jsonString.length());
-                throw new Exception(msg, ex);
+                String msg = String.format("Invalid PlanNodeTree for %s [plantreeLength=%d, jsonLength=%d]",
+                                           catalog_frag.fullName(),
+                                           catalog_frag.getPlannodetree().length(),
+                                           jsonString.length());
+                throw new RuntimeException(msg, ex);
             }
-            PlanNodeList list = (PlanNodeList) PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
             ret = list.getRootPlanNode();
             PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
         }
         return (ret);
+    }
+    
+    /**
+     * Returns true if the given AbstractPlaNode exists in plan tree for the given PlanFragment
+     * This includes inline nodes
+     * @param catalog_frag
+     * @param node
+     * @return
+     */
+    public static boolean containsPlanNode(final PlanFragment catalog_frag, final AbstractPlanNode node) {
+        final AbstractPlanNode root = getPlanNodeTreeForPlanFragment(catalog_frag);
+        final boolean found[] = { false };
+        new PlanNodeTreeWalker(true) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (element.equals(node)) {
+                    found[0] = true;
+                    this.stop();
+                }
+            }
+        }.traverse(root);
+        return (found[0]);
     }
 
     /**

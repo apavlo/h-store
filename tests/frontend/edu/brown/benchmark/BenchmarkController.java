@@ -159,8 +159,6 @@ public class BenchmarkController {
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
 
-    final static String m_tpccClientClassName = "org.voltdb.benchmark.tpcc.TPCCClient"; // DEFAULT
-
     // benchmark parameters
     final BenchmarkConfig m_config;
     
@@ -179,7 +177,7 @@ public class BenchmarkController {
     Class<? extends BenchmarkComponent> m_loaderClass = null;
 
     final AbstractProjectBuilder m_projectBuilder;
-    final String m_jarFileName;
+    final File m_jarFileName;
     ServerThread m_localserver = null;
     
     /**
@@ -270,7 +268,8 @@ public class BenchmarkController {
         assert(tempBuilder != null);
         m_projectBuilder = tempBuilder;
         m_projectBuilder.addAllDefaults();
-        m_jarFileName = m_projectBuilder.getJarName(false);
+        m_jarFileName = new File(hstore_conf.client.jar_dir +
+                                 File.separator + m_projectBuilder.getJarName(false));
         assert(m_jarFileName != null) : "Invalid ProjectJar file name";
 
         if (config.snapshotFrequency != null
@@ -328,36 +327,31 @@ public class BenchmarkController {
         this.totalNumClients = total_num_clients;
         this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
     }
+    
 
+    /**
+     * COMPILE BENCHMARK JAR
+     */
+    public boolean compileBenchmark() {
+        if (m_config.hosts.length == 0) {
+            m_config.hosts = new String[] { hstore_conf.global.defaulthost };
+        }
+        
+        boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
+                                                   m_config.sitesPerHost,
+                                                   m_config.hosts.length,
+                                                   m_config.k_factor,
+                                                   m_config.hosts[0]);
+        return (success);
+    }
+    
     /**
      * SETUP BENCHMARK 
      */
     public void setupBenchmark() {
-        // actually compile and write the catalog to disk
-        if (m_config.compileBenchmark) {
-            if (m_config.hosts.length == 0) m_config.hosts = new String[] { "localhost" };
-            
-            boolean success = m_projectBuilder.compile(m_jarFileName,
-                                                       m_config.sitesPerHost,
-                                                       m_config.hosts.length,
-                                                       m_config.k_factor,
-                                                       m_config.hosts[0]);
-            if (m_config.compileOnly || success == false) {
-                assert(FileUtil.exists(m_jarFileName)) : "Failed to create jar file '" + m_jarFileName + "'";
-                if (success) {
-                    LOG.info("Compilation Complete. Exiting [" + m_jarFileName + "]");
-                } else {
-                    LOG.error("Compilation Failed. Exiting [" + m_jarFileName + "]");
-                }
-                System.exit(success ? 0 : -1);
-            }
-        } else {
-            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
-        }
-        
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName));
+        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName.getAbsolutePath()));
         
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
@@ -437,7 +431,7 @@ public class BenchmarkController {
         } else {
             // START A SERVER LOCALLY IN-PROCESS
             VoltDB.Configuration localconfig = new VoltDB.Configuration();
-            localconfig.m_pathToCatalog = m_jarFileName;
+            localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
             m_localserver = null;//new ServerThread(localconfig);
             m_localserver.start();
             m_localserver.waitForInitialization();
@@ -467,6 +461,10 @@ public class BenchmarkController {
         int hosts_started = 0;
         
         List<String> siteBaseCommand = new ArrayList<String>();
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            siteBaseCommand.add(hstore_conf.global.sshprefix + " && ");
+        }
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
@@ -557,6 +555,10 @@ public class BenchmarkController {
             debugString = " -agentlib:jdwp=transport=dt_socket,address=8002,server=y,suspend=n ";
         }
 
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            loaderCommand.add(hstore_conf.global.sshprefix + " && ");
+        }
         loaderCommand.add("java");
         loaderCommand.add("-Dhstore.tag=loader");
         loaderCommand.add("-XX:-ReduceInitialCardMarks");
@@ -626,9 +628,11 @@ public class BenchmarkController {
      * 
      */
     public void startClients() {
-        
-        // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> allClientArgs = new ArrayList<String>();
+        if (hstore_conf.global.sshprefix != null &&
+            hstore_conf.global.sshprefix.isEmpty() == false) {
+            allClientArgs.add(hstore_conf.global.sshprefix + " && ");
+        }
         allClientArgs.add("java");
         if (m_config.listenForDebugger) {
             allClientArgs.add(""); //placeholder for agent lib
@@ -669,7 +673,9 @@ public class BenchmarkController {
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allClientArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
+        allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
+        allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+        // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         allClientArgs.add("LOADER=false");
         
         int threads_per_client = hstore_conf.client.processesperclient;
@@ -1251,7 +1257,9 @@ public class BenchmarkController {
         // try to read connection string for reporting database
         // from a "mysqlp" file
         // set value to null on failure
-        String[] databaseURL = { "localhost", "localhost" };
+        String[] databaseURL = { "", "" };
+        String statsDatabaseJDBC = null;
+        int statsPollInterval = 1000;
 //        try {
 //            databaseURL = readConnectionStringFromFile(remotePath);
 //            assert(databaseURL.length == 2);
@@ -1371,9 +1379,15 @@ public class BenchmarkController {
                 snapshotRetain = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase("NUMCONNECTIONS")) {
                 clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
+                
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 databaseURL[0] = parts[1];
-            } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
+                statsDatabaseJDBC = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
@@ -1574,7 +1588,9 @@ public class BenchmarkController {
                 snapshotFrequency, 
                 snapshotRetain, 
                 databaseURL[0], 
-                databaseURL[1], 
+                databaseURL[1],
+                statsDatabaseJDBC,
+                statsPollInterval,
                 statsTag,
                 applicationName, 
                 subApplicationName,
@@ -1632,6 +1648,33 @@ public class BenchmarkController {
             assert(hstore_conf.client.codespeed_commitid != null) : "Missing CodeSpeed CommitId";
         }
         
+        
+        // COMPILE BENCHMARK
+        if (config.compileBenchmark) {
+            boolean success = false;
+            try {
+                // Actually compile and write the catalog to disk
+                success = controller.compileBenchmark();
+                assert(controller.m_jarFileName.exists()) : 
+                    "Failed to create jar file '" + controller.m_jarFileName + "'";
+            } catch (Throwable ex) {
+                LOG.error(String.format("Unexected error when trying to compile %s benchmark",
+                                        controller.m_projectBuilder.getProjectName()), ex);
+                System.exit(1);
+            }
+            if (config.compileOnly) {
+                if (success) {
+                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName + "]");
+                } else {
+                    LOG.info("Compilation Failed");
+                }
+                System.exit(success ? 0 : -1);
+            }
+        } else {
+            if (debug.get()) LOG.debug("Skipping benchmark project compilation");
+        }
+
+        // EXECUTE BENCHMARK
         try {
             controller.setupBenchmark();
             if (config.noExecute == false) controller.runBenchmark();

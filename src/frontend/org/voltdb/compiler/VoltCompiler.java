@@ -53,6 +53,7 @@ import org.hsqldb.HSQLInterface;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcInfoData;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
@@ -82,10 +83,16 @@ import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
 import org.voltdb.sysprocs.Shutdown;
+import org.voltdb.sysprocs.SnapshotDelete;
+import org.voltdb.sysprocs.SnapshotRestore;
+import org.voltdb.sysprocs.SnapshotSave;
+import org.voltdb.sysprocs.SnapshotScan;
+import org.voltdb.sysprocs.SnapshotStatus;
 import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
@@ -100,6 +107,8 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -259,12 +268,18 @@ public class VoltCompiler {
     class ProcedureDescriptor {
         final ArrayList<String> m_authUsers;
         final ArrayList<String> m_authGroups;
+        final ArrayList<String> m_prefetchable;
+        final ArrayList<String> m_deferrable;
         final String m_className;
         // for single-stmt procs
         final String m_singleStmt;
         final String m_partitionString;
 
-        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className) {
+        ProcedureDescriptor (final ArrayList<String> authUsers,
+                             final ArrayList<String> authGroups,
+                             final String className,
+                             final ArrayList<String> prefetchable,
+                             final ArrayList<String> deferrable) {
             assert(className != null);
 
             m_authUsers = authUsers;
@@ -272,9 +287,15 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = null;
             m_partitionString = null;
+            m_prefetchable = prefetchable;
+            m_deferrable = deferrable;
         }
 
-        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className, final String singleStmt, final String partitionString) {
+        ProcedureDescriptor (final ArrayList<String> authUsers,
+                             final ArrayList<String> authGroups,
+                             final String className,
+                             final String singleStmt,
+                             final String partitionString) {
             assert(className != null);
             assert(singleStmt != null);
 
@@ -283,6 +304,8 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = singleStmt;
             m_partitionString = partitionString;
+            m_prefetchable = new ArrayList<String>();
+            m_deferrable = new ArrayList<String>();
         }
     }
     
@@ -394,7 +417,7 @@ public class VoltCompiler {
         
         try {
 //            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
-            m_jarBuilder.addEntry("catalog.txt", catalogBytes);
+            m_jarBuilder.addEntry(CatalogUtil.CATALOG_FILENAME, catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
                 m_jarBuilder.addEntry(e.getKey(), new File(e.getValue()));
@@ -790,11 +813,7 @@ public class VoltCompiler {
         
         // add database estimates info
         addDatabaseEstimatesInfo(m_estimates, db);
-        try {
-            addSystemProcsToCatalog(m_catalog, db);
-        } catch (final VoltCompilerException ex) {
-            throw new RuntimeException(ex);
-        }
+        addSystemProcsToCatalog(m_catalog, db);
 
         // Process and add exports and connectors to the catalog
         // Must do this before compiling procedures to deny updates
@@ -985,7 +1004,7 @@ public class VoltCompiler {
         return (catalog_view);
     }
 
-    static void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {
+    private void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {
         /*for (Table table : db.getTables()) {
             DatabaseEstimates.TableEstimates tableEst = new DatabaseEstimates.TableEstimates();
             tableEst.maxTuples = 1000000;
@@ -1000,6 +1019,8 @@ public class VoltCompiler {
     {
         final ArrayList<String> users = new ArrayList<String>();
         final ArrayList<String> groups = new ArrayList<String>();
+        final ArrayList<String> prefetchable = new ArrayList<String>();
+        final ArrayList<String> deferrable = new ArrayList<String>();
 
         // @users
         if (xmlproc.getUsers() != null) {
@@ -1036,7 +1057,15 @@ public class VoltCompiler {
                 "and may not use the @partitioninfo project file procedure attribute.";
                 throw new VoltCompilerException(msg);
             }
-            return new ProcedureDescriptor(users, groups, classattr);
+            // HACK: Prefetchable
+            if (xmlproc.getPrefetchable() != null) {
+                CollectionUtil.addAll(prefetchable, xmlproc.getPrefetchable().split("[\\s]*,[\\s]*"));
+            }
+            // HACK: Deferrable
+            if (xmlproc.getDeferrable() != null) {
+                CollectionUtil.addAll(deferrable, xmlproc.getDeferrable().split("[\\s]*,[\\s]*"));
+            }
+            return new ProcedureDescriptor(users, groups, classattr, prefetchable, deferrable);
         }
     }
 
@@ -1187,48 +1216,46 @@ public class VoltCompiler {
         assert(database != null);
 
         // Table of sysproc metadata.
-        final String[][] procedures =
-        {
-         // package.classname                                readonly    everysite
-        {LoadMultipartitionTable.class.getCanonicalName(),      "false",   "true"},
-        {DatabaseDump.class.getCanonicalName(),                 "true",    "true"},
-        {RecomputeMarkovs.class.getCanonicalName(),             "true",    "true"},
-        {Shutdown.class.getCanonicalName(),                     "false",   "true"},
-        {NoOp.class.getCanonicalName(),                         "true",    "false"},
-        {AdHoc.class.getCanonicalName(),                        "false",   "false"},
-        
-//         {"org.voltdb.sysprocs.Quiesce",                      "false",    "false"},
-//         {"org.voltdb.sysprocs.SnapshotSave",                 "false",    "false"},
-//         {"org.voltdb.sysprocs.SnapshotRestore",              "false",    "false"},
-//         {"org.voltdb.sysprocs.SnapshotStatus",               "false",    "false"},
-//         {"org.voltdb.sysprocs.SnapshotScan",                 "false",    "false"},
-//         {"org.voltdb.sysprocs.SnapshotDelete",               "false",    "false"},
-//         {"org.voltdb.sysprocs.StartSampler",                 "false",    "false"},
-//         {"org.voltdb.sysprocs.Statistics",                   "true",     "false"},
-//         {"org.voltdb.sysprocs.SystemInformation",            "true",     "false"},
-//         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     "false",    "true"},
-//         {"org.voltdb.sysprocs.UpdateLogging",                "false",    "true"}
+        final Object[][] procedures = {
+            // SysProcedure Class                   readonly    everysite
+            {LoadMultipartitionTable.class,         false,      true},
+            {DatabaseDump.class,                    true,       true},
+            {RecomputeMarkovs.class,                true,       true},
+            {Shutdown.class,                        false,      true},
+            {NoOp.class,                            true,       false},
+            {AdHoc.class,                           false,      false},
+            {GarbageCollection.class,               true,       true},
+            {SnapshotSave.class,                    false,      false},
+            {SnapshotRestore.class,                 false,      false},
+            {SnapshotStatus.class,                  false,      false},
+            {SnapshotScan.class,                    false,      false},
+            {SnapshotDelete.class,                  false,      false},
+         
+//       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
+//         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
+//         {"org.voltdb.sysprocs.Statistics",                   true,     false},
+//         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
+//         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     false,    true},
+//         {"org.voltdb.sysprocs.UpdateLogging",                false,    true}
 
         };
 
         for (int ii=0; ii < procedures.length; ++ii) {
-            String classname = procedures[ii][0];
-            boolean readonly = Boolean.parseBoolean(procedures[ii][1]);
-            boolean everysite = Boolean.parseBoolean(procedures[ii][2]);
-
-            Class<?> procClass = null;
-            try {
-                procClass = Class.forName(classname);
-            }
-            catch (final ClassNotFoundException e) {
-                final String msg = "Cannot load sysproc " + classname;
-                throw new VoltCompilerException(msg);
-            }
+            Class<?> procClass = (Class<?>)procedures[ii][0];
+            boolean readonly = (Boolean)procedures[ii][1];
+            boolean everysite = (Boolean)procedures[ii][2];
 
             // short name is "@ClassName" without package
-            final String[] parts = classname.split("\\.");
-            final String shortName = "@" + parts[parts.length - 1];
+            final String shortName = "@" + procClass.getSimpleName();
 
+            // Make sure it's a VoltSystemProcedure
+            if (ClassUtil.getSuperClasses(procClass).contains(VoltSystemProcedure.class) == false) {
+                String msg = String.format("Class %s does not extend %s",
+                                           procClass.getCanonicalName(),
+                                           VoltSystemProcedure.class.getSimpleName());
+                throw new VoltCompilerException(msg);
+            }
+            
             // read annotations
             final ProcInfo info = procClass.getAnnotation(ProcInfo.class);
             if (info == null) {
@@ -1238,7 +1265,7 @@ public class VoltCompiler {
             // add an entry to the catalog
             final Procedure procedure = database.getProcedures().add(shortName);
             procedure.setId(this.getNextProcedureId());
-            procedure.setClassname(classname);
+            procedure.setClassname(procClass.getCanonicalName());
             procedure.setReadonly(readonly);
             procedure.setSystemproc(true);
             procedure.setHasjava(true);

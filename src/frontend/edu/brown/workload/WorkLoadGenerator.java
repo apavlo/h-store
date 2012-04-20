@@ -28,7 +28,8 @@ package edu.brown.workload;
 import java.io.File;
 import java.util.*;
 import org.voltdb.catalog.*;
-import org.voltdb.utils.JarReader;
+
+import edu.brown.catalog.CatalogUtil;
 
 /**
  * 
@@ -101,11 +102,8 @@ public class WorkLoadGenerator {
             System.err.println("ERROR: The project jar file '" + jar_path + "' does not exist");
             System.exit(1);
         }
-        String serializedCatalog = JarReader.readFileFromJarfile(file.getPath(), "catalog.txt");
-        Catalog catalog = new Catalog();
-        catalog.execute(serializedCatalog);
-        Database catalog_db = catalog.getClusters().get(DEFAULT_CLUSTER_NAME).getDatabases().get(DEFAULT_DATABASE_NAME);
-        
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(file.getPath());
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
         WorkLoadGenerator generator = new WorkLoadGenerator(catalog_db);
         try {
             System.out.println(generator.generateTrace(steps));
