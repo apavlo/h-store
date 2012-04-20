@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.jfree.util.Log;
 import org.voltdb.*;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.*;
@@ -37,7 +38,7 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.CollectionUtil;
+//import edu.brown.utils.CollectionUtil;
 
 @ProcInfo(singlePartition = false)
 public class SnapshotSave extends VoltSystemProcedure
@@ -249,10 +250,10 @@ public class SnapshotSave extends VoltSystemProcedure
                     {
                         try
                         {
-                            //saveFilePath.createNewFile();
-                            if (saveFilePath.createNewFile()) {
-                                saveFilePath.delete();
-                            }
+                            saveFilePath.createNewFile();
+//                            if (saveFilePath.createNewFile()) {
+//                                saveFilePath.delete();
+//                            }
                         }
                         catch (IOException ex)
                         {
@@ -298,10 +299,10 @@ public class SnapshotSave extends VoltSystemProcedure
 
 
         
- //       ColumnInfo[] result_columns = new ColumnInfo[2];
- //       int ii = 0;
- //       result_columns[ii++] = new ColumnInfo("RESULT", VoltType.STRING);
-//        result_columns[ii++] = new ColumnInfo("ERR_MSG", VoltType.STRING);
+//	    ColumnInfo[] result_columns = new ColumnInfo[2];
+//      int ii = 0;
+//      result_columns[ii++] = new ColumnInfo("RESULT", VoltType.STRING);
+//      result_columns[ii++] = new ColumnInfo("ERR_MSG", VoltType.STRING);
         
         
         if (path == null || path.equals("")) {
@@ -334,6 +335,8 @@ public class SnapshotSave extends VoltSystemProcedure
         // See if we think the save will succeed
         VoltTable[] results;
         results = performSaveFeasibilityWork(path, nonce);
+        LOG.info("PATH: " + path);
+        LOG.info("nonce: " + nonce);
         LOG.info("performSaveFeasibilityWork Results:\n" + results);
 
         // Test feasibility results for fail
@@ -348,7 +351,7 @@ public class SnapshotSave extends VoltSystemProcedure
             }
         }
 
-        performQuiesce();
+        //performQuiesce();
         
         results = performSnapshotCreationWork( path, nonce, startTime, (byte)block);
 
@@ -386,7 +389,9 @@ public class SnapshotSave extends VoltSystemProcedure
         pfs[1].parameters = new ParameterSet();
 
         VoltTable[] results;
-        results = executeSysProcPlanFragments(pfs, DEP_saveTestResults);
+       
+        results = executeSysProcPlanFragments(pfs, DEP_saveTestResults); 
+        LOG.info("RESULT: " + results);
         return results;
     }
 
