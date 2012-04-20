@@ -86,8 +86,19 @@ public class CompanyGenerator extends TableGenerator {
         rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT, counter * rngSkipOneRowCompany);
     }
     
-    private String generateCompanyName(String basicName) {
-        String res = basicName;
+    /**
+     * Generates the company time by the company Id
+     */
+    public String generateCompanyName(long coId) {
+        return generateCompanyName(getCompanyRecord(coId)[2]);
+    }
+    
+    private String[] getCompanyRecord(long counter) {
+        return companyFile.getTupleByIndex((int)(counter % companyRecords));
+    }
+    
+    private String generateCompanyName(String baseName) {
+        String res = baseName; // name from the row
         
         long add = (counter - 1) / companyRecords; // need the previous counter value here
         
@@ -117,7 +128,7 @@ public class CompanyGenerator extends TableGenerator {
          * Note that the number of companies to generate may be more that the number in the file.
          * That is why it wraps around every 5000 records (the number of records in the file).
          */
-        this.compRecord = companyFile.getTupleByIndex((int)(counter % companyRecords));
+        this.compRecord = getCompanyRecord(counter);
         long coId = Long.valueOf(compRecord[0]) + TPCEConstants.IDENT_SHIFT + counter / companyRecords * companyRecords;
         
         counter++;
@@ -145,8 +156,6 @@ public class CompanyGenerator extends TableGenerator {
         tuple[6] = ++companyAddrId; // co_ad_id
         tuple[7] = compRecord[4]; // co_desc
         tuple[8] = new TimestampType(EGenDate.getDateFromDayNo(openDay)); // co_open_date
-        
-        counter++;
         
         return tuple;
     }
