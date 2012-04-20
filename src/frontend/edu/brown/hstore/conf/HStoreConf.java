@@ -304,6 +304,13 @@ public final class HStoreConf {
         public boolean exec_command_logging;
         
         @ConfigProperty(
+            description="",
+            defaultString="/tmp/hstore.wal",
+            experimental=true
+        )
+        public String exec_command_logging_file;
+        
+        @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
             		    "queries on remote partitions for distributed transactions.",
             defaultBoolean=false,
