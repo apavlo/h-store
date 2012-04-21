@@ -9,6 +9,8 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 
+import java.io.File;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -26,6 +28,10 @@ import edu.brown.benchmark.wikipedia.data.UserHistograms;
 import org.voltdb.catalog.Table;
 
 import org.voltdb.utils.Pair;
+
+import com.oltpbenchmark.benchmarks.wikipedia.util.TransactionSelector;
+
+import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 //import com.oltpbenchmark.util.SQLUtil;  // ignore
@@ -117,12 +123,54 @@ public class WikipediaLoader extends BenchmarkComponent {
             this.loadUsers(catalog_db);
             this.loadPages(catalog_db);
             this.loadWatchlist(catalog_db);
-            LOG.info("Finish loadWatchlist... ");
             this.loadRevision(catalog_db);
             LOG.info("Finish loadRevision... ");
+            
+            // Generate Trace File
+            this.genTrace();
+            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    private File genTrace() throws Exception {
+//        WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
+//        File file = b.getTraceOutput();
+//        if (file == null || b.getTraceSize() == 0) return (null);
+        
+        File file = new File("tracefile");
+        
+        assert(this.num_pages == this.titles.size());
+//        LOG.info(String.format("Generating a %dk traces to '%s'", b.getTraceSize(), file));
+        
+        Flat z_users = new Flat(this.randGenerator, 1, this.num_users);
+        Zipf z_pages = new Zipf(this.randGenerator, 1, this.num_pages, WikipediaConstants.USER_ID_SIGMA);
+        
+        PrintStream ps = new PrintStream(file);
+        //for (int i = 0, cnt = (b.getTraceSize() * 1000); i < cnt; i++) {
+        for (int i = 0, cnt = (1 * 1000); i < cnt; i++) {
+            int user_id = -1;
+            
+            // Check whether this should be an anonymous update
+            if (this.randGenerator.nextInt(100) < WikipediaConstants.ANONYMOUS_PAGE_UPDATE_PROB) {
+                user_id = WikipediaConstants.ANONYMOUS_USER_ID;
+            }
+            // Otherwise figure out what user is updating this page
+            else {
+                user_id = z_users.nextInt();
+            }
+            assert(user_id != -1);
+            
+            // Figure out what page they're going to update
+            int page_id = z_pages.nextInt();
+            Pair<Integer, String> p = this.titles.get(page_id);
+            assert(p != null);
+            
+            TransactionSelector.writeEntry(ps, user_id, p.getFirst(), p.getSecond());
+        } // FOR
+        ps.close();
+        return (file);
     }
     
     /**
