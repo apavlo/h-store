@@ -23,13 +23,22 @@ import java.io.IOException;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
+import com.oltpbenchmark.benchmarks.wikipedia.util.WikipediaOperation;
+
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tm1.TM1Client.Transaction;
+import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
+import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
+import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 
@@ -66,8 +75,14 @@ public class WikipediaClient extends BenchmarkComponent {
         ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
             @Override
             public Object[] genArgs(long subscriberSize) {
-                // TODO Auto-generated method stub
+//                WikipediaOperation t = new WikipediaOperation(
+//                        this.randGenerator.nextInt(), 
+//                        nameSpace, 
+//                        pageTitle);
+//                
+//                
                 return null;
+                
             }
             
         }),
@@ -207,38 +222,21 @@ public class WikipediaClient extends BenchmarkComponent {
         return this.txnWeights.nextValue();
     }
  
-	@Override
+    /**
+     * Benchmark execution loop
+     */
+    @Override
     public void runLoop() {
+        LOG.debug("Starting runLoop()");
+        final Client client = this.getClientHandle();
+
         try {
-            Client client = this.getClientHandle();
-            Random rand = new Random();
             while (true) {
-                // Select a random transaction to execute and generate its input parameters
-                // The procedure index (procIdx) needs to the same as the array of procedure
-                // names returned by getTransactionDisplayNames()
-                int procIdx = rand.nextInt(WikipediaProjectBuilder.PROCEDURES.length);
-                String procName = WikipediaProjectBuilder.PROCEDURES[procIdx].getSimpleName();
-                Object procParams[] = null; // TODO
- 
-                // Create a new Callback handle that will be executed when the transaction completes
-                WikipediaCallback callback = new WikipediaCallback(procIdx);
- 
-                // Invoke the stored procedure through the client handle. This is non-blocking
-                client.callProcedure(callback, procName, procIdx);
- 
-                // Check whether all the nodes are backed-up and this client should block
-                // before sending new requests. 
+                this.runOnce();
                 client.backpressureBarrier();
             } // WHILE
-        } catch (NoConnectionsException e) {
-            // Client has no clean mechanism for terminating with the DB.
-            return;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            // At shutdown an IOException is thrown for every connection to
-            // the DB that is lost Ignore the exception here in order to not
-            // get spammed, but will miss lost connections at runtime
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 	
@@ -274,7 +272,7 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 	
    
-//
+
 //    @Override
 //    protected Status executeWork(TransactionType nextTransaction) throws VoltAbortException {
 //        WikipediaOperation t = null;
@@ -290,7 +288,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //            }
 //        } // WHILE
 //        assert(t != null);
-//        if (t.userId != 0) t.userId = this.usersRng.nextInt();
+//        if (t.userId != 0) t.userId = this.randGenerator.nextInt();
 //        
 //        // AddWatchList
 //        if (procClass.equals(AddWatchList.class)) {
