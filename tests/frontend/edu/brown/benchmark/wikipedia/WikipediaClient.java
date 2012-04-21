@@ -19,6 +19,9 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.Random;
 
@@ -75,12 +78,38 @@ public class WikipediaClient extends BenchmarkComponent {
         ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
             @Override
             public Object[] genArgs(long subscriberSize) {
-//                WikipediaOperation t = new WikipediaOperation(
-//                        this.randGenerator.nextInt(), 
-//                        nameSpace, 
-//                        pageTitle);
-//                
-//                
+                // I am not sure how should I use Zipf to generate the 
+                // parameters that I want right now
+                
+                BufferedReader bufferedReader = null;
+                
+                try {
+                    
+                    //Construct the BufferedReader object
+                    bufferedReader = new BufferedReader(new FileReader("tracefile"));
+                    
+                    String line = null;
+                    
+                    while ((line = bufferedReader.readLine()) != null) {
+                        //Process the data, here we just print it out
+                        System.out.println(line);
+                    }
+                    
+                } catch (FileNotFoundException ex) {
+                    ex.printStackTrace();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                } finally {
+                    //Close the BufferedReader
+                    try {
+                        if (bufferedReader != null)
+                            bufferedReader.close();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                
+                
                 return null;
                 
             }
