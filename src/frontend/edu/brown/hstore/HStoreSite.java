@@ -86,6 +86,7 @@ import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.wal.WriteAheadLogger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -219,6 +220,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TODO(xin): MapReduceHelperThread
      */
     private final MapReduceHelperThread mr_helper;
+    
+    private final WriteAheadLogger commandLogger;
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -418,6 +421,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // HStoreSite Thread Manager
         this.threadManager = new HStoreThreadManager(this);
+        
+        // Command Logger
+        if (hstore_conf.site.exec_command_logging) {
+            this.commandLogger = new WriteAheadLogger(catalog_db, hstore_conf.site.exec_command_logging_file);
+        } else {
+            this.commandLogger = null;
+        }
         
         // Incoming Txn Request Listener
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
@@ -1496,6 +1506,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null) {
+            /*if (ts instanceof LocalTransaction) {
+                
+                WriteAheadLogger.writeCombined((LocalTransaction)ts, status);
+            }*/
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
@@ -1847,6 +1861,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
+        if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
+            this.commandLogger.writeCommitted(ts);
+        }
+
         // Don't send anything back if it's a mispredict because it's as waste of time...
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
