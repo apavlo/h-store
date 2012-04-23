@@ -69,10 +69,4 @@ public class PeriodicWorkTimerThread extends Thread {
         }
     }
 
-	public void planSQL(String sql, HStoreSite hStoreSite, int site_id,
-			String site_name, int i, Object object) {
-		// TODO this method exists in AsyncCompilerWorkThread. Should it also be here?
-		
-	}
-
 }
