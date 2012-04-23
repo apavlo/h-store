@@ -234,7 +234,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /*
      * AdHoc: This thread waits for AdHoc queries. 
      */
-    //private AsyncCompilerWorkThread m_asyncCompilerWorkThread;
+    private AsyncCompilerWorkThread asyncCompilerWork_thread;
     private PeriodicWorkTimerThread periodicWorkTimer_thread;
     
     // ----------------------------------------------------------------------------
@@ -840,7 +840,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Start threads for processing AdHoc queries TODO: check that this thread is started correctly
         //m_asyncCompilerWorkThread = new AsyncCompilerWorkThread();
         periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
+        asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id); //TODO: this isnt right, what is the CatelogContext
         periodicWorkTimer_thread.start();
+        asyncCompilerWork_thread.start();
         
         return (this);
     }
@@ -905,7 +907,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @SuppressWarnings("deprecation")
 	@Override
-    public synchronized void shutdown() {
+    public synchronized void shutdown(){
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
@@ -919,7 +921,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Stop AdHoc thread TODO:is this the proper way to stop thread execution?
-        if (this.periodicWorkTimer_thread.isAlive()) this.periodicWorkTimer_thread.interrupt();
+        try{
+	        if (this.periodicWorkTimer_thread.isAlive()) {
+	        	this.periodicWorkTimer_thread.interrupt();
+	        	this.periodicWorkTimer_thread.join();
+	        }
+	        if (this.asyncCompilerWork_thread.isAlive()) {
+	        	this.asyncCompilerWork_thread.interrupt();
+	        	this.asyncCompilerWork_thread.join();
+	        }
+        }
+        catch(InterruptedException interruptedException){
+        	//TODO: check with Andy about what should happen here
+        	LOG.info("There was an InterruptedExcecption while trying to close HStoreSite threads: "
+        						+interruptedException.getMessage());
+        }
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
@@ -1053,13 +1069,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                                                  handler.m_hostname,
 //                                                  handler.sequenceId(),
 //                                                  c);
-					periodicWorkTimer_thread.planSQL(
-										              sql,
-										              this,//TODO: is this the client handle?
-										              this.site_id,
-										              this.site_name,
-										              0,//TODO: what is this supposed to be?
-										              null);//TODO: same question
+                asyncCompilerWork_thread.planSQL(
+									              sql,
+									              this,//TODO: is this the client handle?
+									              this.site_id,
+									              this.site_name,
+									              0,//TODO: what is this supposed to be?
+									              null);//TODO: same question
                 return;
             }
             // new for AdHoc end **********************************************************************            
@@ -2198,12 +2214,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		if (periodicWorkTimer_thread == null) return;
+		if (asyncCompilerWork_thread == null) return;
 
         AsyncCompilerResult result = null;
 
         //TODO: This part is confusing b/c periodicWorkTimerThread vs. AsyncCompilerWorkThread... 
-        while ((result = periodicWorkTimer_thread.getPlannedStmt()) != null) {
+        while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
             if (result.errorMsg == null) {
                 if (result instanceof AdHocPlannedStmt) {
                 	 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
@@ -2221,11 +2237,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
 //                                                  task, false, false, false, m_allPartitions,
 //                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
+                    LOG.info("This is where createTransaction() should happen.");
                 }
                 //TODO: removed the stuff about change catalog result... was this right?
                 else {
                     throw new RuntimeException(
-                            "Should not be able to get here (ClientInterface.checkForFinishedCompilerWork())");
+                            "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
                 }
             }
             else {
