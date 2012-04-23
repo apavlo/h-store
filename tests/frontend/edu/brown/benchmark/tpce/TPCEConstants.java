@@ -188,8 +188,8 @@ public abstract class TPCEConstants {
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
 //        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
     };
 
     public static final Set<String> GROWING_TABLES = new HashSet<String>();

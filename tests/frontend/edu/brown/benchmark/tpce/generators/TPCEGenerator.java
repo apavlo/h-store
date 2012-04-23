@@ -134,6 +134,8 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_NEWS_ITEM, NewsItemGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_NEWS_XREF, NewsXRefGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_SECURITY, SecurityGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_WATCH_LIST, WatchListGenerator.class);
+        genClasses.put(TPCEConstants.TABLENAME_WATCH_ITEM, WatchItemsGenerator.class);
     }
     
 /*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
