@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,23 +14,24 @@
  * You should have received a copy of the GNU General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package org.voltdb.messaging;
 
-public enum Subject {
-    DEFAULT,                 // All original message types are in the default subject
-    FAILURE_SITE_UPDATE,     // Execution site data exchange when processing post-failure
-    FAILURE;                 // Notification of node failures
+import org.voltdb.utils.DBBPool;
 
-    private final byte m_id;
+/**
+ * Generated when a snapshot buffer is discarded. Reminds the EE thread
+ * that there is probably more snapshot work to do.
+ */
+public class PotentialSnapshotWorkMessage extends VoltMessage {
 
-    private Subject() {
-        final int ordinal = ordinal();
-        assert(ordinal < Byte.MAX_VALUE);
-        m_id = (byte)ordinal;
+    @Override
+    protected void flattenToBuffer(DBBPool pool) {} // can be empty if only used locally
+    @Override
+    protected void initFromBuffer() {} // can be empty if only used locally
+
+    @Override
+    public byte getSubject() {
+        return Subject.DEFAULT.getId();
     }
 
-    public byte getId() {
-        return m_id;
-    }
 }
