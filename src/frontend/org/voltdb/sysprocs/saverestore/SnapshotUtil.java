@@ -193,7 +193,6 @@ public class SnapshotUtil {
      * Simple filter that includes directories and files that end in .digest or .vpt
      */
     public static class SnapshotFilter implements FileFilter {
-        @Override
         public boolean accept(File pathname) {
             if (pathname.isDirectory()) {
                 return true;

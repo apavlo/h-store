@@ -863,7 +863,6 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
      * End users should not call this method.
      * Read an VoltTable from a {@link org.voltdb.messaging.FastDeserializer} into this object.
      */
-    @Override
     public final void readExternal(FastDeserializer in) throws IOException {
         // Note: some of the snapshot and save/restore code makes assumptions
         // about the binary layout of tables.
@@ -890,7 +889,6 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
      * End users should not call this method.
      * Write this VoltTable to a {@link org.voltdb.messaging.FastSerializer}.
      */
-    @Override
     public final void writeExternal(FastSerializer out) throws IOException {
         // Note: some of the snapshot and save/restore code makes assumptions
         // about the binary layout of tables.

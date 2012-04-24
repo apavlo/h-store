@@ -28,7 +28,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
-import org.voltdb.VoltDB;
+//import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -250,7 +250,6 @@ public class SnapshotDelete extends VoltSystemProcedure {
             SnapshotUtil.constructDigestFilenameForNonce(nonce.substring(0, nonce.lastIndexOf('-')));
         return java.util.Arrays.asList(f.listFiles(new FileFilter() {
 
-            @Override
             public boolean accept(File pathname) {
                 if (pathname.isDirectory()) {
                     return false;

@@ -34,7 +34,6 @@ public class SnapshotRegistry {
     private static final TreeSet<Snapshot> m_snapshots = new TreeSet<Snapshot>(
             new java.util.Comparator<Snapshot>() {
 
-                @Override
                 public int compare(Snapshot o1, Snapshot o2) {
                     return new Long(o1.timeStarted).compareTo(o2.timeStarted);
                 }

@@ -554,7 +554,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     
     
     
-    @Override
     public void uncaughtException(Thread t, Throwable e) {
         e.printStackTrace();
         fail(e.getMessage()); // XXX: I don't think this gets picked up

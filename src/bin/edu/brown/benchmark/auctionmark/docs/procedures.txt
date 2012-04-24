@@ -1,0 +1,61 @@
+
+== New bid ================================================================================
+Trigger: Customer bids a product (new_bid).
+Precondition: new_bid.bid > item.initial_price
+
+1.	GET current_max_bid FROM ITEM_BID, ITEM_MAX_BID
+2.	Check that new_bid.max_bid > current_max_bid.bid. If not, return.
+3.	INSERT new_bid TO ITEM_BID
+4.	IF new_bid.max_bid > current_max_bid.max_bid THEN
+		// Update a bid value of a newly inserted bid to a value that is one bid step more than the maximum bid value of the current maximum bid. 
+		// Then, change the maximum bid to a newly inserted bid.
+		new_bid.bid = current_max_bid.max_bid + bid_step
+		current_max_bid = new_bid
+	ELSE 
+		// Update the bid value of the current maximum bid to the maximum bid value of a newly inserted bid.
+		current_max_bid.bid = new_bid.max_bid + bid_step
+	END IF
+
+== Check win bid =========================================================================
+Trigger: Run every the end of a minute
+
+1.	Get all items from ITEM that item.end_date == current_time. 
+2.	Get all maximum bids from ITEM_BID, ITEM_MAX_BID that are associated with those items (in 1.). 
+3.	FOR EACH maximum_bid
+		IF maximum_bid.bid > item.reserve_price THEN
+			// Q: Should we have item status to indicate that it has already already been purchased?
+			Insert maximum_bid to Purchase (ITEM_PURCHASE).
+			Update buyer item status (USER_ITEM)
+		ELSE
+			// Do something
+		END IF
+	END FOR
+
+== Buy now ===============================================================================
+Trigger: Customer buys a product
+
+1.	Insert a new bid ()
+2.	Insert purchase record (ITEM_PURCHASE).
+//	Q: Should we have item status to indicate that it has already been purchased?
+//	Q: When the current bid of an item exceeds the buy now price, should we remove buy now?
+3.	Update buyer item status (USER_ITEM).
+
+== Put a comment ===========================================================================
+Trigger: Customer put a comment
+
+1.	Insert a comment into comment table (ITEM_COMMENT).
+2.	Update buyer's rating (USER).
+
+== Create new item =========================================================================
+Trigger: Buyer put a new product on bid
+
+1.	Insert new item (ITEM).
+2.	Insert item's image (ITEM_IMAGE).
+3.	Map item's attibutes to global attribute's values (ITEM_ATTRIBUTE).
+4.	Update seller's preference (paying method, shipping method) (USER_ATTRIBUTES).
+
+== Create new user =========================================================================
+Trigger: Buyer or Seller register to a system
+
+1.	Insert new user (USER).
+2.	Insert user's preference (USER_ATTRIBUTES).

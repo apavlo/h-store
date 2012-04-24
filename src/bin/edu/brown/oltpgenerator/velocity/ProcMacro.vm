@@ -1,0 +1,48 @@
+#set( $suffix = ".*" )
+
+package $packageName;
+
+import org.voltdb.*;
+import $abstractBenchmark$suffix;
+import $abstractBenchmarkRandom$suffix;
+
+public class $className extends AbstractTransaction
+{
+
+    private AbstractRandomGenerator[] m_paraGens;
+
+    public $className()
+    {
+        m_paraGens = new AbstractRandomGenerator[$paraGenStmts.size()];
+
+    #set( $idx = 0 )
+#foreach( $stmt in $paraGenStmts )
+    m_paraGens[$idx] = $stmt;
+    #set( $idx = $idx + 1 )
+#end
+    
+    }
+
+    public VoltTable[] run($paraList) throws VoltAbortException
+    {
+        return null;
+    }
+
+    @Override
+    protected int getIndex()
+    {
+        return $idxXact;
+    }
+
+    @Override
+    protected int getProbability()
+    {
+        return $probability;
+    }
+
+    @Override
+    protected  AbstractRandomGenerator[] getParaValGenerators()
+    {
+        return m_paraGens;
+    }
+}

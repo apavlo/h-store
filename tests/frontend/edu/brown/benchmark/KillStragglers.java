@@ -76,7 +76,6 @@ public class KillStragglers implements Runnable {
         return (this);
     }
 
-    @Override
     public void run() {
         assert(m_killSite || m_killCoordinator || m_killEngine || m_killClient) : "No kill option selected";
         

@@ -34,7 +34,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
-import org.voltdb.VoltDB;
+//import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;

@@ -856,7 +856,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (sites.isEmpty()) {
             // Sort them by site ids
             final Comparator<Site> comparator = new Comparator<Site>() {
-                @Override
                 public int compare(Site o1, Site o2) {
                     return (o1.getId() - o2.getId());
                 }

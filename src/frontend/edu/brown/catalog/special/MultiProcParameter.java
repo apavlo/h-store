@@ -29,27 +29,22 @@ public class MultiProcParameter extends SpecialProcParameter implements MultiAtt
         return obj;
     }
 
-    @Override
     public Collection<ProcParameter> getAttributes() {
         return this.inner.getAttributes();
     }
 
-    @Override
     public Iterator<ProcParameter> iterator() {
         return this.inner.iterator();
     }
 
-    @Override
     public String getPrefix() {
         return PREFIX;
     }
 
-    @Override
     public int size() {
         return this.inner.size();
     }
 
-    @Override
     public ProcParameter get(int idx) {
         return (ProcParameter) this.inner.get(idx);
     }
@@ -87,57 +82,46 @@ public class MultiProcParameter extends SpecialProcParameter implements MultiAtt
         return this.inner.equals(((MultiProcParameter) obj).inner);
     }
 
-    @Override
     public boolean add(ProcParameter e) {
         return this.inner.add(e);
     }
 
-    @Override
     public boolean addAll(Collection<? extends ProcParameter> c) {
         return this.inner.addAll(c);
     }
 
-    @Override
     public void clear() {
         this.inner.clear();
     }
 
-    @Override
     public boolean contains(Object o) {
         return this.inner.contains(o);
     }
 
-    @Override
     public boolean containsAll(Collection<?> c) {
         return this.inner.containsAll(c);
     }
 
-    @Override
     public boolean isEmpty() {
         return this.inner.isEmpty();
     }
 
-    @Override
     public boolean remove(Object o) {
         return this.inner.remove(o);
     }
 
-    @Override
     public boolean removeAll(Collection<?> c) {
         return this.inner.removeAll(c);
     }
 
-    @Override
     public boolean retainAll(Collection<?> c) {
         return this.inner.retainAll(c);
     }
 
-    @Override
     public Object[] toArray() {
         return this.inner.toArray();
     }
 
-    @Override
     public <T> T[] toArray(T[] a) {
         return this.inner.toArray(a);
     }

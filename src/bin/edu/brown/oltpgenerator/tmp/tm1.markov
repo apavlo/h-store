@@ -1,0 +1,2498 @@
+{
+ "0": {
+  "database.@LoadMultipartitionTable": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  },
+  "database.@Statistics": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  },
+  "database.DeleteCallForwarding": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 111419,
+     "TOTALHITS": 1356,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "DONE": {"1": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 145484,
+     "TOTALHITS": 1324,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "DONE": {"0": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.query",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 279935,
+     "TOTALHITS": 2680,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.49402985,
+       "1": 0.5059701
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 291147,
+     "TOTALHITS": 2680,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.49402985,
+       "1": 0.5059701
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "DeleteCallForwarding.query",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2680,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.query",
+     "VERTEX1": "DeleteCallForwarding.update",
+     "TYPE": "D",
+     "PROBABILITY": 0.49402984976768494,
+     "HITS": 1324,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1356,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1324,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.query",
+     "VERTEX1": "DeleteCallForwarding.update",
+     "TYPE": "D",
+     "PROBABILITY": 0.5059701204299927,
+     "HITS": 1356,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetAccessData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "GetAccessData.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 143770,
+     "TOTALHITS": 42908,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 153605,
+     "TOTALHITS": 42908,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "GetAccessData.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 42908,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetAccessData.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 42908,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetNewDestination": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 4370636,
+     "TOTALHITS": 12268,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {"2147483647": 0.5},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "GetNewDestination.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 4349698,
+     "TOTALHITS": 24536,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 0.5},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "GetNewDestination.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 0.5,
+     "HITS": 12268,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetNewDestination.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 12268,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "GetNewDestination.GetData",
+     "VERTEX1": "markov.--ABORT--",
+     "TYPE": "D",
+     "PROBABILITY": 0.5,
+     "HITS": 12268,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetSubscriberData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "GetSubscriberData.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 108171,
+     "TOTALHITS": 43544,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 123710,
+     "TOTALHITS": 43544,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "GetSubscriberData.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43544,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetSubscriberData.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43544,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.InsertCallForwarding": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query1",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 9714484,
+     "TOTALHITS": 2444,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 9074275,
+     "TOTALHITS": 1212,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {"0": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 10090288,
+     "TOTALHITS": 1232,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {"1": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.check",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 186277,
+     "TOTALHITS": 1212,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.check",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 446180,
+     "TOTALHITS": 1232,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 9727234,
+     "TOTALHITS": 2444,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "InsertCallForwarding.query2",
+     "VERTEX1": "InsertCallForwarding.check",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1232,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.check",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1212,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query1",
+     "VERTEX1": "InsertCallForwarding.query2",
+     "TYPE": "D",
+     "PROBABILITY": 0.49590834975242615,
+     "HITS": 1212,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query2",
+     "VERTEX1": "InsertCallForwarding.check",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1212,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "InsertCallForwarding.query1",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2444,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.check",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1232,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query1",
+     "VERTEX1": "InsertCallForwarding.query2",
+     "TYPE": "D",
+     "PROBABILITY": 0.5040916800498962,
+     "HITS": 1232,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.UpdateLocation": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 175364,
+     "TOTALHITS": 17224,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "UpdateLocation.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 149048,
+     "TOTALHITS": 17224,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "UpdateLocation.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 17224,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "UpdateLocation.update",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 17224,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.UpdateSubscriberData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "UpdateSubscriberData.update2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 249754,
+     "TOTALHITS": 2480,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "UpdateSubscriberData.update1",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 347406,
+     "TOTALHITS": 2480,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 360560,
+     "TOTALHITS": 2480,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "UpdateSubscriberData.update1",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2480,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "UpdateSubscriberData.update2",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2480,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "UpdateSubscriberData.update1",
+     "VERTEX1": "UpdateSubscriberData.update2",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2480,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.InsertSubscriber": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  }
+ },
+ "1": {
+  "database.@LoadMultipartitionTable": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  },
+  "database.@Statistics": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  },
+  "database.DeleteCallForwarding": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 202301,
+     "TOTALHITS": 1164,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "DONE": {"0": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 175168,
+     "TOTALHITS": 1160,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "DONE": {"1": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "DeleteCallForwarding.query",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 315834,
+     "TOTALHITS": 2324,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.5008606,
+       "1": 0.49913943
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 327726,
+     "TOTALHITS": 2324,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.5008606,
+       "1": 0.49913943
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "DeleteCallForwarding.query",
+     "VERTEX1": "DeleteCallForwarding.update",
+     "TYPE": "D",
+     "PROBABILITY": 0.4991394281387329,
+     "HITS": 1160,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1164,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1160,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "DeleteCallForwarding.query",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2324,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "DeleteCallForwarding.query",
+     "VERTEX1": "DeleteCallForwarding.update",
+     "TYPE": "D",
+     "PROBABILITY": 0.5008605718612671,
+     "HITS": 1164,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetAccessData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "GetAccessData.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 115343,
+     "TOTALHITS": 43336,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 127924,
+     "TOTALHITS": 43336,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "GetAccessData.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43336,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetAccessData.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43336,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetNewDestination": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 4372829,
+     "TOTALHITS": 12284,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {"2147483647": 0.5},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "GetNewDestination.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 4347947,
+     "TOTALHITS": 24568,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 0.5},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetNewDestination.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 12284,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "GetNewDestination.GetData",
+     "VERTEX1": "markov.--ABORT--",
+     "TYPE": "D",
+     "PROBABILITY": 0.5,
+     "HITS": 12284,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "GetNewDestination.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 0.5,
+     "HITS": 12284,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.GetSubscriberData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "GetSubscriberData.GetData",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 94268,
+     "TOTALHITS": 43228,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 109434,
+     "TOTALHITS": 43228,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "GetSubscriberData.GetData",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43228,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "GetSubscriberData.GetData",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 43228,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.InsertCallForwarding": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query1",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 9555169,
+     "TOTALHITS": 2568,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 8657643,
+     "TOTALHITS": 1272,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {"0": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.query2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 10188346,
+     "TOTALHITS": 1296,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {"1": 0.0}
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.check",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 174506,
+     "TOTALHITS": 1272,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "InsertCallForwarding.check",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 113846,
+     "TOTALHITS": 1296,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 9566762,
+     "TOTALHITS": 2568,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "InsertCallForwarding.query2",
+     "VERTEX1": "InsertCallForwarding.check",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1296,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query1",
+     "VERTEX1": "InsertCallForwarding.query2",
+     "TYPE": "D",
+     "PROBABILITY": 0.5046728849411011,
+     "HITS": 1296,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query1",
+     "VERTEX1": "InsertCallForwarding.query2",
+     "TYPE": "D",
+     "PROBABILITY": 0.4953271150588989,
+     "HITS": 1272,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.check",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1296,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.check",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1272,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "InsertCallForwarding.query1",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2568,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "InsertCallForwarding.query2",
+     "VERTEX1": "InsertCallForwarding.check",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 1272,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.UpdateLocation": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 201529,
+     "TOTALHITS": 17532,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "UpdateLocation.update",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [0, 1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 186707,
+     "TOTALHITS": 17532,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 1.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 0.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "UpdateLocation.update",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 17532,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "UpdateLocation.update",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 17532,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.UpdateSubscriberData": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "UpdateSubscriberData.update2",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 337164,
+     "TOTALHITS": 2572,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "UpdateSubscriberData.update1",
+     "CATALOG_CLASS": "org.voltdb.catalog.Statement",
+     "TYPE": "QUERY",
+     "PARTITIONS": [1],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 433072,
+     "TOTALHITS": 2572,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 447506,
+     "TOTALHITS": 2572,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {"2147483647": 1.0},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 1.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 0.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "WRITE": {
+       "0": 0.0,
+       "1": 0.0
+      },
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex",
+   "EDGES": [
+    {
+     "VERTEX0": "UpdateSubscriberData.update1",
+     "VERTEX1": "UpdateSubscriberData.update2",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2572,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "UpdateSubscriberData.update2",
+     "VERTEX1": "markov.--COMMIT--",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2572,
+     "MARKED": false
+    },
+    {
+     "VERTEX0": "markov.--START--",
+     "VERTEX1": "UpdateSubscriberData.update1",
+     "TYPE": "D",
+     "PROBABILITY": 1.0,
+     "HITS": 2572,
+     "MARKED": false
+    }
+   ],
+   "EDGE_CLASS": "edu.brown.markov.Edge"
+  },
+  "database.InsertSubscriber": {
+   "VERTICES": [
+    {
+     "CATALOG_KEY": "markov.--ABORT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "ABORT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {"2147483647": 1.0},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--START--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "START",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {}
+     }
+    },
+    {
+     "CATALOG_KEY": "markov.--COMMIT--",
+     "CATALOG_CLASS": "edu.brown.markov.MarkovUtil$StatementWrapper",
+     "TYPE": "COMMIT",
+     "PARTITIONS": [],
+     "QUERY_INSTANCE_INDEX": 0,
+     "EXECUTION_TIME": 0,
+     "TOTALHITS": 0,
+     "PROBABILITIES": {
+      "SINGLE_SITED": {},
+      "ABORT": {},
+      "READ_ONLY": {},
+      "WRITE": {},
+      "DONE": {
+       "0": 1.0,
+       "1": 1.0
+      }
+     }
+    }
+   ],
+   "VERTEX_CLASS": "edu.brown.markov.Vertex"
+  }
+ }
+}

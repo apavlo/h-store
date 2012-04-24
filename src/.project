@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>HSTORE</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.jdt.core.javabuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.jdt.core.javanature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>protobuf</name>
+			<type>2</type>
+			<location>/gpfs/main/home/mwang5/h-store/third_party/cpp/protobuf/java/src/main/java</location>
+		</link>
+		<link>
+			<name>tests</name>
+			<type>2</type>
+			<location>/gpfs/main/home/mwang5/h-store/tests/frontend</location>
+		</link>
+		<link>
+			<name>third_party</name>
+			<type>2</type>
+			<location>/gpfs/main/home/mwang5/h-store/third_party/java/src</location>
+		</link>
+	</linkedResources>
+</projectDescription>

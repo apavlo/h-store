@@ -470,7 +470,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * below in waitForResponses()
      */
     private final RpcCallback<TransactionWorkResponse> request_work_callback = new RpcCallback<TransactionWorkResponse>() {
-        @Override
         public void run(TransactionWorkResponse msg) {
             Long txn_id = msg.getTransactionId();
             AbstractTransaction ts = hstore_site.getTransaction(txn_id);
@@ -733,7 +732,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Primary run method that is invoked a single time when the thread is started.
      * Has the opportunity to do startup config.
      */
-    @Override
     public void run() {
         assert(this.hstore_site != null);
         assert(this.hstore_coordinator != null);
@@ -972,7 +970,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
     }
 
-    @Override
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
@@ -3130,12 +3127,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_coordinator.shutdownClusterBlocking(ex);
     }
     
-    @Override
     public boolean isShuttingDown() {
         return (this.hstore_site.isShuttingDown()); // shutdown_state == State.PREPARE_SHUTDOWN || this.shutdown_state == State.SHUTDOWN);
     }
     
-    @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = Shutdownable.ShutdownState.PREPARE_SHUTDOWN;
     }

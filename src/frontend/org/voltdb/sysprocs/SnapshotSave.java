@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.jfree.util.Log;
+import org.json.JSONStringer;
 import org.voltdb.*;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.*;
@@ -148,7 +149,6 @@ public class SnapshotSave extends VoltSystemProcedure
         else if (fragmentId == SysProcFragmentId.PF_snapshotSaveQuiesce) 
         {
         	//tell each site to quiesce
-        	
         	context.getExecutionEngine().quiesce(context.getLastCommittedTxnId());
         	VoltTable results = new VoltTable(new ColumnInfo("id", VoltType.INTEGER));
         	results.addRow(context.getHost().getId());
@@ -170,7 +170,7 @@ public class SnapshotSave extends VoltSystemProcedure
 
     private DependencySet createSnapshotTargetsResults(
             Map<Integer, List<VoltTable>> dependencies) {
-        {
+
             LOG.trace("Aggregating create snapshot target results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_createSnapshotTargets);
@@ -198,7 +198,6 @@ public class SnapshotSave extends VoltSystemProcedure
             }
             return new
                 DependencySet( DEP_createSnapshotTargetsResults, result);
-        }
     }
 
     private DependencySet saveTest(String file_path, String file_nonce,
@@ -231,7 +230,7 @@ public class SnapshotSave extends VoltSystemProcedure
                     File saveFilePath = SnapshotUtil.constructFileForTable(table, file_path, 
                     		file_nonce, context.getSite().getHost().getTypeName());
                     
-                    LOG.trace("Host ID " + context.getSite().getHost().getTypeName() +
+                    LOG.trace("Host ID " + context.getSite().getHost().getId() +
                                     " table: " + table.getTypeName() +
                                     " to path: " + saveFilePath);
                     String file_valid = "SUCCESS";
@@ -250,10 +249,10 @@ public class SnapshotSave extends VoltSystemProcedure
                     {
                         try
                         {
-                            saveFilePath.createNewFile();
-//                            if (saveFilePath.createNewFile()) {
-//                                saveFilePath.delete();
-//                            }
+                            //saveFilePath.createNewFile();
+                            if (saveFilePath.createNewFile()) {
+                                
+                            }
                         }
                         catch (IOException ex)
                         {
@@ -274,8 +273,8 @@ public class SnapshotSave extends VoltSystemProcedure
     }
 
     private DependencySet saveTestResults(
-            Map<Integer, List<VoltTable>> dependencies) {
-        {
+            Map<Integer, List<VoltTable>> dependencies) 
+    {
             LOG.trace("Aggregating save feasiblity results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_saveTest);
@@ -288,23 +287,21 @@ public class SnapshotSave extends VoltSystemProcedure
                     result.add(table);
                 }
             }
-            return new DependencySet( DEP_saveTestResults, result);
-        }
+            return new DependencySet(DEP_saveTestResults, result);
     }
 
     public VoltTable[] run(String path, String nonce, long block) throws VoltAbortException
     {
         final long startTime = System.currentTimeMillis();
         LOG.info("Saving database to path: " + path + ", ID: " + nonce + " at " + startTime);
-
-
+        
+        //SystemProcedureExecutionContext ctx = ;
         
 //	    ColumnInfo[] result_columns = new ColumnInfo[2];
 //      int ii = 0;
 //      result_columns[ii++] = new ColumnInfo("RESULT", VoltType.STRING);
 //      result_columns[ii++] = new ColumnInfo("ERR_MSG", VoltType.STRING);
-        
-        
+                
         if (path == null || path.equals("")) {
             ColumnInfo[] result_columns = new ColumnInfo[1];
             int ii = 0;
@@ -337,7 +334,7 @@ public class SnapshotSave extends VoltSystemProcedure
         results = performSaveFeasibilityWork(path, nonce);
         LOG.info("PATH: " + path);
         LOG.info("nonce: " + nonce);
-        LOG.info("performSaveFeasibilityWork Results:\n" + results);
+        LOG.info("performSaveFeasibilityWork Results:\n" + results[0]);
 
         // Test feasibility results for fail
         while (results[0].advanceRow())
@@ -351,11 +348,19 @@ public class SnapshotSave extends VoltSystemProcedure
             }
         }
 
-        //performQuiesce();
+        performQuiesce();
+        results = performSnapshotCreationWork(path, nonce, startTime, (byte)block);
         
-        results = performSnapshotCreationWork( path, nonce, startTime, (byte)block);
-
-
+        
+//        try {
+//            JSONStringer stringer = new JSONStringer();
+//            stringer.object();
+//            stringer.key("txnId").value(ctx.getCurrentTxnId());
+//            stringer.endObject();
+//            setAppStatusString(stringer.toString());
+//        } catch (Exception e) {
+//            LOG.warn(e);
+//        }
         
         
         final long finishTime = System.currentTimeMillis();
@@ -369,6 +374,7 @@ public class SnapshotSave extends VoltSystemProcedure
     {
         SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
 
+        
         // This fragment causes each execution site to confirm the likely
         // success of writing tables to disk
         pfs[0] = new SynthesizedPlanFragment();
@@ -379,6 +385,7 @@ public class SnapshotSave extends VoltSystemProcedure
         ParameterSet params = new ParameterSet();
         params.setParameters(filePath, fileNonce);
         pfs[0].parameters = params;
+        LOG.info("this pfs[0]:" + pfs[0].parameters);
 
         // This fragment aggregates the save-to-disk sanity check results
         pfs[1] = new SynthesizedPlanFragment();
@@ -387,11 +394,12 @@ public class SnapshotSave extends VoltSystemProcedure
         pfs[1].inputDependencyIds = new int[] { DEP_saveTest };
         pfs[1].multipartition = false;
         pfs[1].parameters = new ParameterSet();
+        LOG.info("this pfs[1]:" + pfs[1].parameters);
 
         VoltTable[] results;
        
         results = executeSysProcPlanFragments(pfs, DEP_saveTestResults); 
-        LOG.info("RESULT: " + results);
+        LOG.info("RESULT: " + results[0]);
         return results;
     }
 

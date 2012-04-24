@@ -1,0 +1,20 @@
+package protorpc;
+option java_package = "ca.evanjones.protorpc";
+
+message Value {
+    required int32 value = 1;
+
+    // Used to test the distributor
+    optional string name = 2;
+}
+
+message GetRequest {
+    // Used to test the distributor
+    optional string name = 1;
+}
+
+// A trivial example service to use for testing the transaction system.
+service CounterService {
+    rpc Add (Value) returns (Value);
+    rpc Get (GetRequest) returns (Value);
+}

@@ -41,7 +41,6 @@ public class CatalogExporter implements JSONSerializable {
      * (non-Javadoc)
      * @see edu.brown.utils.JSONSerializable#toJSON(org.json.JSONStringer)
      */
-    @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         Database catalog_db = CatalogUtil.getDatabase(this.catalog);
 
@@ -81,7 +80,6 @@ public class CatalogExporter implements JSONSerializable {
      * @see edu.brown.utils.JSONSerializable#fromJSON(org.json.JSONObject,
      * org.voltdb.catalog.Database)
      */
-    @Override
     public void fromJSON(JSONObject jsonObject, Database catalogDb) throws JSONException {
         throw new NotImplementedException("Cannot import JSON catalog");
     }
@@ -91,7 +89,6 @@ public class CatalogExporter implements JSONSerializable {
      * @see edu.brown.utils.JSONSerializable#load(java.lang.String,
      * org.voltdb.catalog.Database)
      */
-    @Override
     public void load(String inputPath, Database catalogDb) throws IOException {
         throw new NotImplementedException("Cannot import JSON catalog");
     }
@@ -100,7 +97,6 @@ public class CatalogExporter implements JSONSerializable {
      * (non-Javadoc)
      * @see edu.brown.utils.JSONSerializable#save(java.lang.String)
      */
-    @Override
     public void save(String outputPath) throws IOException {
         JSONUtil.save(this, outputPath);
     }
@@ -109,7 +105,6 @@ public class CatalogExporter implements JSONSerializable {
      * (non-Javadoc)
      * @see org.json.JSONString#toJSONString()
      */
-    @Override
     public String toJSONString() {
         return (JSONUtil.toJSONString(this));
     }

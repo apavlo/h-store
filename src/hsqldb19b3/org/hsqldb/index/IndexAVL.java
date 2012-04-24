@@ -1608,7 +1608,6 @@ public class IndexAVL implements Index {
      * in the resulting XML.
      * @return XML, correctly indented, representing this object.
      */
-    @Override
     public String voltGetXML(Session session, String indent) {
         StringBuilder sb = new StringBuilder();
         
