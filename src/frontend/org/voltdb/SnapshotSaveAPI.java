@@ -18,6 +18,7 @@
 package org.voltdb;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,6 +32,7 @@ import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * SnapshotSaveAPI extracts reusuable snapshot production code
@@ -103,9 +105,11 @@ public class SnapshotSaveAPI
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getHost().getId(),
+                        //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getSite().getId(),
+                        //Integer.parseInt(context.getSite().getTypeName()),
                         status,
                         err);
             } else {
@@ -114,9 +118,11 @@ public class SnapshotSaveAPI
                     err = e.toString();
                 }
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getHost().getId(),
+                        //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getSite().getId(),
+                        //Integer.parseInt(context.getSite().getTypeName()),
                         status,
                         err);
             }
@@ -131,7 +137,7 @@ public class SnapshotSaveAPI
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
         {
-            final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
+            final int numLocalSites = CatalogUtil.getSitesForHost(context.getHost()).size();
 
             /*
              * Used to close targets on failure
@@ -244,7 +250,7 @@ public class SnapshotSaveAPI
                         "RESULTED IN IOException: \n" + sw.toString();
                     }
 
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+                    result.addRow(context.getHost().getId(),
                             hostname,
                             table.getTypeName(),
                             canSnapshot,
@@ -292,7 +298,7 @@ public class SnapshotSaveAPI
                 ex.printStackTrace(pw);
                 pw.flush();
                 result.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getHost().getId(),
                         hostname,
                         "",
                         "FAILURE",
@@ -310,7 +316,7 @@ public class SnapshotSaveAPI
         try {
             SnapshotSiteProcessor.m_snapshotPermits.acquire();
         } catch (Exception e) {
-            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+            result.addRow(context.getHost().getId(),
                     hostname,
                     "",
                     "FAILURE",
@@ -343,7 +349,8 @@ public class SnapshotSaveAPI
     throws IOException
     {
         return new DefaultSnapshotDataTarget(f,
-                                             Integer.parseInt(h.getTypeName()),
+                                             h.getId(),
+                                             //Integer.parseInt(h.getTypeName()),
                                              context.getCluster().getTypeName(),
                                              context.getDatabase().getTypeName(),
                                              table.getTypeName(),

@@ -40,6 +40,8 @@ public class SnapshotSiteProcessor {
     public static final AtomicInteger ExecutionSitesCurrentlySnapshotting =
         new AtomicInteger(-1);
 
+    public static final Object m_snapshotCreationLok = new Object();
+    
     /**
      * Ensure the first thread to run the fragment does the creation
      * of the targets and the distribution of the work.
@@ -171,13 +173,15 @@ public class SnapshotSiteProcessor {
                 assert(m_snapshotTargets != null);
                 m_snapshotTargets.add(task.m_target);
             }
-            // FIXME meng
-//            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
-//                LOG.error("Attempted to activate copy on write mode for table "
-//                        + task.m_name + " and failed");
-//                LOG.error(task);
-//                VoltDB.crashVoltDB();
-//            }
+            
+           
+// FIXME meng
+            if (!ee.activateCopyOnWrite(task.m_tableId)) {
+                LOG.error("Attempted to activate copy on write mode for table "
+                        + task.m_name + " and failed");
+                LOG.error(task);
+                return;
+            }
         }
     }
 
@@ -206,7 +210,9 @@ public class SnapshotSiteProcessor {
             assert(snapshotBuffer != null);
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
-            final int serialized = 0; // FIXME (meng)
+            final int serialized =ee.cowSerializeMore(snapshotBuffer, currentTask.m_tableId); 
+            // FIXME (meng)
+            
 //                ee.tableStreamSerializeMore(
 //                    snapshotBuffer,
 //                    currentTask.m_tableId,
