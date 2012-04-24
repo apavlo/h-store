@@ -424,7 +424,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new WriteAheadLogger(catalog_db, hstore_conf.site.exec_command_logging_file);
+            this.commandLogger = new WriteAheadLogger(this, hstore_conf.site.exec_command_logging_file);
         } else {
             this.commandLogger = null;
         }
@@ -482,6 +482,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+    
+    public DBBPool getBufferPool() {
+        return (this.buffer_pool);
     }
     
     /**
@@ -1862,7 +1866,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
         if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
-            this.commandLogger.writeCommitted(ts);
+            this.commandLogger.write(ts);
         }
 
         // Don't send anything back if it's a mispredict because it's as waste of time...
