@@ -51,7 +51,7 @@ public class PrefetchQueryPlanner implements Loggable {
     private final FastSerializer fs = new FastSerializer(); // TODO: Use pooled memory
 
     /**
-     * Contructor
+     * Constructor
      * @param catalog_db
      * @param p_estimator
      */
