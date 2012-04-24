@@ -3189,7 +3189,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.work_queue.clear();
         
         // Knock out this ma
-        this.m_snapshotter.shutdown();
+        if (this.m_snapshotter != null) this.m_snapshotter.shutdown();
         
         // Make sure we shutdown our threadpool
         // this.thread_pool.shutdownNow();
