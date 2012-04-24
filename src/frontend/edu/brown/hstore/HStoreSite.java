@@ -424,7 +424,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new WriteAheadLogger(catalog_db, hstore_conf.site.exec_command_logging_file);
+            this.commandLogger = new WriteAheadLogger(this, hstore_conf.site.exec_command_logging_file);
         } else {
             this.commandLogger = null;
         }
@@ -481,6 +481,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+    
+    public DBBPool getBufferPool() {
+        return (this.buffer_pool);
     }
     
     /**
@@ -878,6 +882,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (this.mr_helper != null)
             this.mr_helper.prepareShutdown(error);
+        if (this.commandLogger != null)
+            this.commandLogger.prepareShutdown(error);
         
         for (int p : this.local_partitions_arr) {
             if (this.executors[p] != null) 
@@ -911,6 +917,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // Tell the MapReduceHelperThread to shutdown too
         if (this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.commandLogger != null) this.commandLogger.shutdown();
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
@@ -1857,7 +1864,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
         if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
-            this.commandLogger.writeCommitted(ts);
+            this.commandLogger.write(ts);
         }
 
         // Don't send anything back if it's a mispredict because it's as waste of time...
