@@ -884,6 +884,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (this.mr_helper != null)
             this.mr_helper.prepareShutdown(error);
+        if (this.commandLogger != null)
+            this.commandLogger.prepareShutdown(error);
         
         for (int p : this.local_partitions_arr) {
             if (this.executors[p] != null) 
@@ -918,6 +920,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // Tell the MapReduceHelperThread to shutdown too
         if (this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.commandLogger != null) this.commandLogger.shutdown();
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");

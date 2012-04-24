@@ -178,13 +178,21 @@ public class WriteAheadLogger implements Shutdownable {
 
     @Override
     public void prepareShutdown(boolean error) {
-        // TODO Auto-generated method stub
+        // TODO: If we're using group commit, flush out
+        // all the queued entries. We should not get any more
+        // transaction entries after this point
         
     }
 
     @Override
     public void shutdown() {
-        // TODO Auto-generated method stub
+        if (debug.get()) LOG.debug("Closing WAL file");
+        try {
+            this.fstream.close();
+        } catch (IOException ex) {
+            String message = "Failed to close WAL file";
+            throw new ServerFaultException(message, ex);
+        }
         
     }
 
