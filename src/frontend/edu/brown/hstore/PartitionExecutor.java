@@ -65,6 +65,7 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
+import org.voltdb.SnapshotSiteProcessor;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
@@ -272,6 +273,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final PartitionEstimator p_estimator;
     private final TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
+    
+    // Each execution site manages snapshot using a SnapshotSiteProcessor
+    private final SnapshotSiteProcessor m_snapshotter;
     
     // ----------------------------------------------------------------------------
     // H-Store Transaction Stuff
@@ -556,6 +560,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hsql = null;
         this.p_estimator = null;
         this.t_estimator = null;
+        this.m_snapshotter = null;
         this.thresholds = null;
         this.catalog = null;
         this.cluster = null;
@@ -673,6 +678,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Initialize temporary data structures
         int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
+        
+        m_snapshotter = new SnapshotSiteProcessor(new Runnable() {
+            @Override
+            public void run() {
+                
+            }
+        });
     }
     
     @SuppressWarnings("unchecked")
@@ -970,6 +982,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             lastTickTime = time;
         }
+        
+        // do other periodic work
+        m_snapshotter.doSnapshotWork(ee);
     }
 
     @Override
@@ -3154,6 +3169,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Clear the queue
         this.work_queue.clear();
+        
+        // Knock out this ma
+        this.m_snapshotter.shutdown();
         
         // Make sure we shutdown our threadpool
         // this.thread_pool.shutdownNow();
