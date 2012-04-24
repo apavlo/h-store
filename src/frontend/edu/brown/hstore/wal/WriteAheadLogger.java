@@ -26,39 +26,131 @@
 package edu.brown.hstore.wal;
 
 
-import java.util.List;
-import java.util.Map;
-import java.io.*;
-import java.nio.ByteBuffer;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.Map;
 
-
-import org.voltdb.ParameterSet;
-import org.voltdb.catalog.Database;
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.EstTime;
 
-import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
+ * Transaction Command Logger
  * @author mkirsch
+ * @author pavlo
  */
-public class WriteAheadLogger {
+public class WriteAheadLogger implements Shutdownable {
+    private static final Logger LOG = Logger.getLogger(WriteAheadLogger.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
     //"/ltmp/hstore/wal2.log";
     private long txn_count = 0;
     
-    final Database catalog_db;
-    final FileChannel fstream;
-    final ByteBuffer buffer;
+    /**
+     * Circular Buffer of Log Entries
+     */
+    protected class EntryBuffer {
+        private LogEntry buffer[];
+        private int idx;
+        
+        public EntryBuffer(int size) {
+            this.buffer = new LogEntry[size];
+            for (int i = 0; i < size; i++) {
+                this.buffer[i] = new LogEntry();
+            } // FOR
+        }
+        public LogEntry next(LocalTransaction ts) {
+            if (this.idx == this.buffer.length) {
+                this.idx = 0;
+            }
+            LogEntry e = this.buffer[this.idx++];
+            e.ts = ts;
+            e.flushed = false;
+            return (e);
+        }
+    } // CLASS
     
-    public WriteAheadLogger(Database catalog_db, String path) {
-        this.catalog_db = catalog_db;
+    /**
+     * Log Entry
+     */
+    protected class LogEntry implements FastSerializable {
+        
+        private LocalTransaction ts;
+        
+        /** Set to true if we know that this entry has been written to disk */
+        private boolean flushed = false;
+
+        @Override
+        public void readExternal(FastDeserializer in) throws IOException {
+            if (this.ts == null) {
+                
+            }
+            // TODO: We need to figure out how we want to read these entries
+            // back in. I suppose we could just make a new LocalTransaction
+            // entry each time. What we really should do is recreate
+            // the StoredProcedureInvocation and then pass that into
+            // the HStoreSite so that we can replay the transaction
+        }
+
+        @Override
+        public void writeExternal(FastSerializer out) throws IOException {
+            out.writeLong(this.ts.getTransactionId().longValue());
+            out.writeLong(EstTime.currentTimeMillis());
+            
+            // TODO: Remove this once we have the header stuff working...
+            out.writeString(ts.getProcedureName());
+            /* If we have a header with a mapping to Procedure names to ProcIds, we can do this
+            int procId = ts.getProcedure().getId();
+            this.buffer.putInt(procId);
+            */
+            
+            out.writeObject(ts.getProcedureParameters());
+        }
+    } // CLASS
+    
+    
+    final HStoreSite hstore_site;
+    final HStoreConf hstore_conf;
+    final FileChannel fstream;
+    
+    /**
+     * The log entry buffers (one per partition) 
+     */
+    final EntryBuffer entries[];
+    
+    /**
+     * Fast serializers (one per partition)
+     */
+    final FastSerializer serializers[];
+    
+    /**
+     * Constructor
+     * @param catalog_db
+     * @param path
+     */
+    public WriteAheadLogger(HStoreSite hstore_site, String path) {
+        this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         
         FileOutputStream f = null;
         try {
@@ -68,15 +160,43 @@ public class WriteAheadLogger {
         }
         this.fstream = f.getChannel();
         
-        // TODO(pavlo): Use a buffer pool instead of hardcoded memory size
-        byte bytes[] = new byte[102400];
-        this.buffer = ByteBuffer.wrap(bytes);
+        // Make one entry buffer per partition
+        int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getDatabase());
+        this.entries = new EntryBuffer[num_partitions];
+        this.serializers = new FastSerializer[num_partitions];
+        for (int partition = 0; partition < num_partitions; partition++) {
+            if (hstore_site.isLocalPartition(partition)) {
+                this.entries[partition] = new EntryBuffer(50); // XXX
+                this.serializers[partition] = new FastSerializer(hstore_site.getBufferPool());
+            }
+        } // FOR
         
+        // Write out a header to the file 
         this.writeHeader();
     }
     
+
+    @Override
+    public void prepareShutdown(boolean error) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void shutdown() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public boolean isShuttingDown() {
+        // TODO Auto-generated method stub
+        return false;
+    }
+    
     public boolean writeHeader() {
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+        if (debug.get()) LOG.debug("Writing out WAL header");
+        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
             int procId = catalog_proc.getId();
             
             // TODO: Write out a header that contains a mapping from Procedure name to ids
@@ -92,48 +212,53 @@ public class WriteAheadLogger {
         
         return (null);
     }
-    
-    /**
-     * @param ts
-     * @param st
-     */
-    public boolean writeCommitted(final LocalTransaction ts) {
-        this.buffer.rewind();
-        this.buffer.putLong(ts.getTransactionId().longValue());
-        this.buffer.putLong(EstTime.currentTimeMillis());
-        
-        /* If we have a header with a mapping to Procedure names to ProcIds, we can do this
-        int procId = ts.getProcedure().getId();
-        this.buffer.putInt(procId);
-        */
 
-        // TODO: Remove this once we have the header stuff working...
-        String pn = ts.getProcedureName();
-        this.buffer.putInt(pn.length());
-        this.buffer.put(pn.getBytes()); // TODO: Remove having to copy bytes
+    /**
+     * Write a completed transaction handle out to the WAL file
+     * Returns true if the entry has been successfully written to disk and
+     * it is safe for the HStoreSite to send out the ClientResponse
+     * @param ts
+     * @return
+     */
+    public boolean write(final LocalTransaction ts) {
+        if (debug.get()) LOG.debug(ts + " - Writing out WAL entry for committed transaction");
         
-        ParameterSet pp = ts.getProcedureParameters();
-        byte pp_bytes[] = null;
-        try {
-            pp_bytes = FastSerializer.serialize(pp); // XXX: This sucks
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to serialize ParameterSet for " + ts, ex);
-        }
-        this.buffer.put(pp_bytes);
+        int basePartition = ts.getBasePartition();
+        EntryBuffer buffer = this.entries[basePartition];
+        assert(buffer != null) :
+            "Unexpected log entry buffer for partition " + basePartition;
+        LogEntry entry = buffer.next(ts);
+        assert(entry != null);
+        FastSerializer fs = this.serializers[basePartition];
+        assert(fs != null);
+        
+        // TODO: We are going to want to use group commit to queue up
+        // a bunch of entries using the buffers and then push them all out
+        // when we have enough.
+        // TODO: Once we have group commit, then we need a way to pass back
+        // a flag to the HStoreSite from this method that tells it to not send out
+        // the ClientResponse until we say it's ok. Then we need some other callback
+        // where we can blast out the client responses all at once.
         
         try {
-            // TODO(pavlo): Figure out how to mark the position in the ByteBuffer so that
-            //              we only write out the byte array up to that point instead of the whole thing
-            fstream.write(this.buffer);
+            fs.clear();
+            BBContainer b = fs.writeObjectForMessaging(entry);
+            fstream.write(b.b.asReadOnlyBuffer());
+            
+            // TODO: We should have an asynchronous option here like postgres
+            // where we don't have to wait until the OS flushes the changes out
+            // to the file before we're allowed to continue.
             fstream.force(true);
+            entry.flushed = true;
             //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            String message = "Failed to write log entry for " + ts.toString();
+            throw new ServerFaultException(message, e, ts.getTransactionId());
         }
         
-
         return true;
     }
+
 
 
     /**
