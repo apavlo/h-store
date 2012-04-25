@@ -172,6 +172,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
                 throw new RuntimeException(e.getMessage());
             }
             assert(p >= 0);
+            assert(p < partitionedTables.length) :
+                String.format("Invalid partition %d [numPartitions=%d]", p, partitionedTables.length);
             
             if (partitionedTables[p] == null) {
                 partitionedTables[p] = table.clone(1024 * 1024);
