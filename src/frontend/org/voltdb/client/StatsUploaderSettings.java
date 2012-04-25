@@ -17,8 +17,6 @@
 
 package org.voltdb.client;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,7 +43,6 @@ public class StatsUploaderSettings {
     final String applicationName;
     final String subApplicationName;
     final int pollInterval;
-    final Connection conn;
 
     /**
      *
@@ -90,22 +87,6 @@ public class StatsUploaderSettings {
 
         if (LOG.isDebugEnabled())
             LOG.debug("Creating new connection to stats database [" + databaseURL + "]");
-        try {
-            if (this.databaseJDBC != null && this.databaseJDBC.isEmpty() == false) {
-                Class.forName(this.databaseJDBC);
-            }
-            
-            conn = DriverManager.getConnection(this.databaseURL,
-                                               this.databaseUser,
-                                               this.databasePass);
-            conn.setAutoCommit(false);
-            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-        }
-        catch (Exception e) {
-            String msg = "Failed to connect to SQL reporting server with message:\n    ";
-            msg += e.getMessage();
-            throw new RuntimeException(msg);
-        }
     }
     
     @Override
