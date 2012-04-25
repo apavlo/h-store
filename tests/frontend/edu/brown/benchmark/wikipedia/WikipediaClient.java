@@ -59,16 +59,13 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final int num_users;
 	private Random randGenerator = new Random();
 	private int nextRevId;
-	public HashMap<Long, String[]> m_titleMap = new HashMap<Long, String[]>();
+	public HashMap<Long, Object[]> m_titleMap = new HashMap<Long, Object[]>();
 	
 	
 	// TODO:(xin)
 	// Change from hashMap to array in order to make it faster
 	// Right now it is fine to use
 	public Object [] m_titleArr; 
-	
-	
-	 
 
     /**
      * Set of transactions structs with their appropriate parameters
@@ -209,7 +206,7 @@ public class WikipediaClient extends BenchmarkComponent {
             long page_id = vt.getLong(0);
             long namespace = vt.getLong(1);
             String title = vt.getString(2);
-            String data[] = { Long.toString(namespace), title}; 
+            Object data[] = { namespace, title}; 
             if (!m_titleMap.containsKey(page_id)) {
                 m_titleMap.put(page_id, data);
             } else {
@@ -217,14 +214,12 @@ public class WikipediaClient extends BenchmarkComponent {
             }
         }
         
-        
         double m_scalefactor = 1.0;
         int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
         //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
         
         Flat z_users = new Flat(this.randGenerator, 1, num_users);
         Zipf z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
-        
         
         try {
             while (true) {
@@ -260,7 +255,6 @@ public class WikipediaClient extends BenchmarkComponent {
                                             randGenerator.nextInt(256),
                                             randGenerator.nextInt(256));
     }
-    
    
     @Override
     public String[] getTransactionDisplayNames() {
@@ -271,66 +265,60 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         return (procNames);
     }
-	
 
     protected Object[] generateParams(Transaction txn, int user_id, int page_id) throws VoltAbortException {
         
-        String data[] = m_titleMap.get(page_id);
-       
-        // AddWatchList
-        if (txn.callName.equals(AddWatchList.class.getName())) {
-            
-            Object params[] = {
-                    user_id, 
-                    new Integer(data[0]), 
-                    data[1]
-            };
-            return params;
-        }
-        // RemoveWatchList
-        else if (txn.callName.equals(RemoveWatchList.class.getName())) {
-            Object params[] = {
-                    user_id, 
-                    new Integer(data[0]), 
-                    data[1]
-            };
-            return params;
-        }
-        // UpdatePage
-        else if (txn.callName.equals(UpdatePage.class.getName())) {
-            Object params[] = {
-                    this.generateUserIP(),
-                    user_id, 
-                    new Integer(data[0]), 
-                    data[1]
-            };
-            return params;
-        }
-        // GetPageAnonymous
-        else if (txn.callName.equals(GetPageAnonymous.class.getName())) {
-            Object params[] = {
-                    true,
-                    this.generateUserIP(),
-                    user_id, 
-                    new Integer(data[0]), 
-                    data[1]
-            };
-            return params;
-        }
-        // GetPageAuthenticated
-        else if (txn.callName.equals(GetPageAuthenticated.class.getName())) {
-            Object params[] = {
-                    true,
-                    this.generateUserIP(),
-                    user_id, 
-                    new Integer(data[0]), 
-                    data[1]
-            };
-            return params;
-        }
+        Object data[] = m_titleMap.get(page_id);
+        Object params[] = null;
         
-        assert(false):"Should never come to this point";
-        return null;
+        switch (txn) {
+            // AddWatchList
+            case ADD_WATCHLIST:    
+                params = new Object[]{
+                        user_id, 
+                        data[0], 
+                        data[1]
+                };
+                break;
+            case REMOVE_WATCHLIST:
+                params = new Object[]{
+                        user_id, 
+                        data[0], 
+                        data[1]
+                };
+                break;
+            case UPDATE_PAGE:
+                params = new Object[]{
+                        this.generateUserIP(),
+                        user_id, 
+                        data[0], 
+                        data[1]
+                };
+                break;
+            case GET_PAGE_ANONYMOUS:
+                params = new Object[]{
+                        true,
+                        this.generateUserIP(),
+                        user_id, 
+                        data[0], 
+                        data[1]
+                };
+                break;
+            case GET_PAGE_AUTHENTICATED:
+                params = new Object[]{
+                        true,
+                        this.generateUserIP(),
+                        user_id, 
+                        data[0], 
+                        data[1]
+                };
+                break;
+             default:
+                 assert(false):"Should not come to this point";
+                 break;
+        }
+        assert(params != null);
+        return params;
     }
     
     
