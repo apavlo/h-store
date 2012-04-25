@@ -117,29 +117,8 @@ public class WikipediaLoader extends BenchmarkComponent {
             this.loadRevision(catalog_db);
             LOG.info("Finish loadRevision... ");
             
-            // Generate Trace data
-            this.genTrace();
-            
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-    
-    private void genTrace() {
-        // Add Trace data
-        Client client = this.getClientHandle();
-        ClientResponse cr = null;
-        try {
-            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
-
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to update users and pages", ex);
-        }
-        assert(cr != null);
-        assert(cr.getStatus() == Status.OK);
-        
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("GenTrace loaded");
         }
     }
     

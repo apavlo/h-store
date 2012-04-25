@@ -178,7 +178,8 @@ public class UpdatePage extends VoltProcedure {
 		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
 		// st.addBatch(sql);
 		
-		voltQueueSQL(insertRecentChanges, timestamp, 
+		voltQueueSQL(insertRecentChanges, nextId,
+		                                  timestamp, 
 		                                  timestamp,
 		                                  pageNamespace,
 		                                  pageTitle,
@@ -252,7 +253,8 @@ public class UpdatePage extends VoltProcedure {
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
-		voltQueueSQL(insertLogging, WikipediaConstants.UPDATEPAGE_LOG_TYPE,
+		voltQueueSQL(insertLogging, nextId,
+		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,
 		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
 		                            timestamp,
 		                            userId,
