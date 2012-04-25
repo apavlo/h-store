@@ -27,6 +27,8 @@ import java.sql.Types;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * Polls a Distributer instance for IO and procedure invocation information and ELTs the results
  * to a database via JDBC.
@@ -35,6 +37,7 @@ import org.voltdb.VoltTable;
 public class ClientStatsLoader {
     private static final Logger LOG = Logger.getLogger(ClientStatsLoader.class);
     
+    private final StatsUploaderSettings m_settings;
     private final Connection m_conn;
     private final String m_applicationName;
     private final String m_subApplicationName;
@@ -50,8 +53,9 @@ public class ClientStatsLoader {
     private static final String procedureStatsTable = tablePrefix + "clientProcedureStats";
 
     private static final String createInstanceStatement = "insert into " + instancesTable +
-            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName) " +
-            "values ( ?, ?, ?, ? );";
+            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName, " +
+            " numHosts, numSites, numPartitions) " +
+            "values ( ?, ?, ?, ?, ?, ?, ? );";
 
     private static final String insertConnectionStatsStatement = "insert into " + connectionStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
@@ -89,6 +93,7 @@ public class ClientStatsLoader {
             throw new RuntimeException(msg);
         }
         
+        m_settings = settings;
         m_applicationName = settings.applicationName;
         m_subApplicationName = settings.subApplicationName;
         m_pollInterval = settings.pollInterval;
@@ -114,6 +119,9 @@ public class ClientStatsLoader {
         } else {
             instanceStmt.setNull( 4, Types.VARCHAR);
         }
+        instanceStmt.setInt(5, CatalogUtil.getNumberOfHosts(m_settings.getCatalog()));
+        instanceStmt.setInt(6, CatalogUtil.getNumberOfSites(m_settings.getCatalog()));
+        instanceStmt.setInt(7, CatalogUtil.getNumberOfPartitions(m_settings.getCatalog()));
         instanceStmt.execute();
         ResultSet results = instanceStmt.getGeneratedKeys();
         while (results.next()) {
