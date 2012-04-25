@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Catalog;
 
 import edu.brown.utils.StringUtil;
 
@@ -43,6 +44,7 @@ public class StatsUploaderSettings {
     final String applicationName;
     final String subApplicationName;
     final int pollInterval;
+    final Catalog catalog;
 
     /**
      *
@@ -63,7 +65,8 @@ public class StatsUploaderSettings {
             String databaseJDBC,
             String applicationName,
             String subApplicationName,
-            int pollInterval) {
+            int pollInterval,
+            Catalog catalog) {
         this.databaseURL = databaseURL;
         this.databaseUser = databaseUser;
         this.databasePass = databasePass;
@@ -71,6 +74,7 @@ public class StatsUploaderSettings {
         this.applicationName = applicationName;
         this.subApplicationName = subApplicationName;
         this.pollInterval = pollInterval;
+        this.catalog = catalog;
 
         if (applicationName == null || applicationName.isEmpty()) {
             throw new IllegalArgumentException("Application name is null or empty");
@@ -87,6 +91,10 @@ public class StatsUploaderSettings {
 
         if (LOG.isDebugEnabled())
             LOG.debug("Creating new connection to stats database [" + databaseURL + "]");
+    }
+    
+    public Catalog getCatalog() {
+        return this.catalog;
     }
     
     @Override
@@ -113,7 +121,8 @@ public class StatsUploaderSettings {
             String databaseJDBC,
             String applicationName,
             String subApplicationName,
-            int pollInterval) {
+            int pollInterval,
+            Catalog catalog) {
         
         Object params[] = {
             databaseURL,
@@ -122,7 +131,8 @@ public class StatsUploaderSettings {
             databaseJDBC,
             applicationName,
             subApplicationName,
-            pollInterval
+            pollInterval,
+            catalog
         };
         int hash = Arrays.hashCode(params);
         StatsUploaderSettings singleton = null;
@@ -136,7 +146,8 @@ public class StatsUploaderSettings {
                     databaseJDBC,
                     applicationName,
                     subApplicationName,
-                    pollInterval);
+                    pollInterval,
+                    catalog);
                 cache.put(hash, singleton);
             }
         } // SYNCH

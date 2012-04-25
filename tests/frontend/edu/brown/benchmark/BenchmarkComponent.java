@@ -954,7 +954,8 @@ public abstract class BenchmarkComponent {
                                         statsDatabaseJDBC,
                                         projectName,
                                         (isLoader ? "LOADER" : "CLIENT"),
-                                        statsPollInterval);
+                                        statsPollInterval,
+                                        m_catalog);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to initialize StatsUploader", ex);
             }

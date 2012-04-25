@@ -7,7 +7,10 @@ CREATE TABLE clientInstances (
     clusterStartTime            TIMESTAMP NOT NULL,
     clusterLeaderAddress        varchar(64) NOT NULL,
     applicationName             varchar(32) NOT NULL,
-    subApplicationName          varchar(32)
+    subApplicationName          varchar(32),
+    numHosts                    int NOT NULL,
+    numSites                    int NOT NULL,
+    numPartitions               int NOT NULL
 );
 
 CREATE TABLE clientConnectionStats (
