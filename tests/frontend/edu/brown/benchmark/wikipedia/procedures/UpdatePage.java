@@ -43,6 +43,7 @@ public class UpdatePage extends VoltProcedure {
     ); 
 	public SQLStmt insertRevision = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_REVISION + " (" +
+        "rev_id," +
 		"rev_page, " +
 		"rev_text_id, " +
 		"rev_comment, " +
@@ -54,7 +55,7 @@ public class UpdatePage extends VoltProcedure {
         "rev_len, " +
         "rev_parent_id" +
 		") VALUES (" +
-        "?, ?, ?, ?, ?, ?, ?, ?, ?, ?" +
+        "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" +
 		")"
 	);
 	public SQLStmt updatePage = new SQLStmt(
@@ -63,7 +64,8 @@ public class UpdatePage extends VoltProcedure {
         " WHERE page_id = ?"
     );
 	public SQLStmt insertRecentChanges = new SQLStmt(
-        "INSERT INTO " + WikipediaConstants.TABLENAME_RECENTCHANGES + " (" + 
+        "INSERT INTO " + WikipediaConstants.TABLENAME_RECENTCHANGES + " (" +
+        "rc_id, " +
 	    "rc_timestamp, " +
 	    "rc_cur_time, " +
 	    "rc_namespace, " +
@@ -83,7 +85,7 @@ public class UpdatePage extends VoltProcedure {
         "rc_old_len, " +
         "rc_new_len " +
         ") VALUES (" +
-        "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" +
+        "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?" +
         ")"
     );
 	public SQLStmt selectWatchList = new SQLStmt(
@@ -106,10 +108,10 @@ public class UpdatePage extends VoltProcedure {
     );
 	public SQLStmt insertLogging = new SQLStmt(
         "INSERT INTO " + WikipediaConstants.TABLENAME_LOGGING + " (" +
-		"log_type, log_action, log_timestamp, log_user, log_user_text, " +
+		"log_id,log_type, log_action, log_timestamp, log_user, log_user_text, " +
         "log_namespace, log_title, log_page, log_comment, log_params" +
         ") VALUES (" +
-        "?,?,?,?,?,?,?,?,'',?" +
+        "?,?,?,?,?,?,?,?,?,'',?" +
         ")"
     );
 	public SQLStmt updateUserEdit = new SQLStmt(
