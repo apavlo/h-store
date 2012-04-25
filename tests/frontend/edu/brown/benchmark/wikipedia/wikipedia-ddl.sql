@@ -1,5 +1,5 @@
 CREATE TABLE ipblocks (
-  ipb_id int,
+  ipb_id int, -- Serial
   ipb_address varchar(255) NOT NULL,
   ipb_user int DEFAULT '0' NOT NULL,
   ipb_by int DEFAULT '0' NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE useracct (
 CREATE INDEX IDX_USER_EMAIL_TOKEN ON useracct (user_email_token);
 
 CREATE TABLE logging (
-  log_id int DEFAULT '0' NOT NULL, -- TODO: REMOVE
+  log_id int NOT NULL, -- serial
   log_type varchar(32) NOT NULL,
   log_action varchar(32) NOT NULL,
   log_timestamp timestamp NOT NULL,
@@ -101,7 +101,7 @@ CREATE INDEX IDX_PR_LEVEL ON page_restrictions (pr_level);
 CREATE INDEX IDX_PR_CASCADE ON page_restrictions (pr_cascade);
 
 CREATE TABLE recentchanges (
-  rc_id int DEFAULT '0' NOT NULL,
+  rc_id int NOT NULL,
   rc_timestamp timestamp NOT NULL,
   rc_cur_time timestamp NOT NULL,
   rc_user int DEFAULT '0' NOT NULL,
@@ -129,13 +129,6 @@ CREATE TABLE recentchanges (
   rc_params varchar(255),
   PRIMARY KEY (rc_id)
 );
-CREATE INDEX IDX_RC_TIMESTAMP ON recentchanges (rc_timestamp);
-CREATE INDEX IDX_RC_NAMESPACE_TITLE ON recentchanges (rc_namespace,rc_title);
-CREATE INDEX IDX_RC_CUR_ID ON recentchanges (rc_cur_id);
-CREATE INDEX IDX_NEW_NAME_TIMESTAMP ON recentchanges (rc_new,rc_namespace,rc_timestamp);
-CREATE INDEX IDX_RC_IP ON recentchanges (rc_ip);
-CREATE INDEX IDX_RC_NS_USERTEXT ON recentchanges (rc_namespace,rc_user_text);
-CREATE INDEX IDX_RC_USER_TEXT ON recentchanges (rc_user_text,rc_timestamp);
 
 CREATE TABLE text (
   old_id bigint NOT NULL,
@@ -145,8 +138,16 @@ CREATE TABLE text (
   PRIMARY KEY (old_id)
 );
 
+CREATE INDEX IDX_RC_TIMESTAMP ON recentchanges (rc_timestamp);
+CREATE INDEX IDX_RC_NAMESPACE_TITLE ON recentchanges (rc_namespace,rc_title);
+CREATE INDEX IDX_RC_CUR_ID ON recentchanges (rc_cur_id);
+CREATE INDEX IDX_NEW_NAME_TIMESTAMP ON recentchanges (rc_new,rc_namespace,rc_timestamp);
+CREATE INDEX IDX_RC_IP ON recentchanges (rc_ip);
+CREATE INDEX IDX_RC_NS_USERTEXT ON recentchanges (rc_namespace,rc_user_text);
+CREATE INDEX IDX_RC_USER_TEXT ON recentchanges (rc_user_text,rc_timestamp);
+
 CREATE TABLE revision (
-  rev_id int DEFAULT '0' NOT NULL,
+  rev_id int NOT NULL,
   rev_page int NOT NULL REFERENCES page (page_id),
   rev_text_id int NOT NULL REFERENCES text (old_id),
   rev_comment varchar(255) NOT NULL,
@@ -164,6 +165,8 @@ CREATE INDEX IDX_REV_TIMESTAMP ON revision (rev_timestamp);
 CREATE INDEX IDX_PAGE_TIMESTAMP ON revision (rev_page,rev_timestamp);
 CREATE INDEX IDX_USER_TIMESTAMP ON revision (rev_user,rev_timestamp);
 CREATE INDEX IDX_USERTEXT_TIMESTAMP ON revision (rev_user_text,rev_timestamp);
+
+
 
 CREATE TABLE user_groups (
   ug_user int DEFAULT '0' NOT NULL,
