@@ -55,91 +55,6 @@ public class WikipediaClient extends BenchmarkComponent {
 	private int nextRevId;
 	
 	
-	
-	/**
-     * Each Transaction element provides an ArgGenerator to create the proper
-     * arguments used to invoke the stored procedure
-     */
-    private static interface ArgGenerator {
-        /**
-         * Generate the proper arguments used to invoke the given stored
-         * procedure
-         * 
-         * @param subscriberSize
-         * @return
-         */
-        public Object[] genArgs(long subscriberSize);
-    }
-	
-    /**
-     * Set of transactions structs with their appropriate parameters
-     */
-    public static enum Transaction {
-        ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST, new ArgGenerator() {
-            @Override
-            public Object[] genArgs(long subscriberSize) {
-                // I am not sure how should I use Zipf to generate the 
-                // parameters that I want right now
-                
-                
-                //addToWatchlist(t.userId, t.nameSpace, t.pageTitle);
-                
-                return null;
-                
-            }
-            
-        }),
-        GET_PAGE_ANONYMOUS("Get page anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS, new ArgGenerator() {
-
-            @Override
-            public Object[] genArgs(long subscriberSize) {
-                // TODO Auto-generated method stub
-                return null;
-            }
-            
-        }),
-        GET_PAGE_AUTHENTICATED("Get page authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED, new ArgGenerator() {
-            @Override
-            public Object[] genArgs(long subscriberSize) {
-                // TODO Auto-generated method stub
-                return null;
-            }
-        }),
-        REMOVE_WATCHLIST("Remove watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST, new ArgGenerator() {
-            @Override
-            public Object[] genArgs(long subscriberSize) {
-                // TODO Auto-generated method stub
-                return null;
-            }
-        }),
-        UPDATE_PAGE("Update page", WikipediaConstants.FREQUENCY_UPDATE_PAGE, new ArgGenerator() {
-
-            @Override
-            public Object[] genArgs(long subscriberSize) {
-                // TODO Auto-generated method stub
-                return null;
-            }
-            
-        }),;
-
-
-
-        /**
-         * Constructor
-         */
-        private Transaction (String displayName, int weight, ArgGenerator ag) {
-            this.displayName = displayName;
-            this.callName = displayName.replace(" ", "");
-            this.weight = weight;
-            this.ag = ag;
-
-        }
-        public final String displayName;
-        public final String callName;
-        public final int weight; // probability (in terms of percentage) the
-        // transaction gets executed
-        public final ArgGenerator ag;
-    }
     /**
      * Callback Class
      * @author xin
@@ -235,7 +150,8 @@ public class WikipediaClient extends BenchmarkComponent {
         
         // Execute GetArticles stored procedure and get back the list
         // of pageIds and pageTitles.
-        // Build a HashMap<Long, Title> that gives you the pageTitle for a pageId
+        // Build a HashMap<Long, String[]> that gives you the pageTitle for a pageId
+        // Where first element is namespace, second is title
 
         try {
             while (true) {
@@ -252,12 +168,12 @@ public class WikipediaClient extends BenchmarkComponent {
 	        final Transaction target = this.selectTransaction();
 
 	        this.startComputeTime(target.displayName);
-	        Object params[] = target.ag.genArgs(10);
+	        //Object params[] = target.ag.genArgs(10);
 	        this.stopComputeTime(target.displayName);
 
-	        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
+	        //boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
 	        LOG.debug("Executing txn " + target);
-	        return (ret);
+	        return true;
 	    }
  
 	private String generateUserIP() {
