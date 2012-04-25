@@ -232,6 +232,10 @@ public class WikipediaClient extends BenchmarkComponent {
     public void runLoop() {
         LOG.debug("Starting runLoop()");
         final Client client = this.getClientHandle();
+        
+        // Execute GetArticles stored procedure and get back the list
+        // of pageIds and pageTitles.
+        // Build a HashMap<Long, Title> that gives you the pageTitle for a pageId
 
         try {
             while (true) {

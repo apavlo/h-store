@@ -38,7 +38,7 @@ import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.utils.StringUtil;
 
 //import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
-import edu.brown.benchmark.wikipedia.procedures.AddTraceData;
+import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
@@ -140,7 +140,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         Client client = this.getClientHandle();
         ClientResponse cr = null;
         try {
-            cr = client.callProcedure(AddTraceData.class.getSimpleName());
+            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
 
         } catch (Exception ex) {
             throw new RuntimeException("Failed to update users and pages", ex);
