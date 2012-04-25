@@ -64,6 +64,7 @@ public class WikipediaClient extends BenchmarkComponent {
 	
 	// TODO:(xin)
 	// Change from hashMap to array in order to make it faster
+	// Right now it is fine to use
 	public Object [] m_titleArr; 
 	
 	
