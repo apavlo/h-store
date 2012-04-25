@@ -19,32 +19,19 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
-import com.oltpbenchmark.benchmarks.wikipedia.util.WikipediaOperation;
-
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
-import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
 import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
-import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
-import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -320,71 +307,4 @@ public class WikipediaClient extends BenchmarkComponent {
         assert(params != null);
         return params;
     }
-    
-    
-//    /**
-//	 * Implements wikipedia selection of last version of an article (with and
-//	 * without the user being logged in)
-//	 * 
-//	 * @parama userIp contains the user's IP address in dotted quad form for
-//	 *         IP-based access control
-//	 * @param userId
-//	 *            the logged in user's identifer. If negative, it is an
-//	 *            anonymous access.
-//	 * @param nameSpace
-//	 * @param pageTitle
-//	 * @return article (return a Class containing the information we extracted,
-//	 *         useful for the updatePage transaction)
-//	 * @throws SQLException
-//	 * @throws UnknownHostException
-//	 */
-//	public VoltTable getPageAnonymous(boolean forSelect, String userIp,
-//			                        int nameSpace, String pageTitle) {
-//		GetPageAnonymous proc = this.getProcedure(GetPageAnonymous.class);
-//        assert (proc != null);
-//        return proc.run(forSelect, userIp, nameSpace, pageTitle);
-//	}
-//
-//	public VoltTable getPageAuthenticated(boolean forSelect, String userIp, int userId,
-//			                            int nameSpace, String pageTitle) {
-//		GetPageAuthenticated proc = this.getProcedure(GetPageAuthenticated.class);
-//        assert (proc != null);
-//        return proc.run( forSelect, userIp, userId, nameSpace, pageTitle);
-//	}
-//	
-//	public void addToWatchlist(int userId, int nameSpace, String pageTitle) {
-//		AddWatchList proc = this.getProcedure(AddWatchList.class);
-//        assert (proc != null);
-//        proc.run( userId, nameSpace, pageTitle);
-//	}
-//
-//	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) {
-//		RemoveWatchList proc = this.getProcedure(RemoveWatchList.class);
-//        assert (proc != null);
-//        proc.run( userId, nameSpace, pageTitle);
-//	}
-//
-//	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
-//	    VoltTable a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
-//		
-//		// TODO: If the Article is null, then we want to insert a new page.
-//		//       But we don't support that right now.
-//		if (a == null) return;
-//		
-////		WikipediaBenchmark b = this.getBenchmarkModule();
-////		int revCommentLen = b.commentLength.nextValue().intValue();
-////		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
-////		int revMinorEdit = b.minorEdit.nextValue().intValue();
-////		
-////		// Permute the original text of the article
-////		// Important: We have to make sure that we fill in the entire array
-////		char newText[] = b.generateRevisionText(a.oldText.toCharArray());
-//
-//		UpdatePage proc = this.getProcedure(UpdatePage.class);
-//        assert (proc != null);
-////        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
-////                       nameSpace, userId, userIp, a.userText,
-////                       a.revisionId, revComment, revMinorEdit);
-//	}
-
 }
