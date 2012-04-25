@@ -285,7 +285,8 @@ public class PartitionEstimator {
      * Convenience constructor that uses DefaultHasher
      */
     public PartitionEstimator(Database catalog_db) {
-        this(catalog_db, new ConsistentHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db)));
+        this(catalog_db, new DefaultHasher(catalog_db, CatalogUtil.getNumberOfPartitions(catalog_db)));
+        LOG.info("Created a new PartitionEstimator with a default hasher!");
     }
 
     /**
@@ -298,8 +299,7 @@ public class PartitionEstimator {
         this.hasher = hasher;
         this.initCatalog(catalog_db);
         
-        if (trace.get())
-            LOG.trace("Created a new PartitionEstimator with a " + hasher.getClass() + " hasher!");
+        LOG.info("Created a new PartitionEstimator with a " + hasher.getClass() + " hasher!");
     }
 
     // ----------------------------------------------------------------------------
