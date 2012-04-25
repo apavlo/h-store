@@ -1,16 +1,5 @@
 package edu.brown.benchmark.wikipedia;
 
-import org.voltdb.VoltTable;
-import org.voltdb.catalog.*;
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
-
-import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.Status;
-
-import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -19,29 +8,30 @@ import java.util.Random;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.wikipedia.data.PageHistograms;
 import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
 import edu.brown.benchmark.wikipedia.data.TextHistograms;
 import edu.brown.benchmark.wikipedia.data.UserHistograms;
-import org.voltdb.catalog.Table;
-
-import org.voltdb.utils.Pair;
-
-import com.oltpbenchmark.benchmarks.wikipedia.util.TransactionSelector;
-
-import edu.brown.rand.RandomDistribution.Flat;
-import edu.brown.rand.RandomDistribution.FlatHistogram;
-import edu.brown.rand.RandomDistribution.Zipf;
-//import com.oltpbenchmark.util.SQLUtil;  // ignore
-import edu.brown.utils.StringUtil;
-
-//import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.rand.RandomDistribution.FlatHistogram;
+import edu.brown.rand.RandomDistribution.Zipf;
+import edu.brown.utils.StringUtil;
 
 /**
  * Synthetic Wikipedia Data Loader
