@@ -140,10 +140,7 @@ public class WikipediaLoader extends BenchmarkComponent {
         Client client = this.getClientHandle();
         ClientResponse cr = null;
         try {
-            cr = client.callProcedure(AddTraceData.class.getSimpleName(),
-                                      this.num_users,
-                                      this.num_pages,
-                                      this.titles);
+            cr = client.callProcedure(AddTraceData.class.getSimpleName());
 
         } catch (Exception ex) {
             throw new RuntimeException("Failed to update users and pages", ex);

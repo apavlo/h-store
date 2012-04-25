@@ -1,17 +1,11 @@
 package edu.brown.benchmark.wikipedia.procedures;
 
-import java.io.File;
-import java.io.PrintStream;
-import java.util.List;
 import java.util.Random;
 
-import org.voltdb.SQLStmt;
-import org.voltdb.VoltTable;
 import org.apache.log4j.Logger;
+import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.utils.Pair;
-
-import com.oltpbenchmark.benchmarks.wikipedia.util.TransactionSelector;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 import edu.brown.rand.RandomDistribution.Flat;
@@ -22,6 +16,11 @@ public class AddTraceData extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(AddTraceData.class);
     private Random randGenerator = new Random();
     
+    public SQLStmt getTitle = new SQLStmt (
+            " SELECT page_namespace,page_title " +
+            " FROM " + WikipediaConstants.TABLENAME_PAGE + 
+            " WHERE page_id = ?");
+    
     public SQLStmt insertGenTrace = new SQLStmt (
             "INSERT INTO " + WikipediaConstants.GET_TRACE_COLS + " (" +
             " USER_ID, NAMESPACE, TITLE " + 
@@ -31,14 +30,15 @@ public class AddTraceData extends VoltProcedure {
             ); 
     
     
-    public long run (int num_users, int num_pages, List<Pair<Integer, String>> titles) {
+    public long run () {
         
+        double m_scalefactor = 1.0;
+        int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
+        int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
         Flat z_users = new Flat(this.randGenerator, 1, num_users);
         Zipf z_pages = new Zipf(this.randGenerator, 1, num_pages, WikipediaConstants.USER_ID_SIGMA);
         
-        assert(num_pages == titles.size());
-        
-        int batch_size = 5;
+        //int batch_size = 5;
         //for (int i = 0, cnt = (b.getTraceSize() * 1000); i < cnt; i++) {
         for (int i = 0, cnt = (WikipediaConstants.TRACE_DATA_SCALE); i < cnt; i++) {
             int user_id = -1;
@@ -55,13 +55,13 @@ public class AddTraceData extends VoltProcedure {
             
             // Figure out what page they're going to update
             int page_id = z_pages.nextInt();
-            Pair<Integer, String> p = titles.get(page_id);
-            assert(p != null);
+            voltQueueSQL(getTitle, page_id);
+            VoltTable res[] = voltExecuteSQL();
             
-            voltQueueSQL(insertGenTrace, user_id,p.getFirst(),p.getSecond());
+            //Pair<Integer, String> p = titles.get(page_id);
+            voltQueueSQL(insertGenTrace, user_id,res[0].getLong(0),res[0].getString(1));
             
-            if (i % batch_size == 0)
-                voltExecuteSQL();
+            voltExecuteSQL();
         } // FOR
         
         voltExecuteSQL();
