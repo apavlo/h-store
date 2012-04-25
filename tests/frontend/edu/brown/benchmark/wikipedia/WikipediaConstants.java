@@ -58,6 +58,16 @@ public abstract class WikipediaConstants {
         new VoltTable.ColumnInfo("USER_TEXT", VoltType.INTEGER),
         new VoltTable.ColumnInfo("PAGE_ID", VoltType.INTEGER),
     };
+    
+    // -----------------------------------------------------------------
+    // GET UPDATE USER&PAGE COLUMNS
+    // -----------------------------------------------------------------
+    
+    public static final VoltTable.ColumnInfo[] GET_TRACE_COLS = {
+        new VoltTable.ColumnInfo("USER_ID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("NAMESPACE", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("TITLE", VoltType.STRING),
+    };
 	
     // ----------------------------------------------------------------
 	// DISTRIBUTION CONSTANTS
@@ -68,6 +78,8 @@ public abstract class WikipediaConstants {
 	public static final double WATCHLIST_PAGE_SIGMA = 1.0001d;
 	
 	public static final double REVISION_USER_SIGMA = 1.0001d;
+	
+	public static final int TRACE_DATA_SCALE = 10000;
 	
     // ----------------------------------------------------------------
     // DATA SET INFORMATION
