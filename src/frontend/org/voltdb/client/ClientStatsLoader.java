@@ -17,6 +17,7 @@
 package org.voltdb.client;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -71,7 +72,23 @@ public class ClientStatsLoader {
     public ClientStatsLoader(
             StatsUploaderSettings settings,
             Distributer distributer) {
-        m_conn = settings.conn;
+        try {
+            if (settings.databaseJDBC != null && settings.databaseJDBC.isEmpty() == false) {
+                Class.forName(settings.databaseJDBC);
+            }
+            
+            m_conn = DriverManager.getConnection(settings.databaseURL,
+                                               settings.databaseUser,
+                                               settings.databasePass);
+            m_conn.setAutoCommit(false);
+            m_conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        }
+        catch (Exception e) {
+            String msg = "Failed to connect to SQL reporting server with message:\n    ";
+            msg += e.getMessage();
+            throw new RuntimeException(msg);
+        }
+        
         m_applicationName = settings.applicationName;
         m_subApplicationName = settings.subApplicationName;
         m_pollInterval = settings.pollInterval;
