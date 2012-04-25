@@ -23,9 +23,11 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
@@ -39,6 +41,7 @@ import edu.brown.benchmark.tm1.TM1Client.Transaction;
 import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAuthenticated;
+import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.procedures.RemoveWatchList;
 import edu.brown.benchmark.wikipedia.procedures.UpdatePage;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -148,11 +151,36 @@ public class WikipediaClient extends BenchmarkComponent {
         LOG.debug("Starting runLoop()");
         final Client client = this.getClientHandle();
         
+        ClientResponse cr = null;
+        try {
+            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
+
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to update users and pages", ex);
+        }
+        assert(cr != null);
+        assert(cr.getStatus() == Status.OK);
+
         // Execute GetArticles stored procedure and get back the list
         // of pageIds and pageTitles.
         // Build a HashMap<Long, String[]> that gives you the pageTitle for a pageId
         // Where first element is namespace, second is title
 
+        VoltTable res[] = cr.getResults();
+        VoltTable vt = res[0];
+        HashMap<Long, String[]> titleMap = new HashMap<Long, String[]>();
+        while (vt.advanceRow()) {
+            long page_id = vt.getLong(0);
+            long namespace = vt.getLong(1);
+            String title = vt.getString(2);
+            String data[] = { Long.toString(namespace), title}; 
+            if (!titleMap.containsKey(page_id)) {
+                titleMap.put(page_id, data);
+            } else {
+                assert(false):"There should not have duplicate page_ids";
+            }
+        }
+        
         try {
             while (true) {
                 this.runOnce();
@@ -196,49 +224,49 @@ public class WikipediaClient extends BenchmarkComponent {
 	
    
 
-//    @Override
-//    protected Status executeWork(TransactionType nextTransaction) throws VoltAbortException {
-//        WikipediaOperation t = null;
-//        
-//        Class<? extends Procedure> procClass = nextTransaction.getProcedureClass();
-//        boolean needUser = (procClass.equals(AddWatchList.class) ||
-//                            procClass.equals(RemoveWatchList.class) ||
-//                            procClass.equals(GetPageAuthenticated.class));    
-//        while (t == null) {
-//            t = this.generator.nextTransaction();
-//            if (needUser && t.userId == 0) {
-//                t = null;
-//            }
-//        } // WHILE
-//        assert(t != null);
-//        if (t.userId != 0) t.userId = this.randGenerator.nextInt();
-//        
-//        // AddWatchList
-//        if (procClass.equals(AddWatchList.class)) {
-//            assert(t.userId > 0);
-//            addToWatchlist(t.userId, t.nameSpace, t.pageTitle);
-//        }
-//        // RemoveWatchList
-//        else if (procClass.equals(RemoveWatchList.class)) {
-//            assert(t.userId > 0);
-//            removeFromWatchlist(t.userId, t.nameSpace, t.pageTitle);
-//        }
-//        // UpdatePage
-//        else if (procClass.equals(UpdatePage.class)) {
-//            updatePage(this.generateUserIP(), t.userId, t.nameSpace, t.pageTitle);
-//        }
-//        // GetPageAnonymous
-//        else if (procClass.equals(GetPageAnonymous.class)) {
-//            getPageAnonymous(true, this.generateUserIP(), t.nameSpace, t.pageTitle);
-//        }
-//        // GetPageAuthenticated
-//        else if (procClass.equals(GetPageAuthenticated.class)) {
-//            assert(t.userId > 0);
-//            getPageAuthenticated(true, this.generateUserIP(), t.userId, t.nameSpace, t.pageTitle);
-//        }
-//        
-//        return (Status.OK);
-//    }
+    @Override
+    protected Status executeWork(TransactionType nextTransaction) throws VoltAbortException {
+        WikipediaOperation t = null;
+        
+        Class<? extends Procedure> procClass = nextTransaction.getProcedureClass();
+        boolean needUser = (procClass.equals(AddWatchList.class) ||
+                            procClass.equals(RemoveWatchList.class) ||
+                            procClass.equals(GetPageAuthenticated.class));    
+        while (t == null) {
+            t = this.generator.nextTransaction();
+            if (needUser && t.userId == 0) {
+                t = null;
+            }
+        } // WHILE
+        assert(t != null);
+        if (t.userId != 0) t.userId = this.randGenerator.nextInt();
+        
+        // AddWatchList
+        if (procClass.equals(AddWatchList.class)) {
+            assert(t.userId > 0);
+            addToWatchlist(t.userId, t.nameSpace, t.pageTitle);
+        }
+        // RemoveWatchList
+        else if (procClass.equals(RemoveWatchList.class)) {
+            assert(t.userId > 0);
+            removeFromWatchlist(t.userId, t.nameSpace, t.pageTitle);
+        }
+        // UpdatePage
+        else if (procClass.equals(UpdatePage.class)) {
+            updatePage(this.generateUserIP(), t.userId, t.nameSpace, t.pageTitle);
+        }
+        // GetPageAnonymous
+        else if (procClass.equals(GetPageAnonymous.class)) {
+            getPageAnonymous(true, this.generateUserIP(), t.nameSpace, t.pageTitle);
+        }
+        // GetPageAuthenticated
+        else if (procClass.equals(GetPageAuthenticated.class)) {
+            assert(t.userId > 0);
+            getPageAuthenticated(true, this.generateUserIP(), t.userId, t.nameSpace, t.pageTitle);
+        }
+        
+        return (Status.OK);
+    }
     
     
     /**
@@ -257,53 +285,53 @@ public class WikipediaClient extends BenchmarkComponent {
 	 * @throws SQLException
 	 * @throws UnknownHostException
 	 */
-//	public VoltTable getPageAnonymous(boolean forSelect, String userIp,
-//			                        int nameSpace, String pageTitle) {
-//		GetPageAnonymous proc = this.getProcedure(GetPageAnonymous.class);
-//        assert (proc != null);
-//        return proc.run(forSelect, userIp, nameSpace, pageTitle);
-//	}
-//
-//	public VoltTable getPageAuthenticated(boolean forSelect, String userIp, int userId,
-//			                            int nameSpace, String pageTitle) {
-//		GetPageAuthenticated proc = this.getProcedure(GetPageAuthenticated.class);
-//        assert (proc != null);
-//        return proc.run( forSelect, userIp, userId, nameSpace, pageTitle);
-//	}
-//	
-//	public void addToWatchlist(int userId, int nameSpace, String pageTitle) {
-//		AddWatchList proc = this.getProcedure(AddWatchList.class);
-//        assert (proc != null);
-//        proc.run( userId, nameSpace, pageTitle);
-//	}
-//
-//	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) {
-//		RemoveWatchList proc = this.getProcedure(RemoveWatchList.class);
-//        assert (proc != null);
-//        proc.run( userId, nameSpace, pageTitle);
-//	}
-//
-//	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
-//	    VoltTable a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
+	public VoltTable getPageAnonymous(boolean forSelect, String userIp,
+			                        int nameSpace, String pageTitle) {
+		GetPageAnonymous proc = this.getProcedure(GetPageAnonymous.class);
+        assert (proc != null);
+        return proc.run(forSelect, userIp, nameSpace, pageTitle);
+	}
+
+	public VoltTable getPageAuthenticated(boolean forSelect, String userIp, int userId,
+			                            int nameSpace, String pageTitle) {
+		GetPageAuthenticated proc = this.getProcedure(GetPageAuthenticated.class);
+        assert (proc != null);
+        return proc.run( forSelect, userIp, userId, nameSpace, pageTitle);
+	}
+	
+	public void addToWatchlist(int userId, int nameSpace, String pageTitle) {
+		AddWatchList proc = this.getProcedure(AddWatchList.class);
+        assert (proc != null);
+        proc.run( userId, nameSpace, pageTitle);
+	}
+
+	public void removeFromWatchlist(int userId, int nameSpace, String pageTitle) {
+		RemoveWatchList proc = this.getProcedure(RemoveWatchList.class);
+        assert (proc != null);
+        proc.run( userId, nameSpace, pageTitle);
+	}
+
+	public void updatePage(String userIp, int userId, int nameSpace, String pageTitle) {
+	    VoltTable a = getPageAnonymous(false, userIp, nameSpace, pageTitle);
+		
+		// TODO: If the Article is null, then we want to insert a new page.
+		//       But we don't support that right now.
+		if (a == null) return;
+		
+//		WikipediaBenchmark b = this.getBenchmarkModule();
+//		int revCommentLen = b.commentLength.nextValue().intValue();
+//		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
+//		int revMinorEdit = b.minorEdit.nextValue().intValue();
 //		
-//		// TODO: If the Article is null, then we want to insert a new page.
-//		//       But we don't support that right now.
-//		if (a == null) return;
-//		
-////		WikipediaBenchmark b = this.getBenchmarkModule();
-////		int revCommentLen = b.commentLength.nextValue().intValue();
-////		String revComment = TextGenerator.randomStr(randGenerator, revCommentLen);
-////		int revMinorEdit = b.minorEdit.nextValue().intValue();
-////		
-////		// Permute the original text of the article
-////		// Important: We have to make sure that we fill in the entire array
-////		char newText[] = b.generateRevisionText(a.oldText.toCharArray());
-//
-//		UpdatePage proc = this.getProcedure(UpdatePage.class);
-//        assert (proc != null);
-////        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
-////                       nameSpace, userId, userIp, a.userText,
-////                       a.revisionId, revComment, revMinorEdit);
-//	}
-//
+//		// Permute the original text of the article
+//		// Important: We have to make sure that we fill in the entire array
+//		char newText[] = b.generateRevisionText(a.oldText.toCharArray());
+
+		UpdatePage proc = this.getProcedure(UpdatePage.class);
+        assert (proc != null);
+//        proc.run(this.nextRevId++, a.pageId, pageTitle, new String(newText),
+//                       nameSpace, userId, userIp, a.userText,
+//                       a.revisionId, revComment, revMinorEdit);
+	}
+
 }
