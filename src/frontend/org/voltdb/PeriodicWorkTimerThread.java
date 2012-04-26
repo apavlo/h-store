@@ -31,14 +31,17 @@ import edu.brown.hstore.HStoreSite;
 public class PeriodicWorkTimerThread extends Thread {
 
     ArrayList<ClientInterface> m_clientInterfaces;
+    boolean m_isClientInterfaceThread;
     HStoreSite m_hStoreSite;
 
     public PeriodicWorkTimerThread(ArrayList<ClientInterface> clientInterfaces) {
         m_clientInterfaces = clientInterfaces;
+        m_isClientInterfaceThread = true;
     }
 
     public PeriodicWorkTimerThread(HStoreSite hStoreSite) {
     	m_hStoreSite = hStoreSite;
+    	m_isClientInterfaceThread = false;
 	}
 
 	@Override
@@ -54,14 +57,14 @@ public class PeriodicWorkTimerThread extends Thread {
             } catch (InterruptedException e) {
                 return;
             }
-            try{
+            if(m_isClientInterfaceThread){
 	            if(!m_clientInterfaces.isEmpty()){
 		            for (ClientInterface ci : m_clientInterfaces) {
 		                ci.processPeriodicWork();
 		            }
 	            }
             }
-            catch(NullPointerException e){
+            else{
             	m_hStoreSite.processPeriodicWork();
             }
             //long duration = System.nanoTime() - beforeTime;
