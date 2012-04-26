@@ -54,12 +54,14 @@ public class PeriodicWorkTimerThread extends Thread {
             } catch (InterruptedException e) {
                 return;
             }
-            if(!m_clientInterfaces.isEmpty()){
-	            for (ClientInterface ci : m_clientInterfaces) {
-	                ci.processPeriodicWork();
+            try{
+	            if(!m_clientInterfaces.isEmpty()){
+		            for (ClientInterface ci : m_clientInterfaces) {
+		                ci.processPeriodicWork();
+		            }
 	            }
             }
-            else{
+            catch(NullPointerException e){
             	m_hStoreSite.processPeriodicWork();
             }
             //long duration = System.nanoTime() - beforeTime;

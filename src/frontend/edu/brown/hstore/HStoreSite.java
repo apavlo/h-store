@@ -334,6 +334,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @SuppressWarnings("unchecked")
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+    	
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
@@ -476,7 +477,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // CACHED MESSAGES
-        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
+        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
     }
     
 
@@ -529,7 +530,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     protected HStoreCoordinator initHStoreCoordinator() {
-        return new HStoreCoordinator(this);
+        return new HStoreCoordinator(this);        
     }
     public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
@@ -2201,7 +2202,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	public void processPeriodicWork() {        
-
+		//LOG.info("Checking for PeriodicWork...");
         // poll planner queue
         checkForFinishedCompilerWork();
 
