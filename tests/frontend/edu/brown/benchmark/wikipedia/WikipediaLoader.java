@@ -437,7 +437,7 @@ public class WikipediaLoader extends BenchmarkComponent {
                 }
             }
         } // FOR (page)
-
+        
         // UPDATE USER & UPDATE PAGES
         batchSize = 0;
         Client client = this.getClientHandle();
