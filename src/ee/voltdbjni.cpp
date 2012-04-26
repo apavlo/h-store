@@ -1192,9 +1192,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_edu_brown_hashing_ConsistentHasher_nativeH
     
 	int val = static_cast<int>(value);
 	Conhash *conhash = (Conhash *)hash_pointer;
-	const struct node_s *node;
-	node = conhash->lookup(val);
-	return node->iden;
+	unsigned int hash = conhash->lookup(val);
+	return hash;
     //return static_cast<jint>(1);
 }
 

@@ -27,9 +27,16 @@ Conhash::~Conhash()
     }
 }
 
-const struct node_s *Conhash::lookup(const unsigned int object)
+int Conhash::lookup(const unsigned int object)
 {
-    return conhash_lookup(conhash, object);
+    const node_s *node = conhash_lookup(conhash, object);
+    
+    for(int i=0; i<HANLDED_PARTIONS; ++i){
+        if(node_to_partition[i] == node->iden){
+            return i+1;
+        }
+    }
+    return -1;
 }
 
 unsigned int *Conhash::get_map(){

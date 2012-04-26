@@ -13,7 +13,7 @@ public:
     //one
     Conhash(unsigned int n, unsigned int partition_num, unsigned int *map);
     ~Conhash(void);
-    const struct node_s* lookup(const unsigned object);
+    int lookup(const unsigned object);
 	unsigned int* get_map();
 };
 
