@@ -2215,13 +2215,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
+		//LOG.info("HStoreSite - Checking for finished compiled work.");
 		if (asyncCompilerWork_thread == null) return;
 
         AsyncCompilerResult result = null;
-
-        //TODO: This part is confusing b/c periodicWorkTimerThread vs. AsyncCompilerWorkThread... 
+ 
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-            if (result.errorMsg == null) {
+        	
+            if (result.errorMsg.contains("null")){//TODO: check this, it may be an inappropriate substitution of : result.errorMsg == null) {
+            	LOG.info("Note to ANDY: assuming that ["+result.errorMsg+"] is the same as the error message equals [null]... see code comments in HStoreSite.checkForFinishedCompilerWork()");
                 if (result instanceof AdHocPlannedStmt) {
                 	 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
                     // create the execution site task
@@ -2238,7 +2240,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
 //                                                  task, false, false, false, m_allPartitions,
 //                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
-                    LOG.info("This is where createTransaction() should happen.");
+                    LOG.info("Note to ANDY: This is where createTransaction() should happen.");
                 }
                 //TODO: removed the stuff about change catalog result... was this right?
                 else {
@@ -2251,8 +2253,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     new ClientResponseImpl(-1, result.clientHandle, -1,
                             Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0],
                             result.errorMsg);
-                final Connection c = (Connection) result.clientData;
-                c.writeStream().enqueue(errorResponse);
+                
+                LOG.info("AdHoc Planned Statement error:"+errorResponse);
             }
         }
 		
