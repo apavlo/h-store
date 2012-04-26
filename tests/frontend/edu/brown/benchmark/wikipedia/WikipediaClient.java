@@ -140,7 +140,7 @@ public class WikipediaClient extends BenchmarkComponent {
         if (LOG.isDebugEnabled())
             LOG.debug("Transaction Workload Distribution:\n" + txns);
         
-     // Setup callbacks
+        // Setup callbacks
         int num_txns = Transaction.values().length;
         this.callbacks = new WikipediaCallback[num_txns];
         for (int i = 0; i < num_txns; i++) {
@@ -222,17 +222,17 @@ public class WikipediaClient extends BenchmarkComponent {
         }
     }
 	
-	 
-	    protected boolean runOnce(int user_id,int page_id) throws IOException {
-	        final Transaction target = this.selectTransaction();
-
+	protected boolean runOnce(int user_id,int page_id) throws IOException {
+	    LOG.info("RunOnce started...");    
+	    final Transaction target = this.selectTransaction();
+	        
 	        this.startComputeTime(target.displayName);
 	        Object params[] = this.generateParams(target, user_id, page_id);
-	       
+	        LOG.info("Get params for Stored procedure" + target + ", params are:" + params);
 	        this.stopComputeTime(target.displayName);
 	        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
 	        
-	        LOG.debug("Executing txn " + target);
+	        LOG.info("Executing txn " + target);
 	        return ret;
 	    }
  
