@@ -175,7 +175,7 @@ public class WikipediaClient extends BenchmarkComponent {
             cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
 
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to update users and pages", ex);
+            throw new RuntimeException("Failed to get pages info", ex);
         }
         assert(cr != null);
         assert(cr.getStatus() == Status.OK);
@@ -223,18 +223,18 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 	
 	protected boolean runOnce(int user_id,int page_id) throws IOException {
-	    LOG.info("RunOnce started...");    
-	    final Transaction target = this.selectTransaction();
-	        
-	        this.startComputeTime(target.displayName);
-	        Object params[] = this.generateParams(target, user_id, page_id);
-	        LOG.info("Get params for Stored procedure" + target + ", params are:" + params);
-	        this.stopComputeTime(target.displayName);
-	        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
-	        
-	        LOG.info("Executing txn " + target);
-	        return ret;
-	    }
+        LOG.info("RunOnce started...");
+        final Transaction target = this.selectTransaction();
+
+        this.startComputeTime(target.displayName);
+        Object params[] = this.generateParams(target, user_id, page_id);
+        LOG.info("Get params for Stored procedure" + target + ", params are:" + params);
+        this.stopComputeTime(target.displayName);
+        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
+
+        LOG.info("Executing txn " + target);
+        return ret;
+	}
  
 	private String generateUserIP() {
         return String.format("%d.%d.%d.%d", randGenerator.nextInt(255)+1,

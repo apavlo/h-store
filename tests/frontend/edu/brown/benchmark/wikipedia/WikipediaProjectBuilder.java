@@ -21,6 +21,7 @@ package edu.brown.benchmark.wikipedia;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.procedures.GetTableCounts;
 import edu.brown.benchmark.wikipedia.procedures.AddWatchList;
 import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
@@ -45,6 +46,7 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         GetPageAuthenticated.class,
         RemoveWatchList.class,
         UpdatePage.class,
+        GetPagesInfo.class,
     };
     
     /**
