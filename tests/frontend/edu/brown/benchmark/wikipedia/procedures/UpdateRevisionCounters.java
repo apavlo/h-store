@@ -12,7 +12,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 import edu.brown.benchmark.wikipedia.WikipediaLoader;
 
-@ProcInfo(singlePartition = false)
+//@ProcInfo(singlePartition = true)
 public class UpdateRevisionCounters extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(UpdateRevisionCounters.class);
     public final SQLStmt updateUser = new SQLStmt(
