@@ -49,7 +49,6 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -2270,13 +2269,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Added for @AdHoc processes, periodically checks for AdHoc queries waiting to be compiled.
      * 
      */
-	public void processPeriodicWork() {        
-		//LOG.info("Checking for PeriodicWork...");
-        // poll planner queue
-        checkForFinishedCompilerWork();
+	public void processPeriodicWork() {
+	    if (debug.get())
+		    LOG.debug("Checking for PeriodicWork...");
+
+	    // poll planner queue
+	    if (asyncCompilerWork_thread != null) {
+	        checkForFinishedCompilerWork();
+	    }
 
         return;
-		
 	}
 
 	/**
@@ -2285,47 +2287,60 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
 	private void checkForFinishedCompilerWork() {
 		//LOG.info("HStoreSite - Checking for finished compiled work.");
-		if (asyncCompilerWork_thread == null) return;
+		
 
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-        	
-            if (result.errorMsg.contains("null")){//TODO: check this, it may be an inappropriate substitution of : result.errorMsg == null) {
-            	LOG.info("Note to ANDY: assuming that ["+result.errorMsg+"] is the same as the error message equals [null]... see code comments in HStoreSite.checkForFinishedCompilerWork()");
-                if (result instanceof AdHocPlannedStmt) {
-                	 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
-                    // create the execution site task
-                    StoredProcedureInvocation task = new StoredProcedureInvocation();
-                    task.setProcName("@AdHoc");
-                    task.setParams(new ParameterSet(
-                            plannedStmt.aggregatorFragment, plannedStmt.collectorFragment,
-                            plannedStmt.sql, plannedStmt.isReplicatedTableDML ? 1 : 0
-                    		));
-                    task.setClientHandle( (int) plannedStmt.clientHandle);//TODO: ask Andy if this is safe enough
-
-                    // initiate the transaction
-                    //TODO: need a replacement for this FIX!!
-//                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
-//                                                  task, false, false, false, m_allPartitions,
-//                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
-                    LOG.info("Note to ANDY: This is where createTransaction() should happen.");
-                }
-                //TODO: removed the stuff about change catalog result... was this right?
-                else {
-                    throw new RuntimeException(
-                            "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
-                }
-            }
-            else {
-                ClientResponseImpl errorResponse =
-                    new ClientResponseImpl(-1, result.clientHandle, -1,
-                            Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0],
-                            result.errorMsg);
+            LOG.info("AsyncCompilerResult - " + result);
+            
+            // ----------------------------------
+            // BUSTED!
+            // ----------------------------------
+            if (result.errorMsg != null) {
+                if (debug.get())
+                    LOG.warn("Unexpected Error: " + result.errorMsg);
                 
-                LOG.info("AdHoc Planned Statement error:"+errorResponse);
+                ClientResponseImpl errorResponse =
+                        new ClientResponseImpl(-1, result.clientHandle, -1,
+                                Status.ABORT_UNEXPECTED,
+                                HStoreConstants.EMPTY_RESULT,
+                                result.errorMsg);
+                this.sendClientResponse(result.ts, errorResponse);
+                
+                // TODO: Figure out how we will delete the txn handle even though we
+                // don't have a real txnID
+                // this.deleteTransaction(txn_id, status)
             }
-        }
-		
+            // ----------------------------------
+            // AdHocPlannedStmt
+            // ----------------------------------
+            else if (result instanceof AdHocPlannedStmt) {
+                AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
+
+                // Modify the StoredProcedureInvocation
+                StoredProcedureInvocation task = result.ts.getInvocation();
+                task.setParams(new ParameterSet(
+                        plannedStmt.aggregatorFragment,
+                        plannedStmt.collectorFragment,
+                        plannedStmt.sql,
+                        (plannedStmt.isReplicatedTableDML ? 1 : 0)
+        		));
+
+                // initiate the transaction
+                int base_partition = result.ts.getBasePartition();
+                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                result.ts.setTransactionId(txn_id);
+                this.dispatchInvocation(result.ts);
+                
+            }
+            // ----------------------------------
+            // Unexpected
+            // ----------------------------------
+            else {
+                throw new RuntimeException(
+                        "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
+            }
+        } // WHILE
 	}
 }

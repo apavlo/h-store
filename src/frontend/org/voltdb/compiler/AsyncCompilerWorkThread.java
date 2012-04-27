@@ -34,7 +34,6 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
 public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable {
