@@ -33,6 +33,8 @@ import org.voltdb.utils.DumpManager;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStoreSite;
+
 public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable {
 
     LinkedBlockingQueue<AsyncCompilerWork> m_work = new LinkedBlockingQueue<AsyncCompilerWork>();
@@ -43,6 +45,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     final int m_siteId;
     boolean m_isLoaded = false;
     CatalogContext m_context;
+    HStoreSite m_hStoreSite;
 
     private static final Logger ahpLog = Logger.getLogger("ADHOCPLANNERTHREAD", VoltLoggerFactory.instance());
 
@@ -58,6 +61,19 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         //m_hsql = null;
         m_siteId = siteId;
         m_context = context;
+
+        setName("Ad Hoc Planner");
+
+        m_dumpId = "AdHocPlannerThread." + String.valueOf(m_siteId);
+        DumpManager.register(m_dumpId, this);
+    }
+    
+    public AsyncCompilerWorkThread(HStoreSite hStoreSite, int siteId) {
+        m_ptool = null;
+        //m_hsql = null;
+        m_siteId = siteId;
+        //m_context = context;
+        m_hStoreSite = hStoreSite;
 
         setName("Ad Hoc Planner");
 
@@ -128,6 +144,33 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         m_work.add(work);
     }
 
+    /**
+    *
+    * @param sql
+    * @param clientHandle Handle provided by the client application (not ClientInterface) HStoreSite?
+    * @param connectionId
+    * @param hostname Hostname of the other end of the connection
+    * @param sequenceNumber
+    * @param clientData Data supplied by ClientInterface (typically a VoltPort) that will be in the PlannedStmt produced later.
+    */
+   public void planSQL(
+           String sql,
+           HStoreSite clientHandle, //TODO: I'm not sure this is right
+           long connectionId,
+           String hostname,
+           int sequenceNumber,
+           Object clientData) {
+
+       AdHocPlannerWork work = new AdHocPlannerWork();
+       work.clientHandle = clientHandle.getSiteId();//TODO: I'm not sure this is right
+       work.sql = sql;
+       work.connectionId = connectionId;
+       work.hostname = hostname;
+       work.sequenceNumber = sequenceNumber;
+       work.clientData = clientData;
+       m_work.add(work);
+   }
+    
     public void prepareCatalogUpdate(
             String catalogURL,
             long clientHandle,
@@ -167,6 +210,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
             else {
                 // deal with reloading the global catalog
                 if (m_shouldUpdateCatalog.compareAndSet(true, false)) {
+                	//TODO: @AdHoc for hstoresite, how to switch catalogcontext for hstoresite?
                     m_context = VoltDB.instance().getCatalogContext();
                     // kill the planner process which has an outdated catalog
                     // it will get created again for the next stmt
