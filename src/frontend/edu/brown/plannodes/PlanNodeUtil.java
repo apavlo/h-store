@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -489,7 +488,6 @@ public abstract class PlanNodeUtil {
 
     /**
      * Returns all the PlanNodes in the given tree that of a specific type
-     * 
      * @param root
      * @param search_class
      * @return
@@ -525,21 +523,40 @@ public abstract class PlanNodeUtil {
 
     /**
      * Get the total depth of the tree
-     * 
      * @param root
      * @return
      */
     public static int getDepth(AbstractPlanNode root) {
-        final AtomicInteger depth = new AtomicInteger(0);
-        new PlanNodeTreeWalker(false) {
+        final int depth[] = { 0 };
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
                 int current_depth = this.getDepth();
-                if (current_depth > depth.intValue())
-                    depth.set(current_depth);
+                if (current_depth > depth[0])
+                    depth[0] = current_depth;
             }
         }.traverse(root);
-        return (depth.intValue());
+        return (depth[0]);
+    }
+    
+    /**
+     * Get the depth of an element in the tree
+     * @param root
+     * @param node
+     * @return
+     */
+    public static int getDepth(AbstractPlanNode root, final AbstractPlanNode node) {
+        final int depth[] = { 0 };
+        new PlanNodeTreeWalker(true) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (element.equals(node)) {
+                    depth[0] = this.getDepth();
+                    this.stop();
+                }
+            }
+        }.traverse(root);
+        return (depth[0]);
     }
 
     /**
