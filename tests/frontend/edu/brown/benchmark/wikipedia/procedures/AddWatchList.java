@@ -19,6 +19,7 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -28,6 +29,9 @@ import org.apache.log4j.Logger;
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
+@ProcInfo(
+    partitionInfo = "USERACCT.USER_ID: 0"
+)
 public class AddWatchList extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(AddWatchList.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());

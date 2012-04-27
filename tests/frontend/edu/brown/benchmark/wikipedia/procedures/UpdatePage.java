@@ -130,7 +130,7 @@ public class UpdatePage extends VoltProcedure {
     // -----------------------------------------------------------------
 	
 	public long run( long nextId, int pageId,
-	                                 String pageTitle, String pageText, int pageNamespace,
+	                                 String pageTitle,int pageNamespace, String pageText,
 	                                 int userId, String userIp, String userText,
 	                                 int revisionId, String revComment, int revMinorEdit) {
 

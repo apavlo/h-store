@@ -20,6 +20,7 @@
 package edu.brown.benchmark.wikipedia.procedures;
 
 
+import org.voltdb.ProcInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
@@ -27,6 +28,9 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
+@ProcInfo(
+    partitionInfo = "USERACCT.USER_ID: 0"
+)
 public class RemoveWatchList extends VoltProcedure {
 	
 	public SQLStmt removeWatchList = new SQLStmt(

@@ -559,6 +559,7 @@ public abstract class BenchmarkComponent {
     private class ControlWorker extends Thread {
         @Override
         public void run() {
+            invokeStartCallback();
             try {
                 if (m_txnRate == -1) {
                     if (m_sampler != null) {
@@ -1281,6 +1282,10 @@ public abstract class BenchmarkComponent {
     // CALLBACKS
     // ----------------------------------------------------------------------------
     
+    private final void invokeStartCallback() {
+        this.startCallback();
+    }
+    
     private final void invokeStopCallback() {
         // If we were generating stats, then get the final WorkloadStatistics object
         // and write it out to a file for them to use
@@ -1328,6 +1333,13 @@ public abstract class BenchmarkComponent {
             LOG.debug("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
             this.m_voltClient.getQueueTime().reset();
         }
+    }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been told to start
+     */
+    public void startCallback() {
+        // Default is to do nothing
     }
     
     /**

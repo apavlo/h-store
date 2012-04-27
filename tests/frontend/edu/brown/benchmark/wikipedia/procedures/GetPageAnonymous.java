@@ -19,6 +19,7 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -26,6 +27,9 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
+@ProcInfo(
+    partitionInfo = "PAGE.PAGE_TITLE: 3"
+)
 public class GetPageAnonymous extends VoltProcedure {
 	
     // -----------------------------------------------------------------
