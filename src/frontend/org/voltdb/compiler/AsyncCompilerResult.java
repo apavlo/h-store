@@ -18,8 +18,12 @@
 package org.voltdb.compiler;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.utils.StringUtil;
 
 public class AsyncCompilerResult implements Serializable {
     private static final long serialVersionUID = -1538141431615585812L;
@@ -38,9 +42,17 @@ public class AsyncCompilerResult implements Serializable {
 
     @Override
     public String toString() {
-        String retval = "clientHandle:" + String.valueOf(clientHandle) + ", ";
-        retval += "connectionId:" + String.valueOf(connectionId) + ", ";
-        retval += "\n  errorMsg: " + ((errorMsg != null) ? errorMsg : "null");
-        return retval;
+        Class<?> confClass = this.getClass();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        for (Field f : confClass.getFields()) {
+            Object obj = null;
+            try {
+                obj = f.get(this);
+            } catch (IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
+            m.put(f.getName().toUpperCase(), obj);
+        } // FOR
+        return (StringUtil.formatMaps(m));
     }
 }
