@@ -46,7 +46,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final int num_users;
 	private Random randGenerator = new Random();
 	private long nextRevId;
-	public HashMap<Long, Object[]> m_titleMap = new HashMap<Long, Object[]>();
+	public HashMap<Integer, Object[]> m_titleMap = new HashMap<Integer, Object[]>();
 	public Flat z_users = null;
 	public Zipf z_pages = null;
 	
@@ -183,8 +183,8 @@ public class WikipediaClient extends BenchmarkComponent {
         VoltTable vt = res[0];
         //LOG.info("vt:\n"+ vt);
         while (vt.advanceRow()) {
-            long page_id = vt.getLong(0);
-            long namespace = vt.getLong(1);
+            int page_id = (int) vt.getLong(0);
+            int namespace = (int) vt.getLong(1);
             String title = vt.getString(2);
             Object data[] = { namespace, title};
             if (!m_titleMap.containsKey(page_id)) {
@@ -235,10 +235,10 @@ public class WikipediaClient extends BenchmarkComponent {
         Object params[] = this.generateParams(target, user_id, page_id);
         
         this.stopComputeTime(target.displayName);
-        LOG.info("Stored procedure:" + target.callName + ", params:" + params);
+        
         boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
 
-        LOG.info("Executing txn " + target);
+        LOG.info("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
 	}
  
@@ -260,8 +260,8 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 
     protected Object[] generateParams(Transaction txn, int user_id, int page_id) throws VoltAbortException {
-        assert(m_titleMap.containsKey((long)page_id)):"m_titleMap should contain page_id:" + page_id;
-        Object data[] = m_titleMap.get((long)page_id);
+        assert(m_titleMap.containsKey(page_id)):"m_titleMap should contain page_id:" + page_id;
+        Object data[] = m_titleMap.get(page_id);
         assert(data != null):"data should not be null";
         //LOG.info("data [0]:" + data[0] + ", data[1]:" +data[1]);
         Object params[] = null;
