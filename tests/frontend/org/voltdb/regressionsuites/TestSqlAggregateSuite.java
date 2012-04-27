@@ -357,6 +357,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         project.addProcedures(PROCEDURES);
 
         config = new LocalSingleProcessServer("sqlaggregate-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
@@ -372,6 +373,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         // Cluster
         config = new LocalCluster("sqlaggregate-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

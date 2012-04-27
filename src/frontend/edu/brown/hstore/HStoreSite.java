@@ -1299,14 +1299,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Check for AdHoc 
         // new for AdHoc start **********************************************************************
         if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+            String msg = null;
+            
+            // Is this feature disabled?
+            if (hstore_conf.site.exec_adhoc_sql == false) {
+                msg = "AdHoc queries are disabled";
+            }
             // Check that variable 'request' in this func. is same as 
             // 'task' in ClientInterface.handleRead()
-            if (request.getParams().toArray().length != 1) {
+            else if (request.getParams().toArray().length != 1) {
+                msg = "AdHoc system procedure requires exactly one parameter, " +
+                	  "the SQL statement to execute.";
+            }
+            
+            if (msg != null) {
                 final ClientResponseImpl errorResponse =
                     new ClientResponseImpl(-1, request.getClientHandle(), -1,
                                            Status.ABORT_GRACEFUL,
                                            HStoreConstants.EMPTY_RESULT,
-                                           "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
+                                           msg);
                 FastSerializer fs = new FastSerializer();
                 try {
                     fs.writeObject(errorResponse);
