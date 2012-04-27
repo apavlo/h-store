@@ -31,6 +31,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Map;
+import java.util.HashMap;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -110,6 +114,18 @@ public class WriteAheadLogger implements Shutdownable {
             // entry each time. What we really should do is recreate
             // the StoredProcedureInvocation and then pass that into
             // the HStoreSite so that we can replay the transaction
+            //File file = new File("filename");
+            // Create a read-only memory-mapped file
+            //FileChannel roChannel = new RandomAccessFile(file, "r").getChannel();
+
+            //ByteBuffer readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int) roChannel.size());
+            //long txn_id = in.readLong();
+            //long time = in.readLong();
+            //String procName = in.readString();
+            //ParameterSet ps = (ParameterSet)in.readObject();
+            /*FileWriter first = new FileWriter(new File("/ltmp/hstore/readbackin.log"), true);
+            first.write("<" + txn_id + "><" + time + "><" + procName + "><" + "params" + "><COMMIT>");
+            first.close();*/
         }
 
         @Override
@@ -189,6 +205,7 @@ public class WriteAheadLogger implements Shutdownable {
         if (debug.get()) LOG.debug("Closing WAL file");
         try {
             this.fstream.close();
+            //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
             throw new ServerFaultException(message, ex);
@@ -204,11 +221,26 @@ public class WriteAheadLogger implements Shutdownable {
     
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
-        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-            int procId = catalog_proc.getId();
+        FastSerializer fs = this.serializers[0]; //Arbitrarily choose the first one
+        assert(fs != null);
+        try {
+            fs.clear();
+            fs.writeInt(hstore_site.getDatabase().getProcedures().size());
             
-            // TODO: Write out a header that contains a mapping from Procedure name to ids
-        } // FOR
+            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+                int procId = catalog_proc.getId();
+                fs.writeInt(procId);
+                fs.writeString(catalog_proc.getClassname());
+            } // FOR
+            
+            BBContainer b = fs.getBBContainer();
+            fstream.write(b.b.asReadOnlyBuffer());
+            fstream.force(true);
+        } catch (Exception e) {
+            String message = "Failed to write log headers";
+            throw new ServerFaultException(message, e, 0);
+        }
+        
         return (true);
     }
     
@@ -217,8 +249,25 @@ public class WriteAheadLogger implements Shutdownable {
      * @return
      */
     public Map<Integer, String> readHeader() {
+        FileChannel roChannel = null;
+        ByteBuffer readonlybuffer = null;
+        try {
+            roChannel = new RandomAccessFile(new File(WAL_PATH);, "r").getChannel();
+            readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int) roChannel.size());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
         
-        return (null);
+        assert(readonlybuffer != null);
+        
+        FastDeserializer fd = new FastDeserializer(readonlybuffer);
+        int num_procs = fd.readInt();
+        
+        Map<Integer, String> procedures = new HashMap<Integer, String>();
+        for (int i = 0; i < num_procs; i++)
+            procedures.push(new Integer(fd.readInt()), fd.readString());
+        
+        return (procedures);
     }
 
     /**
@@ -258,7 +307,6 @@ public class WriteAheadLogger implements Shutdownable {
             // to the file before we're allowed to continue.
             fstream.force(true);
             entry.flushed = true;
-            //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
         } catch (Exception e) {
             String message = "Failed to write log entry for " + ts.toString();
             throw new ServerFaultException(message, e, ts.getTransactionId());
@@ -268,6 +316,7 @@ public class WriteAheadLogger implements Shutdownable {
     }
 
 
+            
 
     /**
      * @param cp
