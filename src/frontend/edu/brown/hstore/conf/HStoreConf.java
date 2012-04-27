@@ -311,6 +311,13 @@ public final class HStoreConf {
         public String exec_command_logging_file;
         
         @ConfigProperty(
+            description="If enabled, support ad hoc queries",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_adhoc_sql;
+        
+        @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
             		    "queries on remote partitions for distributed transactions.",
             defaultBoolean=false,

@@ -43,20 +43,31 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
+import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.VoltDB;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.compiler.AdHocPlannedStmt;
+import org.voltdb.compiler.AsyncCompilerResult;
+import org.voltdb.compiler.AsyncCompilerWorkThread;
+import org.voltdb.compiler.CatalogChangeResult;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.network.Connection;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTimeUpdater;
+import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -222,6 +233,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final MapReduceHelperThread mr_helper;
     
     private final WriteAheadLogger commandLogger;
+
+    /**
+     * AdHoc: This thread waits for AdHoc queries. 
+     */
+    private final AsyncCompilerWorkThread asyncCompilerWork_thread;
+    private final PeriodicWorkTimerThread periodicWorkTimer_thread;
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -320,6 +337,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @SuppressWarnings("unchecked")
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+    	
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
@@ -428,6 +446,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.commandLogger = null;
         }
+
+        // AdHoc Support
+        if (hstore_conf.site.exec_adhoc_sql) {
+            this.periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
+            // TODO: this isnt right, what is the CatalogContext
+            this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
+        } else {
+            this.periodicWorkTimer_thread = null;
+            this.asyncCompilerWork_thread = null;
+        }
+
         
         // Incoming Txn Request Listener
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
@@ -469,7 +498,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // CACHED MESSAGES
-        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
+        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
     }
     
 
@@ -526,7 +555,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     protected HStoreCoordinator initHStoreCoordinator() {
-        return new HStoreCoordinator(this);
+        return new HStoreCoordinator(this);        
     }
     public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
@@ -834,6 +863,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers();
         
+        // Start threads for processing AdHoc queries TODO: check that this thread is started correctly
+        //m_asyncCompilerWorkThread = new AsyncCompilerWorkThread();
+        if (this.periodicWorkTimer_thread != null) {
+            this.periodicWorkTimer_thread.start();
+            this.asyncCompilerWork_thread.start();
+        }
+        
         return (this);
     }
     
@@ -897,8 +933,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      * This should only be called by HStoreMessenger 
      */
-    @Override
-    public synchronized void shutdown() {
+	@Override
+    public synchronized void shutdown(){
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
@@ -910,6 +946,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
+        
+        // Stop AdHoc thread
+        // TODO:is this the proper way to stop thread execution?
+        if (this.periodicWorkTimer_thread != null) { 
+            try {
+    	        if (this.periodicWorkTimer_thread.isAlive()) {
+    	        	this.periodicWorkTimer_thread.interrupt();
+    	        	this.periodicWorkTimer_thread.join();
+    	        }
+    	        if (this.asyncCompilerWork_thread.isAlive()) {
+    	        	this.asyncCompilerWork_thread.interrupt();
+    	        	this.asyncCompilerWork_thread.join();
+    	        }
+            } catch (InterruptedException interruptedException){
+            	//TODO: check with Andy about what should happen here
+            	LOG.error("There was an InterruptedExcecption while trying to close HStoreSite threads: "
+            						+interruptedException.getMessage());
+            }
+        }
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
@@ -1020,6 +1075,40 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.hstore_coordinator.shutdownCluster(error);
                 return;
             }
+            
+            // Check for AdHoc 
+            // new for AdHoc start **********************************************************************
+            if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+            	// TODO: check that variable 'request' in this func. is same as 'task' in ClientInterface.handleRead()
+            	request.buildParameterSet();
+                if (request.getParams().toArray().length != 1) {
+                    final ClientResponseImpl errorResponse =
+                        new ClientResponseImpl(-1, request.getClientHandle(), -1,
+                                               Hstoreservice.Status.ABORT_UNEXPECTED,
+                                               new VoltTable[0],
+                                               "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
+                    //TODO: write error message to client
+                    //c.writeStream().enqueue(errorResponse);
+                    return;
+                }
+                String sql = (String) request.getParams().toArray()[0];
+//                m_asyncCompilerWorkThread.planSQL(
+//                                                  sql,
+//                                                  request.getClientHandle(),
+//                                                  handler.connectionId(),
+//                                                  handler.m_hostname,
+//                                                  handler.sequenceId(),
+//                                                  c);
+                asyncCompilerWork_thread.planSQL(
+									              sql,
+									              this,//TODO: is this the client handle?
+									              this.site_id,
+									              this.site_name,
+									              0,//TODO: what is this supposed to be?
+									              null);//TODO: same question
+                return;
+            }
+            // new for AdHoc end **********************************************************************            
         }
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         else if (hstore_conf.site.exec_force_localexecution == false) {
@@ -2142,4 +2231,69 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // This will block the MAIN thread!
         ThreadUtil.runNewPool(runnables);
     }
+
+
+
+    /**
+     * Added for @AdHoc processes, periodically checks for AdHoc queries waiting to be compiled.
+     * 
+     */
+	public void processPeriodicWork() {        
+		//LOG.info("Checking for PeriodicWork...");
+        // poll planner queue
+        checkForFinishedCompilerWork();
+
+        return;
+		
+	}
+
+	/**
+     * Added for @AdHoc processes
+     * 
+     */
+	private void checkForFinishedCompilerWork() {
+		//LOG.info("HStoreSite - Checking for finished compiled work.");
+		if (asyncCompilerWork_thread == null) return;
+
+        AsyncCompilerResult result = null;
+ 
+        while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
+        	
+            if (result.errorMsg.contains("null")){//TODO: check this, it may be an inappropriate substitution of : result.errorMsg == null) {
+            	LOG.info("Note to ANDY: assuming that ["+result.errorMsg+"] is the same as the error message equals [null]... see code comments in HStoreSite.checkForFinishedCompilerWork()");
+                if (result instanceof AdHocPlannedStmt) {
+                	 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
+                    // create the execution site task
+                    StoredProcedureInvocation task = new StoredProcedureInvocation();
+                    task.setProcName("@AdHoc");
+                    task.setParams(new ParameterSet(
+                            plannedStmt.aggregatorFragment, plannedStmt.collectorFragment,
+                            plannedStmt.sql, plannedStmt.isReplicatedTableDML ? 1 : 0
+                    		));
+                    task.setClientHandle( (int) plannedStmt.clientHandle);//TODO: ask Andy if this is safe enough
+
+                    // initiate the transaction
+                    //TODO: need a replacement for this FIX!!
+//                    m_initiator.createTransaction(plannedStmt.connectionId, plannedStmt.hostname,
+//                                                  task, false, false, false, m_allPartitions,
+//                                                  m_allPartitions.length, plannedStmt.clientData, 0, 0);
+                    LOG.info("Note to ANDY: This is where createTransaction() should happen.");
+                }
+                //TODO: removed the stuff about change catalog result... was this right?
+                else {
+                    throw new RuntimeException(
+                            "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
+                }
+            }
+            else {
+                ClientResponseImpl errorResponse =
+                    new ClientResponseImpl(-1, result.clientHandle, -1,
+                            Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0],
+                            result.errorMsg);
+                
+                LOG.info("AdHoc Planned Statement error:"+errorResponse);
+            }
+        }
+		
+	}
 }
