@@ -31,12 +31,20 @@ import org.voltdb.debugstate.PlannerThreadContext;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.DumpManager;
 import org.voltdb.utils.Encoder;
-import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
-public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable {
+public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable, Shutdownable {
+    private static final Logger LOG = Logger.getLogger(AsyncCompilerWorkThread.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     LinkedBlockingQueue<AsyncCompilerWork> m_work = new LinkedBlockingQueue<AsyncCompilerWork>();
     final ArrayDeque<AsyncCompilerResult> m_finished = new ArrayDeque<AsyncCompilerResult>();
@@ -47,8 +55,6 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     boolean m_isLoaded = false;
     CatalogContext m_context;
     HStoreSite m_hStoreSite;
-
-    private static final Logger ahpLog = Logger.getLogger("ADHOCPLANNERTHREAD", VoltLoggerFactory.instance());
 
     /** If this is true, update the catalog */
     private final AtomicBoolean m_shouldUpdateCatalog = new AtomicBoolean(false);
@@ -85,12 +91,12 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     public synchronized void ensureLoadedPlanner() {
         // if the process was created but is dead, clear the placeholder
         if ((m_ptool != null) && (m_ptool.expensiveIsRunningCheck() == false)) {
-            ahpLog.error("Planner process died on its own. It will be restarted if needed.");
+            LOG.error("Planner process died on its own. It will be restarted if needed.");
             m_ptool = null;
         }
         // if no placeholder, create a new plannertool
         if (m_ptool == null) {
-            m_ptool = PlannerTool.createPlannerToolProcess(m_context.catalog.serialize());
+            m_ptool = PlannerTool.createPlannerToolProcess(m_hStoreSite.getCatalog().serialize());
         }
     }
 
@@ -98,16 +104,31 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         if (m_ptool != null) {
             // check if the planner process has been blocked for 2 seconds
             if (m_ptool.perhapsIsHung(5000)) {
-                ahpLog.error("Was forced to kill the planner process due to a timeout. It will be restarted if needed.");
+                LOG.error("Was forced to kill the planner process due to a timeout. It will be restarted if needed.");
                 m_ptool.kill();
             }
         }
     }
 
-    public void shutdown() {
+
+    @Override
+    public void prepareShutdown(boolean error) {
         AdHocPlannerWork work = new AdHocPlannerWork(null);
         work.shouldShutdown = true;
         m_work.add(work);
+    }
+
+    @Override
+    public boolean isShuttingDown() {
+        return false; // FIXME
+    }
+    
+    public void shutdown() {
+        try {
+            this.join();
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
@@ -270,13 +291,16 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
 
             plannedStmt.aggregatorFragment = result.onePlan;
             plannedStmt.collectorFragment = result.allPlan;
-
             plannedStmt.isReplicatedTableDML = result.replicatedDML;
             plannedStmt.sql = work.sql;
             plannedStmt.errorMsg = result.errors;
+            if (plannedStmt.errorMsg != null)
+                LOG.error("PlannerTool Error: " + result.errors);
         }
         catch (Exception e) {
-            plannedStmt.errorMsg = "Unexpected Ad Hoc Planning Error: " + e.getMessage();
+            String msg = "Unexpected Ad Hoc Planning Error";
+            LOG.warn(msg, e);
+            plannedStmt.errorMsg = msg + ": " + e.getMessage();
         }
 
         return plannedStmt;
