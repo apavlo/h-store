@@ -47,7 +47,8 @@ public class WikipediaClient extends BenchmarkComponent {
 	private Random randGenerator = new Random();
 	private int nextRevId;
 	public HashMap<Long, Object[]> m_titleMap = new HashMap<Long, Object[]>();
-	
+	public Flat z_users = null;
+	public Zipf z_pages = null;
 	
 	// TODO:(xin)
 	// Change from hashMap to array in order to make it faster
@@ -167,7 +168,7 @@ public class WikipediaClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-        LOG.debug("Starting runLoop()");
+        LOG.info("Starting runLoop()");
         final Client client = this.getClientHandle();
         
         ClientResponse cr = null;
@@ -201,29 +202,36 @@ public class WikipediaClient extends BenchmarkComponent {
             }
         }
         
-        double m_scalefactor = 1.0;
-        int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
-        //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
-        
-        Flat z_users = new Flat(this.randGenerator, 1, num_users);
-        Zipf z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
-        
         try {
             while (true) {
                 // Figure out what page they're going to update
-                int user_id = z_users.nextInt();
-                int page_id = z_pages.nextInt();
-                
-                this.runOnce(user_id,page_id);
+                this.runOnce();
                 client.backpressureBarrier();
             } // WHILE
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
-	
-	protected boolean runOnce(int user_id,int page_id) throws IOException {
+    
+    @Override
+	protected boolean runOnce() throws IOException {
+        
         LOG.info("RunOnce started...");
+        if(z_users == null || z_pages == null) {
+            double m_scalefactor = 1.0;
+            int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
+            //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
+            this.z_users = new Flat(this.randGenerator, 1, num_users);
+            this.z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
+            
+        }
+        
+        assert(z_users!=null && z_pages!=null):"null users or pages";
+//        int user_id = this.z_users.nextInt();
+//        int page_id = this.z_pages.nextInt();
+        int user_id = 2;
+        int page_id = 2;
+        
         final Transaction target = this.selectTransaction();
 
         this.startComputeTime(target.displayName);
@@ -257,7 +265,7 @@ public class WikipediaClient extends BenchmarkComponent {
         
         Object data[] = m_titleMap.get(page_id);
         Object params[] = null;
-        
+        assert(data == null);
         switch (txn) {
             // AddWatchList
             case ADD_WATCHLIST:    
