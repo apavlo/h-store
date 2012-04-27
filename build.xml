@@ -921,7 +921,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -929,7 +928,6 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -1008,7 +1006,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -1016,7 +1013,6 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
