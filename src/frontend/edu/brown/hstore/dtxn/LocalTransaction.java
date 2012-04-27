@@ -342,6 +342,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
+        this.itask.setTransactionId(txn_id);
     }
     
     public void setExecutionState(ExecutionState state) {
@@ -957,6 +958,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Get the final results of the last round of execution for this Transaction
+     * This should only be called to get the VoltTables that you want to send into
+     * the Java stored procedure code (e.g., the return value for voltExecuteSql())
      * @return
      */
     public VoltTable[] getResults() {

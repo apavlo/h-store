@@ -49,6 +49,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -599,6 +600,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
          LOG.info("Set new EstimationThresholds: " + thresholds);
     }
     
+    public Catalog getCatalog() {
+        return (this.catalog_db.getCatalog());
+    }
+    
     public Database getDatabase() {
         return (this.catalog_db);
     }
@@ -916,6 +921,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper.prepareShutdown(error);
         if (this.commandLogger != null)
             this.commandLogger.prepareShutdown(error);
+        if (this.asyncCompilerWork_thread != null)
+            this.asyncCompilerWork_thread.prepareShutdown(error);
+        if (this.periodicWorkTimer_thread != null)
+            this.periodicWorkTimer_thread.prepareShutdown(error);
         
         for (int p : this.local_partitions_arr) {
             if (this.executors[p] != null) 
@@ -941,24 +950,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
-        // Stop AdHoc thread
-        // TODO:is this the proper way to stop thread execution?
-        if (this.periodicWorkTimer_thread != null) { 
-            try {
-    	        if (this.periodicWorkTimer_thread.isAlive()) {
-    	        	this.periodicWorkTimer_thread.interrupt();
-    	        	this.periodicWorkTimer_thread.join();
-    	        }
-    	        if (this.asyncCompilerWork_thread.isAlive()) {
-    	        	this.asyncCompilerWork_thread.interrupt();
-    	        	this.asyncCompilerWork_thread.join();
-    	        }
-            } catch (InterruptedException interruptedException){
-            	//TODO: check with Andy about what should happen here
-            	LOG.error("There was an InterruptedExcecption while trying to close HStoreSite threads: "
-            						+interruptedException.getMessage());
-            }
-        }
+        // Stop AdHoc threads
+        if (this.asyncCompilerWork_thread != null)
+            this.asyncCompilerWork_thread.shutdown();
+        if (this.periodicWorkTimer_thread != null)
+            this.periodicWorkTimer_thread.shutdown();
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
@@ -2270,8 +2266,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	public void processPeriodicWork() {
-	    if (debug.get())
-		    LOG.debug("Checking for PeriodicWork...");
+	    if (trace.get())
+		    LOG.trace("Checking for PeriodicWork...");
 
 	    // poll planner queue
 	    if (asyncCompilerWork_thread != null) {
@@ -2292,14 +2288,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-            LOG.info("AsyncCompilerResult - " + result);
+            LOG.info("AsyncCompilerResult\n" + result);
             
             // ----------------------------------
             // BUSTED!
             // ----------------------------------
             if (result.errorMsg != null) {
-                if (debug.get())
-                    LOG.warn("Unexpected Error: " + result.errorMsg);
+//                if (debug.get())
+                    LOG.error("Unexpected AsyncCompiler Error:\n" + result.errorMsg);
                 
                 ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1, result.clientHandle, -1,
@@ -2320,17 +2316,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
                 // Modify the StoredProcedureInvocation
                 StoredProcedureInvocation task = result.ts.getInvocation();
-                task.setParams(new ParameterSet(
-                        plannedStmt.aggregatorFragment,
-                        plannedStmt.collectorFragment,
-                        plannedStmt.sql,
-                        (plannedStmt.isReplicatedTableDML ? 1 : 0)
-        		));
+                task.setParams(plannedStmt.aggregatorFragment,
+                               plannedStmt.collectorFragment,
+                               plannedStmt.sql,
+                               plannedStmt.isReplicatedTableDML ? 1 : 0
+        		);
 
                 // initiate the transaction
                 int base_partition = result.ts.getBasePartition();
                 Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
                 result.ts.setTransactionId(txn_id);
+                
+                LOG.info("Queuing AdHoc transaction: " + result.ts);
                 this.dispatchInvocation(result.ts);
                 
             }

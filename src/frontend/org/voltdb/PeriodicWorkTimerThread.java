@@ -22,17 +22,19 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 // AdHoc: addition for handling AdHoc queries in HStoreSite
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.interfaces.Shutdownable;
 /**
  * This thread fires a timer every five milliseconds
  * which ultimately fires the tick to each execution
  * site in the cluster.
  *
  */
-public class PeriodicWorkTimerThread extends Thread {
+public class PeriodicWorkTimerThread extends Thread implements Shutdownable {
 
     ArrayList<ClientInterface> m_clientInterfaces;
     boolean m_isClientInterfaceThread;
     HStoreSite m_hStoreSite;
+    boolean shutdown = false;
 
     public PeriodicWorkTimerThread(ArrayList<ClientInterface> clientInterfaces) {
         m_clientInterfaces = clientInterfaces;
@@ -50,7 +52,7 @@ public class PeriodicWorkTimerThread extends Thread {
         Thread.currentThread().setName("PeriodicWork");
 
         LinkedBlockingDeque<Object> foo = new LinkedBlockingDeque<Object>();
-        while(true) {
+        while (this.shutdown == false) {
             //long beforeTime = System.nanoTime();
             try {
                 foo.poll(5, TimeUnit.MILLISECONDS);
@@ -72,6 +74,25 @@ public class PeriodicWorkTimerThread extends Thread {
             //System.out.printf("TICK %.2f\n", millis);
             //System.out.flush();
         }
+    }
+
+    @Override
+    public void prepareShutdown(boolean error) {
+        this.shutdown = true;
+    }
+
+    @Override
+    public void shutdown() {
+        try {
+            this.join();
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public boolean isShuttingDown() {
+        return (this.shutdown);
     }
 
 }
