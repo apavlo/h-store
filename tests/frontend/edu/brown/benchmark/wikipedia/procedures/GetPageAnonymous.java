@@ -81,7 +81,7 @@ public class GetPageAnonymous extends VoltProcedure {
         voltQueueSQL(selectIpBlocks, userIp);
         voltQueueSQL(selectPageRevision, pageId, pageId);
         rs = voltExecuteSQL();
-        assert(rs.length == 4);
+        assert(rs.length == 3):"length expected is:3, but is:" + rs.length;
         
         // Grab Page Restrictions
         while (rs[0].advanceRow()) {
