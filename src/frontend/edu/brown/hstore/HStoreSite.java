@@ -93,7 +93,7 @@ import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.TxnCounter;
-import edu.brown.hstore.wal.WriteAheadLogger;
+import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -231,7 +231,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final MapReduceHelperThread mr_helper;
     
-    private final WriteAheadLogger commandLogger;
+    private final CommandLogWriter commandLogger;
 
     /**
      * AdHoc: This thread waits for AdHoc queries. 
@@ -443,7 +443,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new WriteAheadLogger(this, hstore_conf.site.exec_command_logging_file);
+            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_file);
         } else {
             this.commandLogger = null;
         }
