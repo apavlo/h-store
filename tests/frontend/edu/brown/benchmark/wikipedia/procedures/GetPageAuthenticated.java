@@ -19,12 +19,16 @@
  ******************************************************************************/
 package edu.brown.benchmark.wikipedia.procedures;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.wikipedia.WikipediaConstants;
 
+@ProcInfo(
+    partitionInfo = "PAGE.PAGE_TITLE: 4"
+)
 public class GetPageAuthenticated extends VoltProcedure {
 	
     // -----------------------------------------------------------------

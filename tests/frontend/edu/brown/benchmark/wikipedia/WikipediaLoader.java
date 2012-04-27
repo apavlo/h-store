@@ -23,7 +23,6 @@ import edu.brown.benchmark.wikipedia.data.PageHistograms;
 import edu.brown.benchmark.wikipedia.data.RevisionHistograms;
 import edu.brown.benchmark.wikipedia.data.TextHistograms;
 import edu.brown.benchmark.wikipedia.data.UserHistograms;
-import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
 import edu.brown.benchmark.wikipedia.procedures.UpdateRevisionCounters;
 import edu.brown.benchmark.wikipedia.util.TextGenerator;
 import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
@@ -352,12 +351,8 @@ public class WikipediaLoader extends BenchmarkComponent {
         FlatHistogram<Integer> h_nameLength = new FlatHistogram<Integer>(this.randGenerator, UserHistograms.NAME_LENGTH);
         FlatHistogram<Integer> h_numRevisions = new FlatHistogram<Integer>(this.randGenerator, PageHistograms.REVISIONS_PER_PAGE);
         
-        //WikipediaBenchmark b = (WikipediaBenchmark)this.benchmark;
-        
         FlatHistogram<Integer> h_commentLength = new FlatHistogram<Integer>(this.randGenerator, RevisionHistograms.COMMENT_LENGTH);
         FlatHistogram<Integer> h_minorEdit = new FlatHistogram<Integer>(this.randGenerator, RevisionHistograms.MINOR_EDIT);
-        
-        
         
         int rev_id = 1;
         int lastPercent = -1;

@@ -45,7 +45,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final Flat usersRng;
 //	final int num_users;
 	private Random randGenerator = new Random();
-	private int nextRevId;
+	private long nextRevId;
 	public HashMap<Long, Object[]> m_titleMap = new HashMap<Long, Object[]>();
 	public Flat z_users = null;
 	public Zipf z_pages = null;
@@ -59,11 +59,11 @@ public class WikipediaClient extends BenchmarkComponent {
      * Set of transactions structs with their appropriate parameters
      */
     public static enum Transaction {
-        ADD_WATCHLIST("Add watch list", WikipediaConstants.FREQUENCY_ADD_WATCHLIST),
-        GET_PAGE_ANONYMOUS("Get page anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS),
-        GET_PAGE_AUTHENTICATED("Get page authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED),
-        REMOVE_WATCHLIST("Remove watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST),
-        UPDATE_PAGE("Update page", WikipediaConstants.FREQUENCY_UPDATE_PAGE);
+        ADD_WATCHLIST("Add WatchList", WikipediaConstants.FREQUENCY_ADD_WATCHLIST),
+        GET_PAGE_ANONYMOUS("Get Page Anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS),
+        GET_PAGE_AUTHENTICATED("Get Page Authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED),
+        REMOVE_WATCHLIST("Remove Watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST),
+        UPDATE_PAGE("Update Page", WikipediaConstants.FREQUENCY_UPDATE_PAGE);
 
         /**
          * Constructor
@@ -162,6 +162,46 @@ public class WikipediaClient extends BenchmarkComponent {
         // if (force != null) return (force);
         return this.txnWeights.nextValue();
     }
+    
+    @Override
+    public void startCallback() {
+        Client client = this.getClientHandle();
+        ClientResponse cr = null;
+        try {
+            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to get pages info", ex);
+        }
+        assert(cr != null);
+        assert(cr.getStatus() == Status.OK);
+        
+        // Execute GetArticles stored procedure and get back the list
+        // of pageIds and pageTitles.
+        // Build a HashMap<Long, String[]> that gives you the pageTitle for a pageId
+        // Where first element is namespace, second is title
+        VoltTable res[] = cr.getResults();
+        VoltTable vt = res[0];
+        //LOG.info("vt:\n"+ vt);
+        while (vt.advanceRow()) {
+            long page_id = vt.getLong(0);
+            long namespace = vt.getLong(1);
+            String title = vt.getString(2);
+            Object data[] = { namespace, title};
+            if (!m_titleMap.containsKey(page_id)) {
+                m_titleMap.put(page_id, data);
+            } else {
+                assert(true):"There should not have duplicate page_ids";
+            }
+        } // WHILE
+        double m_scalefactor = 1.0;
+        int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
+        //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
+        this.z_users = new Flat(this.randGenerator, 1, num_users);
+        this.z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
+        assert(z_users!=null && z_pages!=null):"null users or pages";
+        
+        
+    }
  
     /**
      * Benchmark execution loop
@@ -169,39 +209,7 @@ public class WikipediaClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
         LOG.info("Starting runLoop()");
-        final Client client = this.getClientHandle();
-        
-        ClientResponse cr = null;
-        try {
-            cr = client.callProcedure(GetPagesInfo.class.getSimpleName());
-
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to get pages info", ex);
-        }
-        assert(cr != null);
-        assert(cr.getStatus() == Status.OK);
-        
-        
-        // TODO(xin):
-        // Execute GetArticles stored procedure and get back the list
-        // of pageIds and pageTitles.
-        // Build a HashMap<Long, String[]> that gives you the pageTitle for a pageId
-        // Where first element is namespace, second is title
-        VoltTable res[] = cr.getResults();
-        VoltTable vt = res[0];
-        
-        while (vt.advanceRow()) {
-            long page_id = vt.getLong(0);
-            long namespace = vt.getLong(1);
-            String title = vt.getString(2);
-            Object data[] = { namespace, title}; 
-            if (!m_titleMap.containsKey(page_id)) {
-                m_titleMap.put(page_id, data);
-            } else {
-                assert(false):"There should not have duplicate page_ids";
-            }
-        }
-        
+        Client client = this.getClientHandle();
         try {
             while (true) {
                 // Figure out what page they're going to update
@@ -216,28 +224,18 @@ public class WikipediaClient extends BenchmarkComponent {
     @Override
 	protected boolean runOnce() throws IOException {
         
-        LOG.info("RunOnce started...");
-        if(z_users == null || z_pages == null) {
-            double m_scalefactor = 1.0;
-            int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
-            //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
-            this.z_users = new Flat(this.randGenerator, 1, num_users);
-            this.z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
-            
-        }
+        //LOG.info("RunOnce started...");
         
-        assert(z_users!=null && z_pages!=null):"null users or pages";
-//        int user_id = this.z_users.nextInt();
-//        int page_id = this.z_pages.nextInt();
-        int user_id = 2;
-        int page_id = 2;
-        
-        final Transaction target = this.selectTransaction();
+        int user_id = this.z_users.nextInt();
+        int page_id = this.z_pages.nextInt();
+        Transaction target = this.selectTransaction();
 
         this.startComputeTime(target.displayName);
+        //LOG.info("Generate params:" + target + ", user_id:" + user_id + ", page_id:" + page_id);
         Object params[] = this.generateParams(target, user_id, page_id);
-        LOG.info("Get params for Stored procedure" + target + ", params are:" + params);
+        
         this.stopComputeTime(target.displayName);
+        LOG.info("Stored procedure:" + target.callName + ", params:" + params);
         boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
 
         LOG.info("Executing txn " + target);
@@ -262,10 +260,12 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 
     protected Object[] generateParams(Transaction txn, int user_id, int page_id) throws VoltAbortException {
-        
-        Object data[] = m_titleMap.get(page_id);
+        assert(m_titleMap.containsKey((long)page_id)):"m_titleMap should contain page_id:" + page_id;
+        Object data[] = m_titleMap.get((long)page_id);
+        assert(data != null):"data should not be null";
+        //LOG.info("data [0]:" + data[0] + ", data[1]:" +data[1]);
         Object params[] = null;
-        assert(data == null);
+        
         switch (txn) {
             // AddWatchList
             case ADD_WATCHLIST:    
@@ -284,17 +284,20 @@ public class WikipediaClient extends BenchmarkComponent {
                 break;
             case UPDATE_PAGE:
                 params = new Object[]{
+                        this.nextRevId,
+                        page_id,
+                        data[0],
+                        data[1],
                         this.generateUserIP(),
                         user_id, 
                         data[0], 
-                        data[1]
+                        
                 };
                 break;
             case GET_PAGE_ANONYMOUS:
                 params = new Object[]{
                         true,
                         this.generateUserIP(),
-                        user_id, 
                         data[0], 
                         data[1]
                 };
@@ -309,8 +312,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 };
                 break;
              default:
-                 assert(false):"Should not come to this point";
-                 break;
+                 assert(true):"Should not come to this point";
         }
         assert(params != null);
         return params;
