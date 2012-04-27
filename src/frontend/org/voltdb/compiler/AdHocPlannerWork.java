@@ -17,11 +17,18 @@
 
 package org.voltdb.compiler;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
+
 public class AdHocPlannerWork extends AsyncCompilerWork {
     private static final long serialVersionUID = -6567283432846270119L;
 
+    LocalTransaction ts = null;
     String sql = null;
 
+    public AdHocPlannerWork(LocalTransaction ts) {
+        this.ts = ts;
+    }
+    
     @Override
     public String toString() {
         String retval = super.toString();

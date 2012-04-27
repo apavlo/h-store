@@ -19,15 +19,22 @@ package org.voltdb.compiler;
 
 import java.io.Serializable;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
+
 public class AsyncCompilerResult implements Serializable {
     private static final long serialVersionUID = -1538141431615585812L;
 
+    public LocalTransaction ts;
     public long clientHandle = -1;
     public String errorMsg = null;
     public long connectionId = -1;
     public String hostname = "";
     public int expectedCatalogVersion = -1;
     transient public Object clientData = null;
+    
+    public AsyncCompilerResult(LocalTransaction ts) {
+        this.ts = ts;
+    }
 
     @Override
     public String toString() {
