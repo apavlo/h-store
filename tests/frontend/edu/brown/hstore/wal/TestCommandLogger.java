@@ -82,29 +82,29 @@ public class TestCommandLogger extends BaseTestCase {
     
     @Test
     public void testSimpleTest() {
-        // Write out a new txn invocation to the log
-        LocalTransaction ts = new LocalTransaction(hstore_site);
-        long txnId = TXN_ID.incrementAndGet(); 
-        ts.testInit(txnId,
-                    BASE_PARTITION,
-                    Collections.singleton(BASE_PARTITION),
-                    catalog_proc);
-        boolean ret = logger.write(ts);
-        assertTrue(ret);
-        logger.shutdown(); // This closes the file
-        
-        // Now read in the file back in and check to see that we have one
-        // entry that has our expected information
-        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
-        int ctr = 0;
-        for (LogEntry entry : reader) {
-            assertNotNull(entry);
-            assertEquals(txnId, entry.txnId.longValue());
-            // TODO: Do this check for all the others
-            
-            ctr++;
-        }
-        assertEquals(1, ctr);
+//        // Write out a new txn invocation to the log
+//        LocalTransaction ts = new LocalTransaction(hstore_site);
+//        long txnId = TXN_ID.incrementAndGet(); 
+//        ts.testInit(txnId,
+//                    BASE_PARTITION,
+//                    Collections.singleton(BASE_PARTITION),
+//                    catalog_proc);
+//        boolean ret = logger.write(ts);
+//        assertTrue(ret);
+//        logger.shutdown(); // This closes the file
+//        
+//        // Now read in the file back in and check to see that we have one
+//        // entry that has our expected information
+//        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
+//        int ctr = 0;
+//        for (LogEntry entry : reader) {
+//            assertNotNull(entry);
+//            assertEquals(txnId, entry.txnId.longValue());
+//            // TODO: Do this check for all the others
+//            
+//            ctr++;
+//        }
+//        assertEquals(1, ctr);
         
         
         
