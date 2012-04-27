@@ -86,6 +86,9 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("SingleProjection",
                                   "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
             
+            this.addStmtProcedure("NonPartitioningProjection",
+                                  "SELECT TABLEA.A_ID FROM TABLEA WHERE TABLEA.A_VALUE0 = ?");
+            
             this.addStmtProcedure("JoinProjection",
                                   "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 " +
                                   "FROM TABLEA, TABLEB " +
@@ -378,6 +381,17 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Collection<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
         assertEquals(0, proj_nodes.size());
     }
+    
+     /**
+      * testNonPartitioningProjection
+      */
+     @Test
+     public void testNonPartitioningProjection() throws Exception {   
+         Procedure catalog_proc = this.getProcedure("NonPartitioningProjection");
+         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+         this.check(catalog_stmt);
+     }
+    
 
     /**
      * testJoinProjection
