@@ -376,7 +376,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final PartitionExecutorQueue work_queue = new PartitionExecutorQueue();
     
-    
     /**
      * This is the queue for work deferred .
      */

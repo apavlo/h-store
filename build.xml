@@ -922,7 +922,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -930,7 +929,6 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
                 
                 <!-- Tests that use too much memory -->
@@ -1022,7 +1020,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -1030,9 +1027,8 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
                 <exclude name="**/TestPrefetchableSuite.class" />
-                
+
                 <!-- Tests that use too much memory -->
                 <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
