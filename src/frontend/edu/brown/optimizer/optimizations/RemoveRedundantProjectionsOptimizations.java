@@ -172,13 +172,19 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                         new_root = element.getChild(0);
                         if (debug.get())
                             LOG.debug("PLANOPT - Promoted " + new_root + " as the new query plan root!");
+                    } else {
+                        AbstractPlanNode parent = element.getParent(0);
+                        assert(parent != null);
+                        for (AbstractPlanNode child : element.getChildren()) {
+                            parent.addAndLinkChild(child);
+                        } // FOR
                     }
 
                     // Off with it's head!
-                    element.removeFromGraph();
-                    modified.set(true);
                     if (debug.get())
                         LOG.debug("PLANOPT - Removed redundant " + element + " from query plan!");
+                    element.removeFromGraph();
+                    modified.set(true);
                 }
             }
         }.traverse(rootNode);
