@@ -43,14 +43,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
@@ -59,15 +57,12 @@ import org.voltdb.catalog.Site;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
-import org.voltdb.compiler.CatalogChangeResult;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.network.Connection;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTimeUpdater;
-import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -1055,60 +1050,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
         else if (sysproc) {
-            // For now we'll just run the sysproc on a random partition at this site
-            
-            // HACK: Check if we should shutdown. This allows us to kill things even if the
-            // DTXN coordinator is stuck.
-            // TODO: Execute as a regular transaction
-            if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
-                FastSerializer fs = new FastSerializer();
-                try {
-                    fs.writeObject(cresponse);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                done.run(fs.getBytes());
-
-                // Non-blocking....
-                Exception error = new Exception("Shutdown command received at " + this.getSiteName());
-                this.hstore_coordinator.shutdownCluster(error);
+            // If this method returns true, then we want to halt processing the
+            // request any further and immediately return
+            if (this.processSysProc(request, catalog_proc, done)) {
                 return;
             }
-            
-            // Check for AdHoc 
-            // new for AdHoc start **********************************************************************
-            if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
-            	// TODO: check that variable 'request' in this func. is same as 'task' in ClientInterface.handleRead()
-            	request.buildParameterSet();
-                if (request.getParams().toArray().length != 1) {
-                    final ClientResponseImpl errorResponse =
-                        new ClientResponseImpl(-1, request.getClientHandle(), -1,
-                                               Hstoreservice.Status.ABORT_UNEXPECTED,
-                                               new VoltTable[0],
-                                               "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
-                    //TODO: write error message to client
-                    //c.writeStream().enqueue(errorResponse);
-                    return;
-                }
-                String sql = (String) request.getParams().toArray()[0];
-//                m_asyncCompilerWorkThread.planSQL(
-//                                                  sql,
-//                                                  request.getClientHandle(),
-//                                                  handler.connectionId(),
-//                                                  handler.m_hostname,
-//                                                  handler.sequenceId(),
-//                                                  c);
-                asyncCompilerWork_thread.planSQL(
-									              sql,
-									              this,//TODO: is this the client handle?
-									              this.site_id,
-									              this.site_name,
-									              0,//TODO: what is this supposed to be?
-									              null);//TODO: same question
-                return;
-            }
-            // new for AdHoc end **********************************************************************            
         }
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         else if (hstore_conf.site.exec_force_localexecution == false) {
@@ -1321,7 +1267,82 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.dispatchInvocation(ts);
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
         		         "Returning back to listen on incoming socket");
+    }
+    
+    /**
+     * Special handling for incoming sysproc requests
+     * @param request
+     * @param catalog_proc
+     * @param done
+     * @return True if this request was handled and the caller does not need to do anything further
+     */
+    private boolean processSysProc(StoredProcedureInvocation request, Procedure catalog_proc, RpcCallback<byte[]> done) {
+        // HACK: Check if we should shutdown. This allows us to kill things even if the
+        // DTXN coordinator is stuck.
+        // TODO: Execute as a regular transaction
+        if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
+            ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
+            FastSerializer fs = new FastSerializer();
+            try {
+                fs.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            done.run(fs.getBytes());
+
+            // Non-blocking....
+            Exception error = new Exception("Shutdown command received at " + this.getSiteName());
+            this.hstore_coordinator.shutdownCluster(error);
+            return (true);
+        }
         
+        // Check for AdHoc 
+        // new for AdHoc start **********************************************************************
+        if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+            // Check that variable 'request' in this func. is same as 
+            // 'task' in ClientInterface.handleRead()
+            if (request.getParams().toArray().length != 1) {
+                final ClientResponseImpl errorResponse =
+                    new ClientResponseImpl(-1, request.getClientHandle(), -1,
+                                           Status.ABORT_GRACEFUL,
+                                           HStoreConstants.EMPTY_RESULT,
+                                           "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
+                FastSerializer fs = new FastSerializer();
+                try {
+                    fs.writeObject(errorResponse);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                done.run(fs.getBytes());
+                return (true);
+            }
+            
+            // Create a LocalTransaction handle that will carry into the
+            // the adhoc compiler. Since we don't know what this thing will do, we have
+            // to assume that it needs to touch all partitions.
+            int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
+            int base_partition = this.local_partitions_arr[idx].intValue();
+            
+            LocalTransaction ts = null;
+            try {
+                ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
+                assert (ts.isInitialized() == false);
+            } catch (Throwable ex) {
+                LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn",
+                                        request.getProcName()));
+                throw new RuntimeException(ex);
+            }
+            ts = ts.init(-1l, request.getClientHandle(), base_partition,
+                         this.all_partitions, false, true,
+                         catalog_proc, request, done);
+            
+            String sql = (String) request.getParams().toArray()[0];
+            this.asyncCompilerWork_thread.planSQL(ts, sql);
+            return (true);
+        }
+        // new for AdHoc end **********************************************************************
+        
+        return (false);
     }
 
     /**

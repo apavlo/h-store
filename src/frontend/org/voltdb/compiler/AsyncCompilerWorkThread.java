@@ -34,6 +34,8 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.VoltLoggerFactory;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
 
 public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable {
 
@@ -104,7 +106,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     }
 
     public void shutdown() {
-        AdHocPlannerWork work = new AdHocPlannerWork();
+        AdHocPlannerWork work = new AdHocPlannerWork(null);
         work.shouldShutdown = true;
         m_work.add(work);
     }
@@ -120,54 +122,23 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     /**
      *
      * @param sql
-     * @param clientHandle Handle provided by the client application (not ClientInterface)
+     * @param clientHandle Handle provided by the client application (not ClientInterface) HStoreSite?
      * @param connectionId
      * @param hostname Hostname of the other end of the connection
      * @param sequenceNumber
      * @param clientData Data supplied by ClientInterface (typically a VoltPort) that will be in the PlannedStmt produced later.
      */
-    public void planSQL(
-            String sql,
-            long clientHandle,
-            long connectionId,
-            String hostname,
-            int sequenceNumber,
-            Object clientData) {
-
-        AdHocPlannerWork work = new AdHocPlannerWork();
-        work.clientHandle = clientHandle;
-        work.sql = sql;
-        work.connectionId = connectionId;
-        work.hostname = hostname;
-        work.sequenceNumber = sequenceNumber;
-        work.clientData = clientData;
-        m_work.add(work);
-    }
-
-    /**
-    *
-    * @param sql
-    * @param clientHandle Handle provided by the client application (not ClientInterface) HStoreSite?
-    * @param connectionId
-    * @param hostname Hostname of the other end of the connection
-    * @param sequenceNumber
-    * @param clientData Data supplied by ClientInterface (typically a VoltPort) that will be in the PlannedStmt produced later.
-    */
    public void planSQL(
-           String sql,
-           HStoreSite clientHandle, //TODO: I'm not sure this is right
-           long connectionId,
-           String hostname,
-           int sequenceNumber,
-           Object clientData) {
+           LocalTransaction ts,
+           String sql) {
 
-       AdHocPlannerWork work = new AdHocPlannerWork();
-       work.clientHandle = clientHandle.getSiteId();//TODO: I'm not sure this is right
+       AdHocPlannerWork work = new AdHocPlannerWork(ts);
+       work.clientHandle = ts.getClientHandle();
        work.sql = sql;
-       work.connectionId = connectionId;
-       work.hostname = hostname;
-       work.sequenceNumber = sequenceNumber;
-       work.clientData = clientData;
+//       work.connectionId = connectionId;
+//       work.hostname = hostname;
+//       work.sequenceNumber = sequenceNumber;
+//       work.clientData = clientData;
        m_work.add(work);
    }
     
@@ -180,10 +151,10 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
             Object clientData) {
         CatalogChangeWork work = new CatalogChangeWork();
         work.clientHandle = clientHandle;
-        work.connectionId = connectionId;
-        work.hostname = hostname;
-        work.sequenceNumber = sequenceNumber;
-        work.clientData = clientData;
+//        work.connectionId = connectionId;
+//        work.hostname = hostname;
+//        work.sequenceNumber = sequenceNumber;
+//        work.clientData = clientData;
         work.catalogURL = catalogURL;
         m_work.add(work);
     }
@@ -249,7 +220,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     @Override
     public void goDumpYourself(long timestamp) {
         m_currentDumpTimestamp = timestamp;
-        AdHocPlannerWork work = new AdHocPlannerWork();
+        AdHocPlannerWork work = new AdHocPlannerWork(null);
         work.shouldDump = true;
         m_work.add(work);
 
@@ -287,11 +258,11 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     }
 
     private AsyncCompilerResult compileAdHocPlan(AdHocPlannerWork work) {
-        AdHocPlannedStmt plannedStmt = new AdHocPlannedStmt();
+        AdHocPlannedStmt plannedStmt = new AdHocPlannedStmt(work.ts);
         plannedStmt.clientHandle = work.clientHandle;
-        plannedStmt.connectionId = work.connectionId;
-        plannedStmt.hostname = work.hostname;
-        plannedStmt.clientData = work.clientData;
+//        plannedStmt.connectionId = work.connectionId;
+//        plannedStmt.hostname = work.hostname;
+//        plannedStmt.clientData = work.clientData;
 
         try {
             ensureLoadedPlanner();
@@ -315,10 +286,10 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     private AsyncCompilerResult prepareApplicationCatalogDiff(CatalogChangeWork work) {
         // create the change result and set up all the boiler plate
         CatalogChangeResult retval = new CatalogChangeResult();
-        retval.clientData = work.clientData;
+//        retval.clientData = work.clientData;
         retval.clientHandle = work.clientHandle;
-        retval.connectionId = work.connectionId;
-        retval.hostname = work.hostname;
+//        retval.connectionId = work.connectionId;
+//        retval.hostname = work.hostname;
 
         // catalog change specific boiler plate
         retval.catalogURL = work.catalogURL;
