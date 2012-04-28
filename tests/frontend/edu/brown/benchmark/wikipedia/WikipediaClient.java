@@ -28,7 +28,6 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
@@ -50,7 +49,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final int num_users;
 	private Random randGenerator = new Random();
 	private long nextRevId;
-	public HashMap<Integer, Object[]> m_titleMap = new HashMap<Integer, Object[]>();
+	public static HashMap<Integer, Object[]> m_titleMap = new HashMap<Integer, Object[]>();
 	public Flat z_users = null;
 	public Zipf z_pages = null;
 	
@@ -201,8 +200,8 @@ public class WikipediaClient extends BenchmarkComponent {
             int namespace = (int) vt.getLong(1);
             String title = vt.getString(2);
             Object data[] = { namespace, title};
-            if (!m_titleMap.containsKey(page_id)) {
-                m_titleMap.put(page_id, data);
+            if (!WikipediaClient.m_titleMap.containsKey(page_id)) {
+                WikipediaClient.m_titleMap.put(page_id, data);
             } else {
                 assert(true):"There should not have duplicate page_ids";
             }
@@ -211,7 +210,7 @@ public class WikipediaClient extends BenchmarkComponent {
         int num_users = (int) Math.round(WikipediaConstants.USERS * m_scalefactor);
         //int num_pages = (int) Math.round(WikipediaConstants.PAGES * m_scalefactor);
         this.z_users = new Flat(this.randGenerator, 1, num_users);
-        this.z_pages = new Zipf(this.randGenerator, 1, m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
+        this.z_pages = new Zipf(this.randGenerator, 1, WikipediaClient.m_titleMap.size(), WikipediaConstants.USER_ID_SIGMA);
         assert(z_users!=null && z_pages!=null):"null users or pages";
         
         
@@ -274,8 +273,8 @@ public class WikipediaClient extends BenchmarkComponent {
     }
 
     protected Object[] generateParams(Transaction txn, int user_id, int page_id) throws VoltAbortException {
-        assert(m_titleMap.containsKey(page_id)):"m_titleMap should contain page_id:" + page_id;
-        Object data[] = m_titleMap.get(page_id);
+        assert(WikipediaClient.m_titleMap.containsKey(page_id)):"m_titleMap should contain page_id:" + page_id;
+        Object data[] = WikipediaClient.m_titleMap.get(page_id);
         assert(data != null):"data should not be null";
         //LOG.info("data [0]:" + data[0] + ", data[1]:" +data[1]);
         Object params[] = null;
