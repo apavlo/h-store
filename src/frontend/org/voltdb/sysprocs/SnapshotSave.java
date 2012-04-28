@@ -30,8 +30,10 @@ import org.voltdb.client.ConnectionUtil;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
@@ -169,10 +171,9 @@ public class SnapshotSave extends VoltSystemProcedure
             VoltTable result = constructNodeResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+            Host catalog_host = context.getHost();
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+            Integer lowest_site_id = catalog_site.getId();
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 LOG.trace("Checking feasibility of save with path and nonce: "
@@ -221,7 +222,7 @@ public class SnapshotSave extends VoltSystemProcedure
                             "RESULTED IN IOException: " + ex.getMessage();
                         }
                     }
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+                    result.addRow(catalog_host.getId(),
                                   hostname,
                                   table.getTypeName(),
                                   file_valid,
@@ -286,6 +287,7 @@ public class SnapshotSave extends VoltSystemProcedure
         // See if we think the save will succeed
         VoltTable[] results;
         results = performSaveFeasibilityWork(path, nonce);
+        LOG.info("performSaveFeasibilityWork Results:\n" + results);
 
         // Test feasibility results for fail
         while (results[0].advanceRow())

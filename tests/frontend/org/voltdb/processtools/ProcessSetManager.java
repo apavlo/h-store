@@ -55,6 +55,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.interfaces.Shutdownable;
 
@@ -334,6 +335,8 @@ public class ProcessSetManager implements Shutdownable {
     }
 
     public void startProcess(String processName, String[] cmd) {
+        if (debug.get()) LOG.debug("Starting Process: " + StringUtil.join(" ", cmd));
+        
         ProcessBuilder pb = new ProcessBuilder(cmd);
         ProcessData pd = new ProcessData();
         try {

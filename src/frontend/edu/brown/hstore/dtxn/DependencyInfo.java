@@ -311,7 +311,7 @@ public class DependencyInfo implements Poolable {
         m.put("  Blocked", this.blockedTasks);
         m.put("  Status", status);
 
-        return String.format("DependencyInfo[#%d]\n%s", this.dependency_id, StringUtil.formatMaps(m));
+        return String.format("DependencyInfo[#%d]\n%s", this.dependency_id, StringUtil.formatMaps(m).trim());
     }
 
 }

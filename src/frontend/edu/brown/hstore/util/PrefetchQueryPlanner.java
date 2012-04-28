@@ -35,8 +35,8 @@ import edu.brown.utils.StringUtil;
  * @author pavlo
  * @author cjl6
  */
-public class QueryPrefetchPlanner implements Loggable {
-    private static final Logger LOG = Logger.getLogger(QueryPrefetchPlanner.class);
+public class PrefetchQueryPlanner implements Loggable {
+    private static final Logger LOG = Logger.getLogger(PrefetchQueryPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -51,11 +51,11 @@ public class QueryPrefetchPlanner implements Loggable {
     private final FastSerializer fs = new FastSerializer(); // TODO: Use pooled memory
 
     /**
-     * Contructor
+     * Constructor
      * @param catalog_db
      * @param p_estimator
      */
-    public QueryPrefetchPlanner(Database catalog_db, PartitionEstimator p_estimator) {
+    public PrefetchQueryPlanner(Database catalog_db, PartitionEstimator p_estimator) {
         // this.catalog_db = catalog_db;
         this.num_sites = CatalogUtil.getNumberOfSites(catalog_db);
         this.touched_sites = new BitSet(this.num_sites);
@@ -65,11 +65,11 @@ public class QueryPrefetchPlanner implements Loggable {
         // handles that we will want to prefetch for each Procedure
         List<SQLStmt> prefetchStmts = new ArrayList<SQLStmt>();
         for (Procedure catalog_proc : catalog_db.getProcedures().values()) {
-            if (catalog_proc.getPrefetch() == false) continue;
+            if (catalog_proc.getPrefetchable() == false) continue;
             
             prefetchStmts.clear();
             for (Statement catalog_stmt : catalog_proc.getStatements().values()) {
-                if (catalog_stmt.getPrefetch() == false) continue;
+                if (catalog_stmt.getPrefetchable() == false) continue;
                 // Make sure that all of this Statement's input parameters
                 // are mapped to one of the Procedure's ProcParameter
                 boolean valid = true;
@@ -93,7 +93,7 @@ public class QueryPrefetchPlanner implements Loggable {
                                                          catalog_proc.getName(), prefetchStmts));
             } else {
                 LOG.warn("There are no prefetchable Statements available for " + catalog_proc);
-                catalog_proc.setPrefetch(false);
+                catalog_proc.setPrefetchable(false);
             }
         } // FOR (procedure)
 
@@ -185,7 +185,7 @@ public class QueryPrefetchPlanner implements Loggable {
                                             .setBasePartition(ts.getBasePartition())
                                             .addAllPartitions(ts.getPredictTouchedPartitions());
                 for (ByteString bs : prefetchParamsSerialized) {
-                    builders[site_id].addPrefetchParameterSets(bs);
+                    builders[site_id].addPrefetchParams(bs);
                 } // FOR
             }
             builders[site_id].addPrefetchFragments(frag);

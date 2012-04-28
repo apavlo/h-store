@@ -112,6 +112,7 @@ public abstract class VoltServerConfig {
     {
         this.setConfParameter("site.coordinator_sync_time", false);
         this.setConfParameter("site.preload", false);
+        this.setConfParameter("site.status_enable", false);
     }
     
     public final void setTestNameSuffix(String suffix) {
@@ -128,5 +129,6 @@ public abstract class VoltServerConfig {
         assert(HStoreConf.isConfParameter(name)) :
             "Invalid HStoreConf parameter '" + name + "'";
         this.confParams.put(name, (value != null ? value.toString() : null));
+        HStoreConf.singleton(true).set(name, value);
     }
 }

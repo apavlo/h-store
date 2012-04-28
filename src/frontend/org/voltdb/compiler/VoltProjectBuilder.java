@@ -70,6 +70,8 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.hstore.interfaces.Deferrable;
+import edu.brown.hstore.interfaces.Prefetchable;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
@@ -212,9 +214,18 @@ public class VoltProjectBuilder {
     final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
     /**
+     * Prefetchable Queries
      * ProcedureName -> StatementName
+     * @see Prefetchable
      */
     private final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
+
+    /**
+     * Deferrable Queries
+     * ProcedureName -> StatementName
+     * @see Deferrable
+     */
+    private final HashMap<String, Set<String>> m_deferQueries = new HashMap<String, Set<String>>();
     
     /**
      * File containing ParameterMappingsSet
@@ -376,7 +387,8 @@ public class VoltProjectBuilder {
         m_procInfoOverrides.remove(procInfo.name);
         m_prefetchQueries.remove(procInfo.name);
         m_paramMappings.remove(procInfo.name);
-        LOG.info("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
+        if (LOG.isDebugEnabled())
+            LOG.debug("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
     }
     
     /**
@@ -384,7 +396,7 @@ public class VoltProjectBuilder {
      * populate the Catalog after it has been created.
      * @param mappingsFile
      */
-    public void setParameterMappings(File mappingsFile) {
+    public void addParameterMappings(File mappingsFile) {
         assert(mappingsFile != null) :
             "Invalid ParameterMappingsSet file";
         assert(mappingsFile.exists()) :
@@ -420,6 +432,10 @@ public class VoltProjectBuilder {
         m.put(procParamIdx, stmtPair);
     }
     
+    // -------------------------------------------------------------------
+    // PREFETCHABLE
+    // -------------------------------------------------------------------
+    
     /**
      * Mark a Statement as prefetchable
      * @param procedureName
@@ -442,6 +458,37 @@ public class VoltProjectBuilder {
         }
         stmtNames.add(statementName);
     }
+    
+    // -------------------------------------------------------------------
+    // DEFERRABLE
+    // -------------------------------------------------------------------
+    
+    /**
+     * Mark a Statement as deferrable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementDeferrable(Class<? extends VoltProcedure> procedureClass, String statementName) {
+        this.markStatementDeferrable(procedureClass.getSimpleName(), statementName);
+    }
+
+    /**
+     * Mark a Statement as deferrable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementDeferrable(String procedureName, String statementName) {
+        Set<String> stmtNames = m_deferQueries.get(procedureName);
+        if (stmtNames == null) {
+            stmtNames = new HashSet<String>();
+            m_deferQueries.put(procedureName, stmtNames);
+        }
+        stmtNames.add(statementName);
+    }
+    
+    // -------------------------------------------------------------------
+    // SINGLE-STATEMENT PROCEDURES
+    // -------------------------------------------------------------------
     
     /**
      * Create a single statement procedure that only has one query
@@ -882,8 +929,13 @@ public class VoltProjectBuilder {
             
             // HACK: Prefetchable Statements
             if (m_prefetchQueries.containsKey(procedure.cls.getSimpleName())) {
-                Set<String> stmtNames = m_prefetchQueries.get(procedure.cls.getSimpleName());
+                Collection<String> stmtNames = m_prefetchQueries.get(procedure.cls.getSimpleName());
                 proc.setAttribute("prefetchable", StringUtil.join(",", stmtNames));
+            }
+            // HACK: Deferrable Statements
+            if (m_deferQueries.containsKey(procedure.cls.getSimpleName())) {
+                Collection<String> stmtNames = m_deferQueries.get(procedure.cls.getSimpleName());
+                proc.setAttribute("deferrable", StringUtil.join(",", stmtNames));
             }
             
             procedures.appendChild(proc);

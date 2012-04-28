@@ -73,7 +73,7 @@ public class SysProcFragmentId
     // @LoadMultipartitionTable
     public static final int PF_loadDistribute = 50;
     public static final int PF_loadAggregate = 51;
-
+    
     // @SnapshotRestore
     public static final int PF_restoreScan = 60;
     public static final int PF_restoreScanResults = 61;
@@ -127,6 +127,12 @@ public class SysProcFragmentId
     // @RecomputeMarkovs
     public static final int PF_recomputeMarkovsDistribute = 180;
     public static final int PF_recomputeMarkovsAggregate = 181;
+
+    // @GarbageCollection
+    public static final int PF_gcDistribute = 185;
+    public static final int PF_gcAggregate = 186;
     
+    // @ExecutorStatus
+    public static final int PF_execStatus = 190;
     
 }

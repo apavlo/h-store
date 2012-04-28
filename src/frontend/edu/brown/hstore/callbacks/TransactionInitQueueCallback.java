@@ -37,6 +37,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
     private TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     private final boolean prefetch; 
+    private final FastDeserializer fd = new FastDeserializer(new byte[0]);
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
@@ -121,9 +122,9 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                     int num_parameters = rawParams.size();
                     ParameterSet params[] = new ParameterSet[num_parameters]; 
                     for (int i = 0; i < params.length; i++) {
+                        this.fd.setBuffer(rawParams.get(i).asReadOnlyByteBuffer());
                         try {
-                            params[i] = FastDeserializer.deserialize(rawParams.get(i).asReadOnlyByteBuffer(),
-                                                                     ParameterSet.class);
+                            params[i] = this.fd.readObject(ParameterSet.class);
                         } catch (IOException ex) {
                             String msg = "Failed to deserialize pre-fetch ParameterSet at offset #" + i;
                             throw new ServerFaultException(msg, ex, this.txn_id);
@@ -134,8 +135,7 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
                     // Go through all the prefetch WorkFragments and send them off to 
                     // the right PartitionExecutor at this HStoreSite.
                     for (WorkFragment frag : ts.getPrefetchFragments()) {
-                        // XXX: We want to skip any WorkFragments for this txn's
-                        // base partition.
+                        // XXX: We want to skip any WorkFragments for this txn's base partition.
                         if (frag.getPartitionId() != ts.getBasePartition())
                             hstore_site.transactionWork(ts, frag);
                     } // FOR

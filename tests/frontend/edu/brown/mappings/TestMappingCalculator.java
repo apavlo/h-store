@@ -118,7 +118,7 @@ public class TestMappingCalculator extends BaseTestCase {
         assertNotNull(procc);
 //         System.err.println(xact_trace.debug(catalog_db));
         
-        Statement catalog_stmt = this.catalog_proc.getStatements().get("getStockInfo01");
+        Statement catalog_stmt = this.catalog_proc.getStatements().get("getStockInfo");
         assertNotNull(catalog_stmt);
         
         double threshold = 1.0d;

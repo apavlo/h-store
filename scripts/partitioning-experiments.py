@@ -102,7 +102,7 @@ OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
-OPT_BASE_SCALE_FACTOR = float(0.1)
+OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
@@ -235,6 +235,8 @@ OPT_BREAKDOWNS = [ "norouting", "noindexes", "full" ]
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     global OPT_BASE_TXNRATE_PER_PARTITION
+  
+    env["client.scalefactor"] = float(OPT_BASE_SCALE_FACTOR * env["site.partitions"])
   
     ## ----------------------------------------------
     ## MOTIVATION
@@ -415,6 +417,12 @@ if __name__ == '__main__':
         "clear-logs",
         "trace",
         
+        "statsdatabase-url=",
+        "statsdatabase-user=",
+        "statsdatabase-pass=",
+        "statsdatabase-jdbc=",
+        "statsdatabase-tag=",
+        
         "codespeed-url=",
         "codespeed-benchmark=",
         "codespeed-revision=",
@@ -554,6 +562,15 @@ if __name__ == '__main__':
     if OPT_RETRY_ON_ZERO:
         env["hstore.exec_prefix"] += " -Dkillonzero=true"
     
+    # BenchmarkController Parameters
+    controllerParams = { }
+    statsParams = [ "URL", "JDBC", "Tag", "User", "Pass" ]
+    for key in statsParams:
+        optParam = "statsdatabase-%s" % key.lower()
+        if optParam in options and options[optParam][0]:
+            controllerParams["statsaDaktabase%s" % key] = options[optParam][0]
+    ## FOR
+    
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
@@ -667,7 +684,8 @@ if __name__ == '__main__':
                                                                     updateJar=updateJar, \
                                                                     updateConf=updateConf, \
                                                                     updateRepo=needUpdate, \
-                                                                    updateLog4j=needUpdate)
+                                                                    updateLog4j=needUpdate, \
+                                                                    extraParams=controllerParams)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
                                 for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:

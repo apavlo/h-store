@@ -14,6 +14,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AbstractOptimization;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
+import edu.brown.optimizer.optimizations.CombineOptimization;
 import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
 import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
 import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
@@ -68,6 +69,7 @@ public class PlanOptimizer {
             ProjectionPushdownOptimization.class,
             LimitOrderByPushdownOptimization.class,
             RemoveRedundantProjectionsOptimizations.class,
+            CombineOptimization.class,
     };
 
     // ----------------------------------------------------------------------------
@@ -130,8 +132,6 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-//         if (PlanNodeUtil.isDistributedQuery(root) &&
-//         if (sql.contains("SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), SUM(i_price), COUNT(*)")) {
 //             LOG.debug("LET 'ER RIP!");
 //         }
 

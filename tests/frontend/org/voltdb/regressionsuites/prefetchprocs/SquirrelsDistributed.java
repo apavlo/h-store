@@ -1,12 +1,15 @@
 package org.voltdb.regressionsuites.prefetchprocs;
 
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import edu.brown.utils.ThreadUtil;
-
-public class Squirrels extends VoltProcedure {
+@ProcInfo(
+    partitionInfo = "TABLEA.A_ID: 0",
+    singlePartition = false
+)
+public class SquirrelsDistributed extends VoltProcedure {
     
     public final SQLStmt getLocal = new SQLStmt(
         "SELECT * FROM TABLEA WHERE A_ID = ?"
@@ -20,13 +23,10 @@ public class Squirrels extends VoltProcedure {
         "UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?"
     );
     
-    public VoltTable[] run(long a_id, long sleep) {
+    public VoltTable[] run(long a_id) {
         voltQueueSQL(getLocal, a_id);
         final VoltTable a_results[] = voltExecuteSQL();
         assert(a_results.length == 1);
-        
-        // Force a delay
-        ThreadUtil.sleep(sleep);
         
         voltQueueSQL(getRemote, a_id);
         final VoltTable b_results[] = voltExecuteSQL();
