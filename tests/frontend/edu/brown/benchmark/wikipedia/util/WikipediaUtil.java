@@ -35,8 +35,11 @@ public final class WikipediaUtil {
     
 //    private static FlatHistogram<Integer> commentLength;
 //    private static FlatHistogram<Integer> minorEdit;
+	public static Random rand = new Random();
+    public static  FlatHistogram<Integer> commentLength = new FlatHistogram<Integer>(rand, RevisionHistograms.COMMENT_LENGTH);
+    public static FlatHistogram<Integer> minorEdit = new FlatHistogram<Integer>(rand, RevisionHistograms.MINOR_EDIT);
+    
 //    private static FlatHistogram<Integer> revisionDeltas[];
-//    private static Random randGenerator = new Random();
 
 	public WikipediaUtil(int userId, int nameSpace, String pageTitle) {
 		
@@ -60,8 +63,7 @@ public final class WikipediaUtil {
      */
     public static char[] generateRevisionText(char orig_text[]) {
         Random randGenerator = new Random();
-//        FlatHistogram<Integer> commentLength = new FlatHistogram<Integer>(randGenerator, RevisionHistograms.COMMENT_LENGTH);
-//        FlatHistogram<Integer> minorEdit = new FlatHistogram<Integer>(randGenerator, RevisionHistograms.MINOR_EDIT);
+       
         FlatHistogram<Integer> revisionDeltas[] = (FlatHistogram<Integer>[])new FlatHistogram [RevisionHistograms.REVISION_DELTA_SIZES.length];
         
         for (int i = 0; i < revisionDeltas.length; i++) {
