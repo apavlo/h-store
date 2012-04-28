@@ -25,6 +25,7 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -68,6 +69,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
         }
+        assertTrue(workload.getTransactionCount() > 0);
         
         // Setup everything else
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
@@ -89,8 +91,12 @@ public class TestAccessGraphGenerator extends BaseTestCase {
      * testConvertToSingleColumnEdges
      */
     public void testConvertToSingleColumnEdges() throws Exception {
+        System.err.println(CollectionUtil.first(workload.getTransactions()).debug(catalog_db));
         new AccessGraphGenerator(this.info, this.catalog_proc).generate(agraph);
+        System.err.println(agraph.debug());
+        System.err.println("==========================");
         agraph = AccessGraphGenerator.convertToSingleColumnEdges(catalog_db, agraph);
+
         
         // Make sure that there is at least one edge between DISTRICT and all other tables
         Table target = this.getTable("DISTRICT");
@@ -103,9 +109,12 @@ public class TestAccessGraphGenerator extends BaseTestCase {
             DesignerVertex v1 = agraph.getVertex(catalog_tbl);
             assertNotNull(v1);
             
-            Collection<DesignerEdge> edges =  agraph.findEdgeSet(v0, v1);
+            Collection<DesignerEdge> edges = agraph.findEdgeSet(v0, v1);
             assertNotNull(edges);
-            assertFalse(edges.isEmpty());
+            if (edges.isEmpty()) {
+                System.err.println(agraph.debug());
+            }
+            assertFalse(v0 + "<->" + v1, edges.isEmpty());
             
             for (DesignerEdge e : edges) {
                 ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);

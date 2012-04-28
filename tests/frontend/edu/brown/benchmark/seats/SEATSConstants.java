@@ -42,7 +42,7 @@ public abstract class SEATSConstants {
     public static final int FREQUENCY_NEW_RESERVATION           = 20;
     public static final int FREQUENCY_UPDATE_CUSTOMER           = 10;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 15;
-    
+
 //    public static final int FREQUENCY_DELETE_RESERVATION        = 0;
 //    public static final int FREQUENCY_FIND_FLIGHTS              = 0;
 //    public static final int FREQUENCY_FIND_OPEN_SEATS           = 100;
@@ -51,42 +51,7 @@ public abstract class SEATSConstants {
 //    public static final int FREQUENCY_UPDATE_RESERVATION        = 0;
 
     // ----------------------------------------------------------------
-    // ERRORS
-    // ----------------------------------------------------------------
-    
-    public enum ErrorType {
-        INVALID_FLIGHT_ID,
-        INVALID_CUSTOMER_ID,
-        NO_MORE_SEATS,
-        SEAT_ALREADY_RESERVED,
-        CUSTOMER_ALREADY_HAS_SEAT,
-        VALIDITY_ERROR,
-        UNKNOWN;
-        
-        private final String errorCode;
-        private final static Pattern p = Pattern.compile("^(USER ABORT:[\\s]+)?E([\\d]{4})");
-        
-        private ErrorType() {
-            this.errorCode = String.format("E%04d", this.ordinal());
-        }
-        
-        public static ErrorType getErrorType(String msg) {
-            Matcher m = p.matcher(msg);
-            if (m.find()) {
-                int idx = Integer.parseInt(m.group(2));
-                return ErrorType.values()[idx];
-            }
-            return (ErrorType.UNKNOWN);
-        }
-        @Override
-        public String toString() {
-            return this.errorCode;
-        }
-    }
-    
-    
-    // ----------------------------------------------------------------
-    // CONSTANTS
+    // FLIGHT CONSTANTS
     // ----------------------------------------------------------------
     
     /** 
@@ -95,68 +60,83 @@ public abstract class SEATSConstants {
      */
     public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
     
-    /** The number of days in the past that we will generate flight information for */
-    public static final int DAYS_PAST = 1;
-
-    /** The number of days in the future that we will generate flight information for */
-    public static final int DAYS_FUTURE = 365;
-    
-    /** Default number of customers in the database */
-    public static final int NUM_CUSTOMERS = 1000000;
+    /**
+     * The number of days in the past and future that we will generate flight information for
+     */
+    public static final int FLIGHTS_DAYS_PAST = 1;
+    public static final int FLIGHTS_DAYS_FUTURE = 50;
 
     /**
      * Average # of flights per day
      * NUM_FLIGHTS_PER_DAY = 15000
      * Source: http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time
      */
-    public static final int MIN_FLIGHTS_PER_DAY = 1125;
-    public static final int MAX_FLIGHTS_PER_DAY = 1875;
-    
-    /** Max Number of FREQUENT_FLYER records per CUSTOMER */ 
-    public static final int MAX_FREQUENTFLYER_PER_CUSTOMER = 5;
+    public static final int FLIGHTS_PER_DAY_MIN = 1125;
+    public static final int FLIGHTS_PER_DAY_MAX = 1875;
     
     /**
      * Number of seats available per flight
      * If you change this then you must also change FindOpenSeats
      */
-    public static final int NUM_SEATS_PER_FLIGHT = 150;
+    public static final int FLIGHTS_NUM_SEATS = 150;
     
     /**
-     * How many seats in the front of the plan are considered "first class"
-     * These seats will have a higher price.
+     * How many First Class seats are on a given flight
+     * These reservations are more expensive
      */
-    public static final int FIRST_CLASS_SEATS_OFFSET = 10;
+    public static final int FLIGHTS_FIRST_CLASS_OFFSET = 10;
+    
+    /**
+     * The rate in which a flight can travel between two airports (miles per hour)
+     */
+    public static final double FLIGHT_TRAVEL_RATE = 570.0; // Boeing 747
+    
+    // ----------------------------------------------------------------
+    // CUSTOMER CONSTANTS
+    // ----------------------------------------------------------------
+    
+    /**
+     * Default number of customers in the database
+     */
+    public static final int CUSTOMERS_COUNT = 100000;
+    
+    /**
+     * Max Number of FREQUENT_FLYER records per CUSTOMER
+     */ 
+    public static final int CUSTOMER_NUM_FREQUENTFLYERS_MIN = 0;
+    public static final int CUSTOMER_NUM_FREQUENTFLYERS_MAX = 10;
+    public static final double CUSTOMER_NUM_FREQUENTFLYERS_SIGMA = 2.0;
     
     /**
      * The maximum number of days that we allow a customer to wait before needing
      * a reservation on a return to their original departure airport
      */
-    public static final int MAX_RETURN_FLIGHT_DAYS = 14;   
+    public static final int CUSTOMER_RETURN_FLIGHT_DAYS_MIN = 1;
+    public static final int CUSTOMER_RETURN_FLIGHT_DAYS_MAX = 14;
+
+    // ----------------------------------------------------------------
+    // RESERVATION CONSTANTS
+    // ----------------------------------------------------------------
     
-    /** The rate in which a flight can travel between two airports (miles per hour) */
-    public static final double FLIGHT_TRAVEL_RATE = 570.0; // Boeing 747
+    public static final int RESERVATION_PRICE_MIN = 100;
+    public static final int RESERVATION_PRICE_MAX = 1000;
     
-    public static final int MIN_RESERVATION_PRICE = 100;
-    public static final int MAX_RESERVATION_PRICE = 1000;
+    public static final int MAX_OPEN_SEATS_PER_TXN = 100;
     
     // ----------------------------------------------------------------
     // PROBABILITIES
     // ----------------------------------------------------------------
     
-    /** Probability that a customer books a non-roundtrip flight (0% - 100%) */
+    /**
+     * Probability that a customer books a non-roundtrip flight (0% - 100%)
+     */
     public static final int PROB_SINGLE_FLIGHT_RESERVATION = 10;
     
     /**
      * Probability that a customer will invoke DeleteReservation using the string
      * version of their Customer Id (0% - 100%)
      */
-    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 10;
-
-    /**
-     * Probability that a customer will invoke DeleteReservation using the string
-     * version of their FrequentFlyer Id (0% - 100%)
-     */
-    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 10;
+    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 20;
     
     /**
      * Probability that a customer will invoke UpdateCustomer using the string
@@ -165,49 +145,73 @@ public abstract class SEATSConstants {
     public static final int PROB_UPDATE_WITH_CUSTOMER_ID_STR = 20;
     
     /**
-     * Probability that UpdateCustomer should update FrequentFlyer records (0% - 100%)
+     * Probability that a customer will invoke DeleteReservation using the string
+     * version of their FrequentFlyer Id (0% - 100%)
+     */
+    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
+    
+    /**
+     * Probability that is a seat is initially occupied (0% - 100%)
+     */
+    public static final int PROB_SEAT_OCCUPIED = 1; // 25;
+    
+    /**
+     * Probability that UpdateCustomer should update FrequentFlyer records
      */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
-    /** Probability that is a seat is initially occupied (0% - 100%) */
-    public static final int PROB_SEAT_OCCUPIED = 0; // 25;
+    /**
+     * Probability that a new Reservation will be added to the DeleteReservation queue
+     */
+    public static final int PROB_DELETE_RESERVATION = 50;
     
-    /** Probability that a new Reservation will be added to the DeleteReservation queue */
-    public static final int PROB_DELETE_NEW_RESERVATION = 10;
-    
-    /** Probability that a new Reservation will be added to the UpdateReservation queue */
-    public static final int PROB_UPDATE_NEW_RESERVATION = 25;
+    /**
+     * Probability that a new Reservation will be added to the UpdateReservation queue
+     */
+    public static final int PROB_UPDATE_RESERVATION = 50;
 
-    /** Probability that a deleted Reservation will be requeued for another NewReservation call */
+    /**
+     * Probability that a deleted Reservation will be requeued for another NewReservation call
+     */
     public static final int PROB_REQUEUE_DELETED_RESERVATION = 90;
     
-    /** Probability that FindFlights will use the distance search */
+    /**
+     * Probability that FindFlights will use the distance search
+     */
     public static final int PROB_FIND_FLIGHTS_NEARBY_AIRPORT = 25;
     
-    /** Probability that FindFlights will perform a look up using a random pair of depart/arrive airports */
+    /**
+     * Probability that FindFlights will use two random airports as its input
+     */
     public static final int PROB_FIND_FLIGHTS_RANDOM_AIRPORTS = 10;
     
     // ----------------------------------------------------------------
-    // DATE CONSTANTS
+    // TIME CONSTANTS
     // ----------------------------------------------------------------
     
     /** Number of microseconds in a day */
     public static final long MICROSECONDS_PER_MINUTE = 60000000l;
     
     /** Number of microseconds in a day */
-    public static final long MICROSECONDS_PER_DAY = 86400000000l; // 60sec * 60min * 24hr * 1,000,000 
+    public static final long MICROSECONDS_PER_DAY = 86400000000l; // 60sec * 60min * 24hr * 1,000 
+    
+    /**
+     * The format of the time codes used in HISTOGRAM_FLIGHTS_PER_DEPART_TIMES
+     */
+    public static final Pattern TIMECODE_PATTERN = Pattern.compile("([\\d]{2,2}):([\\d]{2,2})");
     
     // ----------------------------------------------------------------
     // CACHE SIZES
     // ----------------------------------------------------------------
     
-    /** The number of FlightIds we want to keep cached */
+    /**
+     * The number of FlightIds we want to keep cached locally at a client
+     */
     public static final int CACHE_LIMIT_FLIGHT_IDS = 10000;
     
     public static final int CACHE_LIMIT_PENDING_INSERTS = 10000;
     public static final int CACHE_LIMIT_PENDING_UPDATES = 5000;
     public static final int CACHE_LIMIT_PENDING_DELETES = 5000;
-    
     
     // ----------------------------------------------------------------
     // DATA SET INFORMATION
@@ -235,19 +239,28 @@ public abstract class SEATSConstants {
     public static final String HISTOGRAM_FLIGHTS_PER_DEPART_TIMES = "flights_per_time";
     
     /** Tables that are loaded from data files */
-    public static final String TABLE_DATA_FILES[] = {
+    public static final String TABLES_DATAFILES[] = {
         SEATSConstants.TABLENAME_COUNTRY,
         SEATSConstants.TABLENAME_AIRPORT,
         SEATSConstants.TABLENAME_AIRLINE,
     };
     
-    /** Tables generated from random data */
-    public static final String TABLE_SCALING[] = {
+    /**
+     * Tables generated from random data
+     * IMPORTANT: FLIGHT must come before FREQUENT_FLYER
+     */
+    public static final String TABLES_SCALING[] = {
         SEATSConstants.TABLENAME_CUSTOMER,
-        SEATSConstants.TABLENAME_FREQUENT_FLYER,
         SEATSConstants.TABLENAME_AIRPORT_DISTANCE,
         SEATSConstants.TABLENAME_FLIGHT,
+        SEATSConstants.TABLENAME_FREQUENT_FLYER,
         SEATSConstants.TABLENAME_RESERVATION,
+    };
+    
+    /** Configuration Tables */
+    public static final String TABLES_CONFIG[] = {
+        SEATSConstants.TABLENAME_CONFIG_PROFILE,
+        SEATSConstants.TABLENAME_CONFIG_HISTOGRAMS,
     };
     
     /** Histograms generated from data files */

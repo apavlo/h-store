@@ -120,6 +120,7 @@
           <xsd:attribute name="users" type="xsd:string"/>
           <xsd:attribute name="groups" type="xsd:string"/>
           <xsd:attribute name="prefetchable" type="xsd:string"/>
+          <xsd:attribute name="deferrable" type="xsd:string"/>
         </xsd:complexType>
       </xsd:element>
     </xsd:sequence>

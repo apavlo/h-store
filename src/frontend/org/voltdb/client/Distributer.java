@@ -636,6 +636,7 @@ class Distributer {
             int addr = (int)numbers[3];
             m_clusterInstanceId = new Object[] { timestamp, addr };
             if (m_statsLoader != null) {
+                if (debug.get()) LOG.debug("statsLoader = " + m_statsLoader);
                 try {
                     m_statsLoader.start( timestamp, addr);
                 } catch (SQLException e) {
@@ -643,13 +644,13 @@ class Distributer {
                 }
             }
         } else {
-            if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
-                !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
-                aChannel.close();
-                throw new IOException(
-                        "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
-                        + " and server's was " + numbers[2] + "," + numbers[3]);
-            }
+//            if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
+//                !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
+//                aChannel.close();
+//                throw new IOException(
+//                        "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
+//                        + " and server's was " + numbers[2] + "," + numbers[3]);
+//            }
         }
         m_buildString = (String)connectionStuff[2];
         NodeConnection cxn = new NodeConnection(numbers);
@@ -960,6 +961,7 @@ class Distributer {
         long totalInvocations = 0;
         long totalAbortedInvocations = 0;
         long totalFailedInvocations = 0;
+        long totalThrottledInvocations = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -972,6 +974,8 @@ class Distributer {
                     totalInvocations += counters[0];
                     totalAbortedInvocations += counters[1];
                     totalFailedInvocations += counters[2];
+                    totalThrottledInvocations += counters[3];
+                    
                     final long networkCounters[] = networkStats.get(cxn.connectionId()).getSecond();
                     final String hostname = networkStats.get(cxn.connectionId()).getFirst();
                     long bytesRead = 0;
@@ -1015,6 +1019,7 @@ class Distributer {
                 totalInvocations,
                 totalAbortedInvocations,
                 totalFailedInvocations,
+                totalThrottledInvocations,
                 globalIOStats[0],
                 globalIOStats[1],
                 globalIOStats[2],

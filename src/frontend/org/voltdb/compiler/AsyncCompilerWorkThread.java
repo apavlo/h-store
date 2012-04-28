@@ -31,9 +31,20 @@ import org.voltdb.debugstate.PlannerThreadContext;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.DumpManager;
 import org.voltdb.utils.Encoder;
-import org.voltdb.utils.VoltLoggerFactory;
 
-public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable {
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+
+public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpable, Shutdownable {
+    private static final Logger LOG = Logger.getLogger(AsyncCompilerWorkThread.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     LinkedBlockingQueue<AsyncCompilerWork> m_work = new LinkedBlockingQueue<AsyncCompilerWork>();
     final ArrayDeque<AsyncCompilerResult> m_finished = new ArrayDeque<AsyncCompilerResult>();
@@ -43,8 +54,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     final int m_siteId;
     boolean m_isLoaded = false;
     CatalogContext m_context;
-
-    private static final Logger ahpLog = Logger.getLogger("ADHOCPLANNERTHREAD", VoltLoggerFactory.instance());
+    HStoreSite m_hStoreSite;
 
     /** If this is true, update the catalog */
     private final AtomicBoolean m_shouldUpdateCatalog = new AtomicBoolean(false);
@@ -64,16 +74,29 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         m_dumpId = "AdHocPlannerThread." + String.valueOf(m_siteId);
         DumpManager.register(m_dumpId, this);
     }
+    
+    public AsyncCompilerWorkThread(HStoreSite hStoreSite, int siteId) {
+        m_ptool = null;
+        //m_hsql = null;
+        m_siteId = siteId;
+        //m_context = context;
+        m_hStoreSite = hStoreSite;
+
+        setName("Ad Hoc Planner");
+
+        m_dumpId = "AdHocPlannerThread." + String.valueOf(m_siteId);
+        DumpManager.register(m_dumpId, this);
+    }
 
     public synchronized void ensureLoadedPlanner() {
         // if the process was created but is dead, clear the placeholder
         if ((m_ptool != null) && (m_ptool.expensiveIsRunningCheck() == false)) {
-            ahpLog.error("Planner process died on its own. It will be restarted if needed.");
+            LOG.error("Planner process died on its own. It will be restarted if needed.");
             m_ptool = null;
         }
         // if no placeholder, create a new plannertool
         if (m_ptool == null) {
-            m_ptool = PlannerTool.createPlannerToolProcess(m_context.catalog.serialize());
+            m_ptool = PlannerTool.createPlannerToolProcess(m_hStoreSite.getCatalog().serialize());
         }
     }
 
@@ -81,16 +104,31 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
         if (m_ptool != null) {
             // check if the planner process has been blocked for 2 seconds
             if (m_ptool.perhapsIsHung(5000)) {
-                ahpLog.error("Was forced to kill the planner process due to a timeout. It will be restarted if needed.");
+                LOG.error("Was forced to kill the planner process due to a timeout. It will be restarted if needed.");
                 m_ptool.kill();
             }
         }
     }
 
-    public void shutdown() {
-        AdHocPlannerWork work = new AdHocPlannerWork();
+
+    @Override
+    public void prepareShutdown(boolean error) {
+        AdHocPlannerWork work = new AdHocPlannerWork(null);
         work.shouldShutdown = true;
         m_work.add(work);
+    }
+
+    @Override
+    public boolean isShuttingDown() {
+        return false; // FIXME
+    }
+    
+    public void shutdown() {
+        try {
+            this.join();
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
@@ -104,30 +142,26 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     /**
      *
      * @param sql
-     * @param clientHandle Handle provided by the client application (not ClientInterface)
+     * @param clientHandle Handle provided by the client application (not ClientInterface) HStoreSite?
      * @param connectionId
      * @param hostname Hostname of the other end of the connection
      * @param sequenceNumber
      * @param clientData Data supplied by ClientInterface (typically a VoltPort) that will be in the PlannedStmt produced later.
      */
-    public void planSQL(
-            String sql,
-            long clientHandle,
-            long connectionId,
-            String hostname,
-            int sequenceNumber,
-            Object clientData) {
+   public void planSQL(
+           LocalTransaction ts,
+           String sql) {
 
-        AdHocPlannerWork work = new AdHocPlannerWork();
-        work.clientHandle = clientHandle;
-        work.sql = sql;
-        work.connectionId = connectionId;
-        work.hostname = hostname;
-        work.sequenceNumber = sequenceNumber;
-        work.clientData = clientData;
-        m_work.add(work);
-    }
-
+       AdHocPlannerWork work = new AdHocPlannerWork(ts);
+       work.clientHandle = ts.getClientHandle();
+       work.sql = sql;
+//       work.connectionId = connectionId;
+//       work.hostname = hostname;
+//       work.sequenceNumber = sequenceNumber;
+//       work.clientData = clientData;
+       m_work.add(work);
+   }
+    
     public void prepareCatalogUpdate(
             String catalogURL,
             long clientHandle,
@@ -137,10 +171,10 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
             Object clientData) {
         CatalogChangeWork work = new CatalogChangeWork();
         work.clientHandle = clientHandle;
-        work.connectionId = connectionId;
-        work.hostname = hostname;
-        work.sequenceNumber = sequenceNumber;
-        work.clientData = clientData;
+//        work.connectionId = connectionId;
+//        work.hostname = hostname;
+//        work.sequenceNumber = sequenceNumber;
+//        work.clientData = clientData;
         work.catalogURL = catalogURL;
         m_work.add(work);
     }
@@ -167,6 +201,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
             else {
                 // deal with reloading the global catalog
                 if (m_shouldUpdateCatalog.compareAndSet(true, false)) {
+                	//TODO: @AdHoc for hstoresite, how to switch catalogcontext for hstoresite?
                     m_context = VoltDB.instance().getCatalogContext();
                     // kill the planner process which has an outdated catalog
                     // it will get created again for the next stmt
@@ -205,7 +240,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     @Override
     public void goDumpYourself(long timestamp) {
         m_currentDumpTimestamp = timestamp;
-        AdHocPlannerWork work = new AdHocPlannerWork();
+        AdHocPlannerWork work = new AdHocPlannerWork(null);
         work.shouldDump = true;
         m_work.add(work);
 
@@ -243,11 +278,11 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     }
 
     private AsyncCompilerResult compileAdHocPlan(AdHocPlannerWork work) {
-        AdHocPlannedStmt plannedStmt = new AdHocPlannedStmt();
+        AdHocPlannedStmt plannedStmt = new AdHocPlannedStmt(work.ts);
         plannedStmt.clientHandle = work.clientHandle;
-        plannedStmt.connectionId = work.connectionId;
-        plannedStmt.hostname = work.hostname;
-        plannedStmt.clientData = work.clientData;
+//        plannedStmt.connectionId = work.connectionId;
+//        plannedStmt.hostname = work.hostname;
+//        plannedStmt.clientData = work.clientData;
 
         try {
             ensureLoadedPlanner();
@@ -256,13 +291,16 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
 
             plannedStmt.aggregatorFragment = result.onePlan;
             plannedStmt.collectorFragment = result.allPlan;
-
             plannedStmt.isReplicatedTableDML = result.replicatedDML;
             plannedStmt.sql = work.sql;
             plannedStmt.errorMsg = result.errors;
+            if (plannedStmt.errorMsg != null)
+                LOG.error("PlannerTool Error: " + result.errors);
         }
         catch (Exception e) {
-            plannedStmt.errorMsg = "Unexpected Ad Hoc Planning Error: " + e.getMessage();
+            String msg = "Unexpected Ad Hoc Planning Error";
+            LOG.warn(msg, e);
+            plannedStmt.errorMsg = msg + ": " + e.getMessage();
         }
 
         return plannedStmt;
@@ -271,10 +309,10 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
     private AsyncCompilerResult prepareApplicationCatalogDiff(CatalogChangeWork work) {
         // create the change result and set up all the boiler plate
         CatalogChangeResult retval = new CatalogChangeResult();
-        retval.clientData = work.clientData;
+//        retval.clientData = work.clientData;
         retval.clientHandle = work.clientHandle;
-        retval.connectionId = work.connectionId;
-        retval.hostname = work.hostname;
+//        retval.connectionId = work.connectionId;
+//        retval.hostname = work.hostname;
 
         // catalog change specific boiler plate
         retval.catalogURL = work.catalogURL;

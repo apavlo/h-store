@@ -178,10 +178,9 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             assert (table != null) : String.format("Missing MapOutput table for txn #%d", ts.getTransactionId());
 
             while (table.advanceRow()) {
-                VoltTableRow row = table.fetchRow(table.getActiveRowIndex());
                 int rowPartition = -1;
                 try {
-                    rowPartition = p_estimator.getTableRowPartition(ts.getMapEmit(), row);
+                    rowPartition = p_estimator.getTableRowPartition(ts.getMapEmit(), table);
                 } catch (Exception e) {
                     LOG.fatal("Failed to split input table into partitions", e);
                     throw new RuntimeException(e.getMessage());
@@ -190,7 +189,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
                     LOG.trace(Arrays.toString(table.getRowArray()) + " => " + rowPartition);
                 assert (rowPartition >= 0);
                 // this adds the active row from table
-                partitionedTables.get(rowPartition).add(row);
+                partitionedTables.get(rowPartition).add(table);
                 rp = rowPartition;
             } // WHILE
             if (debug.get())

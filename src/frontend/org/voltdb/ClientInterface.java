@@ -802,13 +802,13 @@ public class ClientInterface implements DumpManager.Dumpable {
                     return;
                 }
                 String sql = (String) task.params.toArray()[0];
-                m_asyncCompilerWorkThread.planSQL(
-                                                  sql,
-                                                  task.clientHandle,
-                                                  handler.connectionId(),
-                                                  handler.m_hostname,
-                                                  handler.sequenceId(),
-                                                  c);
+//                m_asyncCompilerWorkThread.planSQL(
+//                                                  sql,
+//                                                  task.clientHandle,
+//                                                  handler.connectionId(),
+//                                                  handler.m_hostname,
+//                                                  handler.sequenceId(),
+//                                                  c);
                 return;
             }
 

@@ -73,9 +73,9 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // Deserialize embedded ParameterSets and store it in the RemoteTransaction handle
         // This way we only do it once per HStoreSite. This will also force us to avoid having
         // to do it for local work
-        ParameterSet parameterSets[] = new ParameterSet[request.getParameterSetsCount()]; // TODO: Cache!
+        ParameterSet parameterSets[] = new ParameterSet[request.getParamsCount()]; // TODO: Cache!
         for (int i = 0; i < parameterSets.length; i++) {
-            ByteString paramData = request.getParameterSets(i);
+            ByteString paramData = request.getParams(i);
             if (paramData != null && paramData.isEmpty() == false) {
                 final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
                 if (trace.get()) LOG.trace(String.format("Txn #%d paramData[%d] => %s",

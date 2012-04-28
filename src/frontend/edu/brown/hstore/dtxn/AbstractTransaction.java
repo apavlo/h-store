@@ -44,6 +44,7 @@ import org.voltdb.utils.NotImplementedException;
 import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -105,6 +106,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     private ParameterSet attached_parameterSets[];
     
+    /**
+     * 
+     */
+    protected PrefetchState prefetch;
+    
     // ----------------------------------------------------------------------------
     // VoltMessage Wrappers
     // ----------------------------------------------------------------------------
@@ -157,28 +163,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /** This is set to true if the transaction did some work without an undo buffer **/
     private final boolean exec_noUndoBuffer[];
     
-    // TODO(cjl6): Internal cache about what queries still need to be pre-fetched at each partition
-    //             and the results of finished pre-fetched queries.
-    //             Need a way easily identify the same queries+parameters per partition.
-    // TODO(cjl6): Boolean flag as to whether the transaction has queries it wants to pre-fetch
-    //             at each partition
-    
-    /** 
-     * The list of prefetched WorkFragments, if any
-     */
-    private List<WorkFragment> prefetch_fragments = null;
-    
-    /**
-     * The list of raw serialized ParameterSets for the prefetched WorkFragments,
-     * if any (in lockstep with prefetch_fragments)
-     */
-    private List<ByteString> prefetch_params_raw = null;
-    
-    /**
-     * The deserialized ParameterSets for the prefetched WorkFragments,
-     */
-    private ParameterSet[] prefetch_params = null;
-    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -201,9 +185,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.finish_task = new FinishTaskMessage(this, Status.OK);
         this.work_task = new FragmentTaskMessage[cnt];
-        for (int i = 0; i < this.work_task.length; i++) {
-            this.work_task[i] = new FragmentTaskMessage();
-        } // FOR
         
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
@@ -257,9 +238,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
-        this.prefetch_fragments = null;
-        this.prefetch_params_raw = null;
-        this.prefetch_params = null;
+        if (this.prefetch != null) {
+            HStoreObjectPools.STATES_PREFETCH.returnObject(this.prefetch);
+            this.prefetch = null;
+        }
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
@@ -537,6 +519,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     public FragmentTaskMessage getFragmentTaskMessage(WorkFragment fragment) {
         int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
+        if (this.work_task[offset] == null) {
+            this.work_task[offset] = new FragmentTaskMessage();
+        }
         return (this.work_task[offset].setWorkFragment(this.txn_id, fragment));
     }
     
@@ -653,40 +638,64 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // PREFETCH QUERIES
     // ----------------------------------------------------------------------------
     
-    public void attachPrefetchQueries(List<WorkFragment> fragments, List<ByteString> rawParameters) {
-        assert(this.prefetch_fragments == null) :
-            "Trying to attach Prefetch WorkFragments more than once!";
-        
-        // Simply copy the references so we don't allocate more objects
-        this.prefetch_fragments = fragments;
-        this.prefetch_params_raw = rawParameters;
-    }
-    
-    public void attachPrefetchParameters(ParameterSet params[]) {
-        assert(this.prefetch_params == null) :
-            "Trying to attach Prefetch ParameterSets more than once!";
-        this.prefetch_params = params;
+    public final void initializePrefetch() {
+        if (this.prefetch == null) {
+            try {
+                this.prefetch = HStoreObjectPools.STATES_PREFETCH.borrowObject();
+            } catch (Exception ex) {
+                throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
+            }
+        }
     }
     
     /**
-     * Returns true if this transaction has prefetched attached this handle 
+     * Returns true if this transaction has prefetched queries 
      */
-    public boolean hasPrefetchQueries() {
-        return (this.prefetch_fragments != null && this.prefetch_fragments.isEmpty() == false);
+    public final boolean hasPrefetchQueries() {
+        // return (this.prefetch.fragments != null && this.prefetch.fragments.isEmpty() == false);
+        return (this.prefetch != null);
     }
     
+    /**
+     * Attach prefetchable WorkFragments for this transaction
+     * This should be invoked on the remote side of the initialization request.
+     * That is, it is not the transaction's base partition that is storing this information,
+     * it's coming from over the network
+     * @param fragments
+     * @param rawParameters
+     */
+    public void attachPrefetchQueries(List<WorkFragment> fragments, List<ByteString> rawParameters) {
+        assert(this.prefetch.fragments == null) :
+            "Trying to attach Prefetch WorkFragments more than once!";
+        
+        // Simply copy the references so we don't allocate more objects
+        this.prefetch.fragments = fragments;
+        this.prefetch.paramsRaw = rawParameters;
+    }
+    
+    public void attachPrefetchParameters(ParameterSet params[]) {
+        assert(this.prefetch.params == null) :
+            "Trying to attach Prefetch ParameterSets more than once!";
+        this.prefetch.params = params;
+    }
     
     public final List<WorkFragment> getPrefetchFragments() {
-        return (this.prefetch_fragments);
+        return (this.prefetch.fragments);
     }
     
     public final List<ByteString> getPrefetchRawParameterSets() {
-        return (this.prefetch_params_raw);
+        return (this.prefetch.paramsRaw);
     }
 
     public final ParameterSet[] getPrefetchParameterSets() {
-        assert(this.prefetch_params != null);
-        return (this.prefetch_params);
+        assert(this.prefetch.params != null);
+        return (this.prefetch.params);
+    }
+    
+    public final void markExecPrefetchQuery(int partition) {
+        assert(this.prefetch != null);
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.prefetch.partitions.set(offset);
     }
     
     // ----------------------------------------------------------------------------
@@ -709,6 +718,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
+        m.put("Hash Code", this.hashCode());
         m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));

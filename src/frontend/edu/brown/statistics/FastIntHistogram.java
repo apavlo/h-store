@@ -13,24 +13,24 @@ import org.voltdb.VoltType;
  */
 public class FastIntHistogram extends Histogram<Integer> {
 
-    private final int histogram[];
+    private final long histogram[];
     private int value_count = 0;
 
     public FastIntHistogram(int size) {
-        this.histogram = new int[size];
+        this.histogram = new long[size];
         this.clearValues();
     }
 
-    public int[] fastValues() {
+    public long[] fastValues() {
         return this.histogram;
     }
 
     @Override
     public Long get(Integer value) {
-        return ((long) this.histogram[value.intValue()]);
+        return (this.histogram[value.intValue()]);
     }
 
-    public int fastGet(int value) {
+    public long fastGet(int value) {
         return (this.histogram[value]);
     }
 
@@ -60,7 +60,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     public synchronized void put(Integer value, long i) {
         int idx = value.intValue();
         if (this.histogram[idx] == -1) {
-            this.histogram[idx] = (int) i;
+            this.histogram[idx] = i;
             this.value_count++;
         } else {
             this.histogram[idx] += i;
@@ -120,7 +120,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
 
     @Override
-    public synchronized void removeValues(Collection<Integer> values, int delta) {
+    public synchronized void removeValues(Collection<Integer> values, long delta) {
         // TODO Auto-generated method stub
         super.removeValues(values, delta);
     }
@@ -196,7 +196,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
 
     @Override
-    public long getSampleCount() {
+    public int getSampleCount() {
         return (this.num_samples);
     }
 
@@ -220,7 +220,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public long getMinCount() {
-        int min_cnt = Integer.MAX_VALUE;
+        long min_cnt = Integer.MAX_VALUE;
         for (int i = 0; i < this.histogram.length; i++) {
             if (this.histogram[i] != -1 && this.histogram[i] < min_cnt) {
                 min_cnt = this.histogram[i];
@@ -232,7 +232,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     @Override
     public Collection<Integer> getMinCountValues() {
         List<Integer> min_values = new ArrayList<Integer>();
-        int min_cnt = Integer.MAX_VALUE;
+        long min_cnt = Integer.MAX_VALUE;
         for (int i = 0; i < this.histogram.length; i++) {
             if (this.histogram[i] != -1) {
                 if (this.histogram[i] == min_cnt) {
@@ -249,7 +249,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public long getMaxCount() {
-        int max_cnt = 0;
+        long max_cnt = 0;
         for (int i = 0; i < this.histogram.length; i++) {
             if (this.histogram[i] != -1 && this.histogram[i] > max_cnt) {
                 max_cnt = this.histogram[i];
@@ -261,7 +261,7 @@ public class FastIntHistogram extends Histogram<Integer> {
     @Override
     public Collection<Integer> getMaxCountValues() {
         List<Integer> max_values = new ArrayList<Integer>();
-        int max_cnt = 0;
+        long max_cnt = 0;
         for (int i = 0; i < this.histogram.length; i++) {
             if (this.histogram[i] != -1) {
                 if (this.histogram[i] == max_cnt) {

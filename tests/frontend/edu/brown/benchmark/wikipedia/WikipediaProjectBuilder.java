@@ -68,12 +68,12 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
   
     }
     
-    public void addDefaultProcedures() {
-        addProcedures(PROCEDURES);
-    }
-    
-    public void addDefaultSchema() {
-        addSchema(this.getDDLURL(true));
-    }
+//    public void addDefaultProcedures() {
+//        addProcedures(PROCEDURES);
+//    }
+//    
+//    public void addDefaultSchema() {
+//        addSchema(this.getDDLURL(true));
+//    }
 
 }

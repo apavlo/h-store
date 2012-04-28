@@ -68,6 +68,8 @@ public class BenchmarkConfig {
     public int snapshotRetain;
     
     public String statsDatabaseURL;
+    public String statsDatabaseUser;
+    public String statsDatabasePass;
     public String statsDatabaseJDBC;
     public int statsPollInterval;
     
@@ -195,7 +197,8 @@ public class BenchmarkConfig {
             String snapshotFrequency,
             int snapshotRetain,
             String statsDatabaseURL,
-            String resultsDatabaseURL,
+            String statsDatabaseUser,
+            String statsDatabasePass,
             String statsDatabaseJDBC,
             int statsPollInterval,
             String statsTag,
@@ -247,9 +250,11 @@ public class BenchmarkConfig {
         this.snapshotFrequency = snapshotFrequency;
         this.snapshotRetain = snapshotRetain;
         
-        this.resultsDatabaseURL = resultsDatabaseURL;
+        // FIXME this.resultsDatabaseURL = resultsDatabaseURL;
         
         this.statsDatabaseURL = statsDatabaseURL;
+        this.statsDatabaseUser = statsDatabaseUser;
+        this.statsDatabasePass = statsDatabasePass;
         this.statsDatabaseJDBC = statsDatabaseJDBC;
         this.statsTag = statsTag;
         this.statsPollInterval = statsPollInterval;

@@ -39,6 +39,8 @@ import org.voltdb.planner.TrivialCostModel;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.Encoder;
 
+import edu.brown.logging.LoggerUtil;
+
 /**
  * Planner tool accepts an already compiled VoltDB catalog and then
  * interactively accept SQL and outputs plans on standard out.
@@ -246,6 +248,7 @@ public class PlannerTool {
      * @param args
      */
     public static void main(String[] args) {
+        LoggerUtil.setupLogging();
 
         // name this thread
         Thread.currentThread().setName("VoltDB Planner Process Main");
