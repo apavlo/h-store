@@ -97,8 +97,9 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             // Stick the prefetch information into the transaction
             if (debug.get()) LOG.debug(String.format("%s - Attaching %d prefetch WorkFragments at %s",
                                                      ts, request.getPrefetchFragmentsCount(), hstore_site.getSiteName()));
+            ts.initializePrefetch();
             ts.attachPrefetchQueries(request.getPrefetchFragmentsList(),
-                                     request.getPrefetchParameterSetsList());
+                                     request.getPrefetchParamsList());
         }
         
         

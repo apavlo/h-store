@@ -16,9 +16,9 @@ public class TransactionWorkRequestBuilder {
     private TransactionWorkRequest.Builder builder;
     
     /**
-     * Set of statement indexes that this TransactionWorkRequest needs parameters for
+     * Set of ParameterSet indexes that this TransactionWorkRequest needs
      */
-    private final BitSet stmt_indexes = new BitSet();
+    private final BitSet param_indexes = new BitSet();
     
     /**
      * Set of input DependencyIds needed by this TransactionWorkRequest
@@ -44,7 +44,7 @@ public class TransactionWorkRequestBuilder {
                         this.builder.addDonePartition(i);
                 } // FOR
             }
-            this.stmt_indexes.clear();
+            this.param_indexes.clear();
             this.inputs.clear();
         }
         return (this.builder);
@@ -61,9 +61,9 @@ public class TransactionWorkRequestBuilder {
         return (request);
     }
     
-    public void addStatementIndexes(Collection<Integer> stmt_indexes) {
-        for (Integer idx : stmt_indexes) {
-            this.stmt_indexes.set(idx.intValue());
+    public void addParamIndexes(Collection<Integer> param_indexes) {
+        for (Integer idx : param_indexes) {
+            this.param_indexes.set(idx.intValue());
         } // FOR
     }
     
@@ -77,8 +77,8 @@ public class TransactionWorkRequestBuilder {
     
     public void addParameterSets(List<ByteString> params) {
         for (int i = 0, cnt = params.size(); i < cnt; i++) {
-            this.builder.addParameterSets(this.stmt_indexes.get(i) ? params.get(i) :
-                                                                     ByteString.EMPTY); 
+            ByteString bs = (this.param_indexes.get(i) ? params.get(i) : ByteString.EMPTY);
+            this.builder.addParams(bs); 
         } // FOR
     }
     

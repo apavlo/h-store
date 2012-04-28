@@ -521,6 +521,7 @@ JAVA COMPILATION
     <copy flatten='false' todir='${build.test.dir}'>
         <fileset dir="${src.test.dir}">
             <include name="**/*.sql"/>
+            <include name="**/*.mappings"/>
         </fileset>
     </copy>
 
@@ -921,7 +922,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -929,7 +929,10 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestPrefetchableSuite.class" />
+                
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -986,6 +989,15 @@ TEST CASES
         <tests>
             <fileset dir='${build.test.dir}'>
                 <exclude name="**/*$*.class"/>
+                
+                <!-- Brown Tests -->
+                <include name='edu/brown/**/Test*.class'/>
+                <include name='edu/brown/**/*Test.class'/>
+
+                <!-- Canadian Tests -->
+                <include name='ca/evanjones/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/Test*.class'/>
 
                 <!-- VoltDB Tests -->
                 <include name='org/hsqldb/**/Test*.class'/>
@@ -1008,7 +1020,6 @@ TEST CASES
                 <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
@@ -1016,19 +1027,11 @@ TEST CASES
                 <exclude name="**/TestPlansGroupBySuite.class" />
                 <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestPrefetchableSuite.class" />
 
-                <!-- Brown Tests -->
-                <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/**/*Test.class'/>
-                
-                <!-- We run out of memory on this one -->
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
-
-                <!-- Canadian Tests -->
-                <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
-                <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
     </run_junit>
@@ -1571,8 +1574,10 @@ BENCHMARKS
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
         <arg value="NUMCONNECTIONS=${numconnections}" />
-        <arg value="STATSTAG=${statsTag}" />
+        <arg value="STATSDATABASETAG=${statsDatabaseTag}" />
         <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
+        <arg value="STATSDATABASEUSER=${statsDatabaseUser}" />
+        <arg value="STATSDATABASEPASS=${statsDatabasePass}" />
         <arg value="STATSDATABASEJDBC=${statsDatabaseJDBC}" />
 
         <!-- measureoverhead parameters -->
@@ -2336,7 +2341,7 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <!-- <jvmarg value="-Djava.library.path=${build.dir}/nativelibs:${jprofiler.dir}/bin/linux-x64:/usr/lib" /> -->
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
-        <jvmarg value="-Xcheck:jni" />
+<!--         <jvmarg value="-Xcheck:jni" /> -->
 
         <arg value="catalog.jar=${jar}" />
         <arg value="conf=${conf}" />

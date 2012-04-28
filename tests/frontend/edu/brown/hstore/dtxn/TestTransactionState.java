@@ -234,7 +234,7 @@ public class TestTransactionState extends BaseTestCase {
             Integer dependency_id = this.ts.getOutputOrder().get(i);
             assertNotNull(dependency_id);
             assert(this.output_dependency_ids.contains(dependency_id));
-            assertNotNull(this.ts.getDependencyInfo(i, dependency_id));
+            assertNotNull(this.ts.getDependencyInfo(dependency_id));
         } // FOR
         //System.err.println(this.ts);
     }
@@ -294,7 +294,7 @@ public class TestTransactionState extends BaseTestCase {
         DependencyInfo internal_dinfo = null;
         for (Integer d_id : this.internal_dependency_ids) {
             internal_d_id = d_id;
-            internal_dinfo = this.ts.getDependencyInfo(0, d_id);
+            internal_dinfo = this.ts.getDependencyInfo(d_id);
             if (internal_dinfo != null) break;
         } // FOR
         assertNotNull(internal_d_id);
@@ -323,7 +323,7 @@ public class TestTransactionState extends BaseTestCase {
         
         // Make sure that all other Statements didn't accidently unblock their FragmentTaskMessages...
         for (int stmt_index = 1; stmt_index < NUM_DUPLICATE_STATEMENTS; stmt_index++) {
-            DependencyInfo other = this.ts.getDependencyInfo(stmt_index, this.internal_dependency_ids.get(stmt_index));
+            DependencyInfo other = this.ts.getDependencyInfo(this.internal_dependency_ids.get(stmt_index));
             assertNotNull(other);
             assertFalse(other.hasTasksReady());
             assertFalse(other.hasTasksReleased());

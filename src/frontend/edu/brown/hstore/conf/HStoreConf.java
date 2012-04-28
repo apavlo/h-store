@@ -197,14 +197,14 @@ public final class HStoreConf {
         public boolean exec_avoid_coordinator;
         
         @ConfigProperty(
-            description="If this feature is true, then H-Store will use DB2-style transaction redirects. Each request will " +
-                        "execute as a single-partition transaction at a random partition on the node that the request " +
-                        "originally arrives on. When the transaction makes a query request that needs to touch data from " +
-                        "a partition that is different than its base partition, then that transaction is immediately aborted, " +
-                        "rolled back, and restarted on the partition that has the data that it was requesting. If the " +
-                        "transaction requested more than partition when it was aborted, then it will be executed as a " +
-                        "multi-partition transaction on the partition that was requested most often by queries " +
-                        "(using random tie breakers). " +
+            description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
+            		    "Each request will execute as a single-partition transaction at a random partition on the node " +
+            		    "that the request originally arrives on. When the transaction makes a query request that needs " +
+            		    "to touch data from a partition that is different than its base partition, then that transaction " +
+            		    "is immediately aborted, rolled back, and restarted on the partition that has the data that it " +
+            		    "was requesting. If the transaction requested more than partition when it was aborted, then it " +
+            		    "will be executed as a multi-partition transaction on the partition that was requested most often " +
+            		    "by queries using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
             defaultBoolean=true,
             experimental=true
@@ -221,6 +221,16 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_singlepartitioned;
+        
+        @ConfigProperty(
+            description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
+            		    "a new request will be executed as a single-partitioned or distributed transaction. " +
+            		    "Note that if this option is enabled, any distributed transaction will have to lock all " +
+            		    "of the partitions in the cluster.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean exec_voltdb_procinfo;
         
         @ConfigProperty(
             description="Always execute each transaction on a random partition on the node where the request originally " +
@@ -259,7 +269,6 @@ public final class HStoreConf {
         )
         public int exec_postprocessing_thread_count;
         
-
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
@@ -285,6 +294,27 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_validate_work;
+
+        @ConfigProperty(
+            description="If enabled, log all transaction requests to a file",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_command_logging;
+        
+        @ConfigProperty(
+            description="",
+            defaultString="/tmp/hstore.wal",
+            experimental=true
+        )
+        public String exec_command_logging_file;
+        
+        @ConfigProperty(
+            description="If enabled, support ad hoc queries",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_adhoc_sql;
         
         @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
@@ -294,13 +324,17 @@ public final class HStoreConf {
         )
         public boolean exec_prefetch_queries;
         
+        // ----------------------------------------------------------------------------
+        // MapReduce Options
+        // ----------------------------------------------------------------------------
+        
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
                 defaultBoolean=true,
                 experimental=true
         )
         public boolean mapreduce_reduce_blocking;
-        
+       
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------
@@ -776,6 +810,20 @@ public final class HStoreConf {
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
+            description="The max number of DistributedStates to keep in the pool.",
+            defaultInt=500,
+            experimental=false
+        )
+        public int pool_dtxnstates_idle;
+        
+        @ConfigProperty(
+            description="The max number of PrefetchStates to keep in the pool.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int pool_prefetchstates_idle;
+        
+        @ConfigProperty(
             description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
             defaultInt=10000,
             experimental=false
@@ -794,6 +842,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txninit_idle;
         
         @ConfigProperty(
@@ -816,6 +865,7 @@ public final class HStoreConf {
             defaultInt=2500,
             experimental=false
         )
+        @Deprecated
         public int pool_txnprepare_idle;
     }
     
@@ -1297,6 +1347,42 @@ public final class HStoreConf {
     // LOADING METHODS
     // ----------------------------------------------------------------------------
     
+    public void set(String k, Object value) {
+        Matcher m = REGEX_PARSE.matcher(k);
+        boolean found = m.matches();
+        if (m == null || found == false) {
+            LOG.warn("Invalid key '" + k + "'");
+            return;
+        }
+        assert(m != null);
+        Conf handle = confHandles.get(m.group(1));
+        this.set(handle, m.group(2), value);
+    }
+    
+    private void set(Conf handle, String f_name, Object value) {
+        Class<?> confClass = handle.getClass();
+        assert(confClass != null);
+        Field f = null;
+        
+        try {
+            f = confClass.getField(f_name);
+        } catch (Exception ex) {
+            if (debug.get()) LOG.warn(String.format("Invalid configuration property '%s.%s'. Ignoring...",
+                                      handle.prefix, f_name));
+            return;
+        }
+        ConfigProperty cp = handle.getConfigProperties().get(f);
+        assert(cp != null) : "Missing ConfigProperty for " + f;
+        
+        try {
+            f.set(handle, value);
+            if (debug.get()) LOG.debug(String.format("SET %s.%s = %s",
+                                       handle.prefix, f_name, value));
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+        }
+    }
+    
     /**
      * 
      */
@@ -1549,8 +1635,8 @@ public final class HStoreConf {
         return singleton(false);
     }
     
-    public synchronized static HStoreConf singleton(boolean init) {
-        if (conf == null && init == true) return init(null);
+    public synchronized static HStoreConf singleton(boolean init_if_null) {
+        if (conf == null && init_if_null == true) return init(null, null);
         if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
         return (conf);
     }

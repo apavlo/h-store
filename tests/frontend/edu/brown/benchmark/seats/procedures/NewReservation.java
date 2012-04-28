@@ -34,8 +34,8 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.benchmark.seats.SEATSConstants.ErrorType;
 import edu.brown.benchmark.seats.util.CustomerId;
+import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
     partitionInfo = "RESERVATION.R_F_ID: 2"
@@ -134,30 +134,29 @@ public class NewReservation extends VoltProcedure {
         assert(initialResults.length == 4);
 
         // Flight Information
-        if (initialResults[0].getRowCount() != 1) {
+        if (initialResults[0].advanceRow() == false) {
             throw new VoltAbortException(ErrorType.INVALID_FLIGHT_ID +
                                          String.format(" Invalid flight #%d", f_id));
         }
-        initialResults[0].advanceRow();
-        if (initialResults[0].getLong(1) <= 0) {
+        long airline_id = initialResults[0].getLong(0);
+        long seats_left = initialResults[0].getLong(1);
+        if (seats_left <= 0) {
             throw new VoltAbortException(ErrorType.NO_MORE_SEATS +
                                          String.format(" No more seats available for flight #%d", f_id));
         }
-        long airline_id = initialResults[0].getLong(0);
-        long seats_left = initialResults[0].getLong(1);
         
         // Check for existing reservation
-        if (initialResults[1].getRowCount() > 0) {
+        if (initialResults[1].advanceRow()) {
             throw new VoltAbortException(ErrorType.SEAT_ALREADY_RESERVED +
                                          String.format(" Seat %d is already reserved on flight #%d", seatnum, f_id));
         }
         // Or the customer trying to book themselves twice
-        else if (initialResults[2].getRowCount() > 1) {
+        else if (initialResults[2].advanceRow()) {
             throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
                                          String.format(" Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
         // Customer Information
-        else if (initialResults[3].getRowCount() != 1) {
+        else if (initialResults[3].advanceRow() == false) {
             throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
                                          String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
         }

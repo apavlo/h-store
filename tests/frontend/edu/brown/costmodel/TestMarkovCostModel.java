@@ -83,7 +83,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
-                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
+                    // .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -105,7 +105,11 @@ public class TestMarkovCostModel extends BaseTestCase {
                 @Override
                 protected void resetImpl() { }
             });
-            assert(CollectionUtil.first(workload.getTransactions()).getTransactionId() != CollectionUtil.first(clone.getTransactions()).getTransactionId());
+            TransactionTrace txn0 = CollectionUtil.first(workload.getTransactions());
+            assertNotNull(txn0);
+            TransactionTrace txn1 = CollectionUtil.first(clone.getTransactions());
+            assertNotNull(txn1);
+            assert(txn0.getTransactionId() != txn1.getTransactionId());
             
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 

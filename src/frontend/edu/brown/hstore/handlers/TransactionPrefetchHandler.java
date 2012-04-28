@@ -67,10 +67,12 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         // access to it right away
         ts.addPrefetchResults(request.getResult());
         
-        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
-                                                            .setTransactionId(txn_id.longValue())
-                                                            .build();
-        callback.run(response);
+        // I don't think we even need to bother wasting our time sending an acknowledgement
+//        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
+//                                                            .setTransactionId(txn_id.longValue())
+//                                                            .setTargetPartition(request.getSourcePartition())
+//                                                            .build();
+//        callback.run(response);
     }
     @Override
     protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {

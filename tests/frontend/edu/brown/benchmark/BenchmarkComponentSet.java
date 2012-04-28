@@ -110,7 +110,7 @@ public class BenchmarkComponentSet implements Runnable {
             }
         } // FOR
         
-        if (debug.get()) LOG.info(String.format("Starting %d client threads: %s",
+        if (debug.get()) LOG.info(String.format("Starting %d BenchmarkComponent threads: %s",
                                                 clientIds.length, Arrays.toString(clientIds)));
         BenchmarkComponentSet bcs = new BenchmarkComponentSet(componentClass, clientIds, componentArgs);
         bcs.run(); // BLOCK!
