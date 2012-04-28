@@ -234,12 +234,12 @@ public class NewItem extends VoltProcedure {
 
         // Insert ITEM_ATTRIBUTE tuples
         for (int i = 0; i < gav_ids.length; i++) {
-            long ia_id = ItemId.getUniqueElementId(item_id, i);
+            long ia_id = -1; // FIXME ItemId.getUniqueElementId(item_id, i);
             voltQueueSQL(insertItemAttribute, ia_id, item_id, seller_id, gag_ids[i], gag_ids[i]);
         } // FOR
         // Insert ITEM_IMAGE tuples
         for (int i = 0; i < images.length; i++) {
-            long ii_id = ItemId.getUniqueElementId(item_id, i);
+            long ii_id = -1; // FIXME ItemId.getUniqueElementId(item_id, i);
             voltQueueSQL(insertImage, ii_id, item_id, seller_id, images[i]);
         } // FOR
 

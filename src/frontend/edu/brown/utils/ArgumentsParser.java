@@ -70,6 +70,9 @@ public class ArgumentsParser {
     static {
         LoggerUtil.setupLogging();
     }
+    
+    // HACK
+    public static boolean DISABLE_UPDATE_CATALOG = false;
 
     // --------------------------------------------------------------
     // INPUT PARAMETERS
@@ -673,8 +676,8 @@ public class ArgumentsParser {
 
         // Workload Statistics
         if (this.catalog_db != null) {
-            this.stats = new WorkloadStatistics(this.catalog_db);
             if (this.params.containsKey(PARAM_STATS)) {
+                this.stats = new WorkloadStatistics(this.catalog_db);
                 String path = this.params.get(PARAM_STATS);
                 if (debug)
                     LOG.debug("Loading in workload statistics from '" + path + "'");
@@ -687,7 +690,7 @@ public class ArgumentsParser {
             }
 
             // Scaling
-            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR)) {
+            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR) && this.stats != null) {
                 double scale_factor = this.getDoubleParam(PARAM_STATS_SCALE_FACTOR);
                 LOG.info("Scaling TableStatistics: " + scale_factor);
                 AbstractTableStatisticsGenerator generator = AbstractTableStatisticsGenerator.factory(this.catalog_db, this.catalog_type, scale_factor);
@@ -832,7 +835,7 @@ public class ArgumentsParser {
         }
 
         // Update Cluster Configuration
-        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS) && DISABLE_UPDATE_CATALOG == false) {
             ClusterConfiguration cc = new ClusterConfiguration(this.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
             this.updateCatalog(FixCatalog.addHostInfo(this.catalog, cc), null);
         }
@@ -918,7 +921,7 @@ public class ArgumentsParser {
         // -------------------------------------------------------
         // TRANSACTION ESTIMATION COMPONENTS
         // -------------------------------------------------------
-        if (this.params.containsKey(PARAM_MAPPINGS)) {
+        if (this.params.containsKey(PARAM_MAPPINGS) && DISABLE_UPDATE_CATALOG == false) {
             assert (this.catalog_db != null);
             File path = new File(this.params.get(PARAM_MAPPINGS));
             if (path.exists()) {

@@ -138,40 +138,40 @@ public class TestSqlAggregateSuite extends RegressionSuite {
     // This test case includes all of the broken cases of sum, min, max, and avg
     // which didn't actually do DISTINCT.
     // This is only visible for sum and avg, of course
-    public void testAggregatesWithDistinct()
-    throws IOException, ProcCallException
-    {
-        String[] aggs = {"count", "sum", "min", "max"};
-        long[] expected_results = {5,
-                                   (0 + 1 + 2 + 3 + 4),
-                                   0,
-                                   4};
-        String[] tables = {"P1", "R1"};
-        for (String table : tables)
-        {
-            Client client = getClient();
-            for (int i = 0; i < ROWS; ++i)
-            {
-                client.callProcedure("Insert", table, i, "desc",
-                                     new BigDecimal(10.0), i / 2, 14.5);
-            }
-            for (int i = 0; i < aggs.length; ++i)
-            {
-                String query = String.format("select %s(distinct(%s.NUM)) from %s",
-                                             aggs[i], table, table);
-                VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-                assertEquals(expected_results[i], results[0].asScalarLong());
-            }
-            // Do avg separately since the column is a float and makes
-            // asScalarLong() unhappy
-            String query = String.format("select avg(distinct(%s.NUM)) from %s",
-                                         table, table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            results[0].advanceRow();
-            assertEquals(2.0,
-                         ((Number)results[0].get(0, results[0].getColumnType(0))).doubleValue());
-        }
-    }
+//    public void testAggregatesWithDistinct()
+//    throws IOException, ProcCallException
+//    {
+//        String[] aggs = {"count", "sum", "min", "max"};
+//        long[] expected_results = {5,
+//                                   (0 + 1 + 2 + 3 + 4),
+//                                   0,
+//                                   4};
+//        String[] tables = {"P1", "R1"};
+//        for (String table : tables)
+//        {
+//            Client client = getClient();
+//            for (int i = 0; i < ROWS; ++i)
+//            {
+//                client.callProcedure("Insert", table, i, "desc",
+//                                     new BigDecimal(10.0), i / 2, 14.5);
+//            }
+//            for (int i = 0; i < aggs.length; ++i)
+//            {
+//                String query = String.format("select %s(distinct(%s.NUM)) from %s",
+//                                             aggs[i], table, table);
+//                VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+//                assertEquals(expected_results[i], results[0].asScalarLong());
+//            }
+//            // Do avg separately since the column is a float and makes
+//            // asScalarLong() unhappy
+//            String query = String.format("select avg(distinct(%s.NUM)) from %s",
+//                                         table, table);
+//            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+//            results[0].advanceRow();
+//            assertEquals(2.0,
+//                         ((Number)results[0].get(0, results[0].getColumnType(0))).doubleValue());
+//        }
+//    }
 
     public void testStringMinMaxAndCount()
     throws IOException, ProcCallException
@@ -207,136 +207,136 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         }
     }
 
-    public void testAggregatesWithNulls() throws IOException, ProcCallException
-    {
-        int good_rows = 10;
-        int null_rows = 5;
-
-        String[] aggs = {"sum", "min", "max", "avg"};
-        long[] expected_int_results = {(0 + 1 + 2 + 3 + 4) * 2,
-                                       0,
-                                       4,
-                                       2};
-        double[] expected_float_results = {(0 + 0.5 + 1 + 1.5 + 2 + 2.5 + 3 +
-                                            3.5 + 4 + 4.5),
-                                           0.0,
-                                           4.5,
-                                           2.25};
-        String[] tables = {"P1", "R1"};
-        for (String table : tables)
-        {
-            Client client = getClient();
-            for (int i = 0; i < good_rows; ++i)
-            {
-                client.callProcedure("Insert", table, i, "desc",
-                                     new BigDecimal(i / 2.0), i / 2, i / 2.0);
-            }
-            for (int i = good_rows; i < good_rows + null_rows; ++i)
-            {
-                client.callProcedure("Insert", table, i, VoltType.NULL_STRING,
-                                     VoltType.NULL_DECIMAL,
-                                     VoltType.NULL_INTEGER,
-                                     VoltType.NULL_FLOAT);
-            }
-            // do count separately since it's always integer return type
-            String query = String.format("select count(%s.CASH) from %s",
-                                         table, table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(good_rows, results[0].asScalarLong());
-            query = String.format("select count(%s.NUM) from %s",
-                                         table, table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(good_rows, results[0].asScalarLong());
-            query = String.format("select count(%s.RATIO) from %s",
-                                         table, table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(good_rows, results[0].asScalarLong());
-            for (int i = 0; i < aggs.length; ++i)
-            {
-                query = String.format("select %s(%s.CASH) from %s",
-                                      aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                results[0].advanceRow();
-                assertEquals(expected_float_results[i],
-                             results[0].getDecimalAsBigDecimal(0).doubleValue());
-                query = String.format("select %s(%s.NUM) from %s",
-                                             aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                assertEquals(expected_int_results[i], results[0].asScalarLong());
-                query = String.format("select %s(%s.RATIO) from %s",
-                                             aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                results[0].advanceRow();
-                assertEquals(expected_float_results[i], results[0].getDouble(0));
-            }
-            // and finish up with count(*) for good measure
-            query = String.format("select count(*) from %s", table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            results[0].advanceRow();
-            assertEquals(good_rows + null_rows, results[0].asScalarLong());
-        }
-    }
-
-    public void testAggregatesWithOnlyNulls() throws IOException, ProcCallException
-    {
-        int null_rows = 5;
-
-        String[] aggs = {"sum", "min", "max", "avg"};
-        String[] tables = {"P1", "R1"};
-        for (String table : tables)
-        {
-            Client client = getClient();
-            for (int i = 0; i < null_rows; ++i)
-            {
-                client.callProcedure("Insert", table, i, VoltType.NULL_STRING,
-                                     VoltType.NULL_DECIMAL,
-                                     VoltType.NULL_INTEGER,
-                                     VoltType.NULL_FLOAT);
-            }
-            // do count separately since it's always integer return type
-            String query = String.format("select count(%s.CASH) from %s",
-                                         table, table);
-            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].asScalarLong());
-            query = String.format("select count(%s.NUM) from %s",
-                                         table, table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].asScalarLong());
-            query = String.format("select count(%s.RATIO) from %s",
-                                         table, table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            assertEquals(0, results[0].asScalarLong());
-            for (int i = 0; i < aggs.length; ++i)
-            {
-                query = String.format("select %s(%s.CASH) from %s",
-                                      aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                results[0].advanceRow();
-                @SuppressWarnings("unused")
-                BigDecimal dec_val = results[0].getDecimalAsBigDecimal(0);
-                assert(results[0].wasNull());
-                query = String.format("select %s(%s.NUM) from %s",
-                                             aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                results[0].advanceRow();
-                @SuppressWarnings("unused")
-                long long_val = results[0].getLong(0);
-                assert(results[0].wasNull());
-                query = String.format("select %s(%s.RATIO) from %s",
-                                             aggs[i], table, table);
-                results = client.callProcedure("@AdHoc", query).getResults();
-                results[0].advanceRow();
-                @SuppressWarnings("unused")
-                double doub_val = results[0].getDouble(0);
-                assert(results[0].wasNull());
-            }
-            // and finish up with count(*) for good measure
-            query = String.format("select count(*) from %s", table);
-            results = client.callProcedure("@AdHoc", query).getResults();
-            results[0].advanceRow();
-            assertEquals(null_rows, results[0].asScalarLong());
-        }
-    }
+//    public void testAggregatesWithNulls() throws IOException, ProcCallException
+//    {
+//        int good_rows = 10;
+//        int null_rows = 5;
+//
+//        String[] aggs = {"sum", "min", "max", "avg"};
+//        long[] expected_int_results = {(0 + 1 + 2 + 3 + 4) * 2,
+//                                       0,
+//                                       4,
+//                                       2};
+//        double[] expected_float_results = {(0 + 0.5 + 1 + 1.5 + 2 + 2.5 + 3 +
+//                                            3.5 + 4 + 4.5),
+//                                           0.0,
+//                                           4.5,
+//                                           2.25};
+//        String[] tables = {"P1", "R1"};
+//        for (String table : tables)
+//        {
+//            Client client = getClient();
+//            for (int i = 0; i < good_rows; ++i)
+//            {
+//                client.callProcedure("Insert", table, i, "desc",
+//                                     new BigDecimal(i / 2.0), i / 2, i / 2.0);
+//            }
+//            for (int i = good_rows; i < good_rows + null_rows; ++i)
+//            {
+//                client.callProcedure("Insert", table, i, VoltType.NULL_STRING,
+//                                     VoltType.NULL_DECIMAL,
+//                                     VoltType.NULL_INTEGER,
+//                                     VoltType.NULL_FLOAT);
+//            }
+//            // do count separately since it's always integer return type
+//            String query = String.format("select count(%s.CASH) from %s",
+//                                         table, table);
+//            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(good_rows, results[0].asScalarLong());
+//            query = String.format("select count(%s.NUM) from %s",
+//                                         table, table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(good_rows, results[0].asScalarLong());
+//            query = String.format("select count(%s.RATIO) from %s",
+//                                         table, table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(good_rows, results[0].asScalarLong());
+//            for (int i = 0; i < aggs.length; ++i)
+//            {
+//                query = String.format("select %s(%s.CASH) from %s",
+//                                      aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                results[0].advanceRow();
+//                assertEquals(expected_float_results[i],
+//                             results[0].getDecimalAsBigDecimal(0).doubleValue());
+//                query = String.format("select %s(%s.NUM) from %s",
+//                                             aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                assertEquals(expected_int_results[i], results[0].asScalarLong());
+//                query = String.format("select %s(%s.RATIO) from %s",
+//                                             aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                results[0].advanceRow();
+//                assertEquals(expected_float_results[i], results[0].getDouble(0));
+//            }
+//            // and finish up with count(*) for good measure
+//            query = String.format("select count(*) from %s", table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            results[0].advanceRow();
+//            assertEquals(good_rows + null_rows, results[0].asScalarLong());
+//        }
+//    }
+//
+//    public void testAggregatesWithOnlyNulls() throws IOException, ProcCallException
+//    {
+//        int null_rows = 5;
+//
+//        String[] aggs = {"sum", "min", "max", "avg"};
+//        String[] tables = {"P1", "R1"};
+//        for (String table : tables)
+//        {
+//            Client client = getClient();
+//            for (int i = 0; i < null_rows; ++i)
+//            {
+//                client.callProcedure("Insert", table, i, VoltType.NULL_STRING,
+//                                     VoltType.NULL_DECIMAL,
+//                                     VoltType.NULL_INTEGER,
+//                                     VoltType.NULL_FLOAT);
+//            }
+//            // do count separately since it's always integer return type
+//            String query = String.format("select count(%s.CASH) from %s",
+//                                         table, table);
+//            VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(0, results[0].asScalarLong());
+//            query = String.format("select count(%s.NUM) from %s",
+//                                         table, table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(0, results[0].asScalarLong());
+//            query = String.format("select count(%s.RATIO) from %s",
+//                                         table, table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            assertEquals(0, results[0].asScalarLong());
+//            for (int i = 0; i < aggs.length; ++i)
+//            {
+//                query = String.format("select %s(%s.CASH) from %s",
+//                                      aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                results[0].advanceRow();
+//                @SuppressWarnings("unused")
+//                BigDecimal dec_val = results[0].getDecimalAsBigDecimal(0);
+//                assert(results[0].wasNull());
+//                query = String.format("select %s(%s.NUM) from %s",
+//                                             aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                results[0].advanceRow();
+//                @SuppressWarnings("unused")
+//                long long_val = results[0].getLong(0);
+//                assert(results[0].wasNull());
+//                query = String.format("select %s(%s.RATIO) from %s",
+//                                             aggs[i], table, table);
+//                results = client.callProcedure("@AdHoc", query).getResults();
+//                results[0].advanceRow();
+//                @SuppressWarnings("unused")
+//                double doub_val = results[0].getDouble(0);
+//                assert(results[0].wasNull());
+//            }
+//            // and finish up with count(*) for good measure
+//            query = String.format("select count(*) from %s", table);
+//            results = client.callProcedure("@AdHoc", query).getResults();
+//            results[0].advanceRow();
+//            assertEquals(null_rows, results[0].asScalarLong());
+//        }
+//    }
 
     //
     // JUnit / RegressionSuite boilerplate
@@ -357,6 +357,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         project.addProcedures(PROCEDURES);
 
         config = new LocalSingleProcessServer("sqlaggregate-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
@@ -372,6 +373,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
         // Cluster
         config = new LocalCluster("sqlaggregate-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

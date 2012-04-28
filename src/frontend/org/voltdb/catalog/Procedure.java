@@ -35,7 +35,8 @@ public class Procedure extends CatalogType {
     boolean m_everysite;
     boolean m_systemproc;
     boolean m_mapreduce;
-    boolean m_prefetch;
+    boolean m_prefetchable;
+    boolean m_deferrable;
     String m_mapInputQuery = new String();
     String m_mapEmitTable = new String();
     String m_reduceInputQuery = new String();
@@ -59,7 +60,8 @@ public class Procedure extends CatalogType {
         this.addField("everysite", m_everysite);
         this.addField("systemproc", m_systemproc);
         this.addField("mapreduce", m_mapreduce);
-        this.addField("prefetch", m_prefetch);
+        this.addField("prefetchable", m_prefetchable);
+        this.addField("deferrable", m_deferrable);
         this.addField("mapInputQuery", m_mapInputQuery);
         this.addField("mapEmitTable", m_mapEmitTable);
         this.addField("reduceInputQuery", m_reduceInputQuery);
@@ -84,7 +86,8 @@ public class Procedure extends CatalogType {
         m_everysite = (Boolean) m_fields.get("everysite");
         m_systemproc = (Boolean) m_fields.get("systemproc");
         m_mapreduce = (Boolean) m_fields.get("mapreduce");
-        m_prefetch = (Boolean) m_fields.get("prefetch");
+        m_prefetchable = (Boolean) m_fields.get("prefetchable");
+        m_deferrable = (Boolean) m_fields.get("deferrable");
         m_mapInputQuery = (String) m_fields.get("mapInputQuery");
         m_mapEmitTable = (String) m_fields.get("mapEmitTable");
         m_reduceInputQuery = (String) m_fields.get("reduceInputQuery");
@@ -139,8 +142,13 @@ public class Procedure extends CatalogType {
     }
 
     /** GETTER: Does this Procedure have Statements can be pre-fetched for distributed transactions? */
-    public boolean getPrefetch() {
-        return m_prefetch;
+    public boolean getPrefetchable() {
+        return m_prefetchable;
+    }
+
+    /** GETTER: Does this Procedure have at least one deferrable Statement? */
+    public boolean getDeferrable() {
+        return m_deferrable;
     }
 
     /** GETTER: The name of the query that gets executed and fed into the Map function */
@@ -250,8 +258,13 @@ public class Procedure extends CatalogType {
     }
 
     /** SETTER: Does this Procedure have Statements can be pre-fetched for distributed transactions? */
-    public void setPrefetch(boolean value) {
-        m_prefetch = value; m_fields.put("prefetch", value);
+    public void setPrefetchable(boolean value) {
+        m_prefetchable = value; m_fields.put("prefetchable", value);
+    }
+
+    /** SETTER: Does this Procedure have at least one deferrable Statement? */
+    public void setDeferrable(boolean value) {
+        m_deferrable = value; m_fields.put("deferrable", value);
     }
 
     /** SETTER: The name of the query that gets executed and fed into the Map function */

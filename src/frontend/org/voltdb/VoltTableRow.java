@@ -131,7 +131,7 @@ public abstract class VoltTableRow {
             return;
 
         m_offsets[0] = m_position;
-        for (int i = 1; i < getColumnCount(); i++) {
+        for (int i = 1, cnt = getColumnCount(); i < cnt; i++) {
             final VoltType type = getColumnType(i - 1);
             // handle variable length types specially
             if (type == VoltType.STRING) {

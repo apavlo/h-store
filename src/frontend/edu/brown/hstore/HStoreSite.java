@@ -26,6 +26,7 @@
 package edu.brown.hstore;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,13 +45,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
+import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.compiler.AdHocPlannedStmt;
+import org.voltdb.compiler.AsyncCompilerResult;
+import org.voltdb.compiler.AsyncCompilerWorkThread;
 import org.voltdb.exceptions.MispredictionException;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
@@ -84,6 +93,7 @@ import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -126,7 +136,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     
     // ----------------------------------------------------------------------------
-    // OBJECT POOLS
+    // INSTANCE MEMBERS
     // ----------------------------------------------------------------------------
 
     /**
@@ -134,6 +144,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * to clients.
      */
     private final DBBPool buffer_pool = new DBBPool(false, false);
+    
+    /**
+     * Incoming request deserializer
+     */
+    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
     private final HStoreThreadManager threadManager;
     
@@ -183,7 +198,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     /** Catalog Stuff **/
+    private long instanceId;
     private final HStoreConf hstore_conf;
+    private final Host catalog_host;
+    private final int host_id;
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
@@ -213,6 +231,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private boolean mr_helper_started = false;
     private final MapReduceHelperThread mr_helper;
+    
+    private final CommandLogWriter commandLogger;
+
+    /**
+     * AdHoc: This thread waits for AdHoc queries. 
+     */
+    private final AsyncCompilerWorkThread asyncCompilerWork_thread;
+    private final PeriodicWorkTimerThread periodicWorkTimer_thread;
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -311,11 +337,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @SuppressWarnings("unchecked")
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+    	
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
+        this.catalog_host = this.catalog_site.getHost(); 
+        this.host_id = this.catalog_host.getId();
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
@@ -413,8 +442,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // HStoreSite Thread Manager
         this.threadManager = new HStoreThreadManager(this);
         
+        // Command Logger
+        if (hstore_conf.site.exec_command_logging) {
+            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_file);
+        } else {
+            this.commandLogger = null;
+        }
+
+        // AdHoc Support
+        if (hstore_conf.site.exec_adhoc_sql) {
+            this.periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
+            // TODO: this isnt right, what is the CatalogContext
+            this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
+        } else {
+            this.periodicWorkTimer_thread = null;
+            this.asyncCompilerWork_thread = null;
+        }
+
+        
         // Incoming Txn Request Listener
-        this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
+        this.voltListener = new VoltProcedureListener(this.host_id,
+                                                      this.procEventLoop,
+                                                      this);
         
         if (hstore_conf.site.status_show_executor_info) {
             this.idle_time.resetOnEvent(this.startWorkload_observable);
@@ -453,7 +502,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // CACHED MESSAGES
-        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();;
+        this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
     }
     
 
@@ -466,6 +515,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
+    }
+    
+    @Override
+    public long getInstanceId() {
+        return (this.instanceId);
+    }
+    protected void setInstanceId(long instanceId) {
+        if (d) LOG.debug("Setting Cluster InstanceId: " + instanceId);
+        this.instanceId = instanceId;
+    }
+    public DBBPool getBufferPool() {
+        return (this.buffer_pool);
     }
     
     /**
@@ -506,7 +567,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     protected HStoreCoordinator initHStoreCoordinator() {
-        return new HStoreCoordinator(this);
+        return new HStoreCoordinator(this);        
     }
     public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
@@ -554,6 +615,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
          this.thresholds = thresholds;
 //         if (d) 
          LOG.info("Set new EstimationThresholds: " + thresholds);
+    }
+    
+    public Catalog getCatalog() {
+        return (this.catalog_db.getCatalog());
     }
     
     public Database getDatabase() {
@@ -657,7 +722,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * For the given partition id, return its offset in the list of 
+     * all the local partition ids managed by this HStoreSite.
+     * This will fail if the given partition is not local to this HStoreSite.
      * @param partition
      * @return
      */
@@ -669,9 +736,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * 
+     * For the given local partition offset generated by getLocalPartitionOffset(),
+     * return its corresponding partition id
      * @param offset
      * @return
+     * @see HStoreSite.getLocalPartitionOffset
      */
     public int getLocalPartitionFromOffset(int offset) {
         return this.local_partition_reverse[offset];
@@ -802,6 +871,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers();
         
+        // Start threads for processing AdHoc queries TODO: check that this thread is started correctly
+        //m_asyncCompilerWorkThread = new AsyncCompilerWorkThread();
+        if (this.periodicWorkTimer_thread != null) {
+            this.periodicWorkTimer_thread.start();
+            this.asyncCompilerWork_thread.start();
+        }
+        
         return (this);
     }
     
@@ -852,6 +928,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (this.mr_helper != null)
             this.mr_helper.prepareShutdown(error);
+        if (this.commandLogger != null)
+            this.commandLogger.prepareShutdown(error);
+        if (this.asyncCompilerWork_thread != null)
+            this.asyncCompilerWork_thread.prepareShutdown(error);
+        if (this.periodicWorkTimer_thread != null)
+            this.periodicWorkTimer_thread.prepareShutdown(error);
         
         for (int p : this.local_partitions_arr) {
             if (this.executors[p] != null) 
@@ -863,8 +945,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      * This should only be called by HStoreMessenger 
      */
-    @Override
-    public synchronized void shutdown() {
+	@Override
+    public synchronized void shutdown(){
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
@@ -877,6 +959,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
+        // Stop AdHoc threads
+        if (this.asyncCompilerWork_thread != null)
+            this.asyncCompilerWork_thread.shutdown();
+        if (this.periodicWorkTimer_thread != null)
+            this.periodicWorkTimer_thread.shutdown();
+        
         // Kill the queue manager
         this.txnQueueManager.shutdown();
         
@@ -886,6 +974,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // Tell the MapReduceHelperThread to shutdown too
         if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.commandLogger != null) this.commandLogger.shutdown();
+
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
@@ -921,9 +1011,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
+    public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
+
+        StoredProcedureInvocation request = null;
+        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
+        synchronized (this) {
+            this.incomingDeserializer.setBuffer(buffer);
+            try {
+                request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        } // SYNCH
         
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
@@ -950,30 +1051,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         
         // DB2-style Transaction Redirection
-        if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
+            if (d) LOG.debug(String.format("Using embedded base partition from %s request [basePartition=%d]",
+                                           request.getProcName(), request.getBasePartition()));
             assert(base_partition == request.getBasePartition());    
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
         else if (sysproc) {
-            // For now we'll just run the sysproc on a random partition at this site
-            
-            // HACK: Check if we should shutdown. This allows us to kill things even if the
-            // DTXN coordinator is stuck.
-            // TODO: Execute as a regular transaction
-            if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
-                FastSerializer fs = new FastSerializer();
-                try {
-                    fs.writeObject(cresponse);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                done.run(fs.getBytes());
-
-                // Non-blocking....
-                Exception error = new Exception("Shutdown command received at " + this.getSiteName());
-                this.hstore_coordinator.shutdownCluster(error);
+            // If this method returns true, then we want to halt processing the
+            // request any further and immediately return
+            if (this.processSysProc(request, catalog_proc, done)) {
                 return;
             }
         }
@@ -991,9 +1078,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
-            if (t) 
-                LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                        request.getProcName(), hstore_conf.site.exec_force_localexecution));
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                                           request.getProcName(), hstore_conf.site.exec_force_localexecution));
             int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
             base_partition = this.local_partitions_arr[idx].intValue();
         }
@@ -1064,7 +1150,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                              request.getProcName(), base_partition, request.getClientHandle()));
             predict_touchedPartitions = this.single_partition_sets[base_partition];
-        }    
+        }
+        // Use the @ProcInfo flags in the catalog
+        else if (hstore_conf.site.exec_voltdb_procinfo) {
+            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
+                                            request.getProcName(), request.getClientHandle(), catalog_proc.getSinglepartition()));
+            if (catalog_proc.getSinglepartition()) {
+                predict_touchedPartitions = this.single_partition_sets[base_partition];
+            } else {
+                predict_touchedPartitions = this.all_partitions;
+            }
+        }
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
         else if (hstore_conf.site.exec_neworder_cheat) {
@@ -1173,8 +1269,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         } else {
-            ts.init(
-                    txn_id, request.getClientHandle(), base_partition,
+            ts.init(txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                     catalog_proc, request, done);
         }
@@ -1200,8 +1295,95 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // SYNCH
         }
         this.dispatchInvocation(ts);
-        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". Returning back to listen on incoming socket");
+        if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
+        		         "Returning back to listen on incoming socket");
+    }
+    
+    /**
+     * Special handling for incoming sysproc requests
+     * @param request
+     * @param catalog_proc
+     * @param done
+     * @return True if this request was handled and the caller does not need to do anything further
+     */
+    private boolean processSysProc(StoredProcedureInvocation request, Procedure catalog_proc, RpcCallback<byte[]> done) {
+        // HACK: Check if we should shutdown. This allows us to kill things even if the
+        // DTXN coordinator is stuck.
+        // TODO: Execute as a regular transaction
+        if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
+            ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
+            FastSerializer fs = new FastSerializer();
+            try {
+                fs.writeObject(cresponse);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            done.run(fs.getBytes());
+
+            // Non-blocking....
+            Exception error = new Exception("Shutdown command received at " + this.getSiteName());
+            this.hstore_coordinator.shutdownCluster(error);
+            return (true);
+        }
         
+        // Check for AdHoc 
+        // new for AdHoc start **********************************************************************
+        if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+            String msg = null;
+            
+            // Is this feature disabled?
+            if (hstore_conf.site.exec_adhoc_sql == false) {
+                msg = "AdHoc queries are disabled";
+            }
+            // Check that variable 'request' in this func. is same as 
+            // 'task' in ClientInterface.handleRead()
+            else if (request.getParams().toArray().length != 1) {
+                msg = "AdHoc system procedure requires exactly one parameter, " +
+                	  "the SQL statement to execute.";
+            }
+            
+            if (msg != null) {
+                final ClientResponseImpl errorResponse =
+                    new ClientResponseImpl(-1, request.getClientHandle(), -1,
+                                           Status.ABORT_GRACEFUL,
+                                           HStoreConstants.EMPTY_RESULT,
+                                           msg);
+                FastSerializer fs = new FastSerializer();
+                try {
+                    fs.writeObject(errorResponse);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                done.run(fs.getBytes());
+                return (true);
+            }
+            
+            // Create a LocalTransaction handle that will carry into the
+            // the adhoc compiler. Since we don't know what this thing will do, we have
+            // to assume that it needs to touch all partitions.
+            int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
+            int base_partition = this.local_partitions_arr[idx].intValue();
+            
+            LocalTransaction ts = null;
+            try {
+                ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
+                assert (ts.isInitialized() == false);
+            } catch (Throwable ex) {
+                LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn",
+                                        request.getProcName()));
+                throw new RuntimeException(ex);
+            }
+            ts = ts.init(-1l, request.getClientHandle(), base_partition,
+                         this.all_partitions, false, true,
+                         catalog_proc, request, done);
+            
+            String sql = (String) request.getParams().toArray()[0];
+            this.asyncCompilerWork_thread.planSQL(ts, sql);
+            return (true);
+        }
+        // new for AdHoc end **********************************************************************
+        
+        return (false);
     }
 
     /**
@@ -1488,6 +1670,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null) {
+            /*if (ts instanceof LocalTransaction) {
+                
+                WriteAheadLogger.writeCombined((LocalTransaction)ts, status);
+            }*/
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
@@ -1842,6 +2028,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
         
+        if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
+            this.commandLogger.write(ts);
+        }
+
         // Don't send anything back if it's a mispredict because it's as waste of time...
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
@@ -2112,4 +2302,86 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // This will block the MAIN thread!
         ThreadUtil.runNewPool(runnables);
     }
+
+
+
+    /**
+     * Added for @AdHoc processes, periodically checks for AdHoc queries waiting to be compiled.
+     * 
+     */
+	public void processPeriodicWork() {
+	    if (trace.get())
+		    LOG.trace("Checking for PeriodicWork...");
+
+	    // poll planner queue
+	    if (asyncCompilerWork_thread != null) {
+	        checkForFinishedCompilerWork();
+	    }
+
+        return;
+	}
+
+	/**
+     * Added for @AdHoc processes
+     * 
+     */
+	private void checkForFinishedCompilerWork() {
+		//LOG.info("HStoreSite - Checking for finished compiled work.");
+		
+
+        AsyncCompilerResult result = null;
+ 
+        while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
+            LOG.info("AsyncCompilerResult\n" + result);
+            
+            // ----------------------------------
+            // BUSTED!
+            // ----------------------------------
+            if (result.errorMsg != null) {
+//                if (debug.get())
+                    LOG.error("Unexpected AsyncCompiler Error:\n" + result.errorMsg);
+                
+                ClientResponseImpl errorResponse =
+                        new ClientResponseImpl(-1, result.clientHandle, -1,
+                                Status.ABORT_UNEXPECTED,
+                                HStoreConstants.EMPTY_RESULT,
+                                result.errorMsg);
+                this.sendClientResponse(result.ts, errorResponse);
+                
+                // TODO: Figure out how we will delete the txn handle even though we
+                // don't have a real txnID
+                // this.deleteTransaction(txn_id, status)
+            }
+            // ----------------------------------
+            // AdHocPlannedStmt
+            // ----------------------------------
+            else if (result instanceof AdHocPlannedStmt) {
+                AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
+
+                // Modify the StoredProcedureInvocation
+                StoredProcedureInvocation task = result.ts.getInvocation();
+                task.setParams(plannedStmt.aggregatorFragment,
+                               plannedStmt.collectorFragment,
+                               plannedStmt.sql,
+                               plannedStmt.isReplicatedTableDML ? 1 : 0
+        		);
+
+                // initiate the transaction
+                int base_partition = result.ts.getBasePartition();
+                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                result.ts.setTransactionId(txn_id);
+                
+                LOG.info("Queuing AdHoc transaction: " + result.ts);
+                this.dispatchInvocation(result.ts);
+                
+            }
+            // ----------------------------------
+            // Unexpected
+            // ----------------------------------
+            else {
+                throw new RuntimeException(
+                        "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
+            }
+        } // WHILE
+	}
 }

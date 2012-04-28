@@ -406,6 +406,9 @@ public class TransactionProfile implements Poolable {
         this.disabled = false;
     }
 
+    /**
+     * Disable all profiling for this transaction
+     */
     public void disableProfiling() {
         if (debug.get()) LOG.debug("Disabling transaction profiling");
         this.disabled = true;

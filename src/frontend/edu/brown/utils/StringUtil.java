@@ -33,6 +33,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -63,6 +64,10 @@ public abstract class StringUtil {
     private static final double BASE = 1024, KB = BASE, MB = KB * BASE, GB = MB * BASE;
     private static final DecimalFormat df = new DecimalFormat("#.##");
 
+    private static final String HEADER_MARKER = "-";
+    private static final int HEADER_LENGTH = 80;
+    
+    
     /**
      * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5
      * 
@@ -89,11 +94,15 @@ public abstract class StringUtil {
     }
 
     public static String header(String msg) {
-        return StringUtil.header(msg, "-");
+        return StringUtil.header(msg, HEADER_MARKER, HEADER_LENGTH);
     }
 
+    public static String header(String msg, int length) {
+        return StringUtil.header(msg, HEADER_MARKER, length);
+    }
+    
     public static String header(String msg, String marker) {
-        return StringUtil.header(msg, marker, 100);
+        return StringUtil.header(msg, marker, HEADER_LENGTH);
     }
 
     /**
@@ -155,7 +164,15 @@ public abstract class StringUtil {
 
     /**
      * Split the multi-lined strings into separate columns
-     * 
+     * @param strs
+     * @return
+     */
+    public static String columns(Collection<String> strs) {
+        return StringUtil.columns(strs.toArray(new String[0]));
+    }
+    
+    /**
+     * Split the multi-lined strings into separate columns
      * @param strs
      * @return
      */
