@@ -129,7 +129,7 @@ public class UpdatePage extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public long run( long nextId, int pageId,
+	public long run( int nextId, int textId, int pageId,
 	                                 String pageTitle,int pageNamespace, String pageText,
 	                                 int userId, String userIp, String userText,
 	                                 int revisionId, String revComment, int revMinorEdit) {
@@ -143,11 +143,13 @@ public class UpdatePage extends VoltProcedure {
 		rs = voltExecuteSQL();
 		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
-
+		
+        //int nextTextId = rs.getInt(1);
+		int nextTextId = nextId + 1;
 		// INSERT NEW REVISION
 		voltQueueSQL(insertRevision, nextId,
 		                             pageId, 
-		                            nextId, 
+		                             nextTextId,
 		                            revComment, 
 		                            revMinorEdit,
 		                            userId, 
@@ -178,7 +180,7 @@ public class UpdatePage extends VoltProcedure {
 		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
 		// st.addBatch(sql);
 		
-		voltQueueSQL(insertRecentChanges, nextId,
+		voltQueueSQL(insertRecentChanges, textId,
 		                                  timestamp, 
 		                                  timestamp,
 		                                  pageNamespace,
@@ -253,7 +255,7 @@ public class UpdatePage extends VoltProcedure {
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
-		voltQueueSQL(insertLogging, nextId,
+		voltQueueSQL(insertLogging, textId,
 		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,
 		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
 		                            timestamp,

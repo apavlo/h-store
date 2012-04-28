@@ -28,10 +28,14 @@ import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.wikipedia.procedures.GetPageAnonymous;
 import edu.brown.benchmark.wikipedia.procedures.GetPagesInfo;
+import edu.brown.benchmark.wikipedia.util.TextGenerator;
+import edu.brown.benchmark.wikipedia.util.WikipediaUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
@@ -77,6 +81,16 @@ public class WikipediaClient extends BenchmarkComponent {
         public final String callName;
         public final int weight; // probability (in terms of percentage) the
         // transaction gets executed
+        
+        public static Transaction getTransaction (String callname) {
+            Transaction res = null;
+            for (Transaction t : Transaction.values()) {
+                if (callname.equals(t.callName))
+                    res = t;
+            }
+            return res;
+        }
+        
     }
 	
     /**
@@ -152,7 +166,7 @@ public class WikipediaClient extends BenchmarkComponent {
     }
     
     /**
-     * Return a transaction randomly selected per TM1 probability specs
+     * Return a transaction randomly selected per WikipediaClient probability specs
      */
     private Transaction selectTransaction() {
         // Transaction force = null; // (this.getClientId() == 0 ?
@@ -282,18 +296,6 @@ public class WikipediaClient extends BenchmarkComponent {
                         data[1]
                 };
                 break;
-            case UPDATE_PAGE:
-                params = new Object[]{
-                        this.nextRevId,
-                        page_id,
-                        data[0],
-                        data[1],
-                        this.generateUserIP(),
-                        user_id, 
-                        data[0], 
-                        
-                };
-                break;
             case GET_PAGE_ANONYMOUS:
                 params = new Object[]{
                         true,
@@ -309,6 +311,58 @@ public class WikipediaClient extends BenchmarkComponent {
                         user_id, 
                         data[0], 
                         data[1]
+                };
+                break;
+            case UPDATE_PAGE:
+                String user_ip = this.generateUserIP();
+                int namespace = (Integer) data[0];
+                String pageTitle = (String) data[1];
+                params = new Object[]{
+                        false,
+                        user_ip,
+                        namespace,
+                        pageTitle
+                };
+                //String procedureName = "GetPageAnonymous";
+                //Transaction target = Transaction.getTransaction(procedureName);
+                //assert(target != null):"can not find procedure: " + procedureName;
+                ClientResponse cr = null;
+                try {
+                    cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to call GetPageAnonymous...", e);
+                }
+                // voltTable
+                VoltTable res[] = cr.getResults();
+                VoltTable vt = res[0];
+                
+                // deal with the VoltTable and try to ...
+                String vt_userText = vt.getString(0);
+                int vt_pageId = (int) vt.getLong(1);
+                String vt_oldText = vt.getString(2);
+                int vt_textId = (int) vt.getLong(3);
+                int vt_revisionId = (int) vt.getLong(4);
+                
+                // Permute the original text of the article
+                // Important: We have to make sure that we fill in the entire array
+                char[] newText = WikipediaUtil.generateRevisionText(vt_oldText.toCharArray());
+                int revCommentLen = WikipediaUtil.commentLength.nextValue().intValue();
+                String revComment = TextGenerator.randomStr(new Random(), revCommentLen);
+                int revMinorEdit = WikipediaUtil.minorEdit.nextValue().intValue();
+                
+                params = new Object[]{
+                        this.nextRevId,
+                        vt_textId,
+                        vt_pageId,
+                        pageTitle,
+                        new String(newText),
+                        namespace,
+                        user_id,
+                        user_ip,
+                        vt_userText,
+                        vt_revisionId, 
+                        revComment,
+                        revMinorEdit
                 };
                 break;
              default:
