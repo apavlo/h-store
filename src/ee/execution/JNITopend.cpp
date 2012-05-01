@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,14 +31,32 @@ class JNILocalFrameBarrier {
     int32_t m_refs;
     int32_t m_result;
 
+    jboolean m_isCopy;
+    jbyteArray m_jbuf;
+    jbyte* m_bytes;
+
   public:
     JNILocalFrameBarrier(JNIEnv* env, int32_t numReferences) {
         m_env = env;
         m_refs = numReferences;
         m_result = m_env->PushLocalFrame(m_refs);
+        m_isCopy = JNI_FALSE;
+        m_jbuf = 0;
+        m_bytes = NULL;
+    }
+
+    void addDependencyRef(jboolean isCopy, jbyteArray jbuf, jbyte* bytes)
+    {
+        m_isCopy = isCopy;
+        m_jbuf = jbuf;
+        m_bytes = bytes;
     }
 
     ~JNILocalFrameBarrier() {
+        if (m_isCopy == JNI_TRUE)
+        {
+            m_env->ReleaseByteArrayElements(m_jbuf, m_bytes, 0);
+        }
         // pass jobject* to get pointer to previous frame?
         m_env->PopLocalFrame(NULL);
     }
@@ -91,7 +109,11 @@ int JNITopend::loadNextDependency(int32_t dependencyId, voltdb::Pool *stringPool
     jsize length = m_jniEnv->GetArrayLength(jbuf);
     VOLT_DEBUG("Dependency Id %d Length: %d", dependencyId, length);
     if (length > 0) {
-        jbyte *bytes = m_jniEnv->GetByteArrayElements(jbuf, NULL);
+        jboolean is_copy;
+        jbyte *bytes = m_jniEnv->GetByteArrayElements(jbuf, &is_copy);
+        // Add the dependency buffer info to the stack object
+        // so it'll get cleaned up if loadTuplesFrom throws
+        jni_frame.addDependencyRef(is_copy, jbuf, bytes);
         ReferenceSerializeInput serialize_in(bytes, length);
         destination->loadTuplesFrom(true, serialize_in, stringPool);
         return 1;

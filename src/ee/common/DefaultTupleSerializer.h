@@ -15,25 +15,29 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IPCTOPEND_H_
-#define IPCTOPEND_H_
-#include "common/Topend.h"
-#include "common/Pool.hpp"
-#include "common/FatalException.hpp"
-
-class VoltDBIPC;
+#ifndef DEFAULTTUPLESERIALIZER_H_
+#define DEFAULTTUPLESERIALIZER_H_
+#include "common/TupleSerializer.h"
+#include "common/tabletuple.h"
 
 namespace voltdb {
+class ReferenceSerializeOutput;
+class TupleSchema;
 
-class IPCTopend : public Topend {
+class DefaultTupleSerializer : public TupleSerializer {
 public:
-    IPCTopend( VoltDBIPC *vdbipc);
-    int loadNextDependency(int32_t dependencyId, Pool *stringPool, Table* destination);
-    void crashVoltDB(FatalException e);
+    /**
+     * Serialize the provided tuple to the provide serialize output
+     */
+    void serializeTo(TableTuple tuple, ReferenceSerializeOutput *out);
 
-private:
-    ::VoltDBIPC *m_vdbipc;
+    /**
+     * Calculate the maximum size of a serialized tuple based upon the schema of the table/tuple
+     */
+    int getMaxSerializedTupleSize(const TupleSchema *schema);
+
+    virtual ~DefaultTupleSerializer() {}
 };
 }
 
-#endif /* IPCTOPEND_H_ */
+#endif /* DEFAULTTUPLESERIALIZER_H_ */
