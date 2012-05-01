@@ -15,25 +15,24 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IPCTOPEND_H_
-#define IPCTOPEND_H_
-#include "common/Topend.h"
-#include "common/Pool.hpp"
-#include "common/FatalException.hpp"
+#ifndef SEGVEXCEPTION_HPP_
+#define SEGVEXCEPTION_HPP_
 
-class VoltDBIPC;
+#include "FatalException.hpp"
+
+#include <signal.h>
 
 namespace voltdb {
 
-class IPCTopend : public Topend {
+class SegvException : public FatalException {
 public:
-    IPCTopend( VoltDBIPC *vdbipc);
-    int loadNextDependency(int32_t dependencyId, Pool *stringPool, Table* destination);
-    void crashVoltDB(FatalException e);
-
-private:
-    ::VoltDBIPC *m_vdbipc;
+    SegvException(
+        std::string message,
+        void *context,
+        const char *filename,
+        unsigned long lineno
+    );
 };
-}
 
-#endif /* IPCTOPEND_H_ */
+}
+#endif /* SEGVEXCEPTION_HPP_ */

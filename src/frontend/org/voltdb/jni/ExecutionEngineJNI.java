@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@ import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
+import org.voltdb.TableStreamType;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Table;
-import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
@@ -89,7 +89,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     /**
      * initialize the native Engine object.
-     * @see #nativeCreate()
      */
     public ExecutionEngineJNI(
             final PartitionExecutor site,
@@ -177,12 +176,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     /**
-     * Wrapper for {@link #nativeLoadCatalog(long, String)}.
+     *  Provide a serialized catalog and initialize version 0 of the engine's
+     *  catalog.
      */
     @Override
     public void loadCatalog(final String serializedCatalog) throws EEException {
         //C++ JSON deserializer is not thread safe, must synchronize
-        if (t) LOG.trace("Loading Application Catalog...");
+        LOG.trace("Loading Application Catalog...");
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
             errorCode = nativeLoadCatalog(pointer, serializedCatalog);
@@ -192,15 +192,16 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     /**
-     * Wrapper for {@link #nativeUpdateCatalog(long, String)}.
+     * Provide a catalog diff and a new catalog version and update the
+     * engine's catalog.
      */
     @Override
-    public void updateCatalog(final String catalogDiffs) throws EEException {
+    public void updateCatalog(final String catalogDiffs, int catalogVersion) throws EEException {
         //C++ JSON deserializer is not thread safe, must synchronize
         if (t) LOG.trace("Loading Application Catalog...");
         int errorCode = 0;
         synchronized (ExecutionEngineJNI.class) {
-            errorCode = nativeUpdateCatalog(pointer, catalogDiffs);
+            errorCode = nativeUpdateCatalog(pointer, catalogDiffs, catalogVersion);
         }
         checkErrorCode(errorCode);
         //LOG.info("Loaded Catalog.");
@@ -208,7 +209,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     /**
      * @param undoToken Token identifying undo quantum for generated undo info
-     * Wrapper for {@link #nativeExecutePlanFragment(long, long, int, int, long, long, long)}.
      */
     @Override
     public DependencyPair executePlanFragment(final long planFragmentId,
@@ -294,10 +294,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
     }
-    
+
     /**
      * @param undoToken Token identifying undo quantum for generated undo info
-     * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
      */
     @Override
     public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
@@ -308,10 +307,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             ParameterSet[] parameterSets,
             int numParameterSets,
             long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
-        
+
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
-        assert(planFragmentIds.length == parameterSets.length);
-        
+        assert (planFragmentIds.length == parameterSets.length);
+
         // serialize the param sets
         fsForParameterSet.clear();
         try {
@@ -415,12 +414,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                     assert(depid >= 0);
                     
                     int tableSize = fullBacking.getInt();
-                    assert(tableSize < 10000000);
+                assert(tableSize < 10000000);
                     byte tableBytes[] = new byte[tableSize];
                     fullBacking.get(tableBytes, 0, tableSize);
                     final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
 //                    fullBacking.position(fullBacking.position() + tableSize);
-                    
+
                     results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
                     dependencies[dep_ctr] = depid;
                     if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
@@ -436,39 +435,35 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
     }
 
-    /**
-     * Wrapper for {@link #nativeSerializeTable(long, int, ByteBuffer, int)}.
-     */
     @Override
-    public VoltTable serializeTable(final Table catalog_tbl, int offset, int limit) throws EEException {
-        if (t) LOG.trace(String.format("Serializing %s [offset=%d, limit=%d]", catalog_tbl, offset, limit));
+    public VoltTable serializeTable(final int tableId) throws EEException {
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Retrieving VoltTable:" + tableId);
+        }
         deserializer.clear();
-        final int errorCode = nativeSerializeTable(pointer, catalog_tbl.getRelativeIndex(), offset, limit, deserializer.buffer(),
+        final int errorCode = nativeSerializeTable(pointer, tableId, deserializer.buffer(),
                 deserializer.buffer().capacity());
         checkErrorCode(errorCode);
 
         try {
             return deserializer.readObject(VoltTable.class);
         } catch (final IOException ex) {
-            LOG.error("Failed to retrieve table:" + catalog_tbl.getName() + ex);
+            LOG.error("Failed to retrieve table:" + tableId + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
     }
 
-    /**
-     * Wrapper for {@link #nativeLoadTable(long, int, byte[], long, long, long, boolean)}.
-     */
     @Override
     public void loadTable(final int tableId, final VoltTable table,
         final long txnId, final long lastCommittedTxnId,
-        final long undoToken, boolean allowELT) throws EEException
+        final long undoToken, boolean allowExport) throws EEException
     {
         byte[] serialized_table = table.getTableDataReference().array();
         if (t) LOG.trace(String.format("Passing table into EE [id=%d, bytes=%s]", tableId, serialized_table.length));
 
         final int errorCode = nativeLoadTable(pointer, tableId, serialized_table,
                                               txnId, lastCommittedTxnId,
-                                              undoToken, allowELT);
+                                              undoToken, allowExport);
         checkErrorCode(errorCode);
     }
 
@@ -524,9 +519,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
     }
 
-    /**
-     * Wrapper for {@link #nativeToggleProfiler(long, int)}.
-     */
     @Override
     public int toggleProfiler(final int toggle) {
         return nativeToggleProfiler(pointer, toggle);
@@ -554,36 +546,38 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     @Override
-    public boolean activateCopyOnWrite(int tableId) {
-        return nativeActivateCopyOnWrite( pointer, tableId);
+    public boolean activateTableStream(int tableId, TableStreamType streamType) {
+        return nativeActivateTableStream( pointer, tableId, streamType.ordinal());
     }
 
     @Override
-    public int cowSerializeMore(BBContainer c, int tableId) {
-        return nativeCOWSerializeMore(pointer, c.address, c.b.position(), c.b.remaining(), tableId);
+    public int tableStreamSerializeMore(BBContainer c, int tableId, TableStreamType streamType) {
+        return nativeTableStreamSerializeMore(pointer, c.address, c.b.position(), c.b.remaining(), tableId, streamType.ordinal());
     }
 
     /**
-     * Instruct the EE to execute an ELT poll and/or ack action. Poll response
+     * Instruct the EE to execute an Export poll and/or ack action. Poll response
      * data is returned in the usual results buffer, length preceded as usual.
      */
     @Override
-    public ELTProtoMessage eltAction(boolean ackAction, boolean pollAction,
-            long ackTxnId, int partitionId, int tableId)
+    public ExportProtoMessage exportAction(boolean ackAction, boolean pollAction,
+            boolean resetAction, boolean syncAction,
+            long ackTxnId, long seqNo, int partitionId, long tableId)
     {
         deserializer.clear();
-        ELTProtoMessage result = null;
+        ExportProtoMessage result = null;
         try {
-            long offset = nativeELTAction(pointer, ackAction, pollAction, ackTxnId, tableId);
+            long offset = nativeExportAction(pointer, ackAction, pollAction, resetAction,
+                                             syncAction, ackTxnId, seqNo, tableId);
             if (offset < 0) {
-                result = new ELTProtoMessage(partitionId, tableId);
+                result = new ExportProtoMessage(partitionId, tableId);
                 result.error();
             }
             else if (pollAction) {
                 ByteBuffer b;
                 int byteLen = deserializer.readInt();
                 if (byteLen < 0) {
-                    throw new IOException("Invalid length in ELT poll response results.");
+                    throw new IOException("Invalid length in Export poll response results.");
                 }
 
                 // need to keep the embedded length in the resulting buffer.
@@ -591,16 +585,26 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 // so add it back to the byteLen.
                 deserializer.buffer().position(0);
                 b = deserializer.readBuffer(byteLen + 4);
-                result = new ELTProtoMessage(partitionId, tableId);
+                result = new ExportProtoMessage(partitionId, tableId);
                 result.pollResponse(offset, b);
             }
         }
         catch (IOException e) {
             // TODO: Not going to rollback here so EEException seems wrong?
-            // Seems to indicate invalid ELT data which should be hard error?
+            // Seems to indicate invalid Export data which should be hard error?
             // Maybe this should be crashVoltDB?
             throw new RuntimeException(e);
         }
         return result;
+    }
+
+    @Override
+    public void processRecoveryMessage( ByteBuffer buffer, long bufferPointer) {
+        nativeProcessRecoveryMessage( pointer, bufferPointer, buffer.position(), buffer.remaining());
+    }
+
+    @Override
+    public long tableHashCode(int tableId) {
+        return nativeTableHashCode( pointer, tableId);
     }
 }
