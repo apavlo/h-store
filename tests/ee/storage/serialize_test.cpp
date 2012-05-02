@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -82,8 +82,8 @@ class TableSerializeTest : public Test {
             std::vector<bool> columnAllowNull(NUM_OF_COLUMNS, false);
             for (int ctr = 0; ctr < NUM_OF_COLUMNS; ctr++) {
                 char name[16];
-                if (ctr == 0) ::sprintf(name, "id");
-                else ::sprintf(name, "val%02d", ctr);
+                if (ctr == 0) ::snprintf(name, 16, "id");
+                else ::snprintf(name, 16, "val%02d", ctr);
                 columnNames[ctr] = name;
                 int size = (col_types[ctr] != VALUE_TYPE_VARCHAR ? 8 : 20);
                 columnSizes.push_back(static_cast<int32_t>(size));

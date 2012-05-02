@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,6 +57,9 @@ protected:
     // for memory cleanup and fast-lookup purposes
     boost::unordered_map<std::string, CatalogType*> m_allCatalogObjects;
 
+    //  paths of objects recently deleted from the catalog.
+    std::vector<std::string> m_deletions;
+
     void executeOne(const std::string &stmt);
     CatalogType * itemForRef(const std::string &ref);
     CatalogType * itemForPath(const CatalogType *parent, const std::string &path);
@@ -65,16 +68,22 @@ protected:
     virtual void update();
     virtual CatalogType *addChild(const std::string &collectionName, const std::string &childName);
     virtual CatalogType *getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
     void registerGlobally(CatalogType *catObj);
+    void unregisterGlobally(CatalogType *catObj);
 
     static std::vector<std::string> splitString(const std::string &str, char delimiter);
     static std::vector<std::string> splitToTwoString(const std::string &str, char delimiter);
 
     void addUnresolvedInfo(std::string path, CatalogType *type, std::string fieldName);
+private:
+    void resolveUnresolvedInfo(std::string path);
+    void cleanupExecutionBookkeeping();
 
 public:
+    void purgeDeletions();
+
     /**
      * Create a new Catalog hierarchy.
      */
@@ -97,6 +106,9 @@ public:
 
     /** pass in a buffer at twice as long as the string */
     static void hexEncodeString(const char *string, char *buffer);
+
+    /** return by out-param a copy of the recently deleted paths. */
+    void getDeletedPaths(std::vector<std::string> &deletions);
 };
 
 }
