@@ -319,7 +319,6 @@ CTX.TESTS['common'] = """
 
 CTX.TESTS['execution'] = """
  engine_test
- executors_test
 """
 
 CTX.TESTS['expressions'] = """
