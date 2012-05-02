@@ -48,7 +48,7 @@ public class WikipediaClient extends BenchmarkComponent {
 //	final Flat usersRng;
 //	final int num_users;
 	private Random randGenerator = new Random();
-	private long nextRevId;
+	private int nextRevId;
 	public static HashMap<Integer, Object[]> m_titleMap = new HashMap<Integer, Object[]>();
 	public Flat z_users = null;
 	public Zipf z_pages = null;
@@ -65,7 +65,7 @@ public class WikipediaClient extends BenchmarkComponent {
         ADD_WATCHLIST("Add WatchList", WikipediaConstants.FREQUENCY_ADD_WATCHLIST),
         GET_PAGE_ANONYMOUS("Get Page Anonymous", WikipediaConstants.FREQUENCY_GET_PAGE_ANONYMOUS),
         GET_PAGE_AUTHENTICATED("Get Page Authenticated", WikipediaConstants.FREQUENCY_GET_PAGE_AUTHENTICATED),
-        REMOVE_WATCHLIST("Remove Watchlist", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST),
+        REMOVE_WATCHLIST("Remove Watch List", WikipediaConstants.FREQUENCY_REMOVE_WATCHLIST),
         UPDATE_PAGE("Update Page", WikipediaConstants.FREQUENCY_UPDATE_PAGE);
 
         /**
@@ -106,7 +106,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            LOG.info(clientResponse);
+            //LOG.info(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
@@ -205,7 +205,7 @@ public class WikipediaClient extends BenchmarkComponent {
             if (!WikipediaClient.m_titleMap.containsKey(page_id)) {
                 WikipediaClient.m_titleMap.put(page_id, data);
             } else {
-                assert(true):"There should not have duplicate page_ids";
+                assert(false):"There should not have duplicate page_ids";
             }
         } // WHILE
         double m_scalefactor = 1.0;
@@ -239,8 +239,6 @@ public class WikipediaClient extends BenchmarkComponent {
     @Override
 	protected boolean runOnce() throws IOException {
         
-        //LOG.info("RunOnce started...");
-        
         int user_id = this.z_users.nextInt();
         int page_id = this.z_pages.nextInt();
         Transaction target = this.selectTransaction();
@@ -253,7 +251,7 @@ public class WikipediaClient extends BenchmarkComponent {
         
         boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
 
-        LOG.info("Executing txn:" + target.callName + ",with params:" + params);
+        //LOG.info("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
 	}
  
@@ -269,7 +267,9 @@ public class WikipediaClient extends BenchmarkComponent {
         // Return an array of transaction names
         String procNames[] = new String[WikipediaProjectBuilder.PROCEDURES.length];
         for (int i = 0; i < procNames.length; i++) {
-            procNames[i] = WikipediaProjectBuilder.PROCEDURES[i].getSimpleName();
+            String name = WikipediaProjectBuilder.PROCEDURES[i].getSimpleName();
+            if (name != "GetPagesInfo" || name != "GetTableCounts")
+                procNames[i] = name;
         }
         return (procNames);
     }
@@ -308,6 +308,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 break;
             case GET_PAGE_AUTHENTICATED:
                 params = new Object[]{
+                        page_id,
                         true,
                         this.generateUserIP(),
                         user_id, 
@@ -340,12 +341,18 @@ public class WikipediaClient extends BenchmarkComponent {
                 VoltTable vt = res[0];
                 
                 // deal with the VoltTable and try to ...
+                if (!vt.advanceRow() ) {
+                    String msg = "No result for the GetPageAnonymous stored procedure";
+                    throw new VoltAbortException(msg);
+                }
+
                 String vt_userText = vt.getString(0);
                 int vt_pageId = (int) vt.getLong(1);
                 String vt_oldText = vt.getString(2);
                 int vt_textId = (int) vt.getLong(3);
                 int vt_revisionId = (int) vt.getLong(4);
                 
+                assert(!vt.advanceRow()):"This assert should be false, vt has only one row";
                 // Permute the original text of the article
                 // Important: We have to make sure that we fill in the entire array
                 char[] newText = WikipediaUtil.generateRevisionText(vt_oldText.toCharArray());
@@ -358,8 +365,8 @@ public class WikipediaClient extends BenchmarkComponent {
                         vt_textId,
                         vt_pageId,
                         pageTitle,
-                        new String(newText),
                         namespace,
+                        new String(newText),
                         user_id,
                         user_ip,
                         vt_userText,
