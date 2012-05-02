@@ -144,8 +144,7 @@ public class UpdatePage extends VoltProcedure {
 		adv = rs[0].advanceRow();
 		assert(adv) : "Problem inserting new tuples in table text";
 		
-        //int nextTextId = rs.getInt(1);
-		int nextTextId = nextId + 1;
+        int nextTextId = (int) rs[0].getLong(0);
 		// INSERT NEW REVISION
 		voltQueueSQL(insertRevision, nextId,
 		                             pageId, 
@@ -173,16 +172,13 @@ public class UpdatePage extends VoltProcedure {
 		                        pageText.length(), 
 		                        pageId);
 		
-		//int numUpdatePages = ps.executeUpdate();
-		//assert(numUpdatePages == 1) : "WE ARE NOT UPDATING the page table!";
-
 		// REMOVED
 		// sql="DELETE FROM `redirect` WHERE rd_from = '"+a.pageId+"';";
 		// st.addBatch(sql);
 		
-		voltQueueSQL(insertRecentChanges, textId,
+		voltQueueSQL(insertRecentChanges, nextId,
 		                                  timestamp, 
-		                                  timestamp,
+		                                  new TimestampType(),
 		                                  pageNamespace,
 		                                  pageTitle,
 		                                  0, 
@@ -191,22 +187,16 @@ public class UpdatePage extends VoltProcedure {
 		                                  userId, 
 		                                  userText,
 		                                  revComment,
-//		                                  nextTextId, // FIXME :
-//		                                  textId,  // FIXME : auto_incremented key sent from client
+		                                  nextTextId,
+		                                  textId,
 		                                  0, 
 		                                  0, 
 		                                  "", 
 		                                  userIp,
 		                                  pageText.length(),
-		                                  pageText.length(),
-		                                  timestamp,
-		                                  timestamp,
-		                                  timestamp,
-		                                  timestamp);
+		                                  pageText.length()
+		                                  );
 		
-		//int count = ps.executeUpdate();
-		//assert(count == 1);
-
 		// SELECT WATCHING USERS
 		voltQueueSQL(selectWatchList, pageTitle, pageNamespace, userId, null);
 		
@@ -214,7 +204,7 @@ public class UpdatePage extends VoltProcedure {
 
 		ArrayList<Integer> wlUser = new ArrayList<Integer>();
 		while (rs[0].advanceRow()) {
-			wlUser.add((int)rs[0].getLong(1));
+			wlUser.add((int)rs[0].getLong(0));
 		}
 		
 
@@ -226,12 +216,12 @@ public class UpdatePage extends VoltProcedure {
 
 			// NOTE: this commit is skipped if none is watching the page, and
 			// the transaction merge with the following one
-			voltQueueSQL(updateWatchList, timestamp, pageTitle, pageNamespace);
 			
 			for (Integer otherUserId : wlUser) {
-			    voltQueueSQL(updateWatchList, otherUserId.intValue());
+			    voltQueueSQL(updateWatchList, timestamp, pageTitle, pageNamespace, otherUserId.intValue());
+			    voltExecuteSQL();
 			} // FOR
-			voltExecuteSQL();
+			
 			// NOTE: this commit is skipped if none is watching the page, and
 			// the transaction merge with the following one
 			
@@ -255,7 +245,7 @@ public class UpdatePage extends VoltProcedure {
 
 		// This is always executed, sometimes as a separate transaction,
 		// sometimes together with the previous one
-		voltQueueSQL(insertLogging, textId,
+		voltQueueSQL(insertLogging, nextId,
 		                            WikipediaConstants.UPDATEPAGE_LOG_TYPE,
 		                            WikipediaConstants.UPDATEPAGE_LOG_ACTION,
 		                            timestamp,
