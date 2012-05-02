@@ -44,41 +44,48 @@ public class UpdateRevisionCounters extends VoltProcedure {
         // FIXME: I am not sure is next line code right or wrong
         // but it gets AssertionError: UpdateRevisionCounters #603081641295872000/1 
         // Expected 128 output dependencies but we queued up
-        //int batch_size = voltRemainingQueue();
+        int batch_size = voltRemainingQueue();
         
         // right now hard code for the batch size
-        int batch_size = 5;
-        LOG.info("voltRemainingQueue:" + batch_size);
+        // int batch_size = 5;
+        LOG.info("voltRemainingQueue for updateUser:" + batch_size);
         final TimestampType timestamp = new TimestampType();
-
+        int ct = 0;
         for (int i = 0; i < user_revision_ctr.length; i++) {
             voltQueueSQL(updateUser, user_revision_ctr[i], 
                     timestamp, 
                     i + 1 // ids start at 1
-                                                                            
             );
+            ct++;
             if (i % batch_size == 0) {
                 voltExecuteSQL();
+                ct=0;
             }
         }
-        voltExecuteSQL();
+        if (ct > 0) {
+            voltExecuteSQL();
+        }
         
-        batch_size = 2;
+        batch_size = voltRemainingQueue();
+        LOG.info("voltRemainingQueue for updatePage:" + batch_size);
+        ct = 0;
         for (int i = 0; i < num_pages; i++) {
             if (page_last_rev_id[i] == -1) continue;
-
             voltQueueSQL(updatePage, page_last_rev_id[i], 
                     timestamp, 
                     page_last_rev_length[i], 
                     i + 1
             );
-
+            ct++;
             if (i % batch_size == 0) {
                 voltExecuteSQL();
+                ct = 0;
             }
         } // FOR
         
-        voltExecuteSQL(true);
+        if (ct > 0) {
+            voltExecuteSQL();
+        }
 
         // VoltTable has two columns
         // #1 -> Number of users updated
