@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,11 +32,11 @@ public class MaterializedViewInfo extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("dest", null);
+        m_fields.put("dest", null);
         m_groupbycols = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "groupbycols", ColumnRef.class);
         m_childCollections.put("groupbycols", m_groupbycols);
-        this.addField("predicate", m_predicate);
-        this.addField("verticalpartition", m_verticalpartition);
+        m_fields.put("predicate", m_predicate);
+        m_fields.put("verticalpartition", m_verticalpartition);
     }
 
     public void update() {

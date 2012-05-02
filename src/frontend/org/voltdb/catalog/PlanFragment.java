@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,14 +37,14 @@ public class PlanFragment extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("id", m_id);
-        this.addField("hasdependencies", m_hasdependencies);
-        this.addField("multipartition", m_multipartition);
-        this.addField("readonly", m_readonly);
-        this.addField("plannodetree", m_plannodetree);
-        this.addField("nontransactional", m_nontransactional);
-        this.addField("fastaggregate", m_fastaggregate);
-        this.addField("fastcombine", m_fastcombine);
+        m_fields.put("id", m_id);
+        m_fields.put("hasdependencies", m_hasdependencies);
+        m_fields.put("multipartition", m_multipartition);
+        m_fields.put("readonly", m_readonly);
+        m_fields.put("plannodetree", m_plannodetree);
+        m_fields.put("nontransactional", m_nontransactional);
+        m_fields.put("fastaggregate", m_fastaggregate);
+        m_fields.put("fastcombine", m_fastcombine);
     }
 
     public void update() {

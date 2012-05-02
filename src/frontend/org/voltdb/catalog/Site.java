@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,13 +34,13 @@ public class Site extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("id", m_id);
-        this.addField("host", null);
+        m_fields.put("id", m_id);
+        m_fields.put("host", null);
         m_partitions = new CatalogMap<Partition>(catalog, this, path + "/" + "partitions", Partition.class);
         m_childCollections.put("partitions", m_partitions);
-        this.addField("isUp", m_isUp);
-        this.addField("messenger_port", m_messenger_port);
-        this.addField("proc_port", m_proc_port);
+        m_fields.put("isUp", m_isUp);
+        m_fields.put("messenger_port", m_messenger_port);
+        m_fields.put("proc_port", m_proc_port);
     }
 
     public void update() {
