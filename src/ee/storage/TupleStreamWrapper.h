@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,18 +36,17 @@ class TupleStreamWrapper {
 public:
     enum Type { INSERT, DELETE };
 
-    TupleStreamWrapper(CatalogId partitionId, CatalogId siteId,
-                       CatalogId tableId, int64_t createTime);
+    TupleStreamWrapper(CatalogId partitionId, CatalogId siteId, int64_t createTime);
 
     ~TupleStreamWrapper() {
-        cleanupManagedBuffers(NULL);
+        cleanupManagedBuffers();
     }
 
     /**
      * Drop and release all claimed buffers. Intended for use at
      * shutdown to achieve full memory deallocation for valgrind.
      */
-    void cleanupManagedBuffers(Topend *);
+    void cleanupManagedBuffers();
 
     /**
      * Configure the buffer size requested from JNI pool.
@@ -59,6 +58,12 @@ public:
     /** Read the total bytes used over the life of the stream */
     size_t bytesUsed() {
         return m_uso;
+    }
+
+    /** Set the total number of bytes used (for rejoin/recover) */
+    void setBytesUsed(size_t count) {
+        assert(m_uso == 0);
+        m_uso = count;
     }
 
     /** truncate stream back to mark */
@@ -81,16 +86,19 @@ public:
     /**
      * Poll the stream for a buffer of committed bytes.
      */
-    StreamBlock* getCommittedEltBytes();
+    StreamBlock* getCommittedExportBytes();
 
     /**
      * Release data up to (not including) releaseOffset
      *
      * @return true if the release was valid, false if not
      */
-    bool releaseEltBytes(int64_t releaseOffset);
+    bool releaseExportBytes(int64_t releaseOffset);
 
-private:
+    /**
+     * Reset polling offset to the ack point
+     */
+    void resetPollMarker();
 
     size_t computeOffsets(TableTuple &tuple,size_t *rowHeaderSz);
     void extendBufferChain(size_t minLength);
@@ -102,7 +110,6 @@ private:
     // cached catalog values
     const CatalogId m_partitionId;
     const CatalogId m_siteId;
-    const CatalogId m_tableId;
 
     /** timestamp of most recent flush() */
     int64_t m_lastFlush;

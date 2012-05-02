@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,21 +23,20 @@
 using namespace voltdb;
 
 StreamedTable::StreamedTable(ExecutorContext *ctx, bool exportEnabled)
-    : Table(100), m_executorContext(ctx), m_wrapper(NULL), m_id(0),
+    : Table(100), stats_(this), m_executorContext(ctx), m_wrapper(NULL),
       m_sequenceNo(0)
 {
-    // In StreamedTable, a non-null m_wrapper implies elt enabled.
+    // In StreamedTable, a non-null m_wrapper implies export enabled.
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,
-                                           m_id,
                                            m_executorContext->m_lastTickTime);
     }
 }
 
 StreamedTable::StreamedTable(int tableAllocationTargetSize)
-    : Table(tableAllocationTargetSize), m_executorContext(NULL),
-      m_wrapper(NULL), m_id(0), m_sequenceNo(0)
+    : Table(tableAllocationTargetSize), stats_(this),
+      m_executorContext(NULL), m_wrapper(NULL), m_sequenceNo(0)
 {
     throwFatalException("Must provide executor context to streamed table constructor.");
 }
@@ -53,13 +52,6 @@ StreamedTable::createForTest(size_t wrapperBufSize, ExecutorContext *ctx) {
 StreamedTable::~StreamedTable()
 {
     delete m_wrapper;
-}
-
-void StreamedTable::cleanupManagedBuffers(Topend *topend)
-{
-    if (m_wrapper) {
-        m_wrapper->cleanupManagedBuffers(topend);
-    }
 }
 
 void StreamedTable::deleteAllTuples(bool freeAllocatedStrings)
@@ -79,6 +71,7 @@ bool StreamedTable::insertTuple(TableTuple &source)
                                       m_executorContext->currentTxnTimestamp(),
                                       source,
                                       TupleStreamWrapper::INSERT);
+        m_tupleCount++;
 
         UndoQuantum *uq = m_executorContext->getCurrentUndoQuantum();
         Pool *pool = uq->getDataPool();
@@ -105,6 +98,7 @@ bool StreamedTable::deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings)
                                       m_executorContext->currentTxnTimestamp(),
                                       tuple,
                                       TupleStreamWrapper::DELETE);
+        m_tupleCount++;
 
         UndoQuantum *uq = m_executorContext->getCurrentUndoQuantum();
         Pool *pool = uq->getDataPool();
@@ -133,23 +127,32 @@ void StreamedTable::flushOldTuples(int64_t timeInMillis)
 }
 
 StreamBlock*
-StreamedTable::getCommittedEltBytes()
+StreamedTable::getCommittedExportBytes()
 {
     if (m_wrapper)
     {
-        return m_wrapper->getCommittedEltBytes();
+        return m_wrapper->getCommittedExportBytes();
     }
     return NULL;
 }
 
 bool
-StreamedTable::releaseEltBytes(int64_t releaseOffset)
+StreamedTable::releaseExportBytes(int64_t releaseOffset)
 {
     if (m_wrapper)
     {
-        return m_wrapper->releaseEltBytes(releaseOffset);
+        return m_wrapper->releaseExportBytes(releaseOffset);
     }
     return false;
+}
+
+void
+StreamedTable::resetPollMarker()
+{
+    if (m_wrapper)
+    {
+        m_wrapper->resetPollMarker();
+    }
 }
 
 void StreamedTable::undo(size_t mark)
@@ -157,4 +160,8 @@ void StreamedTable::undo(size_t mark)
     if (m_wrapper) {
         m_wrapper->rollbackTo(mark);
     }
+}
+
+voltdb::TableStats *StreamedTable::getTableStats() {
+    return &stats_;
 }

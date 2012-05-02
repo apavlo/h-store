@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -48,7 +48,7 @@
 
 using namespace voltdb;
 
-TableIndex::TableIndex(const TableIndexScheme &scheme)
+TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme)
 {
     name_ = scheme.name;
     column_indices_vector_ = scheme.columnIndices;

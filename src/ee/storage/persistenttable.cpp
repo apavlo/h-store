@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@
 #include <cassert>
 #include <cstdio>
 
+#include "boost/scoped_ptr.hpp"
 #include "storage/persistenttable.h"
 
 #include "common/debuglog.h"
@@ -56,7 +57,10 @@
 #include "common/UndoQuantum.h"
 #include "common/executorcontext.hpp"
 #include "common/FatalException.hpp"
+#include "common/types.h"
+#include "common/RecoveryProtoMessage.h"
 #include "indexes/tableindex.h"
+#include "indexes/tableindexfactory.h"
 #include "storage/table.h"
 #include "storage/tableiterator.h"
 #include "storage/TupleStreamWrapper.h"
@@ -82,14 +86,13 @@ TableTuple keyTuple;
 PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     Table(TABLE_BLOCKSIZE), m_executorContext(ctx), m_uniqueIndexes(NULL), m_uniqueIndexCount(0), m_allowNulls(NULL),
     m_indexes(NULL), m_indexCount(0), m_pkeyIndex(NULL), m_wrapper(NULL),
-    tsSeqNo(0), m_viewCount(0), m_views(NULL), stats_(this), m_exportEnabled(exportEnabled),
+    m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
 {
     if (exportEnabled)
     {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,
-                                           m_id,
                                            m_executorContext->m_lastTickTime);
     }
 }
@@ -115,12 +118,10 @@ PersistentTable::~PersistentTable() {
     if (m_allowNulls) delete[] m_allowNulls;
     if (m_indexes) delete[] m_indexes;
 
-    if (m_views) {
-        // note this class has ownership of the views, even if they
-        // were allocated by VoltDBEngine
-        for (int i = 0; i < m_viewCount; i++)
-            delete m_views[i];
-        delete[] m_views;
+    // note this class has ownership of the views, even if they
+    // were allocated by VoltDBEngine
+    for (int i = 0; i < m_views.size(); i++) {
+        delete m_views[i];
     }
 
     delete m_wrapper;
@@ -152,7 +153,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
 
     // not null checks at first
     FAIL_IF(!checkNulls(source)) {
-        throw ConstraintFailureException(this, m_id, source, TableTuple(),
+        throw ConstraintFailureException(this, source, TableTuple(),
                                          voltdb::CONSTRAINT_TYPE_NOT_NULL);
     }
 
@@ -188,15 +189,15 @@ bool PersistentTable::insertTuple(TableTuple &source) {
         // Careful to delete allocated objects
         m_tmpTarget1.freeObjectColumns();
         deleteTupleStorage(m_tmpTarget1);
-        throw ConstraintFailureException(this, m_id, source, TableTuple(),
+        throw ConstraintFailureException(this, source, TableTuple(),
                                          voltdb::CONSTRAINT_TYPE_UNIQUE);
     }
 
     // if EL is enabled, append the tuple to the buffer
-    // eltxxx: memoizing this more cache friendly?
+    // exportxxx: memoizing this more cache friendly?
     if (m_exportEnabled) {
         elMark =
-          appendToELBuffer(m_tmpTarget1, tsSeqNo++, TupleStreamWrapper::INSERT);
+          appendToELBuffer(m_tmpTarget1, m_tsSeqNo++, TupleStreamWrapper::INSERT);
     }
 
     /*
@@ -212,9 +213,8 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     undoQuantum->registerUndoAction(ptuia);
 
     // handle any materialized views
-    if (m_views) {
-        for (int i = 0; i < m_viewCount; i++)
-            m_views[i]->processTupleInsert(source);
+    for (int i = 0; i < m_views.size(); i++) {
+        m_views[i]->processTupleInsert(source);
     }
 
     return true;
@@ -228,12 +228,12 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
 
     // not null checks at first
     if (!checkNulls(source)) {
-        throwFatalException("Failed to insert tuple into table %d for undo:"
-                            " null constraint violation\n%s\n", m_id,
+        throwFatalException("Failed to insert tuple into table %s for undo:"
+                            " null constraint violation\n%s\n", m_name.c_str(),
                             source.debugNoHeader().c_str());
     }
 
-    // rollback ELT
+    // rollback Export
     if (m_exportEnabled) {
         m_wrapper->rollbackTo(wrapperOffset);
     }
@@ -265,8 +265,8 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
 
     if (!tryInsertOnAllIndexes(&m_tmpTarget1)) {
         deleteTupleStorage(m_tmpTarget1);
-        throwFatalException("Failed to insert tuple into table %d for undo:"
-                            " unique constraint violation\n%s\n", m_id,
+        throwFatalException("Failed to insert tuple into table %s for undo:"
+                            " unique constraint violation\n%s\n", m_name.c_str(),
                             m_tmpTarget1.debugNoHeader().c_str());
     }
 
@@ -318,7 +318,7 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
     // if so, update the indexes here
     if (updatesIndexes) {
         if (!tryUpdateOnAllIndexes(ptuua->getOldTuple(), target)) {
-            throw ConstraintFailureException(this, m_id, ptuua->getOldTuple(),
+            throw ConstraintFailureException(this, ptuua->getOldTuple(),
                                              target,
                                              voltdb::CONSTRAINT_TYPE_UNIQUE);
         }
@@ -332,15 +332,14 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
     // if EL is enabled, append the tuple to the buffer
     if (m_exportEnabled) {
         // only need the earliest mark
-        elMark = appendToELBuffer(ptuua->getOldTuple(), tsSeqNo, TupleStreamWrapper::DELETE);
-        appendToELBuffer(target, tsSeqNo++, TupleStreamWrapper::INSERT);
+        elMark = appendToELBuffer(ptuua->getOldTuple(), m_tsSeqNo, TupleStreamWrapper::DELETE);
+        appendToELBuffer(target, m_tsSeqNo++, TupleStreamWrapper::INSERT);
         ptuua->setELMark(elMark);
     }
 
     // handle any materialized views
-    if (m_views) {
-        for (int i = 0; i < m_viewCount; i++)
-            m_views[i]->processTupleUpdate(ptuua->getOldTuple(), target);
+    for (int i = 0; i < m_views.size(); i++) {
+        m_views[i]->processTupleUpdate(ptuua->getOldTuple(), target);
     }
 
     /**
@@ -348,7 +347,7 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
      * some columns
      */
     FAIL_IF(!checkNulls(target)) {
-        throw ConstraintFailureException(this, m_id, ptuua->getOldTuple(),
+        throw ConstraintFailureException(this, ptuua->getOldTuple(),
                                          target,
                                          voltdb::CONSTRAINT_TYPE_NOT_NULL);
     }
@@ -398,8 +397,8 @@ void PersistentTable::updateTupleForUndo(TableTuple &source, TableTuple &target,
     if (revertIndexes) {
         if (!tryUpdateOnAllIndexes(targetBackup, target)) {
             // TODO: this might be too strict. see insertTuple()
-            throwFatalException("Failed to update tuple in table %d for undo:"
-                                " unique constraint violation\n%s\n%s\n", m_id,
+            throwFatalException("Failed to update tuple in table %s for undo:"
+                                " unique constraint violation\n%s\n%s\n", m_name.c_str(),
                                 targetBackup.debugNoHeader().c_str(),
                                 target.debugNoHeader().c_str());
         }
@@ -427,7 +426,6 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
     if (m_COWContext.get() != NULL) {
         m_COWContext->markTupleDirty(target, false);
     }
-    m_tmpTarget1.isDirty();
 
     /*
      * Create and register an undo action.
@@ -439,14 +437,13 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
     voltdb::PersistentTableUndoDeleteAction *ptuda = new (pool->allocate(sizeof(voltdb::PersistentTableUndoDeleteAction))) voltdb::PersistentTableUndoDeleteAction( target, this, pool);
 
     // handle any materialized views
-    if (m_views) {
-        for (int i = 0; i < m_viewCount; i++)
-            m_views[i]->processTupleDelete(target);
+    for (int i = 0; i < m_views.size(); i++) {
+        m_views[i]->processTupleDelete(target);
     }
 
     // if EL is enabled, append the tuple to the buffer
     if (m_exportEnabled) {
-        size_t elMark = appendToELBuffer(target, tsSeqNo++, TupleStreamWrapper::DELETE);
+        size_t elMark = appendToELBuffer(target, m_tsSeqNo++, TupleStreamWrapper::DELETE);
         ptuda->setELMark(elMark);
     }
 
@@ -467,8 +464,8 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
 void PersistentTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t wrapperOffset) {
     TableTuple target = lookupTuple(tupleCopy);
     if (target.isNullTuple()) {
-        throwFatalException("Failed to delete tuple from table %d:"
-                            " tuple does not exist\n%s\n", m_id,
+        throwFatalException("Failed to delete tuple from table %s:"
+                            " tuple does not exist\n%s\n", m_name.c_str(),
                             tupleCopy.debugNoHeader().c_str());
     }
     else {
@@ -478,7 +475,7 @@ void PersistentTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t w
         // Also make sure they are not trying to delete our m_tempTuple
         assert(&target != &m_tempTuple);
 
-        // rollback ELT
+        // rollback Export
         if (m_exportEnabled) {
             m_wrapper->rollbackTo(wrapperOffset);
         }
@@ -590,14 +587,11 @@ bool PersistentTable::checkNulls(TableTuple &tuple) const {
     return true;
 }
 
-void PersistentTable::setMaterializedViews(const std::vector<MaterializedViewMetadata*> &views) {
-    m_viewCount = static_cast<int32_t>(views.size());
-    m_views = new MaterializedViewMetadata*[m_viewCount];
-
-    // this actually transfers ownership of the view structures, they
-    // must be deleted by the table
-    for (int i = 0; i < m_viewCount; i++)
-        m_views[i] = views[i];
+/*
+ * claim ownership of a view. table is responsible for this view*
+ */
+void PersistentTable::addMaterializedView(MaterializedViewMetadata *view) {
+    m_views.push_back(view);
 }
 
 // ------------------------------------------------------------------
@@ -668,18 +662,17 @@ void PersistentTable::onSetColumns() {
 
 /*
  * Implemented by persistent table and called by Table::loadTuplesFrom
- * to do additional processing for views and ELT
+ * to do additional processing for views and Export
  */
-void PersistentTable::processLoadedTuple(bool allowELT, TableTuple &tuple) {
+void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
     // handle any materialized views
-    if (m_views) {
-        for (int i = 0; i < m_viewCount; i++)
-            m_views[i]->processTupleInsert(m_tmpTarget1);
+    for (int i = 0; i < m_views.size(); i++) {
+        m_views[i]->processTupleInsert(m_tmpTarget1);
     }
 
     // if EL is enabled, append the tuple to the buffer
-    if (allowELT && m_exportEnabled) {
-        appendToELBuffer(m_tmpTarget1, tsSeqNo++,
+    if (allowExport && m_exportEnabled) {
+        appendToELBuffer(m_tmpTarget1, m_tsSeqNo++,
                          TupleStreamWrapper::INSERT);
     }
 }
@@ -724,23 +717,32 @@ void PersistentTable::flushOldTuples(int64_t timeInMillis)
 }
 
 StreamBlock*
-PersistentTable::getCommittedEltBytes()
+PersistentTable::getCommittedExportBytes()
 {
     if (m_exportEnabled && m_wrapper)
     {
-        return m_wrapper->getCommittedEltBytes();
+        return m_wrapper->getCommittedExportBytes();
     }
     return NULL;
 }
 
 bool
-PersistentTable::releaseEltBytes(int64_t releaseOffset)
+PersistentTable::releaseExportBytes(int64_t releaseOffset)
 {
     if (m_exportEnabled && m_wrapper)
     {
-        return m_wrapper->releaseEltBytes(releaseOffset);
+        return m_wrapper->releaseExportBytes(releaseOffset);
     }
     return false;
+}
+
+void
+PersistentTable::resetPollMarker()
+{
+    if (m_exportEnabled && m_wrapper)
+    {
+        m_wrapper->resetPollMarker();
+    }
 }
 
 voltdb::TableStats* PersistentTable::getTableStats() {
@@ -766,18 +768,90 @@ bool PersistentTable::activateCopyOnWrite(TupleSerializer *serializer, int32_t p
  * Returns true if there are more tuples and false if there are no more tuples waiting to be
  * serialized.
  */
-void PersistentTable::serializeMore(ReferenceSerializeOutput *out) {
+bool PersistentTable::serializeMore(ReferenceSerializeOutput *out) {
     if (m_COWContext == NULL) {
-        return;
+        return false;
     }
 
     const bool hasMore = m_COWContext->serializeMore(out);
     if (!hasMore) {
         m_COWContext.reset(NULL);
-        fflush(stdout);
     }
 
-    return;
+    return hasMore;
+}
+
+/**
+ * Create a recovery stream for this table. Returns true if the table already has an active recovery stream
+ */
+bool PersistentTable::activateRecoveryStream(int32_t tableId) {
+    if (m_recoveryContext != NULL) {
+        return true;
+    }
+    m_recoveryContext.reset(new RecoveryContext( this, tableId ));
+    return false;
+}
+
+/**
+ * Serialize the next message in the stream of recovery messages. Returns true if there are
+ * more messages and false otherwise.
+ */
+void PersistentTable::nextRecoveryMessage(ReferenceSerializeOutput *out) {
+    if (m_recoveryContext == NULL) {
+        return;
+    }
+
+    const bool hasMore = m_recoveryContext->nextMessage(out);
+    if (!hasMore) {
+        m_recoveryContext.reset(NULL);
+    }
+}
+
+/**
+ * Process the updates from a recovery message
+ */
+void PersistentTable::processRecoveryMessage(RecoveryProtoMsg* message, Pool *pool, bool allowExport) {
+    switch (message->msgType()) {
+    case voltdb::RECOVERY_MSG_TYPE_SCAN_TUPLES: {
+        if (activeTupleCount() == 0) {
+            uint32_t tupleCount = message->totalTupleCount();
+            for (int i = 0; i < m_indexCount; i++) {
+                m_indexes[i]->ensureCapacity(tupleCount);
+            }
+        }
+        loadTuplesFromNoHeader( allowExport, *message->stream(), pool);
+        break;
+    }
+    default:
+        throwFatalException("Attempted to process a recovery message of unknown type %d", message->msgType());
+    }
+}
+
+/**
+ * Create a tree index on the primary key and then iterate it and hash
+ * the tuple data.
+ */
+size_t PersistentTable::hashCode() {
+    TableIndexScheme sourceScheme = m_pkeyIndex->getScheme();
+    sourceScheme.setTree();
+    boost::scoped_ptr<TableIndex> pkeyIndex(TableIndexFactory::getInstance(sourceScheme));
+    TableIterator iter(this);
+    TableTuple tuple(schema());
+    while (iter.next(tuple)) {
+        pkeyIndex->addEntry(&tuple);
+    }
+
+    pkeyIndex->moveToEnd(true);
+
+    size_t hashCode = 0;
+    while (true) {
+         tuple = pkeyIndex->nextValue();
+         if (tuple.isNullTuple()) {
+             break;
+         }
+         tuple.hashCode(hashCode);
+    }
+    return hashCode;
 }
 
 }
