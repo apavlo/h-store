@@ -65,7 +65,12 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
  
     public WikipediaProjectBuilder() {
         super("wikipedia", WikipediaProjectBuilder.class, PROCEDURES, PARTITIONING);
-  
+        
+        addStmtProcedure("testPage", "select * from page");
+        addStmtProcedure("testUser", "select * from USERACCT");
+        addStmtProcedure("testWatchlist", "select * from WATCHLIST");
+        addStmtProcedure("testRevision", "select * from REVISION");
+        addStmtProcedure("testText", "select * from TEXT");
     }
     
 //    public void addDefaultProcedures() {

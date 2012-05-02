@@ -303,6 +303,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             } // FOR
 
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
+                //LOG.info("watchList(batch):\n" + vt);
                 this.loadVoltTable(catalog_tbl.getName(), vt);
                 vt.clearRowData();
                 batchSize = 0;
@@ -314,6 +315,7 @@ public class WikipediaLoader extends BenchmarkComponent {
             }
         } // FOR
         if (batchSize > 0) {
+            //LOG.info("watchList(<batch):\n" + vt);
             this.loadVoltTable(catalog_tbl.getName(), vt);
             vt.clearRowData();
         }
@@ -419,6 +421,9 @@ public class WikipediaLoader extends BenchmarkComponent {
                 batchSize++;
             } // FOR (revision)
             if (batchSize >= WikipediaConstants.BATCH_SIZE) {
+                LOG.info("Text Table(batch):\n" + vtText);
+                LOG.info("Revision Table(batch):\n" + vtRev);
+                
                 this.loadVoltTable(textTable.getName(), vtText);
                 this.loadVoltTable(revTable.getName(), vtRev);
                 vtText.clearRowData();
@@ -432,6 +437,18 @@ public class WikipediaLoader extends BenchmarkComponent {
                 }
             }
         } // FOR (page)
+        
+        if (batchSize > 0) {
+            //LOG.info("Text Table(<batch):\n" + vtText);
+            //LOG.info("Revision Table(<batch):\n" + vtRev);
+            
+            this.loadVoltTable(textTable.getName(), vtText);
+            this.loadVoltTable(revTable.getName(), vtRev);
+            vtText.clearRowData();
+            vtRev.clearRowData();
+            batchSize = 0;
+        }
+        
         
         // UPDATE USER & UPDATE PAGES
         batchSize = 0;

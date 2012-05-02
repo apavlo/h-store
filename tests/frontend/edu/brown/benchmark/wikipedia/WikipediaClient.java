@@ -106,6 +106,8 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
+            LOG.info(clientResponse);
+            
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse,this.idx);
@@ -194,7 +196,7 @@ public class WikipediaClient extends BenchmarkComponent {
         // Where first element is namespace, second is title
         VoltTable res[] = cr.getResults();
         VoltTable vt = res[0];
-        //LOG.info("vt:\n"+ vt);
+        LOG.info("vt:\n"+ vt);
         while (vt.advanceRow()) {
             int page_id = (int) vt.getLong(0);
             int namespace = (int) vt.getLong(1);
@@ -297,6 +299,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 break;
             case GET_PAGE_ANONYMOUS:
                 params = new Object[]{
+                        page_id,
                         true,
                         this.generateUserIP(),
                         data[0], 
@@ -317,6 +320,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 int namespace = (Integer) data[0];
                 String pageTitle = (String) data[1];
                 params = new Object[]{
+                        page_id,
                         false,
                         user_ip,
                         namespace,
@@ -365,7 +369,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 };
                 break;
              default:
-                 assert(true):"Should not come to this point";
+                 assert(false):"Should not come to this point";
         }
         assert(params != null);
         return params;
