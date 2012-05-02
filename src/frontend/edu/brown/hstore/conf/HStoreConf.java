@@ -305,6 +305,14 @@ public final class HStoreConf {
         public boolean exec_prefetch_queries;
         
         @ConfigProperty(
+                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
+                		    "while idle or waiting on a distribute transaction.",
+                defaultBoolean=false,
+                experimental=true
+            )
+        public boolean exec_deferred_queries;
+        
+        @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
                 defaultBoolean=true,
                 experimental=true
