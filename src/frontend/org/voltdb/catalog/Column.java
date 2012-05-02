@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,17 +37,17 @@ public class Column extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("index", m_index);
-        this.addField("type", m_type);
-        this.addField("size", m_size);
-        this.addField("nullable", m_nullable);
-        this.addField("defaultvalue", m_defaultvalue);
-        this.addField("defaulttype", m_defaulttype);
+        m_fields.put("index", m_index);
+        m_fields.put("type", m_type);
+        m_fields.put("size", m_size);
+        m_fields.put("nullable", m_nullable);
+        m_fields.put("defaultvalue", m_defaultvalue);
+        m_fields.put("defaulttype", m_defaulttype);
         m_constraints = new CatalogMap<ConstraintRef>(catalog, this, path + "/" + "constraints", ConstraintRef.class);
         m_childCollections.put("constraints", m_constraints);
-        this.addField("matview", null);
-        this.addField("aggregatetype", m_aggregatetype);
-        this.addField("matviewsource", null);
+        m_fields.put("matview", null);
+        m_fields.put("aggregatetype", m_aggregatetype);
+        m_fields.put("matviewsource", null);
     }
 
     public void update() {

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@ ColumnRef::ColumnRef(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["column"] = value;
 }
 
+ColumnRef::~ColumnRef() {
+}
+
 void ColumnRef::update() {
     m_index = m_fields["index"].intValue;
     m_column = m_fields["column"].typeValue;
@@ -48,8 +51,9 @@ CatalogType * ColumnRef::getChild(const std::string &collectionName, const std::
     return NULL;
 }
 
-void ColumnRef::removeChild(const std::string &collectionName, const std::string &childName) {
+bool ColumnRef::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 int32_t ColumnRef::index() const {

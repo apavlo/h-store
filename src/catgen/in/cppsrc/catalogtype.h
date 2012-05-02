@@ -83,9 +83,6 @@ class CatalogType {
     virtual void update() = 0;
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name) = 0;
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const = 0;
-    virtual void update() = 0;
-    virtual CatalogType * addChild(const std::string &collectionName, const std::string &name) = 0;
-    virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const = 0;
     // returns true if a child was deleted
     virtual bool removeChild(const std::string &collectionName, const std::string &childName) = 0;
 
@@ -94,6 +91,9 @@ public:
     /**
      * Get the parent of this CatalogType instance
      * @return The name of this CatalogType instance
+     */
+    std::string name() const;
+
     /**
      * Get the parent of this CatalogType instance
      * @return The parent of this CatalogType instance

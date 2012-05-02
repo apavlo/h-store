@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,9 @@ public class ConstantValue extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("value", m_value);
-        this.addField("is_null", m_is_null);
-        this.addField("type", m_type);
+        m_fields.put("value", m_value);
+        m_fields.put("is_null", m_is_null);
+        m_fields.put("type", m_type);
     }
 
     public void update() {

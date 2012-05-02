@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +32,9 @@ public class ProcParameter extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("type", m_type);
-        this.addField("isarray", m_isarray);
-        this.addField("index", m_index);
+        m_fields.put("type", m_type);
+        m_fields.put("isarray", m_isarray);
+        m_fields.put("index", m_index);
     }
 
     public void update() {
