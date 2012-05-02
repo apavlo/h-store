@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,11 +25,11 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import org.voltdb.types.TimestampType;
+import org.voltdb.types.VoltDecimalHelper;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
-import org.voltdb.types.VoltDecimalHelper;
 
 /**
  * <code>DataInputStream</code> subclass to read objects that implement
@@ -55,6 +55,11 @@ public class FastDeserializer implements DataInput {
     public FastDeserializer(final byte[] in) {
         buffer = ByteBuffer.wrap(in);
         assert(buffer.order() == ByteOrder.BIG_ENDIAN);
+    }
+
+    public FastDeserializer(final byte[] in, ByteOrder order) {
+        buffer = ByteBuffer.wrap(in);
+        buffer.order(order);
     }
 
     /** Create a <code>FastDeserializer</code> from a ByteBuffer.
@@ -161,6 +166,41 @@ public class FastDeserializer implements DataInput {
         final long val = readLong();
         return new TimestampType(val);
     }
+
+    /**
+     * Read a string in the standard VoltDB way without
+     * wrapping the byte buffer[
+     */
+    public static String readString(ByteBuffer buffer) throws IOException {
+        final int NULL_STRING_INDICATOR = -1;
+
+        final int len = buffer.getInt();
+
+        // check for null string
+        if (len == NULL_STRING_INDICATOR)
+            return null;
+        assert len >= 0;
+
+        if (len > VoltType.MAX_VALUE_LENGTH) {
+            throw new IOException("Serializable strings cannot be longer then "
+                    + VoltType.MAX_VALUE_LENGTH + " bytes");
+        }
+        if (len < NULL_STRING_INDICATOR) {
+            throw new IOException("String length is negative " + len);
+        }
+
+        // now assume not null
+        final byte[] strbytes = new byte[len];
+        buffer.get(strbytes);
+        String retval = null;
+        try {
+            retval = new String(strbytes, "UTF-8");
+        } catch (final UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return retval;
+    }
+
 
     /**
      * Read a string in the standard VoltDB way. That is, two

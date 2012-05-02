@@ -41,6 +41,7 @@
  */
 package edu.brown.hstore;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -2246,15 +2247,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // If the BatchPlan only has WorkFragments that are for this partition, then
         // we can use the fast-path executeLocalPlan() method
         if (plan.isSingledPartitionedAndLocal()) {
-            if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
+            if (d) LOG.debug(ts + " - Sending BatchPlan directly to the ExecutionEngine");
             results = this.executeLocalPlan(ts, plan, batchParams);
         }
         // Otherwise, we need to generate WorkFragments and then send the messages out 
         // to our remote partitions using the HStoreCoordinator
         else {
+            if (d) LOG.debug(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
             this.partitionFragments.clear();
             plan.getWorkFragments(ts.getTransactionId(), this.partitionFragments);
-            if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + ts);
+            if (t) LOG.trace(ts + " - Got back a set of tasks for " + this.partitionFragments.size() + " partitions");
 
             // Block until we get all of our responses.
             results = this.dispatchWorkFragments(ts, batchSize, this.partitionFragments, batchParams);
@@ -2284,7 +2286,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (error != null) {
             int size = error.getSerializedSize();
             BBContainer bc = this.buffer_pool.acquire(size);
-            error.serializeToBuffer(bc.b);
+            try {
+                error.serializeToBuffer(bc.b);
+            } catch (IOException ex) {
+                String msg = "Failed to serialize error for " + ts;
+                throw new ServerFaultException(msg, ex);
+            }
             bc.b.rewind();
             builder.setError(ByteString.copyFrom(bc.b));
             bc.discard();

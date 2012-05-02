@@ -37,6 +37,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -58,6 +59,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+        LOG.debug("??????");
     }
     private static boolean t = trace.get();
     private static boolean d = debug.get();
@@ -143,13 +145,20 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     final protected void throwExceptionForError(final int errorCode) throws RuntimeException {
         exceptionBuffer.clear();
         final int exceptionLength = exceptionBuffer.getInt();
+        if (d) LOG.debug("EEException Length: " + exceptionLength);
 
         if (exceptionLength == 0) {
             throw new EEException(errorCode);
         } else {
             exceptionBuffer.position(0);
             exceptionBuffer.limit(4 + exceptionLength);
-            throw SerializableException.deserializeFromBuffer(exceptionBuffer);
+            SerializableException ex = null;
+            try {
+                ex = SerializableException.deserializeFromBuffer(exceptionBuffer);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+            throw ex;
         }
     }
 
@@ -297,11 +306,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     /**
      * @param undoToken Token identifying undo quantum for generated undo info
+     * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
      */
     @Override
     public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
             long[] planFragmentIds,
-            int numFragmentIds,
+            int batchSize,
             int[] input_depIds,
             int[] output_depIds,
             ParameterSet[] parameterSets,
@@ -310,11 +320,16 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
         assert (planFragmentIds.length == parameterSets.length);
+        
+        if (batchSize == 0) {
+            LOG.warn("No fragments to execute. Returning empty DependencySet");
+            return (new DependencySet(new int[0], HStoreConstants.EMPTY_RESULT));
+        }
 
         // serialize the param sets
         fsForParameterSet.clear();
         try {
-            for (int i = 0; i < numFragmentIds; ++i) {
+            for (int i = 0; i < batchSize; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
                 if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
@@ -322,7 +337,69 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new RuntimeException(exception); // can't happen
         }
         
-        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
+        // Execute the plan, passing a raw pointer to the byte buffers for input and output
+        deserializer.clear();
+        final int errorCode = nativeExecuteQueryPlanFragmentsAndGetResults(pointer,
+                planFragmentIds, batchSize,
+                input_depIds,
+                output_depIds,
+                txnId, lastCommittedTxnId, undoToken);
+        checkErrorCode(errorCode);
+
+        // get a copy of the result buffers and make the tables use the copy
+        ByteBuffer fullBacking = deserializer.buffer();
+        try {
+            // read the complete size of the buffer used
+            fullBacking.getInt();
+            // check if anything was changed
+            m_dirty = (fullBacking.get() == 1 ? true : false);
+
+            // get a copy of the buffer
+            // Because this is a copy, that means we don't have to worry about the EE overwriting us
+            // Not sure of the implications for performance.
+             // deserializer.readBuffer(totalSize);
+            
+            // At this point we don't know how many dependencies we expect to get back from our fragments.
+            // We're just going to assume that each PlanFragment generated one and only one output dependency
+            VoltTable results[] = new VoltTable[batchSize];
+            int dependencies[] = new int[batchSize];
+            int dep_ctr = 0;
+            for (int i = 0; i < batchSize; ++i) {
+                int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
+                assert(numDependencies == 1) :
+                    "Unexpected multiple output dependencies from PlanFragment #" + planFragmentIds[i];
+                
+                // PAVLO: Since we can't pass the dependency ids using nativeExecuteQueryPlanFragmentsAndGetResults(),
+                // the results will come back without a dependency id. So we have to just assume
+                // that the frags were executed in the order that we passed to the EE and that we
+                // can just use the list of output_depIds that we have 
+                for (int ii = 0; ii < numDependencies; ++ii) {
+                    assert(dep_ctr < output_depIds.length) : 
+                        "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
+                    fullBacking.getInt(); // IGNORE 
+                    int depid = output_depIds[dep_ctr];
+                    assert(depid >= 0);
+                    
+                    int tableSize = fullBacking.getInt();
+                    assert(tableSize < 10000000);
+                    byte tableBytes[] = new byte[tableSize];
+                    fullBacking.get(tableBytes, 0, tableSize);
+                    final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
+//                    fullBacking.position(fullBacking.position() + tableSize);
+
+                    results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
+                    dependencies[dep_ctr] = depid;
+                    if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
+                                                   txnId, depid, tableSize, results[dep_ctr].toString())); 
+                    dep_ctr++;
+                } // FOR
+            } // FOR
+            
+            return (new DependencySet(dependencies, results));
+        } catch (Throwable ex) {
+            LOG.error("Failed to deserialze result table" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
     }
     
 //    @Override
@@ -348,92 +425,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 //        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
 //    }
     
-
-    /**
-     * @param undoToken Token identifying undo quantum for generated undo info
-     * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
-     */
-    private DependencySet _executeQueryPlanFragmentsAndGetDependencySet(
-            long[] planFragmentIds,
-            int numFragmentIds,
-            int[] input_depIds,
-            int[] output_depIds,
-            long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
-        
-        assert(planFragmentIds != null) : "Null PlanFragments for txn #" + txnId;
-        
-        if (numFragmentIds == 0) {
-            LOG.warn("No fragments to execute. Returning empty DependencySet");
-            return (new DependencySet(new int[0], new VoltTable[0]));
-        }
-
-        // checkMaxFsSize();
-
-        // Execute the plan, passing a raw pointer to the byte buffers for input and output
-        deserializer.clear();
-        final int errorCode = nativeExecuteQueryPlanFragmentsAndGetResults(pointer,
-                planFragmentIds, numFragmentIds,
-                input_depIds,
-                output_depIds,
-                txnId, lastCommittedTxnId, undoToken);
-        checkErrorCode(errorCode);
-
-        // get a copy of the result buffers and make the tables
-        // use the copy
-        ByteBuffer fullBacking = deserializer.buffer();
-        try {
-            // read the complete size of the buffer used
-            fullBacking.getInt();
-            // check if anything was changed
-            m_dirty = (fullBacking.get() == 1 ? true : false);
-
-            // get a copy of the buffer
-            // Because this is a copy, that means we don't have to worry about the EE overwriting us
-            // Not sure of the implications for performance.
-             // deserializer.readBuffer(totalSize);
-            
-            // At this point we don't know how many dependencies we expect to get back from our fragments.
-            // We're just going to assume that each PlanFragment generated one and only one output dependency
-            VoltTable results[] = new VoltTable[numFragmentIds];
-            int dependencies[] = new int[numFragmentIds];
-            int dep_ctr = 0;
-            for (int i = 0; i < numFragmentIds; ++i) {
-                int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
-                assert(numDependencies == 1) :
-                    "Unexpected multiple output dependencies from PlanFragment #" + planFragmentIds[i];
-                
-                // PAVLO: Since we can't pass the dependency ids using nativeExecuteQueryPlanFragmentsAndGetResults(),
-                // the results will come back without a dependency id. So we have to just assume
-                // that the frags were executed in the order that we passed to the EE and that we
-                // can just use the list of output_depIds that we have 
-                for (int ii = 0; ii < numDependencies; ++ii) {
-                    assert(dep_ctr < output_depIds.length) : 
-                        "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
-                    fullBacking.getInt(); // IGNORE 
-                    int depid = output_depIds[dep_ctr];
-                    assert(depid >= 0);
-                    
-                    int tableSize = fullBacking.getInt();
-                assert(tableSize < 10000000);
-                    byte tableBytes[] = new byte[tableSize];
-                    fullBacking.get(tableBytes, 0, tableSize);
-                    final ByteBuffer tableBacking = ByteBuffer.wrap(tableBytes);
-//                    fullBacking.position(fullBacking.position() + tableSize);
-
-                    results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
-                    dependencies[dep_ctr] = depid;
-                    if (d) LOG.debug(String.format("%d - New output VoltTable for DependencyId %d [origTableSize=%d]\n%s",
-                                                   txnId, depid, tableSize, results[dep_ctr].toString())); 
-                    dep_ctr++;
-                } // FOR
-            } // FOR
-            
-            return (new DependencySet(dependencies, results));
-        } catch (Throwable ex) {
-            LOG.error("Failed to deserialze result table" + ex);
-            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
-        }
-    }
 
     @Override
     public VoltTable serializeTable(final int tableId) throws EEException {
