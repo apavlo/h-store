@@ -25,12 +25,12 @@ public abstract class WikipediaConstants {
 	/**
 	 * Number of baseline pages
 	 */
-	public static final int PAGES = 20;
+	public static final int PAGES = 5;
 
 	/**
 	 * Number of baseline Users
 	 */
-	public static final int USERS = 10;
+	public static final int USERS = 4;
 	
 	public static final String UPDATEPAGE_LOG_TYPE = "patrol";
 	

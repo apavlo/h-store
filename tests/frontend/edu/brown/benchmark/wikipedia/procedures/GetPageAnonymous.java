@@ -67,20 +67,20 @@ public class GetPageAnonymous extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-	public VoltTable run(boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
+	public VoltTable run(int pageId, boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
 	    
-	    voltQueueSQL(selectPage, pageNamespace, pageTitle);
-        VoltTable rs[] = voltExecuteSQL();
-        if (!rs[0].advanceRow()) {
-            String msg = String.format("Invalid Page: Namespace:%d / Title:--%s--", pageNamespace, pageTitle);
-            throw new VoltAbortException(msg);
-        }
-        int pageId = (int)rs[0].getLong(0);
+//	    voltQueueSQL(selectPage, pageNamespace, pageTitle);
+//        VoltTable rs[] = voltExecuteSQL();
+//        if (!rs[0].advanceRow()) {
+//            String msg = String.format("Invalid Page: Namespace:%d / Title:--%s--", pageNamespace, pageTitle);
+//            throw new VoltAbortException(msg);
+//        }
+//        int pageId = (int)rs[0].getLong(0);
 
         voltQueueSQL(selectPageRestriction, pageId);
         voltQueueSQL(selectIpBlocks, userIp);
         voltQueueSQL(selectPageRevision, pageId, pageId);
-        rs = voltExecuteSQL();
+        VoltTable rs[] = voltExecuteSQL();
         assert(rs.length == 3):"length expected is:3, but is:" + rs.length;
         
         // Grab Page Restrictions
@@ -98,7 +98,7 @@ public class GetPageAnonymous extends VoltProcedure {
 
         
         if (!rs[2].advanceRow()) {
-            String msg = String.format("Invalid Page: Namespace:%d / Title:--%s-- / PageId:%d",
+            String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
                                        pageNamespace, pageTitle, pageId);
             throw new VoltAbortException(msg);
         }
