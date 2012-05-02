@@ -40,6 +40,7 @@ import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.StringUtil;
 
 public class WikipediaClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(WikipediaClient.class);
@@ -106,11 +107,11 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            //LOG.info(clientResponse);
+            LOG.info(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse,this.idx);
+            incrementTransactionCounter(clientResponse, this.idx);
         }
     } // END CLASS
     
@@ -163,7 +164,7 @@ public class WikipediaClient extends BenchmarkComponent {
             this.callbacks[i] = new WikipediaCallback(i);
         } // FOR
         
-        this.nextRevId = this.getClientId() * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
+        this.nextRevId = (this.getClientId()+1) * WikipediaConstants.CLIENT_NEXT_ID_OFFSET;
     }
     
     /**
@@ -245,11 +246,18 @@ public class WikipediaClient extends BenchmarkComponent {
 
         this.startComputeTime(target.displayName);
         //LOG.info("Generate params:" + target + ", user_id:" + user_id + ", page_id:" + page_id);
-        Object params[] = this.generateParams(target, user_id, page_id);
-        
-        this.stopComputeTime(target.displayName);
-        
-        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
+        Object params[] = null;
+        try {
+            params = this.generateParams(target, user_id, page_id);
+        } catch (Throwable ex) {
+            throw new RuntimeException("Unexpected error when generating params for " + target, ex);
+        } finally {
+            this.stopComputeTime(target.displayName);
+        }
+        assert(params != null);
+        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()],
+                                                           target.callName,
+                                                           params);
 
         //LOG.info("Executing txn:" + target.callName + ",with params:" + params);
         return ret;
@@ -265,11 +273,9 @@ public class WikipediaClient extends BenchmarkComponent {
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
-        String procNames[] = new String[WikipediaProjectBuilder.PROCEDURES.length];
+        String procNames[] = new String[Transaction.values().length];
         for (int i = 0; i < procNames.length; i++) {
-            String name = WikipediaProjectBuilder.PROCEDURES[i].getSimpleName();
-            if (name != "GetPagesInfo" || name != "GetTableCounts")
-                procNames[i] = name;
+            procNames[i] = Transaction.values()[i].displayName;
         }
         return (procNames);
     }
@@ -331,11 +337,16 @@ public class WikipediaClient extends BenchmarkComponent {
                 //Transaction target = Transaction.getTransaction(procedureName);
                 //assert(target != null):"can not find procedure: " + procedureName;
                 ClientResponse cr = null;
+                LOG.info("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to call GetPageAnonymous...", e);
                 }
+                assert(cr != null);
+                if (LOG.isDebugEnabled()) 
+                    LOG.debug("GetPageAnonymous Result:\n" + cr);
+                
                 // voltTable
                 VoltTable res[] = cr.getResults();
                 VoltTable vt = res[0];
@@ -360,6 +371,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 String revComment = TextGenerator.randomStr(new Random(), revCommentLen);
                 int revMinorEdit = WikipediaUtil.minorEdit.nextValue().intValue();
                 
+                this.nextRevId++;
                 params = new Object[]{
                         this.nextRevId,
                         vt_textId,
@@ -379,6 +391,9 @@ public class WikipediaClient extends BenchmarkComponent {
                  assert(false):"Should not come to this point";
         }
         assert(params != null);
+        
+        if (LOG.isDebugEnabled())
+            LOG.info(txn + " Params:\n" + StringUtil.join("\n", params));
         return params;
     }
 }
