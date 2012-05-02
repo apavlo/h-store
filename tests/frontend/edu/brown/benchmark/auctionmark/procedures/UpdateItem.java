@@ -106,7 +106,7 @@ public class UpdateItem extends VoltProcedure{
         // DELETE ITEM_ATTRIBUTE
         if (delete_attribute != VoltType.NULL_BIGINT) {
             // Only delete the first (if it even exists)
-            long ia_id = ItemId.getUniqueElementId(item_id, 0);
+            long ia_id = -1; // FIXME ItemId.getUniqueElementId(item_id, 0);
             voltQueueSQL(deleteItemAttribute, ia_id, item_id, seller_id);
             voltExecuteSQL(true);
         }
@@ -126,7 +126,7 @@ public class UpdateItem extends VoltProcedure{
                 ia_id = attrResults[0].getLong(0);
                 assert(attrResults[0].wasNull() == false);
             } else {
-                ia_id = ItemId.getUniqueElementId(item_id, 0);
+                ia_id = -1; // FIXME ItemId.getUniqueElementId(item_id, 0);
             }
             assert(ia_id > 0);
 

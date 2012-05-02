@@ -14,6 +14,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AbstractOptimization;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
+import edu.brown.optimizer.optimizations.CombineOptimization;
 import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
 import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
 import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
@@ -68,6 +69,7 @@ public class PlanOptimizer {
             ProjectionPushdownOptimization.class,
             LimitOrderByPushdownOptimization.class,
             RemoveRedundantProjectionsOptimizations.class,
+            CombineOptimization.class,
     };
 
     // ----------------------------------------------------------------------------

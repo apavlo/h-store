@@ -445,7 +445,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getInvocations(),
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
-                invokedTxns.put(partition, es.getTransactionCounter());
+                invokedTxns.put(partition, (int)es.getTransactionCounter());
                 
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
@@ -513,7 +513,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             for (TxnCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");
                 Long cnt = tc.getHistogram().get(proc_name);
-                rows[i][j++] = (cnt != null ? Long.toString(cnt) : "-");
+                rows[i][j++] = (cnt != null ? cnt.toString() : "-");
             } // FOR
             first = false;
         } // FOR

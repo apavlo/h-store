@@ -69,7 +69,9 @@ public class VoltProcedureInvoker {
             VoltType vt = VoltType.get(catalog_param.getType());
             parameters[i] = args.getOptParam(i+1, vt);
             if (LOG.isDebugEnabled())
-                LOG.debug(String.format("%s: %s", catalog_param.fullName(), parameters[i]));
+                LOG.debug(String.format("%s: %s [%s / %s]", catalog_param.fullName(),
+                                                            parameters[i],
+                                                            vt, parameters[i].getClass()));
         } // FOR
         
         Client client = ClientFactory.createClient(128, null, false, null);

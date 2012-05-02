@@ -23,7 +23,9 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
@@ -32,6 +34,8 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.InitializeRequest;
+import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
@@ -286,6 +290,12 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("Starting listener thread");
         this.listener_thread.start();
         
+        // If we're at site zero, then we'll announce our instanceId
+        // to everyone in the cluster
+        if (this.local_site_id == 0) {
+            this.initCluster();
+        }
+        
         if (hstore_conf.site.coordinator_sync_time) {
             syncClusterTimes();
         }
@@ -470,6 +480,40 @@ public class HStoreCoordinator implements Shutdownable {
         }
     }
     
+    protected void initCluster() {
+        long instanceId = EstTime.currentTimeMillis();
+        hstore_site.setInstanceId(instanceId);
+        InitializeRequest request = InitializeRequest.newBuilder()
+                                            .setSenderSite(0)
+                                            .setInstanceId(instanceId)
+                                            .build();
+        final CountDownLatch latch = new CountDownLatch(this.channels.size()); 
+        RpcCallback<InitializeResponse> callback = new RpcCallback<InitializeResponse>() {
+            @Override
+            public void run(InitializeResponse parameter) {
+                LOG.info(String.format("Initialization Response: %s / %s",
+                                       HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
+                                       parameter.getStatus()));
+                latch.countDown();
+            }
+        };
+        for (Integer site_id : this.channels.keySet()) {
+            assert(site_id.intValue() != this.local_site_id);
+            ProtoRpcController controller = new ProtoRpcController();
+            this.channels.get(site_id).initialize(controller, request, callback);
+        } // FOR
+        
+        if (debug.get())
+            LOG.debug(String.format("Waiting for %s initialization responses", this.channels.size()));
+        boolean finished = false;
+        try {
+            finished = latch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            throw new ServerFaultException("Unexpected interruption", ex);
+        }
+        assert(finished);
+    }
+    
     // ----------------------------------------------------------------------------
     // MESSAGE ROUTERS
     // ----------------------------------------------------------------------------
@@ -541,7 +585,7 @@ public class HStoreCoordinator implements Shutdownable {
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
             if (debug.get()) 
-                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
+                LOG.debug(String.format("Received redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
@@ -564,6 +608,22 @@ public class HStoreCoordinator implements Shutdownable {
             // will deserialize the embedded VoltTable and wrap it in something that we can
             // then pass down into the underlying ExecutionEngine
             sendData_handler.remoteQueue(controller, request, done);
+        }
+        
+        @Override
+        public void initialize(RpcController controller, InitializeRequest request, RpcCallback<InitializeResponse> done) {
+            if (debug.get())
+                LOG.debug(String.format("Received %s from HStoreSite %s [instanceId=%d]",
+                                                 request.getClass().getSimpleName(),
+                                                 HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                                                 request.getInstanceId()));
+            
+            hstore_site.setInstanceId(request.getInstanceId());
+            InitializeResponse response = InitializeResponse.newBuilder()
+                                                .setSenderSite(local_site_id)
+                                                .setStatus(Status.OK)
+                                                .build();
+            done.run(response);
         }
         
         @Override
@@ -605,7 +665,7 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void timeSync(RpcController controller, TimeSyncRequest request, RpcCallback<TimeSyncResponse> done) {
             if (debug.get()) 
-                LOG.debug(String.format("Recieved %s from HStoreSite %s",
+                LOG.debug(String.format("Received %s from HStoreSite %s",
                                                  request.getClass().getSimpleName(),
                                                  HStoreThreadManager.formatSiteName(request.getSenderSite())));
             
@@ -724,7 +784,8 @@ public class HStoreCoordinator implements Shutdownable {
         int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
         assert(site_id != this.local_site_id);
         
-        this.channels.get(site_id).transactionPrefetch(ts.getTransactionPrefetchController(),
+        ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
+        this.channels.get(site_id).transactionPrefetch(controller,
                                                        request,
                                                        this.transactionPrefetch_callback);
     }
@@ -996,7 +1057,7 @@ public class HStoreCoordinator implements Shutdownable {
             // nothing
         }
         if (success == false) {
-            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", this.num_sites));
+            LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", this.num_sites-1));
         } else if (trace.get()) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation

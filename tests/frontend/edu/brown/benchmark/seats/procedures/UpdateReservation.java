@@ -56,6 +56,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.seats.SEATSConstants;
+import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
     partitionInfo = "RESERVATION.R_F_ID: 2"
@@ -100,19 +101,20 @@ public class UpdateReservation extends VoltProcedure {
         voltQueueSQL(CheckSeat, f_id, seatnum);
         voltQueueSQL(CheckCustomer, f_id, c_id);
         final VoltTable[] checkResults = voltExecuteSQL();
-        if (debug) {
-            LOG.debug(this.getTransactionState().debug());
-        }
-        
         assert(checkResults.length == 2);
-        if (checkResults[0].getRowCount() > 0) {
-            throw new VoltAbortException("Seat reservation conflict");
+        
+        // Check if Seat is Available
+        if (checkResults[0].advanceRow()) {
+            throw new VoltAbortException(ErrorType.SEAT_ALREADY_RESERVED +
+                                         String.format(" Seat %d is already reserved on flight #%d", seatnum, f_id));
         }
-        if (checkResults[1].getRowCount() > 1) {
-            throw new VoltAbortException("Customer owns multiple reservations");
+        // Check if the Customer already has a seat on this flight
+        else if (checkResults[1].advanceRow() == false) {
+            throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
+                                         String.format(" Customer %d does not have an existing reservation on flight #%d", c_id, f_id));
         }
        
-        // update the seat reservation for the customer
+        // Update the seat reservation for the customer
         voltQueueSQL(ReserveSeats[(int)attr_idx], seatnum, attr_val, r_id, c_id, f_id);
         final VoltTable[] results = voltExecuteSQL();
         assert results.length == 1;
@@ -120,13 +122,13 @@ public class UpdateReservation extends VoltProcedure {
             if (results[i].getRowCount() != 1) {
                 String msg = String.format("Failed to update reservation for flight %d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
-                throw new VoltAbortException(msg);
+                throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }
             long updated = results[i].asScalarLong();
             if (updated == 0) {
                 String msg = String.format("Failed to update reservation for flight %d - Did not update any records for %s", f_id, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
-                throw new VoltAbortException(msg);
+                throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }
         } // FOR
         

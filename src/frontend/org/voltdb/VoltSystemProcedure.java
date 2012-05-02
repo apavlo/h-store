@@ -203,10 +203,12 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                 // Input Dependencies
                 boolean needs_input = false;
                 WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
-                for (int dep : pf.inputDependencyIds) {
-                    inputBuilder.addIds(dep);
-                    needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-                } // FOR
+                if (pf.inputDependencyIds != null) {
+                    for (int dep : pf.inputDependencyIds) {
+                        inputBuilder.addIds(dep);
+                        needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
+                    } // FOR
+                }
                 builder.addInputDepId(inputBuilder.build());
                 
                 // Output Dependencies

@@ -195,7 +195,7 @@ public class TestHistogram extends BaseTestCase {
         assertEquals(0, h.getSampleCount());
         for (Object o : keys) {
             Long k = (Long)o;
-            assertEquals(new Long(0), h.get(k));
+            assertEquals(0, h.get(k, -1));
         } // FOR
 
         // Now make sure they get wiped out

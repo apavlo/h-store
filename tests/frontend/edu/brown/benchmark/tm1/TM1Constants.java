@@ -21,6 +21,8 @@ public abstract class TM1Constants {
     public static final String TABLENAME_SPECIAL_FACILITY = "SPECIAL_FACILITY";
     public static final String TABLENAME_CALL_FORWARDING = "CALL_FORWARDING";
 
+    public static final int SUBSCRIBER_SIZE = 100000;
+    
     public static final int BATCH_SIZE = 5000;
 
     public static final String TABLENAMES[] = { TABLENAME_SUBSCRIBER,
