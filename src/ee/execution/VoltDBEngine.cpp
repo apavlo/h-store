@@ -140,9 +140,6 @@ bool VoltDBEngine::initialize(
     m_siteId = siteId;
     m_partitionId = partitionId;
 
-    // Set the local PartitionId for logging
-//     setPartitionIdForLogging(m_partitionId);
-
     // Instantiate our catalog - it will be populated later on by load()
     m_catalog = boost::shared_ptr<catalog::Catalog>(new catalog::Catalog());
 
@@ -353,34 +350,34 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         } else {
                 VOLT_DEBUG("[%02d] Let's try to actually execute a PlanFragment %jd for txn #%jd [OutputDep=%d]",
                             ctr, (intmax_t)planfragmentId, (intmax_t)txnId, m_currentOutputDepId);
-        try {
-            // Now call the execute method to actually perform whatever action
-            // it is that the node is supposed to do...
-            if (!executor->execute(params)) {
+            try {
+                // Now call the execute method to actually perform whatever action
+                // it is that the node is supposed to do...
+                if (!executor->execute(params)) {
                     VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
+                               ctr, (intmax_t)planfragmentId);
+                    if (cleanUpTable != NULL)
+                        cleanUpTable->deleteAllTuples(false);
+                    // set these back to -1 for error handling
+                    m_currentOutputDepId = -1;
+                    m_currentInputDepId = -1;
+                    return ENGINE_ERRORCODE_ERROR;
+                }
+            } catch (SerializableEEException &e) {
+                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
                            ctr, (intmax_t)planfragmentId);
+                VOLT_DEBUG("SerializableEEException: %s", e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
+                resetReusedResultOutputBuffer();
+                e.serialize(getExceptionOutputSerializer());
+    
                 // set these back to -1 for error handling
                 m_currentOutputDepId = -1;
                 m_currentInputDepId = -1;
                 return ENGINE_ERRORCODE_ERROR;
             }
-        } catch (SerializableEEException &e) {
-                VOLT_DEBUG("The Executor's execution at position '%d' failed for PlanFragment '%jd'",
-                       ctr, (intmax_t)planfragmentId);
-                VOLT_DEBUG("SerializableEEException: %s", e.message().c_str());
-            if (cleanUpTable != NULL)
-                cleanUpTable->deleteAllTuples(false);
-            resetReusedResultOutputBuffer();
-            e.serialize(getExceptionOutputSerializer());
-
-            // set these back to -1 for error handling
-            m_currentOutputDepId = -1;
-            m_currentInputDepId = -1;
-            return ENGINE_ERRORCODE_ERROR;
         }
-    }
     }
     if (cleanUpTable != NULL)
         cleanUpTable->deleteAllTuples(false);
@@ -762,9 +759,8 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
          proc_iterator != m_database->procedures().end(); proc_iterator++) {
         // Procedure
         const catalog::Procedure *catalog_proc = proc_iterator->second;
-        VOLT_DEBUG("********************************************************************");
-        VOLT_DEBUG("Initialize Procedure: %s", catalog_proc->name().c_str());
-        std::map<std::string, catalog::Statement*>::const_iterator stmt_iterator;
+        VOLT_DEBUG("proc: %s", catalog_proc->name().c_str());
+        map<string, catalog::Statement*>::const_iterator stmt_iterator;
         for (stmt_iterator = catalog_proc->statements().begin();
              stmt_iterator != catalog_proc->statements().end();
              stmt_iterator++) {
@@ -777,8 +773,7 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
             for (pf_iterator = catalogStmt->fragments().begin();
                  pf_iterator!= catalogStmt->fragments().end(); pf_iterator++) {
                 int64_t fragId = uniqueIdForFragment(pf_iterator->second);
-//                 fprintf(stderr, "Initializing Single-Partition: %jd\n", (intmax_t)fragId);
-                std::string planNodeTree = pf_iterator->second->plannodetree();
+                string planNodeTree = pf_iterator->second->plannodetree();
                 if (!initPlanFragment(fragId, planNodeTree)) {
                     VOLT_ERROR("Failed to initialize plan fragment '%s' from"
                                " catalogs\nFailed SQL Statement: %s",
@@ -929,7 +924,9 @@ bool VoltDBEngine::initMaterializedViews(bool addAll) {
                 VOLT_DEBUG("Skipping MaterializedViewInfo %s because it is a vertical partition", catalogView->name().c_str());
                 continue;
             }
-
+            
+            // connect source and destination tables
+            if (addAll || catalogView->wasAdded()) {
                 const catalog::Table *destCatalogTable = catalogView->dest();
                 PersistentTable *destTable = dynamic_cast<PersistentTable*>(m_tables[destCatalogTable->relativeIndex()]);
                 MaterializedViewMetadata *mvmd = new MaterializedViewMetadata(srcTable, destTable, catalogView);
@@ -1004,13 +1001,9 @@ void VoltDBEngine::printReport() {
     std::cout << "==========" << std::endl << std::endl;
 }
 
-bool VoltDBEngine::isLocalSite(int64_t value) {
+bool VoltDBEngine::isLocalSite(const NValue& value)
+{
     int index = TheHashinator::hashinate(value, m_totalPartitions);
-    return index == m_partitionId;
-}
- 
-bool VoltDBEngine::isLocalSite(char *string, int32_t length) {
-    int index = TheHashinator::hashinate(string, length, m_totalPartitions);
     return index == m_partitionId;
 }
 
