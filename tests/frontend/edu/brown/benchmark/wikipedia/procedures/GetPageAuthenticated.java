@@ -35,10 +35,10 @@ public class GetPageAuthenticated extends VoltProcedure {
     // STATEMENTS
     // -----------------------------------------------------------------
     
-    public SQLStmt selectPage = new SQLStmt(
-        "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
-        " WHERE page_namespace = ? AND page_title = ? LIMIT 1"
-    );
+//    public SQLStmt selectPage = new SQLStmt(
+//        "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
+//        " WHERE page_namespace = ? AND page_title = ? LIMIT 1"
+//    );
     public SQLStmt selectPageRestriction = new SQLStmt(
         "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS + 
         " WHERE pr_page = ?"
@@ -73,7 +73,7 @@ public class GetPageAuthenticated extends VoltProcedure {
     // RUN
     // -----------------------------------------------------------------
 	
-    public VoltTable run( boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
+    public VoltTable run( int pageId, boolean forSelect, String userIp, int userId, int nameSpace, String pageTitle) {
         // =======================================================
         // LOADING BASIC DATA: txn1
         // =======================================================
@@ -86,7 +86,7 @@ public class GetPageAuthenticated extends VoltProcedure {
         
         voltQueueSQL(selectUser, userId);
         voltQueueSQL(selectGroup, userId);
-        voltQueueSQL(selectPage, nameSpace, pageTitle);
+        //voltQueueSQL(selectPage, nameSpace, pageTitle);
         voltQueueSQL(selectIpBlocks, userId);
 
         VoltTable rs[] = voltExecuteSQL();
@@ -105,18 +105,17 @@ public class GetPageAuthenticated extends VoltProcedure {
         }
 
 
-        if (!rs[2].advanceRow()) {
-            throw new VoltAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
-        }
-        int pageId = (int)rs[2].getLong("page_id");
-        assert (!rs[2].advanceRow());
+//        if (!rs[2].advanceRow()) {
+//            throw new VoltAbortException("INVALID page namespace/title:" + nameSpace + "/" + pageTitle);
+//        }
+//        int pageId = (int)rs[2].getLong("page_id");
+//        assert (!rs[2].advanceRow());
         
         
         // check using blocking of a user by either the IP address or the
         // user_name
-        rs = voltExecuteSQL();
-        while (rs[3].advanceRow()) {
-            String ipb_expiry = rs[3].getString(10);
+        while (rs[2].advanceRow()) {
+            String ipb_expiry = rs[2].getString(10);
             assert(ipb_expiry != null);
         }
 
