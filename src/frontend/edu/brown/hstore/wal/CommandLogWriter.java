@@ -54,12 +54,12 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * Transaction Command Logger
+ * Transaction Command Log Writer
  * @author mkirsch
  * @author pavlo
  */
-public class WriteAheadLogger implements Shutdownable {
-    private static final Logger LOG = Logger.getLogger(WriteAheadLogger.class);
+public class CommandLogWriter implements Shutdownable {
+    private static final Logger LOG = Logger.getLogger(CommandLogWriter.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -88,59 +88,11 @@ public class WriteAheadLogger implements Shutdownable {
                 this.idx = 0;
             }
             LogEntry e = this.buffer[this.idx++];
-            e.ts = ts;
+            e.txnId = ts.getTransactionId();
+            e.procName = ts.getProcedureName();
+            e.procParams = ts.getProcedureParameters();
             e.flushed = false;
             return (e);
-        }
-    } // CLASS
-    
-    /**
-     * Log Entry
-     */
-    protected class LogEntry implements FastSerializable {
-        
-        private LocalTransaction ts;
-        
-        /** Set to true if we know that this entry has been written to disk */
-        private boolean flushed = false;
-
-        @Override
-        public void readExternal(FastDeserializer in) throws IOException {
-            if (this.ts == null) {
-                
-            }
-            // TODO: We need to figure out how we want to read these entries
-            // back in. I suppose we could just make a new LocalTransaction
-            // entry each time. What we really should do is recreate
-            // the StoredProcedureInvocation and then pass that into
-            // the HStoreSite so that we can replay the transaction
-            //File file = new File("filename");
-            // Create a read-only memory-mapped file
-            //FileChannel roChannel = new RandomAccessFile(file, "r").getChannel();
-
-            //ByteBuffer readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int) roChannel.size());
-            //long txn_id = in.readLong();
-            //long time = in.readLong();
-            //String procName = in.readString();
-            //ParameterSet ps = (ParameterSet)in.readObject();
-            /*FileWriter first = new FileWriter(new File("/ltmp/hstore/readbackin.log"), true);
-            first.write("<" + txn_id + "><" + time + "><" + procName + "><" + "params" + "><COMMIT>");
-            first.close();*/
-        }
-
-        @Override
-        public void writeExternal(FastSerializer out) throws IOException {
-            out.writeLong(this.ts.getTransactionId().longValue());
-            out.writeLong(EstTime.currentTimeMillis());
-            
-            // TODO: Remove this once we have the header stuff working...
-            out.writeString(ts.getProcedureName());
-            /* If we have a header with a mapping to Procedure names to ProcIds, we can do this
-            int procId = ts.getProcedure().getId();
-            this.buffer.putInt(procId);
-            */
-            
-            out.writeObject(ts.getProcedureParameters());
         }
     } // CLASS
     
@@ -164,7 +116,7 @@ public class WriteAheadLogger implements Shutdownable {
      * @param catalog_db
      * @param path
      */
-    public WriteAheadLogger(HStoreSite hstore_site, String path) {
+    public CommandLogWriter(HStoreSite hstore_site, String path) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         
@@ -314,44 +266,4 @@ public class WriteAheadLogger implements Shutdownable {
         
         return true;
     }
-
-
-            
-
-    /**
-     * @param cp
-     */
-    /*public static boolean applyCheckpoint(final Checkpoint cp) {
-        
-        return true;
-    }*/
-    
-    /**
-     * 
-     */
-//    public static List<LocalTransaction> getLog() {
-//        List<LocalTransaction> result;
-//        try {
-//            BufferedReader in = new BufferedReader(new FileReader(WAL_PATH));
-//            String strLine;
-//            while ((strLine = in.readLine()) != null)   {
-//                //System.out.println(strLine);
-//                String[] data = strLine.split("><");
-//                System.out.println(data[2]);
-//                if (data.length == 6 && data[5].equals("COMMIT")) {
-//                    long txn_count = Long.parseLong(data[0]);
-//                    long time = Long.parseLong(data[1]);
-//                    long txn_id = Long.parseLong(data[2]);
-//                    String pn = data[3];
-//                    String params = data[4];
-//                    String status = data[5];
-//                    //System.out.println(txn_id);
-//                }
-//            }
-//            in.close();
-//        } catch (Exception e) {
-//            //e.printStackTrace();
-//        }
-//        return null;
-//    }
 }

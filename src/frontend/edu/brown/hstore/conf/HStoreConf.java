@@ -269,7 +269,6 @@ public final class HStoreConf {
         )
         public int exec_postprocessing_thread_count;
         
-
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
@@ -311,12 +310,23 @@ public final class HStoreConf {
         public String exec_command_logging_file;
         
         @ConfigProperty(
+            description="If enabled, support ad hoc queries",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_adhoc_sql;
+        
+        @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
             		    "queries on remote partitions for distributed transactions.",
             defaultBoolean=false,
             experimental=true
         )
         public boolean exec_prefetch_queries;
+        
+        // ----------------------------------------------------------------------------
+        // MapReduce Options
+        // ----------------------------------------------------------------------------
         
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",

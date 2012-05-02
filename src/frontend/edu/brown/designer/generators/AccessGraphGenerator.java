@@ -55,6 +55,9 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
     private final Map<DesignerEdge, Set<Set<Statement>>> multi_stmt_edge_xref = new HashMap<DesignerEdge, Set<Set<Statement>>>();
     private final Set<Table> debug_tables = new HashSet<Table>();
 
+    private final List<ProcParameter> shared_params = new ArrayList<ProcParameter>();
+    private final Map<Pair<CatalogType, CatalogType>, ColumnSet> table_csets = new HashMap<Pair<CatalogType, CatalogType>, ColumnSet>();
+    
     /**
      * @param stats_catalog_db
      * @param graph
@@ -146,29 +149,29 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                         // Check whether this is a self-referencing edge
                     } else if ((parent0 == null && parent1.equals(catalog_tbl0)) || (parent1 == null && parent0.equals(catalog_tbl0))) {
                         if (d)
-                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s\n", entry, v0, v0));
+                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s", entry, v0, v0));
                         agraph.addEdge(new_e, v0, v0);
 
                     } else if ((parent0 == null && parent1.equals(catalog_tbl1)) || (parent1 == null && parent0.equals(catalog_tbl1))) {
                         if (d)
-                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s\n", entry, v1, v1));
+                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s", entry, v1, v1));
                         agraph.addEdge(new_e, v1, v1);
 
                     } else if ((parent0.equals(catalog_tbl0) && parent1.equals(catalog_tbl1) == false) || (parent1.equals(catalog_tbl0) && parent0.equals(catalog_tbl1) == false)
                             || (parent0.equals(catalog_tbl0) && parent1.equals(catalog_tbl0))) {
                         if (d)
-                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s\n", entry, v0, v0));
+                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s", entry, v0, v0));
                         agraph.addEdge(new_e, v0, v0);
 
                     } else if ((parent0.equals(catalog_tbl1) && parent1.equals(catalog_tbl0) == false) || (parent1.equals(catalog_tbl1) && parent0.equals(catalog_tbl0) == false)
                             || (parent0.equals(catalog_tbl0) && parent1.equals(catalog_tbl0))) {
                         if (d)
-                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s\n", entry, v1, v1));
+                            LOG.debug(String.format("Self-referencing edge %s ===> %s, %s", entry, v1, v1));
                         agraph.addEdge(new_e, v1, v1);
 
                     } else {
                         if (d)
-                            LOG.debug(String.format("New edge %s ===> %s, %s\n", entry, v0, v1));
+                            LOG.debug(String.format("New edge %s ===> %s, %s", entry, v0, v1));
                         agraph.addEdge(new_e, v0, v1);
 
                     }
@@ -197,26 +200,15 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         // First initialize our little graph...
         this.initialize(agraph);
 
-        // for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
-        // if (debug) System.err.println(catalog_stmt.getName());
-        // for (StmtParameter param : catalog_stmt.getParameters()) {
-        // if (debug) System.err.println("\t[" + param.getIndex() + "] " + param
-        // + " -> " + param.getProcparameter() + (param.getProcparameter() !=
-        // null ? " [" + param.getProcparameter().getIndex() + "]" : ""));
-        // }
-        // }
-        // if (true) return;
-
         // Get the list of tables used in the procedure
         Collection<Table> proc_tables = CatalogUtil.getReferencedTables(this.catalog_proc);
 
         // Loop through each query and create edges for the explicitly defined
         // relationships:
-        // (1) Add an edge from each table in the query table to all other
-        // tables in the same query
-        // (2) Add a self-referencing edge for table0 if it is used in a filter
-        // predicate using a
-        // variable or an input parameter
+        // + Add an edge from each table in the query table to all other
+        //   tables in the same query
+        // + Add a self-referencing edge for table0 if it is used in a filter
+        //   predicate using a variable or an input parameter
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             this.createExplicitEdges(agraph, catalog_stmt);
         } // FOR
@@ -224,12 +216,10 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             LOG.debug("===============================================================");
 
         // After the initial edges have been added to the graph, loop back
-        // through again looking for
-        // implicit references between two tables:
-        //
-        // - Tables implicitly joined by sharing parameters on foreign keys
-        // - Tables implicitly referenced together by using the same values on
-        // foreign keys
+        // through again looking for implicit references between two tables:
+        //  + Tables implicitly joined by sharing parameters on foreign keys
+        //  + Tables implicitly referenced together by using the same values on
+        //    foreign keys
         Statement catalog_stmts[] = this.catalog_proc.getStatements().values();
         for (int stmt_ctr0 = 0, stmt_cnt = catalog_stmts.length; stmt_ctr0 < stmt_cnt; stmt_ctr0++) {
             Statement catalog_stmt0 = catalog_stmts[stmt_ctr0];
@@ -237,10 +227,9 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             this.setDebug(stmt0_tables.containsAll(debug_tables));
 
             // --------------------------------------------------------------
-            // (3) Add an edge between the tables in this Statement and all
-            // other tables in
-            // other queries that share input parameters on foreign keys
-            // relations
+            // (3) Add an edge between the tables in this Statement and all other 
+            // tables in other queries that share input parameters on foreign
+            // keys relationships
             // --------------------------------------------------------------
             List<ProcParameter> params0 = new ArrayList<ProcParameter>();
             for (StmtParameter param : catalog_stmt0.getParameters()) {
@@ -260,11 +249,12 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             // (4) Create an edge between implicit references by primary key
             // This is when one statement has a predicate that uses an input
-            // parameter
-            // that is not referenced in conjunction with other tables
+            // parameter that is not referenced in conjunction with other tables
             // --------------------------------------------------------------
             if (debug && d)
-                LOG.debug("-----------------------------------------\nLooking for implicit reference joins in " + catalog_stmt0 + "\n" + "TABLES: " + stmt0_tables);
+                LOG.debug("-----------------------------------------\n" +
+                		  "Looking for implicit reference joins in " + catalog_stmt0 + "\n" + 
+                          "TABLES: " + stmt0_tables);
             for (Table catalog_tbl : stmt0_tables) {
                 this.createImplicitEdges(agraph, proc_tables, catalog_stmt0, catalog_tbl);
             } // FOR
@@ -376,10 +366,11 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      * @throws Exception
      */
     protected void createSharedParamEdges(AccessGraph agraph, Statement catalog_stmt0, Statement catalog_stmt1, List<ProcParameter> catalog_stmt0_params) throws Exception {
-        Map<Pair<CatalogType, CatalogType>, ColumnSet> table_csets = new HashMap<Pair<CatalogType, CatalogType>, ColumnSet>();
-
+        this.table_csets.clear();
+        this.shared_params.clear();
+        if (d) LOG.debug("Creating Shared Parameter Edges between " + catalog_stmt0.getName() + " <-> " + catalog_stmt1.getName());
+        
         // Check whether these two queries share input parameters
-        List<ProcParameter> shared_params = new ArrayList<ProcParameter>();
         for (StmtParameter stmt_param : catalog_stmt1.getParameters()) {
             if (stmt_param.getProcparameter() != null && catalog_stmt0_params.contains(stmt_param.getProcparameter())) {
                 shared_params.add(stmt_param.getProcparameter());
@@ -513,19 +504,20 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         // For each SCAN edge for this vertex, check whether the column has a
         // foreign key
         DesignerVertex vertex = agraph.getVertex(catalog_tbl);
-        if (d)
-            LOG.debug("Creating Implicit Edges for " + catalog_tbl);
-        for (DesignerEdge edge : agraph.getIncidentEdges(vertex, AccessGraph.EdgeAttributes.ACCESSTYPE.name(), AccessType.SCAN)) {
+        if (d) LOG.debug("Creating Implicit Edges for " + catalog_tbl);
+        Collection<DesignerEdge> scanEdges = agraph.getIncidentEdges(vertex,
+                                                                 AccessGraph.EdgeAttributes.ACCESSTYPE.name(),
+                                                                 AccessType.SCAN);
+        if (t) LOG.trace("\t" + catalog_tbl.getName() + " Incident Edges: " + scanEdges);
+        for (DesignerEdge edge : scanEdges) {
             ColumnSet scan_cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
-            if (t)
-                LOG.trace("\tSCAN EDGE: " + edge); // + "\n" +
+            if (t) LOG.trace("\tSCAN EDGE: " + edge); // + "\n" +
                                                    // scan_cset.debug());
 
             // For each table that our foreign keys reference, will construct a
             // ColumnSet mapping
             Map<Table, ColumnSet> fkey_column_xrefs = new HashMap<Table, ColumnSet>();
-            if (t)
-                LOG.trace("OUR COLUMNS: " + scan_cset.findAllForParent(Column.class, catalog_tbl));
+            if (t) LOG.trace("\tOUR COLUMNS: " + scan_cset.findAllForParent(Column.class, catalog_tbl));
             for (Column catalog_col : scan_cset.findAllForParent(Column.class, catalog_tbl)) {
                 // Get the foreign key constraint for this column and then add
                 // it to the ColumnSet
@@ -559,9 +551,10 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                         // fkey_column_xrefs.get(catalog_fkey_tbl));
                         fkey_column_xrefs.get(catalog_fkey_tbl).add(catalog_col, catalog_fkey_col, ExpressionType.COMPARE_EQUAL);
                     } else {
-                        if (t)
-                            LOG.trace("Skipping Implict Reference Join for " + catalog_fkey_tbl + " because it is not used in " + this.catalog_proc);
+                        if (t) LOG.trace("\tSkipping Implict Reference Join for " + catalog_fkey_tbl + " because it is not used in " + this.catalog_proc);
                     }
+                } else if (t) {
+                    LOG.warn("\tNo foreign keys found for " + catalog_col.fullName());
                 }
             } // FOR
 

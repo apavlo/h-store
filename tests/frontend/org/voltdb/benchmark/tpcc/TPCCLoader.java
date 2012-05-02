@@ -68,8 +68,8 @@ import edu.brown.hstore.conf.HStoreConf;
  * uses (o_w_id, o_d_id, o_id), whereas the order table is defined as (o_id,
  * o_d_id, o_w_id).
  */
-public class MultiLoader extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(MultiLoader.class);
+public class TPCCLoader extends BenchmarkComponent {
+    private static final Logger LOG = Logger.getLogger(TPCCLoader.class);
 
     /**
      * Number of threads to create to do the loading.
@@ -87,7 +87,7 @@ public class MultiLoader extends BenchmarkComponent {
     private static final LinkedList<VoltTable> customerNamesTables = new LinkedList<VoltTable>();
     private static final Semaphore m_finishedLoadThreads = new Semaphore(0);
 
-    public MultiLoader(String args[]) {
+    public TPCCLoader(String args[]) {
         super(args);
 
         initTableNames();
@@ -135,7 +135,7 @@ public class MultiLoader extends BenchmarkComponent {
     }
 
     public static void main(String[] args) {
-        BenchmarkComponent.main(MultiLoader.class, args, true);
+        BenchmarkComponent.main(TPCCLoader.class, args, true);
     }
 
     /**
@@ -322,7 +322,7 @@ public class MultiLoader extends BenchmarkComponent {
             String c_first = m_generator.astring(TPCCConstants.MIN_FIRST, TPCCConstants.MAX_FIRST);
             String c_middle = TPCCConstants.MIDDLE;
 
-            assert 1 <= c_id && c_id <= TPCCConstants.CUSTOMERS_PER_DISTRICT;
+            assert 1 <= c_id;
             String c_last;
             if (c_id <= 1000) {
                 c_last = m_generator.makeLastName((int) c_id - 1);

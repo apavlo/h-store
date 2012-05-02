@@ -66,7 +66,8 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         } else if (exp1 == null) {
             return (false);
         }
-        return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) && ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
+        return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) &&
+                                    ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
     }
 
     /**

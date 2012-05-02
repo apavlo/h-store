@@ -376,7 +376,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final PartitionExecutorQueue work_queue = new PartitionExecutorQueue();
     
-    
     /**
      * This is the queue for work deferred .
      */
@@ -833,7 +832,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         FragmentTaskMessage ftask = (FragmentTaskMessage)work;
                         WorkFragment fragment = ftask.getWorkFragment();
                         assert(fragment != null);
-    
+
                         // Get the ParameterSet array for this WorkFragment
                         // It can either be attached to the AbstractTransaction handle if it came
                         // over the wire directly from the txn's base partition, or it can be attached
@@ -841,6 +840,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                         ParameterSet parameters[] = null;
                         if (fragment.getPrefetch()) {
                             parameters = current_txn.getPrefetchParameterSets();
+                            current_txn.markExecPrefetchQuery(this.partitionId);
                         } else {
                             parameters = current_txn.getAttachedParameterSets();
                         }
@@ -1099,8 +1099,29 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public ExecutionMode getExecutionMode() {
         return (this.currentExecMode);
     }
+    
+    /**
+     * Get the txnId of the current distributed transaction at this partition
+     * <B>FOR TESTING ONLY</B> 
+     */
     public AbstractTransaction getCurrentDtxn() {
         return (this.currentDtxn);
+    }
+    /**
+     * Get the txnId of the current distributed transaction at this partition
+     * <B>FOR TESTING ONLY</B>
+     */
+    public Long getCurrentDtxnId() {
+        Long ret = null;
+        // This is a race condition, so we'll just ignore any errors
+        if (this.currentDtxn != null) { 
+            try {
+                ret = this.currentDtxn.getTransactionId();
+            } catch (NullPointerException ex) {
+                // IGNORE
+            }
+        } 
+        return (ret);
     }
     public Long getCurrentTxnId() {
         return (this.currentTxnId);
@@ -1125,7 +1146,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Returns the number of txns that have been invoked on this partition
      * @return
      */
-    public long getTransactionCounter() {
+    public int getTransactionCounter() {
         return (this.work_exec_time.getInvocations());
     }
     
@@ -1160,8 +1181,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(attachedInputs != null);
         boolean is_local = (ts instanceof LocalTransaction);
         
-        if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]:\n%s",
-                                       ts, is_local, fragment));
+        if (d) LOG.debug(String.format("%s - Attempting to retrieve input dependencies for WorkFragment [isLocal=%s]",
+                                       ts, is_local));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
@@ -1256,7 +1277,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public void queueWork(AbstractTransaction ts, FragmentTaskMessage task) {
         assert(ts.isInitialized());
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("%s - Added multi-partition %s to front of partition %d work queue [size=%d]",
+        if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
                                        ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
     
@@ -1658,9 +1679,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
-        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isDtxn=%s, fragments=%s]",
+        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isDtxn=%s, isPrefetch=%s, fragments=%s]",
                                        ts, fragment.getClass().getSimpleName(),
-                                       is_local, is_dtxn, fragment.getFragmentIdCount()));
+                                       is_local, is_dtxn, is_prefetch,
+                                       fragment.getFragmentIdCount()));
         
         // If this txn isn't local, then we have to update our undoToken
         if (is_local == false) {
