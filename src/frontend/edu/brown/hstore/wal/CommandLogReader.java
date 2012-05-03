@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.BufferUnderflowException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,20 +37,28 @@ public class CommandLogReader implements Iterable<LogEntry> {
     @Override
     public Iterator<LogEntry> iterator() {
         Iterator<LogEntry> it = new Iterator<LogEntry>() {
+            private LogEntry _next;
+            {
+                this.next();
+            }
             @Override
             public boolean hasNext() {
-                return fd.buffer().hasRemaining();
+                return _next != null;
+                //return fd.buffer().hasRemaining();
             }
 
             @Override
             public LogEntry next() {
-                LogEntry entry = null;
+                LogEntry ret = _next;
+                _next = null;
                 try {
-                    entry = fd.readObject(LogEntry.class);
+                    _next = fd.readObject(LogEntry.class);
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
+                } catch (BufferUnderflowException ex) {
+                    _next = null;
                 }
-                return (entry);
+                return (ret);
             }
 
             @Override
