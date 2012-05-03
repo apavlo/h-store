@@ -29,6 +29,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import junit.framework.Assert;
+
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
@@ -158,6 +160,17 @@ public abstract class HStore {
         return singleton;
     }
     
+    private static int[] getPartionIds(String params){
+    	//This is only used for live migration
+    	String[] range = params.split("-");
+    	int start = Integer.parseInt(range[0].trim());
+    	int end = Integer.parseInt(range[1].trim());
+    	int [] ret = new int[end - start + 1];
+    	for(int i=0; i<ret.length; i++){
+    		ret[i]= start + i;
+    	}
+    	return ret;
+    }
     /**
      * Main Start-up Method
      * @param vargs
@@ -171,7 +184,24 @@ public abstract class HStore {
         );
         
         // HStoreSite Stuff
-        final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
+        final int site_id;
+        
+        //Migration Stuff --Yang (Now only one Optional Parameter is allowed)
+        // check if there are optional parameters: far from elegant but it works...
+        int [] newPartitionIds;
+        if(args.getOptParamCount() != 0){
+        	String optParam = args.getOptParam(0);
+        	String[] params = optParam.split(",");
+        	Assert.assertEquals(params[0], "Migration");
+        	Assert.assertTrue(params.length > 2);
+        	newPartitionIds = getPartionIds(params[2]);
+        	site_id = Integer.parseInt(params[1].trim());
+        	//only works for parameter like: Migration, site_id, 0-10
+        }
+        else{
+        	site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
+        }
+        
         Thread t = Thread.currentThread();
         t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         

@@ -2404,7 +2404,9 @@ H-STORE REMIX
         <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
-        
+    	
+    	<!-- Param Options for Live Migration-->
+        <arg value="migrationParam" />
         &common;
         
         <classpath refid='project.classpath' />
