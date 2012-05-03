@@ -294,6 +294,20 @@ public class LocalTransaction extends AbstractTransaction {
         );
     }
     
+    /**
+     * Testing Constructor with Parameters
+     * @param txn_id
+     * @param base_partition
+     * @param predict_touchedPartitions
+     * @param catalog_proc
+     * @param proc_params
+     * @return
+     */
+    public LocalTransaction testInit(Long txn_id, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc, Object... proc_params) {
+        this.invocation = new StoredProcedureInvocation(0, catalog_proc.getName(), proc_params);
+        return testInit(txn_id, base_partition, predict_touchedPartitions, catalog_proc);
+    }
+    
     @Override
     public boolean isInitialized() {
         return (this.catalog_proc != null && super.isInitialized());
