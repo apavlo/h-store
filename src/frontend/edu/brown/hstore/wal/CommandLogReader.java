@@ -15,10 +15,9 @@ import org.voltdb.utils.NotImplementedException;
 public class CommandLogReader implements Iterable<LogEntry> {
     
     final FastDeserializer fd;
-    final Map<Integer, String> procedures = new HashMap<Integer, String>();
+    final Map<Integer, String> procedures;
     
     public CommandLogReader(String path) {
-        
         FileChannel roChannel = null;
         ByteBuffer readonlybuffer = null;
         File f = new File(path);
@@ -31,17 +30,15 @@ public class CommandLogReader implements Iterable<LogEntry> {
         assert(readonlybuffer != null);
         this.fd = new FastDeserializer(readonlybuffer);
         
-        // TODO: Read in the file header 
+        this.procedures = this.readHeader();
     }
     
     @Override
     public Iterator<LogEntry> iterator() {
         Iterator<LogEntry> it = new Iterator<LogEntry>() {
-
             @Override
             public boolean hasNext() {
-                // TODO Auto-generated method stub
-                return false;
+                return fd.buffer().hasRemaining();
             }
 
             @Override
@@ -67,7 +64,26 @@ public class CommandLogReader implements Iterable<LogEntry> {
         // entry each time. What we really should do is recreate
         // the StoredProcedureInvocation and then pass that into
         // the HStoreSite so that we can replay the transaction
-        
+        // 
+        // So maybe we want to make this a StoredProcedure Invocation iterator?
     }
-
+    
+    /**
+     * 
+     * @return
+     */
+    protected Map<Integer, String> readHeader() {
+        Map<Integer, String> procedures = new HashMap<Integer, String>();
+        
+        try {
+            int num_procs = fd.readInt();
+            
+            for (int i = 0; i < num_procs; i++)
+                procedures.put(new Integer(fd.readInt()), fd.readString());
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read WAL log header!", ex);
+        }
+        
+        return (procedures);
+    }
 }

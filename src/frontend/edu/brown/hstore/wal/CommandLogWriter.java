@@ -66,10 +66,6 @@ public class CommandLogWriter implements Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
-    //"/ltmp/hstore/wal2.log";
-    private long txn_count = 0;
-    
     /**
      * Circular Buffer of Log Entries
      */
@@ -89,7 +85,7 @@ public class CommandLogWriter implements Shutdownable {
             }
             LogEntry e = this.buffer[this.idx++];
             e.txnId = ts.getTransactionId();
-            e.procName = ts.getProcedureName();
+            e.procId = ts.getProcedure().getId();
             e.procParams = ts.getProcedureParameters();
             e.flushed = false;
             return (e);
@@ -122,7 +118,11 @@ public class CommandLogWriter implements Shutdownable {
         
         FileOutputStream f = null;
         try {
-            f = new FileOutputStream(new File(path), false);
+            //TODO: is there a more standard way to do this?
+            File file = new File(path);
+            file.getParentFile().mkdirs();
+            file.createNewFile();
+            f = new FileOutputStream(file, false);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -157,7 +157,6 @@ public class CommandLogWriter implements Shutdownable {
         if (debug.get()) LOG.debug("Closing WAL file");
         try {
             this.fstream.close();
-            //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
             throw new ServerFaultException(message, ex);
@@ -182,7 +181,7 @@ public class CommandLogWriter implements Shutdownable {
             for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
                 int procId = catalog_proc.getId();
                 fs.writeInt(procId);
-                fs.writeString(catalog_proc.getClassname());
+                fs.writeString(catalog_proc.getName());
             } // FOR
             
             BBContainer b = fs.getBBContainer();
@@ -190,36 +189,10 @@ public class CommandLogWriter implements Shutdownable {
             fstream.force(true);
         } catch (Exception e) {
             String message = "Failed to write log headers";
-            throw new ServerFaultException(message, e, 0);
+            throw new ServerFaultException(message, e);
         }
         
         return (true);
-    }
-    
-    /**
-     * 
-     * @return
-     */
-    public Map<Integer, String> readHeader() {
-        FileChannel roChannel = null;
-        ByteBuffer readonlybuffer = null;
-        try {
-            roChannel = new RandomAccessFile(new File(WAL_PATH);, "r").getChannel();
-            readonlybuffer = roChannel.map(FileChannel.MapMode.READ_ONLY, 0, (int) roChannel.size());
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        
-        assert(readonlybuffer != null);
-        
-        FastDeserializer fd = new FastDeserializer(readonlybuffer);
-        int num_procs = fd.readInt();
-        
-        Map<Integer, String> procedures = new HashMap<Integer, String>();
-        for (int i = 0; i < num_procs; i++)
-            procedures.push(new Integer(fd.readInt()), fd.readString());
-        
-        return (procedures);
     }
 
     /**
