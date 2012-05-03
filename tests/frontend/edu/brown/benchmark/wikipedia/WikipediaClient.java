@@ -107,7 +107,7 @@ public class WikipediaClient extends BenchmarkComponent {
         }
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            LOG.info(clientResponse);
+            //LOG.info(clientResponse);
             
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
@@ -245,7 +245,6 @@ public class WikipediaClient extends BenchmarkComponent {
         Transaction target = this.selectTransaction();
 
         this.startComputeTime(target.displayName);
-        //LOG.info("Generate params:" + target + ", user_id:" + user_id + ", page_id:" + page_id);
         Object params[] = null;
         try {
             params = this.generateParams(target, user_id, page_id);
@@ -284,7 +283,6 @@ public class WikipediaClient extends BenchmarkComponent {
         assert(WikipediaClient.m_titleMap.containsKey(page_id)):"m_titleMap should contain page_id:" + page_id;
         Object data[] = WikipediaClient.m_titleMap.get(page_id);
         assert(data != null):"data should not be null";
-        //LOG.info("data [0]:" + data[0] + ", data[1]:" +data[1]);
         Object params[] = null;
         
         switch (txn) {
@@ -337,7 +335,7 @@ public class WikipediaClient extends BenchmarkComponent {
                 //Transaction target = Transaction.getTransaction(procedureName);
                 //assert(target != null):"can not find procedure: " + procedureName;
                 ClientResponse cr = null;
-                LOG.info("Invoking GetPageAnonymous before executing UpdatePage");
+                //LOG.info("Invoking GetPageAnonymous before executing UpdatePage");
                 try {
                     cr = this.getClientHandle().callProcedure(GetPageAnonymous.class.getSimpleName(), params);
                 } catch (Exception e) {
