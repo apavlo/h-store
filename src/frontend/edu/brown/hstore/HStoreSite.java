@@ -1648,10 +1648,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null) {
-            /*if (ts instanceof LocalTransaction) {
-                
-                WriteAheadLogger.writeCombined((LocalTransaction)ts, status);
-            }*/
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {

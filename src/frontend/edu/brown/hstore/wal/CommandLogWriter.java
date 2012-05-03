@@ -119,7 +119,7 @@ public class CommandLogWriter implements Shutdownable {
         FileOutputStream f = null;
         try {
             //TODO: is there a more standard way to do this?
-            File file = new File(path);
+            File file = new File(path);// + hstore_site.getSiteName());
             file.getParentFile().mkdirs();
             file.createNewFile();
             f = new FileOutputStream(file, false);
@@ -172,7 +172,13 @@ public class CommandLogWriter implements Shutdownable {
     
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
-        FastSerializer fs = this.serializers[0]; //Arbitrarily choose the first one
+        FastSerializer fs = null;
+        for (int i = 0; i < this.serializers.length; i++) { //Get the first available serializer
+            if (this.serializers[i] != null) {
+              fs = this.serializers[i];
+              break;
+            }
+        }
         assert(fs != null);
         try {
             fs.clear();
@@ -222,19 +228,21 @@ public class CommandLogWriter implements Shutdownable {
         // the ClientResponse until we say it's ok. Then we need some other callback
         // where we can blast out the client responses all at once.
         
-        try {
-            fs.clear();
-            BBContainer b = fs.writeObjectForMessaging(entry);
-            fstream.write(b.b.asReadOnlyBuffer());
-            
-            // TODO: We should have an asynchronous option here like postgres
-            // where we don't have to wait until the OS flushes the changes out
-            // to the file before we're allowed to continue.
-            fstream.force(true);
-            entry.flushed = true;
-        } catch (Exception e) {
-            String message = "Failed to write log entry for " + ts.toString();
-            throw new ServerFaultException(message, e, ts.getTransactionId());
+        synchronized (fstream) {
+            try {
+                fs.clear();
+                BBContainer b = fs.writeObjectForMessaging(entry);
+                fstream.write(b.b.asReadOnlyBuffer());
+                
+                // TODO: We should have an asynchronous option here like postgres
+                // where we don't have to wait until the OS flushes the changes out
+                // to the file before we're allowed to continue.
+                fstream.force(true);
+                entry.flushed = true;
+            } catch (Exception e) {
+                String message = "Failed to write log entry for " + ts.toString();
+                throw new ServerFaultException(message, e, ts.getTransactionId());
+            }
         }
         
         return true;
