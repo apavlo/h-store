@@ -34,11 +34,14 @@ import junit.framework.Assert;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -160,17 +163,6 @@ public abstract class HStore {
         return singleton;
     }
     
-    private static int[] getPartionIds(String params){
-    	//This is only used for live migration
-    	String[] range = params.split("-");
-    	int start = Integer.parseInt(range[0].trim());
-    	int end = Integer.parseInt(range[1].trim());
-    	int [] ret = new int[end - start + 1];
-    	for(int i=0; i<ret.length; i++){
-    		ret[i]= start + i;
-    	}
-    	return ret;
-    }
     /**
      * Main Start-up Method
      * @param vargs
@@ -184,28 +176,23 @@ public abstract class HStore {
         );
         
         // HStoreSite Stuff
-        final int site_id;
-        
-        //Migration Stuff --Yang (Now only one Optional Parameter is allowed)
-        // check if there are optional parameters: far from elegant but it works...
-        int [] newPartitionIds;
+        int site_id = 0;
+        Site catalog_site = null;
+       // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
+       // check if there are optional parameters: far from elegant but it works...
+       // only works for parameter like: localhost:0:0-1
         if(args.getOptParamCount() != 0){
         	String optParam = args.getOptParam(0);
-        	String[] params = optParam.split(",");
-        	Assert.assertEquals(params[0], "Migration");
-        	Assert.assertTrue(params.length > 2);
-        	newPartitionIds = getPartionIds(params[2]);
-        	site_id = Integer.parseInt(params[1].trim());
-        	//only works for parameter like: Migration, site_id, 0-10
+        	catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, 0);
+        	FixCatalog.writeHostInfo(catalog_site.getCatalog(), new ClusterConfiguration(optParam));
         }
         else{
         	site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
+            Thread t = Thread.currentThread();
+            t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
+            catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         }
         
-        Thread t = Thread.currentThread();
-        t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
-        
-        final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
