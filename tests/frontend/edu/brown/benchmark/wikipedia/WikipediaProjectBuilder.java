@@ -71,6 +71,17 @@ public class WikipediaProjectBuilder extends AbstractProjectBuilder {
         addStmtProcedure("testWatchlist", "select * from WATCHLIST");
         addStmtProcedure("testRevision", "select * from REVISION");
         addStmtProcedure("testText", "select * from TEXT");
+        addStmtProcedure("testJoin1", "SELECT * " +
+                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
+                            WikipediaConstants.TABLENAME_REVISION +
+                " WHERE page_id = rev_page " +
+                " AND rev_id = page_latest LIMIT 1"
+                );
+        addStmtProcedure("testJoin2", "SELECT * " +
+                "  FROM " + WikipediaConstants.TABLENAME_PAGE + ", " +
+                            WikipediaConstants.TABLENAME_REVISION +
+                " WHERE rev_id = page_latest LIMIT 1"
+                );
     }
     
 //    public void addDefaultProcedures() {
