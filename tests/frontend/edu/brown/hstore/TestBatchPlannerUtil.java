@@ -26,6 +26,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -118,16 +119,19 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         final List<SQLStmt> statements = new ArrayList<SQLStmt>();
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             statements.add(new SQLStmt(catalog_stmt));
+            statements.add(new SQLStmt(catalog_stmt));
+            statements.add(new SQLStmt(catalog_stmt));
         } // FOR
         int num_stmts = statements.size();
         assert(num_stmts > 0);
-        
+
+        Random rand = new Random();
+        for (int x = 0; x < 100; x++) {
         Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
         SQLStmt batches[][] = new SQLStmt[10][];
         int hashes[] = new int[batches.length];
-        Random rand = new Random();
         for (int i = 0; i < batches.length; i++) {
-            int batch_size = rand.nextInt(num_stmts - 1) + 1; 
+            int batch_size = i + 1; 
             batches[i] = new SQLStmt[batch_size];
             Collections.shuffle(statements, rand);
             for (int ii = 0; ii < batch_size; ii++) {
@@ -139,7 +143,6 @@ public class TestBatchPlannerUtil extends BaseTestCase {
         
         for (int i = 0; i < batches.length; i++) {
             for (int ii = i+1; ii < batches.length; ii++) {
-                assertNotSame(hashes[i], hashes[ii]);
                 if (hashes[i] == hashes[ii]) {
                     for (SQLStmt s : batches[i])
                         System.err.println(s.getStatement().fullName());
@@ -147,12 +150,16 @@ public class TestBatchPlannerUtil extends BaseTestCase {
                     for (SQLStmt s : batches[ii])
                         System.err.println(s.getStatement().fullName());
                 }
-                assert(hashes[i] != hashes[ii]) : Arrays.toString(batches[i]) + "\n" + Arrays.toString(batches[ii]);
+                assert(hashes[i] != hashes[ii]) : Arrays.toString(batches[i]) + " <-> " + Arrays.toString(batches[ii]);
             } // FOR
-            
+
+            // Just check to make sure that if we reduce the length of the 
+            // batch size that the hash code changes. We can't check that we don't 
+            // already have a BatchPlanner because there might be another batch
+            // that only has the SQLStmt in our reduced batch
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(batchPlanners.get(hash));
+        } // FOR
         } // FOR
     }
     

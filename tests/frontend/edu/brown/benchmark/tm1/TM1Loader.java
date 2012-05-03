@@ -38,36 +38,37 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
+import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.Loader;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.catalog.CatalogUtil;
 
-public class TM1Loader extends TM1BaseClient {
+/**
+ * Magical TM1 Loader
+ * @author zhe
+ * @author pavlo
+ */
+public class TM1Loader extends Loader {
     private static final Logger LOG = Logger.getLogger(TM1Loader.class);
     private static final boolean d = LOG.isDebugEnabled();
 
+    private final long subscriberSize;
     public volatile boolean notDone = true;
+    protected final boolean blocking = false;
 
     public static void main(String[] args) {
-        if (d)
-            LOG.debug("MAIN: " + TM1Loader.class.getName());
-        edu.brown.benchmark.BenchmarkComponent.main(TM1Loader.class, args, true);
+        BenchmarkComponent.main(TM1Loader.class, args, true);
     }
 
     public TM1Loader(String[] args) {
         super(args);
-        if (d)
-            LOG.debug("CONSTRUCTOR: " + TM1Loader.class.getName());
+        this.subscriberSize = Math.round(TM1Constants.SUBSCRIBER_SIZE * this.getScaleFactor());
     }
 
     @Override
-    public String[] getTransactionDisplayNames() {
-        return new String[] {};
-    }
-
-    @Override
-    public void runLoop() {
-        if (d)
-            LOG.debug("Starting TM1Loader [subscriberSize=" + subscriberSize + ",scaleFactor=" + scaleFactor + "]");
+    public void load() {
+        if (d) LOG.debug(String.format("Starting TM1Loader [subscriberSize=%d, scaleFactor=%d]",
+                                       this.subscriberSize, this.getScaleFactor()));
 
         final Catalog catalog = this.getCatalog();
         final Database catalog_db = CatalogUtil.getDatabase(catalog);
@@ -105,10 +106,10 @@ public class TM1Loader extends TM1BaseClient {
         try {
             for (Thread t : threads) {
                 t.start();
-                if (blocking)
+                if (this.blocking)
                     t.join();
             } // FOR
-            if (!blocking) {
+            if (!this.blocking) {
                 for (Thread t : threads)
                     t.join();
             }

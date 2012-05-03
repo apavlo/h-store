@@ -1,0 +1,3035 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'slev':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetStockCount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetStockCount':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetOId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetOId':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'slev':'GetOId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'slev.GetOId':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'slev':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateWarehouseBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateWarehouseBalance':'1'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateWarehouseBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateWarehouseBalance':'0'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_YTD'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateGCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateGCCustomer':'4'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateGCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateGCCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateDistrictBalance':'2'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateDistrictBalance':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateDistrictBalance':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_YTD'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateBCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateBCCustomer':'5'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'updateBCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.updateBCCustomer':'4'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'6'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_AMOUNT'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'5'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_DATE'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'4'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'3'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'2'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.insertHistory':'1'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getWarehouse'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getWarehouse':'0'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getDistrict':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getDistrict':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getCustomersByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getCustomersByCustomerId':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getCustomersByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getCustomersByCustomerId':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getCidByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getCidByLastName':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getCidByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getCidByLastName':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerName':'getCidByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerName.getCidByLastName':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_LAST'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerName':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateWarehouseBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateWarehouseBalance':'1'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateWarehouseBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateWarehouseBalance':'0'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_YTD'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateGCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateGCCustomer':'5'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateGCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateGCCustomer':'4'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateGCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateGCCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateDistrictBalance':'2'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateDistrictBalance':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateDistrictBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateDistrictBalance':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_YTD'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateBCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateBCCustomer':'6'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateBCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateBCCustomer':'5'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'updateBCCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.updateBCCustomer':'4'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'6'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_AMOUNT'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'5'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_DATE'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'4'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'3'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'2'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'1'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'insertHistory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.insertHistory':'0'}",
+  "STATEMENT_COLUMN": "{'HISTORY':'H_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getWarehouse'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getWarehouse':'0'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getDistrict':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getDistrict':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getCustomersByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getCustomersByCustomerId':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getCustomersByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getCustomersByCustomerId':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'paymentByCustomerId':'getCustomersByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'paymentByCustomerId.getCustomersByCustomerId':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'paymentByCustomerId':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getOrderLines'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getOrderLines':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getOrderLines'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getOrderLines':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getLastOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getLastOrder':'1'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getLastOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getLastOrder':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getCustomersByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getCustomersByLastName':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_LAST'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getCustomersByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getCustomersByLastName':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerName':'getCustomersByLastName'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerName.getCustomersByLastName':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerName':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getOrderLines'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getOrderLines':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getOrderLines'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getOrderLines':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getLastOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getLastOrder':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getLastOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getLastOrder':'1'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getLastOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getLastOrder':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getCustomerByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getCustomerByCustomerId':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getCustomerByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getCustomerByCustomerId':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'ostatByCustomerId':'getCustomerByCustomerId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'ostatByCustomerId.getCustomerByCustomerId':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'ostatByCustomerId':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'5'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'updateStock'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.updateStock':'4'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'incrementNextOrderId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.incrementNextOrderId':'2'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'incrementNextOrderId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.incrementNextOrderId':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getWarehouseTaxRate'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getWarehouseTaxRate':'0'}",
+  "STATEMENT_COLUMN": "{'WAREHOUSE':'W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'1'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getStockInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getStockInfo':'0'}",
+  "STATEMENT_COLUMN": "{'STOCK':'S_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getItemInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getDistrict':'1'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getDistrict'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getDistrict':'0'}",
+  "STATEMENT_COLUMN": "{'DISTRICT':'D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getCustomer':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getCustomer':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'getCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.getCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrder':'4'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_ENTRY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrder':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrder':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrder':'1'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 14,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 14,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 13,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 12,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 11,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 10,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 9,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'7'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_QUANTITY'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'6'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'6'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'5'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_SUPPLY_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'4'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createOrderLine':'1'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createNewOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createNewOrder':'2'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'neworder':'createNewOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'neworder.createNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_D_ID'}",
+  "PROCEDURE_PARAMETER": "{'neworder':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'3'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrders'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrders':'0'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_CARRIER_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'3'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateOrderLine'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.updateOrderLine':'0'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_DELIVERY_D'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'updateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.updateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'sumOLAmount'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.sumOLAmount':'2'}",
+  "STATEMENT_COLUMN": "{'ORDER_LINE':'OL_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getNewOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.getNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'getCId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.getCId':'2'}",
+  "STATEMENT_COLUMN": "{'ORDERS':'O_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'delivery':'deleteNewOrder'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'delivery.deleteNewOrder':'1'}",
+  "STATEMENT_COLUMN": "{'NEW_ORDER':'NO_W_ID'}",
+  "PROCEDURE_PARAMETER": "{'delivery':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

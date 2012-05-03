@@ -49,7 +49,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = MultiLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCCLoader.class;
 
     /**
      * All procedures needed for TPC-C tests + benchmark
@@ -105,13 +105,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 
     public TPCCProjectBuilder() {
         super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning);
-    }
-    
-    /**
-     * Add the TPC-C procedures to the VoltProjectBuilder base class.
-     */
-    public void addDefaultProcedures() {
-        addProcedures(PROCEDURES);
         
         // MapReduce OLAP Experimental Queries
         addStmtProcedure("OLAPQuery1",
@@ -142,49 +135,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         
         // Helpers
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
-        
-    }
-
-    /**
-     * Add the TPC-C partitioning to the VoltProjectBuilder base class.
-     */
-    public void addDefaultPartitioning() {
-        for (String pair[] : partitioning) {
-            addTablePartitionInfo(pair[0], pair[1]);
-        }
-    }
-
-    /**
-     * Add the TPC-C schema to the VoltProjectBuilder base class.
-     */
-    public void addDefaultSchema() {
-        addSchema(this.getDDLURL(true));
-    }
-
-    public void addDefaultELT() {
-        addELT("org.voltdb.elt.connectors.VerticaConnector", true, null, null);
-
-        /* Fixed after the loader completes. */
-        // addELTTable("WAREHOUSE", false);
-        // addELTTable("DISTRICT", false);
-        // addELTTable("ITEM", false);
-        // addELTTable("CUSTOMER", false);
-        // addELTTable("CUSTOMER_NAME", false);
-        // addELTTable("STOCK", false);
-
-        /* Modified by actual benchmark: approx 6.58 ins/del per txn. */
-        // addELTTable("HISTORY", false);     // 1 insert per payment (43%)
-        // addELTTable("ORDERS", false);      // 1 insert per new order (45%)
-        // addELTTable("NEW_ORDER", false);   // 1 insert per new order; 10 deletes per delivery (4%)
-        addELTTable("ORDER_LINE", false);     // 10 inserts per new order
-    }
-
-    @Override
-    public void addAllDefaults() {
-        addDefaultProcedures();
-        addDefaultPartitioning();
-        addDefaultSchema();
-        // addDefaultELT();
     }
 
     /**

@@ -25,7 +25,7 @@ public class TestSkewFactorUtil extends BaseTestCase {
         for (int num_partitions = 2; num_partitions < NUM_PARTITIONS; num_partitions++) {
             Histogram<Integer> h = new Histogram<Integer>();
             for (int i = 0; i < num_partitions; i++) {
-                long count = 1000 + (rand.nextInt(20) - 10); // +/- 10
+                int count = 1000 + (rand.nextInt(20) - 10); // +/- 10
                 h.put(i, count);
             } // FOR
             
@@ -64,9 +64,9 @@ public class TestSkewFactorUtil extends BaseTestCase {
      */
     public void testAlternating() throws Exception {
         Histogram<Integer> h = new Histogram<Integer>();
-        long delta = Math.round(QUERIES_PER_PARTITION * 0.50);
+        int delta = (int)Math.round(QUERIES_PER_PARTITION * 0.50);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            long count = QUERIES_PER_PARTITION + (i % 2 == 0 ? -delta : delta);
+            int count = QUERIES_PER_PARTITION + (i % 2 == 0 ? -delta : delta);
             h.put(i, count);
         }
 //        System.err.println(h);

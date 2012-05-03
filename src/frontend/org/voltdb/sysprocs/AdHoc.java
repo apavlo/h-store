@@ -32,6 +32,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.PartitionEstimator;
@@ -171,10 +172,11 @@ public class AdHoc extends VoltSystemProcedure {
         if (replicatedTableDML) {
             assert(results.length == 1);
             long changedTuples = results[0].asScalarLong();
-            assert((changedTuples % VoltDB.instance().getCatalogContext().numberOfPartitions) == 0);
+            int num_partitions = CatalogUtil.getNumberOfPartitions(database);
+            assert((changedTuples % num_partitions) == 0);
 
             VoltTable retval = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
-            retval.addRow(changedTuples / VoltDB.instance().getCatalogContext().numberOfPartitions);
+            retval.addRow(changedTuples / num_partitions);
             results[0] = retval;
         }
 
