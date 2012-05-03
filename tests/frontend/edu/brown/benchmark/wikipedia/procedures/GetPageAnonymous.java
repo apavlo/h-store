@@ -36,10 +36,6 @@ public class GetPageAnonymous extends VoltProcedure {
     // STATEMENTS
     // -----------------------------------------------------------------
     
-	public SQLStmt selectPage = new SQLStmt(
-        "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE + 
-        " WHERE page_namespace = ? AND page_title = ? LIMIT 1"
-    );
 	public SQLStmt selectPageRestriction = new SQLStmt(
         "SELECT * FROM " + WikipediaConstants.TABLENAME_PAGE_RESTRICTIONS +
         " WHERE pr_page = ?"
@@ -58,6 +54,18 @@ public class GetPageAnonymous extends VoltProcedure {
 	    "   AND page_id = ? " +
         "   AND rev_id = page_latest LIMIT 1"
     );
+	public SQLStmt selectPage = new SQLStmt(
+	        "SELECT page_latest " +
+	        " FROM " + WikipediaConstants.TABLENAME_PAGE  +
+	        " WHERE page_id = ?"
+	);
+	public SQLStmt selectRevision = new SQLStmt(
+            "SELECT * " +
+            " FROM " + WikipediaConstants.TABLENAME_REVISION +
+            " WHERE " +
+	        "rev_id = ? LIMIT 1"
+    );
+	
 	public SQLStmt selectText = new SQLStmt(
         "SELECT old_text, old_flags FROM " + WikipediaConstants.TABLENAME_TEXT +
         " WHERE old_id = ? LIMIT 1"
@@ -68,14 +76,6 @@ public class GetPageAnonymous extends VoltProcedure {
     // -----------------------------------------------------------------
 	
 	public VoltTable run(int pageId, boolean forSelect, String userIp, int pageNamespace, String pageTitle) {		
-	    
-//	    voltQueueSQL(selectPage, pageNamespace, pageTitle);
-//        VoltTable rs[] = voltExecuteSQL();
-//        if (!rs[0].advanceRow()) {
-//            String msg = String.format("Invalid Page: Namespace:%d / Title:--%s--", pageNamespace, pageTitle);
-//            throw new VoltAbortException(msg);
-//        }
-//        int pageId = (int)rs[0].getLong(0);
 
         voltQueueSQL(selectPageRestriction, pageId);
         voltQueueSQL(selectIpBlocks, userIp);
@@ -95,16 +95,30 @@ public class GetPageAnonymous extends VoltProcedure {
             String ipb_expiry = rs[1].getString(10);
             assert(ipb_expiry != null);
         } // WHILE
-
         
-        if (!rs[2].advanceRow()) {
+        voltQueueSQL(selectPage, pageId);
+        rs = voltExecuteSQL();
+        if (!rs[0].advanceRow()) {
+            String msg = String.format("");
+            throw new VoltAbortException(msg);
+        }
+        int pageLatest = (int)rs[0].getLong(0);
+        
+//        System.err.println("selectPage:\n" + rs[0]);
+//        System.err.println("selectRevision:\n" + rs[1]);
+//        System.err.println("selectPageRevision, PageId:" + pageId);
+//        voltQueueSQL(selectPageRevision, pageId, pageId);
+        voltQueueSQL(selectRevision,pageLatest);
+        rs = voltExecuteSQL();
+        
+        if (!rs[0].advanceRow()) {
             String msg = String.format("Invalid Page: Missing revision Namespace:%d / Title:--%s-- / PageId:%d",
                                        pageNamespace, pageTitle, pageId);
             throw new VoltAbortException(msg);
         }
-        int revisionId = (int)rs[2].getLong("rev_id");
-        int textId = (int)rs[2].getLong("rev_text_id");
-        //assert !rs[0].advanceRow();
+        int revisionId = (int)rs[0].getLong("rev_id");
+        int textId = (int)rs[0].getLong("rev_text_id");
+        assert !rs[0].advanceRow();
 
         // NOTE: the following is our variation of wikipedia... the original did
         // not contain old_page column!
