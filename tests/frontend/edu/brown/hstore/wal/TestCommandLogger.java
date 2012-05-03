@@ -70,7 +70,7 @@ public class TestCommandLogger extends BaseTestCase {
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
-        outputFile = new File("/tmp/mkisrsch.txt");
+        outputFile = new File("/ltmp/hstore/wal.log"); //"/research/hstore/mkirsch/testwal.log";
         logger = new CommandLogWriter(hstore_site, outputFile.getAbsolutePath());
     }
 
@@ -82,31 +82,36 @@ public class TestCommandLogger extends BaseTestCase {
     
     @Test
     public void testSimpleTest() {
-//        // Write out a new txn invocation to the log
-//        LocalTransaction ts = new LocalTransaction(hstore_site);
-//        long txnId = TXN_ID.incrementAndGet(); 
-//        ts.testInit(txnId,
-//                    BASE_PARTITION,
-//                    Collections.singleton(BASE_PARTITION),
-//                    catalog_proc);
-//        boolean ret = logger.write(ts);
-//        assertTrue(ret);
-//        logger.shutdown(); // This closes the file
-//        
-//        // Now read in the file back in and check to see that we have one
-//        // entry that has our expected information
-//        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
-//        int ctr = 0;
-//        for (LogEntry entry : reader) {
-//            assertNotNull(entry);
-//            assertEquals(txnId, entry.txnId.longValue());
-//            // TODO: Do this check for all the others
-//            
-//            ctr++;
-//        }
-//        assertEquals(1, ctr);
+        // Write out a new txn invocation to the log
+        LocalTransaction ts = new LocalTransaction(hstore_site);
+        long txnId = TXN_ID.incrementAndGet(); 
+        ts.testInit(new Long(txnId),
+                    BASE_PARTITION,
+                    Collections.singleton(BASE_PARTITION),
+                    catalog_proc,
+                    TARGET_PARAMS);
+        boolean ret = logger.write(ts);
+        assertTrue(ret);
+        logger.shutdown(); // This closes the file
         
-        
-        
+        // Now read in the file back in and check to see that we have one
+        // entry that has our expected information
+        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
+        int ctr = 0;
+        for (LogEntry entry : reader) {
+            assertNotNull(entry);
+            assertEquals(txnId, entry.txnId);
+            assertEquals(catalog_proc.getId(), entry.procId);
+            
+            Object[] entryParams = entry.procParams.toArray();
+            assertEquals(TARGET_PARAMS.length, entryParams.length);
+            for (int i = 0; i < TARGET_PARAMS.length; i++)
+                assertEquals(TARGET_PARAMS[i], entryParams[i]);
+            
+            // TODO: Do this check for all the others
+            
+            ctr++;
+        }
+        assertEquals(1, ctr);
     }
 }

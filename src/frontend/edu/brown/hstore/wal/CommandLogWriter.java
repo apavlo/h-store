@@ -31,6 +31,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Map;
+import java.util.HashMap;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -50,7 +54,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * Transaction Command Logger
+ * Transaction Command Log Writer
  * @author mkirsch
  * @author pavlo
  */
@@ -61,10 +65,6 @@ public class CommandLogWriter implements Shutdownable {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    public final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
-    //"/ltmp/hstore/wal2.log";
-    private long txn_count = 0;
     
     /**
      * Circular Buffer of Log Entries
@@ -85,7 +85,7 @@ public class CommandLogWriter implements Shutdownable {
             }
             LogEntry e = this.buffer[this.idx++];
             e.txnId = ts.getTransactionId();
-            e.procName = ts.getProcedureName();
+            e.procId = ts.getProcedure().getId();
             e.procParams = ts.getProcedureParameters();
             e.flushed = false;
             return (e);
@@ -118,7 +118,11 @@ public class CommandLogWriter implements Shutdownable {
         
         FileOutputStream f = null;
         try {
-            f = new FileOutputStream(new File(path), false);
+            //TODO: is there a more standard way to do this?
+            File file = new File(path);// + hstore_site.getSiteName());
+            file.getParentFile().mkdirs();
+            file.createNewFile();
+            f = new FileOutputStream(file, false);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -168,21 +172,33 @@ public class CommandLogWriter implements Shutdownable {
     
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
-        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-            int procId = catalog_proc.getId();
+        FastSerializer fs = null;
+        for (int i = 0; i < this.serializers.length; i++) { //Get the first available serializer
+            if (this.serializers[i] != null) {
+              fs = this.serializers[i];
+              break;
+            }
+        }
+        assert(fs != null);
+        try {
+            fs.clear();
+            fs.writeInt(hstore_site.getDatabase().getProcedures().size());
             
-            // TODO: Write out a header that contains a mapping from Procedure name to ids
-        } // FOR
-        return (true);
-    }
-    
-    /**
-     * 
-     * @return
-     */
-    public Map<Integer, String> readHeader() {
+            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+                int procId = catalog_proc.getId();
+                fs.writeInt(procId);
+                fs.writeString(catalog_proc.getName());
+            } // FOR
+            
+            BBContainer b = fs.getBBContainer();
+            fstream.write(b.b.asReadOnlyBuffer());
+            fstream.force(true);
+        } catch (Exception e) {
+            String message = "Failed to write log headers";
+            throw new ServerFaultException(message, e);
+        }
         
-        return (null);
+        return (true);
     }
 
     /**
@@ -212,61 +228,23 @@ public class CommandLogWriter implements Shutdownable {
         // the ClientResponse until we say it's ok. Then we need some other callback
         // where we can blast out the client responses all at once.
         
-        try {
-            fs.clear();
-            BBContainer b = fs.writeObjectForMessaging(entry);
-            fstream.write(b.b.asReadOnlyBuffer());
-            
-            // TODO: We should have an asynchronous option here like postgres
-            // where we don't have to wait until the OS flushes the changes out
-            // to the file before we're allowed to continue.
-            fstream.force(true);
-            entry.flushed = true;
-            //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
-        } catch (Exception e) {
-            String message = "Failed to write log entry for " + ts.toString();
-            throw new ServerFaultException(message, e, ts.getTransactionId());
+        synchronized (fstream) {
+            try {
+                fs.clear();
+                BBContainer b = fs.writeObjectForMessaging(entry);
+                fstream.write(b.b.asReadOnlyBuffer());
+                
+                // TODO: We should have an asynchronous option here like postgres
+                // where we don't have to wait until the OS flushes the changes out
+                // to the file before we're allowed to continue.
+                fstream.force(true);
+                entry.flushed = true;
+            } catch (Exception e) {
+                String message = "Failed to write log entry for " + ts.toString();
+                throw new ServerFaultException(message, e, ts.getTransactionId());
+            }
         }
         
         return true;
     }
-
-
-
-    /**
-     * @param cp
-     */
-    /*public static boolean applyCheckpoint(final Checkpoint cp) {
-        
-        return true;
-    }*/
-    
-    /**
-     * 
-     */
-//    public static List<LocalTransaction> getLog() {
-//        List<LocalTransaction> result;
-//        try {
-//            BufferedReader in = new BufferedReader(new FileReader(WAL_PATH));
-//            String strLine;
-//            while ((strLine = in.readLine()) != null)   {
-//                //System.out.println(strLine);
-//                String[] data = strLine.split("><");
-//                System.out.println(data[2]);
-//                if (data.length == 6 && data[5].equals("COMMIT")) {
-//                    long txn_count = Long.parseLong(data[0]);
-//                    long time = Long.parseLong(data[1]);
-//                    long txn_id = Long.parseLong(data[2]);
-//                    String pn = data[3];
-//                    String params = data[4];
-//                    String status = data[5];
-//                    //System.out.println(txn_id);
-//                }
-//            }
-//            in.close();
-//        } catch (Exception e) {
-//            //e.printStackTrace();
-//        }
-//        return null;
-//    }
 }
