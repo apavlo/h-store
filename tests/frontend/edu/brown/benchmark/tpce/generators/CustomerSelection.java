@@ -29,16 +29,19 @@
 
 package edu.brown.benchmark.tpce.generators;
 
+import edu.brown.benchmark.tpce.TPCEConstants;
+import edu.brown.benchmark.tpce.util.EGenRandom;
 
-/******************************************************************************
-*   Description:        This class encapsulates customer tier distribution
-*                       functions and provides functionality to:
-*                       - Generate customer tier based on customer ID
-*                       - Generate non-uniform customer ID
-*                       - Generate customer IDs in a specified partition, and
-*                         outside the specified partition a set percentage of
-*                         the time.
-******************************************************************************/
+
+/**
+ *   Description:        This class encapsulates customer tier distribution
+ *                       functions and provides functionality to:
+ *                       - Generate customer tier based on customer ID
+ *                       - Generate non-uniform customer ID
+ *                       - Generate customer IDs in a specified partition, and
+ *                         outside the specified partition a set percentage of
+ *                         the time.
+ */
 
 public class CustomerSelection {
     public enum TierId {
@@ -56,7 +59,75 @@ public class CustomerSelection {
             return id;
         }
     }
+    
+    private final EGenRandom rnd;
+    private final boolean isPartition;
+    private final int partPercent;
+    
+    private final long startCustomer;
+    private long myStartCustomer;
+    private final long customerCount;
+    private long myCustomerCount;
+    
+    public CustomerSelection(EGenRandom rnd, long startCustomer, long customerCount, int partPercent,
+            long myStartCustomer, long myCustomerCount) {
+        this.rnd = rnd;
+        this.startCustomer = startCustomer + TPCEConstants.IDENT_SHIFT;
+        this.myStartCustomer = myStartCustomer + TPCEConstants.IDENT_SHIFT;
+        this.customerCount = customerCount;
+        this.myCustomerCount = myCustomerCount;
+        this.partPercent = partPercent;
+        
+        if (startCustomer == myStartCustomer && customerCount == myCustomerCount) {
+            isPartition = false;
+        }
+        else {
+            isPartition = true;
+        }
+    }
 
+    /**
+     * Generate a customer id with a tier.
+     * All intra-function comments are from EGen.
+     * 
+     * @param tier To return the tier
+     * @return Generated customer id
+     */
+    public long genRandomCustomer(TierId tier) {
+        double cw = rnd.doubleRange(0.0001, 2000);
+
+        // Uniformly select the higher portion of the customer ID.
+        long cHigh;
+        if (isPartition && rnd.rndPercent(partPercent)) {
+            // Generate a load unit inside the partition.
+            cHigh = (rnd.int64Range(myStartCustomer, myStartCustomer + myCustomerCount - 1) - 1) / 1000; // minus 1 for the upper boundary case
+        }
+        else {
+            // Generate a load unit across the entire range
+            cHigh = (rnd.int64Range(startCustomer, startCustomer + customerCount - 1) - 1) / 1000; // minus 1 for the upper boundary case
+        }
+
+        // Non-uniformly select the lower portion of the customer ID and the tier
+        int cLow;
+        if (cw <= 200) {
+            // tier one
+            cLow = (int)Math.ceil(Math.sqrt(22500 + 500 * cw) - 151);
+            tier = TierId.eCustomerTierOne;
+        }
+        else if (cw <= 1400) {
+            // tier two
+            cLow = (int)Math.ceil(Math.sqrt(290000 + 1000 * cw) - 501);
+            tier = TierId.eCustomerTierTwo;
+        }
+        else {
+            // tier three
+            cLow = (int)Math.ceil(149 + Math.sqrt(500 * cw - 277500));
+            tier = TierId.eCustomerTierThree;
+        }
+
+        return cHigh * 1000 + permute(cLow, cHigh) + 1;
+    }
+    
     // lower 3 difgits
     private static long lowDigits(long cid) {
         return (cid - 1) % 1000;

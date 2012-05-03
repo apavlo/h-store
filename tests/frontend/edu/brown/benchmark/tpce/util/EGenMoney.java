@@ -63,4 +63,48 @@ public class EGenMoney {
     public void add(EGenMoney money) {
         amountInCents += money.amountInCents;
     }
+    
+    public void mul(EGenMoney money) {
+        amountInCents *= money.amountInCents;
+    }
+    
+    public void sub(EGenMoney money) {
+        amountInCents -= money.amountInCents;
+    }
+    
+    public boolean lessThanOrEqual(EGenMoney m) {
+        return amountInCents <= m.amountInCents;
+    }
+    
+    public boolean lessThan(EGenMoney m) {
+        return amountInCents < m.amountInCents;
+    }
+    
+    public static EGenMoney subMoney(EGenMoney m1, EGenMoney m2) {
+        EGenMoney res = new EGenMoney(m1);
+        res.sub(m2);
+        
+        return res;
+    }
+    
+    public static EGenMoney addMoney(EGenMoney m1, EGenMoney m2) {
+        EGenMoney res = new EGenMoney(m1);
+        res.add(m2);
+        
+        return res;
+    }
+    
+    public static EGenMoney mulMoney(EGenMoney m1, EGenMoney m2) {
+        EGenMoney res = new EGenMoney(m1);
+        res.mul(m2);
+        
+        return res;
+    }
+    
+    public static EGenMoney mulMoneyByInt(EGenMoney m1, int m2) {
+        EGenMoney res = new EGenMoney(m1);
+        res.amountInCents *= m2;
+        
+        return res;
+    }
 }

@@ -61,7 +61,7 @@ public class WatchItemsGenerator extends WatchListGenerator {
         super(catalog_tbl, generator); // weird, since WatchListGenerator works for another table, but we need columnsNum
         
         secHandler = new SecurityHandler(generator);
-        maxSecIdx = secHandler.getSecurityNum(generator.getTotalCustomers()) - 1; // 0-based
+        maxSecIdx = SecurityHandler.getSecurityNum(generator.getTotalCustomers()) - 1; // 0-based
     }
     
     /* (non-Javadoc)

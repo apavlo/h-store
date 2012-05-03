@@ -56,8 +56,8 @@ public class LastTradeGenerator extends TableGenerator {
         super(catalog_tbl, generator);
         
         secHandler = new SecurityHandler(generator);
-        securityNum = secHandler.getSecurityNum(generator.getCustomersNum());
-        securityStart = secHandler.getSecurityStart(generator.getStartCustomer());
+        securityNum = SecurityHandler.getSecurityNum(generator.getCustomersNum());
+        securityStart = SecurityHandler.getSecurityStart(generator.getStartCustomer());
         
         counter = securityStart;
         

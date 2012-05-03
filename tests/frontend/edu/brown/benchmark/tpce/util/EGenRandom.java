@@ -134,6 +134,7 @@ public class EGenRandom {
     private native long rndNU(long rnd, long p, long q, int a, int s);
     private native String rndAlphaNumFormatted(long rnd, String format);
     
+    private native double rndDouble(long rnd);
     
     static {
         System.loadLibrary("egen_random");
@@ -234,5 +235,14 @@ public class EGenRandom {
     
     public int rndPercentage() {
         return intRange(1, 100);
+    }
+    
+    /**
+     * Returns a random value in the range [0 .. 0.99999999999999999994578989137572]
+     * care should be taken in casting the result as a float because of the
+     * potential loss of precision.
+     */
+    public double rndDouble() {
+        return rndDouble(rnd);
     }
 }

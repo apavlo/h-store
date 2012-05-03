@@ -37,6 +37,7 @@ import java.util.Map;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tpce.TPCEConstants;

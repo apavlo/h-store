@@ -74,8 +74,8 @@ public class DailyMarketGenerator extends TableGenerator {
         sec = new SecurityHandler(generator);
         rnd = new EGenRandom(EGenRandom.RNG_SEED_TABLE_DEFAULT);
         
-        securitiesNum = sec.getSecurityNum(generator.getCustomersNum());
-        securitiesStart = sec.getSecurityStart(generator.getStartCustomer());
+        securitiesNum = SecurityHandler.getSecurityNum(generator.getCustomersNum());
+        securitiesStart = SecurityHandler.getSecurityStart(generator.getStartCustomer());
         
         counter = securitiesStart;
         
