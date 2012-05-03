@@ -78,8 +78,8 @@ public class SecurityGenerator extends TableGenerator {
         super(catalog_tbl, generator);
         
         secHandle = new SecurityHandler(generator);
-        startSecurity = secHandle.getSecurityStart(generator.getStartCustomer());
-        numSecurity = secHandle.getSecurityNum(generator.getCustomersNum());
+        startSecurity = SecurityHandler.getSecurityStart(generator.getStartCustomer());
+        numSecurity = SecurityHandler.getSecurityNum(generator.getCustomersNum());
         counter = startSecurity;
         
         compGenerator = (CompanyGenerator)generator.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);

@@ -125,11 +125,11 @@ public class SecurityHandler {
         return res;
     }
     
-    public long getSecurityNum(long customersNum) {
+    public static long getSecurityNum(long customersNum) {
         return customersNum / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_SECURITIES_PER_UNIT;
     }
     
-    public long getSecurityStart(long customerStart) {
+    public static long getSecurityStart(long customerStart) {
         return customerStart / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_SECURITIES_PER_UNIT;
     }
 }

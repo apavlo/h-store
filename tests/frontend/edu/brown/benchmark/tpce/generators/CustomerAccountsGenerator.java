@@ -32,6 +32,7 @@ package edu.brown.benchmark.tpce.generators;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
+import edu.brown.benchmark.tpce.generators.CustomerSelection.TierId;
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 import edu.brown.benchmark.tpce.util.EGenRandom;
 
@@ -73,7 +74,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
     
     private final static int[] minAccountsPerCustRange = {1, 2, 5};  // tier based
     private final static int[] maxAccountsPerCustRange = {4, 8, 10}; // tier based
-    private final static int maxAccountsPerCust = 10; // should not be more than the last number in the max array
+    public final static int MAX_ACCOUNTS_PER_CUST = 10; // should not be more than the last number in the max array
     
     private final static long startingBrokerID = 1;
     private static final int BROKERS_COUNT = TPCEConstants.DEFAULT_LOAD_UNIT / TPCEConstants.BROKERS_DIV;
@@ -99,7 +100,31 @@ public class CustomerAccountsGenerator extends TableGenerator {
     
     private void initNextLoadUnit() {
         rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT,
-                customerGenerator.getCurrentCId() * maxAccountsPerCust * rngSkipOneRowCustomerAccount); 
+                customerGenerator.getCurrentCId() * MAX_ACCOUNTS_PER_CUST * rngSkipOneRowCustomerAccount); 
+    }
+    
+    /**
+     * Generates a random account ID for the specified customer.
+     * Used for external generators, like trade
+     * 
+     * @param rnd External random generator
+     * @param custId Customer ID
+     * @param tier Customer tier
+     * @return Array of two: account ID, the number of accounts for the customer 
+     */
+    public long[] genRandomAccId(EGenRandom rnd, long custId, TierId tier) {
+        long custAcc, accCount, startAcc;
+        
+        accCount = getNumberofAccounts(custId, tier.getValue());
+        startAcc = getStartingAccId(custId);
+        
+        custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
+        
+        long[] res = new long[2];
+        res[0] = custAcc;
+        res[1] = accCount;
+        
+        return res;
     }
     
     private int getNumberofAccounts(long cid, int tier) {
@@ -119,9 +144,9 @@ public class CustomerAccountsGenerator extends TableGenerator {
         }
     }
     
-    private long getStartingAccId(long cid) {
+    public static long getStartingAccId(long cid) {
         //start account ids on the next boundary for the new customer
-        return ((cid - 1) * maxAccountsPerCust + 1);
+        return ((cid - 1) * MAX_ACCOUNTS_PER_CUST + 1);
     }
     
     public long generateAccountId() {
@@ -149,10 +174,10 @@ public class CustomerAccountsGenerator extends TableGenerator {
     
     private long generateBrokerId(long accId) {
         //  Customer that own the account (actually, customer id minus 1)
-        long  customerId = ((accId - 1) / maxAccountsPerCust) - TPCEConstants.IDENT_SHIFT;
+        long  customerId = ((accId - 1) / MAX_ACCOUNTS_PER_CUST) - TPCEConstants.IDENT_SHIFT;
 
         // Set the starting broker to be the first broker for the current load unit of customers.
-        long startFromBroker = (customerId / TPCEConstants.DEFAULT_LOAD_UNIT) * maxAccountsPerCust + startingBrokerID + TPCEConstants.IDENT_SHIFT;
+        long startFromBroker = (customerId / TPCEConstants.DEFAULT_LOAD_UNIT) * MAX_ACCOUNTS_PER_CUST + startingBrokerID + TPCEConstants.IDENT_SHIFT;
 
         // Note: this depends on broker ids being integer numbers from contiguous range.
         // The method of generating broker ids should be in sync with the BrokerGenerator

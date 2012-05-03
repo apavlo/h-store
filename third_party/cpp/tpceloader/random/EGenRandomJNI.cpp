@@ -263,3 +263,18 @@ JNIEXPORT jstring JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_rndAlpha
 
     return result;
 }
+
+/*
+ * Class:     edu_brown_benchmark_tpce_util_EGenRandom
+ * Method:    rndDouble
+ * Signature: (J)D
+ */
+JNIEXPORT jdouble JNICALL Java_edu_brown_benchmark_tpce_util_EGenRandom_rndDouble
+  (JNIEnv *env, jobject obj, jlong rnd_ptr)
+{
+    CRandom *rnd = reinterpret_cast<CRandom *>(rnd_ptr);
+
+    double res = rnd->RndDouble();
+
+    return static_cast<jdouble>(res);
+}
