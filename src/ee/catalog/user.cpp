@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,16 @@ User::User(Catalog *catalog, CatalogType *parent, const string &path, const stri
     m_fields["shadowPassword"] = value;
 }
 
+User::~User() {
+    std::map<std::string, GroupRef*>::const_iterator groupref_iter = m_groups.begin();
+    while (groupref_iter != m_groups.end()) {
+        delete groupref_iter->second;
+        groupref_iter++;
+    }
+    m_groups.clear();
+
+}
+
 void User::update() {
     m_sysproc = m_fields["sysproc"].intValue;
     m_adhoc = m_fields["adhoc"].intValue;
@@ -60,10 +70,12 @@ CatalogType * User::getChild(const std::string &collectionName, const std::strin
     return NULL;
 }
 
-void User::removeChild(const std::string &collectionName, const std::string &childName) {
+bool User::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("groups") == 0)
+    if (collectionName.compare("groups") == 0) {
         return m_groups.remove(childName);
+    }
+    return false;
 }
 
 const CatalogMap<GroupRef> & User::groups() const {

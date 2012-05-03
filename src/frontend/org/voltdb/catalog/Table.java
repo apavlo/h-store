@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,14 +43,14 @@ public class Table extends CatalogType {
         m_childCollections.put("indexes", m_indexes);
         m_constraints = new CatalogMap<Constraint>(catalog, this, path + "/" + "constraints", Constraint.class);
         m_childCollections.put("constraints", m_constraints);
-        this.addField("isreplicated", m_isreplicated);
-        this.addField("partitioncolumn", null);
-        this.addField("estimatedtuplecount", m_estimatedtuplecount);
+        m_fields.put("isreplicated", m_isreplicated);
+        m_fields.put("partitioncolumn", null);
+        m_fields.put("estimatedtuplecount", m_estimatedtuplecount);
         m_views = new CatalogMap<MaterializedViewInfo>(catalog, this, path + "/" + "views", MaterializedViewInfo.class);
         m_childCollections.put("views", m_views);
-        this.addField("materializer", null);
-        this.addField("systable", m_systable);
-        this.addField("mapreduce", m_mapreduce);
+        m_fields.put("materializer", null);
+        m_fields.put("systable", m_systable);
+        m_fields.put("mapreduce", m_mapreduce);
     }
 
     public void update() {

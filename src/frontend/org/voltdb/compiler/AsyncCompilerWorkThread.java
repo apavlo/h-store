@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -291,6 +291,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
 
             plannedStmt.aggregatorFragment = result.onePlan;
             plannedStmt.collectorFragment = result.allPlan;
+
             plannedStmt.isReplicatedTableDML = result.replicatedDML;
             plannedStmt.sql = work.sql;
             plannedStmt.errorMsg = result.errors;
@@ -330,17 +331,20 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
 
             // get the current catalog
             CatalogContext context = VoltDB.instance().getCatalogContext();
-            // store the version of the catalog the diffs were created against
-            retval.expectedCatalogVersion = context.catalog.getSubTreeVersion();
 
-            // compute the diff
-            String diffCommands = CatalogDiffEngine.getCommandsToDiff(context.catalog, newCatalog);
+            // store the version of the catalog the diffs were created against.
+            // verified when / if the update procedure runs in order to verify
+            // catalogs only move forward
+            retval.expectedCatalogVersion = context.catalog.getCatalogVersion();
 
-            if (verifyCatalogChangesAreAllowed(diffCommands) == false)
-                throw new Exception("The requested catalog change is not a supported change at this time.");
+            // compute the diff in StringBuilder
+            CatalogDiffEngine diff = new CatalogDiffEngine(context.catalog, newCatalog);
+            if (!diff.supported()) {
+                throw new Exception("The requested catalog change is not a supported change at this time. " + diff.errors());
+            }
 
             // since diff commands can be stupidly big, compress them here
-            retval.encodedDiffCommands = Encoder.compressAndBase64Encode(diffCommands);
+            retval.encodedDiffCommands = Encoder.compressAndBase64Encode(diff.commands());
             // check if the resulting string is small enough to fit in our parameter sets (about 2mb)
             if (retval.encodedDiffCommands.length() > (2 * 1000 * 1000)) {
                 throw new Exception("The requested catalog change is too large for this version of VoltDB. " +

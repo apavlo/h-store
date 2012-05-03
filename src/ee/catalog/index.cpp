@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,16 @@ Index::Index(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_childCollections["columns"] = &m_columns;
 }
 
+Index::~Index() {
+    std::map<std::string, ColumnRef*>::const_iterator columnref_iter = m_columns.begin();
+    while (columnref_iter != m_columns.end()) {
+        delete columnref_iter->second;
+        columnref_iter++;
+    }
+    m_columns.clear();
+
+}
+
 void Index::update() {
     m_unique = m_fields["unique"].intValue;
     m_type = m_fields["type"].intValue;
@@ -58,10 +68,12 @@ CatalogType * Index::getChild(const std::string &collectionName, const std::stri
     return NULL;
 }
 
-void Index::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Index::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("columns") == 0)
+    if (collectionName.compare("columns") == 0) {
         return m_columns.remove(childName);
+    }
+    return false;
 }
 
 bool Index::unique() const {

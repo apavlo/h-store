@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ public class Index extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("unique", m_unique);
-        this.addField("type", m_type);
+        m_fields.put("unique", m_unique);
+        m_fields.put("type", m_type);
         m_columns = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "columns", ColumnRef.class);
         m_childCollections.put("columns", m_columns);
     }

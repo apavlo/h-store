@@ -104,8 +104,8 @@ public class TestExecutionEngine extends TestCase {
 
         loadTestTables(catalog);
 
-        assertEquals(200, engine.serializeTable(WAREHOUSE).getRowCount());
-        assertEquals(1000, engine.serializeTable(STOCK).getRowCount());
+        assertEquals(200, engine.serializeTable(WAREHOUSE.getRelativeIndex()).getRowCount());
+        assertEquals(1000, engine.serializeTable(STOCK.getRelativeIndex()).getRowCount());
     }
 //
 //    public void testGetStats() throws Exception {

@@ -182,7 +182,11 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
         if (tableBytes != null)
             m_buffer.put(tableBytes);
         if (m_exception != null) {
-            m_exception.serializeToBuffer(m_buffer);
+            try {
+                m_exception.serializeToBuffer(m_buffer);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
         } else {
             m_buffer.putInt(0);
         }

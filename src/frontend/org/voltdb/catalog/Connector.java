@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,8 +34,8 @@ public class Connector extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("loaderclass", m_loaderclass);
-        this.addField("enabled", m_enabled);
+        m_fields.put("loaderclass", m_loaderclass);
+        m_fields.put("enabled", m_enabled);
         m_authUsers = new CatalogMap<UserRef>(catalog, this, path + "/" + "authUsers", UserRef.class);
         m_childCollections.put("authUsers", m_authUsers);
         m_authGroups = new CatalogMap<GroupRef>(catalog, this, path + "/" + "authGroups", GroupRef.class);

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -126,8 +126,8 @@ public:
         void *retval = &currentChunk->m_chunkData[currentChunk->m_offset];
         currentChunk->m_offset += size;
 
-        //Ensure 16 byte alignment of future allocations
-        currentChunk->m_offset += (16 - (currentChunk->m_offset % 16));
+        //Ensure 8 byte alignment of future allocations
+        currentChunk->m_offset += (8 - (currentChunk->m_offset % 8));
         if (currentChunk->m_offset > currentChunk->m_size) {
             currentChunk->m_offset = currentChunk->m_size;
         }

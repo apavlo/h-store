@@ -143,14 +143,7 @@ bool InsertExecutor::p_execute(const NValueArray &params) {
 
             // get the value for the partition column
             NValue value = m_tuple.getNValue(m_partitionColumn);
-            bool isLocal = false;
-            if (m_partitionColumnIsString) {
-                isLocal = m_engine->isLocalSite(
-                        reinterpret_cast<char*>(ValuePeeker::peekObjectValue(value)),
-                        ValuePeeker::peekObjectLength(value));
-            } else {
-                isLocal = m_engine->isLocalSite(ValuePeeker::peekAsBigInt(value));
-            }
+            bool isLocal = m_engine->isLocalSite(value);
 
             // if it doesn't map to this site
             if (!isLocal) {

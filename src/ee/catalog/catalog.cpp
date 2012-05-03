@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
 
 #include <cstdlib>
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
 #include "catalog.h"
+#include "catalogtype.h"
 #include "cluster.h"
 #include "common/SerializableEEException.h"
 
@@ -40,86 +42,132 @@ Catalog::Catalog()
 }
 
 Catalog::~Catalog() {
+    std::map<std::string, Cluster*>::const_iterator cluster_iter = m_clusters.begin();
+    while (cluster_iter != m_clusters.end()) {
+        delete cluster_iter->second;
+        cluster_iter++;
+    }
+    m_clusters.clear();
+}
+
+/*
+ * Clear the wasAdded/wasUpdated and deletion path lists.
+ */
+void Catalog::cleanupExecutionBookkeeping() {
+    // sad there isn't clean syntax to for_each a map's pair->second
     boost::unordered_map<std::string, CatalogType*>::iterator iter;
     for (iter = m_allCatalogObjects.begin(); iter != m_allCatalogObjects.end(); iter++) {
         CatalogType *ct = iter->second;
-        if (ct != this)
-            delete ct;
+        ct->clearUpdateStatus();
     }
+    m_deletions.clear();
+}
+
+void Catalog::purgeDeletions() {
+    for (std::vector<std::string>::iterator i = m_deletions.begin();
+         i != m_deletions.end();
+         i++)
+    {
+        boost::unordered_map<std::string, CatalogType*>::iterator object = m_allCatalogObjects.find(*i);
+        if (object == m_allCatalogObjects.end()) {
+            std::string errmsg = "Catalog reference for " + (*i) + " not found.";
+            throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, errmsg);
+        }
+        delete object->second;
+    }
+    m_deletions.clear();
 }
 
 void Catalog::execute(const string &stmts) {
+    cleanupExecutionBookkeeping();
+
     vector<string> lines = splitString(stmts, '\n');
     for (int32_t i = 0; i < lines.size(); ++i) {
         executeOne(lines[i]);
     }
-    std::map<std::string, UnresolvedInfo>::const_iterator iter;
-    if (m_unresolved.size() > 0)
+
+    if (m_unresolved.size() > 0) {
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                       "failed to execute catalog");
+    }
 }
 
-void Catalog::executeOne(const string &stmt) {
-    // FORMAT:
+/*
+ * Produce constituent elements of catalog command.
+ */
+static void parse(const string &stmt,
+                  string &command,
+                  string &ref,
+                  string &coll,
+                  string &child)
+{
+    // stmt is formatted as one of:
     // add ref collection name
     // set ref fieldname value
     // ref = path | guid
-    // parsed as: (command ref a b)
+    // parsed into strings: command ref coll child
 
-    // parse
     size_t pos = 0;
     size_t end = stmt.find(' ', pos);
-    string command = stmt.substr(pos, end - pos);
+    command = stmt.substr(pos, end - pos);
     pos = end + 1;
     end = stmt.find(' ', pos);
-    string ref = stmt.substr(pos, end - pos);
+    ref = stmt.substr(pos, end - pos);
     pos = end + 1;
     end = stmt.find(' ', pos);
-    string a = stmt.substr(pos, end - pos);
+    coll = stmt.substr(pos, end - pos);
     pos = end + 1;
     end = stmt.length() + 1;
-    string b = stmt.substr(pos, end - pos);
+    child = stmt.substr(pos, end - pos);
 
-    //cout << "Command: " << command << endl;
-    //cout << "Ref: " << ref << endl;
-    //cout << "A: " << a << endl;
-    //cout << "B: " << b << endl;
+    // cout << std::endl << "Configuring catalog: " << std::endl;
+    // cout << "Command: " << command << endl;
+    // cout << "Ref: " << ref << endl;
+    // cout << "A: " << coll << endl;
+    // cout << "B: " << child << endl;
+}
+
+/*
+ * Run one catalog command.
+ */
+void Catalog::executeOne(const string &stmt) {
+    string command, ref, coll, child;
+    parse(stmt, command, ref, coll, child);
 
     CatalogType *item = itemForRef(ref);
-    assert(item != NULL);
+    if (item == NULL) {
+        std::string errmsg = "Catalog reference for " + ref + " not found.";
+        throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, errmsg);
+    }
 
     // execute
     if (command.compare("add") == 0) {
-        CatalogType *type = item->addChild(a, b);
-        if (type == NULL)
+        CatalogType *type = item->addChild(coll, child);
+        if (type == NULL) {
             throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                          "failed to add child");
-        std::string path = type->path();
-        if (m_unresolved.count(path) != 0) {
-            //printf("catalog unresolved has a match for path: %s\n", path.c_str());
-            //fflush(stdout);
-            std::list<UnresolvedInfo> lui = m_unresolved[path];
-            m_unresolved.erase(path);
-            std::list<UnresolvedInfo>::const_iterator iter;
-            for (iter = lui.begin(); iter != lui.end(); iter++) {
-                UnresolvedInfo ui = *iter;
-                std::string path2 = "set " + ui.type->path() + " "
-                    + ui.field + " " + path;
-                //printf("running unresolved command:\n    %s\n", path2.c_str());
-                //fflush(stdout);
-                executeOne(path2);
-            }
+                                           "Catalog failed to add child.");
         }
+        type->added();
+        resolveUnresolvedInfo(type->path());
     }
     else if (command.compare("set") == 0) {
-        item->set(a, b);
+        item->set(coll, child);
+        item->updated();
     }
     else if (command.compare("delete") == 0) {
-        item->removeChild(a, b);
+        // remove from collection and hash path to the deletion tracker
+        // throw if nothing was removed.
+        if(item->removeChild(coll, child)) {
+            m_deletions.push_back(ref + "/" + coll + "[" + child + "]");
+        }
+        else {
+            std::string errmsg = "Catalog reference for " + ref + " not found.";
+            throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, errmsg);
+        }
     }
     else {
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-                                      "command isn't 'set' or 'add'.");
+                                      "Invalid catalog command.");
     }
 }
 
@@ -167,7 +215,23 @@ CatalogType *Catalog::itemForPathPart(const CatalogType *parent, const string &p
 }
 
 void Catalog::registerGlobally(CatalogType *catObj) {
+    boost::unordered_map<std::string, CatalogType*>::iterator iter
+      = m_allCatalogObjects.find(catObj->path());
+    if (iter != m_allCatalogObjects.end() && iter->second != catObj ) {
+        // this is a defect if it happens
+        printf("Replacing object at path: %s (%p,%p)\n",
+               catObj->path().c_str(), iter->second, catObj);
+        assert(false);
+    }
     m_allCatalogObjects[catObj->path()] = catObj;
+}
+
+void Catalog::unregisterGlobally(CatalogType *catObj) {
+    boost::unordered_map<std::string, CatalogType*>::iterator iter
+      = m_allCatalogObjects.find(catObj->path());
+    if (iter != m_allCatalogObjects.end()) {
+        m_allCatalogObjects.erase(iter);
+    }
 }
 
 void Catalog::update() {
@@ -202,6 +266,10 @@ vector<string> Catalog::splitToTwoString(const string &str, char delimiter) {
     return vec;
 }
 
+/*
+ * Add a path to the unresolved list to be processed when
+ * the referenced value appears
+ */
 void Catalog::addUnresolvedInfo(std::string path, CatalogType *type, std::string fieldName) {
     assert(type != NULL);
 
@@ -214,7 +282,25 @@ void Catalog::addUnresolvedInfo(std::string path, CatalogType *type, std::string
     m_unresolved[path] = lui;
 }
 
-CatalogType *Catalog::addChild(const string &collectionName, const string &childName) {
+/*
+ * Clean up any resolved binding for path.
+ */
+void Catalog::resolveUnresolvedInfo(string path) {
+    if (m_unresolved.count(path) != 0) {
+        std::list<UnresolvedInfo> lui = m_unresolved[path];
+        m_unresolved.erase(path);
+        std::list<UnresolvedInfo>::const_iterator iter;
+        for (iter = lui.begin(); iter != lui.end(); iter++) {
+            UnresolvedInfo ui = *iter;
+            std::string path2 = "set " + ui.type->path() + " "
+              + ui.field + " " + path;
+            executeOne(path2);
+        }
+    }
+}
+
+CatalogType *
+Catalog::addChild(const string &collectionName, const string &childName) {
     if (collectionName.compare("clusters") == 0) {
         CatalogType *exists = m_clusters.get(childName);
         if (exists)
@@ -226,16 +312,20 @@ CatalogType *Catalog::addChild(const string &collectionName, const string &child
     return NULL;
 }
 
-CatalogType *Catalog::getChild(const string &collectionName, const string &childName) const {
+CatalogType *
+Catalog::getChild(const string &collectionName, const string &childName) const {
     if (collectionName.compare("clusters") == 0)
         return m_clusters.get(childName);
     return NULL;
 }
 
-void Catalog::removeChild(const std::string &collectionName, const std::string &childName) {
+bool
+Catalog::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("clusters") == 0)
+    if (collectionName.compare("clusters") == 0) {
         return m_clusters.remove(childName);
+    }
+    return false;
 }
 
 /** takes in 0-F, returns 0-15 */
@@ -272,10 +362,14 @@ void Catalog::hexEncodeString(const char *string, char *buffer) {
     int32_t i = 0;
     for (; i < strlen(string); i++) {
         char ch[2];
-        sprintf(ch, "%x", (string[i] >> 4) & 0xF);
+        snprintf(ch, 2, "%x", (string[i] >> 4) & 0xF);
         buffer[i * 2] = ch[0];
-        sprintf(ch, "%x", string[i] & 0xF);
+        snprintf(ch, 2, "%x", string[i] & 0xF);
         buffer[(i * 2) + 1] = ch[0];
     }
     buffer[i*2] = '\0';
+}
+
+void Catalog::getDeletedPaths(vector<std::string> &deletions) {
+    copy(m_deletions.begin(), m_deletions.end(), back_inserter(deletions));
 }

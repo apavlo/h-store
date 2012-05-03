@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of VoltDB.
-# Copyright (C) 2008-2010 VoltDB L.L.C.
+# Copyright (C) 2008-2010 VoltDB Inc.
 #
 # VoltDB is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ VoltDB catalog code generator.
 
 from catalog_utils import *
 from string import Template
-from subprocess import check_call as run
 from subprocess import Popen
 
 #
@@ -121,9 +120,9 @@ def genjava( classes, prepath, postpath, package ):
                 write( interp( '        m_$fname = new $ftype(catalog, this, path + "/" + "$fname", $realtype.class);', locals() ) )
                 write( interp( '        m_childCollections.put("$fname", m_$fname);', locals() ) )
             elif field.type[-1] == '?':
-                write( interp( '        this.addField("$fname", null);', locals() ) )
+                write( interp( '        m_fields.put("$fname", null);', locals() ) )
             else:
-                write( interp( '        this.addField("$fname", m_$fname);', locals() ) )
+                write( interp( '        m_fields.put("$fname", m_$fname);', locals() ) )
         write( '    }\n' )
 
         # update
@@ -256,7 +255,7 @@ def gencpp( classes, prepath, postpath ):
         write( '\nprotected:')
 
         # constructor
-        write( '    ' + clsname + '(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);\n' )
+        write( '    ' + clsname + '(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);' )
 
         # Field Member variables.
         for field in cls.fields:
@@ -274,10 +273,13 @@ def gencpp( classes, prepath, postpath ):
         write("    virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;")
 
         # removeChild method
-        write("    virtual void removeChild(const std::string &collectionName, const std::string &childName);")
+        write("    virtual bool removeChild(const std::string &collectionName, const std::string &childName);")
 
         # public section
         write("\npublic:")
+
+        # destructor
+        write('    ~' + clsname + '();\n');
 
         # getter methods
         for field in cls.fields:
@@ -348,6 +350,27 @@ def gencpp( classes, prepath, postpath ):
                 write( interp( '    m_fields["$pubname"] = value;', locals() ) )
         write ( "}\n" )
 
+        # write the destructor
+        itr_exists = [ ]
+        write(clsname + '::~' + clsname + '() {');
+        for field in cls.fields:
+            if field.type[-1] == '*':
+                ftype = field.type.rstrip('*')
+                itr = ftype.lower() + '_iter'
+                privname = 'm_' + field.name
+                tab = '   '
+                if itr in itr_exists:
+                    write(interp('$tab $itr = $privname.begin();', locals()))
+                else:
+                    write(interp('$tab std::map<std::string, $ftype*>::const_iterator $itr = $privname.begin();', locals()))
+                write(interp('$tab while ($itr != $privname.end()) {', locals()))
+                write(interp('$tab $tab delete $itr->second;', locals()))
+                write(interp('$tab $tab $itr++;', locals()))
+                write(interp('$tab }', locals()))
+                write(interp('$tab $privname.clear();\n', locals()))
+                itr_exists.append(itr)
+        write('}\n')
+
         # write update()
         write ( interp( 'void $clsname::update() {', locals() ) )
         for field in cls.fields:
@@ -387,14 +410,16 @@ def gencpp( classes, prepath, postpath ):
         write ( '    return NULL;\n}\n' )
 
         # write removeChild(...)
-        write ( interp( 'void $clsname::removeChild(const std::string &collectionName, const std::string &childName) {', locals() ) )
+        write ( interp( 'bool $clsname::removeChild(const std::string &collectionName, const std::string &childName) {', locals() ) )
         write ( interp( '    assert (m_childCollections.find(collectionName) != m_childCollections.end());', locals() ) )
         for field in cls.fields:
             if field.type[-1] == "*":
                 privname = 'm_' + field.name
                 pubname = field.name
-                write ( interp( '    if (collectionName.compare("$pubname") == 0)', locals() ) )
+                write ( interp( '    if (collectionName.compare("$pubname") == 0) {', locals() ) )
                 write ( interp( '        return $privname.remove(childName);', locals() ) )
+                write ( interp( '    }', locals() ) )
+        write ( interp( '    return false;', locals() ) )
         write ( '}\n' )
 
         # write field getters
