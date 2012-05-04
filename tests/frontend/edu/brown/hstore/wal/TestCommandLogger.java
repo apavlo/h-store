@@ -91,7 +91,7 @@ public class TestCommandLogger extends BaseTestCase {
                     Collections.singleton(BASE_PARTITION),
                     catalog_proc,
                     TARGET_PARAMS);
-        boolean ret = logger.write(ts);
+        boolean ret = logger.appendToLog(ts);
         assertTrue(ret);
         logger.shutdown(); // This closes the file
         
@@ -101,7 +101,7 @@ public class TestCommandLogger extends BaseTestCase {
         int ctr = 0;
         for (LogEntry entry : reader) {
             assertNotNull(entry);
-            assertEquals(txnId, entry.txnId);
+            assertEquals(txnId, entry.txnId.longValue());
             assertEquals(catalog_proc.getId(), entry.procId);
             
             Object[] entryParams = entry.procParams.toArray();

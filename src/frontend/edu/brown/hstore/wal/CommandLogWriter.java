@@ -293,7 +293,7 @@ public class CommandLogWriter implements Shutdownable {
      * @param ts
      * @return
      */
-    public boolean write(final LocalTransaction ts) {
+    public boolean appendToLog(final LocalTransaction ts) {
         if (debug.get()) LOG.debug(ts + " - Writing out WAL entry for committed transaction");
         
         int basePartition = ts.getBasePartition();
@@ -308,6 +308,13 @@ public class CommandLogWriter implements Shutdownable {
         // TODO: We are going to want to use group commit to queue up
         // a bunch of entries using the buffers and then push them all out
         // when we have enough.
+        if (hstore_conf.site.exec_command_logging_group_commit > 0) {
+            
+        }
+        else {
+            
+        }
+        
         
         // TODO: Once we have group commit, then we need a way to pass back
         // a flag to the HStoreSite from this method that tells it to not send out
@@ -346,4 +353,5 @@ public class CommandLogWriter implements Shutdownable {
         
         return true;
     }
+    
 }    
