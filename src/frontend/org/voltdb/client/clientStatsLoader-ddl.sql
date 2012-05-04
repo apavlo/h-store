@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS clientProcedureStats;
 CREATE TABLE clientInstances (
     instanceId                  INTEGER PRIMARY KEY AUTO_INCREMENT,
     clusterStartTime            TIMESTAMP NOT NULL,
-    clusterLeaderAddress        varchar(64) NOT NULL,
+    clusterLeaderAddress        int NOT NULL,
     applicationName             varchar(32) NOT NULL,
     subApplicationName          varchar(32),
     numHosts                    int NOT NULL,
@@ -29,7 +29,6 @@ CREATE TABLE clientConnectionStats (
     numMessagesRead             bigint NOT NULL,
     numBytesWritten             bigint NOT NULL,
     numMessagesWritten          bigint NOT NULL
---    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
 
 CREATE TABLE clientProcedureStats (
@@ -51,5 +50,4 @@ CREATE TABLE clientProcedureStats (
     numAborts                   bigint NOT NULL,
     numFailures                 bigint NOT NULL,
     numRestarts                 bigint NOT NULL
---    PRIMARY KEY(instanceId, tsEvent, hostname, connectionId)
 );
