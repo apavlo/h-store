@@ -39,12 +39,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.EstTime;
+
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
@@ -69,6 +72,35 @@ public class CommandLogWriter implements Shutdownable {
     
     
     /**
+     * Special LogEntry that holds additional data that we
+     * need in order to send back a ClientResponse
+     */
+    protected class WriterLogEntry extends LogEntry {
+        protected ClientResponse cresponse;
+        protected RpcCallback<byte[]> clientCallback;
+        protected long initiateTime;
+        protected int restartCounter;
+        
+        @Override
+        public LogEntry init(LocalTransaction ts) {
+            this.cresponse = ts.getClientResponse();
+            this.clientCallback = ts.getClientCallback();
+            this.initiateTime = ts.getInitiateTime();
+            this.restartCounter = ts.getRestartCounter();
+            return super.init(ts);
+        }
+        
+        @Override
+        public void finish() {
+            super.finish();
+            this.cresponse = null;
+            this.clientCallback = null;
+            this.initiateTime = -1;
+            this.restartCounter = -1;
+        }
+    }
+    
+    /**
      * Circular Buffer of Log Entries
      */
     protected class EntryBuffer {
@@ -76,9 +108,9 @@ public class CommandLogWriter implements Shutdownable {
         /**
         * Circular Atomic Integer for EntryBuffer
         */
-        protected class CircularAtomicInteger extends AtomicInteger {
-            private AtomicInteger ai;
-            private int limit;
+        protected class CircularAtomicInteger {
+            private final AtomicInteger ai;
+            private final int limit;
             
             public CircularAtomicInteger(int lim) {
                 limit = lim;
@@ -94,36 +126,33 @@ public class CommandLogWriter implements Shutdownable {
             }
         } // CLASS
         
-        private LogEntry buffer[];
+        private WriterLogEntry buffer[];
         private CircularAtomicInteger idx;
         
         public EntryBuffer(int size) {
-            this.buffer = new LogEntry[size];
+            this.buffer = new WriterLogEntry[size];
             for (int i = 0; i < size; i++) {
-                this.buffer[i] = new LogEntry();
+                this.buffer[i] = new WriterLogEntry();
             } // FOR
             idx = new CircularAtomicInteger(size);
         }
         public LogEntry next(LocalTransaction ts) {
             LogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
-            e.txnId = ts.getTransactionId();
-            e.procId = ts.getProcedure().getId();
-            e.procParams = ts.getProcedureParameters();
-            e.toWrite = null;
-            return (e);
+            return e.init(ts);
         }
         public boolean isFlushReady() {
-            return this.buffer[this.buffer.length - 1].toWrite != null;
+            return (this.buffer[this.buffer.length - 1].isInitialized());
         }
         public void flushCleanup() {
             for (int i = 0; i < this.buffer.length; i++)
-                this.buffer[i].toWrite = null;
+                this.buffer[i].finish();
         }
     } // CLASS
     
     
     final HStoreSite hstore_site;
     final HStoreConf hstore_conf;
+    final File outputFile;
     final FileChannel fstream;
     final int group_commit_size;
     
@@ -142,19 +171,19 @@ public class CommandLogWriter implements Shutdownable {
      * @param catalog_db
      * @param path
      */
-    public CommandLogWriter(HStoreSite hstore_site, String path) {
+    public CommandLogWriter(HStoreSite hstore_site, File outputFile) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.outputFile = outputFile;
         this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
         
         FileOutputStream f = null;
         try {
-            //TODO: is there a more standard way to do this?
-            //TODO: update to use directory rather than files?
-            File file = new File(path);// + hstore_site.getSiteName());
-            file.getParentFile().mkdirs();
-            file.createNewFile();
-            f = new FileOutputStream(file, false);
+            // TODO: is there a more standard way to do this?
+            // TODO: update to use directory rather than files?
+            this.outputFile.getParentFile().mkdirs();
+            this.outputFile.createNewFile();
+            f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -235,21 +264,26 @@ public class CommandLogWriter implements Shutdownable {
     }
     
     public void groupCommit(EntryBuffer buffer) {
-        //TODO: does this deadlock if called from another synchronized (fstream) block?
-        synchronized (fstream) {
-          try {
-            fstream.force(true);
+        // XXX: Once we have a single thread that writes out this buffer, we won't
+        // have to worry about locking here because we know that no other thread
+        // will be trying to write to the log file that same time that we are.
+        synchronized (this) {
+            try {
+                fstream.force(true);
                             
-            //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
-            //...
-            //...
+                //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
+                //...
+                //...
+//                for (LogEntry entry : buffer.buffer) {
+//                    hstore_site.sendClientResponse(entry.toWrite, entry.toWrite.getClientResponse(), false);
+//                }
             
-            buffer.flushCleanup();
-          } catch (Exception e) {
-              String message = "Failed to group commit for buffer";
-              throw new ServerFaultException(message, e);
-          }
-        }
+                buffer.flushCleanup();
+            } catch (Exception e) {
+                String message = "Failed to group commit for buffer";
+                throw new ServerFaultException(message, e);
+            }
+        } // SYNCH
     }
     
     /**
@@ -274,12 +308,19 @@ public class CommandLogWriter implements Shutdownable {
         // TODO: We are going to want to use group commit to queue up
         // a bunch of entries using the buffers and then push them all out
         // when we have enough.
+        
         // TODO: Once we have group commit, then we need a way to pass back
         // a flag to the HStoreSite from this method that tells it to not send out
         // the ClientResponse until we say it's ok. Then we need some other callback
         // where we can blast out the client responses all at once.
         
-        synchronized (fstream) {
+        // TODO: I think that we don't want to actually serialize the object here, because
+        //        we won't be able to control whether the JVM writes out the buffer all of sudden.
+        //        We should just 
+        //       
+        //        We can do that when we do the 
+        
+        synchronized (this) {
             try {
                 fs.clear();
                 fs.writeObject(entry);
@@ -301,8 +342,8 @@ public class CommandLogWriter implements Shutdownable {
                 String message = "Failed to write log entry for " + ts.toString();
                 throw new ServerFaultException(message, e, ts.getTransactionId());
             }
-        }
+        } // SYNCH
         
         return true;
     }
-}
+}    

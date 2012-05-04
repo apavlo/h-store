@@ -9,20 +9,38 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.utils.Poolable;
 
-public class LogEntry implements FastSerializable {
+public class LogEntry implements FastSerializable, Poolable {
     
-    protected long txnId;
+    protected Long txnId;
     protected long timestamp;
     protected int procId;
     protected ParameterSet procParams;
     
-    /** Fill this if it needs to be saved to be written as part of group commit */
-    protected LocalTransaction toWrite = null;
+    public LogEntry init(LocalTransaction ts) {
+        this.txnId = ts.getTransactionId();
+        this.procId = ts.getProcedure().getId();
+        this.procParams = ts.getProcedureParameters();
+        return (this);
+    }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.txnId != null);
+    }
+    
+    @Override
+    public void finish() {
+        this.txnId = null;
+        this.timestamp = -1;
+        this.procId = -1;
+        this.procParams = null;
+    }
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        this.txnId = in.readLong();
+        this.txnId = Long.valueOf(in.readLong());
         this.timestamp = in.readLong();
         this.procId = in.readInt();
         this.procParams = in.readObject(ParameterSet.class);
@@ -38,7 +56,7 @@ public class LogEntry implements FastSerializable {
 
     @Override
     public void writeExternal(FastSerializer out) throws IOException {
-        out.writeLong(this.txnId);
+        out.writeLong(this.txnId.longValue());
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);
         out.writeObject(this.procParams);
