@@ -38,14 +38,13 @@ import java.util.ListIterator;
 import java.util.PriorityQueue;
 
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Table;
 import org.voltdb.utils.NotImplementedException;
 
-import weka.gui.beans.Startable;
-
 import edu.brown.benchmark.tpce.TPCEConstants;
+import edu.brown.benchmark.tpce.generators.CustomerAccountsGenerator.TaxStatus;
 import edu.brown.benchmark.tpce.generators.CustomerSelection.TierId;
 import edu.brown.benchmark.tpce.generators.StatusTypeGenerator.StatusTypeId;
+import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 import edu.brown.benchmark.tpce.util.EGenDate;
 import edu.brown.benchmark.tpce.util.EGenMoney;
 import edu.brown.benchmark.tpce.util.EGenRandom;
@@ -117,6 +116,13 @@ public class TradeGenerator implements Iterator<Object[]> {
     private class AddTradeInfo {
         public EGenMoney buyValue;
         public EGenMoney sellValue;
+
+        public long brokerId;
+
+        EGenMoney charge;
+        EGenMoney commission;
+
+        public TaxStatus taxStatus;
     }
     
     // this list holds pregenerated holding history rows
@@ -161,7 +167,13 @@ public class TradeGenerator implements Iterator<Object[]> {
     private final CustomerSelection custSelection;
     private final HoldingsAndTrades holdsGenerator;
     private final MEESecurity meeSecurity;
+    private final CustomerAccountsGenerator custAccGenerator;
     
+    private final InputFileHandler chargeFile;
+    private final InputFileHandler tradeTypeFile;
+    private final InputFileHandler commissionRateFile;
+    private final SecurityHandler secHandler;
+
     private long currCompletedTrades, currInitiatedTrades;
     private TradeInfo newTrade;
     private final AddTradeInfo addTrade = new AddTradeInfo(); // generated once for every trade row
@@ -219,6 +231,13 @@ public class TradeGenerator implements Iterator<Object[]> {
                 TPCEConstants.initialTradePopulationBaseMinute,
                 TPCEConstants.initialTradePopulationBaseSecond,
                 TPCEConstants.initialTradePopulationBaseFraction);
+
+        custAccGenerator = (CustomerAccountsGenerator) generator.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
+
+        chargeFile = generator.getInputFile(InputFile.CHARGE);
+        tradeTypeFile = generator.getInputFile(InputFile.TRADETYPE);
+        commissionRateFile = generator.getInputFile(InputFile.COMMRATE);
+        secHandler = new SecurityHandler(generator);
     }
     
     private double generateDelay() {
@@ -462,6 +481,84 @@ public class TradeGenerator implements Iterator<Object[]> {
         }
     }
     
+    private void generateTradeCharge() {
+        for (int i = 0; i < chargeFile.getRecordsNum(); i++) {
+            String[] chargeRow = chargeFile.getTupleByIndex(i);
+
+            // [1] is the tier number
+            if (Integer.valueOf(chargeRow[1]) == newTrade.customerTier.getValue()) {
+                // pick the trade type row (we assume it is indexed on the enum
+                // int values)
+                String[] ttRow = tradeTypeFile.getTupleByIndex(newTrade.tradeType.getValue());
+
+                // compare trade type symbols
+                if (chargeRow[0].equals(ttRow[0])) {
+                    addTrade.charge = new EGenMoney(Double.valueOf(chargeRow[2]));
+                    return;
+                }
+            }
+        }
+
+        assert false;
+    }
+
+    private void generateTradeCommission() {
+        int tier = newTrade.customerTier.getValue();
+        int tradeQty = newTrade.tradeQty;
+        int tradeType = newTrade.tradeType.getValue();
+
+       /*
+        * Some extra logic to reduce looping in the CommissionRate file.
+        * It is organized by tier, then trade type, then exchange.
+        * Consider this extra knowledge to calculate the starting position for search.
+        */
+        
+        //Number of rows in the CommissionRate file that have the same customer tier.
+        int customerTierRecords = commissionRateFile.getRecordsNum() / 3;
+
+        // Number of rows in the CommissionRate file per trade type.
+        int tradeTypeRecords = customerTierRecords / tradeTypeFile.getRecordsNum();
+
+        for (int i = (tier - 1) * customerTierRecords + tradeType * tradeTypeRecords;
+                i < commissionRateFile.getRecordsNum(); i++) {
+            String[] commRow = commissionRateFile.getTupleByIndex(i);
+            
+            if (tier == Integer.valueOf(commRow[0]) &&  // match tier
+                    tradeQty >= Integer.valueOf(commRow[3]) && // match quantity
+                    tradeQty <= Integer.valueOf(commRow[4])) {
+                String[] ttRow = tradeTypeFile.getTupleByIndex(tradeType);
+                if (ttRow[0].equals(commRow[1]) && // match trade type
+                    secHandler.getSecRecord(newTrade.secFileIndex)[4].equals(commRow[2])) { // match exchange
+                    //found the correct commission rate
+                    addTrade.commission = EGenMoney.mulMoneyByInt(newTrade.tradePrice, tradeQty);
+                    addTrade.commission.multiplyByDouble(Double.valueOf(commRow[5]) / 100.0);
+                    return;
+                }
+            }
+        }
+
+        //should never reach here
+        assert false;
+    }
+
+    private void generateTradeTax() {
+
+    }
+
+    private void generateSettlementAmount() {
+
+    }
+
+    private void generateCompletedTradeInfo() {
+        addTrade.taxStatus = custAccGenerator.getAccountTaxStatus(newTrade.accId);
+        addTrade.brokerId = custAccGenerator.generateBrokerId(newTrade.accId);
+
+        generateTradeCharge();
+        generateTradeCommission();
+        generateTradeTax();
+        generateSettlementAmount();
+    }
+
     private boolean generateNextTrade() {
         boolean moreTrades;
         
