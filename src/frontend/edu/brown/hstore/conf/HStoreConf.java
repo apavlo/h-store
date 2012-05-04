@@ -296,18 +296,25 @@ public final class HStoreConf {
         public boolean exec_validate_work;
 
         @ConfigProperty(
-            description="If enabled, log all transaction requests to a file",
+            description="If enabled, log all transaction requests to disk",
             defaultBoolean=false,
             experimental=true
         )
         public boolean exec_command_logging;
         
         @ConfigProperty(
-            description="",
-            defaultString="/tmp/hstore.wal",
+            description="Directory for storage of command logging files",
+            defaultString="${global.temp_dir}/wal",
             experimental=true
         )
-        public String exec_command_logging_file;
+        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
+        
+        @ConfigProperty(
+            description="Transactions to queue before flush for group commit command logging optimization (0 = no group commit)",
+            defaultInt=0,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit;
         
         @ConfigProperty(
             description="If enabled, support ad hoc queries",

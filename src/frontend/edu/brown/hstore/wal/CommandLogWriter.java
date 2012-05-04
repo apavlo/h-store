@@ -34,7 +34,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-
+import java.lang.Math;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
@@ -66,29 +67,57 @@ public class CommandLogWriter implements Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    
     /**
      * Circular Buffer of Log Entries
      */
     protected class EntryBuffer {
+        
+        /**
+        * Circular Atomic Integer for EntryBuffer
+        */
+        protected class CircularAtomicInteger extends AtomicInteger {
+            private AtomicInteger ai;
+            private int limit;
+            
+            public CircularAtomicInteger(int lim) {
+                limit = lim;
+                ai = new AtomicInteger(0);
+            }
+            public int getAndIncrementCircular() { //Modified AtomicInteger.getAndIncrement() to be circular around the buffer length
+                for (;;) {
+                    int current = ai.get();
+                    int next = (current + 1) % limit;//EntryBuffer.buffer.length;
+                    if (ai.compareAndSet(current, next))
+                        return current;
+                }
+            }
+        } // CLASS
+        
         private LogEntry buffer[];
-        private int idx;
+        private CircularAtomicInteger idx;
         
         public EntryBuffer(int size) {
             this.buffer = new LogEntry[size];
             for (int i = 0; i < size; i++) {
                 this.buffer[i] = new LogEntry();
             } // FOR
+            idx = new CircularAtomicInteger(size);
         }
         public LogEntry next(LocalTransaction ts) {
-            if (this.idx == this.buffer.length) {
-                this.idx = 0;
-            }
-            LogEntry e = this.buffer[this.idx++];
+            LogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
             e.txnId = ts.getTransactionId();
             e.procId = ts.getProcedure().getId();
             e.procParams = ts.getProcedureParameters();
-            e.flushed = false;
+            e.toWrite = null;
             return (e);
+        }
+        public boolean isFlushReady() {
+            return this.buffer[this.buffer.length - 1].toWrite != null;
+        }
+        public void flushCleanup() {
+            for (int i = 0; i < this.buffer.length; i++)
+                this.buffer[i].toWrite = null;
         }
     } // CLASS
     
@@ -96,6 +125,7 @@ public class CommandLogWriter implements Shutdownable {
     final HStoreSite hstore_site;
     final HStoreConf hstore_conf;
     final FileChannel fstream;
+    final int group_commit_size;
     
     /**
      * The log entry buffers (one per partition) 
@@ -115,10 +145,12 @@ public class CommandLogWriter implements Shutdownable {
     public CommandLogWriter(HStoreSite hstore_site, String path) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
         
         FileOutputStream f = null;
         try {
             //TODO: is there a more standard way to do this?
+            //TODO: update to use directory rather than files?
             File file = new File(path);// + hstore_site.getSiteName());
             file.getParentFile().mkdirs();
             file.createNewFile();
@@ -134,7 +166,7 @@ public class CommandLogWriter implements Shutdownable {
         this.serializers = new FastSerializer[num_partitions];
         for (int partition = 0; partition < num_partitions; partition++) {
             if (hstore_site.isLocalPartition(partition)) {
-                this.entries[partition] = new EntryBuffer(50); // XXX
+                this.entries[partition] = new EntryBuffer(group_commit_size);
                 this.serializers[partition] = new FastSerializer(hstore_site.getBufferPool());
             }
         } // FOR
@@ -149,7 +181,8 @@ public class CommandLogWriter implements Shutdownable {
         // TODO: If we're using group commit, flush out
         // all the queued entries. We should not get any more
         // transaction entries after this point
-        
+        for (int i = 0; i < this.entries.length; i++)
+          this.groupCommit(this.entries[i]);
     }
 
     @Override
@@ -200,7 +233,25 @@ public class CommandLogWriter implements Shutdownable {
         
         return (true);
     }
-
+    
+    public void groupCommit(EntryBuffer buffer) {
+        //TODO: does this deadlock if called from another synchronized (fstream) block?
+        synchronized (fstream) {
+          try {
+            fstream.force(true);
+                            
+            //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
+            //...
+            //...
+            
+            buffer.flushCleanup();
+          } catch (Exception e) {
+              String message = "Failed to group commit for buffer";
+              throw new ServerFaultException(message, e);
+          }
+        }
+    }
+    
     /**
      * Write a completed transaction handle out to the WAL file
      * Returns true if the entry has been successfully written to disk and
@@ -231,14 +282,21 @@ public class CommandLogWriter implements Shutdownable {
         synchronized (fstream) {
             try {
                 fs.clear();
-                BBContainer b = fs.writeObjectForMessaging(entry);
+                fs.writeObject(entry);
+                BBContainer b = fs.getBBContainer();
                 fstream.write(b.b.asReadOnlyBuffer());
                 
-                // TODO: We should have an asynchronous option here like postgres
-                // where we don't have to wait until the OS flushes the changes out
-                // to the file before we're allowed to continue.
-                fstream.force(true);
-                entry.flushed = true;
+                if (hstore_conf.site.exec_command_logging_group_commit > 0) { //GROUP COMMIT
+                    if (buffer.isFlushReady()) {
+                        this.groupCommit(buffer);
+                        return true;
+                    } else {
+                        entry.toWrite = ts;
+                        return false;
+                    }
+                } else {
+                  fstream.force(true);
+                }
             } catch (Exception e) {
                 String message = "Failed to write log entry for " + ts.toString();
                 throw new ServerFaultException(message, e, ts.getTransactionId());
