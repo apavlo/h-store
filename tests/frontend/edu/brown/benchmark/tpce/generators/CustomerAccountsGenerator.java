@@ -37,7 +37,7 @@ import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class CustomerAccountsGenerator extends TableGenerator {
-    enum TaxStatus {
+    public enum TaxStatus {
         eNonTaxable(0),
         eTaxableAndWithhold(1),
         eTaxableAndDontWithhold(2);
@@ -172,7 +172,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
         return customerGenerator.getCurrentCId();
     }
     
-    private long generateBrokerId(long accId) {
+    public long generateBrokerId(long accId) {
         //  Customer that own the account (actually, customer id minus 1)
         long  customerId = ((accId - 1) / MAX_ACCOUNTS_PER_CUST) - TPCEConstants.IDENT_SHIFT;
 
@@ -182,10 +182,10 @@ public class CustomerAccountsGenerator extends TableGenerator {
         // Note: this depends on broker ids being integer numbers from contiguous range.
         // The method of generating broker ids should be in sync with the BrokerGenerator
         return rnd.rndNthInt64Range(EGenRandom.RNG_SEED_BASE_BROKER_ID, accId - (10 * TPCEConstants.IDENT_SHIFT),
-                startFromBroker, startFromBroker + BROKERS_COUNT -1);
+ startFromBroker, startFromBroker + BROKERS_COUNT - 1);
     }
     
-    private TaxStatus getAccountTaxStatus(long accId)
+    public TaxStatus getAccountTaxStatus(long accId)
     {
         long oldSeed = rnd.getSeed();
 
