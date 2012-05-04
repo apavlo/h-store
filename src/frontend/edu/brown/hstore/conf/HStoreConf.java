@@ -305,14 +305,12 @@ public final class HStoreConf {
         public boolean exec_prefetch_queries;
         
         @ConfigProperty(
-<<<<<<< HEAD
-                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
-                		    "while idle or waiting on a distribute transaction.",
-                defaultBoolean=false,
-                experimental=true
-            )
-        public boolean exec_deferred_queries;
-=======
+//                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
+//                		    "while idle or waiting on a distribute transaction.",
+//                defaultBoolean=false,
+//                experimental=true
+//            )
+//        public boolean exec_deferred_queries;
             description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
             		    "queries for later execution if they are marked as deferrable.",
             defaultBoolean=false,
@@ -323,7 +321,6 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // MapReduce Options
         // ----------------------------------------------------------------------------
->>>>>>> 3273f9a... Added new 'deferrable' commandline argument for 'hstore-prepare' to mark Statements as deferrable when compiling the catalog. Added a new HStoreConf parameter 'site.exec_deferrable_queries'
         
         @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
