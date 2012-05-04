@@ -72,7 +72,7 @@ public class TestCommandLogger extends BaseTestCase {
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
         outputFile = FileUtil.getTempFile("log"); //"/research/hstore/mkirsch/testwal.log";
-        logger = new CommandLogWriter(hstore_site, outputFile.getAbsolutePath());
+        logger = new CommandLogWriter(hstore_site, outputFile);
     }
 
     @Override

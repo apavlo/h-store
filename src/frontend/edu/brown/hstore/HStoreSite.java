@@ -25,6 +25,7 @@
  ***************************************************************************/
 package edu.brown.hstore;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
@@ -442,7 +443,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_directory);
+            // It would be nice if we could come up with a unique name for this
+            // invocation of the system (like the cluster instanceId). But for now
+            // we'll just write out to our directory...
+            File logFile = new File(hstore_conf.site.exec_command_logging_directory +
+                                    File.separator +
+                                    this.getSiteName().toLowerCase() + ".log");
+            this.commandLogger = new CommandLogWriter(this, logFile);
         } else {
             this.commandLogger = null;
         }
@@ -1991,6 +1998,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        Status status = cresponse.getStatus();
+        assert(cresponse != null) :
+            "Missing ClientResponse for " + ts;
+        assert(cresponse.getClientHandle() != -1) :
+            "The client handle for " + ts + " was not set properly";
+        assert(status != Status.ABORT_MISPREDICT) :
+            "Trying to send back a client response for " + ts + " but the status is " + status;
+        
+        if (hstore_conf.site.exec_command_logging && status == Status.OK) {
+            if (this.commandLogger.write(ts) == false) {
+                if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+                ts.markAsNotDeletable();    
+            }
+        }
+        
         this.sendClientResponse(ts, cresponse, ts.isLogEnabled());
     }
     
@@ -2000,26 +2022,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      * @param logTxn
      */
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse, boolean logTxn) {
+    public void sendClientResponse(ClientResponseImpl cresponse,
+                                    RpcCallback<byte[]> clientCallback,
+                                    long initiateTime,
+                                    int restartCounter) {
         Status status = cresponse.getStatus();
-        assert(cresponse != null) :
-            "Missing ClientResponse for " + ts;
-        assert(cresponse.getClientHandle() != -1) :
-            "The client handle for " + ts + " was not set properly";
-        assert(status != Status.ABORT_MISPREDICT) :
-            "Trying to send back a client response for " + ts + " but the status is " + status;
-        
-        if (logTxn && status == Status.OK) {
-            if (this.commandLogger.write(ts) == false) {
-                if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
-                ts.markAsNotDeletable();    
-            }
-        }
  
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, status));
+        if (d) LOG.debug(String.format("%d - Sending back ClientResponse [status=%s]",
+                                       cresponse.getTransactionId(), status));
 
         // Check whether we should disable throttling
         cresponse.setRequestCounter(this.getNextRequestCounter());
@@ -2027,8 +2040,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);
-        cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
-        cresponse.setRestartCounter(ts.getRestartCounter());
+        cresponse.setClusterRoundtrip((int)(now - initiateTime));
+        cresponse.setRestartCounter(restartCounter);
         
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
@@ -2038,7 +2051,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // The problem is that we need access to the underlying array of the ByteBuffer,
         // but we can't get that from here.
         byte bytes[] = null;
-        int offset = this.getLocalPartitionOffset(ts.getBasePartition());
+        int offset = this.getLocalPartitionOffset(cresponse.getBasePartition());
         FastSerializer out = this.partition_serializers[offset]; 
         synchronized (out) {
             out.clear();
@@ -2049,12 +2062,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             bytes = out.getBytes();
         } // SYNCH
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, requestCtr=%d]",
-                                       ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+        if (d) LOG.debug(String.format("%d - Serialized ClientResponse [throttle=%s, requestCtr=%d]",
+                                       cresponse.getTransactionId(),
+                                       cresponse.getThrottleFlag(),
+                                       cresponse.getRequestCounter()));
         
         // Send result back to client!
         try {
-            ts.getClientCallback().run(bytes);
+            clientCallback.run(bytes);
         } catch (CancelledKeyException ex) {
             // IGNORE
         }
