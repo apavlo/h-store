@@ -8,6 +8,8 @@ import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
+
 public class LogEntry implements FastSerializable {
     
     protected long txnId;
@@ -15,13 +17,11 @@ public class LogEntry implements FastSerializable {
     protected int procId;
     protected ParameterSet procParams;
     
-    /** Set to true if we know that this entry has been written to disk */
-    protected boolean flushed = false;
+    /** Fill this if it needs to be saved to be written as part of group commit */
+    protected LocalTransaction toWrite = null;
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        int stupidInt = in.readInt(); //this is the amount of space the object takes up in the buffer, in case we care
-        
         this.txnId = in.readLong();
         this.timestamp = in.readLong();
         this.procId = in.readInt();
