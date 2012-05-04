@@ -19,6 +19,7 @@ package org.voltdb;
 
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 /**
@@ -92,6 +93,14 @@ public class SQLStmt {
 
     public Statement getStatement() {
         return (this.catStmt);
+    }
+    
+    /**
+     * Get the Procedure catalog object for this Statement
+     * @return
+     */
+    public final Procedure getProcedure() {
+        return (this.catStmt != null ? (Procedure)this.catStmt.getParent() : null);
     }
     
     @Override

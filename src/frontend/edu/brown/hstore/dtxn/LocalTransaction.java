@@ -202,6 +202,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Constructor
+     * This does not fully initialize this transaction.
+     * You must call init() before this can be used
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
@@ -268,7 +270,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (this);
     }
-
+    
     /**
      * Testing Constructor
      * @param txn_id
