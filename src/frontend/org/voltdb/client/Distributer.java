@@ -544,7 +544,7 @@ class Distributer {
             StatsUploaderSettings statsSettings,
             int backpressureWait) {
         if (statsSettings != null) {
-            m_statsLoader = new ClientStatsLoader(statsSettings, this);
+            m_statsLoader = new ClientStatsFusionLoader(statsSettings, this);
         } else {
             m_statsLoader = null;
         }
@@ -639,7 +639,7 @@ class Distributer {
                 if (debug.get()) LOG.debug("statsLoader = " + m_statsLoader);
                 try {
                     m_statsLoader.start( timestamp, addr);
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     throw new IOException(e);
                 }
             }

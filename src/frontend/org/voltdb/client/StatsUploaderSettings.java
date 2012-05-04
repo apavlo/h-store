@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 
 import edu.brown.utils.StringUtil;
@@ -35,8 +34,6 @@ import edu.brown.utils.StringUtil;
  *
  */
 public class StatsUploaderSettings {
-    private static final Logger LOG = Logger.getLogger(StatsUploaderSettings.class);
-    
     final String databaseURL;
     final String databaseUser;
     final String databasePass;
@@ -88,9 +85,6 @@ public class StatsUploaderSettings {
             String msg = "Not connecting to SQL reporting server as connection URL is null or missing.";
             throw new RuntimeException(msg);
         }
-
-        if (LOG.isDebugEnabled())
-            LOG.debug("Creating new connection to stats database [" + databaseURL + "]");
     }
     
     public Catalog getCatalog() {
