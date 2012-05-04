@@ -100,6 +100,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -458,6 +459,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * How much time it takes for this PartitionExecutor to execute a transaction
      */
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
+    /**
+     * How much time did this PartitionExecutor spend on utility work
+     */
+    private final ProfileMeasurement work_utility_time = new ProfileMeasurement("EE_UTILITY");
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -768,22 +773,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                try {
-                    work = this.work_queue.poll();
-                    if (work == null) {
-                        // See if there is anything that we can do while we wait
-                        // XXX this.utilityWork(null);
-                        
-                        if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-                        if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
-                        work = this.work_queue.take();
-                        if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
-                    }
-                } catch (InterruptedException ex) {
-                    if (d && this.isShuttingDown() == false) 
-                        LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
-                    stop = true;
-                    break;
+                work = this.work_queue.poll();
+                if (work == null) {
+                	if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
+                	if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
+                	
+                    // See if there is anything that we can do while we wait
+                	do {
+                		this.utilityWork();
+                		work = this.work_queue.poll();
+                	} while (work == null);
+                    if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
                 }
                 
                 this.currentTxnId = work.getTxnId();
@@ -940,7 +940,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Special function that allows us to do some utility work while 
      * we are waiting for a response or something real to do.
      */
-    protected void utilityWork(CountDownLatch dtxnLatch) {
+    protected void utilityWork() {
         
         
        /* We need to start popping from the deferred_queue here. There is no need
@@ -948,17 +948,21 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         * because we know we this.work_queue.isEmpty() will be false as soon as we
         * pop one local txn off of deferred_queue. We will arrive back in utilityWork() 
         * when that txn finishes if no new txn's have entered.*/
-    	do {
-    		LocalTransaction ts = deferred_queue.poll();
-    		if (ts == null) break;
-    		this.queueNewTransaction(ts);
-        } while ((dtxnLatch != null && dtxnLatch.getCount() > 0) || (dtxnLatch == null && this.work_queue.isEmpty()));
-        //while (this.work_queue.isEmpty()) {
-        //}
-	     // Try to free some memory
-//	        this.tmp_fragmentParams.reset();
-//	        this.tmp_serializedParams.clear();
-//	        this.tmp_EEdependencies.clear();
+    	if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
+		Pair<SQLStmt,ParameterSet> def_work = deferred_queue.poll();
+		if (def_work == null) return;
+		SQLStmt[] stmt = new SQLStmt[1];
+		stmt[0] = def_work.getFirst();
+		ParameterSet[] params = new ParameterSet[1];
+		params[0] = def_work.getSecond(); // put near temp stuff
+		executeSQLStmtBatch(new LocalTransaction(hstore_site), 1, stmt, params, false, false);
+    	if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
+    	
+		// Try to free some memory
+		// TODO(pavlo): Is this really safe to do?
+//        this.tmp_fragmentParams.reset();
+//        this.tmp_serializedParams.clear();
+//        this.tmp_EEdependencies.clear();
     }
 
     public void tick() {
@@ -1086,6 +1090,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public ProfileMeasurement getWorkExecTime() {
         return (this.work_exec_time);
+    }
+    public ProfileMeasurement getWorkUtilityTime() {
+        return (this.work_utility_time);
     }
     /**
      * Returns the number of txns that have been invoked on this partition
@@ -2504,16 +2511,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 
                 if (t) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
                 if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
-                try {
-                    fragments = queue.takeFirst(); // BLOCKING
-                } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) {
-                        LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
-                    }
-                    return (null);
-                } finally {
-                    if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                fragments = queue.poll(); // NON-BLOCKING
+                if (fragments == null) {
+                	do {
+                		this.utilityWork();
+                		fragments = queue.poll();
+                	} while (fragments == null);
                 }
+                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
             assert(fragments != null);
             
@@ -2707,21 +2712,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (t) LOG.trace(ts.toString());
             }
             if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
-            boolean done = false;
-            // XXX this.utilityWork(latch);
-            try {
-                done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException ex) {
-                if (this.hstore_site.isShuttingDown() == false) {
-                    LOG.error(String.format("%s - We were interrupted while waiting for results", ts), ex);
-                }
-                done = true;
-            } catch (Throwable ex) {
-                new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
-            } finally {
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
-            }
-            if (done == false && this.isShuttingDown() == false) {
+            boolean timeout = false;
+            do {
+            	this.utilityWork();
+            	// TODO: Need to add timeout check
+            	// hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
+            } while (latch.getCount() > 0);
+            if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+            
+            if (timeout && this.isShuttingDown() == false) {
                 LOG.warn(String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
                                                 ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
                 LOG.warn("Procedure Parameters:\n" + ts.getInvocation().getParams());
