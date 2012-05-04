@@ -331,6 +331,14 @@ public final class HStoreConf {
         )
         public boolean exec_prefetch_queries;
         
+        @ConfigProperty(
+            description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
+            		    "queries for later execution if they are marked as deferrable.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_deferrable_queries;
+        
         // ----------------------------------------------------------------------------
         // MapReduce Options
         // ----------------------------------------------------------------------------
