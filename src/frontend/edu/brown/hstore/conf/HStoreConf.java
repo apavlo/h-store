@@ -119,6 +119,13 @@ public final class HStoreConf {
         )
         public boolean cpu_affinity_one_partition_per_core;
         
+        @ConfigProperty(
+                description="Mark if this site is a blank one for Live Migration.",
+                defaultBoolean=false,
+                experimental=true
+            )
+            public boolean isBlank;
+        
         // ----------------------------------------------------------------------------
         // Execution Options
         // ----------------------------------------------------------------------------
@@ -1260,6 +1267,11 @@ public final class HStoreConf {
             Map<String, String> confParams = args.getHStoreConfParameters();
             if (confParams != null && confParams.isEmpty() == false) {
                 this.loadFromArgs(confParams);
+            }
+            
+            //Live Migration Param -Yang(For now, just check if args has optional parameter)
+            if(args.getOptParamCount() != 0){
+                this.site.isBlank = true;
             }
         }
         // TODO: Remove

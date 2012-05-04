@@ -59,6 +59,7 @@ import org.voltdb.utils.Pair;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.clusterreorganizer.ClusterReorganizer;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
@@ -213,6 +214,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TODO(xin): MapReduceHelperThread
      */
     private final MapReduceHelperThread mr_helper;
+    
+    private final ClusterReorganizer cluster_reorganizer;
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -389,6 +392,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper = new MapReduceHelperThread(this);
         } else {
             this.mr_helper = null;
+        }
+        
+        // Live Migration ClusterReorganizer thread -Yang
+        if(this.hstore_conf.site.isBlank){
+            this.cluster_reorganizer = new ClusterReorganizer(this);
+        } else {
+            this.cluster_reorganizer = null;
         }
         
         // Distributed Transaction Queue Manager
@@ -687,6 +697,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public EventObservable<Object> getReadyObservable() {
         return (this.ready_observable);
     }
+
     /**
      * Get the Observable handle for this HStore for when the first non-sysproc
      * transaction request arrives and we are technically beginning the workload
@@ -736,6 +747,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(handler);
         t.start();
+        
+        // Start ClusterReorganizer -- Yang (For Live Migration)
+        if(this.cluster_reorganizer != null){
+            t = new Thread(this.cluster_reorganizer);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(handler);
+            t.start();
+        }
         
         // Start Status Monitor
         if (hstore_conf.site.status_enable) {

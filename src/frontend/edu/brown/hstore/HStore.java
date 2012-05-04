@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import junit.framework.Assert;
-
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
@@ -38,7 +36,6 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
-
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
@@ -176,22 +173,23 @@ public abstract class HStore {
         );
         
         // HStoreSite Stuff
-        int site_id = 0;
-        Site catalog_site = null;
-       // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
-       // check if there are optional parameters: far from elegant but it works...
-       // only works for parameter like: localhost:0:0-1
+
+        Catalog cal = null;
+        // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
+        // check if there are optional parameters: far from elegant but it works...
+        // only works for parameter like: localhost:1:2-3
         if(args.getOptParamCount() != 0){
         	String optParam = args.getOptParam(0);
-        	catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, 0);
-        	FixCatalog.writeHostInfo(catalog_site.getCatalog(), new ClusterConfiguration(optParam));
+        	ClusterConfiguration cc = new ClusterConfiguration(optParam);
+        	cal = args.catalog_db.getCatalog();
+        	cal = FixCatalog.addHostInfo(cal, cc);
         }
-        else{
-        	site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
-            Thread t = Thread.currentThread();
-            t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
-            catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
-        }
+          
+        final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
+        
+        Thread t = Thread.currentThread();
+        t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
+        final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
@@ -201,6 +199,7 @@ public abstract class HStore {
         
         HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
 
+        //___________________________________________________________________________
         // ----------------------------------------------------------------------------
         // Workload Trace Output
         // ----------------------------------------------------------------------------
@@ -212,7 +211,7 @@ public abstract class HStore {
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
             LOG.info("Enabled workload logging '" + tracePath + "'");
         }
-        
+
         if (args.thresholds != null) hstore_site.setThresholds(args.thresholds);
         
         // ----------------------------------------------------------------------------
