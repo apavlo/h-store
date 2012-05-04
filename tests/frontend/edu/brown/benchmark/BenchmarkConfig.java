@@ -99,6 +99,8 @@ public class BenchmarkConfig {
     public boolean markovRecomputeAfterEnd;
     public boolean markovRecomputeAfterWarmup;
     
+    public String deferrable[];
+    
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
     
@@ -218,6 +220,7 @@ public class BenchmarkConfig {
             Double thresholdsValue,
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
+            String deferrable[],
             boolean dumpDatabase,
             String dumpDatabaseDir,
             boolean jsonOutput
@@ -278,6 +281,8 @@ public class BenchmarkConfig {
         this.markov_thresholdsValue = thresholdsValue;
         this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
         this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
+        
+        this.deferrable = deferrable;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
