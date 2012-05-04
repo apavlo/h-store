@@ -451,6 +451,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
+                
+                pm = es.getWorkUtilityTime();
+                m.put("Utility Time", String.format("%.2fms total / %.2fms avg",
+                                                pm.getTotalThinkTimeMS(),
+                                                pm.getAverageThinkTimeMS()));
             }
             
             
