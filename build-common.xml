@@ -69,6 +69,7 @@
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
+<arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
 <arg value="site.mapreduce_reduce_blocking=${site.mapreduce_reduce_blocking}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
