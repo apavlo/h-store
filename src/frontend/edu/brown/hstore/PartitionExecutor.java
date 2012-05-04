@@ -448,6 +448,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
     
+    
+    /**
+     * The following three arrays are used by utilityWork() to create transactions
+     * for deferred queries
+     */
+	private final SQLStmt[] tmp_def_stmt = new SQLStmt[1];
+	private final ParameterSet[] tmp_def_params = new ParameterSet[1];
+	private final LocalTransaction tmp_def_txn = new LocalTransaction(hstore_site);
+
+    
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
     // ----------------------------------------------------------------------------
@@ -944,20 +954,29 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected void utilityWork() {
         // TODO: Set the txnId in our handle to be what the original txn was that
         //       deferred this query.
-        
-       /* We need to start popping from the deferred_queue here. There is no need
-        * for a while loop if we're going to requeue each popped txn in wthe work_queue,
-        * because we know we this.work_queue.isEmpty() will be false as soon as we
-        * pop one local txn off of deferred_queue. We will arrive back in utilityWork() 
-        * when that txn finishes if no new txn's have entered.*/
+    	System.out.println("entering utilitywork");
+        if (! hstore_conf.site.exec_deferrable_queries){
+        	return; // for now, unless andy wants to free up meomory in utilityWork
+        }
     	if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
-		Pair<SQLStmt,ParameterSet> def_work = deferred_queue.poll();
+		DeferredWork def_work = deferred_queue.poll();
 		if (def_work == null) return;
-		SQLStmt[] stmt = new SQLStmt[1];
-		stmt[0] = def_work.getFirst();
-		ParameterSet[] params = new ParameterSet[1];
-		params[0] = def_work.getSecond(); // put near temp stuff
-		executeSQLStmtBatch(new LocalTransaction(hstore_site), 1, stmt, params, false, false);
+		
+
+		tmp_def_stmt[0] = def_work.getStmt();
+		tmp_def_params[0] = def_work.getParams();
+		
+		tmp_def_txn.init(def_work.getTxnId(), 
+				   -1, // We don't really need the clientHandle
+				   this.partitionId,
+				   hstore_site.getSingletonPartitionList(partitionId),
+				   false,
+				   false,
+				   tmp_def_stmt[0].getProcedure(),
+				   null, // We don't need the invocation anymore
+				   null // We don't need the client callback either
+				);
+		executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
     	if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
     	
 		// Try to free some memory
@@ -2137,11 +2156,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                             boolean forceSinglePartition) {
         
         if (hstore_conf.site.exec_deferrable_queries) {
-            // TODO: Loop through batchStmts and check whether their corresponding Statement
-            // is marked as deferrable. If so, then remove them from batchStmts and batchParams
-            // (sliding everyone over by one in the arrays). Queue up the deferred query.
-            // Be sure decrement batchSize after you finished processing this.
-            // EXAMPLE: batchStmts[0].getStatement().getDeferrable()    
+            for (int i=0; i<batchSize; i++){
+            	if (batchStmts[i].getStatement().getDeferrable()){
+            		deferred_queue.add(new DeferredWork(ts.getTransactionId(), batchStmts[i], batchParams[i]));
+            		for (int toSlide = i+1; toSlide<batchSize; toSlide++) {
+            			batchStmts[toSlide-1]=batchStmts[toSlide];
+            			batchParams[toSlide-1]=batchParams[toSlide];
+            		}
+            		batchSize--;
+            	}
+            }
+        	   
         }
         
         // Calculate the hash code for this batch to see whether we already have a planner

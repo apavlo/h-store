@@ -21,7 +21,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * There's probably no reason this needs to be its own class with overrides, except
  * this way we can experiment more easily for now.
  */
-public class PartitionExecutorDeferredQueue extends PriorityQueue<Pair<SQLStmt, ParameterSet>> {
+public class PartitionExecutorDeferredQueue extends PriorityQueue<DeferredWork> {
     
     private static final long serialVersionUID = 1L;
     private final List<TransactionInfoBaseMessage> swap = new ArrayList<TransactionInfoBaseMessage>();
@@ -31,7 +31,7 @@ public class PartitionExecutorDeferredQueue extends PriorityQueue<Pair<SQLStmt, 
     }
     
     @Override
-    public Pair<SQLStmt, ParameterSet> poll() {
+    public DeferredWork poll() {
         return this.poll();
     }
     
