@@ -455,8 +455,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
 	private final SQLStmt[] tmp_def_stmt = new SQLStmt[1];
 	private final ParameterSet[] tmp_def_params = new ParameterSet[1];
-	private final LocalTransaction tmp_def_txn = new LocalTransaction(hstore_site);
-
+	private LocalTransaction tmp_def_txn;
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -726,9 +725,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param hstore_site
      */
     public void initHStoreSite(HStoreSite hstore_site) {
+    	LOG.info(String.format("@ambell Starting HStoreSite!!!!!!!!!!!!!!!"));
         if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
+    	LOG.info(String.format("@ambell hstore_site is "+hstore_site));
+        tmp_def_txn = new LocalTransaction(hstore_site);
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         
