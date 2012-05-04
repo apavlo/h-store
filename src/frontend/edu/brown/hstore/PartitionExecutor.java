@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -941,7 +942,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * we are waiting for a response or something real to do.
      */
     protected void utilityWork() {
-        
+        // TODO: Set the txnId in our handle to be what the original txn was that
+        //       deferred this query.
         
        /* We need to start popping from the deferred_queue here. There is no need
         * for a while loop if we're going to requeue each popped txn in wthe work_queue,
