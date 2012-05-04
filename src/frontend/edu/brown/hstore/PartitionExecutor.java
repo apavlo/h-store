@@ -2886,6 +2886,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // Send back the result right now!
             else {
+                if (hstore_conf.site.exec_command_logging) ts.markLogEnabled();
                 this.hstore_site.sendClientResponse(ts, cresponse);
                 ts.markAsDeletable();
                 this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
