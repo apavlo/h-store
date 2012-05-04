@@ -43,6 +43,7 @@ import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -70,7 +71,7 @@ public class TestCommandLogger extends BaseTestCase {
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
-        outputFile = new File("/ltmp/hstore/wal.log"); //"/research/hstore/mkirsch/testwal.log";
+        outputFile = FileUtil.getTempFile("log"); //"/research/hstore/mkirsch/testwal.log";
         logger = new CommandLogWriter(hstore_site, outputFile.getAbsolutePath());
     }
 
