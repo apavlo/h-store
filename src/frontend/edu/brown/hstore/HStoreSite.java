@@ -443,7 +443,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_file);
+            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_directory);
         } else {
             this.commandLogger = null;
         }
