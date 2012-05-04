@@ -124,6 +124,17 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean not_deletable = false;
     
     /**
+     * If set to true, then this will need to have an entry written
+     * to the command log for its invocation
+     */
+    private boolean log_enabled = false;
+    
+    /**
+     * If set to true, then this txn's log entry has been flushed to disk
+     */
+    private boolean log_flushed = false;
+    
+    /**
      * The timestamp (from EstTime) that our transaction showed up
      * at this HStoreSite
      */
@@ -343,6 +354,8 @@ public class LocalTransaction extends AbstractTransaction {
         this.restart_ctr = 0;
         this.cresponse.finish();
 
+        this.log_enabled = false;
+        this.log_flushed = false;
         this.needs_restart = false;
         this.deletable = false;
         this.not_deletable = false;
@@ -897,6 +910,45 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     // ----------------------------------------------------------------------------
+    // COMMAND LOGGING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this txn as needing to have a log entry written to disk
+     */
+    public void markLogEnabled() {
+        assert(this.log_enabled == false) :
+            "Trying to mark " + this + " as needing to be logged more than once";
+        this.log_enabled = true;
+    }
+    
+    /**
+     * Returns true if this txn needs to have a command log entry written for it
+     * @return
+     */
+    public boolean isLogEnabled() {
+        return (this.log_enabled);
+    }
+    
+    /**
+     * Mark this txn as having it's log entry flushed to disk
+     * This should only be invoked once per invocation
+     */
+    public void markLogFlushed() {
+        assert(this.log_flushed == false) :
+            "Trying to mark " + this + " as flushed more than once";
+        this.log_flushed = true;
+    }
+    
+    /**
+     * Returns true if this txn's log entry has been flushed to disk.
+     * @return
+     */
+    public boolean isLogFlushed() {
+        return (this.log_flushed);
+    }
+    
+    // ----------------------------------------------------------------------------
     // PREFETCHABLE QUERIES
     // ----------------------------------------------------------------------------
     
@@ -1378,6 +1430,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
+        m.put("Log Flushed", this.log_flushed);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
 

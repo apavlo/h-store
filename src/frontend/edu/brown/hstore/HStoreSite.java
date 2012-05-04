@@ -45,7 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -1992,26 +1991,39 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        this.sendClientResponse(ts, cresponse, ts.isLogEnabled());
+    }
+    
+    /**
+     * 
+     * @param ts
+     * @param cresponse
+     * @param logTxn
+     */
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse, boolean logTxn) {
+        Status status = cresponse.getStatus();
         assert(cresponse != null) :
             "Missing ClientResponse for " + ts;
         assert(cresponse.getClientHandle() != -1) :
             "The client handle for " + ts + " was not set properly";
-        assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
-            "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
+        assert(status != Status.ABORT_MISPREDICT) :
+            "Trying to send back a client response for " + ts + " but the status is " + status;
         
-        if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
-            this.commandLogger.write(ts);
+        if (logTxn && status == Status.OK) {
+            if (this.commandLogger.write(ts) == false) {
+                if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+                ts.markAsNotDeletable();    
+            }
         }
-
-        // Don't send anything back if it's a mispredict because it's as waste of time...
+ 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, cresponse.getStatus()));
+        if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, status));
 
         // Check whether we should disable throttling
         cresponse.setRequestCounter(this.getNextRequestCounter());
-        cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+        cresponse.setThrottleFlag(status == Status.ABORT_THROTTLED);
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);
