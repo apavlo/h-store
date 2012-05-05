@@ -107,11 +107,6 @@ public class LocalTransaction extends AbstractTransaction {
      * Catalog object of the Procedure that this transaction is currently executing
      */
     protected Procedure catalog_proc;
-
-    /**
-     * The queued up ClientResponse that we need to send back for this txn
-     */
-    private final ClientResponseImpl cresponse = new ClientResponseImpl();
     
     /**
      * The number of times that this transaction has been restarted 
@@ -352,7 +347,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        this.cresponse.finish();
 
         this.log_enabled = false;
         this.log_flushed = false;
@@ -594,10 +588,10 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionInitCallback getTransactionInitCallback() {
         return (this.dtxnState.init_callback);
     }
-    public TransactionPrepareCallback initTransactionPrepareCallback() {
+    public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
         assert(this.dtxnState.prepare_callback.isInitialized() == false) :
             "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
-        this.dtxnState.prepare_callback.init(this);
+        this.dtxnState.prepare_callback.init(this, cresponse);
         return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
@@ -722,11 +716,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public long getInitiateTime() {
         return (this.initiateTime);
-    }
-    
-    public ClientResponseImpl getClientResponse() {
-        assert(this.cresponse != null);
-        return (this.cresponse);
     }
     
     /**

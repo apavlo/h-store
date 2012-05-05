@@ -55,6 +55,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -224,7 +225,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * ClientResponse Processor Thread
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
-    private final LinkedBlockingDeque<LocalTransaction> ready_responses = new LinkedBlockingDeque<LocalTransaction>();
+    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
      * TODO(xin): MapReduceHelperThread
@@ -1765,7 +1766,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        ts, status, ts.getClientHandle()));
         
         ts.setStatus(status);
-        ClientResponseImpl cresponse = ts.getClientResponse();
+        ClientResponseImpl cresponse = new ClientResponseImpl();
         cresponse.init(ts.getTransactionId(),
                        ts.getClientHandle(),
                        ts.getBasePartition(),
@@ -2088,7 +2089,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, ts.getBasePartition(), cr.getStatus(), this.ready_responses.size()));
-        this.ready_responses.add(ts);
+        this.ready_responses.add(Pair.of(ts,cr));
     }
 
     /**

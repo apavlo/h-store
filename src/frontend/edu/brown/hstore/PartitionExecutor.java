@@ -2917,7 +2917,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.setExecutionMode(ts, newMode);
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
-            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
+            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
@@ -3107,7 +3107,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int aborted = 0;
         while ((ts = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
                                                                         this.queued_responses.pollFirst())) != null) {
-            ClientResponseImpl cr = ts.getClientResponse();
+            ClientResponseImpl cr = new ClientResponseImpl();
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.
             // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
