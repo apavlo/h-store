@@ -677,6 +677,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.partition_site_xref[partition_id]);
     }
     
+    /**
+     * Return a Collection that only contains the given partition id
+     * @param partition
+     */
+    public Collection<Integer> getSingletonPartitionList(int partition) {
+        return (this.single_partition_sets[partition]);
+    }
+    
     @SuppressWarnings("unchecked")
     public <T extends AbstractTransaction> T getTransaction(Long txn_id) {
         return ((T)this.inflight_txns.get(txn_id));

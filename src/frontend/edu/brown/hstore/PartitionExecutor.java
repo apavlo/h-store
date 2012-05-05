@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -972,7 +973,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * we are waiting for a response or something real to do.
      */
     protected void utilityWork(CountDownLatch dtxnLatch) {
-        
+        // TODO: Set the txnId in our handle to be what the original txn was that
+        //       deferred this query.
         
        /* We need to start popping from the deferred_queue here. There is no need
         * for a while loop if we're going to requeue each popped txn in wthe work_queue,
@@ -2168,15 +2170,29 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
     /**
      * Execute a SQLStmt batch at this partition.
-     * @param ts
-     * @param batchSize
-     * @param batchStmts
-     * @param batchParams
-     * @param finalTask
-     * @param forceSinglePartition
+     * @param ts The txn handle that is executing this query batch
+     * @param batchSize The number of SQLStmts that the txn queued up using voltQueueSQL()
+     * @param batchStmts The SQLStmts that the txn is trying to execute
+     * @param batchParams The input parameters for the SQLStmts
+     * @param finalTask Whether the txn has marked this as the last batch that they will ever execute
+     * @param forceSinglePartition Whether to force the BatchPlanner to only generate a single-partition plan  
      * @return
      */
-    public VoltTable[] executeSQLStmtBatch(LocalTransaction ts, int batchSize, SQLStmt batchStmts[], ParameterSet batchParams[], boolean finalTask, boolean forceSinglePartition) {
+    public VoltTable[] executeSQLStmtBatch(LocalTransaction ts,
+                                            int batchSize,
+                                            SQLStmt batchStmts[],
+                                            ParameterSet batchParams[],
+                                            boolean finalTask,
+                                            boolean forceSinglePartition) {
+        
+        if (hstore_conf.site.exec_deferrable_queries) {
+            // TODO: Loop through batchStmts and check whether their corresponding Statement
+            // is marked as deferrable. If so, then remove them from batchStmts and batchParams
+            // (sliding everyone over by one in the arrays). Queue up the deferred query.
+            // Be sure decrement batchSize after you finished processing this.
+            // EXAMPLE: batchStmts[0].getStatement().getDeferrable()    
+        }
+        
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         BatchPlanner planner = this.batchPlanners.get(batchHashCode);
