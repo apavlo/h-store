@@ -27,10 +27,10 @@ package edu.brown.hstore.wal;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -38,7 +38,9 @@ import org.voltdb.catalog.Site;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
@@ -91,7 +93,13 @@ public class TestCommandLogger extends BaseTestCase {
                     Collections.singleton(BASE_PARTITION),
                     catalog_proc,
                     TARGET_PARAMS);
-        boolean ret = logger.appendToLog(ts);
+        ClientResponseImpl cresponse = new ClientResponseImpl(txnId,
+                                                              12345l,
+                                                              BASE_PARTITION,
+                                                              Status.OK,
+                                                              HStoreConstants.EMPTY_RESULT,
+                                                              "");
+        boolean ret = logger.appendToLog(ts, cresponse);
         assertTrue(ret);
         logger.shutdown(); // This closes the file
         

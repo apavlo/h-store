@@ -25,27 +25,18 @@
  ***************************************************************************/
 package edu.brown.hstore.wal;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.Map;
-import java.util.HashMap;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.lang.Math;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.messaging.FastDeserializer;
-import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
-import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -76,12 +67,12 @@ public class CommandLogWriter implements Shutdownable {
      * need in order to send back a ClientResponse
      */
     protected class WriterLogEntry extends LogEntry {
-        protected ClientResponse cresponse;
+        protected ClientResponseImpl cresponse;
         protected RpcCallback<byte[]> clientCallback;
         protected long initiateTime;
         protected int restartCounter;
         
-        public LogEntry init(LocalTransaction ts, ClientResponse cresponse) {
+        public LogEntry init(LocalTransaction ts, ClientResponseImpl cresponse) {
             this.cresponse = cresponse;
             this.clientCallback = ts.getClientCallback();
             this.initiateTime = ts.getInitiateTime();
@@ -135,9 +126,9 @@ public class CommandLogWriter implements Shutdownable {
             } // FOR
             idx = new CircularAtomicInteger(size);
         }
-        public LogEntry next(LocalTransaction ts) {
-            LogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
-            return e.init(ts);
+        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
+            WriterLogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
+            return e.init(ts, cresponse);
         }
         public boolean isFlushReady() {
             return (this.buffer[this.buffer.length - 1].isInitialized());
@@ -273,9 +264,13 @@ public class CommandLogWriter implements Shutdownable {
                 //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
                 //...
                 //...
-//                for (LogEntry entry : buffer.buffer) {
-//                    hstore_site.sendClientResponse(entry.toWrite, entry.toWrite.getClientResponse(), false);
-//                }
+                for (WriterLogEntry entry : buffer.buffer) {
+                    hstore_site.sendClientResponse(entry.cresponse,
+                                                   entry.clientCallback,
+                                                   entry.initiateTime,
+                                                   entry.restartCounter);
+                                                   
+                }
             
                 buffer.flushCleanup();
             } catch (Exception e) {
@@ -292,14 +287,14 @@ public class CommandLogWriter implements Shutdownable {
      * @param ts
      * @return
      */
-    public boolean appendToLog(final LocalTransaction ts) {
+    public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse) {
         if (debug.get()) LOG.debug(ts + " - Writing out WAL entry for committed transaction");
         
         int basePartition = ts.getBasePartition();
         EntryBuffer buffer = this.entries[basePartition];
         assert(buffer != null) :
             "Unexpected log entry buffer for partition " + basePartition;
-        LogEntry entry = buffer.next(ts);
+        LogEntry entry = buffer.next(ts, cresponse);
         assert(entry != null);
         FastSerializer fs = this.serializers[basePartition];
         assert(fs != null);
@@ -338,7 +333,6 @@ public class CommandLogWriter implements Shutdownable {
                         this.groupCommit(buffer);
                         return true;
                     } else {
-                        entry.toWrite = ts;
                         return false;
                     }
                 } else {
