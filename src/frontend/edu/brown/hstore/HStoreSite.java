@@ -55,7 +55,6 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
@@ -2008,7 +2007,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
         if (hstore_conf.site.exec_command_logging && status == Status.OK) {
-            if (this.commandLogger.appendToLog(ts) == false) {
+            if (this.commandLogger.appendToLog(ts, cresponse) == false) {
                 if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
                 ts.markAsNotDeletable();    
             }
