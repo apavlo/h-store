@@ -33,7 +33,10 @@ import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import edu.brown.catalog.CatalogUtil;
@@ -180,11 +183,10 @@ public abstract class HStore {
         // only works for parameter like: localhost:1:2-3
         if(args.getOptParamCount() != 0){
         	String optParam = args.getOptParam(0);
-        	ClusterConfiguration cc = new ClusterConfiguration(optParam);
-        	cal = args.catalog_db.getCatalog();
-        	cal = FixCatalog.addHostInfo(cal, cc);
+            ClusterConfiguration cc = new ClusterConfiguration(args.catalog_db.getCatalog(), optParam);
+        	FixCatalog.writeHostInfo(args.catalog_db.getCatalog(), cc);            
         }
-          
+        
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
         
         Thread t = Thread.currentThread();

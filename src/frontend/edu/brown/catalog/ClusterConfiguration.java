@@ -11,6 +11,12 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 import org.voltdb.compiler.ClusterConfig;
 
 import edu.brown.hstore.HStoreThreadManager;
@@ -84,6 +90,45 @@ public class ClusterConfiguration extends ClusterConfig {
         }
         for (String host_info : host_triplets) {
             this.addPartition(host_info);
+        } // FOR
+    }
+    /**
+     * This constructor populates the hostinfo in the catalog and cc into
+     * one new cc, particularly used for Live Migration --Yang
+     * @param catalog
+     * @param cc
+     */
+    public ClusterConfiguration(Catalog catalog, String hostsFromOpt){
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        CatalogMap<Host> hosts = catalog_clus.getHosts();
+        CatalogMap<Site> sites = catalog_clus.getSites();
+        Site[] sites_value = sites.values();
+        Host[] hosts_value = hosts.values();
+        //reconstruct host_info strings
+        StringBuffer host_info = new StringBuffer();
+        for(int i=0; i<hosts_value.length; i++){
+            String host_name = hosts_value[i].getName();
+            for(int j=0; j<sites_value.length; j++){
+                int site_id = sites_value[i].getId();
+                CatalogMap<Partition> partitions = sites_value[i].getPartitions();
+                Partition[] partitions_value = partitions.values();
+                int first_partition = partitions_value[0].getId();
+                int last_partition = partitions_value[partitions_value.length - 1].getId();
+                String tmp_host_info = host_name + ":" +site_id +":"+first_partition+"-"+(last_partition)+";";
+                host_info.append(tmp_host_info);
+            }
+        }
+        host_info.append(hostsFromOpt);
+        
+        List<String> host_triplets = new ArrayList<String>();
+        if (FileUtil.exists(host_info.toString())) {
+            String contents = FileUtil.readFile(host_info.toString());
+            CollectionUtil.addAll(host_triplets, contents.split("\n"));
+        } else {
+            CollectionUtil.addAll(host_triplets, host_info.toString().split(";"));
+        }
+        for (String info : host_triplets) {
+            this.addPartition(info);
         } // FOR
     }
     
