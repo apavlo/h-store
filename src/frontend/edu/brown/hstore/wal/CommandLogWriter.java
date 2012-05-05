@@ -81,9 +81,8 @@ public class CommandLogWriter implements Shutdownable {
         protected long initiateTime;
         protected int restartCounter;
         
-        @Override
-        public LogEntry init(LocalTransaction ts) {
-            this.cresponse = ts.getClientResponse();
+        public LogEntry init(LocalTransaction ts, ClientResponse cresponse) {
+            this.cresponse = cresponse;
             this.clientCallback = ts.getClientCallback();
             this.initiateTime = ts.getInitiateTime();
             this.restartCounter = ts.getRestartCounter();

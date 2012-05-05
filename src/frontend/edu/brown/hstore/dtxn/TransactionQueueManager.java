@@ -658,7 +658,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
         
         // HACK: Store the status in the embedded ClientResponse
-        ts.getClientResponse().setStatus(status);
         if (this.restartQueue.offer(ts) == false) {
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.markAsDeletable();
