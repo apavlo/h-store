@@ -14,6 +14,8 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import junit.framework.Assert;
+
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
@@ -963,9 +965,15 @@ public class HStoreCoordinator implements Shutdownable {
                 latch.countDown();
             }
         };
-        //extract additional host_info from catalog 
+        //extract additional host_info from catalog. We want to check if the host_info
+        //is like host00:1:2-3 and host00 will be replaced by localhost(compromised solution)
+        //Will be fixed later
         String host_info = getNewHostInfoFromCatalog(catalog);
-        
+        String[] host_info_pieces = host_info.split(":");
+        assert(host_info_pieces.length == 3) : "host_info should be like localhost:1:2-3";
+        if(host_info_pieces[0].matches("host[0-9][0-9]")){
+            host_info = "localhost" + ":" + host_info_pieces[1] + ":" + host_info_pieces[2];
+        }
         // Send out Live Migration request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             if (e.getKey().intValue() == this.local_site_id) continue;
