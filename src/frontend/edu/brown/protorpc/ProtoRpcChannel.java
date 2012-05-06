@@ -277,6 +277,7 @@ public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel 
                     channel.configureBlocking(false);
 
                     // this connect is non-blocking and should always return false.
+                    //boolean finished = channel.connect(addresses[index]);
                     boolean finished = channel.connect(addresses[index]);
                     if (finished) {
                         throw new IllegalStateException("async connect finished instantly?");

@@ -92,8 +92,18 @@ public abstract class FixCatalog {
                 assert (catalog_site != null);
                 catalog_site.setId(siteid);
                 catalog_site.setHost(catalog_host);
-                catalog_site.setProc_port(proc_port++);
-                catalog_site.setMessenger_port(messenger_port++);
+                
+                //modified methods for Live Migration port number issue --Yang
+                if(cc.getNewMessagerPortNum() != -1 && siteid == cc.getNewSiteId()){
+                    catalog_site.setMessenger_port(cc.getNewMessagerPortNum());
+                }else {
+                    catalog_site.setMessenger_port(messenger_port++);
+                }
+                if(cc.getNewProcPortNum() != -1 && siteid == cc.getNewSiteId()){
+                    catalog_site.setProc_port(cc.getNewProcPortNum());
+                }else {
+                    catalog_site.setProc_port(proc_port++);
+                }
 
                 // Add all the partitions
                 for (Integer partition_id : cc.getPartitionIds(host, siteid)) {

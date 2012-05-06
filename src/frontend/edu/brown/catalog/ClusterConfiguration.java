@@ -41,6 +41,12 @@ public class ClusterConfiguration extends ClusterConfig {
     private static final Pattern COMMA_SPLIT = Pattern.compile(",");
     private static final Pattern HYPHEN_SPLIT = Pattern.compile(Pattern.quote("-"));
 
+    //Hardcoded port number for Live Migration --Yang (For test issue)
+    //This will be replaced by a sophisticated method once this works
+    private int new_proc_port_num = -1;
+    private int new_messager_port_num = -1;
+    private int new_site_id = -1;
+    
     /**
      * Host -> SiteId -> Set<PartitionConfiguration>
      */
@@ -100,14 +106,23 @@ public class ClusterConfiguration extends ClusterConfig {
      */
     public ClusterConfiguration(Catalog catalog, String hostsFromOpt){
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
-        CatalogMap<Host> hosts = catalog_clus.getHosts();
-        CatalogMap<Site> sites = catalog_clus.getSites();
-        Site[] sites_value = sites.values();
-        Host[] hosts_value = hosts.values();
+        Site[] sites_value = catalog_clus.getSites().values();
+        Host[] hosts_value = catalog_clus.getHosts().values();
+        
+        String[] host_info_pieces = hostsFromOpt.split(":");
+        
+        new_proc_port_num = 9988;
+        new_messager_port_num = 8899;
+        //HostFromOpt is in format host:1:2-3, 1 is the site id and we extract it here
+        new_site_id = Integer.parseInt(host_info_pieces[1]);
+        
         //reconstruct host_info strings
         StringBuffer host_info = new StringBuffer();
         for(int i=0; i<hosts_value.length; i++){
             String host_name = hosts_value[i].getName();
+            if(host_name.matches("host[0-9][0-9]")){
+                host_name = "localhost";
+            }
             for(int j=0; j<sites_value.length; j++){
                 int site_id = sites_value[i].getId();
                 CatalogMap<Partition> partitions = sites_value[j].getPartitions();
@@ -132,6 +147,24 @@ public class ClusterConfiguration extends ClusterConfig {
         } // FOR
     }
 
+    /**
+     * The following three methods are used to get
+     * hardcoded new port num for the new site
+     * Live Migration --Yang
+     * @return
+     */
+    public int getNewProcPortNum(){
+        return new_proc_port_num;
+    }
+    
+    public int getNewMessagerPortNum(){
+        return new_messager_port_num;
+    }
+    
+    public int getNewSiteId(){
+        return new_site_id;
+    }
+    
     public void clear() {
         this.host_sites.clear();
         this.all_partitions.clear();

@@ -327,7 +327,7 @@ message LiveMigrationSyncRequest {
     // The id of HStoreSite sending this migration syn request
     required int32 sender_id = 1;
     // The new host info
-    required bytes host_info = 2;
+    required string host_info = 2;
 }
 
 message LiveMigrationSyncResponse{

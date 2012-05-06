@@ -627,11 +627,12 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void liveMigrationSync(RpcController controller, LiveMigrationSyncRequest request, RpcCallback<LiveMigrationSyncResponse> done) {
             if (debug.get()) 
-                LOG.debug("Recieved" + request.getClass().getSimpleName() +"from HStoreSite + "+request.getSenderId() +
-                		            ", Hostinfo: " + request.getHostInfo().toString());
+                LOG.debug("Recieved" + request.getClass().getSimpleName() +"from HStoreSite "+request.getSenderId() +
+                		            ", Hostinfo: " + request.getHostInfo());
 
            
-            ByteString host_info = request.getHostInfo();
+            String host_info = request.getHostInfo();
+            LOG.info("received String "+host_info);
             
             LiveMigrationSyncResponse response = LiveMigrationSyncResponse.newBuilder()
                                                     .setSenderId(local_site_id)
@@ -640,7 +641,7 @@ public class HStoreCoordinator implements Shutdownable {
             done.run(response);
             
             //When receive a request from a remote site, starts its own clusterReorganizer
-            hstore_site.getHStoreCoordinator().startClusterReorganizer(host_info.toString());
+            hstore_site.getHStoreCoordinator().startClusterReorganizer(host_info);
         }
     } // END CLASS
     
@@ -964,14 +965,13 @@ public class HStoreCoordinator implements Shutdownable {
         };
         //extract additional host_info from catalog 
         String host_info = getNewHostInfoFromCatalog(catalog);
-        ByteString host_info_byte = ByteString.copyFrom(host_info.getBytes());
         
         // Send out Live Migration request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             if (e.getKey().intValue() == this.local_site_id) continue;
             LiveMigrationSyncRequest request = LiveMigrationSyncRequest.newBuilder()
                                             .setSenderId(this.local_site_id)
-                                            .setHostInfo(host_info_byte)
+                                            .setHostInfo(host_info)
                                             .build();
             
             e.getValue().liveMigrationSync(new ProtoRpcController(), request, callback);

@@ -10828,12 +10828,12 @@ public final class Hstoreservice {
     public boolean hasSenderId() { return hasSenderId; }
     public int getSenderId() { return senderId_; }
     
-    // required bytes host_info = 2;
+    // required string host_info = 2;
     public static final int HOST_INFO_FIELD_NUMBER = 2;
     private boolean hasHostInfo;
-    private com.google.protobuf.ByteString hostInfo_ = com.google.protobuf.ByteString.EMPTY;
+    private java.lang.String hostInfo_ = "";
     public boolean hasHostInfo() { return hasHostInfo; }
-    public com.google.protobuf.ByteString getHostInfo() { return hostInfo_; }
+    public java.lang.String getHostInfo() { return hostInfo_; }
     
     private void initFields() {
     }
@@ -10850,7 +10850,7 @@ public final class Hstoreservice {
         output.writeInt32(1, getSenderId());
       }
       if (hasHostInfo()) {
-        output.writeBytes(2, getHostInfo());
+        output.writeString(2, getHostInfo());
       }
       getUnknownFields().writeTo(output);
     }
@@ -10867,7 +10867,7 @@ public final class Hstoreservice {
       }
       if (hasHostInfo()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, getHostInfo());
+          .computeStringSize(2, getHostInfo());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -11063,7 +11063,7 @@ public final class Hstoreservice {
               break;
             }
             case 18: {
-              setHostInfo(input.readBytes());
+              setHostInfo(input.readString());
               break;
             }
           }
@@ -11089,14 +11089,14 @@ public final class Hstoreservice {
         return this;
       }
       
-      // required bytes host_info = 2;
+      // required string host_info = 2;
       public boolean hasHostInfo() {
         return result.hasHostInfo();
       }
-      public com.google.protobuf.ByteString getHostInfo() {
+      public java.lang.String getHostInfo() {
         return result.getHostInfo();
       }
-      public Builder setHostInfo(com.google.protobuf.ByteString value) {
+      public Builder setHostInfo(java.lang.String value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -12497,7 +12497,7 @@ public final class Hstoreservice {
       "t0_s\030\002 \002(\003\"O\n\020TimeSyncResponse\022\021\n\tsender" +
       "_id\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003\022\014\n" +
       "\004t1_s\030\004 \002(\003\"@\n\030LiveMigrationSyncRequest\022" +
-      "\021\n\tsender_id\030\001 \002(\005\022\021\n\thost_info\030\002 \002(\014\".\n" +
+      "\021\n\tsender_id\030\001 \002(\005\022\021\n\thost_info\030\002 \002(\t\".\n" +
       "\031LiveMigrationSyncResponse\022\021\n\tsender_id\030" +
       "\001 \002(\005*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER\020\001" +
       "\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECTED" +
