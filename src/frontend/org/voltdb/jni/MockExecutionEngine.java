@@ -180,4 +180,11 @@ public class MockExecutionEngine extends ExecutionEngine {
     public long tableHashCode( int tableId) {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public int hashinate(Object value, int partitionCount)
+    {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

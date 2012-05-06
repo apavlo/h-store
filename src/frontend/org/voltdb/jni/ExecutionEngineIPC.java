@@ -1422,4 +1422,41 @@ public class ExecutionEngineIPC extends ExecutionEngine {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public int hashinate(Object value, int partitionCount)
+    {
+        ParameterSet parameterSet = new ParameterSet(true);
+        parameterSet.setParameters(value);
+
+        final FastSerializer fser = new FastSerializer();
+        try {
+            parameterSet.writeExternal(fser);
+        } catch (final IOException exception) {
+            throw new RuntimeException(exception);
+        }
+
+        m_data.clear();
+        m_data.putInt(Commands.Hashinate.m_id);
+        m_data.putInt(partitionCount);
+        m_data.put(fser.getBuffer());
+        try {
+            m_data.flip();
+            m_connection.write();
+
+            m_connection.readStatusByte();
+            ByteBuffer part = ByteBuffer.allocate(4);
+            while (part.hasRemaining()) {
+                int read = m_connection.m_socketChannel.read(part);
+                if (read <= 0) {
+                    throw new EOFException();
+                }
+            }
+            part.flip();
+            return part.getInt();
+        } catch (final Exception e) {
+            System.out.println("Exception: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 }

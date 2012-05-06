@@ -1122,8 +1122,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeHashi
         NValueArray& params = engine->getParameterContainer();
         Pool *stringPool = engine->getStringPool();
         deserializeParameterSet(engine->getParameterBuffer(), engine->getParameterBufferCapacity(), params, engine->getStringPool());
-        int retval = -1; // FIXME voltdb::TheHashinator::hashinate(params[0], partitionCount);
-        assert(false);
+        int retval =
+            voltdb::TheHashinator::hashinate(params[0], partitionCount);
         stringPool->purge();
         return retval;
     } catch (FatalException e) {
