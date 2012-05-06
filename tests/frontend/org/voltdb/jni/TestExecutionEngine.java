@@ -151,6 +151,8 @@ public class TestExecutionEngine extends TestCase {
 
             serialized = sourceEngine.tableStreamSerializeMore( container, WAREHOUSE_TABLEID, TableStreamType.RECOVERY);
             assertEquals( 21, serialized);
+            int id = container.b.get();
+            assert(id >= 0);
 //            assertEquals( RecoveryMessageType.Complete.ordinal(), container.b.get());
             assertEquals( WAREHOUSE_TABLEID, container.b.getInt());
 
@@ -165,6 +167,8 @@ public class TestExecutionEngine extends TestCase {
 
             serialized = sourceEngine.tableStreamSerializeMore( container, STOCK_TABLEID, TableStreamType.RECOVERY);
             assertEquals( 21, serialized);
+            id = container.b.get();
+            assert(id >= 0);
 //            assertEquals( RecoveryMessageType.Complete.ordinal(), container.b.get());
             assertEquals( STOCK_TABLEID, container.b.getInt());
 
