@@ -509,7 +509,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
-
+    
+    @Override
     public void updateLogging() {
         d = debug.get();
         t = trace.get();
@@ -950,12 +951,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      * This should only be called by HStoreMessenger 
      */
-<<<<<<< HEAD
-    public synchronized void shutdown() {
-=======
 	@Override
     public synchronized void shutdown(){
->>>>>>> upstream/master
+
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
