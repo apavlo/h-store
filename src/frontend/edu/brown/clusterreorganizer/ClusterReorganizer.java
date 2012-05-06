@@ -2,6 +2,8 @@ package edu.brown.clusterreorganizer;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
@@ -35,6 +37,24 @@ public class ClusterReorganizer implements Runnable, Shutdownable {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.interval = hstore_conf.site.status_interval;
+        
+        //Print something where HStore_site is read to run
+        this.hstore_site.getReadyObservable().addObserver(new EventObserver<Object>() {
+            @Override
+            public void update(EventObservable<Object> arg0, Object arg1) {
+//                if (debug.get())
+                    LOG.info("A blank HStore_site is ready to run !!! --Live Migration");
+            }
+        });
+    }
+    public ClusterReorganizer(HStoreSite hstore_site, String new_host_info){
+        this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
+        this.interval = hstore_conf.site.status_interval;
+        
+        ClusterConfiguration cc = new ClusterConfiguration(hstore_site.getDatabase().getCatalog(), new_host_info);
+        
+        FixCatalog.writeHostInfo(hstore_site.getDatabase().getCatalog(), cc); 
         
         //Print something where HStore_site is read to run
         this.hstore_site.getReadyObservable().addObserver(new EventObserver<Object>() {

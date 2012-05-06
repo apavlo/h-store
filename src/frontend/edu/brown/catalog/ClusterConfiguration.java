@@ -131,7 +131,7 @@ public class ClusterConfiguration extends ClusterConfig {
             this.addPartition(info);
         } // FOR
     }
-    
+
     public void clear() {
         this.host_sites.clear();
         this.all_partitions.clear();

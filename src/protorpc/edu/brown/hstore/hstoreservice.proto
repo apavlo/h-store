@@ -320,6 +320,22 @@ message TimeSyncResponse {
 }
 
 // -----------------------------------
+// Live Migration --Yang
+// -----------------------------------
+
+message LiveMigrationSyncRequest {
+    // The id of HStoreSite sending this migration syn request
+    required int32 sender_id = 1;
+    // The new host info
+    required bytes host_info = 2;
+}
+
+message LiveMigrationSyncResponse{
+    // The id of the HStoreSite responding to this syn request
+    required int32 sender_id = 1;
+}
+
+// -----------------------------------
 // SERVICE
 // -----------------------------------
 
@@ -334,4 +350,5 @@ service HStoreService {
     rpc SendData(SendDataRequest) returns (SendDataResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
+    rpc LiveMigrationSync(LiveMigrationSyncRequest) returns (LiveMigrationSyncResponse);
 }

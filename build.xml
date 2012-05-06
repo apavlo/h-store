@@ -2406,7 +2406,7 @@ H-STORE REMIX
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
     	
     	<!-- Param Options for Live Migration-->
-        <arg value="migrationParam" />
+    	<!-- Any parameter without $ or = sign will be treated as Optional parameter -->
         &common;
         
         <classpath refid='project.classpath' />

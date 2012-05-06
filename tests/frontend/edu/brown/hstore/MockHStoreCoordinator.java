@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.LiveMigrationSyncRequest;
+import edu.brown.hstore.Hstoreservice.LiveMigrationSyncResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
@@ -157,6 +159,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
 
         @Override
         public void sendData(RpcController controller, SendDataRequest request, RpcCallback<SendDataResponse> done) {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void liveMigrationSync(RpcController controller, LiveMigrationSyncRequest request, RpcCallback<LiveMigrationSyncResponse> done) {
             // TODO Auto-generated method stub
             
         }

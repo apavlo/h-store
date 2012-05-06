@@ -176,8 +176,7 @@ public abstract class HStore {
         );
         
         // HStoreSite Stuff
-
-        Catalog cal = null;
+        
         // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
         // check if there are optional parameters: far from elegant but it works...
         // only works for parameter like: localhost:1:2-3

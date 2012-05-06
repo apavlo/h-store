@@ -124,7 +124,7 @@ public final class HStoreConf {
                 defaultBoolean=false,
                 experimental=true
             )
-            public boolean isBlank;
+        public boolean isBlank;
         
         // ----------------------------------------------------------------------------
         // Execution Options

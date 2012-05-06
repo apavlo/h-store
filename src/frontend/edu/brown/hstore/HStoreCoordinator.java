@@ -18,6 +18,9 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
@@ -32,8 +35,11 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.clusterreorganizer.ClusterReorganizer;
 import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.LiveMigrationSyncRequest;
+import edu.brown.hstore.Hstoreservice.LiveMigrationSyncResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
@@ -132,6 +138,8 @@ public class HStoreCoordinator implements Shutdownable {
     
     private QueryPrefetcher prefetcher;
 
+    private ClusterReorganizer cluster_reorganizer;
+    
     /**
      * 
      */
@@ -243,6 +251,9 @@ public class HStoreCoordinator implements Shutdownable {
         this.eventLoop.setExitOnSigInt(true);
         
         //this.prefetcher = new QueryPrefetcher(catalog_db, p_estimator);
+        
+        //Live Migration: ClusterReorganizer --Yang
+        this.cluster_reorganizer = null;
     }
     
     protected HStoreService initHStoreService() {
@@ -273,6 +284,12 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (hstore_conf.site.coordinator_sync_time) {
             syncClusterTimes();
+        }
+        
+        // If we find a blank node from command line, we start the live migration process --Yang
+        if (hstore_conf.site.isBlank){
+            this.startClusterReorganizer();
+            notifyClusterLiveMigrationAboutToStart(this.catalog_site.getCatalog());
         }
         
         this.ready_observable.notifyObservers(this);
@@ -606,6 +623,25 @@ public class HStoreCoordinator implements Shutdownable {
                                                     .build();
             done.run(response);
         }
+
+        @Override
+        public void liveMigrationSync(RpcController controller, LiveMigrationSyncRequest request, RpcCallback<LiveMigrationSyncResponse> done) {
+            if (debug.get()) 
+                LOG.debug("Recieved" + request.getClass().getSimpleName() +"from HStoreSite + "+request.getSenderId() +
+                		            ", Hostinfo: " + request.getHostInfo().toString());
+
+           
+            ByteString host_info = request.getHostInfo();
+            
+            LiveMigrationSyncResponse response = LiveMigrationSyncResponse.newBuilder()
+                                                    .setSenderId(local_site_id)
+                                                    .build();
+            
+            done.run(response);
+            
+            //When receive a request from a remote site, starts its own clusterReorganizer
+            hstore_site.getHStoreCoordinator().startClusterReorganizer(host_info.toString());
+        }
     } // END CLASS
     
     
@@ -905,7 +941,97 @@ public class HStoreCoordinator implements Shutdownable {
             } // FOR
         }
     }
+    // ----------------------------------------------------------------------------
+    // Live Migration METHODS --Yang
+    // ----------------------------------------------------------------------------
+    /**
+     * Tell all remote partitions to start their ClusterReorganizer for Live Migration
+     */
+    public void notifyClusterLiveMigrationAboutToStart(Catalog catalog){
+        // We don't need to do this if there is only one site
+        if (this.num_sites == 0) return;
+        
+        final CountDownLatch latch = new CountDownLatch(this.num_sites);
+        
+        RpcCallback<LiveMigrationSyncResponse> callback = new RpcCallback<LiveMigrationSyncResponse>() {
+            @Override
+            public void run(LiveMigrationSyncResponse request) {
+                int res = request.getSenderId();
+                if (debug.get()) 
+                    LOG.debug("Received Live Migration ACK from partition " + res);
+                latch.countDown();
+            }
+        };
+        //extract additional host_info from catalog 
+        String host_info = getNewHostInfoFromCatalog(catalog);
+        ByteString host_info_byte = ByteString.copyFrom(host_info.getBytes());
+        
+        // Send out Live Migration request 
+        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+            if (e.getKey().intValue() == this.local_site_id) continue;
+            LiveMigrationSyncRequest request = LiveMigrationSyncRequest.newBuilder()
+                                            .setSenderId(this.local_site_id)
+                                            .setHostInfo(host_info_byte)
+                                            .build();
+            
+            e.getValue().liveMigrationSync(new ProtoRpcController(), request, callback);
+            if (debug.get()) LOG.debug("Sent Live Migration SYNC to " + HStoreThreadManager.formatSiteName(e.getKey()));
+        } // FOR
+        
+        if (debug.get()) LOG.debug("Sent out all Live Migration requests!");
+        boolean success = false;
+        try {
+            success = latch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            // nothing
+        }
+        
+        if (success == false) {
+            LOG.warn(String.format("Failed to recieve time Live Migration responses from %d remote HStoreSites", this.num_sites));
+        } else if (debug.get()) LOG.trace("Received all Live Migration responses!");
+        
+    }
     
+    private String getNewHostInfoFromCatalog(Catalog catalog){
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
+        CatalogMap<Host> hosts = catalog_clus.getHosts();
+        CatalogMap<Site> sites = catalog_clus.getSites();
+        Site[] sites_value = sites.values();
+        Host[] hosts_value = hosts.values();
+        
+        String host_name = hosts_value[hosts_value.length - 1].getName();
+        int site_id = sites_value[sites_value.length - 1].getId();
+        
+        CatalogMap<Partition> partitions = sites_value[sites_value.length -1].getPartitions();
+        Partition[] partitions_value = partitions.values();
+        int first_partition = partitions_value[0].getId();
+        int last_partition = partitions_value[partitions_value.length - 1].getId();
+        
+        if(first_partition != last_partition){
+            return host_name + ":" +site_id +":"+first_partition+"-"+(last_partition);
+        }else{
+            return host_name + ":" +site_id +":"+first_partition;
+        }
+        
+    }
+    
+    public void startClusterReorganizer(){
+        this.cluster_reorganizer = new ClusterReorganizer(this.hstore_site);
+        Thread t = new Thread(this.cluster_reorganizer);
+        t.setDaemon(true);
+        t.start();
+    }
+    
+    public void startClusterReorganizer(String host_info){
+        this.cluster_reorganizer = new ClusterReorganizer(this.hstore_site, host_info);
+        Thread t = new Thread(this.cluster_reorganizer);
+        t.setDaemon(true);
+        t.start();
+    }
+    
+    public ClusterReorganizer getClusterReorganizer(){
+        return this.cluster_reorganizer;
+    }
     // ----------------------------------------------------------------------------
     // TIME SYNCHRONZIATION
     // ----------------------------------------------------------------------------

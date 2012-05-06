@@ -59,10 +59,8 @@ import org.voltdb.utils.Pair;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.clusterreorganizer.ClusterReorganizer;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -215,7 +213,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final MapReduceHelperThread mr_helper;
     
-    private final ClusterReorganizer cluster_reorganizer;
+    
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -392,13 +390,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper = new MapReduceHelperThread(this);
         } else {
             this.mr_helper = null;
-        }
-        
-        // Live Migration ClusterReorganizer thread -Yang
-        if(this.hstore_conf.site.isBlank){
-            this.cluster_reorganizer = new ClusterReorganizer(this);
-        } else {
-            this.cluster_reorganizer = null;
         }
         
         // Distributed Transaction Queue Manager
@@ -748,14 +739,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(handler);
         t.start();
         
-        // Start ClusterReorganizer -- Yang (For Live Migration)
-        if(this.cluster_reorganizer != null){
-            t = new Thread(this.cluster_reorganizer);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(handler);
-            t.start();
-        }
-        
         // Start Status Monitor
         if (hstore_conf.site.status_enable) {
             assert(hstore_conf.site.status_interval >= 0);
@@ -927,9 +910,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.procEventLoop.exitLoop();
         if (this.voltListener != null) this.voltListener.close();
         
-        if (this.hstore_coordinator != null)
+        if (this.hstore_coordinator != null){
+        // Tell the ClusterReorganizer to shutdown too
+            if(this.hstore_coordinator.getClusterReorganizer() != null){
+                this.hstore_coordinator.getClusterReorganizer().shutdown();
+            }
             this.hstore_coordinator.shutdown();
-        
+        }
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]", this.getSiteName(), this.hashCode()));
     }
     
