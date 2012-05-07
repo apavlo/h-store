@@ -33,16 +33,12 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
-import edu.brown.benchmark.tpce.TPCELoader;
 
 public class TPCEGenerator {
     private static final Logger LOG = Logger.getLogger(TPCEGenerator.class);
