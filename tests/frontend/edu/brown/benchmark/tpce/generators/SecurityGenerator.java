@@ -102,6 +102,14 @@ public class SecurityGenerator extends TableGenerator {
     public boolean hasNext() {
         return counter < startSecurity + numSecurity;
     }
+    
+    public String createName(long index) {
+        long coId = secHandle.getCompanyId(index);
+        String[] secRow = secHandle.getSecRecord(index);
+        
+        return secRow[3] + " of " +
+                compGenerator.generateCompanyName(coId - 1 - TPCEConstants.IDENT_SHIFT); // <issue> of <company name>
+    }
 
     /* (non-Javadoc)
      * @see java.util.Iterator#next()
@@ -114,18 +122,15 @@ public class SecurityGenerator extends TableGenerator {
         
         Object[] tuple = new Object[columnsNum];
         String[] secRow = secHandle.getSecRecord(counter);
-        long coId = secHandle.getCompanyId(counter);
         
-        compGenerator.generateCompId();
-        String secName = secRow[3] + " of " +
-                compGenerator.generateCompanyName(coId - 1 - TPCEConstants.IDENT_SHIFT); // <issue> of <company name>
+        String secName = createName(counter);
         
         tuple[0] = secHandle.createSymbol(counter, 15); // s_symb; CHAR(15)
         tuple[1] = secRow[3]; // s_issue
         tuple[2] = secRow[1]; // s_st_id
         tuple[3] = secName; // s_name
         tuple[4] = secRow[4].trim(); // s_ex_id; it seems there are whitespace characters present in the file???
-        tuple[5] = coId; // s_co_id
+        tuple[5] = secHandle.getCompanyId(counter); // s_co_id
         tuple[6] = (long)rnd.doubleIncrRange(S_NUM_OUTMin, S_NUM_OUTMax, 1.0); // s_num_out
         
         // start date

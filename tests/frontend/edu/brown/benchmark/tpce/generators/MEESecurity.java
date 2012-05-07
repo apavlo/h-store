@@ -237,11 +237,10 @@ public class MEESecurity {
     *
     * @param secIndex Unique security index to generate a unique starting price
     * @param submissionTime Time when the order was submitted, in seconds from time 0
-    * @param cmpletionPrice Completion price of the order (Out parameter)
     *
-    * @return The approximated completion time for the trade
+    * @return The approximated completion time for the trade and the price
     */
-    public double getCompletionTime(long secIndex, double submissionTime, EGenMoney completionPrice) {
+    public Object[] getCompletionTimeAndPrice(long secIndex, double submissionTime) {
         double completionDelay = negExp(MEAN_COMPLETION_TIME_DELAY);
 
         // Clip at 5 seconds to prevent rare, but really long delays
@@ -249,9 +248,10 @@ public class MEESecurity {
             completionDelay = 5.0;
         }
 
-        // completionPrice is an out parameter
-        completionPrice = calculatePrice(secIndex, submissionTime + completionDelay);
+        Object[] res = new Object[2];
+        res[0] = submissionTime + completionDelay + COMPLETION_SUT_DELAY;
+        res[1] = calculatePrice(secIndex, submissionTime + completionDelay);
 
-        return submissionTime + completionDelay + COMPLETION_SUT_DELAY;
+        return res;
     }
 }

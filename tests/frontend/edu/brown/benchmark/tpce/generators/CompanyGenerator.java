@@ -90,17 +90,17 @@ public class CompanyGenerator extends TableGenerator {
      * Generates the company time by the company Id
      */
     public String generateCompanyName(long coId) {
-        return generateCompanyName(getCompanyRecord(coId)[2]);
+        return generateCompanyName(getCompanyRecord(coId)[2], coId);
     }
     
-    private String[] getCompanyRecord(long counter) {
-        return companyFile.getTupleByIndex((int)(counter % companyRecords));
+    private String[] getCompanyRecord(long index) {
+        return companyFile.getTupleByIndex((int)(index % companyRecords));
     }
     
-    private String generateCompanyName(String baseName) {
+    private String generateCompanyName(String baseName, long index) {
         String res = baseName; // name from the row
         
-        long add = (counter - 1) / companyRecords; // need the previous counter value here
+        long add = (index - 1) / companyRecords; // need the previous counter value here
         
         if (add > 0) {
             res = res + " #" + Long.toString(add);
@@ -149,7 +149,7 @@ public class CompanyGenerator extends TableGenerator {
         
         tuple[0] = coId; // co_id
         tuple[1] = compRecord[1]; // co_st_id
-        tuple[2] = generateCompanyName(compRecord[2]); // co_name
+        tuple[2] = generateCompanyName(compRecord[2], counter); // co_name
         tuple[3] = compRecord[3]; // co_in
         tuple[4] = generateSP(coId); // co_sp_rate
         tuple[5] = person.getFirstName(multCEO * coId) + " " + person.getLastName(multCEO * coId); // co_ceo

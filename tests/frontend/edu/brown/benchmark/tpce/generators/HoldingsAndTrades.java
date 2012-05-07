@@ -97,6 +97,10 @@ public class HoldingsAndTrades {
         secCount = SecurityHandler.getSecurityNum(generator.getTotalCustomers());
     }
     
+    public void initNextLoadUnit(long tradesSkip) {
+        rnd.setSeedNth(EGenRandom.RNG_SEED_TABLE_DEFAULT, tradesSkip);
+    }
+    
     /**
      * Generates an account number, security account index and the security position for the file
      * 
@@ -143,14 +147,14 @@ public class HoldingsAndTrades {
      * @param secIndex Security account index
      * @return security index within the input file (0-based)
      */
-    private long getSecurityFlatFileIndex(long accId, int secIndex) {
+    public long getSecurityFlatFileIndex(long accId, int secIndex) {
         long  secFlatFileIndex = 0; // index of the selected security in the input flat file
 
         long oldSeed = rnd.getSeed();
         rnd.setSeed(getStartingSecIDSeed(accId));
 
         /*
-         * The main idea behind the loop below is that we wnat to generate secIndex _unique_ flat
+         * The main idea behind the loop below is that we want to generate secIndex _unique_ flat
          * file indexes. The array is used to keep track of them.
          */
         int generatedIndexCount = 0;

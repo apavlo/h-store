@@ -66,7 +66,7 @@ public class CustomerTaxRatesGenerator extends TableGenerator {
     /*
      * @param code Country or Division code
      */
-    private String getTaxId(long cid, int code, boolean isCountry) {
+    private String[] getTaxRow(long cid, int code, boolean isCountry) {
         // Don't have to save the old seed since the random generator is not used anywhere else in this class
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_TAX_RATE_ROW, cid);
 
@@ -80,7 +80,15 @@ public class CustomerTaxRatesGenerator extends TableGenerator {
 
         int tupIndex = rnd.intRange(0, codeRecords.size() - 1);
 
-        return codeRecords.get(tupIndex)[0];
+        return codeRecords.get(tupIndex);
+    }
+    
+    private String getTaxId(long cid, int code, boolean isCountry) {
+        return getTaxRow(cid, code, isCountry)[0];
+    }
+    
+    public double getTaxRate(long cid, int code, boolean isCountry) {
+        return Double.valueOf(getTaxRow(cid, code, isCountry)[2]);
     }
     
     @Override

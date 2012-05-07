@@ -35,9 +35,6 @@ import java.util.Set;
 
 public abstract class TPCEConstants {
 
-    // Parameter that
-    public static final String PARAM_EGENLOADER_HOME = "EGENLOADER_HOME";
-
     // Helpers
     public static final int TRUE = 1;
     public static final int FALSE = 0;
@@ -80,6 +77,8 @@ public abstract class TPCEConstants {
     public static final int  DEFAULT_INITIAL_DAYS = 300;
     public static final int  DEFAULT_LOAD_UNIT    = 1000; // unit size in customers
     public static final long IDENT_SHIFT = 4300000000L;  // All ids are shifted by this
+    public static final long TRADE_SHIFT = 200000000000000L;  // 200 trillion (2 * 10^14); trade ids shift
+
     public static final long DEFAULT_START_CUSTOMER_ID = 1;
     
     /*
@@ -90,6 +89,8 @@ public abstract class TPCEConstants {
     public static final long DEFAULT_SECURITIES_PER_UNIT = 685;
 
     public static final int  BROKERS_DIV = 100;  // by what number to divide the customer count to get the broker count
+    public final static long STARTING_BROKER_ID = 1;
+
 
     /*
      * Some importand dates for the generator
@@ -182,11 +183,11 @@ public abstract class TPCEConstants {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER_TAXRATE);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_CUSTOMER);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_DAILY_MARKET);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_FINANCIAL);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_LAST_TRADE);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
-//        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_ITEM);
+        SCALING_TABLES.add(TPCEConstants.TABLENAME_NEWS_XREF);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_SECURITY);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);

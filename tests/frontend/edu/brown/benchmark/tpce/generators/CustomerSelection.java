@@ -85,16 +85,23 @@ public class CustomerSelection {
             isPartition = true;
         }
     }
+    
+    public void setPartitionRange(long startFromCustomer, long customerCount) {
+        if (isPartition) {
+            this.myStartCustomer = startFromCustomer;
+            this.myCustomerCount = customerCount;
+        }
+    }
 
     /**
      * Generate a customer id with a tier.
      * All intra-function comments are from EGen.
      * 
-     * @param tier To return the tier
-     * @return Generated customer id
+     * @return Generated customer id and the tier
      */
-    public long genRandomCustomer(TierId tier) {
+    public Object[] genRandomCustomer() {
         double cw = rnd.doubleRange(0.0001, 2000);
+        TierId tier;
 
         // Uniformly select the higher portion of the customer ID.
         long cHigh;
@@ -124,11 +131,15 @@ public class CustomerSelection {
             cLow = (int)Math.ceil(149 + Math.sqrt(500 * cw - 277500));
             tier = TierId.eCustomerTierThree;
         }
+        
+        Object[] res = new Object[2];
+        res[0] = cHigh * 1000 + permute(cLow, cHigh) + 1;
+        res[1] = tier;
 
-        return cHigh * 1000 + permute(cLow, cHigh) + 1;
+        return res;
     }
     
-    // lower 3 difgits
+    // lower 3 digits
     private static long lowDigits(long cid) {
         return (cid - 1) % 1000;
     }

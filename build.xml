@@ -835,7 +835,7 @@ TEST CASES
             <env key="VOLTDBIPC_PATH" value="${build.prod.dir}/voltdbipc" />
 
             <!-- Brown Benchmark Parameters -->
-            <env key="EGENLOADER_HOME" value="${build.tpce.dir}" />
+            <env key="TPCE_LOADER_FILES" value="${build.tpce.dir}" />
             <env key="AIRLINE_DATA_DIR" value="${src.test.dir}/edu/brown/benchmark/airline/data" />
 
             <!-- code coverage output settings, harmless if not in use -->
@@ -1546,7 +1546,12 @@ BENCHMARKS
         <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
-        <arg value="benchmark.egenloader_home=${benchmark.egenloader_home}"/>
+    	
+        <!-- TPC-E Parameters -->
+    	<arg value="benchmark.tpce_loader_files=${benchmark.tpce_loader_files}"/>
+        <arg value="benchmark.tpce_total_customers=${benchmark.tpce_total_customers}"/>
+        <arg value="benchmark.tpce_scale_factor=${benchmark.tpce_scale_factor}"/>
+        <arg value="benchmark.tpce_initial_days=${benchmark.tpce_initial_days}"/>
 
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
@@ -2199,24 +2204,20 @@ TPC-E EGenLoader
 ***************************************
 -->
 
-<target name='tpceloader' description="Builds the TPC-E EGenLoader"
+<target name='tpceloader' description="Builds the TPC-E Random Generator and copies flat files"
                           depends="tpceloader.check, getcpus"
                           unless="tpceloader.built">
-    <mkdir dir="${build.tpce.dir}" />
 
-    <antcall target="tpceloader.javah"/>
+    <!-- Generate JNI header -->
+	<antcall target="tpceloader.javah"/>
 
-<!--    <echo message="src.tpce.dir: ${src.tpce.dir}" />
-    <exec executable="make" dir="${src.tpce.dir}/prj" failonerror="true" resolveexecutable="true" >
-        <arg value="-j${numcpus}" />
-        <arg value="SOURCE=.." />
-        <arg value="PREFIX=${build.tpce.dir}" />
-        <arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />
-    </exec>
--->
     <echo message="src.tpce.dir: ${src.tpce.dir}" />
+    <echo message="build.tpce.dir: ${build.tpce.dir}" />
+	
+    <mkdir dir="${build.tpce.dir}"/>
     <mkdir dir="${build.tpce.dir}/obj"/>
     <mkdir dir="${build.tpce.dir}/lib"/>
+	
     <exec executable="make" dir="${src.tpce.dir}/random" failonerror="true" resolveexecutable="true" >
         <arg value="-j${numcpus}" />
         <arg value="PREFIX=${build.tpce.dir}" />
@@ -2232,15 +2233,7 @@ TPC-E EGenLoader
     <copy todir="${build.dir}/nativelibs" file="${build.tpce.dir}/lib/libegen_random.so"/>
 </target>
 
-<target name="tpceloader.javah">
-<!--    <javah
-        classpathref="project.classpath"
-        force="yes"
-        verbose="yes"
-        class="edu.brown.benchmark.tpce.EGenClientDriver"
-        destdir="${src.tpce.dir}/drivers"
-    />
--->
+<target name="tpceloader.javah" depends="build-java">
     <javah
         classpathref="project.classpath"
         force="yes"
@@ -2251,12 +2244,6 @@ TPC-E EGenLoader
 </target>
 
 <target name="tpceloader.check">
-<!--    <uptodate property="tpceloader.built"
-              targetfile="${build.tpce.dir}/lib/libegen.so">
-        <srcfiles dir="${src.tpce.dir}" includes="src/*.cpp" />
-        <srcfiles dir="${src.tpce.dir}" includes="drivers/*.cpp" />
-    </uptodate>
--->
     <uptodate property="tpceloader.built"
               targetfile="{build.dir}/nativelibs/libegen_random.so">
         <srcfiles dir="${src.tpce.dir}" includes="random/*.cpp" />
