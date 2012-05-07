@@ -50,9 +50,9 @@ import edu.brown.benchmark.tpce.TPCEProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
-import edu.brown.catalog.ParametersUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
@@ -191,14 +191,15 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             }
             if (catalog == null) {
                 switch (type) {
-                    case TPCC:
-                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
-                        // Update the ProcParameter mapping used in the catalogs
-//                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
-                        break;
+//                    case TPCC:
+//                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
+//                        // Update the ProcParameter mapping used in the catalogs
+////                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+//                        break;
                     case TPCE:
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
+                    case TPCC:
                     case TM1:
                     case SEATS:
                     case AUCTIONMARK:
@@ -206,12 +207,14 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     case LOCALITY:
                     case MAPREDUCE:
                         catalog = projectBuilder.getFullCatalog(fkeys);
+                        if (LOG.isDebugEnabled()) 
+                            LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
                         break;
                     default:
                         assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
-            if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+            //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
             this.init(type, catalog);
         }
     }

@@ -36,17 +36,10 @@ enum Status {
 // GLOBAL DATA HOLDER
 // -----------------------------------
 
-message DataFragment {
-    /// Unique Identifer
-    required int32 id = 2;
-    // Serialized VoltTables
-    repeated bytes data = 3;
-}
-
 // Specifies the work to be performed at a single partition.
 message WorkFragment {
     message InputDependency {
-        repeated int32 ids = 1;
+        repeated int32 ids = 1 [packed=true];
     }
 
     // The partition that needs to execute this work fragment
@@ -62,16 +55,44 @@ message WorkFragment {
     repeated int32 output_dep_id = 4 [packed=true];
     
     // What SQLStmt in the batch this PlanFragment belongs to
-    repeated int32 stmt_index = 5 [packed=true];
+    repeated int32 stmt_index = 6 [packed=true];
+    
+    // What ParameterSet offset do we need for each PlanFragment
+    repeated int32 param_index = 7 [packed=true];
     
     // Are all of the PlanFragments read only?
-    required bool read_only = 6;
+    required bool read_only = 8;
     
     // If true, then the Work embedded in this WorkFragment needs input
-    required bool needs_input = 7;
+    required bool needs_input = 9;
     
-    // If true, this is the final fragment for this transaction at this partition.
-    optional bool last_fragment = 8 [default = false];
+    // If true, then this is the final fragment for this transaction at this partition.
+    optional bool last_fragment = 10 [default = false];
+
+    // If true, then this is a prefetch fragment
+    optional bool prefetch = 11 [default = false];
+    
+    // If true, then this fragment should always be executed regardless 
+    // of whether its result is cached.
+    optional bool force = 12 [default = false];
+}
+
+// The output results of WorkFragments
+message WorkResult {
+    // What partition produced this result
+    required int32 partition_id = 1;
+    
+    // Unique Dependency Identifers
+    repeated int32 dep_id = 2 [packed=true];
+    
+    // Serialized VoltTables
+    repeated bytes dep_data = 3;
+    
+    // Status of the WorkRequest
+    required Status status = 4;
+    
+    // If this partition hit an error, this field will contain the SerializableException
+    optional bytes error = 5;
 }
 
 // -----------------------------------
@@ -83,12 +104,15 @@ message TransactionInitRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
 
+    // The base partition
+    required int32 base_partition = 2;
+
     // Procedure Id
-    required int32 procedure_id = 2;
+    required int32 procedure_id = 3;
     
     // List of partitions at this site that are will be involved
     // with this transaction.
-    repeated int32 partitions = 3 [packed=true];
+    repeated int32 partitions = 4 [packed=true];
 
     // -----------------------------------
     // PRE-FETCH QUERIES
@@ -96,11 +120,11 @@ message TransactionInitRequest {
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated WorkFragment prefetch_fragments = 4;
+    repeated WorkFragment prefetch_fragments = 5;
     
     // Serialized ParameterSets (one per Statment).
-    // The order of these elements must match Work.stmtIndex
-    repeated bytes prefetch_parameter_sets = 5;
+    // The order of these elements must match WorkFragment.paramIndex
+    repeated bytes prefetch_params = 6;
 }
 
 message TransactionInitResponse {
@@ -130,32 +154,56 @@ message TransactionWorkRequest {
     required bool sysproc = 4 [default = false];
     
     // Serialized ParameterSets (one per Statment).
-    // The order of these elements must match Work.stmtIndex
-    repeated bytes parameter_sets = 5;
+    // The order of these elements must match WorkFragment.paramIndex
+    repeated bytes params = 5;
     
     // We can attach input dependencies to each message
-    repeated DataFragment attached = 6;
+    // Unique Dependency Identifers
+    repeated int32 attached_dep_id = 6 [packed=true];
+    
+    // Attached Serialized VoltTables
+    repeated bytes attached_data = 7;
     
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
-    repeated int32 done_partition = 7 [packed=true];
+    repeated int32 done_partition = 8 [packed=true];
 }
 
 message TransactionWorkResponse {
-    // The output results of WorkFragments
-    message WorkResult {
-        required int32 partition_id = 1;
-        // Output Dependencies
-        repeated DataFragment output = 2;
-        // Status of the WorkRequest
-        required Status status = 3;
-        // If this partition hit an error, this field will contain the SerializableException
-        optional bytes error = 4;
-    }
-
+    // Globally unique transaction id
     required int64 transaction_id = 1;
+    
+    // The results for the TransactionWorkRequest
     repeated WorkResult results = 2;
+    
+    // The global status for this response
     required Status status = 3;
+}
+
+// -----------------------------------
+// TRANSACTION PREFETCH RESPONSE
+// -----------------------------------
+
+message TransactionPrefetchResult {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    
+    // The partition id where this result came from
+    required int32 source_partition = 2;
+    
+    // The results for the prefetched queries at this partition
+    required WorkResult result = 3;
+    
+    // The global status for this response
+    required Status status = 4;
+}
+
+message TransactionPrefetchAcknowledgement {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    
+    // The target partition id for this acknowledgement
+    required int32 target_partition = 2;
 }
 
 // -----------------------------------
@@ -246,14 +294,14 @@ message TransactionFinishResponse {
 // -----------------------------------
 
 message TransactionRedirectRequest {
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
     required bytes work = 2;
     optional int64 orig_txn_id = 3;
 }
 
 message TransactionRedirectResponse {
     // The id of the HStoreSite is responding to this shutdown request
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
     required bytes output = 2;
 }
 
@@ -265,36 +313,54 @@ message SendDataRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
 
+    // The SiteId of the HStoreSite that sent this data
+    required int32 sender_site = 2;
+    
     // Set of partitions to send data to. A partition can appear only once in this list.
     // The data stored in each fragment is a serialized VoltTable
-    repeated DataFragment fragments = 2;
+    repeated int32 dep_id = 3 [packed=true];
     
-    // The SiteId of the HStoreSite that sent this data
-    required int32 sender_id = 3;
+    // Attached Serialized VoltTables
+    repeated bytes data = 4;
 }
 
 message SendDataResponse {
     required int64 transaction_id = 1;
     repeated int32 partitions = 2 [packed=true];
     // The SiteId of the HStoreSite that sent this data
-    required int32 sender_id = 3;
+    required int32 sender_site = 3;
     required Status status = 4;
 }
 
 // -----------------------------------
-// SHUTDOWN MESSAGE
+// CLUSTER INITIALIZE MESSAGE
+// -----------------------------------
+
+message InitializeRequest {
+    required int32 sender_site = 1;
+    required int64 instance_id = 2;
+}
+
+message InitializeResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+}
+
+
+// -----------------------------------
+// CLUSTER SHUTDOWN MESSAGE
 // -----------------------------------
 
 message ShutdownRequest {
     // The id of the HStoreSite that is wants us to shutdown
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
     required int32 exit_status = 2;
     optional bytes error = 3;
 }
 
 message ShutdownResponse {
     // The id of the HStoreSite is responding to this shutdown request
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
 }
 
 // -----------------------------------
@@ -303,14 +369,14 @@ message ShutdownResponse {
 
 message TimeSyncRequest {
     // The id of the HStoreSite sending this timesync request
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
     // The time when the local HStoreSite sent this request
     required int64 t0_s = 2;
 }
 
 message TimeSyncResponse {
     // The id of the HStoreSite responding to this timesync request
-    required int32 sender_id = 1;
+    required int32 sender_site = 1;
     // The time when the local HStoreSite sent this request
     required int64 t0_s = 2;
     // The time when the remote HStoreSite received this request
@@ -342,12 +408,14 @@ message LiveMigrationSyncResponse{
 service HStoreService {
     rpc TransactionInit(TransactionInitRequest) returns (TransactionInitResponse);
     rpc TransactionWork(TransactionWorkRequest) returns (TransactionWorkResponse);
+    rpc TransactionPrefetch(TransactionPrefetchResult) returns (TransactionPrefetchAcknowledgement);
     rpc TransactionMap(TransactionMapRequest) returns (TransactionMapResponse);
     rpc TransactionReduce(TransactionReduceRequest) returns (TransactionReduceResponse);
     rpc TransactionPrepare(TransactionPrepareRequest) returns (TransactionPrepareResponse);
     rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
     rpc SendData(SendDataRequest) returns (SendDataResponse);
+    rpc Initialize(InitializeRequest) returns (InitializeResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
     rpc LiveMigrationSync(LiveMigrationSyncRequest) returns (LiveMigrationSyncResponse);

@@ -24,8 +24,8 @@ package org.voltdb.catalog;
 import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import edu.brown.catalog.CatalogUtil;
 

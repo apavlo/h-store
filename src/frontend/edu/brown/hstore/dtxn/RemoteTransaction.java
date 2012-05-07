@@ -25,6 +25,8 @@
  ***************************************************************************/
 package edu.brown.hstore.dtxn;
 
+import java.util.BitSet;
+
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.HStoreSite;
@@ -32,6 +34,7 @@ import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -49,11 +52,15 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private final TransactionWorkCallback fragment_callback;
     private final TransactionCleanupCallback cleanup_callback;
+    private final ProtoRpcController rpc_transactionPrefetch[];
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.fragment_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
+        
+        int num_localPartitions = hstore_site.getLocalPartitionIds().size();
+        this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
     }
     
     public RemoteTransaction init(long txnId, int source_partition, boolean sysproc, boolean predict_abortable) {
@@ -65,6 +72,14 @@ public class RemoteTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
         this.cleanup_callback.finish();
+        
+        for (int i = 0; i < this.rpc_transactionPrefetch.length; i++) {
+            // Tell the PretchQuery ProtoRpcControllers to cancel themselves
+            // if we actually tried used them for this txn
+            if (this.rpc_transactionPrefetch[i] != null && this.prefetch.partitions.get(i)) {
+                this.rpc_transactionPrefetch[i].startCancel();
+            }
+        } // FOR
     }
     
     @Override
@@ -88,6 +103,23 @@ public class RemoteTransaction extends AbstractTransaction {
         return (this.cleanup_callback);
     }
 
+    /**
+     * Get the ProtoRpcController to use to return a 
+     * @param partition
+     * @return
+     */
+    public ProtoRpcController getTransactionPrefetchController(int partition) {
+        assert(hstore_site.isLocalPartition(partition));
+        
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        if (this.rpc_transactionPrefetch[offset] == null) {
+            this.rpc_transactionPrefetch[offset] = new ProtoRpcController();
+        } else {
+            this.rpc_transactionPrefetch[offset].reset();
+        }
+        return (this.rpc_transactionPrefetch[offset]);
+    }
+    
     @Override
     public String toString() {
         if (this.isInitialized()) {

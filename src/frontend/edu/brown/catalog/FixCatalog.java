@@ -17,6 +17,7 @@ import org.voltdb.catalog.Site;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
@@ -75,9 +76,10 @@ public abstract class FixCatalog {
                 LOG.warn(String.format("Possible typo in hostname '%s'. Did you mean 'localhost'?", host));
             }
             
-            String host_name = String.format("host%02d", host_id++);
+            String host_name = String.format("host%02d", host_id);
             Host catalog_host = catalog_clus.getHosts().add(host_name);
             assert (catalog_host != null);
+            catalog_host.setId(host_id);
             catalog_host.setIpaddr(host);
             LOG.debug("Created new host " + catalog_host + " on node '" + host + "'");
 
@@ -114,10 +116,12 @@ public abstract class FixCatalog {
                 } // FOR
 
             } // FOR
+            host_id++;
               // LOG.debug("Added " + ctr + " partitions for " + catalog_host);
         } // FOR
         catalog_clus.setNum_partitions(partition_ctr);
-        LOG.info("Updated host information in catalog with " + (host_id - 1) + " new hosts and " + partition_ctr + " partitions");
+        LOG.info(String.format("Updated host information in catalog with %d hosts and %d partitions",
+                               catalog_clus.getHosts().size(), partition_ctr));
         return (catalog);
     }
 
@@ -183,6 +187,7 @@ public abstract class FixCatalog {
      * @param args
      */
     public static void main(String[] vargs) throws Exception {
+        ArgumentsParser.DISABLE_UPDATE_CATALOG = true;
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE, ArgumentsParser.PARAM_CATALOG_OUTPUT);
 

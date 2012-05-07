@@ -117,7 +117,7 @@ public class BatchPlanner implements Loggable {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
-    private int last_id = FIRST_DEPENDENCY_ID;
+//    private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
     private final Map<Integer, WorkFragment.Builder> round_builders = new HashMap<Integer, WorkFragment.Builder>();
@@ -126,6 +126,7 @@ public class BatchPlanner implements Loggable {
     private final boolean enable_profiling;
     private final boolean enable_caching;
     private final boolean force_singlePartition;
+    private boolean prefetch = false;
 
     private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
     private final List<Integer> output_dependency_xref_clear = new ArrayList<Integer>();
@@ -367,6 +368,10 @@ public class BatchPlanner implements Loggable {
         public void getWorkFragments(Long txn_id, List<WorkFragment> tasks) {
             BatchPlanner.this.buildWorkFragments(txn_id, this, graph, tasks);
         }
+        
+        public void getWorkFragments(Long txn_id, List<WorkFragment> tasks, boolean prefetch) {
+            BatchPlanner.this.buildWorkFragments(txn_id, this, graph, tasks);
+        }
 
         public int getBatchSize() {
             return (BatchPlanner.this.batchSize);
@@ -544,6 +549,18 @@ public class BatchPlanner implements Loggable {
         return this.catalog_stmts;
     }
     
+    public void setPrefetchFlag(boolean val) {
+        this.prefetch = val;
+    }
+    
+    /**
+     * Return the Statement within this batch at the given offset
+     * @return
+     */
+    public Statement getStatement(int idx) {
+        return this.catalog_stmts[idx];
+    }
+    
     public int getBatchSize() {
     	return (this.batchSize);
     }
@@ -594,8 +611,13 @@ public class BatchPlanner implements Loggable {
      * @param batchArgs
      * @return
      */
-    public BatchPlan plan(Long txn_id, long client_handle, Integer base_partition, Collection<Integer> predict_partitions, boolean predict_singlepartitioned, Histogram<Integer> touched_partitions,
-            ParameterSet[] batchArgs) {
+    public BatchPlan plan(Long txn_id,
+                          long client_handle,
+                          Integer base_partition,
+                          Collection<Integer> predict_partitions,
+                          boolean predict_singlepartitioned,
+                          Histogram<Integer> touched_partitions,
+                          ParameterSet[] batchArgs) {
         if (this.enable_profiling)
             time_plan.start();
         if (d)
@@ -603,14 +625,13 @@ public class BatchPlanner implements Loggable {
 
         boolean cache_isSinglePartition[] = null;
 
-        // OPTIMIZATION: Check whether we can use a cached single-partition
-        // BatchPlan
+        // OPTIMIZATION: Check whether we can use a cached single-partition BatchPlan
         if (this.force_singlePartition || this.enable_caching) {
             boolean is_allSinglePartition = true;
             cache_isSinglePartition = new boolean[this.batchSize];
 
             // OPTIMIZATION: Skip all of this if we know that we're always
-            // suppose to be single-partitioned
+            //               suppose to be single-partitioned
             if (this.force_singlePartition == false) {
                 for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
                     if (cache_fastLookups[stmt_index] == null) {
@@ -639,8 +660,8 @@ public class BatchPlanner implements Loggable {
                 LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
 
             // If all of the Statements are single-partition, then we can use
-            // the cached BatchPlan
-            // if we already have one. This saves a lot of trouble
+            // the cached BatchPlan if we already have one.
+            // This saves a lot of trouble
             if (is_allSinglePartition && cache_singlePartitionPlans[base_partition.intValue()] != null) {
                 if (d)
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id, base_partition, Arrays.toString(this.catalog_stmts)));
@@ -666,8 +687,7 @@ public class BatchPlanner implements Loggable {
         }
 
         // Only maintain the histogram of what partitions were touched if we
-        // know that we're going to
-        // throw a MispredictionException
+        // know that we're going to throw a MispredictionException
         Histogram<Integer> mispredict_h = null;
         boolean mispredict = false;
 
@@ -696,9 +716,9 @@ public class BatchPlanner implements Loggable {
 
             // OPTIMIZATION: Fast partition look-up caching
             // OPTIMIZATION: Read-only queries on replicated tables always just
-            // go to the local partition
+            //               go to the local partition
             // OPTIMIZATION: If we're force to be single-partitioned, pretend
-            // that the table is replicated
+            //               that the table is replicated
             if (cache_isSinglePartition[stmt_index] || (is_replicated_only && is_read_only) || this.force_singlePartition) {
                 if (t) {
                     if (cache_isSinglePartition[stmt_index]) {
@@ -745,21 +765,16 @@ public class BatchPlanner implements Loggable {
                 }
 
                 try {
-                    // OPTIMIZATION: If we were told that the transaction is
-                    // suppose to be single-partitioned, then we will
-                    // throw the single-partitioned PlanFragments at the
-                    // PartitionEstimator to get back what partitions
-                    // each PlanFragment will need to go to. If we get multiple
-                    // partitions, then we know that we mispredicted and
-                    // we should throw a MispredictionException
-                    // If we originally didn't predict that it was
-                    // single-partitioned, then we actually still need to check
-                    // whether the query should be single-partitioned or not.
-                    // This is because a query may actually just want
-                    // to execute on just one partition (note that it could be a
-                    // local partition or the remote partition).
-                    // We'll assume that it's single-partition <<--- Can we
-                    // cache that??
+                    // OPTIMIZATION: If we were told that the transaction is suppose to be 
+                    // single-partitioned, then we will throw the single-partitioned PlanFragments 
+                    // at the PartitionEstimator to get back what partitions each PlanFragment 
+                    // will need to go to. If we get multiple partitions, then we know that we 
+                    // mispredicted and we should throw a MispredictionException
+                    // If we originally didn't predict that it was single-partitioned, then we 
+                    // actually still need to check whether the query should be single-partitioned or not.
+                    // This is because a query may actually just want to execute on just one 
+                    // partition (note that it could be a local partition or the remote partition).
+                    // We'll assume that it's single-partition <<--- Can we cache that??
                     while (true) {
                         if (is_singlepartition == false)
                             stmt_all_partitions.clear();
@@ -827,8 +842,7 @@ public class BatchPlanner implements Loggable {
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
 
                 // Only mark that we touched these partitions if the Statement
-                // is
-                // not on a replicated table
+                // is not on a replicated table
                 if (is_replicated_only == false) {
                     touched_partitions.putAll(stmt_all_partitions);
                 }
@@ -856,9 +870,8 @@ public class BatchPlanner implements Loggable {
 
             // Misprediction!!
             if (mispredict) {
-                // If this is the first Statement in the batch that hits the
-                // mispredict,
-                // then we need to create the histogram and populate it with the
+                // If this is the first Statement in the batch that hits the mispredict, 
+                // then we need to create the histogram and populate it with the 
                 // partitions from the previous queries
                 int start_idx = stmt_index;
                 if (mispredict_h == null) {
@@ -870,8 +883,7 @@ public class BatchPlanner implements Loggable {
                         LOG.debug(String.format("Pending mispredict for txn #%d. Checking whether to add partitions for batch statement %02d", txn_id, i));
 
                     // Make sure that we don't count the local partition if it
-                    // was reading
-                    // a replicated table.
+                    // was reading a replicated table.
                     if (this.stmt_is_replicatedonly[i] == false || (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
                         if (t)
                             LOG.trace(String.format("%s touches non-replicated table. Including %d partitions in mispredict histogram for txn #%d", this.catalog_stmts[i].fullName(),
@@ -932,17 +944,14 @@ public class BatchPlanner implements Loggable {
             time_plan.stop();
 
         // Create the MispredictException if any Statement in the loop above hit
-        // it
-        // We don't want to throw it because whoever called us may want to look
+        // it. We don't want to throw it because whoever called us may want to look
         // at the plan first
         if (mispredict_h != null) {
             plan.mispredict = new MispredictionException(txn_id, mispredict_h);
         }
         // If this a single-partition plan and we have caching enabled, we'll
-        // add this
-        // to our cached listing. We'll mark it as cached so that it is never
-        // returned back
-        // to the BatchPlan object pool
+        // add this to our cached listing. We'll mark it as cached so that it is never
+        // returned back to the BatchPlan object pool
         else if (this.enable_caching && cache_singlePartitionPlans[base_partition.intValue()] == null && plan.isSingledPartitionedAndLocal()) {
             cache_singlePartitionPlans[base_partition.intValue()] = plan;
             plan.cached = true;
@@ -961,10 +970,8 @@ public class BatchPlanner implements Loggable {
      * @param tasks
      */
     protected void buildWorkFragments(final Long txn_id, final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<WorkFragment> tasks) {
-        if (this.enable_profiling)
-            time_partitionFragments.start();
-        if (d)
-            LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]", txn_id, plan.base_partition));
+        if (this.enable_profiling) time_partitionFragments.start();
+        if (d) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]", txn_id, plan.base_partition));
 
         for (PlanVertex v : graph.getVertices()) {
             int stmt_index = v.stmt_index;
@@ -974,23 +981,10 @@ public class BatchPlanner implements Loggable {
         } // FOR
 
         // The main idea of what we're trying to do here is to group together
-        // all of the PlanFragments with
-        // the same input dependency ids into a single WorkFragment
-        if (t)
-            LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
+        // all of the PlanFragments with the same input dependency ids into a single WorkFragment
+        if (t) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
-            if (t)
-                LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); // +
-                                                                                 // " - Round "
-                                                                                 // +
-                                                                                 // e.getKey()
-                                                                                 // +
-                                                                                 // ": "
-                                                                                 // +
-                                                                                 // e.getValue().size()
-                                                                                 // +
-                                                                                 // " partitions");
-
+            if (t) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
             for (int partition = 0; partition < this.num_partitions; partition++) {
                 Collection<PlanVertex> vertices = plan.rounds[round][partition];
                 if (vertices.isEmpty())
@@ -1016,12 +1010,18 @@ public class BatchPlanner implements Loggable {
                     // All fragments will produce some output
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
 
-                    // SQLStmt Index
+                    // SQLStmt Index (in batch)
                     partitionBuilder.addStmtIndex(v.stmt_index);
+                    
+                    // ParameterSet Index
+                    partitionBuilder.addParamIndex(v.stmt_index);
 
                     // Read-Only
                     partitionBuilder.setReadOnly(partitionBuilder.getReadOnly() || v.read_only);
 
+                    // Prefetch
+                    if (this.prefetch) partitionBuilder.setPrefetch(true);
+                    
                     if (t)
                         LOG.trace("Fragment Grouping " + partitionBuilder.getFragmentIdCount() + " => [" + "txn_id=#" + txn_id + ", " + "frag_id=" + v.frag_id + ", " + "input="
                                 + v.input_dependency_id + ", " + "output=" + v.output_dependency_id + ", " + "stmt_index=" + v.stmt_index + "]");
@@ -1073,13 +1073,14 @@ public class BatchPlanner implements Loggable {
         this.sorted_vertices.clear();
         this.output_dependency_xref_clear.clear();
 
+        int last_id = FIRST_DEPENDENCY_ID;
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
             assert (frag_partitions != null) : 
                 "No Fragment->PartitionIds map for Statement #" + stmt_index;
             
             List<PlanFragment> fragments = plan.frag_list[stmt_index];
-            assert (fragments != null);
+            assert(fragments != null);
             int num_fragments = fragments.size();
             graph.num_rounds = Math.max(num_fragments, graph.num_rounds);
 
@@ -1092,8 +1093,8 @@ public class BatchPlanner implements Loggable {
                     String.format("No PartitionIds for [%02d] %s in Statement #%d",
                                   round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                Integer output_id = new Integer(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() :
-                                                                         this.last_id++);
+                Integer output_id = new Integer(this.enable_unique_ids ?
+                                                    BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : last_id++);
 
                 PlanVertex v = new PlanVertex(catalog_frag, stmt_index, round, last_output_id, output_id.intValue(), f_local);
 

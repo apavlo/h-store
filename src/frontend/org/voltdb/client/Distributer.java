@@ -109,7 +109,9 @@ class Distributer {
         private long m_lastInvocationAborts = 0;
         private long m_invocationErrors = 0;
         private long m_lastInvocationErrors = 0;
+        private long m_restartCounter = 0;
 
+        // cumulative latency measured by client, used to calculate avg. lat.
         private long m_roundTripTime = 0;
         private long m_lastRoundTripTime = 0;
 
@@ -118,8 +120,14 @@ class Distributer {
         private int m_minRoundTripTime = Integer.MAX_VALUE;
         private int m_lastMinRoundTripTime = Integer.MAX_VALUE;
 
+        // cumulative latency measured by the cluster, used to calculate avg lat.
         private long m_clusterRoundTripTime = 0;
         private long m_lastClusterRoundTripTime = 0;
+
+        // 10ms buckets. Last bucket is all transactions > 190ms.
+        static int m_numberOfBuckets = 20;
+        private long m_clusterRoundTripTimeBuckets[] = new long[m_numberOfBuckets];
+        private long m_roundTripTimeBuckets[] = new long[m_numberOfBuckets];
 
         private int m_maxClusterRoundTripTime = Integer.MIN_VALUE;
         private int m_lastMaxClusterRoundTripTime = Integer.MIN_VALUE;
@@ -130,7 +138,7 @@ class Distributer {
             m_name = name;
         }
 
-        public void update(int roundTripTime, int clusterRoundTripTime, boolean abort, boolean error) {
+        public void update(int roundTripTime, int clusterRoundTripTime, boolean abort, boolean error, int restartCounter) {
             m_maxRoundTripTime = Math.max(roundTripTime, m_maxRoundTripTime);
             m_lastMaxRoundTripTime = Math.max( roundTripTime, m_lastMaxRoundTripTime);
             m_minRoundTripTime = Math.min( roundTripTime, m_minRoundTripTime);
@@ -150,6 +158,21 @@ class Distributer {
             }
             m_roundTripTime += roundTripTime;
             m_clusterRoundTripTime += clusterRoundTripTime;
+            m_restartCounter += restartCounter;
+
+            // calculate the latency buckets to increment and increment.
+            int rttBucket = (int)(Math.floor(roundTripTime / 10));
+            if (rttBucket >= m_roundTripTimeBuckets.length) {
+                rttBucket = m_roundTripTimeBuckets.length - 1;
+            }
+            m_roundTripTimeBuckets[rttBucket] += 1;
+
+            int rttClusterBucket = (int)(Math.floor(clusterRoundTripTime / 10));
+            if (rttClusterBucket >= m_clusterRoundTripTimeBuckets.length) {
+                rttClusterBucket = m_clusterRoundTripTimeBuckets.length - 1;
+            }
+            m_clusterRoundTripTimeBuckets[rttClusterBucket] += 1;
+
         }
     }
     
@@ -233,13 +256,14 @@ class Distributer {
                 int roundTrip,
                 int clusterRoundTrip,
                 boolean abort,
-                boolean failure) {
+                boolean error,
+                int restartCounter) {
             ProcedureStats stats = m_stats.get(name);
             if (stats == null) {
                 stats = new ProcedureStats(name);
                 m_stats.put( name, stats);
             }
-            stats.update(roundTrip, clusterRoundTrip, abort, failure);
+            stats.update(roundTrip, clusterRoundTrip, abort, error, restartCounter);
         }
 
         @Override
@@ -264,6 +288,7 @@ class Distributer {
             final boolean should_throttle = response.getThrottleFlag();
             final Hstoreservice.Status status = response.getStatus();
             final int timestamp = response.getRequestCounter();
+            final int restart_counter = response.getRestartCounter();
             
             boolean abort = false;
             boolean error = false;
@@ -286,6 +311,7 @@ class Distributer {
                         m0.put("ClientHandle", clientHandle);
                         m0.put("ThrottleFlag", should_throttle);
                         m0.put("Timestamp", timestamp);
+                        m0.put("RestartCounter", restart_counter);
                         
                         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
                         m1.put("Connection", this);
@@ -329,7 +355,7 @@ class Distributer {
                     m_invocationErrors++;
                     error = true;
                 }
-                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error);
+                updateStats(stuff.name, delta, response.getClusterRoundtrip(), abort, error, restart_counter);
             }
 
             if (cb != null) {
@@ -517,11 +543,11 @@ class Distributer {
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings,
             int backpressureWait) {
-//        if (statsSettings != null) {
-//            m_statsLoader = new ClientStatsLoader(statsSettings, this);
-//        } else {
+        if (statsSettings != null) {
+            m_statsLoader = new ClientStatsLoader(statsSettings, this);
+        } else {
             m_statsLoader = null;
-//        }
+        }
         m_useMultipleThreads = useMultipleThreads;
         m_backpressureWait = backpressureWait;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
@@ -610,6 +636,7 @@ class Distributer {
             int addr = (int)numbers[3];
             m_clusterInstanceId = new Object[] { timestamp, addr };
             if (m_statsLoader != null) {
+                if (debug.get()) LOG.debug("statsLoader = " + m_statsLoader);
                 try {
                     m_statsLoader.start( timestamp, addr);
                 } catch (SQLException e) {
@@ -617,13 +644,13 @@ class Distributer {
                 }
             }
         } else {
-            if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
-                !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
-                aChannel.close();
-                throw new IOException(
-                        "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
-                        + " and server's was " + numbers[2] + "," + numbers[3]);
-            }
+//            if (!(((Long)m_clusterInstanceId[0]).longValue() == numbers[2]) ||
+//                !(((Integer)m_clusterInstanceId[1]).longValue() == numbers[3])) {
+//                aChannel.close();
+//                throw new IOException(
+//                        "Cluster instance id mismatch. Current is " + m_clusterInstanceId[0] + "," + m_clusterInstanceId[1]
+//                        + " and server's was " + numbers[2] + "," + numbers[3]);
+//            }
         }
         m_buildString = (String)connectionStuff[2];
         NodeConnection cxn = new NodeConnection(numbers);
@@ -826,6 +853,7 @@ class Distributer {
             new ColumnInfo( "INVOCATIONS_COMPLETED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_ABORTED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_FAILED", VoltType.BIGINT),
+            new ColumnInfo( "TIMES_RESTARTED", VoltType.BIGINT)
     };
 
     VoltTable getProcedureStats(final boolean interval) {
@@ -841,6 +869,7 @@ class Distributer {
         long totalClusterRoundTripTime = 0;
         int totalClusterRoundTripMax = Integer.MIN_VALUE;
         int totalClusterRoundTripMin = Integer.MAX_VALUE;
+        long totalRestarts = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -854,6 +883,7 @@ class Distributer {
                         long clusterRoundTripTime = stats.m_clusterRoundTripTime;
                         int clusterMinRoundTripTime = stats.m_minClusterRoundTripTime;
                         int clusterMaxRoundTripTime = stats.m_maxClusterRoundTripTime;
+                        long restartCounter = stats.m_restartCounter;
 
                         if (interval) {
                             invocationsCompleted = stats.m_invocationsCompleted - stats.m_lastInvocationsCompleted;
@@ -896,6 +926,7 @@ class Distributer {
                         totalClusterRoundTripTime += clusterRoundTripTime;
                         totalClusterRoundTripMax = Math.max(clusterMaxRoundTripTime, totalClusterRoundTripMax);
                         totalClusterRoundTripMin = Math.min(clusterMinRoundTripTime, totalClusterRoundTripMin);
+                        totalRestarts += restartCounter;
                         retval.addRow(
                                 now,
                                 m_hostname,
@@ -912,7 +943,8 @@ class Distributer {
                                 clusterMaxRoundTripTime,
                                 invocationsCompleted,
                                 invocationAborts,
-                                invocationErrors
+                                invocationErrors,
+                                restartCounter
                                 );
                     }
                 }
@@ -929,6 +961,7 @@ class Distributer {
         long totalInvocations = 0;
         long totalAbortedInvocations = 0;
         long totalFailedInvocations = 0;
+        long totalThrottledInvocations = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -941,6 +974,8 @@ class Distributer {
                     totalInvocations += counters[0];
                     totalAbortedInvocations += counters[1];
                     totalFailedInvocations += counters[2];
+                    totalThrottledInvocations += counters[3];
+                    
                     final long networkCounters[] = networkStats.get(cxn.connectionId()).getSecond();
                     final String hostname = networkStats.get(cxn.connectionId()).getFirst();
                     long bytesRead = 0;
@@ -984,6 +1019,7 @@ class Distributer {
                 totalInvocations,
                 totalAbortedInvocations,
                 totalFailedInvocations,
+                totalThrottledInvocations,
                 globalIOStats[0],
                 globalIOStats[1],
                 globalIOStats[2],

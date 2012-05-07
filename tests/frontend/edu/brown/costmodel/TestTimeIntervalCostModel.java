@@ -256,8 +256,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         } // FOR
         final Map<Integer, Double> probs = new HashMap<Integer, Double>();
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            Long cnt = h.get(i);
-            if (cnt == null) cnt = 0l;
+            long cnt = h.get(i, 0);
             probs.put(i, cnt / 100.0d);
         } // FOR
         

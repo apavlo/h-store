@@ -20,11 +20,12 @@ package org.voltdb.client;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.Poolable;
 
 /**
  *  Interface implemented by the responses that are generated for procedure invocations
  */
-public interface ClientResponse {
+public interface ClientResponse extends Poolable {
 
     /**
      * Client Handle
@@ -124,4 +125,10 @@ public interface ClientResponse {
      * @return Time in milliseconds the procedure took to roundtrip from the client to the server
      */
     public int getClientRoundtrip();
+    
+    /**
+     * Get the number of times this transaction was restarted on the server side for whatever reason.
+     * @return The number of times this transaction has been restarted.
+     */
+    public int getRestartCounter();
 }

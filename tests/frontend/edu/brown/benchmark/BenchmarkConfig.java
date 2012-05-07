@@ -66,7 +66,13 @@ public class BenchmarkConfig {
     public String snapshotPrefix;
     public String snapshotFrequency;
     public int snapshotRetain;
+    
     public String statsDatabaseURL;
+    public String statsDatabaseUser;
+    public String statsDatabasePass;
+    public String statsDatabaseJDBC;
+    public int statsPollInterval;
+    
     public String resultsDatabaseURL;
     public String statsTag;//Identifies the result set
     public String applicationName;
@@ -94,6 +100,8 @@ public class BenchmarkConfig {
     public Double markov_thresholdsValue;
     public boolean markovRecomputeAfterEnd;
     public boolean markovRecomputeAfterWarmup;
+    
+    public String deferrable[];
     
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
@@ -191,7 +199,10 @@ public class BenchmarkConfig {
             String snapshotFrequency,
             int snapshotRetain,
             String statsDatabaseURL,
-            String resultsDatabaseURL,
+            String statsDatabaseUser,
+            String statsDatabasePass,
+            String statsDatabaseJDBC,
+            int statsPollInterval,
             String statsTag,
             String applicationName,
             String subApplicationName,
@@ -212,6 +223,7 @@ public class BenchmarkConfig {
             Double thresholdsValue,
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
+            String deferrable[],
             boolean dumpDatabase,
             String dumpDatabaseDir,
             boolean jsonOutput
@@ -240,9 +252,16 @@ public class BenchmarkConfig {
         this.snapshotPrefix = snapshotPrefix;
         this.snapshotFrequency = snapshotFrequency;
         this.snapshotRetain = snapshotRetain;
-        this.resultsDatabaseURL = resultsDatabaseURL;
+        
+        // FIXME this.resultsDatabaseURL = resultsDatabaseURL;
+        
         this.statsDatabaseURL = statsDatabaseURL;
+        this.statsDatabaseUser = statsDatabaseUser;
+        this.statsDatabasePass = statsDatabasePass;
+        this.statsDatabaseJDBC = statsDatabaseJDBC;
         this.statsTag = statsTag;
+        this.statsPollInterval = statsPollInterval;
+        
         this.applicationName = applicationName;
         this.subApplicationName = subApplicationName;
         
@@ -267,6 +286,8 @@ public class BenchmarkConfig {
         this.markov_thresholdsValue = thresholdsValue;
         this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
         this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
+        
+        this.deferrable = deferrable;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;

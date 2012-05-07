@@ -3,23 +3,19 @@ package edu.brown.hstore.dtxn;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -46,16 +42,16 @@ public class ExecutionState {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    /** The ExecutionSite that this TransactionState is tied to **/
+    /**
+     * The ExecutionSite that this TransactionState is tied to
+     */
     protected final PartitionExecutor executor;
     
-//    protected final DBBPool buffer_pool;
-    
     /**
-     * List of encoded Partition/Dependency keys
+     * A special lock for the critical sections of the LocalTransaction
+     * This is only to handle messages coming from the HStoreCoordinator or from other
+     * PartitionExecutors that are executing on this txn's behalf 
      */
-    protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
-    
     protected final ReentrantLock lock = new ReentrantLock();
 
     // ----------------------------------------------------------------------------
@@ -69,9 +65,10 @@ public class ExecutionState {
     protected CountDownLatch dependency_latch;
     
     /**
-     * SQLStmt Index -> DependencyId -> DependencyInfo
+     * Mapping from DependencyId to the corresponding DependencyInfo object
+     * Map<DependencyId, DependencyInfo>
      */
-    protected final Map<Integer, DependencyInfo> dependencies[];
+    protected final Map<Integer, DependencyInfo> dependencies = new HashMap<Integer, DependencyInfo>();
     
     /**
      * Final result output dependencies. Each position in the list represents a single Statement
@@ -81,7 +78,7 @@ public class ExecutionState {
     /**
      * As information come back to us, we need to keep track of what SQLStmt we are storing 
      * the data for. Note that we have to maintain two separate lists for results and responses
-     * Partition-DependencyId Key Offset -> Next SQLStmt Index
+     * Partition-DependencyId Key -> Next SQLStmt Index
      */
     protected final Map<Integer, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Integer, Queue<Integer>>();
 
@@ -89,13 +86,14 @@ public class ExecutionState {
      * Sometimes we will get results back while we are still queuing up the rest of the tasks and
      * haven't started the next round. So we need a temporary space where we can put these guys until 
      * we start the round. Otherwise calculating the proper latch count is tricky
+     * Partition-DependencyId Key -> VoltTable
      */
-    protected final Map<Integer, VoltTable> queued_results = new ListOrderedMap<Integer, VoltTable>();
+    protected final Map<Integer, VoltTable> queued_results = new LinkedHashMap<Integer, VoltTable>();
     
     /**
      * Blocked FragmentTaskMessages
      */
-    protected final Set<WorkFragment> blocked_tasks = new HashSet<WorkFragment>();
+    protected final List<WorkFragment> blocked_tasks = new ArrayList<WorkFragment>();
     
     /**
      * Unblocked FragmentTaskMessages
@@ -103,28 +101,27 @@ public class ExecutionState {
      * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
     protected final LinkedBlockingDeque<Collection<WorkFragment>> unblocked_tasks = new LinkedBlockingDeque<Collection<WorkFragment>>(); 
-
+    
+    /**
+     * Whether the current transaction still has outstanding WorkFragments that it
+     * needs to execute or get back dependencies from
+     */
     protected boolean still_has_tasks = true;
     
     /**
      * Number of SQLStmts in the current batch
      */
     protected int batch_size = 0;
+    
     /**
      * The total # of dependencies this Transaction is waiting for in the current round
      */
     protected int dependency_ctr = 0;
+    
     /**
      * The total # of dependencies received thus far in the current round
      */
     protected int received_ctr = 0;
-    
-    /**
-     * This is a special flag that tells us the last round that we used the cached DependencyInfos
-     * If the last round doesn't equal the current round, then we will have to call finish()
-     * to clean it out before we can use it.
-     */
-    protected final int dinfo_lastRound[];
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -133,20 +130,14 @@ public class ExecutionState {
     /**
      * Constructor
      */
-    @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
-//        this.buffer_pool = executor.getDBBPool();
         
-        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
-        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
-        for (int i = 0; i < this.dependencies.length; i++) {
-            this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
-        } // FOR
-        this.dinfo_lastRound = new int[max_batch];
-        
-//        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
-//        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
+//        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
+//        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
+//        for (int i = 0; i < this.dependencies.length; i++) {
+//            this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
+//        } // FOR
     }
     
     public void clear() {
@@ -183,6 +174,7 @@ public class ExecutionState {
     // ----------------------------------------------------------------------------
     
     public void clearRound() {
+        this.dependencies.clear();
         this.output_order.clear();
         this.queued_results.clear();
         this.blocked_tasks.clear();

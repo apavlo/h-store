@@ -46,11 +46,10 @@ import edu.brown.statistics.Histogram;
 
 /**
  * TM1Client
- * 
  * @author zhe
  * @author pavlo
  */
-public class TM1Client extends TM1BaseClient {
+public class TM1Client extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TM1Client.class);
 
     /**
@@ -181,6 +180,8 @@ public class TM1Client extends TM1BaseClient {
 
     // Callbacks
     protected final TM1Callback callbacks[];
+    
+    private final long subscriberSize;
 
     /**
      * Main method
@@ -198,6 +199,8 @@ public class TM1Client extends TM1BaseClient {
      */
     public TM1Client(String args[]) {
         super(args);
+        
+        this.subscriberSize = Math.round(TM1Constants.SUBSCRIBER_SIZE * this.getScaleFactor());
         
         // Initialize the sampling table
         Histogram<Transaction> txns = new Histogram<Transaction>(); 
@@ -220,19 +223,6 @@ public class TM1Client extends TM1BaseClient {
         } // FOR
     }
 
-
-    /**
-     * Return a transaction randomly selected per TM1 probability specs
-     */
-    private Transaction selectTransaction() {
-        // Transaction force = null; // (this.getClientId() == 0 ?
-        // Transaction.INSERT_CALL_FORWARDING :
-        // Transaction.GET_SUBSCRIBER_DATA); //
-        // Transaction.INSERT_CALL_FORWARDING;
-        // if (force != null) return (force);
-        return this.txnWeights.nextValue();
-    }
-
     /**
      * Benchmark execution loop
      */
@@ -253,7 +243,7 @@ public class TM1Client extends TM1BaseClient {
 
     @Override
     protected boolean runOnce() throws IOException {
-        final Transaction target = this.selectTransaction();
+        final Transaction target = this.txnWeights.nextValue();
 
         this.startComputeTime(target.displayName);
         Object params[] = target.ag.genArgs(subscriberSize);

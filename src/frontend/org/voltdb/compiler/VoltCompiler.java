@@ -83,6 +83,8 @@ import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.DatabaseDump;
+import org.voltdb.sysprocs.ExecutorStatus;
+import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
@@ -107,6 +109,7 @@ import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -266,12 +269,18 @@ public class VoltCompiler {
     class ProcedureDescriptor {
         final ArrayList<String> m_authUsers;
         final ArrayList<String> m_authGroups;
+        final ArrayList<String> m_prefetchable;
+        final ArrayList<String> m_deferrable;
         final String m_className;
         // for single-stmt procs
         final String m_singleStmt;
         final String m_partitionString;
 
-        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className) {
+        ProcedureDescriptor (final ArrayList<String> authUsers,
+                             final ArrayList<String> authGroups,
+                             final String className,
+                             final ArrayList<String> prefetchable,
+                             final ArrayList<String> deferrable) {
             assert(className != null);
 
             m_authUsers = authUsers;
@@ -279,9 +288,15 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = null;
             m_partitionString = null;
+            m_prefetchable = prefetchable;
+            m_deferrable = deferrable;
         }
 
-        ProcedureDescriptor (final ArrayList<String> authUsers, final ArrayList<String> authGroups, final String className, final String singleStmt, final String partitionString) {
+        ProcedureDescriptor (final ArrayList<String> authUsers,
+                             final ArrayList<String> authGroups,
+                             final String className,
+                             final String singleStmt,
+                             final String partitionString) {
             assert(className != null);
             assert(singleStmt != null);
 
@@ -290,6 +305,8 @@ public class VoltCompiler {
             m_className = className;
             m_singleStmt = singleStmt;
             m_partitionString = partitionString;
+            m_prefetchable = new ArrayList<String>();
+            m_deferrable = new ArrayList<String>();
         }
     }
     
@@ -401,7 +418,7 @@ public class VoltCompiler {
         
         try {
 //            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
-            m_jarBuilder.addEntry("catalog.txt", catalogBytes);
+            m_jarBuilder.addEntry(CatalogUtil.CATALOG_FILENAME, catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
                 m_jarBuilder.addEntry(e.getKey(), new File(e.getValue()));
@@ -1003,6 +1020,8 @@ public class VoltCompiler {
     {
         final ArrayList<String> users = new ArrayList<String>();
         final ArrayList<String> groups = new ArrayList<String>();
+        final ArrayList<String> prefetchable = new ArrayList<String>();
+        final ArrayList<String> deferrable = new ArrayList<String>();
 
         // @users
         if (xmlproc.getUsers() != null) {
@@ -1039,7 +1058,15 @@ public class VoltCompiler {
                 "and may not use the @partitioninfo project file procedure attribute.";
                 throw new VoltCompilerException(msg);
             }
-            return new ProcedureDescriptor(users, groups, classattr);
+            // HACK: Prefetchable
+            if (xmlproc.getPrefetchable() != null) {
+                CollectionUtil.addAll(prefetchable, xmlproc.getPrefetchable().split("[\\s]*,[\\s]*"));
+            }
+            // HACK: Deferrable
+            if (xmlproc.getDeferrable() != null) {
+                CollectionUtil.addAll(deferrable, xmlproc.getDeferrable().split("[\\s]*,[\\s]*"));
+            }
+            return new ProcedureDescriptor(users, groups, classattr, prefetchable, deferrable);
         }
     }
 
@@ -1191,13 +1218,15 @@ public class VoltCompiler {
 
         // Table of sysproc metadata.
         final Object[][] procedures = {
-            // SysProcedure Class                        readonly    everysite
+            // SysProcedure Class                   readonly    everysite
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
             {RecomputeMarkovs.class,                true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
+            {GarbageCollection.class,               true,       true},
+            {ExecutorStatus.class,                  true,       false},
             {SnapshotSave.class,                    false,      false},
             {SnapshotRestore.class,                 false,      false},
             {SnapshotStatus.class,                  false,      false},

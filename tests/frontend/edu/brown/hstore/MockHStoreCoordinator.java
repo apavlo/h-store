@@ -8,6 +8,8 @@ import com.google.protobuf.RpcController;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.LiveMigrationSyncRequest;
 import edu.brown.hstore.Hstoreservice.LiveMigrationSyncResponse;
+import edu.brown.hstore.Hstoreservice.InitializeRequest;
+import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
@@ -20,6 +22,8 @@ import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.TransactionMapRequest;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchAcknowledgement;
+import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectRequest;
@@ -90,6 +94,10 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
     protected HStoreService initHStoreService() {
         return new MockServiceHandler();
     }
+    @Override
+    protected void initCluster() {
+        // Nothing to do...
+    }
     
     private class MockServiceHandler extends HStoreService {
 
@@ -127,12 +135,17 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             // Ignore
         }
+        
+        @Override
+        public void initialize(RpcController controller, InitializeRequest request, RpcCallback<InitializeResponse> done) {
+            // TODO Auto-generated method stub
+        }
 
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             ShutdownResponse response = ShutdownResponse.newBuilder()
-                                                     .setSenderId(hstore_site.getSiteId())
+                                                     .setSenderSite(hstore_site.getSiteId())
                                                      .build();
             System.exit(1);
             done.run(response);
@@ -163,13 +176,23 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             
         }
 
-        @Override
-        public void liveMigrationSync(RpcController controller, LiveMigrationSyncRequest request, RpcCallback<LiveMigrationSyncResponse> done) {
-            // TODO Auto-generated method stub
-            
-        }
+		@Override
+		public void transactionPrefetch(RpcController controller,
+				TransactionPrefetchResult request,
+				RpcCallback<TransactionPrefetchAcknowledgement> done) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void liveMigrationSync(RpcController controller,
+				LiveMigrationSyncRequest request,
+				RpcCallback<LiveMigrationSyncResponse> done) {
+			// TODO Auto-generated method stub
+			
+		}
+
     }
     
-    
-
+   
 }

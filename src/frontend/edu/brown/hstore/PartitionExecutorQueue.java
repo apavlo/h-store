@@ -10,20 +10,21 @@ import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
+import org.voltdb.messaging.VoltMessage;
 
-public class PartitionExecutorQueue extends PriorityBlockingQueue<TransactionInfoBaseMessage> {
+public class PartitionExecutorQueue extends PriorityBlockingQueue<VoltMessage> {
     
     private static final long serialVersionUID = 1L;
-    private final List<TransactionInfoBaseMessage> swap = new ArrayList<TransactionInfoBaseMessage>();
+    private final List<VoltMessage> swap = new ArrayList<VoltMessage>();
     
     public PartitionExecutorQueue() {
         super(10000, WORK_COMPARATOR); // FIXME
     }
     
     @Override
-    public int drainTo(Collection<? super TransactionInfoBaseMessage> c) {
+    public int drainTo(Collection<? super VoltMessage> c) {
         assert(c != null);
-        TransactionInfoBaseMessage msg = null;
+        VoltMessage msg = null;
         int ctr = 0;
         this.swap.clear();
         while ((msg = this.poll()) != null) {
@@ -40,28 +41,38 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<TransactionInf
         return (ctr);
     }
     
-    private static final Comparator<TransactionInfoBaseMessage> WORK_COMPARATOR = new Comparator<TransactionInfoBaseMessage>() {
+    private static final Comparator<VoltMessage> WORK_COMPARATOR = new Comparator<VoltMessage>() {
         @Override
-        public int compare(TransactionInfoBaseMessage msg0, TransactionInfoBaseMessage msg1) {
+        public int compare(VoltMessage msg0, VoltMessage msg1) {
             assert(msg0 != null);
             assert(msg1 != null);
-            
-            // (1) SysProcs always go first
-            if (msg0.isSysProc() != msg1.isSysProc()) {
-                if (msg0.isSysProc()) return (-1);
-                else return (1);
-            }
-            
-            // (2) If they're the same message type, go by their txnIds
-            Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
-            Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
-            if (class0.equals(class1)) return (msg0.getTxnId().compareTo(msg1.getTxnId()));
 
+            // Non-Transactional Messages go first
+            boolean isTxn0 = (msg0 instanceof TransactionInfoBaseMessage);
+            boolean isTxn1 = (msg1 instanceof TransactionInfoBaseMessage);
+            if (!isTxn0 && isTxn1) return (-1);
+            else if (isTxn0 && isTxn1) return (1);
+
+            Class<? extends VoltMessage> class0 = msg0.getClass();
+            Class<? extends VoltMessage> class1 = msg1.getClass();
+            
             // (3) Otherwise, always let the FinishTaskMessage go first
             boolean isFinish0 = class0.equals(FinishTaskMessage.class);
             boolean isFinish1 = class1.equals(FinishTaskMessage.class);
             if (isFinish0 && !isFinish1) return (-1);
             else if (!isFinish0 && isFinish1) return (1);
+            
+            TransactionInfoBaseMessage txn0 = (TransactionInfoBaseMessage)msg0;
+            TransactionInfoBaseMessage txn1 = (TransactionInfoBaseMessage)msg1;
+            
+            // (1) SysProcs always go first
+            if (txn0.isSysProc() != txn1.isSysProc()) {
+                if (txn0.isSysProc()) return (-1);
+                else return (1);
+            }
+            
+            // (2) If they're the same message type, go by their txnIds
+            if (class0.equals(class1)) return (txn0.getTxnId().compareTo(txn1.getTxnId()));
             
             // (4) Then let a FragmentTaskMessage go before anything else
             boolean isWork0 = class0.equals(FragmentTaskMessage.class);

@@ -17,13 +17,17 @@
 package org.voltdb.client;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+
+import edu.brown.catalog.CatalogUtil;
 
 /**
  * Polls a Distributer instance for IO and procedure invocation information and ELTs the results
@@ -31,6 +35,9 @@ import org.voltdb.VoltTable;
  *
  */
 public class ClientStatsLoader {
+    private static final Logger LOG = Logger.getLogger(ClientStatsLoader.class);
+    
+    private final StatsUploaderSettings m_settings;
     private final Connection m_conn;
     private final String m_applicationName;
     private final String m_subApplicationName;
@@ -39,28 +46,29 @@ public class ClientStatsLoader {
     private int m_instanceId = -1;
     private final Thread m_loadThread = new Thread(new Loader(), "Client stats loader");
 
-    private static final String tablePrefix = "ma_";
+    private static final String tablePrefix = ""; // "ma_";
 
     private static final String instancesTable = tablePrefix + "clientInstances";
     private static final String connectionStatsTable = tablePrefix + "clientConnectionStats";
     private static final String procedureStatsTable = tablePrefix + "clientProcedureStats";
 
     private static final String createInstanceStatement = "insert into " + instancesTable +
-            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName) " +
-            "values ( ?, ?, ?, ? );";
+            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName, " +
+            " numHosts, numSites, numPartitions) " +
+            "values ( ?, ?, ?, ?, ?, ?, ? );";
 
     private static final String insertConnectionStatsStatement = "insert into " + connectionStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
-            " serverConnectionId, numInvocations, numAborts, numFailures, numBytesRead, " +
+            " serverConnectionId, numInvocations, numAborts, numFailures, numThrottled, numBytesRead, " +
             " numMessagesRead, numBytesWritten, numMessagesWritten) " +
-            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
+            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
 
     private static final String insertProcedureStatsStatement = "insert into " + procedureStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
             " serverConnectionId, procedureName, roundtripAvg, roundtripMin, roundtripMax, " +
             " clusterRoundtripAvg, clusterRoundtripMin, clusterRoundtripMax, " +
-            " numInvocations, numAborts, numFailures) " +
-            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
+            " numInvocations, numAborts, numFailures, numRestarts) " +
+            "values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );";
 
     private PreparedStatement insertConnectionStatsStmt;
     private PreparedStatement insertProcedureStatsStmt;
@@ -68,7 +76,24 @@ public class ClientStatsLoader {
     public ClientStatsLoader(
             StatsUploaderSettings settings,
             Distributer distributer) {
-        m_conn = settings.conn;
+        try {
+            if (settings.databaseJDBC != null && settings.databaseJDBC.isEmpty() == false) {
+                Class.forName(settings.databaseJDBC);
+            }
+            
+            m_conn = DriverManager.getConnection(settings.databaseURL,
+                                               settings.databaseUser,
+                                               settings.databasePass);
+            m_conn.setAutoCommit(false);
+            m_conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        }
+        catch (Exception e) {
+            String msg = "Failed to connect to SQL reporting server with message:\n    ";
+            msg += e.getMessage();
+            throw new RuntimeException(msg);
+        }
+        
+        m_settings = settings;
         m_applicationName = settings.applicationName;
         m_subApplicationName = settings.subApplicationName;
         m_pollInterval = settings.pollInterval;
@@ -76,13 +101,17 @@ public class ClientStatsLoader {
     }
 
     public void start(long startTime, int leaderAddress) throws SQLException {
+        Timestamp timestamp = new Timestamp(startTime);
+        if (LOG.isDebugEnabled())
+            LOG.debug(String.format("Cluster Start Time: %s [%d]", timestamp, startTime));
+        
         PreparedStatement instanceStmt =
             m_conn.prepareStatement(
                     createInstanceStatement,
                     PreparedStatement.RETURN_GENERATED_KEYS);
         insertConnectionStatsStmt = m_conn.prepareStatement(insertConnectionStatsStatement);
         insertProcedureStatsStmt = m_conn.prepareStatement(insertProcedureStatsStatement);
-        instanceStmt.setLong( 1, startTime);
+        instanceStmt.setTimestamp( 1, timestamp);
         instanceStmt.setInt( 2, leaderAddress);
         instanceStmt.setString( 3, m_applicationName);
         if (m_subApplicationName != null) {
@@ -90,6 +119,9 @@ public class ClientStatsLoader {
         } else {
             instanceStmt.setNull( 4, Types.VARCHAR);
         }
+        instanceStmt.setInt(5, CatalogUtil.getNumberOfHosts(m_settings.getCatalog()));
+        instanceStmt.setInt(6, CatalogUtil.getNumberOfSites(m_settings.getCatalog()));
+        instanceStmt.setInt(7, CatalogUtil.getNumberOfPartitions(m_settings.getCatalog()));
         instanceStmt.execute();
         ResultSet results = instanceStmt.getGeneratedKeys();
         while (results.next()) {
@@ -103,7 +135,10 @@ public class ClientStatsLoader {
         insertConnectionStatsStmt.setInt( 1, m_instanceId);
         insertProcedureStatsStmt.setInt( 1, m_instanceId);
         m_conn.commit();
+        m_loadThread.setDaemon(true);
         m_loadThread.start();
+        if (LOG.isDebugEnabled())
+            LOG.debug("ClientStatsLoader has been started");
     }
 
     public synchronized void stop() throws InterruptedException {
@@ -142,17 +177,13 @@ public class ClientStatsLoader {
                         final VoltTable procedureStats = m_distributer
                                 .getProcedureStats(true);
 
-                        boolean first = true;
                         try {
                             while (ioStats.advanceRow()) {
-                                int index = 2;
-                                if (first) {
-                                    insertConnectionStatsStmt.setTimestamp(
-                                            index++, new Timestamp(ioStats
-                                                    .getLong("TIMESTAMP")));
-                                } else {
-                                    index++;
-                                }
+                                int index = 1;
+                                insertConnectionStatsStmt.setInt(index++,
+                                        m_instanceId);
+                                insertConnectionStatsStmt.setTimestamp(index++,
+                                        new Timestamp(ioStats.getLong("TIMESTAMP")));
                                 insertConnectionStatsStmt.setString(index++,
                                         ioStats.getString("HOSTNAME"));
                                 insertConnectionStatsStmt.setLong(index++,
@@ -177,6 +208,8 @@ public class ClientStatsLoader {
                                 insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("INVOCATIONS_FAILED"));
                                 insertConnectionStatsStmt.setLong(index++,
+                                        ioStats.getLong("INVOCATIONS_THROTTLED"));
+                                insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("BYTES_READ"));
                                 insertConnectionStatsStmt.setLong(index++,
                                         ioStats.getLong("MESSAGES_READ"));
@@ -194,18 +227,13 @@ public class ClientStatsLoader {
                             e.printStackTrace();
                         }
 
-                        first = true;
                         try {
                             while (procedureStats.advanceRow()) {
-                                int index = 2;
-                                if (first) {
-                                    insertProcedureStatsStmt.setTimestamp(
-                                            index++,
-                                            new Timestamp(procedureStats
-                                                    .getLong("TIMESTAMP")));
-                                } else {
-                                    index++;
-                                }
+                                int index = 1;
+                                insertProcedureStatsStmt.setInt(index++,
+                                        m_instanceId);
+                                insertProcedureStatsStmt.setTimestamp(index++,
+                                        new Timestamp(procedureStats.getLong("TIMESTAMP")));
                                 insertProcedureStatsStmt.setString(index++,
                                         procedureStats.getString("HOSTNAME"));
                                 insertProcedureStatsStmt
@@ -260,6 +288,9 @@ public class ClientStatsLoader {
                                 insertProcedureStatsStmt.setLong(index++,
                                         procedureStats
                                                 .getLong("INVOCATIONS_FAILED"));
+                                insertProcedureStatsStmt.setLong(index++,
+                                        procedureStats
+                                                .getLong("TIMES_RESTARTED"));
                                 insertProcedureStatsStmt.addBatch();
                             }
                             insertProcedureStatsStmt.executeBatch();

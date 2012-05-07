@@ -28,33 +28,31 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.voltdb.BackendTarget;
-import org.voltdb.ProcedureProfiler;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
-import org.voltdb.VoltDB.Configuration;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
 
-import edu.brown.catalog.CatalogInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
-import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Implementation of a VoltServerConfig for a multi-process
  * cluster. All cluster processes run locally (keep this in
  * mind if building memory or load intensive tests.)
  */
-public class LocalCluster implements VoltServerConfig {
+public class LocalCluster extends VoltServerConfig {
 
     // configuration data
     final String m_jarFileName;
@@ -197,42 +195,9 @@ public class LocalCluster implements VoltServerConfig {
         else
             m_buildDir = buildDir;
 
-        String classPath = System.getProperty("java.class.path")+ ":" + m_buildDir + File.separator + m_jarFileName;
-        classPath += ":" + m_buildDir + File.separator + "prod";
-
         // processes of VoltDBs using the compiled jar file.
         m_cluster = new ArrayList<Process>();
         m_pipes = new ArrayList<PipeToFile>();
-//        m_procBuilder = new ProcessBuilder("java",
-//                                           "-Djava.library.path=" + m_buildDir + "/nativelibs",
-//                                           "-Dlog4j.configuration=log.xml",
-//                                           "-ea",
-//                                           "-Xmx2048m",
-//                                           "-XX:+HeapDumpOnOutOfMemoryError",
-//                                           "-classpath",
-//                                           classPath,
-//                                           "org.voltdb.VoltDB",
-//                                           "catalog",
-//                                           m_jarFileName,
-//                                           "port",
-//                                           "-1");
-        
-        // 
-        
-        m_procBuilder = new ProcessBuilder(
-                "ant",
-                "hstore-site",
-                "-Djar=" + m_jarFileName,
-                "-Dsite.id=-1"
-        );
-        for (String s : m_procBuilder.command()) {
-            System.out.println(s);
-        }
-
-        // set the working directory to obj/release/prod
-        //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
-        m_procBuilder.redirectErrorStream(true);
-
         Thread shutdownThread = new Thread(new ShutDownHookThread());
         java.lang.Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
@@ -260,13 +225,35 @@ public class LocalCluster implements VoltServerConfig {
         
         // (3) Write updated catalog back out to jar file
         try {
-            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog, "catalog.txt");
+            CatalogUtil.updateCatalogInJar(m_jarFileName, catalog);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         
         tmpCatalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
+        
+        // Construct the base command that we will want to use to start
+        // all of the "remote" HStoreSites 
+        List<String> siteCommand = new ArrayList<String>();
+        CollectionUtil.addAll(siteCommand, 
+            "ant",
+            "hstore-site",
+            "-Djar=" + m_jarFileName
+        );
+        // Be sure to include our HStoreConf parameters
+        for (Entry<String, String> e : this.confParams.entrySet()) {
+            siteCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
+        }
+        // Lastly, we will include the site.id as the last parameter
+        // so that we can easily change it
+        siteCommand.add("-Dsite.id=-1");
+        
+        m_procBuilder = new ProcessBuilder(siteCommand.toArray(new String[0]));
+        m_procBuilder.redirectErrorStream(true);
+        // set the working directory to obj/release/prod
+        //m_procBuilder.directory(new File(m_buildDir + File.separator + "prod"));
+
         
         return m_compiled;
     }
@@ -295,6 +282,7 @@ public class LocalCluster implements VoltServerConfig {
 //        config.m_port = HStoreConstants.DEFAULT_PORT;
 
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
+        hstore_conf.loadFromArgs(this.confParams);
         
         // create all the out-of-process servers
         // Loop through all of the sites in the catalog and start them
@@ -421,8 +409,15 @@ public class LocalCluster implements VoltServerConfig {
 
     @Override
     public String getName() {
-        return "localCluster-" + String.valueOf(m_partitionPerSite) +
-               "-" + String.valueOf(m_siteCount) + "-" + m_target.display.toUpperCase();
+        String retval = String.format("localCluster-%d-%d-%s",
+                                        m_partitionPerSite,
+                                        m_siteCount,
+                                        m_target.display.toUpperCase());
+        
+        if (this.nameSuffix != null && this.nameSuffix.isEmpty() == false)
+            retval += "-" + this.nameSuffix;
+        
+        return retval;
     }
 
     @Override

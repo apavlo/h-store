@@ -22,5 +22,9 @@ public class CatalogChangeResult extends AsyncCompilerResult {
 
     public String catalogURL;
     public String encodedDiffCommands;
+    
+    public CatalogChangeResult() {
+        super(null);
+    }
 
 }

@@ -101,29 +101,12 @@ public class neworder extends VoltProcedure {
     public final SQLStmt getItemInfo =
         new SQLStmt("SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?;"); //ol_i_id
 
-    public final SQLStmt getStockInfo01 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_01 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo02 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_02 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo03 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_03 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo04 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_04 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo05 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_05 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo06 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_06 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo07 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_07 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo08 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_08 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo09 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_09 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-    public final SQLStmt getStockInfo10 = new SQLStmt("SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_10 FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"); //ol_i_id, ol_supply_w_id
-
-    public final SQLStmt[] getStockInfo = {
-            getStockInfo01,
-            getStockInfo02,
-            getStockInfo03,
-            getStockInfo04,
-            getStockInfo05,
-            getStockInfo06,
-            getStockInfo07,
-            getStockInfo08,
-            getStockInfo09,
-            getStockInfo10,
-    };
+    public final SQLStmt getStockInfo = new SQLStmt(
+        "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT," +
+               "S_DIST_01, S_DIST_02, S_DIST_03, S_DIST_04, S_DIST_05, " +
+               "S_DIST_06, S_DIST_07, S_DIST_08, S_DIST_09, S_DIST_10 " +
+        " FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?;"
+    ); //ol_i_id, ol_supply_w_id
 
     public final SQLStmt updateStock = new SQLStmt("UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?;"); //s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
 
@@ -175,11 +158,8 @@ public class neworder extends VoltProcedure {
 
         double total = 0;
         for (int i = 0; i < item_id.length; ++i) {
-            final long ol_supply_w_id = supware[i];
-            final long ol_i_id = item_id[i];
-
             // One getStockInfo SQL statement for each district
-            voltQueueSQL(getStockInfo[d_id-1], ol_i_id, ol_supply_w_id);
+            voltQueueSQL(getStockInfo, item_id[i], supware[i]);
         }
         final VoltTable[] stockresults = voltExecuteSQL();
         assert stockresults.length == item_id.length;
@@ -221,7 +201,7 @@ public class neworder extends VoltProcedure {
             final byte[] i_data = itemInfo.getStringAsBytes(I_DATA);
             final double i_price = itemInfo.getDouble(I_PRICE);
 
-            final int S_QUANTITY = 0, S_DATA = 1, S_YTD = 2, S_ORDER_CNT = 3, S_REMOTE_CNT = 4, S_DIST_XX = 5;
+            final int S_QUANTITY = 0, S_DATA = 1, S_YTD = 2, S_ORDER_CNT = 3, S_REMOTE_CNT = 4, S_DIST_XX = S_REMOTE_CNT + d_id;
             long s_quantity = stockInfo.getLong(S_QUANTITY);
             long s_ytd = stockInfo.getLong(S_YTD);
             long s_order_cnt = stockInfo.getLong(S_ORDER_CNT);

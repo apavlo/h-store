@@ -38,6 +38,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     {
         DEBUG.add("DistinctAggregate");
         DEBUG.add("MultipleAggregates");
+        DEBUG.add("JoinProjection");
     }
     
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt") {
@@ -85,9 +86,12 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("SingleProjection",
                                   "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
             
+            this.addStmtProcedure("NonPartitioningProjection",
+                                  "SELECT TABLEA.A_ID FROM TABLEA WHERE TABLEA.A_VALUE0 = ?");
+            
             this.addStmtProcedure("JoinProjection",
                                   "SELECT TABLEA.A_ID, TABLEA.A_VALUE0, TABLEA.A_VALUE1, TABLEA.A_VALUE2, TABLEA.A_VALUE3, TABLEA.A_VALUE4 " +
-                                  "FROM TABLEA,TABLEB " +
+                                  "FROM TABLEA, TABLEB " +
                                   "WHERE TABLEA.A_ID = ? AND TABLEA.A_ID = TABLEB.B_A_ID");
             
             this.addStmtProcedure("AggregateColumnAddition",
@@ -95,7 +99,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   " FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_B_A_ID");
             
             this.addStmtProcedure("OrderBy",
-                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
+                                  "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID DESC, TABLEC.C_VALUE0 ASC");
             
             this.addStmtProcedure("LimitOrderBy",
                                   "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
@@ -373,11 +377,21 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             assertEquals(column_guid, column.guid());
         } // FOR
 
-        // // Now check to make sure there are no other Projections in the tree
-        // Set<ProjectionPlanNode> proj_nodes =
-        PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
-        // assertEquals(0, proj_nodes.size());
+        // Now check to make sure there are no other Projections in the tree
+        Collection<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
+        assertEquals(0, proj_nodes.size());
     }
+    
+     /**
+      * testNonPartitioningProjection
+      */
+     @Test
+     public void testNonPartitioningProjection() throws Exception {   
+         Procedure catalog_proc = this.getProcedure("NonPartitioningProjection");
+         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+         this.check(catalog_stmt);
+     }
+    
 
     /**
      * testJoinProjection
@@ -388,11 +402,31 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
 
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
+        // Grab the root node of the multi-partition query plan tree for this Statement
         AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
+        
+        // Grab the single-partition root node and make sure that they have the same
+        // output columns in their topmost send node
+        AbstractPlanNode spRoot = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(spRoot);
+        
+        assertEquals(root.getOutputColumnGUIDCount(), spRoot.getOutputColumnGUIDCount());
+        PlannerContext context = PlannerContext.singleton();
+        assertNotNull(context);
+        for (int i = 0, cnt = root.getOutputColumnGUIDCount(); i < cnt; i++) {
+            Integer guid0 = root.getOutputColumnGUID(i);
+            PlanColumn col0 = context.get(guid0);
+            assertNotNull(col0);
+            
+            Integer guid1 = spRoot.getOutputColumnGUID(i);
+            PlanColumn col1 = context.get(guid1);
+            assertNotNull(col1);
+            
+            assertTrue(col0.equals(col1, false, true));
+        } // FOR
+        
 
         new PlanNodeTreeWalker() {
 
@@ -486,12 +520,12 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         } // FOR
 
         // Lastly, we need to look at the root SEND node and get its output
-        // columns, and make sure that they
-        // are also included in the bottom projection
+        // columns, and make sure that they are also included in the bottom projection
         Collection<Column> send_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root);
         assertFalse(send_columns.isEmpty());
         for (Column catalog_col : send_columns) {
-            assert (proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
+            assert(proj_columns.contains(catalog_col)) :
+                "Missing: " + CatalogUtil.getDisplayName(catalog_col);
         } // FOR
     }
 

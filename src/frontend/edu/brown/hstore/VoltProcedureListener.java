@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -15,6 +16,7 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -28,14 +30,17 @@ import edu.brown.protorpc.NIOEventLoop;
 public class VoltProcedureListener extends AbstractEventHandler {
     private static final Logger LOG = Logger.getLogger(VoltProcedureListener.class);
     
+    private final int hostId;
     private final EventLoop eventLoop;
     private final Handler handler;
+    private final AtomicInteger connectionId = new AtomicInteger(0);
     private ServerSocketChannel serverSocket;
-    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
+    
     
 //    private final HStoreSite hstore_site;
 
-    public VoltProcedureListener(EventLoop eventLoop, Handler handler) {
+    public VoltProcedureListener(int hostId, EventLoop eventLoop, Handler handler) {
+        this.hostId = hostId;
         this.eventLoop = eventLoop;
         this.handler = handler;
         assert this.eventLoop != null;
@@ -95,11 +100,11 @@ public class VoltProcedureListener extends AbstractEventHandler {
             ByteBuffer output = ByteBuffer.allocate(100);
             output.put((byte) 0x0);  // unknown. ignored in ConnectionUtil.java
             output.put((byte) 0x0);  // login response code. 0 = OK
-            output.putInt(0x0);  // hostId
-            output.putLong(0x0);  // connectionId
-            output.putLong(0x0);  // timestamp (part of instanceId)
+            output.putInt(VoltProcedureListener.this.hostId);  // hostId
+            output.putLong(VoltProcedureListener.this.connectionId.incrementAndGet());  // connectionId
+            output.putLong(VoltProcedureListener.this.handler.getInstanceId());  // timestamp (part of instanceId)
             output.putInt(0x0);  // leaderAddress (part of instanceId)
-            final String BUILD_STRING = "hstore";
+            final String BUILD_STRING = "hstore"; // FIXME
             output.putInt(BUILD_STRING.length());
             try {
                 output.put(BUILD_STRING.getBytes("UTF-8"));
@@ -187,9 +192,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             
             // Execute store procedure!
             try {
-                this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
-                StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
-                handler.procedureInvocation(invocation, request, eventLoopCallback);
+                handler.procedureInvocation(request, eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -261,23 +264,32 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public static interface Handler {
-        public void procedureInvocation(StoredProcedureInvocation request,
-                                        byte[] serializedRequest,
-                                        RpcCallback<byte[]> done);
+        public long getInstanceId();
+        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
     }
 
     public static void main(String[] vargs) throws Exception {
         // Example of using VoltProcedureListener: prints procedure name, returns empty array
         NIOEventLoop eventLoop = new NIOEventLoop();
         class PrintHandler implements Handler {
-            public void procedureInvocation(StoredProcedureInvocation invocation, byte[] serializedRequest, RpcCallback<byte[]> done) {
+            @Override
+            public long getInstanceId() {
+                return 0;
+            }
+            public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+                StoredProcedureInvocation invocation = null;
+                try {
+                    invocation = FastDeserializer.deserialize(serializedRequest, StoredProcedureInvocation.class);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
                 LOG.debug("request: " + invocation.getProcName() + " " +
                         invocation.getParams().toArray().length);
                 done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));
             }
         }
         PrintHandler printer = new PrintHandler();
-        VoltProcedureListener listener = new VoltProcedureListener(eventLoop, printer);
+        VoltProcedureListener listener = new VoltProcedureListener(0, eventLoop, printer);
         listener.bind();
 
         eventLoop.run();

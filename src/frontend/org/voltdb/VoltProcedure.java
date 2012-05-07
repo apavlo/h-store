@@ -51,11 +51,9 @@ import org.voltdb.types.TimestampType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
@@ -69,7 +67,6 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
@@ -143,8 +140,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
 
-    protected Integer partitionIdObj = null;
-
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
     private EventObservable<ClientResponse> observable = null;
 
@@ -154,8 +149,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // cached txnid-seeded RNG so all calls to getSeededRandomNumberGenerator() for
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
-    
-    private final List<WorkFragment> partitionFragments = new ArrayList<WorkFragment>(); 
     
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES
@@ -174,8 +167,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-    private long client_handle;
-    private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
     private SQLStmt batchQueryStmts[];
@@ -194,11 +185,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private byte m_statusCode = Byte.MIN_VALUE;
     private String m_statusString = null;
     
-    // ----------------------------------------------------------------------------
-    // BATCH EXECUTION MEMBERS
-    // ----------------------------------------------------------------------------
-    private BatchPlanner planner = null;     
-    private BatchPlanner.BatchPlan plan = null;
+    private BatchPlanner planner = null; // TODO: Remove!
     
     /**
      * End users should not instantiate VoltProcedure instances.
@@ -225,7 +212,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         m_currentTxnState = txnState;
     }
 
-    public AbstractTransaction getTransactionState() {
+    /**
+     * Get the Transaction state handle for the current invocation
+     * This should only be used for debugging
+     * @return
+     */
+    protected final AbstractTransaction getTransactionState() {
         return m_currentTxnState;
     }
     
@@ -255,7 +247,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.param_cache = this.executor.getProcedureParameterSetArrayCache();
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
-        this.partitionIdObj = new Integer(this.partitionId);
         
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
@@ -452,7 +443,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     public void finish() {
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
-        this.client_handle = -1;
     }
     
     @Override
@@ -527,9 +517,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         ClientResponseImpl response = null;
         this.m_currentTxnState = txnState;
         this.m_localTxnState = txnState;
-        this.client_handle = txnState.getClientHandle();
         this.procParams = paramList;
-        this.predict_singlepartition = this.m_localTxnState.isPredictSinglePartition();
         this.results = HStoreConstants.EMPTY_RESULT;
         this.status = Status.OK;
         this.error = null;
@@ -547,7 +535,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             LOG.error(msg);
             status = Status.ABORT_GRACEFUL;
             status_msg = msg;
-            response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, status, results, status_msg); 
+            response = new ClientResponseImpl(txnState.getTransactionId(),
+                                              txnState.getClientHandle(),
+                                              this.partitionId,
+                                              status,
+                                              results,
+                                              status_msg); 
             if (this.observable != null) this.observable.notifyObservers(response);
             return (response); 
         }
@@ -562,7 +555,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 LOG.error(msg, e);
                 status = Status.ABORT_GRACEFUL;
                 status_msg = msg;
-                response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, this.status, this.results, this.status_msg);
+                response = new ClientResponseImpl(txnState.getTransactionId(),
+                                                  txnState.getClientHandle(),
+                                                  this.partitionId,
+                                                  this.status,
+                                                  this.results,
+                                                  this.status_msg);
                 if (this.observable != null) this.observable.notifyObservers(response);
                 return (response);
             }
@@ -688,6 +686,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
             hstore_site.getHStoreCoordinator().shutdownCluster(ex);
         } finally {
+            this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
             this.param_cache.reset();
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
@@ -718,9 +717,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //                    this.error));
 //        }
         
-        response = this.m_localTxnState.getClientResponse();
+        response = new ClientResponseImpl();
         response.init(this.m_currentTxnState.getTransactionId().longValue(),
-                      this.client_handle,
+                      this.m_currentTxnState.getClientHandle(),
                       this.partitionId,
                       this.status,
                       this.results,
@@ -732,14 +731,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
 
     
-    protected final long getClientHandle() {
-        return (this.client_handle);
-    }
     protected final Procedure getProcedure() {
         return (this.catalog_proc);
-    }
-    protected final BatchPlan getLastBatchPlan() {
-        return (this.plan);
     }
     
     protected final VoltTable executeNoJavaProcedure(Object...params) {
@@ -1071,7 +1064,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param finalTask
      * @return
      */
-    private VoltTable[] executeQueriesInABatch(final int batchSize, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask, boolean forceSinglePartition) {
+    private VoltTable[] executeQueriesInABatch(final int batchSize,
+                                               final SQLStmt[] batchStmts,
+                                               final Object[][] batchArgs,
+                                               final boolean finalTask,
+                                               final boolean forceSinglePartition) {
         assert(batchStmts != null);
         assert(batchArgs != null);
         assert(batchStmts.length > 0);
@@ -1090,95 +1087,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
         } // FOR
         
-        // Calculate the hash code for this batch to see whether we already have a planner
-        final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        this.planner = this.executor.batchPlanners.get(batchHashCode);
-        if (this.planner == null) { // Assume fast case
-            this.planner = new BatchPlanner(batchStmts,
-                                            batchSize,
-                                            this.catalog_proc,
-                                            this.p_estimator,
-                                            forceSinglePartition);
-            this.executor.batchPlanners.put(batchHashCode, this.planner);
-        }
-        assert(this.planner != null);
-        
-        // At this point we have to calculate exactly what we need to do on each partition
-        // for this batch. So somehow right now we need to fire this off to either our
-        // local executor or to Evan's magical distributed transaction manager
-        assert(this.predict_singlepartition == this.m_currentTxnState.isPredictSinglePartition()) :
-            String.format("%s != %s\n%s",
-                          this.predict_singlepartition,
-                          this.m_currentTxnState.isPredictSinglePartition(),
-                          this.m_currentTxnState.debug());
-        this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(),
-                                      this.client_handle,
-                                      this.partitionIdObj, 
-                                      this.m_localTxnState.getPredictTouchedPartitions(),
-                                      this.predict_singlepartition,
-                                      this.m_localTxnState.getTouchedPartitions(),
-                                      params);
-        
-        assert(this.plan != null);
-        if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
-        
-        // Tell the TransactionEstimator that we're about to execute these mofos
-        TransactionEstimator.State t_state = this.m_localTxnState.getEstimatorState();
-        if (t_state != null) {
-            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecEstimation();
-            this.t_estimator.executeQueries(t_state, this.planner.getStatements(), this.plan.getStatementPartitions(), true);
-            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecEstimation();
-        }
-
-        // Check whether our plan was caused a mispredict
-        // Doing it this way allows us to update the TransactionEstimator before we abort the txn
-        if (this.plan.getMisprediction() != null) {
-            MispredictionException ex = this.plan.getMisprediction(); 
-            m_localTxnState.setPendingError(ex, false);
-
-            State s = this.m_localTxnState.getEstimatorState();
-            MarkovGraph markov = (s != null ? s.getMarkovGraph() : null); 
-            if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
-                if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
-                // FIXME this.executor.helper.queueMarkovToRecompute(markov);
-            }
-            
-            // Print Misprediction Debug
-            if (d || hstore_conf.site.exec_mispredict_crash) {
-                LOG.warn("\n" + mispredictDebug(batchStmts, params, markov, s, ex, batchSize));
-            }
-            
-            // Crash on Misprediction!
-            if (hstore_conf.site.exec_mispredict_crash) {
-                LOG.fatal(String.format("Crashing because site.exec_mispredict_crash is true [txn=%s]", this.m_localTxnState));
-                this.executor.crash(ex);
-            } else if (d) {
-                LOG.debug(this.m_localTxnState + " mispredicted! Aborting and restarting!");
-            }
-            throw ex;
-        }
-
-        VoltTable results[] = null;
-        if (this.plan.isReadOnly() == false) m_localTxnState.markExecNotReadOnlyAllPartitions();
-        if (this.plan.isSingledPartitionedAndLocal()) {
-            if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
-            results = this.executor.executeLocalPlan(m_localTxnState, this.plan, params);
-            
-        } else {
-            this.partitionFragments.clear();
-            this.plan.getWorkFragments(m_localTxnState.getTransactionId(), this.partitionFragments);
-            if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
-
-            // Block until we get all of our responses.
-            results = this.executor.dispatchWorkFragments(this.m_localTxnState, this.partitionFragments, params);
-        }
-        if (d && results == null)
-            LOG.warn("Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString());
-
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
-        
-        return (results);
+        return (this.executor.executeSQLStmtBatch(m_localTxnState,
+                                                  batchSize,
+                                                  batchStmts,
+                                                  params,
+                                                  finalTask,
+                                                  forceSinglePartition));
     }
     
     // ----------------------------------------------------------------------------

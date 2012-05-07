@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-import junit.framework.Assert;
-
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Partition;
@@ -28,7 +26,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
-public class TestQueryPrefetcher extends BaseTestCase {
+public class TestPrefetchQueryPlanner extends BaseTestCase {
     private static final Long TXN_ID = 1000l;
 
     private static final Class<? extends VoltProcedure> TARGET_PREFETCH_PROCEDURE = NewReservation.class;
@@ -45,16 +43,17 @@ public class TestQueryPrefetcher extends BaseTestCase {
 
     private LocalTransaction ts;
 
-    private QueryPrefetcher prefetcher;
+    private PrefetchQueryPlanner prefetcher;
     private int[] partition_site_xref;
     private Random rand = new Random(0);
 
-    Object proc_params[] = { 100l, // r_id
-            LOCAL_PARTITION + 1l, // c_id
-            LOCAL_PARTITION, // f_id
-            this.rand.nextInt(100), // seatnum
-            100d, // price
-            new long[0], // attrs
+    Object proc_params[] = {
+        100l, // r_id
+        LOCAL_PARTITION + 1l, // c_id
+        LOCAL_PARTITION, // f_id
+        this.rand.nextInt(100), // seatnum
+        100d, // price
+        new long[0], // attrs
     };
 
     @Override
@@ -64,22 +63,23 @@ public class TestQueryPrefetcher extends BaseTestCase {
 
         Procedure catalog_proc = this.getProcedure(TARGET_PREFETCH_PROCEDURE);
         Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_PREFETCH_STATEMENT);
-        catalog_stmt.setPrefetch(true);
-        catalog_proc.setPrefetch(true);
+        catalog_stmt.setPrefetchable(true);
+        catalog_proc.setPrefetchable(true);
 
         // Hard-code ParameterMapping
         int mappings[][] = {
-        // StmtParameter -> ProcParameter
-        { 0, 1 }, };
-        List<ProcParameter> procParams = org.voltdb.utils.CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index");
-        List<StmtParameter> stmtParams = org.voltdb.utils.CatalogUtil.getSortedCatalogItems(catalog_stmt.getParameters(), "index");
-        Assert.assertNotNull(stmtParams);
-        Assert.assertEquals(catalog_stmt.getParameters().size(), mappings.length);
+            // StmtParameter -> ProcParameter
+            { 0, 1 },
+        };
+        List<ProcParameter> procParams = CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index");
+        List<StmtParameter> stmtParams = CatalogUtil.getSortedCatalogItems(catalog_stmt.getParameters(), "index");
+        assertNotNull(stmtParams);
+        assertEquals(catalog_stmt.getParameters().size(), mappings.length);
         for (int m[] : mappings) {
             stmtParams.get(m[0]).setProcparameter(procParams.get(m[1]));
         } // FOR
 
-        this.prefetcher = new QueryPrefetcher(catalog_db, p_estimator);
+        this.prefetcher = new PrefetchQueryPlanner(catalog_db, p_estimator);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
             this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
@@ -130,7 +130,7 @@ public class TestQueryPrefetcher extends BaseTestCase {
 
         this.ts.setTransactionId(TXN_ID);
         TransactionInitRequest[] requests = this.prefetcher.generateWorkFragments(this.ts);
-        Assert.assertEquals(num_sites, requests.length);
+        assertEquals(num_sites, requests.length);
 
         // The TransactionInitRequest for the local partition will be the
         // default, the next partition will have a regular WorkFragment, and the
@@ -145,15 +145,15 @@ public class TestQueryPrefetcher extends BaseTestCase {
          */
         int base_site = this.partition_site_xref[LOCAL_PARTITION];
         int remote_site = this.partition_site_xref[LOCAL_PARTITION + 1];
-        Assert.assertNotSame(base_site, remote_site);
+        assertNotSame(base_site, remote_site);
 
-        Assert.assertNotNull(requests[base_site]);
-        Assert.assertEquals(0, requests[base_site].getPrefetchFragmentsCount());
+        assertNotNull(requests[base_site]);
+        assertEquals(0, requests[base_site].getPrefetchFragmentsCount());
 
-        Assert.assertNotNull(requests[remote_site]);
-        Assert.assertEquals(1, requests[remote_site].getPrefetchFragmentsCount());
-        Assert.assertNull(requests[2]);
-        Assert.assertNull(requests[3]);
+        assertNotNull(requests[remote_site]);
+        assertEquals(1, requests[remote_site].getPrefetchFragmentsCount());
+        assertNull(requests[2]);
+        assertNull(requests[3]);
 
         // The WorkFragments are grouped by siteID.
         assert (requests.length == num_sites);
@@ -162,7 +162,8 @@ public class TestQueryPrefetcher extends BaseTestCase {
             if (request != null && request.getPrefetchFragmentsCount() > 0) {
                 List<WorkFragment> frags = request.getPrefetchFragmentsList();
                 for (WorkFragment frag : frags) {
-                    Assert.assertEquals(siteid, this.partition_site_xref[frag.getPartitionId()]);
+                    assertEquals(siteid, this.partition_site_xref[frag.getPartitionId()]);
+                    assertTrue(frag.getPrefetch());
                 }
             }
         }
@@ -170,7 +171,8 @@ public class TestQueryPrefetcher extends BaseTestCase {
         // The WorkFragment doesn't exist for the base partition.
         TransactionInitRequest request = requests[base_site];
         for (WorkFragment frag : request.getPrefetchFragmentsList()) {
-            Assert.assertFalse(frag.getPartitionId() == LOCAL_PARTITION);
+            assertFalse(frag.getPartitionId() == LOCAL_PARTITION);
+            assertTrue(frag.getPrefetch());
         }
 
     }

@@ -69,7 +69,9 @@ public class VoltProcedureInvoker {
             VoltType vt = VoltType.get(catalog_param.getType());
             parameters[i] = args.getOptParam(i+1, vt);
             if (LOG.isDebugEnabled())
-                LOG.debug(String.format("%s: %s", catalog_param.fullName(), parameters[i]));
+                LOG.debug(String.format("%s: %s [%s / %s]", catalog_param.fullName(),
+                                                            parameters[i],
+                                                            vt, parameters[i].getClass()));
         } // FOR
         
         Client client = ClientFactory.createClient(128, null, false, null);
@@ -86,7 +88,7 @@ public class VoltProcedureInvoker {
 
         
         LOG.info(String.format("Invoking %s at %s:%d [params=%s]",
-                               catalog_proc, catalog_host.getIpaddr(), port, Arrays.toString(parameters)));
+                               catalog_proc.getName(), catalog_host.getIpaddr(), port, Arrays.toString(parameters)));
         long start = System.nanoTime();
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), parameters);
         long stop = System.nanoTime();
@@ -107,6 +109,6 @@ public class VoltProcedureInvoker {
                                cresponse.getTransactionId(),
                                cresponse.getStatus(),
                                (stop - start) / 1000000d,
-                               StringUtil.formatMaps(m).trim()));
+                               cresponse.toString()));
     }
 }

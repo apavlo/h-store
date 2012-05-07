@@ -193,9 +193,9 @@ public enum VoltType {
      * @return The appropriate enum value
      */
     public static VoltType get(byte val) {
-        if (val > idx_lookup.length) throw new AssertionError("Unknown type: " + String.valueOf(val));
+        assert(val < idx_lookup.length) : "Unknown type: " + val;
         VoltType type = idx_lookup[val];
-        if (type == null) throw new AssertionError("Unknown type: " + String.valueOf(val));
+        assert(type != null) : "Unknown type: " + val;
         return (type);
     }
     public static VoltType get(int val) {

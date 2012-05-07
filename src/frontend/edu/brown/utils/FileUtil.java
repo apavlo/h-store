@@ -304,17 +304,17 @@ public abstract class FileUtil {
 
     private static final File find(String name, File current, boolean isdir) throws IOException {
         LOG.debug("Find Current Location = " + current);
-        boolean has_svn = false;
+        boolean has_git = false;
         for (File file : current.listFiles()) {
             if (file.getCanonicalPath().endsWith(File.separator + name) && file.isDirectory() == isdir) {
                 return (file);
                 // Make sure that we don't go to far down...
-            } else if (file.getCanonicalPath().endsWith(File.separator + ".svn")) {
-                has_svn = true;
+            } else if (file.getCanonicalPath().endsWith(File.separator + ".git")) {
+                has_git = true;
             }
         } // FOR
           // If we didn't see an .svn directory, then we went too far down
-        if (!has_svn)
+        if (!has_git)
             throw new RuntimeException("Unable to find directory '" + name + "' [last_dir=" + current.getAbsolutePath() + "]");
         File next = new File(current.getCanonicalPath() + File.separator + "..");
         return (FileUtil.find(name, next, isdir));

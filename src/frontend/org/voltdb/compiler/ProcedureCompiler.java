@@ -48,6 +48,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.interfaces.Prefetchable;
+import edu.brown.hstore.interfaces.Deferrable;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -69,7 +70,12 @@ public abstract class ProcedureCompiler {
             compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
-    static void compileJavaProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
+    static void compileJavaProcedure(VoltCompiler compiler,
+                                     HSQLInterface hsql,
+                                     DatabaseEstimates estimates,
+                                     Catalog catalog,
+                                     Database db,
+                                     ProcedureDescriptor procedureDescriptor)
             throws VoltCompiler.VoltCompilerException {
 
         final String className = procedureDescriptor.m_className;
@@ -155,7 +161,6 @@ public abstract class ProcedureCompiler {
 
             // Initialize the MapOutput table
             // Create an invocation of the VoltMapProcedure so that we can grab
-            // the
             // the MapOutput's schema
             VoltTable.ColumnInfo[] schema = mrInstance.getMapOutputSchema();
             String tableMapOutput = "MAP_" + procedure.getName();
@@ -215,7 +220,7 @@ public abstract class ProcedureCompiler {
 
                 // add the statement to the catalog
                 Statement catalogStmt = procedure.getStatements().add(f.getName());
-
+                
                 // compile the statement
                 try {
                     StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, stmt.getText(), info.singlePartition);
@@ -225,12 +230,20 @@ public abstract class ProcedureCompiler {
                     throw compiler.new VoltCompilerException(msg);
                 }
 
-                // TODO(cjl): If this Field has a Prefetchable annotation, then
-                // we will want to
-                // set the "prefetchable" flag in the catalog for the statement
-                if (f.getAnnotation(Prefetchable.class) != null) {
-                    catalogStmt.setPrefetch(true);
-                    procedure.setPrefetch(true);
+                // If this Field has a Prefetchable annotation or the Statement was 
+                // identified as prefetchable in the project XML, then we will want to
+                // set the "prefetchable" flag in the catalog for the Statement + Procedure
+                if (f.getAnnotation(Prefetchable.class) != null ||
+                    procedureDescriptor.m_prefetchable.contains(catalogStmt.getName())) {
+                    catalogStmt.setPrefetchable(true);
+                    procedure.setPrefetchable(true);
+                }
+                // If this Field has a Deferrable annotation or the Statement was 
+                // identified as deferrable in the project XML, then we will want to
+                // set the "deferrable" flag in the catalog for the Statement + Procedure
+                if (f.getAnnotation(Deferrable.class) != null) {
+                    catalogStmt.setDeferrable(true);
+                    procedure.setDeferrable(true);
                 }
 
                 // if a single stmt is not read only, then the proc is not read

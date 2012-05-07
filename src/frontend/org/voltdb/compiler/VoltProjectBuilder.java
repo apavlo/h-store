@@ -18,6 +18,7 @@
 package org.voltdb.compiler;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
@@ -32,6 +33,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -45,19 +49,34 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
+import org.voltdb.VoltProcedure;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.hstore.interfaces.Deferrable;
+import edu.brown.hstore.interfaces.Prefetchable;
+import edu.brown.mappings.ParameterMapping;
+import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Alternate (programmatic) interface to VoltCompiler. Give the class all of
@@ -66,6 +85,7 @@ import edu.brown.utils.FileUtil;
  *
  */
 public class VoltProjectBuilder {
+    private static final Logger LOG = Logger.getLogger(VoltProjectBuilder.class);
 
     final LinkedHashSet<String> m_schemas = new LinkedHashSet<String>();
     protected final String project_name;
@@ -186,8 +206,38 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
+    
+    /**
+     * Replicated SecondaryIndex Info
+     * TableName -> Pair<CreateIndex, ColumnNames>
+     */
     final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
+    /**
+     * Prefetchable Queries
+     * ProcedureName -> StatementName
+     * @see Prefetchable
+     */
+    private final HashMap<String, Set<String>> m_prefetchQueries = new HashMap<String, Set<String>>();
+
+    /**
+     * Deferrable Queries
+     * ProcedureName -> StatementName
+     * @see Deferrable
+     */
+    private final HashMap<String, Set<String>> m_deferQueries = new HashMap<String, Set<String>>();
+    
+    /**
+     * File containing ParameterMappingsSet
+     */
+    private File m_paramMappingsFile;
+    
+    /**
+     * Values for a ParameterMappingsSet that we will construct
+     * after we have compile the catalog
+     */
+    final LinkedHashMap<String, Map<Integer, Pair<String, Integer>>> m_paramMappings = new LinkedHashMap<String, Map<Integer,Pair<String,Integer>>>();
+    
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
@@ -252,7 +302,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
-        assert(schemaURL != null);
+        assert(schemaURL != null) :
+            "Invalid null schema file for " + this.project_name;
         addSchema(schemaURL.getPath());
     }
     
@@ -295,7 +346,149 @@ public class VoltProjectBuilder {
     public void clearProcedures() {
         m_procedures.clear();
         m_procInfoOverrides.clear();
+        m_prefetchQueries.clear();
     }
+    
+    /**
+     * Remove all of the Procedures whose name matches the given Pattern
+     * @param procNameRegex
+     */
+    public void removeProcedures(Pattern procNameRegex) {
+        Set<ProcedureInfo> toRemove = new HashSet<ProcedureInfo>();
+        for (ProcedureInfo procInfo : m_procedures) {
+            Matcher m = procNameRegex.matcher(procInfo.name);
+            if (m.matches()) {
+                toRemove.add(procInfo);
+            }
+        } // FOR
+        for (ProcedureInfo procInfo : toRemove)
+            this.removeProcedure(procInfo);
+    }
+    
+    /**
+     * Remove a Procedure based on its name
+     * @param procName
+     */
+    public void removeProcedure(String procName) {
+        for (ProcedureInfo procInfo : m_procedures) {
+            if (procInfo.name.equalsIgnoreCase(procName)) {
+                this.removeProcedure(procInfo);
+                break;
+            }
+        } // FOR
+    }
+    
+    /**
+     * Removes the given ProcedureInfo
+     * @param procInfo
+     */
+    protected void removeProcedure(ProcedureInfo procInfo) {
+        m_procedures.remove(procInfo);
+        m_procInfoOverrides.remove(procInfo.name);
+        m_prefetchQueries.remove(procInfo.name);
+        m_paramMappings.remove(procInfo.name);
+        if (LOG.isDebugEnabled())
+            LOG.debug("Removed Procedure " + procInfo.name + " from project " + this.project_name.toUpperCase());
+    }
+    
+    /**
+     * Provide the path to the ParameterMappingsSet file to use to
+     * populate the Catalog after it has been created.
+     * @param mappingsFile
+     */
+    public void addParameterMappings(File mappingsFile) {
+        assert(mappingsFile != null) :
+            "Invalid ParameterMappingsSet file";
+        assert(mappingsFile.exists()) :
+            "The ParameterMappingsSet file '" + mappingsFile + "' does not exist";
+        m_paramMappingsFile = mappingsFile;
+    }
+
+    /**
+     * Mark a ProcParameter to be mapped to a StmtParameter
+     * @param procedureClass
+     * @param procParamIdx
+     * @param statementName
+     * @param stmtParamIdx
+     */
+    public void mapParameters(Class<? extends VoltProcedure> procedureClass, int procParamIdx, String statementName, int stmtParamIdx) {
+        this.mapParameters(procedureClass.getSimpleName(), procParamIdx, statementName, stmtParamIdx);
+    }
+    
+    /**
+     * Mark a ProcParameter to be mapped to a StmtParameter
+     * @param procedureName
+     * @param procParamIdx
+     * @param statementName
+     * @param stmtParamIdx
+     */
+    public void mapParameters(String procedureName, int procParamIdx, String statementName, int stmtParamIdx) {
+        Map<Integer, Pair<String, Integer>> m = m_paramMappings.get(procedureName);
+        if (m == null) {
+            m = new LinkedHashMap<Integer, Pair<String,Integer>>();
+            m_paramMappings.put(procedureName, m);
+        }
+        Pair<String, Integer> stmtPair = Pair.of(statementName, stmtParamIdx);
+        m.put(procParamIdx, stmtPair);
+    }
+    
+    // -------------------------------------------------------------------
+    // PREFETCHABLE
+    // -------------------------------------------------------------------
+    
+    /**
+     * Mark a Statement as prefetchable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementPrefetchable(Class<? extends VoltProcedure> procedureClass, String statementName) {
+        this.markStatementPrefetchable(procedureClass.getSimpleName(), statementName);
+    }
+
+    /**
+     * Mark a Statement as prefetchable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementPrefetchable(String procedureName, String statementName) {
+        Set<String> stmtNames = m_prefetchQueries.get(procedureName);
+        if (stmtNames == null) {
+            stmtNames = new HashSet<String>();
+            m_prefetchQueries.put(procedureName, stmtNames);
+        }
+        stmtNames.add(statementName);
+    }
+    
+    // -------------------------------------------------------------------
+    // DEFERRABLE
+    // -------------------------------------------------------------------
+    
+    /**
+     * Mark a Statement as deferrable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementDeferrable(Class<? extends VoltProcedure> procedureClass, String statementName) {
+        this.markStatementDeferrable(procedureClass.getSimpleName(), statementName);
+    }
+
+    /**
+     * Mark a Statement as deferrable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markStatementDeferrable(String procedureName, String statementName) {
+        Set<String> stmtNames = m_deferQueries.get(procedureName);
+        if (stmtNames == null) {
+            stmtNames = new HashSet<String>();
+            m_deferQueries.put(procedureName, stmtNames);
+        }
+        stmtNames.add(statementName);
+    }
+    
+    // -------------------------------------------------------------------
+    // SINGLE-STATEMENT PROCEDURES
+    // -------------------------------------------------------------------
     
     /**
      * Create a single statement procedure that only has one query
@@ -378,6 +571,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     
     public void addTablePartitionInfo(Table catalog_tbl, Column catalog_col) {
+        assert(catalog_col != null) : "Unexpected null partition column for " + catalog_tbl;
+        
         // TODO: Support special columns
         if (catalog_col instanceof VerticalPartitionColumn) {
             catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
@@ -557,7 +752,77 @@ public class VoltProjectBuilder {
                                            m_compilerDebugPrintStream,
                                            m_procInfoOverrides);
         
+        // HACK: If we have a ParameterMappingsSet that we need to apply
+        // either from a file or a fixed mappings, then we have 
+        // to load the catalog into this JVM, apply the mappings, and then
+        // update the jar file with the new catalog
+        if (m_paramMappingsFile != null || m_paramMappings.isEmpty() == false) {
+            this.applyParameterMappings(jarPath);
+        }
+        
         return success;
+    }
+    
+    private void applyParameterMappings(String jarPath) {
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jarPath);
+        assert(catalog != null);
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        ParameterMappingsSet mappings = new ParameterMappingsSet();        
+        
+        // Load ParameterMappingSet from file
+        if (m_paramMappingsFile != null) {
+            try {
+                mappings.load(m_paramMappingsFile.getAbsolutePath(), catalog_db);
+            } catch (IOException ex) {
+                String msg = "Failed to load ParameterMappingsSet file '" + m_paramMappingsFile + "'";
+                throw new RuntimeException(msg, ex);
+            }
+        }
+        // Build ParameterMappingSet from user-provided inputs
+        else {
+            for (String procName : m_paramMappings.keySet()) {
+                Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(procName);
+                assert(catalog_proc != null) :
+                    "Invalid Procedure name for ParameterMappings '" + procName + "'";
+                for (Integer procParamIdx : m_paramMappings.get(procName).keySet()) {
+                    ProcParameter catalog_procParam = catalog_proc.getParameters().get(procParamIdx.intValue());
+                    assert(catalog_procParam != null) :
+                        "Invalid ProcParameter for '" + procName + "' at offset " + procParamIdx;
+                    Pair<String, Integer> stmtPair = m_paramMappings.get(procName).get(procParamIdx);
+                    assert(stmtPair != null);
+                    
+                    Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
+                    assert(catalog_stmt != null) :
+                        "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
+                		"for Procedure '" + procName + "'";
+                    StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
+                    assert(catalog_stmtParam != null) :
+                        "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
+                    
+                    // HACK: This assumes that the ProcParameter is not an array
+                    // and that we want to map the first invocation of the Statement
+                    // directly to the ProcParameter.
+                    ParameterMapping pm = new ParameterMapping(catalog_stmt,
+                                                               0,
+                                                               catalog_stmtParam,
+                                                               catalog_procParam,
+                                                               0,
+                                                               1.0);
+                    mappings.add(pm);
+                } // FOR (ProcParameter)
+            } // FOR (Procedure)
+        }
+        
+        // Apply it!
+        ParametersUtil.applyParameterMappings(catalog_db, mappings);
+        
+        // Write it out!
+        try {
+            CatalogUtil.updateCatalogInJar(jarPath, catalog);
+        } catch (Exception ex) {
+            String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
+            throw new RuntimeException(msg, ex);
+        }
     }
 
     private void buildDatabaseElement(Document doc, final Element database) {
@@ -663,6 +928,18 @@ public class VoltProjectBuilder {
                 }
                 proc.setAttribute("groups", groupattr.toString());
             }
+            
+            // HACK: Prefetchable Statements
+            if (m_prefetchQueries.containsKey(procedure.cls.getSimpleName())) {
+                Collection<String> stmtNames = m_prefetchQueries.get(procedure.cls.getSimpleName());
+                proc.setAttribute("prefetchable", StringUtil.join(",", stmtNames));
+            }
+            // HACK: Deferrable Statements
+            if (m_deferQueries.containsKey(procedure.cls.getSimpleName())) {
+                Collection<String> stmtNames = m_deferQueries.get(procedure.cls.getSimpleName());
+                proc.setAttribute("deferrable", StringUtil.join(",", stmtNames));
+            }
+            
             procedures.appendChild(proc);
         }
 

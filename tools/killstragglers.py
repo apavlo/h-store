@@ -51,18 +51,22 @@ if __name__ == '__main__':
         varname = "OPT_" + key.replace("-", "_").upper()
         if varname in globals() and len(options[key]) == 1:
             orig_type = type(globals()[varname])
-            globals()[varname] = orig_type(True if type(globals()[varname]) == bool else options[key][0])
+            if type(globals()[varname]) == bool:
+                globals()[varname] = orig_type(True)
+            else:
+                globals()[varname] = orig_type(options[key][0])
     ## FOR
 
     ## SiteId
-    siteid = int(options["siteid"][0]) if "siteid" in options else None
+    siteid = None
+    if "siteid" in options: siteid = int(options["siteid"][0])
     
     ## Debug Output
     if "debug" in options:
         l = logging.getLogger()
         l.setLevel(logging.DEBUG)
         output = os.path.join(OPT_LOGDIR, "killstragglers.log")
-        logging.info("Writing KillStragglers log to '%s'" % output)
+        logging.debug("Writing KillStragglers log to '%s'" % output)
         
         if not os.path.exists(OPT_LOGDIR): os.makedirs(OPT_LOGDIR)
         handler = logging.FileHandler(output)
@@ -75,8 +79,8 @@ if __name__ == '__main__':
             "Dtxn.Coordinator": OPT_PROTOCOORD,
             "Clients":          OPT_CLIENT,
         }
-        logging.debug("Attempting to kill the following components\n" +
-                      "\n".join([ "%-18s %s" % (x+":", "KILL" if temp[x] else "SKIP") for x in sorted(temp.keys()) ]))
+        #logging.debug("Attempting to kill the following components\n" +
+                      #"\n".join([ "%-18s %s" % (x+":", "KILL" if temp[x] else "SKIP") for x in sorted(temp.keys()) ]))
 
 
     ## Get the list of PIDS -> Commands

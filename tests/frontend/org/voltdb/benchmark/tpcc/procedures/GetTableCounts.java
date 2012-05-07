@@ -45,12 +45,13 @@ public class GetTableCounts extends VoltProcedure {
     public VoltTable[] run() {
         VoltTable ret = new VoltTable(this.columns);
         for (Entry<String, SQLStmt> e : this.table_map.entrySet()) {
-            System.err.println("Retrieving number of tuples for " + e.getKey());
+            // System.err.println("Retrieving number of tuples for " + e.getKey());
             voltQueueSQL(e.getValue());
             VoltTable results[] = voltExecuteSQL();
             assert(results.length == 1) : "Got " + results.length + " results for table " + e.getKey();
             assert(results[0].getRowCount() > 0);
-            assert(results[0].advanceRow()) : "Unable to advance results row for table " + e.getKey();
+            boolean adv = results[0].advanceRow();
+            assert(adv) : "Unable to advance results row for table " + e.getKey();
             ret.addRow(e.getKey(), results[0].getLong(0));
         } // FOR
         return (new VoltTable[]{ ret });

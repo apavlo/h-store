@@ -39,6 +39,7 @@ class Host : public CatalogType {
 protected:
     Host(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
+    int32_t m_id;
     std::string m_ipaddr;
     int32_t m_num_cpus;
     int32_t m_corespercpu;
@@ -53,6 +54,8 @@ protected:
     virtual void removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    /** GETTER: Unique host id */
+    int32_t id() const;
     /** GETTER: The ip address or hostname of the host */
     const std::string & ipaddr() const;
     /** GETTER: The max number of cpus on this host */

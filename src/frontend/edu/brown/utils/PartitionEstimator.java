@@ -45,6 +45,7 @@ import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
@@ -533,8 +534,7 @@ public class PartitionEstimator {
                 // If it's not in there, then this query has to be broadcasted
                 // to all nodes
                 // Note that we pass all the tables that are part of the
-                // fragment, since we need
-                // to be able to handle joins
+                // fragment, since we need to be able to handle joins
                 ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, tables_arr);
                 assert (cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
@@ -549,8 +549,8 @@ public class PartitionEstimator {
                     stmt_cache.markAsBroadcast(tables_arr);
                     frag_cache.markAsBroadcast(tables_arr);
 
-                    // Fragment references the columns for our tables. Pick them
-                    // apart!
+                // Fragment references the columns for our tables. Pick them
+                // apart!
                 } else {
                     // First go through all the entries and add any mappings
                     // from
@@ -1237,8 +1237,11 @@ public class PartitionEstimator {
      * @param base_partition
      * @return
      */
-    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions, final Collection<Integer> entry_all_partitions, PartitionEstimator.CacheEntry cache_entry,
-            Object params[], Integer base_partition) throws Exception {
+    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
+                                             final Collection<Integer> entry_all_partitions,
+                                             final PartitionEstimator.CacheEntry cache_entry,
+                                             final Object params[],
+                                             final Integer base_partition) throws Exception {
 
         // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;
