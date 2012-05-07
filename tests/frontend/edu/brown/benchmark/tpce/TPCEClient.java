@@ -155,14 +155,14 @@ public class TPCEClient extends BenchmarkComponent {
     public TPCEClient(String[] args) {
         super(args);
 
-        if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME)) {
-            LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
+        if (!m_extraParams.containsKey("TPCE_LOADER_FILES")) {
+            LOG.error("Unable to start benchmark. Missing '" + "TPCE_LOADER_FILES" + "' parameter");
             System.exit(1);
         }
         int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
         int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
         int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
-        this.egen_clientDriver = new EGenClientDriver(m_extraParams.get(TPCEConstants.PARAM_EGENLOADER_HOME), total_customers, scale_factor, initial_days);
+        this.egen_clientDriver = new EGenClientDriver(m_extraParams.get("TPCE_LOADER_FILES"), total_customers, scale_factor, initial_days);
     }
 
     @Override
