@@ -1,6 +1,6 @@
 #include "../../../third_party/cpp/libconhash/conhash.h"
 
-#define HANLDED_PARTIONS 100 //the number of partitions this library can handle
+#define HANLDED_PARTIONS 256 //the number of partitions this library can handle
 class Conhash {
 private:
     struct conhash_s *conhash;

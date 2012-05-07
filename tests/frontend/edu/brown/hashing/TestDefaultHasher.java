@@ -2,6 +2,7 @@ package edu.brown.hashing;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 
@@ -35,6 +36,17 @@ public class TestDefaultHasher extends BaseTestCase {
 //        System.err.println("hash1[" + val1 + "] = " + hash1);
     }
 
+    //For efficiency comparison with consistent hasher
+    public void testHashValue2() throws Exception {
+        Random r = new Random();
+        Histogram<Integer> h = new Histogram<Integer>();
+        for(int i=0; i<Integer.MAX_VALUE/200; i++){
+        	int hash = this.hasher.hash(r.nextInt());
+        	h.put(hash);
+        }
+        System.out.println(h);
+    }
+    
     /**
      * testMultiValueHash
      */

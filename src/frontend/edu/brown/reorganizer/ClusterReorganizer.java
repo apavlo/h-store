@@ -1,4 +1,4 @@
-package edu.brown.clusterreorganizer;
+package edu.brown.reorganizer;
 
 import org.apache.log4j.Logger;
 

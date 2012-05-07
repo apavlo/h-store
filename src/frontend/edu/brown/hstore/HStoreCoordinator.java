@@ -37,7 +37,6 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.clusterreorganizer.ClusterReorganizer;
 import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.LiveMigrationSyncRequest;
@@ -86,6 +85,7 @@ import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.protorpc.ProtoRpcChannel;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.protorpc.ProtoServer;
+import edu.brown.reorganizer.ClusterReorganizer;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;

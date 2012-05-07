@@ -26,16 +26,13 @@ public class TestConsistentHasher extends BaseTestCase {
      * testHashValue
      */
     public void testHashValue() throws Exception {
-        // Stupid test for now...
-        long val0 = 28;
-        int hash0 = this.hasher.hash(val0);
-        
-        long val1 = val0 + 1;
-        int hash1 = this.hasher.hash(val1);
-        
-        //assertNotSame(hash0, hash1);
-        System.err.println("hash0[" + val0 + "] = " + hash0);
-        System.err.println("hash1[" + val1 + "] = " + hash1);
+        Random r = new Random();
+        Histogram<Integer> h = new Histogram<Integer>();
+        for(int i=0; i<Integer.MAX_VALUE/200; i++){
+        	int hash = this.hasher.hash(r.nextInt());
+        	h.put(hash);
+        }
+        System.out.println(h);
     }
 
     /**
