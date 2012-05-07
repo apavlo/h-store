@@ -382,43 +382,43 @@ public class TestOrderBySuite extends RegressionSuite {
         assertEquals(b, "Chris");
         assertEquals(c, "BetaBuildingBlocks");
     }
-
-    public void testOrderByUseIndex() throws NoConnectionsException,
-                                     ProcCallException,
-                                     IOException, InterruptedException {
-        @SuppressWarnings("unused")
-        long start, elapsed;
-        //long base;
-        VoltTable vt;
-        Client client = this.getClient();
-        if (this.isHSQL())
-            return;
-
-        loadInOrder(client);
-
-        // the duration of doing sequential scan followed by a quicksort
-        // start = System.currentTimeMillis();
-        // vt = client.callProcedure("OrderByNonIndex")[0];
-        // base = System.currentTimeMillis() - start;
-
-        // sort one index column of ints ascending
-        start = System.currentTimeMillis();
-        vt = client.callProcedure("OrderByOneIndex").getResults()[0];
-        elapsed = System.currentTimeMillis() - start;
-        // at least 3 times faster
-        // TODO (nshi): This should really belong to performance tests.
-        // assertTrue(elapsed <= base / 3);
-        assertTrue(vt.getRowCount() == 3);
-        long it = Integer.MAX_VALUE;
-        while (vt.advanceRow()) {
-            int b = (Integer) vt.get(1, VoltType.INTEGER);
-            int c = (Integer) vt.get(2, VoltType.INTEGER);
-            int d = (Integer) vt.get(3, VoltType.INTEGER);
-
-            assertTrue(b == c && c == d && b <= it);
-            it = b;
-        }
-    }
+// This takes a really long time, so commenting it out for now. 
+//    public void testOrderByUseIndex() throws NoConnectionsException,
+//                                     ProcCallException,
+//                                     IOException, InterruptedException {
+//        @SuppressWarnings("unused")
+//        long start, elapsed;
+//        //long base;
+//        VoltTable vt;
+//        Client client = this.getClient();
+//        if (this.isHSQL())
+//            return;
+//
+//        loadInOrder(client);
+//
+//        // the duration of doing sequential scan followed by a quicksort
+//        // start = System.currentTimeMillis();
+//        // vt = client.callProcedure("OrderByNonIndex")[0];
+//        // base = System.currentTimeMillis() - start;
+//
+//        // sort one index column of ints ascending
+//        start = System.currentTimeMillis();
+//        vt = client.callProcedure("OrderByOneIndex").getResults()[0];
+//        elapsed = System.currentTimeMillis() - start;
+//        // at least 3 times faster
+//        // TODO (nshi): This should really belong to performance tests.
+//        // assertTrue(elapsed <= base / 3);
+//        assertTrue(vt.getRowCount() == 3);
+//        long it = Integer.MAX_VALUE;
+//        while (vt.advanceRow()) {
+//            int b = (Integer) vt.get(1, VoltType.INTEGER);
+//            int c = (Integer) vt.get(2, VoltType.INTEGER);
+//            int d = (Integer) vt.get(3, VoltType.INTEGER);
+//
+//            assertTrue(b == c && c == d && b <= it);
+//            it = b;
+//        }
+//    }
 
     public void testAggOrderByGroupBy() throws IOException, ProcCallException, InterruptedException
     {
