@@ -317,8 +317,9 @@ public final class HStoreConf {
         public int exec_command_logging_group_commit;
         
         @ConfigProperty(
-            description="If enabled, support ad hoc queries",
-            defaultBoolean=false,
+            description="Setting this configuration parameter to true allows clients to " +
+                        "issue ad hoc query requests use the @AdHoc sysproc.",
+            defaultBoolean=true,
             experimental=true
         )
         public boolean exec_adhoc_sql;
