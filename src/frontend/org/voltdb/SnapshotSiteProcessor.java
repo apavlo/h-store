@@ -165,6 +165,7 @@ public class SnapshotSiteProcessor {
     }
 
     public void initiateSnapshots(ExecutionEngine ee, Deque<SnapshotTableTask> tasks) {
+    	
         m_snapshotTableTasks = new ArrayDeque<SnapshotTableTask>(tasks);
         m_snapshotTargets = new ArrayList<SnapshotDataTarget>();
         for (final SnapshotTableTask task : tasks) {
@@ -173,14 +174,12 @@ public class SnapshotSiteProcessor {
                 assert(m_snapshotTargets != null);
                 m_snapshotTargets.add(task.m_target);
             }
-            
-           
 // FIXME meng
-            if (!ee.activateCopyOnWrite(task.m_tableId)) {
+            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT)) {
                 LOG.error("Attempted to activate copy on write mode for table "
                         + task.m_name + " and failed");
                 LOG.error(task);
-                return;
+                VoltDB.crashVoltDB();
             }
         }
     }
@@ -210,14 +209,12 @@ public class SnapshotSiteProcessor {
             assert(snapshotBuffer != null);
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
-            final int serialized =ee.cowSerializeMore(snapshotBuffer, currentTask.m_tableId); 
+            final int serialized =
             // FIXME (meng)
-            
-//                ee.tableStreamSerializeMore(
-//                    snapshotBuffer,
-//                    currentTask.m_tableId,
-//                    TableStreamType.SNAPSHOT);
-
+                ee.tableStreamSerializeMore(
+                    snapshotBuffer,
+                    currentTask.m_tableId,
+                    TableStreamType.SNAPSHOT);
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
                 VoltDB.crashVoltDB();
@@ -263,6 +260,7 @@ public class SnapshotSiteProcessor {
              */
             snapshotBuffer.b.limit(headerSize + serialized);
             snapshotBuffer.b.position(0);
+            LOG.info(snapshotBuffer.b.array().toString()+ " 1234 ");
             retval = currentTask.m_target.write(snapshotBuffer);
             break;
         }
@@ -324,8 +322,9 @@ public class SnapshotSiteProcessor {
      * until the fsync() and close() of snapshot data targets has completed.
      */
     public HashSet<Exception> completeSnapshotWork(ExecutionEngine ee) throws InterruptedException {
-        HashSet<Exception> retval = new HashSet<Exception>();
-        m_snapshotTargetTerminators = new ArrayList<Thread>();
+        
+    	HashSet<Exception> retval = new HashSet<Exception>();
+        
         while (m_snapshotTableTasks != null) {
             Future<?> result = doSnapshotWork(ee);
             if (result != null) {
@@ -345,10 +344,12 @@ public class SnapshotSiteProcessor {
          * Block until the sync has actually occurred in the forked threads.
          * The threads are spawned even in the blocking case to keep it simple.
          */
-        for (final Thread t : m_snapshotTargetTerminators) {
-            t.join();
+        if (m_snapshotTargetTerminators != null) {
+            for (final Thread t : m_snapshotTargetTerminators) {
+                t.join();
+            }
+            m_snapshotTargetTerminators = null;
         }
-        m_snapshotTargetTerminators = null;
 
         return retval;
     }
