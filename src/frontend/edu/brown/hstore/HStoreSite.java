@@ -2340,20 +2340,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-            LOG.info("AsyncCompilerResult\n" + result);
+            if (d) LOG.debug("AsyncCompilerResult\n" + result);
             
             // ----------------------------------
             // BUSTED!
             // ----------------------------------
             if (result.errorMsg != null) {
-//                if (debug.get())
+                if (d)
                     LOG.error("Unexpected AsyncCompiler Error:\n" + result.errorMsg);
                 
                 ClientResponseImpl errorResponse =
-                        new ClientResponseImpl(-1, result.clientHandle, -1,
-                                Status.ABORT_UNEXPECTED,
-                                HStoreConstants.EMPTY_RESULT,
-                                result.errorMsg);
+                        new ClientResponseImpl(-1,
+                                               result.clientHandle,
+                                               this.local_partition_reverse[0],
+                                               Status.ABORT_UNEXPECTED,
+                                               HStoreConstants.EMPTY_RESULT,
+                                               result.errorMsg);
                 this.sendClientResponse(result.ts, errorResponse);
                 
                 // TODO: Figure out how we will delete the txn handle even though we
@@ -2379,7 +2381,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
                 result.ts.setTransactionId(txn_id);
                 
-                LOG.info("Queuing AdHoc transaction: " + result.ts);
+                if (d) LOG.debug("Queuing AdHoc transaction: " + result.ts);
                 this.dispatchInvocation(result.ts);
                 
             }

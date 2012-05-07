@@ -1080,7 +1080,7 @@ public class BatchPlanner implements Loggable {
                 "No Fragment->PartitionIds map for Statement #" + stmt_index;
             
             List<PlanFragment> fragments = plan.frag_list[stmt_index];
-            assert (fragments != null);
+            assert(fragments != null);
             int num_fragments = fragments.size();
             graph.num_rounds = Math.max(num_fragments, graph.num_rounds);
 
