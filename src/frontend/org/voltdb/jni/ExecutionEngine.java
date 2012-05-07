@@ -53,7 +53,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     private static final boolean t = LOG.isTraceEnabled();
     private static final boolean d = LOG.isDebugEnabled();
 
-//    private static boolean voltSharedLibraryLoaded = false;
+//  private static boolean voltSharedLibraryLoaded = false;
     protected PartitionExecutor site;
 
     // is the execution site dirty
