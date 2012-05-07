@@ -532,6 +532,7 @@ public class TestIndexesSuite extends RegressionSuite {
         builder.addServerConfig(config);*/
         // CONFIG #2: HSQL
         config = new LocalSingleProcessServer("testindexes-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         success = config.compile(project);
         assertTrue(success);
         builder.addServerConfig(config);
