@@ -46,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -104,6 +103,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -348,7 +348,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * ClientResponses from speculatively executed transactions that are waiting to be committed 
      */
-    private final LinkedBlockingDeque<LocalTransaction> queued_responses = new LinkedBlockingDeque<LocalTransaction>();
+    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
 
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -949,14 +949,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             this.hstore_coordinator.shutdownCluster(ex);
         } finally {
-            String txnDebug = "";
-            if (d && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
-                txnDebug = "\n" + current_txn.debug();
+            if (d) {
+                String txnDebug = "";
+                if (current_txn != null && current_txn.getBasePartition() == this.partitionId) {
+                    txnDebug = "\n" + current_txn.debug();
+                }
+                LOG.warn(String.format("PartitionExecutor %d is stopping.%s%s",
+                                       this.partitionId,
+                                       (this.currentTxnId != null ? " In-Flight Txn: #" + this.currentTxnId : ""),
+                                       txnDebug));
             }
-            LOG.warn(String.format("PartitionExecutor %d is stopping.%s%s",
-                                   this.partitionId,
-                                   (this.currentTxnId != null ? " In-Flight Txn: #" + this.currentTxnId : ""),
-                                   txnDebug));
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
@@ -2850,7 +2852,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
         // The ClientResponse is already going to be in the LocalTransaction handle
         // ts.setClientResponse(cresponse);
-        this.queued_responses.add(ts);
+        this.queued_responses.add(Pair.of(ts, cresponse));
 
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
     }
@@ -3117,13 +3119,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Loop backwards through our queued responses and find the latest txn that 
         // we need to tell the EE to commit. All ones that completed before that won't
         // have to hit up the EE.
+        Pair<LocalTransaction, ClientResponseImpl> pair = null;
         LocalTransaction ts = null;
+        ClientResponseImpl cr = null;
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
-        while ((ts = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
+        while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
                                                                         this.queued_responses.pollFirst())) != null) {
-            ClientResponseImpl cr = new ClientResponseImpl();
+            ts = pair.getFirst();
+            cr = pair.getSecond();
+            
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.
             // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();

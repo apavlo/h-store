@@ -374,9 +374,8 @@ public class VerticalPartitionPlanner {
             this.tempDDL = this.setDDLContents(VerticalPartitionPlanner.this.ddl);
 
             // Add in all the table partitioning info
-            for (Table catalog_tbl : catalog_db.getTables()) {
-                if (catalog_tbl.getSystable() || catalog_tbl.getIsreplicated())
-                    continue;
+            for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
+                if (catalog_tbl.getIsreplicated()) continue;
                 this.addTablePartitionInfo(catalog_tbl, catalog_tbl.getPartitioncolumn());
             } // FOR
             
