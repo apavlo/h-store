@@ -1253,6 +1253,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
 
     @Override
     public boolean activateTableStream(int tableId, TableStreamType streamType) {
+    	
         m_data.clear();
         m_data.putInt(Commands.ActivateTableStream.m_id);
         m_data.putInt(tableId);
