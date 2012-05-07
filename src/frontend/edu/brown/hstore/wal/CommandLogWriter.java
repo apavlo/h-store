@@ -25,21 +25,20 @@
  ***************************************************************************/
 package edu.brown.hstore.wal;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
-import org.voltdb.messaging.FastDeserializer;
-import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
-import org.voltdb.utils.EstTime;
+
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;
@@ -50,7 +49,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * Transaction Command Logger
+ * Transaction Command Log Writer
  * @author mkirsch
  * @author pavlo
  */
@@ -62,40 +61,90 @@ public class CommandLogWriter implements Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public final String WAL_PATH = "/ltmp/hstore/wal.log"; //"/research/hstore/mkirsch/testwal.log";
-    //"/ltmp/hstore/wal2.log";
-    private long txn_count = 0;
+    
+    /**
+     * Special LogEntry that holds additional data that we
+     * need in order to send back a ClientResponse
+     */
+    protected class WriterLogEntry extends LogEntry {
+        protected ClientResponseImpl cresponse;
+        protected RpcCallback<byte[]> clientCallback;
+        protected long initiateTime;
+        protected int restartCounter;
+        
+        public LogEntry init(LocalTransaction ts, ClientResponseImpl cresponse) {
+            this.cresponse = cresponse;
+            this.clientCallback = ts.getClientCallback();
+            this.initiateTime = ts.getInitiateTime();
+            this.restartCounter = ts.getRestartCounter();
+            return super.init(ts);
+        }
+        
+        @Override
+        public void finish() {
+            super.finish();
+            this.cresponse = null;
+            this.clientCallback = null;
+            this.initiateTime = -1;
+            this.restartCounter = -1;
+        }
+    }
     
     /**
      * Circular Buffer of Log Entries
      */
     protected class EntryBuffer {
-        private LogEntry buffer[];
-        private int idx;
+        
+        /**
+        * Circular Atomic Integer for EntryBuffer
+        */
+        protected class CircularAtomicInteger {
+            private final AtomicInteger ai;
+            private final int limit;
+            
+            public CircularAtomicInteger(int lim) {
+                limit = lim;
+                ai = new AtomicInteger(0);
+            }
+            public int getAndIncrementCircular() { //Modified AtomicInteger.getAndIncrement() to be circular around the buffer length
+                for (;;) {
+                    int current = ai.get();
+                    int next = (current + 1) % limit;//EntryBuffer.buffer.length;
+                    if (ai.compareAndSet(current, next))
+                        return current;
+                }
+            }
+        } // CLASS
+        
+        private WriterLogEntry buffer[];
+        private CircularAtomicInteger idx;
         
         public EntryBuffer(int size) {
-            this.buffer = new LogEntry[size];
+            this.buffer = new WriterLogEntry[size];
             for (int i = 0; i < size; i++) {
-                this.buffer[i] = new LogEntry();
+                this.buffer[i] = new WriterLogEntry();
             } // FOR
+            idx = new CircularAtomicInteger(size);
         }
-        public LogEntry next(LocalTransaction ts) {
-            if (this.idx == this.buffer.length) {
-                this.idx = 0;
-            }
-            LogEntry e = this.buffer[this.idx++];
-            e.txnId = ts.getTransactionId();
-            e.procName = ts.getProcedureName();
-            e.procParams = ts.getProcedureParameters();
-            e.flushed = false;
-            return (e);
+        public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
+            WriterLogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
+            return e.init(ts, cresponse);
+        }
+        public boolean isFlushReady() {
+            return (this.buffer[this.buffer.length - 1].isInitialized());
+        }
+        public void flushCleanup() {
+            for (int i = 0; i < this.buffer.length; i++)
+                this.buffer[i].finish();
         }
     } // CLASS
     
     
     final HStoreSite hstore_site;
     final HStoreConf hstore_conf;
+    final File outputFile;
     final FileChannel fstream;
+    final int group_commit_size;
     
     /**
      * The log entry buffers (one per partition) 
@@ -112,13 +161,19 @@ public class CommandLogWriter implements Shutdownable {
      * @param catalog_db
      * @param path
      */
-    public CommandLogWriter(HStoreSite hstore_site, String path) {
+    public CommandLogWriter(HStoreSite hstore_site, File outputFile) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.outputFile = outputFile;
+        this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
         
         FileOutputStream f = null;
         try {
-            f = new FileOutputStream(new File(path), false);
+            // TODO: is there a more standard way to do this?
+            // TODO: update to use directory rather than files?
+            this.outputFile.getParentFile().mkdirs();
+            this.outputFile.createNewFile();
+            f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -130,7 +185,7 @@ public class CommandLogWriter implements Shutdownable {
         this.serializers = new FastSerializer[num_partitions];
         for (int partition = 0; partition < num_partitions; partition++) {
             if (hstore_site.isLocalPartition(partition)) {
-                this.entries[partition] = new EntryBuffer(50); // XXX
+                this.entries[partition] = new EntryBuffer(group_commit_size);
                 this.serializers[partition] = new FastSerializer(hstore_site.getBufferPool());
             }
         } // FOR
@@ -145,7 +200,8 @@ public class CommandLogWriter implements Shutdownable {
         // TODO: If we're using group commit, flush out
         // all the queued entries. We should not get any more
         // transaction entries after this point
-        
+        for (int i = 0; i < this.entries.length; i++)
+          this.groupCommit(this.entries[i]);
     }
 
     @Override
@@ -168,23 +224,62 @@ public class CommandLogWriter implements Shutdownable {
     
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
-        for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-            int procId = catalog_proc.getId();
+        FastSerializer fs = null;
+        for (int i = 0; i < this.serializers.length; i++) { //Get the first available serializer
+            if (this.serializers[i] != null) {
+              fs = this.serializers[i];
+              break;
+            }
+        }
+        assert(fs != null);
+        try {
+            fs.clear();
+            fs.writeInt(hstore_site.getDatabase().getProcedures().size());
             
-            // TODO: Write out a header that contains a mapping from Procedure name to ids
-        } // FOR
+            for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
+                int procId = catalog_proc.getId();
+                fs.writeInt(procId);
+                fs.writeString(catalog_proc.getName());
+            } // FOR
+            
+            BBContainer b = fs.getBBContainer();
+            fstream.write(b.b.asReadOnlyBuffer());
+            fstream.force(true);
+        } catch (Exception e) {
+            String message = "Failed to write log headers";
+            throw new ServerFaultException(message, e);
+        }
+        
         return (true);
     }
     
-    /**
-     * 
-     * @return
-     */
-    public Map<Integer, String> readHeader() {
-        
-        return (null);
+    public void groupCommit(EntryBuffer buffer) {
+        // XXX: Once we have a single thread that writes out this buffer, we won't
+        // have to worry about locking here because we know that no other thread
+        // will be trying to write to the log file that same time that we are.
+        synchronized (this) {
+            try {
+                fstream.force(true);
+                            
+                //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
+                //...
+                //...
+                for (WriterLogEntry entry : buffer.buffer) {
+                    hstore_site.sendClientResponse(entry.cresponse,
+                                                   entry.clientCallback,
+                                                   entry.initiateTime,
+                                                   entry.restartCounter);
+                                                   
+                }
+            
+                buffer.flushCleanup();
+            } catch (Exception e) {
+                String message = "Failed to group commit for buffer";
+                throw new ServerFaultException(message, e);
+            }
+        } // SYNCH
     }
-
+    
     /**
      * Write a completed transaction handle out to the WAL file
      * Returns true if the entry has been successfully written to disk and
@@ -192,14 +287,14 @@ public class CommandLogWriter implements Shutdownable {
      * @param ts
      * @return
      */
-    public boolean write(final LocalTransaction ts) {
+    public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse) {
         if (debug.get()) LOG.debug(ts + " - Writing out WAL entry for committed transaction");
         
         int basePartition = ts.getBasePartition();
         EntryBuffer buffer = this.entries[basePartition];
         assert(buffer != null) :
             "Unexpected log entry buffer for partition " + basePartition;
-        LogEntry entry = buffer.next(ts);
+        LogEntry entry = buffer.next(ts, cresponse);
         assert(entry != null);
         FastSerializer fs = this.serializers[basePartition];
         assert(fs != null);
@@ -207,66 +302,49 @@ public class CommandLogWriter implements Shutdownable {
         // TODO: We are going to want to use group commit to queue up
         // a bunch of entries using the buffers and then push them all out
         // when we have enough.
+        if (hstore_conf.site.exec_command_logging_group_commit > 0) {
+            
+        }
+        else {
+            
+        }
+        
+        
         // TODO: Once we have group commit, then we need a way to pass back
         // a flag to the HStoreSite from this method that tells it to not send out
         // the ClientResponse until we say it's ok. Then we need some other callback
         // where we can blast out the client responses all at once.
         
-        try {
-            fs.clear();
-            BBContainer b = fs.writeObjectForMessaging(entry);
-            fstream.write(b.b.asReadOnlyBuffer());
-            
-            // TODO: We should have an asynchronous option here like postgres
-            // where we don't have to wait until the OS flushes the changes out
-            // to the file before we're allowed to continue.
-            fstream.force(true);
-            entry.flushed = true;
-            //System.out.println("<" + time + "><" + txn_id.toString() + "><" + commit + ">");
-        } catch (Exception e) {
-            String message = "Failed to write log entry for " + ts.toString();
-            throw new ServerFaultException(message, e, ts.getTransactionId());
-        }
+        // TODO: I think that we don't want to actually serialize the object here, because
+        //        we won't be able to control whether the JVM writes out the buffer all of sudden.
+        //        We should just 
+        //       
+        //        We can do that when we do the 
+        
+        synchronized (this) {
+            try {
+                fs.clear();
+                fs.writeObject(entry);
+                BBContainer b = fs.getBBContainer();
+                fstream.write(b.b.asReadOnlyBuffer());
+                
+                if (hstore_conf.site.exec_command_logging_group_commit > 0) { //GROUP COMMIT
+                    if (buffer.isFlushReady()) {
+                        this.groupCommit(buffer);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } else {
+                  fstream.force(true);
+                }
+            } catch (Exception e) {
+                String message = "Failed to write log entry for " + ts.toString();
+                throw new ServerFaultException(message, e, ts.getTransactionId());
+            }
+        } // SYNCH
         
         return true;
     }
-
-
-
-    /**
-     * @param cp
-     */
-    /*public static boolean applyCheckpoint(final Checkpoint cp) {
-        
-        return true;
-    }*/
     
-    /**
-     * 
-     */
-//    public static List<LocalTransaction> getLog() {
-//        List<LocalTransaction> result;
-//        try {
-//            BufferedReader in = new BufferedReader(new FileReader(WAL_PATH));
-//            String strLine;
-//            while ((strLine = in.readLine()) != null)   {
-//                //System.out.println(strLine);
-//                String[] data = strLine.split("><");
-//                System.out.println(data[2]);
-//                if (data.length == 6 && data[5].equals("COMMIT")) {
-//                    long txn_count = Long.parseLong(data[0]);
-//                    long time = Long.parseLong(data[1]);
-//                    long txn_id = Long.parseLong(data[2]);
-//                    String pn = data[3];
-//                    String params = data[4];
-//                    String status = data[5];
-//                    //System.out.println(txn_id);
-//                }
-//            }
-//            in.close();
-//        } catch (Exception e) {
-//            //e.printStackTrace();
-//        }
-//        return null;
-//    }
-}
+}    

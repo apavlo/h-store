@@ -69,9 +69,11 @@
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
 <arg value="site.exec_command_logging=${site.exec_command_logging}" />
-<arg value="site.exec_command_logging_file=${site.exec_command_logging_file}" />
+<arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
+<arg value="site.exec_command_logging_group_commit=${site.exec_command_logging_group_commit}" />
 <arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
+<arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
 <arg value="site.mapreduce_reduce_blocking=${site.mapreduce_reduce_blocking}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
