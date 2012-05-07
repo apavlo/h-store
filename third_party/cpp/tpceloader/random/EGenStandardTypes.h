@@ -115,7 +115,7 @@ typedef CRITICAL_SECTION    TMutex;
 
 #endif // WIN32
 
-#if defined  (__unix) || (_AIX)
+#if defined  (__unix) || (_AIX) || (__APPLE__)
 
 #include <inttypes.h>
 
