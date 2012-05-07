@@ -76,7 +76,6 @@ public class CustomerAccountsGenerator extends TableGenerator {
     private final static int[] maxAccountsPerCustRange = {4, 8, 10}; // tier based
     public final static int MAX_ACCOUNTS_PER_CUST = 10; // should not be more than the last number in the max array
     
-    private final static long startingBrokerID = 1;
     private static final int BROKERS_COUNT = TPCEConstants.DEFAULT_LOAD_UNIT / TPCEConstants.BROKERS_DIV;
     
     private long startingAccId;
@@ -177,7 +176,8 @@ public class CustomerAccountsGenerator extends TableGenerator {
         long  customerId = ((accId - 1) / MAX_ACCOUNTS_PER_CUST) - TPCEConstants.IDENT_SHIFT;
 
         // Set the starting broker to be the first broker for the current load unit of customers.
-        long startFromBroker = (customerId / TPCEConstants.DEFAULT_LOAD_UNIT) * MAX_ACCOUNTS_PER_CUST + startingBrokerID + TPCEConstants.IDENT_SHIFT;
+        long startFromBroker = (customerId / TPCEConstants.DEFAULT_LOAD_UNIT) * MAX_ACCOUNTS_PER_CUST +
+                TPCEConstants.STARTING_BROKER_ID + TPCEConstants.IDENT_SHIFT;
 
         // Note: this depends on broker ids being integer numbers from contiguous range.
         // The method of generating broker ids should be in sync with the BrokerGenerator

@@ -122,6 +122,10 @@ public class AddressGenerator extends TableGenerator {
         return counter + TPCEConstants.IDENT_SHIFT;
     }
     
+    public long getAddrIdForCustomer(long custId) {
+        return exchangeCount + companyCount + custId;
+    }
+    
     private String generateAddrLine1() {
         int streetNum = rnd.intRange(streetNumberMin, streetNumberMax);
         int streetNameKey = rnd.intRange(0, streetFile.getMaxKey() - 1); // -1? made this to be compatible with EGen

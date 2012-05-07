@@ -60,6 +60,10 @@ public class EGenMoney {
         }
     }
     
+    public void multiplyByInt(int mul) {
+        amountInCents *= mul;
+    }
+    
     public void add(EGenMoney money) {
         amountInCents += money.amountInCents;
     }

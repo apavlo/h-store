@@ -33,6 +33,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.log4j.Level;
@@ -246,33 +247,6 @@ public class TPCEGenerator {
         
         return gen;
     }
-    
-/*    public TableMixedGenerator getTableGenMixed(String tableName1, String tableName2, Table catalogTable1, Table catalogTable2) {
-        TableMixedGenerator gen = null;
-        
-        try {
-            Constructor<?> ctor = genClassesMixed.get(tableName1).getDeclaredConstructor(Table.class, Table.class, TPCEGenerator.class);
-            gen = (TableMixedGenerator)ctor.newInstance(catalogTable1, catalogTable2, this);
-        }
-        catch (NoSuchMethodException e) {
-            LOG.error("Cannot create a generator for mixed: '" + tableName1 + "'/'" + tableName2 + "'");
-            System.exit(1);
-        }
-        catch (InvocationTargetException e) {
-            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
-            System.exit(1);
-        }
-        catch (IllegalAccessException e) {
-            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
-            System.exit(1);
-        }
-        catch (InstantiationException e) {
-            LOG.error("Cannot create a generator for: '" + tableName1 + "'/'" + tableName2 + "'");
-            System.exit(1);
-        }
-        
-        return gen;
-    }*/
     
     public InputFileHandler getInputFile(InputFile file) {
         return inputFiles.get(file);
