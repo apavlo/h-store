@@ -456,6 +456,7 @@ public class TestFailuresSuite extends RegressionSuite {
         // CLUSTER?
         config = new LocalCluster("failures-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

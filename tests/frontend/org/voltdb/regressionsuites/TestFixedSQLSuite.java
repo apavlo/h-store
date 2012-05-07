@@ -1006,6 +1006,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
         // CLUSTER!
         config = new LocalCluster("fixedsql-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
