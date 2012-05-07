@@ -299,18 +299,18 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
         for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
            if (ts instanceof LocalTransaction) {
-               LocalTransaction local_ts = (LocalTransaction)ts;
-               ClientResponse cr = local_ts.getClientResponse();
-               if (cr.getStatus() != null) {
-                   inflight_finished++;
-                   // Check for Zombies!
-                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
-                       if (this.last_finishedTxns.contains(ts)) {
-                           inflight_zombies++;
-                       }
-                       this.cur_finishedTxns.add(ts);
-                   }
-               }
+//               LocalTransaction local_ts = (LocalTransaction)ts;
+//               ClientResponse cr = local_ts.getClientResponse();
+//               if (cr.getStatus() != null) {
+//                   inflight_finished++;
+//                   // Check for Zombies!
+//                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
+//                       if (this.last_finishedTxns.contains(ts)) {
+//                           inflight_zombies++;
+//                       }
+//                       this.cur_finishedTxns.add(ts);
+//                   }
+//               }
            }
         } // FOR
         

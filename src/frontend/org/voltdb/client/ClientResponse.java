@@ -20,11 +20,12 @@ package org.voltdb.client;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.Poolable;
 
 /**
  *  Interface implemented by the responses that are generated for procedure invocations
  */
-public interface ClientResponse {
+public interface ClientResponse extends Poolable {
 
     /**
      * Client Handle
