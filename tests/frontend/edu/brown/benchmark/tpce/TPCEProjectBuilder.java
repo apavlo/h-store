@@ -60,8 +60,9 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
      */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCELoader.class;
 
-    public static final Class<?> PROCEDURES[] = { TradeCleanup.class, DataMaintenance.class, TradeOrder.class, TradeResult.class, TradeLookup.class, TradeUpdate.class, TradeStatus.class,
-            CustomerPosition.class, BrokerVolume.class, SecurityDetail.class, MarketFeed.class, MarketWatch.class, LoadTable.class, };
+    public static final Class<?> PROCEDURES[] = { TradeCleanup.class, DataMaintenance.class, TradeOrder.class, TradeResult.class,
+        TradeLookup.class, TradeUpdate.class, TradeStatus.class, CustomerPosition.class, BrokerVolume.class, SecurityDetail.class,
+        MarketFeed.class, MarketWatch.class, LoadTable.class, };
 
     // Transaction Frequencies
     {
@@ -81,7 +82,7 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
 
     public static String PARTITIONING[][] = new String[][] {
     // TODO(pavlo)
-    { TPCEConstants.TABLENAME_TRADE, "T_CA_ID" }, };
+    /*{ TPCEConstants.TABLENAME_TRADE, "T_CA_ID" }, */};
 
     public TPCEProjectBuilder() {
         super("tpce", TPCEProjectBuilder.class, PROCEDURES, PARTITIONING);
