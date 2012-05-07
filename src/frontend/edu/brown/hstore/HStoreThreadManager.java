@@ -45,8 +45,9 @@ public class HStoreThreadManager {
             // Ignore
         }
         else if (this.disable) {
-            LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
-                                   this.num_partitions, this.num_cores));
+            if (debug.get())
+                LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
+                                       this.num_partitions, this.num_cores));
         }
         else {
             for (int i = 0; i < this.num_partitions; i++) {
@@ -65,7 +66,7 @@ public class HStoreThreadManager {
         try {
             affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
         } catch (UnsatisfiedLinkError ex) {
-            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
+            LOG.warn("Unable to set CPU affinity for " + partition + ". Disabling feature in ExecutionEngine", ex);
             this.disable = true;
             return;
         }

@@ -571,6 +571,8 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     
     public void addTablePartitionInfo(Table catalog_tbl, Column catalog_col) {
+        assert(catalog_col != null) : "Unexpected null partition column for " + catalog_tbl;
+        
         // TODO: Support special columns
         if (catalog_col instanceof VerticalPartitionColumn) {
             catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
