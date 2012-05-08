@@ -20,6 +20,7 @@ public class LogEntry implements FastSerializable, Poolable {
     
     public LogEntry init(LocalTransaction ts) {
         this.txnId = ts.getTransactionId();
+        assert(this.txnId != null);
         this.procId = ts.getProcedure().getId();
         this.procParams = ts.getProcedureParameters();
         return (this);
@@ -62,5 +63,9 @@ public class LogEntry implements FastSerializable, Poolable {
         out.writeObject(this.procParams);
         
         //throw new RuntimeException("txnId : " + txnId + " timestamp : " + EstTime.currentTimeMillis() + " procId : " + procId + " procParams : " + procParams.toString());
+    }
+    
+    public String toString() {
+        return ("Txn #" + this.txnId + " / Proc #" + this.procId);
     }
 } // CLASS

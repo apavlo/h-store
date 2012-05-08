@@ -94,43 +94,51 @@ public class CommandLogWriter implements Shutdownable {
      * Circular Buffer of Log Entries
      */
     protected class EntryBuffer {
-        
         /**
         * Circular Atomic Integer for EntryBuffer
         */
-        protected class CircularAtomicInteger {
-            private final AtomicInteger ai;
+        protected class CircularAtomicInteger extends AtomicInteger {
             private final int limit;
             
             public CircularAtomicInteger(int lim) {
+                super(0);
                 limit = lim;
-                ai = new AtomicInteger(0);
             }
             public int getAndIncrementCircular() { //Modified AtomicInteger.getAndIncrement() to be circular around the buffer length
                 for (;;) {
-                    int current = ai.get();
-                    int next = (current + 1) % limit;//EntryBuffer.buffer.length;
-                    if (ai.compareAndSet(current, next))
+                    int current = this.get();
+                    int next = (current + 1) % limit;
+                    if (this.compareAndSet(current, next))
                         return current;
                 }
             }
         } // CLASS
         
+        private FastSerializer fs;
         private WriterLogEntry buffer[];
         private CircularAtomicInteger idx;
         
-        public EntryBuffer(int size) {
+        public EntryBuffer(int size, FastSerializer serializer) {
+            this.fs = serializer;
             this.buffer = new WriterLogEntry[size];
             for (int i = 0; i < size; i++) {
                 this.buffer[i] = new WriterLogEntry();
             } // FOR
-            idx = new CircularAtomicInteger(size);
+            this.idx = new CircularAtomicInteger(size);
+        }
+        public FastSerializer getSerializer() {
+            return this.fs;
         }
         public LogEntry next(LocalTransaction ts, ClientResponseImpl cresponse) {
-            WriterLogEntry e = this.buffer[this.idx.getAndIncrementCircular()];
+            int id = this.idx.getAndIncrementCircular();
+            WriterLogEntry e = this.buffer[id];
             return e.init(ts, cresponse);
         }
         public boolean isFlushReady() {
+            //return true;
+            if (debug.get())
+                LOG.debug("Checking if buffer is full: " + this.buffer[this.buffer.length - 1]);
+
             return (this.buffer[this.buffer.length - 1].isInitialized());
         }
         public void flushCleanup() {
@@ -152,11 +160,6 @@ public class CommandLogWriter implements Shutdownable {
     final EntryBuffer entries[];
     
     /**
-     * Fast serializers (one per partition)
-     */
-    final FastSerializer serializers[];
-    
-    /**
      * Constructor
      * @param catalog_db
      * @param path
@@ -169,9 +172,8 @@ public class CommandLogWriter implements Shutdownable {
         
         FileOutputStream f = null;
         try {
-            // TODO: is there a more standard way to do this?
-            // TODO: update to use directory rather than files?
             this.outputFile.getParentFile().mkdirs();
+            System.out.println(this.outputFile.getParentFile().toString());
             this.outputFile.createNewFile();
             f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
@@ -182,11 +184,9 @@ public class CommandLogWriter implements Shutdownable {
         // Make one entry buffer per partition
         int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getDatabase());
         this.entries = new EntryBuffer[num_partitions];
-        this.serializers = new FastSerializer[num_partitions];
         for (int partition = 0; partition < num_partitions; partition++) {
             if (hstore_site.isLocalPartition(partition)) {
-                this.entries[partition] = new EntryBuffer(group_commit_size);
-                this.serializers[partition] = new FastSerializer(hstore_site.getBufferPool());
+                this.entries[partition] = new EntryBuffer(group_commit_size, new FastSerializer(hstore_site.getBufferPool()));
             }
         } // FOR
         
@@ -197,9 +197,6 @@ public class CommandLogWriter implements Shutdownable {
 
     @Override
     public void prepareShutdown(boolean error) {
-        // TODO: If we're using group commit, flush out
-        // all the queued entries. We should not get any more
-        // transaction entries after this point
         for (int i = 0; i < this.entries.length; i++)
           this.groupCommit(this.entries[i]);
     }
@@ -225,10 +222,11 @@ public class CommandLogWriter implements Shutdownable {
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
         FastSerializer fs = null;
-        for (int i = 0; i < this.serializers.length; i++) { //Get the first available serializer
-            if (this.serializers[i] != null) {
-              fs = this.serializers[i];
-              break;
+        for (int i = 0; i < this.entries.length; i++) { //Get the first available serializer
+            if (this.entries[i] != null) {
+                fs = this.entries[i].getSerializer();
+                if (fs != null)
+                    break;
             }
         }
         assert(fs != null);
@@ -259,19 +257,25 @@ public class CommandLogWriter implements Shutdownable {
         // will be trying to write to the log file that same time that we are.
         synchronized (this) {
             try {
-                fstream.force(true);
-                            
-                //TODO: NOW CALLBACK WITH ALL OF THE LOCALTRANSACTIONS
-                //...
-                //...
+                FastSerializer fs = buffer.getSerializer();
+                assert(fs != null);
+                fs.clear();
                 for (WriterLogEntry entry : buffer.buffer) {
-                    hstore_site.sendClientResponse(entry.cresponse,
-                                                   entry.clientCallback,
-                                                   entry.initiateTime,
-                                                   entry.restartCounter);
-                                                   
+                    if (entry.isInitialized()) {
+                        fs.writeObject(entry);
+                        BBContainer b = fs.getBBContainer();
+                        fstream.write(b.b.asReadOnlyBuffer());
+                    }
                 }
-            
+                fstream.force(true);
+                for (WriterLogEntry entry : buffer.buffer) {
+                    if (entry.isInitialized()) {
+                        hstore_site.sendClientResponse(entry.cresponse,
+                                                    entry.clientCallback,
+                                                    entry.initiateTime,
+                                                    entry.restartCounter);
+                    }
+                }
                 buffer.flushCleanup();
             } catch (Exception e) {
                 String message = "Failed to group commit for buffer";
@@ -294,57 +298,36 @@ public class CommandLogWriter implements Shutdownable {
         EntryBuffer buffer = this.entries[basePartition];
         assert(buffer != null) :
             "Unexpected log entry buffer for partition " + basePartition;
+
+        synchronized (this) {
+        
         LogEntry entry = buffer.next(ts, cresponse);
         assert(entry != null);
-        FastSerializer fs = this.serializers[basePartition];
-        assert(fs != null);
-        
-        // TODO: We are going to want to use group commit to queue up
-        // a bunch of entries using the buffers and then push them all out
-        // when we have enough.
-        if (hstore_conf.site.exec_command_logging_group_commit > 0) {
-            
-        }
-        else {
-            
-        }
         
         
-        // TODO: Once we have group commit, then we need a way to pass back
-        // a flag to the HStoreSite from this method that tells it to not send out
-        // the ClientResponse until we say it's ok. Then we need some other callback
-        // where we can blast out the client responses all at once.
-        
-        // TODO: I think that we don't want to actually serialize the object here, because
-        //        we won't be able to control whether the JVM writes out the buffer all of sudden.
-        //        We should just 
-        //       
-        //        We can do that when we do the 
-        
-        synchronized (this) {
             try {
-                fs.clear();
-                fs.writeObject(entry);
-                BBContainer b = fs.getBBContainer();
-                fstream.write(b.b.asReadOnlyBuffer());
-                
                 if (hstore_conf.site.exec_command_logging_group_commit > 0) { //GROUP COMMIT
                     if (buffer.isFlushReady()) {
                         this.groupCommit(buffer);
-                        return true;
+                        return false; //TODO: WHAT DO WE RETURN HERE?
                     } else {
                         return false;
                     }
-                } else {
-                  fstream.force(true);
+                } else { //NO GROUP COMMIT -- FINISH AND RETURN TRUE
+                    FastSerializer fs = buffer.getSerializer();
+                    assert(fs != null);
+                    fs.clear();
+                    fs.writeObject(entry);
+                    BBContainer b = fs.getBBContainer();
+                    fstream.write(b.b.asReadOnlyBuffer());
+                    fstream.force(true);
+                    return true;
                 }
             } catch (Exception e) {
                 String message = "Failed to write log entry for " + ts.toString();
                 throw new ServerFaultException(message, e, ts.getTransactionId());
             }
         } // SYNCH
-        
-        return true;
     }
     
 }    

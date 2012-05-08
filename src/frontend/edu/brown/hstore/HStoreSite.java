@@ -2014,17 +2014,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(status != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
-        if (hstore_conf.site.exec_command_logging && status == Status.OK) {
-            if (this.commandLogger.appendToLog(ts, cresponse) == false) {
-                if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
-                ts.markAsNotDeletable();    
-            }
+        boolean sendResponse = true;
+        if (this.commandLogger != null && status == Status.OK) {
+            sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
-        
-        this.sendClientResponse(cresponse,
+
+        if (sendResponse) {
+            // NO GROUP COMMIT -- SEND OUT AND COMPLETE
+            // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
+            this.sendClientResponse(cresponse,
                                 ts.getClientCallback(),
                                 ts.getInitiateTime(),
                                 ts.getRestartCounter());
+        } else { // if (d) 
+            LOG.info(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+        }
+        
+        
     }
     
     /**
