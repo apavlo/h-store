@@ -37,6 +37,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -98,6 +99,7 @@ public class CommandLogWriter implements Shutdownable {
         * Circular Atomic Integer for EntryBuffer
         */
         protected class CircularAtomicInteger extends AtomicInteger {
+            private static final long serialVersionUID = -2383758844748728140L;
             private final int limit;
             
             public CircularAtomicInteger(int lim) {
@@ -173,7 +175,7 @@ public class CommandLogWriter implements Shutdownable {
         FileOutputStream f = null;
         try {
             this.outputFile.getParentFile().mkdirs();
-            System.out.println(this.outputFile.getParentFile().toString());
+            LOG.info("Command Log File: " + this.outputFile.getParentFile().toString());
             this.outputFile.createNewFile();
             f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
@@ -299,6 +301,13 @@ public class CommandLogWriter implements Shutdownable {
         assert(buffer != null) :
             "Unexpected log entry buffer for partition " + basePartition;
 
+        // TODO: Need to have the ability to check how long it's been since we've flushed
+        // the log to disk. If it's longer than our limit, then we'll want to do that now
+        // That ensures that if there is only one client thread issuing txn requests (as is
+        // often the case in testing), then it won't be blocked indefinitely.
+        // Added a new HStoreConf parameter that defines the time in milliseconds
+        // Use EstTime.currentTimeMillis() to get the current time
+        
         synchronized (this) {
         
         LogEntry entry = buffer.next(ts, cresponse);
