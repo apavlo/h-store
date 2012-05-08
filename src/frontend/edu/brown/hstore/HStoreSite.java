@@ -2015,7 +2015,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
         boolean sendResponse = true;
-        if (this.commandLogger != null && status == Status.OK) {
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
             sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
