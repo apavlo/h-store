@@ -173,6 +173,7 @@ public class CommandLogWriter implements Shutdownable {
         FileOutputStream f = null;
         try {
             this.outputFile.getParentFile().mkdirs();
+            System.out.println(this.outputFile.getParentFile().toString());
             this.outputFile.createNewFile();
             f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
