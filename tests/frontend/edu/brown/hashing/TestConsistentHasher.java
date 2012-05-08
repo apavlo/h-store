@@ -12,7 +12,7 @@ import edu.brown.utils.ProjectType;
 
 public class TestConsistentHasher extends BaseTestCase {
 
-    private static final int NUM_PARTITIONS = 20;
+    private static final int NUM_PARTITIONS = 4;
     private ConsistentHasher hasher;
     
     @Override

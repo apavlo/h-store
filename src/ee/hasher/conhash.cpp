@@ -33,7 +33,7 @@ int Conhash::lookup(const unsigned int object)
     
     for(int i=0; i<HANLDED_PARTIONS; ++i){
         if(node_to_partition[i] == node->iden){
-            return i+1;
+            return i;
         }
     }
     return -1;
