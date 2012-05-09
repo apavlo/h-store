@@ -599,7 +599,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         return nativeTableHashCode( pointer, tableId);
     }
 
-    @Override
     public int hashinate(Object value, int partitionCount)
     {
         ParameterSet parameterSet = new ParameterSet(true);
@@ -613,6 +612,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new RuntimeException(exception); // can't happen
         }
 
-        return nativeHashinate(pointer, partitionCount);
+        return hashinate(pointer, partitionCount);
     }
 }

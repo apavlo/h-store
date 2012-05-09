@@ -1,19 +1,19 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
- *
- * VoltDB is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * VoltDB is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2010 VoltDB Inc.
+*
+* VoltDB is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* VoltDB is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with VoltDB. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 package org.voltdb;
 
@@ -42,7 +42,6 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
-    private static final Logger LOG = Logger.getLogger(DefaultSnapshotDataTarget.class);
 
     public static volatile boolean m_simulateFullDiskWritingHeader = false;
     public static volatile boolean m_simulateFullDiskWritingChunk = false;
@@ -50,16 +49,17 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
     private final File m_file;
     private final FileChannel m_channel;
     private final FileOutputStream m_fos;
+    private static final Logger LOG = Logger.getLogger(DefaultSnapshotDataTarget.class);
     private Runnable m_onCloseHandler = null;
 
     /*
-     * If a write fails then this snapshot is hosed.
-     * Set the flag so all writes return immediately. The system still
-     * needs to scan all the tables to clear the dirty bits
-     * so the process continues as if the writes are succeeding.
-     * A more efficient failure mode would do the scan but not the
-     * extra serialization work.
-     */
+* If a write fails then this snapshot is hosed.
+* Set the flag so all writes return immediately. The system still
+* needs to scan all the tables to clear the dirty bits
+* so the process continues as if the writes are succeeding.
+* A more efficient failure mode would do the scan but not the
+* extra serialization work.
+*/
     private volatile boolean m_writeFailed = false;
     private volatile IOException m_writeException = null;
 
@@ -70,8 +70,8 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
 
     private final ScheduledFuture<?> m_syncTask;
     /*
-     * Accept a single write even though simulating a full disk is enabled;
-     */
+* Accept a single write even though simulating a full disk is enabled;
+*/
     private volatile boolean m_acceptOneWrite = false;
 
     @SuppressWarnings("unused")
@@ -194,9 +194,9 @@ public class DefaultSnapshotDataTarget implements SnapshotDataTarget {
         }
 
         /*
-         * Be completely sure the write succeeded. If it didn't
-         * the disk is probably full or the path is bunk etc.
-         */
+* Be completely sure the write succeeded. If it didn't
+* the disk is probably full or the path is bunk etc.
+*/
         m_acceptOneWrite = true;
         Future<?> writeFuture = write(DBBPool.wrapBB(aggregateBuffer), false);
         try {

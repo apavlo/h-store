@@ -91,8 +91,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         VoltTable result = null;
         VoltTable vt = operands.get(0);
         if (vt != null) {
-            VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[vt
-                                                                        .getColumnCount()];
+            VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[vt.getColumnCount()];
             for (int ii = 0; ii < vt.getColumnCount(); ii++) {
                 columns[ii] = new VoltTable.ColumnInfo(vt.getColumnName(ii),
                                                        vt.getColumnType(ii));
@@ -227,7 +226,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
         // For some reason we have problems if we're using the transaction profiler
         // with sysprocs, so we'll just always turn it off
-        if (hstore_conf.site.txn_profiling) ts.profiler.disableProfiling();
+        if (hstore_conf.site.txn_profiling) 
+        	ts.profiler.disableProfiling();
         
         // Bombs away!
         return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));

@@ -193,6 +193,7 @@ public class SnapshotUtil {
      * Simple filter that includes directories and files that end in .digest or .vpt
      */
     public static class SnapshotFilter implements FileFilter {
+    	@Override
         public boolean accept(File pathname) {
             if (pathname.isDirectory()) {
                 return true;
@@ -584,7 +585,7 @@ public class SnapshotUtil {
         } else {
             StringBuilder sb = new StringBuilder(8192);
             sb.append("Snapshot corrupted\n").append(missingTables).append(caw.toCharArray());
-            return Pair.of( false,  sb.toString());
+            return Pair.of( false, sb.toString());
         }
     }
 
@@ -634,7 +635,7 @@ public class SnapshotUtil {
         {
             if (table.getSystable() || table.getMapreduce()) continue;
             
-//            // Make a list of all non-materialized, non-export only tables
+            // Make a list of all non-materialized, non-export only tables
 //            if ((table.getMaterializer() != null) ||
 //                    (CatalogUtil.isTableExportOnly(database, table)))
 //            {
@@ -648,10 +649,11 @@ public class SnapshotUtil {
     public static final int[] getPartitionsOnHost(
             SystemProcedureExecutionContext c, Host h) {
         Collection<Partition> results = CatalogUtil.getPartitionsForHost(h);
+
         final int retval[] = new int[results.size()];
         int ii = 0;
         for (final Partition p : results) {
-            retval[ii++] = Integer.parseInt(p.getTypeName());
+            retval[ii++] = p.getId();
         }
         return retval;
     }

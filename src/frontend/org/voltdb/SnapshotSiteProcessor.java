@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.log4j.Logger;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.Pair;
 
 /**
  * Encapsulates the state needed to manage an ongoing snapshot at the
@@ -34,13 +35,12 @@ import org.voltdb.utils.DBBPool.BBContainer;
  * which has a SnapshotSiteProcessor.
  */
 public class SnapshotSiteProcessor {
+	
     private static final Logger LOG = Logger.getLogger(SnapshotSiteProcessor.class);
 
     /** Global count of execution sites on this node performing snapshot */
     public static final AtomicInteger ExecutionSitesCurrentlySnapshotting =
         new AtomicInteger(-1);
-
-    public static final Object m_snapshotCreationLok = new Object();
     
     /**
      * Ensure the first thread to run the fragment does the creation
@@ -105,7 +105,7 @@ public class SnapshotSiteProcessor {
      * and does any potential snapshot work with that buffer
      */
     private final Runnable m_onPotentialSnapshotWork;
-
+    
     /**
      * A class identifying a table that should be snapshotted as well as the destination
      * for the resulting tuple blocks
@@ -165,7 +165,6 @@ public class SnapshotSiteProcessor {
     }
 
     public void initiateSnapshots(ExecutionEngine ee, Deque<SnapshotTableTask> tasks) {
-    	
         m_snapshotTableTasks = new ArrayDeque<SnapshotTableTask>(tasks);
         m_snapshotTargets = new ArrayList<SnapshotDataTarget>();
         for (final SnapshotTableTask task : tasks) {
@@ -174,7 +173,7 @@ public class SnapshotSiteProcessor {
                 assert(m_snapshotTargets != null);
                 m_snapshotTargets.add(task.m_target);
             }
-// FIXME meng
+			// FIXME meng
             if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT)) {
                 LOG.error("Attempted to activate copy on write mode for table "
                         + task.m_name + " and failed");
@@ -215,6 +214,7 @@ public class SnapshotSiteProcessor {
                     snapshotBuffer,
                     currentTask.m_tableId,
                     TableStreamType.SNAPSHOT);
+            
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
                 VoltDB.crashVoltDB();
@@ -298,10 +298,10 @@ public class SnapshotSiteProcessor {
                             }
                         } finally {
                             /**
-                             * Set it to -1 indicating the system is ready to perform another snapshot.
-                             * Changed to wait until all the previous snapshot work has finished so
-                             * that snapshot initiation doesn't wait on the file system
-                             */
+							* Set it to -1 indicating the system is ready to perform another snapshot.
+							* Changed to wait until all the previous snapshot work has finished so
+							* that snapshot initiation doesn't wait on the file system
+							*/
                             ExecutionSitesCurrentlySnapshotting.decrementAndGet();
                         }
                     }
@@ -322,9 +322,8 @@ public class SnapshotSiteProcessor {
      * until the fsync() and close() of snapshot data targets has completed.
      */
     public HashSet<Exception> completeSnapshotWork(ExecutionEngine ee) throws InterruptedException {
-        
     	HashSet<Exception> retval = new HashSet<Exception>();
-        
+    	m_snapshotTargetTerminators = new ArrayList<Thread>();
         while (m_snapshotTableTasks != null) {
             Future<?> result = doSnapshotWork(ee);
             if (result != null) {
@@ -344,12 +343,10 @@ public class SnapshotSiteProcessor {
          * Block until the sync has actually occurred in the forked threads.
          * The threads are spawned even in the blocking case to keep it simple.
          */
-        if (m_snapshotTargetTerminators != null) {
-            for (final Thread t : m_snapshotTargetTerminators) {
-                t.join();
-            }
-            m_snapshotTargetTerminators = null;
+        for (final Thread t : m_snapshotTargetTerminators) {
+            t.join();
         }
+        m_snapshotTargetTerminators = null;
 
         return retval;
     }

@@ -77,6 +77,7 @@ public class SnapshotRestore extends VoltSystemProcedure
 
     private static final int DEP_restoreScan = (int)
         SysProcFragmentId.PF_restoreScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    
     private static final int DEP_restoreScanResults = (int)
         SysProcFragmentId.PF_restoreScanResults;
 
@@ -92,16 +93,27 @@ public class SnapshotRestore extends VoltSystemProcedure
             String tableName,
             int originalHostIds[],
             int relevantPartitionIds[]) throws IOException {
+
         if (!m_initializedTableSaveFiles.add(tableName)) {
             return;
         }
+        
+        HashSet<Integer> relevantPartitionSet =
+                new HashSet<Integer>();
+        for (int part_id : relevantPartitionIds)
+        {
+            relevantPartitionSet.add(part_id);
+        }
+        
         for (int originalHostId : originalHostIds) {
             final File f = getSaveFileForPartitionedTable( filePath, fileNonce, tableName, originalHostId);
             m_saveFiles.offer(
                     getTableSaveFile(
                             f,
-                            org.voltdb.VoltDB.instance().getLocalSites().size() * 4,
+                            1,
+                            //VoltDB.instance().getLocalSites().size() * 4,
                             relevantPartitionIds));
+            
             assert(m_saveFiles.peekLast().getCompleted());
         }
     }
@@ -930,11 +942,13 @@ public class SnapshotRestore extends VoltSystemProcedure
         // LoadMultipartitionTable.  Consider ways to consolidate later
         Map<Integer, Integer> sites_to_partitions =
             new HashMap<Integer, Integer>();
-        for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
+        
+        for (Site site :	CatalogUtil.getUpSites(cluster))
+        //for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
         {
             for (Partition partition : site.getPartitions()) {
-                sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
-                                        partition.getId());
+                sites_to_partitions.put(site.getId(),
+                        partition.getId());
             }
         }
 

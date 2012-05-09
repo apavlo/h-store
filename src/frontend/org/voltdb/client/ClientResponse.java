@@ -26,6 +26,47 @@ import edu.brown.utils.Poolable;
  *  Interface implemented by the responses that are generated for procedure invocations
  */
 public interface ClientResponse extends Poolable {
+	
+	/**
+	* Status code indicating the store procedure executed successfully
+	*/
+	    public static final byte SUCCESS = 1;
+
+	    /**
+	* Status code indicating the stored procedure executed successfully and was voluntarily aborted and rolled
+	* back by the stored procedure code
+	*/
+	    public static final byte USER_ABORT = -1;
+
+	    /**
+	* Status code indicating the stored procedure failed and was rolled back. There are no negative server side
+	* side effects.
+	*/
+	    public static final byte GRACEFUL_FAILURE = -2;
+
+	    /**
+	* Status code indicating the stored procedure failed (or may never have been successfully invoked)
+	* and that there may have been negative side effects on the server
+	*/
+	    public static final byte UNEXPECTED_FAILURE = -3;
+
+	    /**
+	* Status code indicating the connection to the database that the invocation was queued at
+	* was lost before a response was received. It is possible that the invocation was sent, executed, and successfully
+	* committed before a response could be returned or the invocation may never have been sent.
+	*/
+	    public static final byte CONNECTION_LOST = -4;
+
+	    /**
+	* Status code indicating that the server is currently unavailable for stored procedure invocations.
+	* The invocation for which this is a response was never executed.
+	*/
+	    public static final byte SERVER_UNAVAILABLE = -5;
+
+	    /**
+	* Status code indicating that the request didn't receive a response before the per-client timeout.
+	*/
+	    public static final byte CONNECTION_TIMEOUT = -6;
 
     /**
      * Client Handle

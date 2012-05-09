@@ -52,32 +52,32 @@ public class SnapshotSave extends VoltSystemProcedure
         SysProcFragmentId.PF_createSnapshotTargetsResults;
     
     public static final ColumnInfo nodeResultsColumns[] =
-        new ColumnInfo[] {
-            new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
-            new ColumnInfo("HOSTNAME", VoltType.STRING),
-            new ColumnInfo("TABLE", VoltType.STRING),
-            new ColumnInfo("RESULT", VoltType.STRING),
-            new ColumnInfo("ERR_MSG", VoltType.STRING)
-    };
+            new ColumnInfo[] {
+                new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
+                new ColumnInfo("HOSTNAME", VoltType.STRING),
+                new ColumnInfo("TABLE", VoltType.STRING),
+                new ColumnInfo("RESULT", VoltType.STRING),
+                new ColumnInfo("ERR_MSG", VoltType.STRING)
+        };
 
-    public static final ColumnInfo partitionResultsColumns[] =
-        new ColumnInfo[] {
-                          new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
-                          new ColumnInfo("HOSTNAME", VoltType.STRING),
-                          new ColumnInfo(CNAME_SITE_ID, CTYPE_ID),
-                          new ColumnInfo("RESULT", VoltType.STRING),
-                          new ColumnInfo("ERR_MSG", VoltType.STRING)
-    };
+        public static final ColumnInfo partitionResultsColumns[] =
+            new ColumnInfo[] {
+                              new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
+                              new ColumnInfo("HOSTNAME", VoltType.STRING),
+                              new ColumnInfo(CNAME_SITE_ID, CTYPE_ID),
+                              new ColumnInfo("RESULT", VoltType.STRING),
+                              new ColumnInfo("ERR_MSG", VoltType.STRING)
+        };
 
-    public static final VoltTable constructNodeResultsTable()
-    {
-        return new VoltTable(nodeResultsColumns);
-    }
+        public static final VoltTable constructNodeResultsTable()
+        {
+            return new VoltTable(nodeResultsColumns);
+        }
 
-    public static final VoltTable constructPartitionResultsTable()
-    {
-        return new VoltTable(partitionResultsColumns);
-    }
+        public static final VoltTable constructPartitionResultsTable()
+        {
+            return new VoltTable(partitionResultsColumns);
+        }
 
     @Override
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
@@ -182,7 +182,7 @@ public class SnapshotSave extends VoltSystemProcedure
 
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
                     result.addRow(
-                                  catalog_host.getId(),
+                                  context.getSite().getHost().getId(),
                                   hostname,
                                   "",
                                   "FAILURE",
@@ -214,10 +214,7 @@ public class SnapshotSave extends VoltSystemProcedure
                     {
                         try
                         {
-                            //saveFilePath.createNewFile();
-                            if (saveFilePath.createNewFile()) {
-                                //saveFilePath.delete();
-                            }
+                            saveFilePath.createNewFile();
                         }
                         catch (IOException ex)
                         {
@@ -226,7 +223,7 @@ public class SnapshotSave extends VoltSystemProcedure
                             "RESULTED IN IOException: " + ex.getMessage();
                         }
                     }
-                    result.addRow(catalog_host.getId(),
+                    result.addRow(context.getSite().getHost().getId(),
                                   hostname,
                                   table.getTypeName(),
                                   file_valid,
@@ -294,7 +291,6 @@ public class SnapshotSave extends VoltSystemProcedure
         // See if we think the save will succeed
         VoltTable[] results;
         results = performSaveFeasibilityWork(path, nonce);
-        LOG.info("performSaveFeasibilityWork Results:" + results[0]);
 
         // Test feasibility results for fail
         while (results[0].advanceRow())
@@ -303,7 +299,6 @@ public class SnapshotSave extends VoltSystemProcedure
             {
                 // Something lost, bomb out and just return the whole
                 // table of results to the client for analysis
-            	results[0].resetRowPosition();
                 return results;
             }
         }

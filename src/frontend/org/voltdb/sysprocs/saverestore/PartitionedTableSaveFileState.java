@@ -35,6 +35,9 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
 import org.voltdb.utils.Pair;
+import org.voltdb.VoltSystemProcedure;
+
+import edu.brown.hstore.PartitionExecutor;
 
 
 public class PartitionedTableSaveFileState extends TableSaveFileState
@@ -160,7 +163,7 @@ public class PartitionedTableSaveFileState extends TableSaveFileState
                 }
             }
 
-            List<Integer> sitesAtHost =
+            List<Integer> sitesAtHost = 
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLiveExecutionSitesForHost(nextHost);
 

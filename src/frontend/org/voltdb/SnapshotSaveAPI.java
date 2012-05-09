@@ -70,10 +70,11 @@ public class SnapshotSaveAPI
         }
         
         // All sites wait for a permit to start their individual snapshot tasks
-        VoltTable error = acquireSnapshotPermit(context, hostname, result); 
+        VoltTable error = acquireSnapshotPermit(context, hostname, result);
         if (error != null) {
             return error;
         }
+        
         synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
             final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.poll();
             if (m_taskList == null) {
@@ -127,7 +128,7 @@ public class SnapshotSaveAPI
         }
         return result;
     }
-
+    
     private void createSetup(String file_path, String file_nonce,
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
@@ -175,7 +176,7 @@ public class SnapshotSaveAPI
                                     saveFilePath,
                                     table,
                                     context.getSite().getHost(),
-                                    CatalogUtil.getNumberOfPartitions(context.getCluster()),
+                                    context.getCluster().getNum_partitions(),
                                     startTime);
                         targets.add(sdt);
                         final SnapshotDataTarget sdtFinal = sdt;
@@ -207,6 +208,7 @@ public class SnapshotSaveAPI
                         		}
                         	}
                         };
+                        
                         sdt.setOnCloseHandler(onClose);
 
                         final SnapshotTableTask task =
@@ -334,7 +336,7 @@ public class SnapshotSaveAPI
                 }
             }
         }
-     return null;
+         return null;
     }
 
     private final SnapshotDataTarget constructSnapshotDataTargetForTable(

@@ -51,7 +51,6 @@ public class SnapshotStatus extends StatsSource {
                     }
                 });
             }
-
             m_iter = m_snapshots.iterator();
         }
 
@@ -120,5 +119,4 @@ public class SnapshotStatus extends StatsSource {
     protected Iterator<Object> getStatsRowKeyIterator(boolean interval) {
         return new StatusIterator(SnapshotRegistry.getSnapshotHistory().iterator());
     }
-
 }
