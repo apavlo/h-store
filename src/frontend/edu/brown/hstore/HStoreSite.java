@@ -2325,7 +2325,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	public void processPeriodicWork() {
-	    if (trace.get())
+	    if (t)
 		    LOG.trace("Checking for PeriodicWork...");
 
 	    // poll planner queue
@@ -2341,9 +2341,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		//LOG.info("HStoreSite - Checking for finished compiled work.");
-		
-
+		if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
@@ -2365,9 +2363,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                result.errorMsg);
                 this.sendClientResponse(result.ts, errorResponse);
                 
-                // TODO: Figure out how we will delete the txn handle even though we
-                // don't have a real txnID
-                // this.deleteTransaction(txn_id, status)
+                // HACK: Create a txnId for this LocalTransaction just so that we can
+                // store it and delete it. This is necessary so that we can return
+                // the txn back into the object pool
+                int base_partition = result.ts.getBasePartition();
+                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                this.inflight_txns.put(txn_id, result.ts);
+                this.deleteTransaction(txn_id, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------
             // AdHocPlannedStmt
