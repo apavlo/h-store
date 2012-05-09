@@ -238,9 +238,15 @@ public class LocalTransaction extends AbstractTransaction {
      * @param client_callback
      * @return
      */
-    public LocalTransaction init(Long txn_id, long clientHandle, int base_partition,
-                                 Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
-                                 Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+    public LocalTransaction init(Long txn_id,
+                                  long clientHandle,
+                                  int base_partition,
+                                  Collection<Integer> predict_touchedPartitions,
+                                  boolean predict_readOnly,
+                                  boolean predict_canAbort,
+                                  Procedure catalog_proc,
+                                  StoredProcedureInvocation invocation,
+                                  RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
         this.initiateTime = EstTime.currentTimeMillis();
@@ -250,8 +256,14 @@ public class LocalTransaction extends AbstractTransaction {
         this.invocation = invocation;
         this.client_callback = client_callback;
         
-        super.init(txn_id, clientHandle, base_partition, catalog_proc.getSystemproc(),
-                  (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
+        super.init(txn_id,
+                    clientHandle,
+                    base_partition,
+                    catalog_proc.getSystemproc(),
+                    (this.predict_touchedPartitions.size() == 1),
+                    predict_readOnly,
+                    predict_canAbort,
+                    true);
         
         // Initialize the InitialTaskMessage
         // We have to wrap the StoredProcedureInvocation object into an
