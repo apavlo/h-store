@@ -35,6 +35,7 @@ import com.google.gdata.client.ClientLoginAccountType;
 import com.google.gdata.client.GoogleService;
 import com.google.gdata.client.Service.GDataRequest;
 import com.google.gdata.client.Service.GDataRequest.RequestType;
+import com.google.gdata.util.AuthenticationException;
 import com.google.gdata.util.ContentType;
 import com.google.gdata.util.ServiceException;
 
@@ -298,20 +299,24 @@ public class ClientStatsFusionLoader implements ClientStatsLoader {
     public ClientStatsFusionLoader(
             StatsUploaderSettings settings,
             Distributer distributer) {
-        service = new GoogleService("fusiontables", "h-store.ClientStatsFusionLoader");
-        try {
-            service.setUserCredentials(settings.databaseUser, settings.databasePass, ClientLoginAccountType.GOOGLE);
-        } catch (Exception e) {
-            String msg = "Failed to connect to Google FusionTables reporting server with message:\n";
-            msg += e.getMessage();
-            throw new RuntimeException(msg);
-        }
+        LOG.debug("database user: " + settings.databaseUser);
+        LOG.debug("database pass: " + settings.databasePass);
         
         m_settings = settings;
         m_applicationName = settings.applicationName;
         m_subApplicationName = settings.subApplicationName;
         m_pollInterval = settings.pollInterval;
         m_distributer = distributer;
+        
+        service = new GoogleService("fusiontables", "h-store.ClientStatsFusionLoader");
+        try {
+            service.setUserCredentials(settings.databaseUser, settings.databasePass, ClientLoginAccountType.GOOGLE);
+        } catch (Exception e) {
+            LOG.debug("Could not connect to Fusion Tables site");
+            String msg = "Failed to connect to Google FusionTables reporting server with message:\n";
+            msg += e.getMessage();
+            throw new RuntimeException(msg);
+        }
         
         QueryResults results = null;
         try {
@@ -321,6 +326,7 @@ public class ClientStatsFusionLoader implements ClientStatsLoader {
             msg += e.getMessage();
             throw new RuntimeException(msg);
         }
+        LOG.debug("Queried for tables");
         
         for (String[] row : results.rows) {
             if (row[1].equals(instancesTable)) {
@@ -333,6 +339,7 @@ public class ClientStatsFusionLoader implements ClientStatsLoader {
                 procedureStatsTableId = row[0];
             }
         }
+        LOG.debug("Found H-Store tables");
         
         try {
             if (instancesTableId == null) {
@@ -355,6 +362,7 @@ public class ClientStatsFusionLoader implements ClientStatsLoader {
             msg += e.getMessage();
             throw new RuntimeException(msg);
         }
+        LOG.debug("Connection established to Fusion Tables site!");
     }
     
     public void start(long startTime, int leaderAddress) throws IOException, ServiceException {
