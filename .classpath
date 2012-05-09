@@ -35,7 +35,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3-dep.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/weka-3.6.3.jar"/>
-	<classpathentry kind="lib" path="/home/cjl6/hstore/h-store/third_party/java/jars/guava-11.0.2.jar"/>
+	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/guava-10.0.1.jar"/>
 	<classpathentry kind="lib" path="/home/cjl6/hstore/h-store/third_party/java/jars/jsr305.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="third_party/java/jars/snappy-1.0.4.jar"/>
