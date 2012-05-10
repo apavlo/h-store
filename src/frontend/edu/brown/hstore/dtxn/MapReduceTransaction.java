@@ -323,14 +323,6 @@ public class MapReduceTransaction extends LocalTransaction {
         return this.reduceOutput;
     }
     
-    public StoredProcedureInvocation getInvocation() {
-        return this.invocation;
-    }
-
-    public String getProcedureName() {
-        return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
-    }
-
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.hstore_site.getAllPartitionIds());
     }

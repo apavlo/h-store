@@ -299,18 +299,18 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
         for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
            if (ts instanceof LocalTransaction) {
-               LocalTransaction local_ts = (LocalTransaction)ts;
-               ClientResponse cr = local_ts.getClientResponse();
-               if (cr.getStatus() != null) {
-                   inflight_finished++;
-                   // Check for Zombies!
-                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
-                       if (this.last_finishedTxns.contains(ts)) {
-                           inflight_zombies++;
-                       }
-                       this.cur_finishedTxns.add(ts);
-                   }
-               }
+//               LocalTransaction local_ts = (LocalTransaction)ts;
+//               ClientResponse cr = local_ts.getClientResponse();
+//               if (cr.getStatus() != null) {
+//                   inflight_finished++;
+//                   // Check for Zombies!
+//                   if (this.cur_finishedTxns != null && local_ts.isPredictSinglePartition() == false) {
+//                       if (this.last_finishedTxns.contains(ts)) {
+//                           inflight_zombies++;
+//                       }
+//                       this.cur_finishedTxns.add(ts);
+//                   }
+//               }
            }
         } // FOR
         
@@ -445,7 +445,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getInvocations(),
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
-                invokedTxns.put(partition, es.getTransactionCounter());
+                invokedTxns.put(partition, (int)es.getTransactionCounter());
                 
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
@@ -513,7 +513,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             for (TxnCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");
                 Long cnt = tc.getHistogram().get(proc_name);
-                rows[i][j++] = (cnt != null ? Long.toString(cnt) : "-");
+                rows[i][j++] = (cnt != null ? cnt.toString() : "-");
             } // FOR
             first = false;
         } // FOR

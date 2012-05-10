@@ -1,0 +1,749 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'UpdateReservation':'CheckSeat'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateReservation.CheckSeat':'1'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_SEAT'}",
+  "PROCEDURE_PARAMETER": "{'UpdateReservation':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateReservation':'CheckSeat'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateReservation.CheckSeat':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateReservation':'CheckCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateReservation.CheckCustomer':'1'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateReservation':'CheckCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateReservation.CheckCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdateCustomer':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdateCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'UpdatFrequentFlyers'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.UpdatFrequentFlyers':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateCustomer':'GetCustomerIdStr'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateCustomer.GetCustomerIdStr':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID_STR'}",
+  "PROCEDURE_PARAMETER": "{'UpdateCustomer':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFrequentFlyer':'4'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFrequentFlyer':'3'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR14'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFrequentFlyer':'2'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR13'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFrequentFlyer':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR12'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFrequentFlyer':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_IATTR11'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateFlight'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateFlight':'0'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateCustomer':'4'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateCustomer':'3'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR15'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateCustomer':'2'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR14'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateCustomer':'1'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR13'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'UpdateCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.UpdateCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_IATTR12'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'9'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR04'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'8'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR03'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'7'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR02'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'6'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR01'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'5'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR00'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'4'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_PRICE'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'3'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_SEAT'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'2'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'1'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'13'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR08'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'12'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR07'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'11'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR06'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'10'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_IATTR05'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'InsertReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.InsertReservation':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'GetFlight'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.GetFlight':'0'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'GetCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.GetCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'CheckSeat'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.CheckSeat':'1'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_SEAT'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'CheckSeat'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.CheckSeat':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'CheckCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.CheckCustomer':'1'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewReservation':'CheckCustomer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewReservation.CheckCustomer':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindOpenSeats':'GetSeats'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindOpenSeats.GetSeats':'0'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindOpenSeats':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindOpenSeats':'GetFlight'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindOpenSeats.GetFlight':'0'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindOpenSeats':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetNearbyAirports'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetNearbyAirports':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT_DISTANCE':'D_AP_ID0'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetFlights1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetFlights1':'3'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ARRIVE_AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetFlights1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetFlights1':'2'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_DEPART_TIME'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetFlights1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetFlights1':'1'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_DEPART_TIME'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetFlights1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetFlights1':'0'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_DEPART_AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 13,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 12,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 11,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 10,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'FindFlights':'GetAirportInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'FindFlights.GetAirportInfo':'0'}",
+  "STATEMENT_COLUMN": "{'AIRPORT':'AP_ID'}",
+  "PROCEDURE_PARAMETER": "{'FindFlights':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'UpdateFrequentFlyer'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.UpdateFrequentFlyer':'1'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_AL_ID'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'UpdateFlight'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.UpdateFlight':'0'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ID'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'GetCustomerReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.GetCustomerReservation':'1'}",
+  "STATEMENT_COLUMN": "{'FLIGHT':'F_ID'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'GetCustomerByIdStr'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.GetCustomerByIdStr':'0'}",
+  "STATEMENT_COLUMN": "{'CUSTOMER':'C_ID_STR'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'GetCustomerByFFNumber'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.GetCustomerByFFNumber':'0'}",
+  "STATEMENT_COLUMN": "{'FREQUENT_FLYER':'FF_C_ID_STR'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteReservation':'DeleteReservation'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteReservation.DeleteReservation':'2'}",
+  "STATEMENT_COLUMN": "{'RESERVATION':'R_F_ID'}",
+  "PROCEDURE_PARAMETER": "{'DeleteReservation':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

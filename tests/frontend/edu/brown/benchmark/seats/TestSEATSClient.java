@@ -87,19 +87,19 @@ public class TestSEATSClient extends SEATSBaseTestCase {
      */
     @Test
     public void testSeatBitMap() throws Exception {
-        BitSet seats = SEATSClient.getSeatsBitSet(flight_id);
+        BitSet seats = client.getSeatsBitSet(flight_id);
         assertNotNull(seats);
-        assertFalse(SEATSClient.isFlightFull(seats));
+        assertFalse(client.isFlightFull(seats));
         
-        for (int i = 0; i < SEATSConstants.NUM_SEATS_PER_FLIGHT; i++) {
+        for (int i = 0; i < SEATSConstants.FLIGHTS_NUM_SEATS; i++) {
             assertFalse("SEAT #" + i, seats.get(i));
             seats.set(i);
             assertTrue("SEAT #" + i, seats.get(i));
-            if (i+1 < SEATSConstants.NUM_SEATS_PER_FLIGHT)
-                assertFalse(SEATSClient.isFlightFull(seats));
+            if (i+1 < SEATSConstants.FLIGHTS_NUM_SEATS)
+                assertFalse(client.isFlightFull(seats));
         } // FOR
         
-        assertTrue(SEATSClient.isFlightFull(seats));
+        assertTrue(client.isFlightFull(seats));
     }
     
     /**
@@ -107,13 +107,13 @@ public class TestSEATSClient extends SEATSBaseTestCase {
      */
     @Test
     public void testIsFlightFull() throws Exception {
-        BitSet seats = new BitSet(SEATSConstants.NUM_SEATS_PER_FLIGHT);
+        BitSet seats = new BitSet(SEATSConstants.FLIGHTS_NUM_SEATS);
         
-        int seatnum = rand.nextInt(SEATSConstants.NUM_SEATS_PER_FLIGHT);
+        int seatnum = rand.nextInt(SEATSConstants.FLIGHTS_NUM_SEATS);
         assertFalse(seats.get(seatnum));
         seats.set(seatnum);
         assertTrue(seats.get(seatnum));
-        assertFalse(SEATSClient.isFlightFull(seats));
+        assertFalse(client.isFlightFull(seats));
     }
     
     /**
@@ -121,11 +121,11 @@ public class TestSEATSClient extends SEATSBaseTestCase {
      */
     @Test
     public void testNewReservationCallback() throws Exception {
-        int seatnum = rand.nextInt(SEATSConstants.NUM_SEATS_PER_FLIGHT);
+        int seatnum = rand.nextInt(SEATSConstants.FLIGHTS_NUM_SEATS);
         
-        BitSet seats = SEATSClient.getSeatsBitSet(this.flight_id);
+        BitSet seats = client.getSeatsBitSet(this.flight_id);
         assertNotNull(seats);
-        assertFalse(seats.toString(), SEATSClient.isFlightFull(seats));
+        assertFalse(seats.toString(), client.isFlightFull(seats));
         assertFalse(seats.get(seatnum));
 //        System.err.println(seats);
         
@@ -145,7 +145,7 @@ public class TestSEATSClient extends SEATSBaseTestCase {
         callback.clientCallback(cresponse);
         
         // Check to make sure that our seat is now reserved
-        assertFalse("Flight is incorrectly marked as full\n" + seats, SEATSClient.isFlightFull(seats));
+        assertFalse("Flight is incorrectly marked as full\n" + seats, client.isFlightFull(seats));
         // FIXME assertTrue("Failed to mark seat as reserved?", seats.get(seatnum));
     }
 

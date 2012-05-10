@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
@@ -79,6 +80,7 @@ import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -180,6 +182,7 @@ public abstract class BenchmarkComponent {
     private static Client globalClient;
     private static Catalog globalCatalog;
     private static PartitionPlan globalPartitionPlan;
+    private static boolean globalHasConnections = false;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
 //        Client newClient = ClientFactory.createClient(
@@ -229,7 +232,7 @@ public abstract class BenchmarkComponent {
     /**
      * Client initialized here and made available for use in derived classes
      */
-    private final Client m_voltClient;
+    private Client m_voltClient;
 
     /**
      * Manage input and output to the framework
@@ -240,13 +243,6 @@ public abstract class BenchmarkComponent {
      * State of this client
      */
     private volatile ControlState m_controlState = ControlState.PREPARING;
-
-    /**
-     * A host, can be any one. This is only used by data verification
-     * at the end of run.
-     */
-    private String m_host;
-    private int m_port;
 
     /**
      * Username supplied to the Volt client
@@ -687,7 +683,6 @@ public abstract class BenchmarkComponent {
     public BenchmarkComponent(final Client client) {
         m_voltClient = client;
         m_exitOnCompletion = false;
-        m_host = "localhost";
         m_password = "";
         m_username = "";
         m_txnRate = -1;
@@ -764,14 +759,17 @@ public abstract class BenchmarkComponent {
         boolean checkTables = false;
         boolean noConnections = false;
         boolean noUploading = false;
-        String statsDatabaseURL = null;
-        String statsDatabaseJDBC = null;
-        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
         String partitionPlanPath = null;
         boolean partitionPlanIgnoreMissing = false;
         long startupWait = -1;
+        
+        String statsDatabaseURL = null;
+        String statsDatabaseUser = null;
+        String statsDatabasePass = null;
+        String statsDatabaseJDBC = null;
+        int statsPollInterval = 10000;
         
         // scan the inputs once to read everything but host names
         Map<String, Object> componentParams = new TreeMap<String, Object>();
@@ -841,8 +839,14 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
                 statsDatabaseURL = parts[1];
             }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEUSER")) {
+                if (parts[1].isEmpty() == false) statsDatabaseUser = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEPASS")) {
+                if (parts[1].isEmpty() == false) statsDatabasePass = parts[1];
+            }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
-                statsDatabaseJDBC = parts[1];
+                if (parts[1].isEmpty() == false) statsDatabaseJDBC = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
                 statsPollInterval = Integer.parseInt(parts[1]); 
@@ -887,24 +891,7 @@ public abstract class BenchmarkComponent {
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
         
-        StatsUploaderSettings statsSettings = null;
-        if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
-            LOG.info("statsDatabaseURL => " + statsDatabaseURL);
-            
-            try {
-                if (statsDatabaseJDBC != null && statsDatabaseJDBC.isEmpty() == false) {
-                    Class.forName(statsDatabaseJDBC);
-                }
-                statsSettings = new StatsUploaderSettings(
-                                        statsDatabaseURL,
-                                        projectName,
-                                        (isLoader ? "LOADER" : "CLIENT"),
-                                        statsPollInterval);
-            } catch (Exception e) {
-                LOG.error("Failed to initialize StatsUploader", e);
-                statsSettings = null;
-            }
-        }
+
         
         // If we were told to sleep, do that here before we try to load in the catalog
         // This is an attempt to keep us from overloading a single node all at once
@@ -924,7 +911,7 @@ public abstract class BenchmarkComponent {
         
         // Parse workload transaction weights
         if (m_hstoreConf.client.weights != null) {
-            for (String entry : m_hstoreConf.client.weights.split(",")) {
+            for (String entry : m_hstoreConf.client.weights.split("(,|;)")) {
                 String data[] = entry.split(":");
                 if (data.length != 2) {
                     LOG.warn("Invalid transaction weight entry '" + entry + "'");
@@ -956,7 +943,25 @@ public abstract class BenchmarkComponent {
                 assert(exists) : "Invalid partition plan path '" + partitionPlanPath + "'";
             if (exists) this.applyPartitionPlan(partitionPlanPath);
         }
-
+        
+        StatsUploaderSettings statsSettings = null;
+        if (statsDatabaseURL != null && statsDatabaseURL.isEmpty() == false) {
+            try {
+                statsSettings = StatsUploaderSettings.singleton(
+                                        statsDatabaseURL,
+                                        statsDatabaseUser,
+                                        statsDatabasePass,
+                                        statsDatabaseJDBC,
+                                        projectName,
+                                        (isLoader ? "LOADER" : "CLIENT"),
+                                        statsPollInterval,
+                                        m_catalog);
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to initialize StatsUploader", ex);
+            }
+            if (debug.get())
+                LOG.debug("StatsUploaderSettings:\n" + statsSettings);
+        }
         Client new_client = BenchmarkComponent.getClient(
                 (m_hstoreConf.client.txn_hints ? this.getCatalog() : null),
                 getExpectedOutgoingMessageSize(),
@@ -977,37 +982,12 @@ public abstract class BenchmarkComponent {
 
         // scan the inputs again looking for host connections
         if (m_noConnections == false) {
-            boolean atLeastOneConnection = false;
-            Pattern p = Pattern.compile(":");
-            for (final String arg : args) {
-                final String[] parts = arg.split("=", 2);
-                if (parts.length == 1) {
-                    continue;
+            synchronized (BenchmarkComponent.class) {
+                if (globalHasConnections == false) {
+                    this.setupConnections();
+                    globalHasConnections = true;
                 }
-                else if (parts[0].equals("HOST")) {
-                    String hostInfo[] = p.split(parts[1]);
-                    assert(hostInfo.length == 3) : parts[1];
-                    m_host = hostInfo[0];
-                    m_port = Integer.valueOf(hostInfo[1]);
-                    Integer site_id = (m_hstoreConf.client.txn_hints ? Integer.valueOf(hostInfo[2]) : null);
-                    try {
-                        if (debug.get())
-                            LOG.debug(String.format("Creating connection to %s at %s:%d",
-                                                    (site_id != null ? HStoreThreadManager.formatSiteName(site_id) : ""),
-                                                    m_host, m_port));
-                        createConnection(site_id, m_host, m_port);
-                        atLeastOneConnection = true;
-                    }
-                    catch (final Exception ex) {
-                        setState(ControlState.ERROR, "createConnection to " + arg
-                            + " failed: " + ex.getMessage());
-                    }
-                }
-            }
-            if (!atLeastOneConnection) {
-                setState(ControlState.ERROR, "No HOSTS specified on command line.");
-                throw new RuntimeException("Failed to establish connections to H-Store cluster");
-            }
+            } // SYNCH
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;
@@ -1059,7 +1039,10 @@ public abstract class BenchmarkComponent {
         return main(clientClass, null, args, startImmediately);
     }
         
-    protected static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
+    protected static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass,
+                                             final BenchmarkClientFileUploader uploader,
+                                             final String args[],
+                                             final boolean startImmediately) {
         BenchmarkComponent clientMain = null;
         try {
             final Constructor<? extends BenchmarkComponent> constructor =
@@ -1089,6 +1072,14 @@ public abstract class BenchmarkComponent {
     }
     
     /**
+     * Return the scale factor for this benchmark instance
+     * @return
+     */
+    public double getScaleFactor() {
+        return (m_hstoreConf.client.scalefactor);
+    }
+    
+    /**
      * This method will load a VoltTable into the database for the given tableName.
      * The database will automatically split the tuples and send to the correct partitions
      * The current thread will block until the the database cluster returns the result.
@@ -1099,10 +1090,10 @@ public abstract class BenchmarkComponent {
     public ClientResponse loadVoltTable(String tableName, VoltTable vt) {
         assert(vt != null) : "Null VoltTable for '" + tableName + "'";
         
-        long rowCount = vt.getRowCount();
-        long rowTotal = m_tableTuples.get(tableName, 0l);
-        long byteCount = vt.getUnderlyingBufferSize();
-        long byteTotal = m_tableBytes.get(tableName, 0l);
+        int rowCount = vt.getRowCount();
+        long rowTotal = m_tableTuples.get(tableName, 0);
+        int byteCount = vt.getUnderlyingBufferSize();
+        long byteTotal = m_tableBytes.get(tableName, 0);
         
         if (trace.get())
             LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
@@ -1164,6 +1155,16 @@ public abstract class BenchmarkComponent {
      * @return
      */
     protected final Integer getTransactionWeight(String txnName) {
+        return (this.getTransactionWeight(txnName, null));
+    }
+    
+    /**
+     * 
+     * @param txnName
+     * @param weightIfNull
+     * @return
+     */
+    protected final Integer getTransactionWeight(String txnName, Integer weightIfNull) {
         Long val = this.m_txnWeights.get(txnName.toUpperCase()); 
         if (val != null) {
             return (val.intValue());
@@ -1171,7 +1172,7 @@ public abstract class BenchmarkComponent {
         else if (m_txnWeightsDefault != null) {
             return (m_txnWeightsDefault);
         }
-        return (null);
+        return (weightIfNull);
     }
     
     /**
@@ -1180,7 +1181,7 @@ public abstract class BenchmarkComponent {
      * @return
      */
     public final long getTableTupleCount(String tableName) {
-        return (m_tableTuples.get(tableName, 0l));
+        return (m_tableTuples.get(tableName, 0));
     }
     
     /**
@@ -1198,7 +1199,7 @@ public abstract class BenchmarkComponent {
      * @return
      */
     public final long getTableBytes(String tableName) {
-        return (m_tableBytes.get(tableName, 0l));
+        return (m_tableBytes.get(tableName, 0));
     }
     
     /**
@@ -1429,6 +1430,14 @@ public abstract class BenchmarkComponent {
         return (m_voltClient);
     }
     /**
+     * Special hook for setting the DBMS client handle
+     * This should only be invoked for RegressionSuite test cases
+     * @param client
+     */
+    protected void setClientHandle(Client client) {
+        m_voltClient = client;
+    }
+    /**
      * Return the unique client id for this invocation of BenchmarkComponent
      * @return
      */
@@ -1504,6 +1513,33 @@ public abstract class BenchmarkComponent {
             m_reason = reason;
     }
 
+    private void setupConnections() {
+        boolean atLeastOneConnection = false;
+        for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
+            int site_id = catalog_site.getId();
+            String host = catalog_site.getHost().getIpaddr();
+            int port = catalog_site.getProc_port();
+            if (debug.get())
+                LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                        HStoreThreadManager.formatSiteName(site_id),
+                                        host, port));
+            try {
+                this.createConnection(site_id, host, port);
+            } catch (IOException ex) {
+                String msg = String.format("Failed to connect to %s on %s:%d",
+                                           HStoreThreadManager.formatSiteName(site_id), host, port);
+                LOG.error(msg, ex);
+                setState(ControlState.ERROR, msg + ": " + ex.getMessage());
+                break;
+            }
+            atLeastOneConnection = true;
+        } // FOR
+        if (!atLeastOneConnection) {
+            setState(ControlState.ERROR, "No HOSTS specified on command line.");
+            throw new RuntimeException("Failed to establish connections to H-Store cluster");
+        }
+    }
+    
     private void createConnection(final Integer site_id, final String hostname, final int port)
         throws UnknownHostException, IOException {
         if (debug.get())

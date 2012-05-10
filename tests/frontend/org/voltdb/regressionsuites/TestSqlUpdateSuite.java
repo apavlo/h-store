@@ -207,21 +207,24 @@ public class TestSqlUpdateSuite extends RegressionSuite {
         project.addProcedures(PROCEDURES);
 
         config = new LocalSingleProcessServer("sqlupdate-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
         //ADHOC sql still returns double the number of modified rows
         config = new LocalSingleProcessServer("sqlupdate-twosites.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
-        config = new LocalSingleProcessServer("sqlupdate-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        config.compile(project);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer("sqlupdate-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+//        config.compile(project);
+//        builder.addServerConfig(config);
 
         // Cluster
         config = new LocalCluster("sqlupdate-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

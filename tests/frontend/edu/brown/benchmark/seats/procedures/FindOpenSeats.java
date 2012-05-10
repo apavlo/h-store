@@ -119,9 +119,7 @@ public class FindOpenSeats extends VoltProcedure {
                                     f_id, seat_price, _seat_price, base_price, seats_total, seats_left));
         
         // Then build the seat map of the remaining seats
-        int max = getSeededRandomNumberGenerator().nextInt(10); // SEATSConstants.NUM_SEATS_PER_FLIGHT);
-        int ctr = 0;
-        while (results[1].advanceRow() && ctr++ < max) {
+        while (results[1].advanceRow()) {
             long r_id = results[1].getLong(0);
             int seatnum = (int)results[1].getLong(2);
             if (debug) LOG.debug(String.format("ROW fid %d rid %d seat %d", f_id, r_id, seatnum));
@@ -129,18 +127,22 @@ public class FindOpenSeats extends VoltProcedure {
             seatmap[seatnum] = 1; // results[1].getLong(1);
         } // WHILE
         
+        int ctr = 0;
         VoltTable returnResults = new VoltTable(outputColumns);
         for (int i = 0; i < seatmap.length; ++i) {
             if (seatmap[i] == -1) {
                 // Charge more for the first seats
-                double price = seat_price * (i < SEATSConstants.FIRST_CLASS_SEATS_OFFSET ? 2.0 : 1.0);
+                double price = seat_price * (i < SEATSConstants.FLIGHTS_FIRST_CLASS_OFFSET ? 2.0 : 1.0);
                 Object[] row = new Object[]{ f_id, i, price };
                 returnResults.addRow(row);
+                if (ctr == SEATSConstants.FLIGHTS_NUM_SEATS) break;
             }
         } // FOR
 //        assert(seats_left == returnResults.getRowCount()) :
 //            String.format("Flight %d - Expected[%d] != Actual[%d]", f_id, seats_left, returnResults.getRowCount());
        
+        if (LOG.isTraceEnabled())
+            LOG.trace(String.format("Flight %d Open Seats:\n%s", f_id, returnResults));
         return returnResults;
     }
             

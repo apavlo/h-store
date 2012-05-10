@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.InitializeRequest;
+import edu.brown.hstore.Hstoreservice.InitializeResponse;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.ShutdownRequest;
@@ -90,6 +92,10 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
     protected HStoreService initHStoreService() {
         return new MockServiceHandler();
     }
+    @Override
+    protected void initCluster() {
+        // Nothing to do...
+    }
     
     private class MockServiceHandler extends HStoreService {
 
@@ -126,6 +132,11 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         public void transactionRedirect(RpcController controller, TransactionRedirectRequest request, RpcCallback<TransactionRedirectResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
             // Ignore
+        }
+        
+        @Override
+        public void initialize(RpcController controller, InitializeRequest request, RpcCallback<InitializeResponse> done) {
+            // TODO Auto-generated method stub
         }
 
         @Override

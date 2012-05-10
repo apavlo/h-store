@@ -345,7 +345,7 @@ public class AuctionMarkProfile {
         while (vt.advanceRow()) {
             int col = 0;
             long i_c_id = vt.getLong(col++);
-            long count = vt.getLong(col++);
+            int count = (int)vt.getLong(col++);
             this.item_category_histogram.put(i_c_id, count);
         } // WHILE
         if (debug.get())
