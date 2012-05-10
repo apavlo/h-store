@@ -83,7 +83,7 @@ public class ExchangeGenerator extends TableGenerator {
         tuple[col++] = Integer.valueOf(ex_record[2]); // ex_open
         tuple[col++] = Integer.valueOf(ex_record[3]); // ex_close
         tuple[col++] = ex_record[4]; // ex_desc
-        tuple[col++] = Long.valueOf(ex_record[5] + TPCEConstants.IDENT_SHIFT); // ex_ad_id
+        tuple[col++] = Long.valueOf(ex_record[5]) + TPCEConstants.IDENT_SHIFT; // ex_ad_id
         
         return tuple;
     }

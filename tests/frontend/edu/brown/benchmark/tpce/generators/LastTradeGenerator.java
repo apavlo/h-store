@@ -67,7 +67,7 @@ public class LastTradeGenerator extends TableGenerator {
                                                                    TPCEConstants.initialTradePopulationBaseHour,
                                                                    TPCEConstants.initialTradePopulationBaseMinute,
                                                                    TPCEConstants.initialTradePopulationBaseSecond, 0 /* msec */),
-                                          TPCEConstants.DEFAULT_INITIAL_DAYS, 0, true);
+                                          generator.getInitTradeDays(), 0, true);
         
         meeSec = new MEESecurity();
     }
@@ -88,7 +88,7 @@ public class LastTradeGenerator extends TableGenerator {
         Object tuple[] = new Object[columnsNum];
         
         // we want time in seconds here; plus work days have only 8 hours in them
-        meeSec.init(TPCEConstants.DEFAULT_INITIAL_DAYS * 8 * 3600, null, null, 0); 
+        meeSec.init(generator.getInitTradeDays() * 8 * 3600, null, null, 0); 
         double price = meeSec.calculatePrice(counter, 0).getDollars();
         
         tuple[0] = secHandler.createSymbol(counter, 15); // lt_s_symb; because of CHAR(15) in the schema

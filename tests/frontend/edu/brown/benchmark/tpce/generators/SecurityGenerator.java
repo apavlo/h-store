@@ -166,8 +166,8 @@ public class SecurityGenerator extends TableGenerator {
             yield = dividend = 0;
         }
         
-        tuple[14] = yield; // s_yield
-        tuple[15] = dividend; // s_dividend
+        tuple[14] = dividend; // s_dividend
+        tuple[15] = yield; // s_yield
         
         counter++;
         

@@ -78,7 +78,6 @@
 
 <!-- TPC-E Generator -->
 <property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
-<property name="build.tpce.dir"              location="${build.dir}/tpceloader" />
 
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
@@ -835,7 +834,7 @@ TEST CASES
             <env key="VOLTDBIPC_PATH" value="${build.prod.dir}/voltdbipc" />
 
             <!-- Brown Benchmark Parameters -->
-            <env key="TPCE_LOADER_FILES" value="${build.tpce.dir}" />
+            <env key="TPCE_LOADER_FILES" value="${src.tpce.dir}" />
             <env key="AIRLINE_DATA_DIR" value="${src.test.dir}/edu/brown/benchmark/airline/data" />
 
             <!-- code coverage output settings, harmless if not in use -->
@@ -2195,60 +2194,6 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>
-</target>
-
-
-<!--
-***************************************
-TPC-E EGenLoader
-***************************************
--->
-
-<target name='tpceloader' description="Builds the TPC-E Random Generator and copies flat files"
-                          depends="tpceloader.check, getcpus"
-                          unless="tpceloader.built">
-
-    <!-- Generate JNI header -->
-	<antcall target="tpceloader.javah"/>
-
-    <echo message="src.tpce.dir: ${src.tpce.dir}" />
-    <echo message="build.tpce.dir: ${build.tpce.dir}" />
-	
-    <mkdir dir="${build.tpce.dir}"/>
-    <mkdir dir="${build.tpce.dir}/obj"/>
-    <mkdir dir="${build.tpce.dir}/lib"/>
-	
-    <exec executable="make" dir="${src.tpce.dir}/random" failonerror="true" resolveexecutable="true" >
-        <arg value="-j${numcpus}" />
-        <arg value="PREFIX=${build.tpce.dir}" />
-        <!--<arg value="DEBUG_OPTS=-DDEBUG -Wall -Wextra" />-->
-        <arg value="CCFLAGS=-g -ggdb -O3 -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -DLINUX -fPIC $(DEBUG_OPTS) -I$(JNI)"/>
-    </exec>
-
-    <!-- Copy Input Files -->
-    <mkdir dir="${build.tpce.dir}/flat_in" />
-    <copy todir="${build.tpce.dir}/flat_in">
-        <fileset dir="${src.tpce.dir}/flat_in"/>
-    </copy>
-    <copy todir="${build.dir}/nativelibs" file="${build.tpce.dir}/lib/libegen_random.so"/>
-</target>
-
-<target name="tpceloader.javah" depends="build-java">
-    <javah
-        classpathref="project.classpath"
-        force="yes"
-        verbose="yes"
-        class="edu.brown.benchmark.tpce.util.EGenRandom"
-        destdir="${src.tpce.dir}/random"
-    />
-</target>
-
-<target name="tpceloader.check">
-    <uptodate property="tpceloader.built"
-              targetfile="{build.dir}/nativelibs/libegen_random.so">
-        <srcfiles dir="${src.tpce.dir}" includes="random/*.cpp" />
-        <srcfiles dir="${src.tpce.dir}" includes="random/*.h" />
-    </uptodate>
 </target>
 
 <!--

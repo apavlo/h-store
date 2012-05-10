@@ -29,11 +29,28 @@
 
 package edu.brown.benchmark.tpce.util;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
+/**
+ * This class emulates the original EGen Random class.
+ * Note that the original class uses unsigned 64-bit
+ * arithmetics, which is non-existent in Java.
+ * 
+ * However, since Java uses the two's complement representation
+ * it should work for all operations, except comparisons, which
+ * should be treated differently.
+ * 
+ * Note, that the generator always output signed 64-bit numbers,
+ * so this is definitely okay to represent them as long in Java.
+ * 
+ * @author akalinin
+ *
+ */
 public class EGenRandom {
     /*
      * These are different seed bases for pseudo-random EGen generator.
      */
-    
     // Default seed used for all tables.
     public static final long RNG_SEED_TABLE_DEFAULT = 37039940;
 
@@ -110,92 +127,227 @@ public class EGenRandom {
     // Base seed for TxnInputGenerator
     public static final long RNG_SEED_BASE_TXN_INPUT_GENERATOR = 80534927;
     
+    // For alpha-numeric strings generation
+    private static final String UPPER_CASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static final String NUMERALS = "0123456789";
     
-    private long rnd;
-    private native long newEGenRandom(long seed);
+    // for generating doubles
+    private static final double RECIPROCAL_2_POWER_64 = 5.421010862427522E-20;
     
-    private native long rndNthElement(long rnd, long baseSeed, long count);
-    private native long getSeed(long rnd);
-    private native void setSeed(long rnd, long seed);
-    private native void setSeedNth(long rnd, long seed, long count);
+    /*
+     * We use a linear congruential generator.
+     * So here are the parameters.
+     */
+    private static final long A_MULT = 6364136223846793005L;
+    private static final long C_INC  = 1;
     
-    private native int intRange(long rnd, int min, int max);
-    private native long int64Range(long rnd, long min, long max);
-    
-    private native int intRangeExclude(long rnd, int low, int high, int exclude);
-    private native long int64RangeExclude(long rnd, long low, long high, long exclude);
-    
-    private native int rndNthIntRange(long rnd, long seed, long count, int min, int max);
-    private native long rndNthInt64Range(long rnd, long seed, long count, long min, long max);
-    
-    private native double doubleRange(long rnd, double min, double max);
-    private native double doubleIncrRange(long rnd, double min, double max, double incr); // incr -- precision
-    
-    private native long rndNU(long rnd, long p, long q, int a, int s);
-    private native String rndAlphaNumFormatted(long rnd, String format);
-    
-    private native double rndDouble(long rnd);
-    
-    static {
-        System.loadLibrary("egen_random");
-    }
+    // the seed
+    long seed;
     
     public EGenRandom() {
         this(System.currentTimeMillis());
     }
+    
     public EGenRandom(long seed) {
-        this.rnd = newEGenRandom(seed);
+        //this.rnd = newEGenRandom(seed);
+        this.seed = seed;
     }
     
-    public long rndNthElement(long baseSeed, long count) {
-        return rndNthElement(rnd, baseSeed, count);
-    }
     public long getSeed() {
-        return getSeed(rnd);
+        return seed;
     }
     
     public void setSeed(long seed) {
-        setSeed(rnd, seed);
+        this.seed = seed;
     }
 
+    // generates next 64-bit number
+    private long int64Rand() {
+        seed = seed * A_MULT + C_INC;
+        
+        return seed;
+    }
+    
+    private long rndNthElement(long baseSeed, long count) {
+        //return rndNthElement(rnd, baseSeed, count);
+        // nothing to do
+        if(count == 0) {
+            return seed;
+        }
+
+       /*
+        * Recursively compute X(n) = A * X(n-1) + C
+        *
+        * explicitly:
+        *   X(n) = A^n * X(0) + { A^(n-1) + A^(n-2) + ... A + 1 } * C
+        *
+        * we write this as:
+        *   X(n) = aPow(n) * X(0) + dSum(n) * C
+        *
+        * we use the following relations:
+        *   aPow(n) = A^(n % 2) * aPow(n / 2) * aPow(n / 2)
+        *   dSum(n) = (n % 2) * aPow(n / 2) * aPow(n / 2) + (aPow(n / 2) + 1) * dSum(n / 2)
+        */
+
+        // first get the highest non-zero bit
+        int nBit;
+        for (nBit = 0; (count >>> nBit) != 1; nBit++);
+
+        long aPow = A_MULT;
+        long dSum = 1;
+        
+        // go 1 bit at the time
+        while (--nBit >= 0) {
+          dSum *= (aPow + 1);
+          aPow = aPow * aPow;
+          if (((count >>> nBit) % 2) == 1) { // odd value
+            dSum += aPow;
+            aPow *= A_MULT;
+          }
+        }
+        
+        return baseSeed * aPow + dSum * C_INC;
+    }
+    
+    /**
+     * Returns a positive double value from the long value.
+     *   
+     * Must return a positive double!
+     * 
+     * However, v might be a negative number. We translate it to a unsigned string representation
+     * and then to double via BigDecimal.
+     * 
+     * NOTE: It might be the case that some simpler conversion is enough, but all signed-only Java arithmetics gives
+     * me a headache and this, at least, works as it prescribed and the same as with the original EGen.
+     * 
+     * @param b The value to convert
+     * 
+     * @return The resulting double value
+     * 
+     */
+    private double longToDouble(long v) {
+        if (v >= 0) {
+            return (double)v;
+        }
+        else {
+            return new BigDecimal(new BigInteger(Long.toBinaryString(v), 2)).doubleValue();
+        }
+    }
+    
+    /**
+     * Returns a positive double value in the LCG sequence.
+     *   
+     * @param seed The seed
+     * @param count The number in the sequence to return
+     * 
+     * @return Double value from the sequence
+     * 
+     */
+    private double rndNthDouble(long seed, long count) {
+        double rnd = longToDouble(rndNthElement(seed, count));
+        return rnd * RECIPROCAL_2_POWER_64;
+    }
+    
+    /**
+     * Returns a random value in the range [0 .. 0.99999999999999999994578989137572]
+     * 
+     * @return The generated value
+     * 
+     */
+    public double rndDouble() {
+        double rnd = longToDouble(int64Rand());
+        return rnd * RECIPROCAL_2_POWER_64;
+    }
+    
     public void setSeedNth(long seed, long count) {
-        setSeedNth(rnd, seed, count);        
+        setSeed(rndNthElement(seed, count));
     }
     
     public int intRange(int min, int max) {
-        return intRange(rnd, min, max);
+        if (min == max) {
+            return min;
+        }
+        
+        max++; // overflow?
+        if (max <= min) {
+            return max;
+        }
+        
+        return min + (int)(rndDouble() * (double)(max - min));
     }
     
     public long int64Range(long min, long max) {
-        return int64Range(rnd, min, max);
+        if (min == max) {
+            return min;
+        }
+        
+        max++; // overflow?
+        if (max <= min) {
+            return max;
+        }
+        
+        return min + (long)(rndDouble() * (double)(max - min));
     }
 
     public int intRangeExclude(int low, int high, int exclude) {
-        return intRangeExclude(rnd, low, high, exclude);
+        int tmp;
+
+        tmp = intRange(low, high-1);
+        if (tmp >= exclude)
+            tmp += 1;
+
+        return tmp;
     }
     
     public long int64RangeExclude(long low, long high, long exclude) {
-        return int64RangeExclude(rnd, low, high, exclude);
+        long tmp;
+
+        tmp = int64Range(low, high-1);
+        if (tmp >= exclude)
+            tmp += 1;
+
+        return tmp;
     }
 
     public int rndNthIntRange(long seed, long count, int min, int max) {
-        return rndNthIntRange(rnd, seed, count, min, max);
+        if (min == max) {
+            return min;
+        }
+        
+        max++;
+        if (max <= min) {
+            return max;
+        }
+
+        return min + (int)(rndNthDouble(seed, count) * (double)(max - min));
     }
     
     public long rndNthInt64Range(long seed, long count, long min, long max) {
-        return rndNthInt64Range(rnd, seed, count, min, max);
+        if (min == max) {
+            return min;
+        }
+        
+        max++;
+        if (max <= min) {
+            return max;
+        }
+
+        return min + (long)(rndNthDouble(seed, count) * (double)(max - min));
     }
 
     public double doubleRange(double min, double max) {
-        return doubleRange(rnd, min, max);
+        return min + rndDouble() * (max - min);
     }
     
-    // incr -- precision
+    /**
+     *  @param incr Precision
+     */
     public double doubleIncrRange(double min, double max, double incr) {
-        return doubleIncrRange(rnd, min, max, incr);
+        long width = (long)((max - min) / incr);  // need [0..width], so no +1
+        return min + ((double)int64Range(0, width) * incr);
     }
     
-   /* 
+   /** 
     *  Returns a non-uniform random 64-bit integer in range of [P .. Q].
     *  
     *  NURnd is used to create a skewed data access pattern.  The function is
@@ -218,15 +370,43 @@ public class EGenRandom {
     *  the desired amount of skew at effectively one-minute resolution.
     */
     public long rndNU(long p, long q, int a, int s) {
-        return rndNU(rnd, p, q, a, s);
+        return (((int64Range(p, q) | (int64Range(0, A_MULT) << s)) % (q - p + 1)) + p);
+        
     }
     
-    //Returns random alphanumeric string obeying a specific format.
-    //For the format: n - given character must be numeric
-    //                a - given character must be alphabetical
-    //Example: "nnnaannnnaannn"
+    /**
+     * Returns random alphanumeric string obeying a specific format.
+     * 
+     * For the format: n - given character must be numeric
+     *                 a - given character must be alphabetical
+     *                 
+     * All other symbols are just copied as is.                 
+     *                 
+     * @param format A format string as described above
+     * @return A string corresponding to the format
+     * 
+     */
     public String rndAlphaNumFormatted(String format) {
-        return rndAlphaNumFormatted(rnd, format);
+        StringBuilder sb = new StringBuilder();
+        
+        for (int i = 0; i < format.length(); i++) {
+            char c = format.charAt(i);
+            switch (c) {
+                case 'a':
+                    sb.append(UPPER_CASE_LETTERS.charAt(intRange(0, UPPER_CASE_LETTERS.length() - 1)));
+                    break;
+                    
+                case 'n':
+                    sb.append(NUMERALS.charAt(intRange(0, NUMERALS.length() - 1)));
+                    break;
+                    
+                default:
+                    sb.append(c);
+                    break;
+            }
+        }
+        
+        return sb.toString();
     }
     
     public boolean rndPercent(int percent) {
@@ -235,14 +415,5 @@ public class EGenRandom {
     
     public int rndPercentage() {
         return intRange(1, 100);
-    }
-    
-    /**
-     * Returns a random value in the range [0 .. 0.99999999999999999994578989137572]
-     * care should be taken in casting the result as a float because of the
-     * potential loss of precision.
-     */
-    public double rndDouble() {
-        return rndDouble(rnd);
     }
 }
