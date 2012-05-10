@@ -1,0 +1,245 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'UpdateSubscriberData':'update2'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateSubscriberData.update2':'2'}",
+  "STATEMENT_COLUMN": "{'SPECIAL_FACILITY':'SF_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'UpdateSubscriberData':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateSubscriberData':'update2'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateSubscriberData.update2':'1'}",
+  "STATEMENT_COLUMN": "{'SPECIAL_FACILITY':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateSubscriberData':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateSubscriberData':'update2'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateSubscriberData.update2':'0'}",
+  "STATEMENT_COLUMN": "{'SPECIAL_FACILITY':'DATA_A'}",
+  "PROCEDURE_PARAMETER": "{'UpdateSubscriberData':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateSubscriberData':'update1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateSubscriberData.update1':'1'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateSubscriberData':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateSubscriberData':'update1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateSubscriberData.update1':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'BIT_1'}",
+  "PROCEDURE_PARAMETER": "{'UpdateSubscriberData':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateLocation':'updateSubscriber'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateLocation.updateSubscriber':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'VLR_LOCATION'}",
+  "PROCEDURE_PARAMETER": "{'UpdateLocation':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateLocation':'getSubscriber'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateLocation.getSubscriber':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'SUB_NBR'}",
+  "PROCEDURE_PARAMETER": "{'UpdateLocation':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.update':'4'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'NUMBERX'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.update':'4'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'NUMBERX'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.update':'3'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'END_TIME'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.update':'2'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'START_TIME'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.update':'1'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'SF_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'query1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.query1':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'SUB_NBR'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'query1'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.query1':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'SUB_NBR'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'check'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.check':'2'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'START_TIME'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'InsertCallForwarding':'check'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'InsertCallForwarding.check':'1'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'SF_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'InsertCallForwarding':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetSubscriberData':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetSubscriberData.GetData':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetSubscriberData':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetNewDestination':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetNewDestination.GetData':'4'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'END_TIME'}",
+  "PROCEDURE_PARAMETER": "{'GetNewDestination':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetNewDestination':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetNewDestination.GetData':'3'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'START_TIME'}",
+  "PROCEDURE_PARAMETER": "{'GetNewDestination':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetNewDestination':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetNewDestination.GetData':'2'}",
+  "STATEMENT_COLUMN": "{'SPECIAL_FACILITY':'SF_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'GetNewDestination':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetNewDestination':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetNewDestination.GetData':'1'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetNewDestination':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetNewDestination':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetNewDestination.GetData':'0'}",
+  "STATEMENT_COLUMN": "{'SPECIAL_FACILITY':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetNewDestination':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetAccessData':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetAccessData.GetData':'1'}",
+  "STATEMENT_COLUMN": "{'ACCESS_INFO':'AI_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'GetAccessData':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetAccessData':'GetData'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetAccessData.GetData':'0'}",
+  "STATEMENT_COLUMN": "{'ACCESS_INFO':'S_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetAccessData':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteCallForwarding.update':'2'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'START_TIME'}",
+  "PROCEDURE_PARAMETER": "{'DeleteCallForwarding':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteCallForwarding':'update'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteCallForwarding.update':'1'}",
+  "STATEMENT_COLUMN": "{'CALL_FORWARDING':'SF_TYPE'}",
+  "PROCEDURE_PARAMETER": "{'DeleteCallForwarding':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'DeleteCallForwarding':'query'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'DeleteCallForwarding.query':'0'}",
+  "STATEMENT_COLUMN": "{'SUBSCRIBER':'SUB_NBR'}",
+  "PROCEDURE_PARAMETER": "{'DeleteCallForwarding':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

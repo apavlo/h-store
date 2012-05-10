@@ -56,14 +56,14 @@ logging.basicConfig(level = logging.INFO,
                     stream = sys.stdout)
 
 HSTORE_OPTS = {
-    "client.duration":              180000,
+    "client.duration":              360000,
     "client.warmup":                0,
     "client.count":                 1,
     "client.processesperclient":    200,
     "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
-    "client.scalefactor":           20,
+    "client.scalefactor":           1,
 }
 
 ## ==============================================
@@ -84,7 +84,7 @@ def txnCount(path):
 ## ==============================================
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Create H-Store transaction trace files')
-    aparser.add_argument('benchmark', choices=[ 'tpcc', 'tm1', 'auctionmark', 'locality', 'airline' ],
+    aparser.add_argument('benchmark', choices=[ 'tpcc', 'tm1', 'auctionmark', 'locality', 'seats' ],
                          help='Target benchmark')
     aparser.add_argument('--config', type=file,
                          help='Path to H-Store configuration file to use')

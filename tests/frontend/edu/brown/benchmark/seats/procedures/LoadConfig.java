@@ -8,6 +8,10 @@ import edu.brown.benchmark.seats.SEATSConstants;
 
 public class LoadConfig extends VoltProcedure {
 
+    // -----------------------------------------------------------------
+    // STATEMENTS
+    // -----------------------------------------------------------------
+    
     public final SQLStmt getConfigProfile = new SQLStmt(
         "SELECT * FROM " + SEATSConstants.TABLENAME_CONFIG_PROFILE
     );
