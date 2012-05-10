@@ -107,11 +107,6 @@ public class LocalTransaction extends AbstractTransaction {
      * Catalog object of the Procedure that this transaction is currently executing
      */
     protected Procedure catalog_proc;
-
-    /**
-     * The queued up ClientResponse that we need to send back for this txn
-     */
-    private final ClientResponseImpl cresponse = new ClientResponseImpl();
     
     /**
      * The number of times that this transaction has been restarted 
@@ -122,6 +117,17 @@ public class LocalTransaction extends AbstractTransaction {
     
     private boolean deletable = false;
     private boolean not_deletable = false;
+    
+    /**
+     * If set to true, then this will need to have an entry written
+     * to the command log for its invocation
+     */
+    private boolean log_enabled = false;
+    
+    /**
+     * If set to true, then this txn's log entry has been flushed to disk
+     */
+    private boolean log_flushed = false;
     
     /**
      * The timestamp (from EstTime) that our transaction showed up
@@ -204,6 +210,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Constructor
+     * This does not fully initialize this transaction.
+     * You must call init() before this can be used
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
@@ -232,9 +240,15 @@ public class LocalTransaction extends AbstractTransaction {
      * @param client_callback
      * @return
      */
-    public LocalTransaction init(Long txn_id, long clientHandle, int base_partition,
-                                 Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
-                                 Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+    public LocalTransaction init(Long txn_id,
+                                  long clientHandle,
+                                  int base_partition,
+                                  Collection<Integer> predict_touchedPartitions,
+                                  boolean predict_readOnly,
+                                  boolean predict_canAbort,
+                                  Procedure catalog_proc,
+                                  StoredProcedureInvocation invocation,
+                                  RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
         this.initiateTime = EstTime.currentTimeMillis();
@@ -244,8 +258,14 @@ public class LocalTransaction extends AbstractTransaction {
         this.invocation = invocation;
         this.client_callback = client_callback;
         
-        super.init(txn_id, clientHandle, base_partition, catalog_proc.getSystemproc(),
-                  (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
+        super.init(txn_id,
+                    clientHandle,
+                    base_partition,
+                    catalog_proc.getSystemproc(),
+                    (this.predict_touchedPartitions.size() == 1),
+                    predict_readOnly,
+                    predict_canAbort,
+                    true);
         
         // Initialize the InitialTaskMessage
         // We have to wrap the StoredProcedureInvocation object into an
@@ -270,7 +290,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (this);
     }
-
+    
     /**
      * Testing Constructor
      * @param txn_id
@@ -294,6 +314,20 @@ public class LocalTransaction extends AbstractTransaction {
                           true,                         // Abortable
                           true                          // ExecLocal
         );
+    }
+    
+    /**
+     * Testing Constructor with Parameters
+     * @param txn_id
+     * @param base_partition
+     * @param predict_touchedPartitions
+     * @param catalog_proc
+     * @param proc_params
+     * @return
+     */
+    public LocalTransaction testInit(Long txn_id, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc, Object... proc_params) {
+        this.invocation = new StoredProcedureInvocation(0, catalog_proc.getName(), proc_params);
+        return testInit(txn_id, base_partition, predict_touchedPartitions, catalog_proc);
     }
     
     @Override
@@ -329,8 +363,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        this.cresponse.finish();
 
+        this.log_enabled = false;
+        this.log_flushed = false;
         this.needs_restart = false;
         this.deletable = false;
         this.not_deletable = false;
@@ -569,10 +604,10 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionInitCallback getTransactionInitCallback() {
         return (this.dtxnState.init_callback);
     }
-    public TransactionPrepareCallback initTransactionPrepareCallback() {
+    public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
         assert(this.dtxnState.prepare_callback.isInitialized() == false) :
             "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
-        this.dtxnState.prepare_callback.init(this);
+        this.dtxnState.prepare_callback.init(this, cresponse);
         return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
@@ -697,11 +732,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public long getInitiateTime() {
         return (this.initiateTime);
-    }
-    
-    public ClientResponseImpl getClientResponse() {
-        assert(this.cresponse != null);
-        return (this.cresponse);
     }
     
     /**
@@ -889,6 +919,45 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // COMMAND LOGGING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Mark this txn as needing to have a log entry written to disk
+     */
+    public void markLogEnabled() {
+        assert(this.log_enabled == false) :
+            "Trying to mark " + this + " as needing to be logged more than once";
+        this.log_enabled = true;
+    }
+    
+    /**
+     * Returns true if this txn needs to have a command log entry written for it
+     * @return
+     */
+    public boolean isLogEnabled() {
+        return (this.log_enabled);
+    }
+    
+    /**
+     * Mark this txn as having it's log entry flushed to disk
+     * This should only be invoked once per invocation
+     */
+    public void markLogFlushed() {
+        assert(this.log_flushed == false) :
+            "Trying to mark " + this + " as flushed more than once";
+        this.log_flushed = true;
+    }
+    
+    /**
+     * Returns true if this txn's log entry has been flushed to disk.
+     * @return
+     */
+    public boolean isLogFlushed() {
+        return (this.log_flushed);
     }
     
     // ----------------------------------------------------------------------------
@@ -1373,6 +1442,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
+        m.put("Log Flushed", this.log_flushed);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
 

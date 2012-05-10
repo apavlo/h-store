@@ -103,6 +103,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.Pair;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -347,7 +348,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * ClientResponses from speculatively executed transactions that are waiting to be committed 
      */
-    private final LinkedBlockingDeque<LocalTransaction> queued_responses = new LinkedBlockingDeque<LocalTransaction>();
+    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
 
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -948,14 +949,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             this.hstore_coordinator.shutdownCluster(ex);
         } finally {
-            String txnDebug = "";
-            if (d && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
-                txnDebug = "\n" + current_txn.debug();
+            if (d) {
+                String txnDebug = "";
+                if (current_txn != null && current_txn.getBasePartition() == this.partitionId) {
+                    txnDebug = "\n" + current_txn.debug();
+                }
+                LOG.warn(String.format("PartitionExecutor %d is stopping.%s%s",
+                                       this.partitionId,
+                                       (this.currentTxnId != null ? " In-Flight Txn: #" + this.currentTxnId : ""),
+                                       txnDebug));
             }
-            LOG.warn(String.format("PartitionExecutor %d is stopping.%s%s",
-                                   this.partitionId,
-                                   (this.currentTxnId != null ? " In-Flight Txn: #" + this.currentTxnId : ""),
-                                   txnDebug));
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
@@ -972,7 +975,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * we are waiting for a response or something real to do.
      */
     protected void utilityWork(CountDownLatch dtxnLatch) {
-        
+        // TODO: Set the txnId in our handle to be what the original txn was that
+        //       deferred this query.
         
        /* We need to start popping from the deferred_queue here. There is no need
         * for a while loop if we're going to requeue each popped txn in wthe work_queue,
@@ -2178,15 +2182,29 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
     /**
      * Execute a SQLStmt batch at this partition.
-     * @param ts
-     * @param batchSize
-     * @param batchStmts
-     * @param batchParams
-     * @param finalTask
-     * @param forceSinglePartition
+     * @param ts The txn handle that is executing this query batch
+     * @param batchSize The number of SQLStmts that the txn queued up using voltQueueSQL()
+     * @param batchStmts The SQLStmts that the txn is trying to execute
+     * @param batchParams The input parameters for the SQLStmts
+     * @param finalTask Whether the txn has marked this as the last batch that they will ever execute
+     * @param forceSinglePartition Whether to force the BatchPlanner to only generate a single-partition plan  
      * @return
      */
-    public VoltTable[] executeSQLStmtBatch(LocalTransaction ts, int batchSize, SQLStmt batchStmts[], ParameterSet batchParams[], boolean finalTask, boolean forceSinglePartition) {
+    public VoltTable[] executeSQLStmtBatch(LocalTransaction ts,
+                                            int batchSize,
+                                            SQLStmt batchStmts[],
+                                            ParameterSet batchParams[],
+                                            boolean finalTask,
+                                            boolean forceSinglePartition) {
+        
+        if (hstore_conf.site.exec_deferrable_queries) {
+            // TODO: Loop through batchStmts and check whether their corresponding Statement
+            // is marked as deferrable. If so, then remove them from batchStmts and batchParams
+            // (sliding everyone over by one in the arrays). Queue up the deferred query.
+            // Be sure decrement batchSize after you finished processing this.
+            // EXAMPLE: batchStmts[0].getStatement().getDeferrable()    
+        }
+        
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         BatchPlanner planner = this.batchPlanners.get(batchHashCode);
@@ -2844,7 +2862,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
         // The ClientResponse is already going to be in the LocalTransaction handle
         // ts.setClientResponse(cresponse);
-        this.queued_responses.add(ts);
+        this.queued_responses.add(Pair.of(ts, cresponse));
 
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
     }
@@ -2896,6 +2914,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // Send back the result right now!
             else {
+                if (hstore_conf.site.exec_command_logging) ts.markLogEnabled();
                 this.hstore_site.sendClientResponse(ts, cresponse);
                 ts.markAsDeletable();
                 this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
@@ -2926,7 +2945,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.setExecutionMode(ts, newMode);
             
             if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
-            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback();
+            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
@@ -3110,13 +3129,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Loop backwards through our queued responses and find the latest txn that 
         // we need to tell the EE to commit. All ones that completed before that won't
         // have to hit up the EE.
+        Pair<LocalTransaction, ClientResponseImpl> pair = null;
         LocalTransaction ts = null;
+        ClientResponseImpl cr = null;
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
-        while ((ts = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
+        while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
                                                                         this.queued_responses.pollFirst())) != null) {
-            ClientResponseImpl cr = ts.getClientResponse();
+            ts = pair.getFirst();
+            cr = pair.getSecond();
+            
             // 2011-07-02: I have no idea how this could not be stopped here, but for some reason
             // I am getting a random error.
             // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();

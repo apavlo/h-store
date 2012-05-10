@@ -296,22 +296,30 @@ public final class HStoreConf {
         public boolean exec_validate_work;
 
         @ConfigProperty(
-            description="If enabled, log all transaction requests to a file",
+            description="If enabled, log all transaction requests to disk",
             defaultBoolean=false,
             experimental=true
         )
         public boolean exec_command_logging;
         
         @ConfigProperty(
-            description="",
-            defaultString="/tmp/hstore.wal",
+            description="Directory for storage of command logging files",
+            defaultString="${global.temp_dir}/wal",
             experimental=true
         )
-        public String exec_command_logging_file;
+        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
         
         @ConfigProperty(
-            description="If enabled, support ad hoc queries",
-            defaultBoolean=false,
+            description="Transactions to queue before flush for group commit command logging optimization (0 = no group commit)",
+            defaultInt=0,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit;
+        
+        @ConfigProperty(
+            description="Setting this configuration parameter to true allows clients to " +
+                        "issue ad hoc query requests use the @AdHoc sysproc.",
+            defaultBoolean=true,
             experimental=true
         )
         public boolean exec_adhoc_sql;
@@ -323,6 +331,14 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_prefetch_queries;
+        
+        @ConfigProperty(
+            description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
+            		    "queries for later execution if they are marked as deferrable.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_deferrable_queries;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options

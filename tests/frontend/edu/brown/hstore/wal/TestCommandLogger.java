@@ -27,10 +27,10 @@ package edu.brown.hstore.wal;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -38,11 +38,14 @@ import org.voltdb.catalog.Site;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -70,8 +73,8 @@ public class TestCommandLogger extends BaseTestCase {
         HStoreConf hstore_conf = HStoreConf.singleton();
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
-        outputFile = new File("/tmp/mkisrsch.txt");
-        logger = new CommandLogWriter(hstore_site, outputFile.getAbsolutePath());
+        outputFile = FileUtil.getTempFile("log"); //"/research/hstore/mkirsch/testwal.log";
+        logger = new CommandLogWriter(hstore_site, outputFile);
     }
 
     @Override
@@ -82,31 +85,42 @@ public class TestCommandLogger extends BaseTestCase {
     
     @Test
     public void testSimpleTest() {
-//        // Write out a new txn invocation to the log
-//        LocalTransaction ts = new LocalTransaction(hstore_site);
-//        long txnId = TXN_ID.incrementAndGet(); 
-//        ts.testInit(txnId,
-//                    BASE_PARTITION,
-//                    Collections.singleton(BASE_PARTITION),
-//                    catalog_proc);
-//        boolean ret = logger.write(ts);
-//        assertTrue(ret);
-//        logger.shutdown(); // This closes the file
-//        
-//        // Now read in the file back in and check to see that we have one
-//        // entry that has our expected information
-//        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
-//        int ctr = 0;
-//        for (LogEntry entry : reader) {
-//            assertNotNull(entry);
-//            assertEquals(txnId, entry.txnId.longValue());
-//            // TODO: Do this check for all the others
-//            
-//            ctr++;
-//        }
-//        assertEquals(1, ctr);
+        // Write out a new txn invocation to the log
+        LocalTransaction ts = new LocalTransaction(hstore_site);
+        long txnId = TXN_ID.incrementAndGet(); 
+        ts.testInit(new Long(txnId),
+                    BASE_PARTITION,
+                    Collections.singleton(BASE_PARTITION),
+                    catalog_proc,
+                    TARGET_PARAMS);
+        ClientResponseImpl cresponse = new ClientResponseImpl(txnId,
+                                                              12345l,
+                                                              BASE_PARTITION,
+                                                              Status.OK,
+                                                              HStoreConstants.EMPTY_RESULT,
+                                                              "");
+        boolean ret = logger.appendToLog(ts, cresponse);
+        assertTrue(ret);
+        logger.shutdown(); // This closes the file
         
-        
-        
+        // Now read in the file back in and check to see that we have one
+        // entry that has our expected information
+        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
+        int ctr = 0;
+        for (LogEntry entry : reader) {
+            assertNotNull(entry);
+            assertEquals(txnId, entry.txnId.longValue());
+            assertEquals(catalog_proc.getId(), entry.procId);
+            
+            Object[] entryParams = entry.procParams.toArray();
+            assertEquals(TARGET_PARAMS.length, entryParams.length);
+            for (int i = 0; i < TARGET_PARAMS.length; i++)
+                assertEquals(TARGET_PARAMS[i], entryParams[i]);
+            
+            // TODO: Do this check for all the others
+            
+            ctr++;
+        }
+        assertEquals(1, ctr);
     }
 }
