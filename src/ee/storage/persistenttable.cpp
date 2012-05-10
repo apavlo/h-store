@@ -756,7 +756,9 @@ bool PersistentTable::activateCopyOnWrite(TupleSerializer *serializer, int32_t p
     if (m_COWContext != NULL) {
         return true;
     }
+    VOLT_DEBUG("m_COWContext == NULL");
     if (m_tupleCount == 0) {
+	VOLT_DEBUG("m_tupleCount equals 0!");
         return false;
     }
     m_COWContext.reset(new CopyOnWriteContext( this, serializer, partitionId));
@@ -770,14 +772,15 @@ bool PersistentTable::activateCopyOnWrite(TupleSerializer *serializer, int32_t p
  */
 bool PersistentTable::serializeMore(ReferenceSerializeOutput *out) {
     if (m_COWContext == NULL) {
+	VOLT_DEBUG("'m_COWContext' equals to NULL");
         return false;
     }
-
     const bool hasMore = m_COWContext->serializeMore(out);
     if (!hasMore) {
+	VOLT_DEBUG("'hasMore' equals to NULL");
         m_COWContext.reset(NULL);
     }
-
+    VOLT_DEBUG("EE HERE");
     return hasMore;
 }
 

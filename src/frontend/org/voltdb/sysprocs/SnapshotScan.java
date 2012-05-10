@@ -34,7 +34,6 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
-//import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -593,7 +592,8 @@ public class SnapshotScan extends VoltSystemProcedure {
         }
     }
 
-    public VoltTable[] run(String path) throws VoltAbortException
+    public VoltTable[] run(SystemProcedureExecutionContext ctx,
+            String path) throws VoltAbortException
     {
         final long startTime = System.currentTimeMillis();
         if (path == null || path.equals("")) {

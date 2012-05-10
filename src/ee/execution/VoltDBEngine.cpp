@@ -1151,13 +1151,13 @@ bool VoltDBEngine::activateTableStream(const CatalogId tableId, TableStreamType 
     if (it == m_tables.end()) {
         return false;
     }
-
+    VOLT_DEBUG("iterator is not empty");
     PersistentTable *table = dynamic_cast<PersistentTable*>(it->second);
     if (table == NULL) {
         assert(table != NULL);
         return false;
     }
-
+    VOLT_DEBUG("table is  not null ");
     switch (streamType) {
     case TABLE_STREAM_SNAPSHOT:
         if (table->activateCopyOnWrite(&m_tupleSerializer, m_partitionId)) {
@@ -1209,12 +1209,13 @@ int VoltDBEngine::tableStreamSerializeMore(
         // dynamic cast was already verified in activateCopyOnWrite.
         map<int32_t, Table*>::iterator pos = m_snapshottingTables.find(tableId);
         if (pos == m_snapshottingTables.end()) {
+	    VOLT_DEBUG("pos inside 'if (pos == m_snapshottingTables.end())' statment");
             return 0;
         }
-
         PersistentTable *table = dynamic_cast<PersistentTable*>(pos->second);
         bool hasMore = table->serializeMore(out);
-        if (!hasMore) {
+        if (!hasMore) { 
+	    VOLT_DEBUG("para 'hasMore' returns FALSE");
             m_snapshottingTables.erase(tableId);
             table->decrementRefcount();
         }
@@ -1237,7 +1238,6 @@ int VoltDBEngine::tableStreamSerializeMore(
     default:
         return -1;
     }
-
 
     return static_cast<int>(out->position());
 }

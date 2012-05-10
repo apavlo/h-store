@@ -250,7 +250,7 @@ public class SnapshotSaveAPI
                         "RESULTED IN IOException: \n" + sw.toString();
                     }
 
-                    result.addRow(context.getHost().getId(),
+                    result.addRow(context.getHost().getId(),//context.getSite().getHost().getId(),
                             hostname,
                             table.getTypeName(),
                             canSnapshot,
@@ -296,12 +296,11 @@ public class SnapshotSaveAPI
                 }
 
                 StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);	
-               
+                PrintWriter pw = new PrintWriter(sw);
                 ex.printStackTrace(pw);
                 pw.flush();
                 result.addRow(
-                        context.getHost().getId(),
+                        context.getHost().getId(),//context.getSite().getHost().getId(),
                         hostname,
                         "",
                         "FAILURE",
@@ -319,14 +318,13 @@ public class SnapshotSaveAPI
         try {
             SnapshotSiteProcessor.m_snapshotPermits.acquire();
         } catch (Exception e) {
-            result.addRow(context.getHost().getId(),
+            result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
                     hostname,
                     "",
                     "FAILURE",
                     e.toString());
             return result;
-        } 
-        finally {
+        } finally {
             /*
              * The last thread to acquire a snapshot permit has to be the one
              * to release the setup permit to ensure that a thread

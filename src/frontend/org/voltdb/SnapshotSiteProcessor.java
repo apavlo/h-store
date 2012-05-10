@@ -174,7 +174,7 @@ public class SnapshotSiteProcessor {
                 m_snapshotTargets.add(task.m_target);
             }
 			// FIXME meng
-            if (!ee.activateTableStream(task.m_tableId, TableStreamType.RECOVERY)) {
+            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT)) {
                 LOG.error("Attempted to activate copy on write mode for table "
                         + task.m_name + " and failed");
                 LOG.error(task);

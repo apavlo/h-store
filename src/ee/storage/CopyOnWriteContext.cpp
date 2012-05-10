@@ -93,7 +93,6 @@ bool CopyOnWriteContext::serializeMore(ReferenceSerializeOutput *out) {
     out->writeInt(partitionIdCRC.checksum());
     const std::size_t crcPosition = out->reserveBytes(4);//For CRC
     int rowsSerialized = 0;
-
     TableTuple tuple(m_table->schema());
     if (out->remaining() < (m_maxTupleLength + sizeof(int32_t))) {
         throwFatalException("Serialize more should never be called "
