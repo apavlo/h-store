@@ -42,8 +42,6 @@ import edu.brown.benchmark.tpce.util.EGenDate;
 import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class CustomerGenerator extends TableGenerator {
-    private static final Logger LOG = Logger.getLogger(CustomerGenerator.class);
-    
     // percent of people in ages: <= 18, 19-24, 25-34, 35-44, 45-54, 55-64, 65-74, 75-84, >=85
     private static final int[] agePercents  = {5, 16, 17, 19, 16, 11, 8, 7, 1};
     
@@ -89,8 +87,6 @@ public class CustomerGenerator extends TableGenerator {
         
         exchNum = generator.getInputFile(InputFile.EXCHANGE).getRecordsNum();
         compNum = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
-        
-        LOG.debug("Loading customer table for '" + customersNum + "'customers, starting from '" + startCustomerId + "'");
     }
     
     private void initNextLoadUnit() {

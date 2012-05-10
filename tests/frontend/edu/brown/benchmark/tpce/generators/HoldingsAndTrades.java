@@ -151,7 +151,7 @@ public class HoldingsAndTrades {
         long  secFlatFileIndex = 0; // index of the selected security in the input flat file
 
         long oldSeed = rnd.getSeed();
-        rnd.setSeed(getStartingSecIDSeed(accId));
+        rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_STARTING_SECURITY_ID, accId * MAX_SECURITIES_PER_ACCOUNT);
 
         /*
          * The main idea behind the loop below is that we want to generate secIndex _unique_ flat
@@ -182,11 +182,6 @@ public class HoldingsAndTrades {
 
         return secFlatFileIndex;
     }
-    
-    private long getStartingSecIDSeed(long accId) {
-        return rnd.rndNthElement(EGenRandom.RNG_SEED_BASE_STARTING_SECURITY_ID, accId * MAX_SECURITIES_PER_ACCOUNT);
-    }
-    
     
     public static boolean isAbortedTrade(long tradeId) {
         if (ABORTED_TRADE_MOD_FACTOR == tradeId % ABORT_TRADE) {
