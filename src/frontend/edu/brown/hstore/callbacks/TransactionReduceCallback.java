@@ -65,7 +65,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
         // STEP 1
         // Send the final result from all the partitions for this MR job
         // back to the client.
-        ClientResponseImpl cresponse = ts.getClientResponse(); 
+        ClientResponseImpl cresponse = new ClientResponseImpl(); 
         cresponse.init(ts.getTransactionId().longValue(),
                        ts.getClientHandle(), 
                        ts.getBasePartition(), 
