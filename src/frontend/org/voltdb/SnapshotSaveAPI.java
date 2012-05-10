@@ -103,7 +103,8 @@ public class SnapshotSaveAPI
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
-                        context.getSite().getHost().getId(),
+                        //context.getSite().getHost().getId(),
+                		context.getHost().getId(),
                         //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
                         context.getSite().getId(),
@@ -116,7 +117,8 @@ public class SnapshotSaveAPI
                     err = e.toString();
                 }
                 blockingResult.addRow(
-                        context.getSite().getHost().getId(),
+                        //context.getSite().getHost().getId(),
+                		context.getHost().getId(),
                         //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
                         context.getSite().getId(),
@@ -133,8 +135,9 @@ public class SnapshotSaveAPI
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
         {
+        	//final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
             final int numLocalSites = CatalogUtil.getSitesForHost(context.getSite().getHost()).size();
-        	
+            
             /*
              * Used to close targets on failure
              */
@@ -258,7 +261,7 @@ public class SnapshotSaveAPI
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
                         SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
                                 //VoltDB.instance().getLocalSites().values().size()
-                                CatalogUtil.getNumberOfSites(context.getCatalog()));
+                        		CatalogUtil.getSitesForHost(context.getSite().getHost()).size());
                         for (int ii = 0; ii < numLocalSites; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
                         }

@@ -28,7 +28,6 @@ import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
-//import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -36,6 +35,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.ConnectionUtil;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.sysprocs.saverestore.SnapshotUtil;
 
@@ -44,7 +44,6 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.catalog.*;
-
 
 @ProcInfo(singlePartition = false)
 public class SnapshotDelete extends VoltSystemProcedure {
@@ -74,7 +73,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
                         ParameterSet params,
                         final SystemProcedureExecutionContext context)
     {
-        String hostname = null; // XXX ConnectionUtil.getHostnameOrAddress();
+        String hostname = ConnectionUtil.getHostnameOrAddress();
         errorString = null;
         VoltTable result = constructFragmentResultsTable();
         if (fragmentId == SysProcFragmentId.PF_snapshotDelete)
@@ -114,7 +113,7 @@ public class SnapshotDelete extends VoltSystemProcedure {
                             long size = f.length();
                             boolean deleted = f.delete();
                             result.addRow(
-                                          Integer.parseInt(context.getSite().getHost().getTypeName()),
+                                          catalog_host.getId(),
                                           hostname,
                                           paths[ii],
                                           nonces[ii],

@@ -23,27 +23,18 @@
 
 package org.voltdb.jni;
 
-import java.nio.channels.SocketChannel;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicReference;
-
 import junit.framework.TestCase;
 
 import org.voltdb.EELibraryLoader;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.LoadCatalogToString;
 import org.voltdb.exceptions.EEException;
-import org.voltdb.messaging.MockMailbox;
-import org.voltdb.messaging.VoltMessage;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
-import org.voltdb.utils.Pair;
 
 /**
  * Tests native execution engine JNI interface.
