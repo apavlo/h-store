@@ -2385,6 +2385,19 @@ H-STORE REMIX
     </java>
 </target>
 
+<target name='hstore-term'
+        description="H-Store Commandline Terminal">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.HStoreTerminal">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xms256m" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
+</target>
+
 <target name="hstore-jar" description="H-Store JAR Setup">
     <antcall target="catalog-fix">
         <param name="jar" value="${benchmark.jar}" />

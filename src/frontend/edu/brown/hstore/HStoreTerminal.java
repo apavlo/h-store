@@ -12,6 +12,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
@@ -20,11 +21,12 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 
 /** MySQL Terminal **/
-public class HStoreTerminal{ //extends AbstractEventHandler??
+public class HStoreTerminal implements Runnable { //extends AbstractEventHandler??
 	public static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
 	
 	final Catalog catalog;
 	final Client client;
+	final jline.ConsoleReader reader = new ConsoleReader(); 
 	
 	public HStoreTerminal(Catalog catalog) throws Exception{
 		this.catalog = catalog;
@@ -56,20 +58,31 @@ public class HStoreTerminal{ //extends AbstractEventHandler??
         return (new_client);
     }
 	
+	@Override
+	public void run() {
+		String query = "";
+		ClientResponse cresponse = null;
+		do {
+			try {
+				query = reader.readLine("hstore> ");
+				cresponse = this.client.callProcedure("@AdHoc", query);
+				VoltTable[] results = cresponse.getResults();
+				System.out.println(results[0].toString());
+			} catch (ProcCallException ex) {
+				LOG.error(ex.getMessage());
+			} catch (Exception ex) {
+				throw new RuntimeException(ex);
+			}
+        } while(query != null && query.length() > 0);
+	}
 	
 	public static void main(String vargs[]) throws Exception {
 		ArgumentsParser args = ArgumentsParser.load(vargs,
                 ArgumentsParser.PARAM_CATALOG
 		);
+		//Ask Andy... is this right?
 		HStoreTerminal term = new HStoreTerminal(args.catalog);
-		jline.ConsoleReader reader = new ConsoleReader(); 
-		String query = "";
-		do {
-			query = reader.readLine("enter command > ");
-			ClientResponse cresponse = term.client.callProcedure("@AdHoc", query);
-			VoltTable[] results = cresponse.getResults();
-			System.out.println(results[0].toString());
-        } while(query != null && query.length() > 0);
+		term.run();
 	}
 
 }
