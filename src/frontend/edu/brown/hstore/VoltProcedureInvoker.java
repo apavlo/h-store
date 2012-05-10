@@ -1,9 +1,10 @@
 package edu.brown.hstore;
 
-import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -19,8 +20,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
@@ -28,9 +27,13 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
+/**
+ * Invoke a stored procedure programmatically
+ * @author pavlo
+ * @author evanj
+ */
 public class VoltProcedureInvoker {
     private static final Logger LOG = Logger.getLogger(VoltProcedureInvoker.class);
-    
     
     /**
      * Invoke a stored procedure using the given client handle
@@ -98,15 +101,28 @@ public class VoltProcedureInvoker {
             ProcParameter catalog_param = catalog_proc.getParameters().get(i);
             assert(catalog_param != null) : String.format("Null %s parameter at %d", catalog_proc.getName(), i); 
             VoltType vt = VoltType.get(catalog_param.getType());
+            
             try {
-                parameters[i] = VoltTypeUtil.getObjectFromString(vt, params[i]);
+                // Split into array
+                if (catalog_param.getIsarray()) {
+                    List<String> arr = (List<String>)CollectionUtil.addAll(new ArrayList<String>(),
+                                                                           params[i].split(","));
+                    Object inner[] = new Object[arr.size()];
+                    for (int ii = 0, cnt = arr.size(); ii < cnt; ii++) {
+                        inner[ii] = VoltTypeUtil.getObjectFromString(vt, arr.get(ii));
+                    } // FOR
+                    parameters[i] = inner;
+                // Scalar Paramter
+                } else {
+                    parameters[i] = VoltTypeUtil.getObjectFromString(vt, params[i]);
+                }
             } catch (ParseException ex) {
                 LOG.error("Invalid parameter #" + i + ": " + params[i], ex);
                 return (null);
             }
             if (LOG.isDebugEnabled())
                 LOG.debug(String.format("%s: %s [%s / %s]", catalog_param.fullName(),
-                                                            parameters[i],
+                                                            (catalog_param.getIsarray() ? Arrays.toString((Object[])parameters[i]) : parameters[i]),
                                                             vt, parameters[i].getClass()));
         } // FOR
         
