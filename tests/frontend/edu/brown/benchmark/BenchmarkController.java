@@ -91,6 +91,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
@@ -103,9 +106,6 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.conf.HStoreConf;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
@@ -335,6 +335,24 @@ public class BenchmarkController {
     public boolean compileBenchmark() {
         if (m_config.hosts.length == 0) {
             m_config.hosts = new String[] { hstore_conf.global.defaulthost };
+        }
+        
+        if (m_config.deferrable != null) {
+            for (String entry : m_config.deferrable) {
+                String parts[] = entry.split("\\.");
+                assert(parts.length == 2) :
+                    "Invalid deferrable entry '" + entry + "'";
+                
+                String procName = parts[0];
+                String stmtName = parts[1];
+                assert(procName.isEmpty() == false) :
+                    "Invalid procedure name in deferrable entry '" + entry + "'";
+                assert(stmtName.isEmpty() == false) :
+                    "Invalid statement name in deferrable entry '" + entry + "'";
+                m_projectBuilder.markStatementDeferrable(procName, stmtName);
+                if (debug.get()) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
+                                                         procName, stmtName, this.getProjectName())); 
+            } // FOR
         }
         
         boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
@@ -1277,6 +1295,9 @@ public class BenchmarkController {
         boolean markov_recomputeAfterEnd = false;
         boolean markov_recomputeAfterWarmup = false;
         
+        // Deferrable Queries
+        String deferrable[] = null;
+        
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
         
@@ -1457,6 +1478,14 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
+                
+            /*
+             * List of deferrable queries
+             * Format: <ProcedureName>.<StatementName>
+             */
+            } else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
+                if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
+                deferrable = parts[1].split(",");
             
             /* Disable starting the database cluster  */
             } else if (parts[0].equalsIgnoreCase("NOSITES")) {
@@ -1645,6 +1674,7 @@ public class BenchmarkController {
                 markov_thresholdsValue,
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
+                deferrable,
                 dumpDatabase,
                 dumpDatabaseDir,
                 jsonOutput

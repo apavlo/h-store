@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.BufferUnderflowException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -15,10 +16,9 @@ import org.voltdb.utils.NotImplementedException;
 public class CommandLogReader implements Iterable<LogEntry> {
     
     final FastDeserializer fd;
-    final Map<Integer, String> procedures = new HashMap<Integer, String>();
+    final Map<Integer, String> procedures;
     
     public CommandLogReader(String path) {
-        
         FileChannel roChannel = null;
         ByteBuffer readonlybuffer = null;
         File f = new File(path);
@@ -31,28 +31,34 @@ public class CommandLogReader implements Iterable<LogEntry> {
         assert(readonlybuffer != null);
         this.fd = new FastDeserializer(readonlybuffer);
         
-        // TODO: Read in the file header 
+        this.procedures = this.readHeader();
     }
     
     @Override
     public Iterator<LogEntry> iterator() {
         Iterator<LogEntry> it = new Iterator<LogEntry>() {
-
+            private LogEntry _next;
+            {
+                this.next();
+            }
             @Override
             public boolean hasNext() {
-                // TODO Auto-generated method stub
-                return false;
+                return _next != null;
+                //return fd.buffer().hasRemaining();
             }
 
             @Override
             public LogEntry next() {
-                LogEntry entry = null;
+                LogEntry ret = _next;
+                _next = null;
                 try {
-                    entry = fd.readObject(LogEntry.class);
+                    _next = fd.readObject(LogEntry.class);
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
+                } catch (BufferUnderflowException ex) {
+                    _next = null;
                 }
-                return (entry);
+                return (ret);
             }
 
             @Override
@@ -67,7 +73,26 @@ public class CommandLogReader implements Iterable<LogEntry> {
         // entry each time. What we really should do is recreate
         // the StoredProcedureInvocation and then pass that into
         // the HStoreSite so that we can replay the transaction
-        
+        // 
+        // So maybe we want to make this a StoredProcedure Invocation iterator?
     }
-
+    
+    /**
+     * 
+     * @return
+     */
+    protected Map<Integer, String> readHeader() {
+        Map<Integer, String> procedures = new HashMap<Integer, String>();
+        
+        try {
+            int num_procs = fd.readInt();
+            
+            for (int i = 0; i < num_procs; i++)
+                procedures.put(new Integer(fd.readInt()), fd.readString());
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read WAL log header!", ex);
+        }
+        
+        return (procedures);
+    }
 }
