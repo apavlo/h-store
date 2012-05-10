@@ -25,6 +25,7 @@
  ***************************************************************************/
 package edu.brown.hstore;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
@@ -45,7 +46,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -224,7 +224,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * ClientResponse Processor Thread
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
-    private final LinkedBlockingDeque<LocalTransaction> ready_responses = new LinkedBlockingDeque<LocalTransaction>();
+    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
      * TODO(xin): MapReduceHelperThread
@@ -443,7 +443,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
-            this.commandLogger = new CommandLogWriter(this, hstore_conf.site.exec_command_logging_file);
+            // It would be nice if we could come up with a unique name for this
+            // invocation of the system (like the cluster instanceId). But for now
+            // we'll just write out to our directory...
+            File logFile = new File(hstore_conf.site.exec_command_logging_directory +
+                                    File.separator +
+                                    this.getSiteName().toLowerCase() + ".log");
+            this.commandLogger = new CommandLogWriter(this, logFile);
         } else {
             this.commandLogger = null;
         }
@@ -669,6 +675,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public int getSiteIdForPartitionId(int partition_id) {
         return (this.partition_site_xref[partition_id]);
+    }
+    
+    /**
+     * Return a Collection that only contains the given partition id
+     * @param partition
+     */
+    public Collection<Integer> getSingletonPartitionList(int partition) {
+        return (this.single_partition_sets[partition]);
     }
     
     @SuppressWarnings("unchecked")
@@ -1648,10 +1662,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionFinishCallback finish_callback = null;
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null) {
-            /*if (ts instanceof LocalTransaction) {
-                
-                WriteAheadLogger.writeCombined((LocalTransaction)ts, status);
-            }*/
             ts.setStatus(status);
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
@@ -1763,7 +1773,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        ts, status, ts.getClientHandle()));
         
         ts.setStatus(status);
-        ClientResponseImpl cresponse = ts.getClientResponse();
+        ClientResponseImpl cresponse = new ClientResponseImpl();
         cresponse.init(ts.getTransactionId(),
                        ts.getClientHandle(),
                        ts.getBasePartition(),
@@ -1996,31 +2006,59 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        Status status = cresponse.getStatus();
         assert(cresponse != null) :
             "Missing ClientResponse for " + ts;
         assert(cresponse.getClientHandle() != -1) :
             "The client handle for " + ts + " was not set properly";
-        assert(cresponse.getStatus() != Status.ABORT_MISPREDICT) :
-            "Trying to send back a client response for " + ts + " but the status is " + cresponse.getStatus();
+        assert(status != Status.ABORT_MISPREDICT) :
+            "Trying to send back a client response for " + ts + " but the status is " + status;
         
-        if (hstore_conf.site.exec_command_logging && cresponse.getStatus() == Status.OK) {
-            this.commandLogger.write(ts);
+        boolean sendResponse = true;
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
+            sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
 
-        // Don't send anything back if it's a mispredict because it's as waste of time...
+        if (sendResponse) {
+            // NO GROUP COMMIT -- SEND OUT AND COMPLETE
+            // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
+            this.sendClientResponse(cresponse,
+                                ts.getClientCallback(),
+                                ts.getInitiateTime(),
+                                ts.getRestartCounter());
+        } else { // if (d) 
+            LOG.info(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+        }
+        
+        
+    }
+    
+    /**
+     * 
+     * @param ts
+     * @param cresponse
+     * @param logTxn
+     */
+    public void sendClientResponse(ClientResponseImpl cresponse,
+                                    RpcCallback<byte[]> clientCallback,
+                                    long initiateTime,
+                                    int restartCounter) {
+        Status status = cresponse.getStatus();
+ 
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("%s - Sending back ClientResponse [status=%s]", ts, cresponse.getStatus()));
+        if (d) LOG.debug(String.format("%d - Sending back ClientResponse [status=%s]",
+                                       cresponse.getTransactionId(), status));
 
         // Check whether we should disable throttling
         cresponse.setRequestCounter(this.getNextRequestCounter());
-        cresponse.setThrottleFlag(cresponse.getStatus() == Status.ABORT_THROTTLED);
+        cresponse.setThrottleFlag(status == Status.ABORT_THROTTLED);
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);
-        cresponse.setClusterRoundtrip((int)(now - ts.getInitiateTime()));
-        cresponse.setRestartCounter(ts.getRestartCounter());
+        cresponse.setClusterRoundtrip((int)(now - initiateTime));
+        cresponse.setRestartCounter(restartCounter);
         
         // So we have a bit of a problem here.
         // It would be nice if we could use the BufferPool to get a block of memory so
@@ -2030,7 +2068,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // The problem is that we need access to the underlying array of the ByteBuffer,
         // but we can't get that from here.
         byte bytes[] = null;
-        int offset = this.getLocalPartitionOffset(ts.getBasePartition());
+        int offset = this.getLocalPartitionOffset(cresponse.getBasePartition());
         FastSerializer out = this.partition_serializers[offset]; 
         synchronized (out) {
             out.clear();
@@ -2041,12 +2079,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             bytes = out.getBytes();
         } // SYNCH
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, requestCtr=%d]",
-                                       ts, cresponse.getThrottleFlag(), cresponse.getRequestCounter()));
+        if (d) LOG.debug(String.format("%d - Serialized ClientResponse [throttle=%s, requestCtr=%d]",
+                                       cresponse.getTransactionId(),
+                                       cresponse.getThrottleFlag(),
+                                       cresponse.getRequestCounter()));
         
         // Send result back to client!
         try {
-            ts.getClientCallback().run(bytes);
+            clientCallback.run(bytes);
         } catch (CancelledKeyException ex) {
             // IGNORE
         }
@@ -2062,7 +2102,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, ts.getBasePartition(), cr.getStatus(), this.ready_responses.size()));
-        this.ready_responses.add(ts);
+        this.ready_responses.add(Pair.of(ts,cr));
     }
 
     /**
@@ -2285,7 +2325,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	public void processPeriodicWork() {
-	    if (trace.get())
+	    if (t)
 		    LOG.trace("Checking for PeriodicWork...");
 
 	    // poll planner queue
@@ -2301,31 +2341,35 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		//LOG.info("HStoreSite - Checking for finished compiled work.");
-		
-
+		if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
-            LOG.info("AsyncCompilerResult\n" + result);
+            if (d) LOG.debug("AsyncCompilerResult\n" + result);
             
             // ----------------------------------
             // BUSTED!
             // ----------------------------------
             if (result.errorMsg != null) {
-//                if (debug.get())
+                if (d)
                     LOG.error("Unexpected AsyncCompiler Error:\n" + result.errorMsg);
                 
                 ClientResponseImpl errorResponse =
-                        new ClientResponseImpl(-1, result.clientHandle, -1,
-                                Status.ABORT_UNEXPECTED,
-                                HStoreConstants.EMPTY_RESULT,
-                                result.errorMsg);
+                        new ClientResponseImpl(-1,
+                                               result.clientHandle,
+                                               this.local_partition_reverse[0],
+                                               Status.ABORT_UNEXPECTED,
+                                               HStoreConstants.EMPTY_RESULT,
+                                               result.errorMsg);
                 this.sendClientResponse(result.ts, errorResponse);
                 
-                // TODO: Figure out how we will delete the txn handle even though we
-                // don't have a real txnID
-                // this.deleteTransaction(txn_id, status)
+                // HACK: Create a txnId for this LocalTransaction just so that we can
+                // store it and delete it. This is necessary so that we can return
+                // the txn back into the object pool
+                int base_partition = result.ts.getBasePartition();
+                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                this.inflight_txns.put(txn_id, result.ts);
+                this.deleteTransaction(txn_id, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------
             // AdHocPlannedStmt
@@ -2346,7 +2390,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
                 result.ts.setTransactionId(txn_id);
                 
-                LOG.info("Queuing AdHoc transaction: " + result.ts);
+                if (d) LOG.debug("Queuing AdHoc transaction: " + result.ts);
                 this.dispatchInvocation(result.ts);
                 
             }

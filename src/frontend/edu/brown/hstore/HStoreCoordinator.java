@@ -455,6 +455,7 @@ public class HStoreCoordinator implements Shutdownable {
             InetSocketAddress arr[] = new InetSocketAddress[destinations.size()];
             for (int i = 0; i < arr.length; i++) {
                 arr[i] = destinations.get(i).getSecond();
+                if (debug.get()) LOG.debug("Attemping to connect to " + arr[i]);
             } // FOR
                     
             try {
