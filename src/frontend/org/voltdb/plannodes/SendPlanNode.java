@@ -37,6 +37,7 @@ public class SendPlanNode extends AbstractPlanNode {
     // used for planning
     public boolean isMultiPartition = false;
     private boolean m_fake = false;
+    private boolean m_fast = false; // determine if it will be fast executed --mimosally
 
     /**
      * @param id
@@ -55,6 +56,12 @@ public class SendPlanNode extends AbstractPlanNode {
     }
     public void setFake(boolean fake) {
         m_fake = fake;
+    }
+    public void setFast(boolean fast) {
+    	m_fast = fast;
+    }
+    public boolean getFast(){
+    	return m_fast;
     }
 
     @Override

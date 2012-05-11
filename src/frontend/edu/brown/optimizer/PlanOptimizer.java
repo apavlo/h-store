@@ -15,6 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AbstractOptimization;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 import edu.brown.optimizer.optimizations.CombineOptimization;
+import edu.brown.optimizer.optimizations.FastAggregateOptimization;
 import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
 import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
 import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
@@ -70,6 +71,7 @@ public class PlanOptimizer {
             LimitOrderByPushdownOptimization.class,
             RemoveRedundantProjectionsOptimizations.class,
             CombineOptimization.class,
+            FastAggregateOptimization.class,
     };
 
     // ----------------------------------------------------------------------------

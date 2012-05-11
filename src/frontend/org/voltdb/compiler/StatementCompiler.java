@@ -44,7 +44,11 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
 import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
+import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.ReceivePlanNode;
+import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -53,6 +57,7 @@ import org.voltdb.utils.Encoder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.
@@ -259,7 +264,7 @@ public abstract class StatementCompiler {
                 node_list = new PlanNodeList(fragment.planGraph);
                 
                 boolean readonly = fragmentReadOnly(fragment.planGraph);
-                
+                boolean fastagg= fragmentfastagg(fragment.planGraph); // check if it can be fast aggregate--mimosally
                 // Now update our catalog information
                 int id = getNextFragmentId(db);
                 String planFragmentName = Integer.toString(id);
@@ -283,7 +288,32 @@ public abstract class StatementCompiler {
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
                 planFragment.setId(id);
-
+              //mark a fragment, if it need fast execute
+                Collection<ReceivePlanNode> recv_nodes =
+                		PlanNodeUtil.getPlanNodes(fragment.planGraph, ReceivePlanNode.class);
+                		if (recv_nodes.size() == 1) {
+                		   ReceivePlanNode recv_node = CollectionUtil.first(recv_nodes);
+                		   assert(recv_node != null);
+                		   if (recv_node.getFast()) {
+                			   if(fastagg){
+                				   planFragment.setFastaggregate(true);
+                			   }
+                		       
+                		   }
+                		}
+                LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastaggregate()+"test of planfragment aggregate--mimosally");
+              //mark a fragment, if it need fast combine
+                Collection<ReceivePlanNode> recv_nodes2 =
+                		PlanNodeUtil.getPlanNodes(fragment.planGraph, ReceivePlanNode.class);
+                		if (recv_nodes2.size() == 1) {
+                		   ReceivePlanNode recv_node = CollectionUtil.first(recv_nodes2);
+                		   assert(recv_node != null);
+                		   if (recv_node.getFastcombine()) {
+                		       planFragment.setFastcombine(true);
+                		       LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastcombine()+"test of planfragment fastcombine--mimosally");
+                		   }
+                		}
+                		 
                 String json = null;
                 try {
                     JSONObject jobj = new JSONObject(node_list.toJSONString());
@@ -431,4 +461,26 @@ public abstract class StatementCompiler {
         // if nothing found, return true
         return true;
     }
+    
+    /**
+     * Check through a plan graph and return true if it can fast aggregate
+     */
+    static boolean fragmentfastagg(AbstractPlanNode node) {
+        if (node == null)
+            return false;
+
+        if (node instanceof ProjectionPlanNode)
+            return false;
+        if (node instanceof OrderByPlanNode)
+            return false;
+       
+        // recursively check out children
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
+            if (fragmentfastagg(node.getChild(i)) == false) return (false);
+        }
+
+        // if nothing found, return true
+        return true;
+    }
+   
 }

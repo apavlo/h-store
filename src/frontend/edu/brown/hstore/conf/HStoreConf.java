@@ -339,6 +339,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_deferrable_queries;
+        @ConfigProperty(
+        		description="PartitionExecutor will determine whether to use the fast execute in Java instead of ExecutionEngine",
+        	    defaultBoolean=false,
+        	    experimental=true
+        	    )
+        public boolean exec_fast_executors;   //mimosally
+        
         
         // ----------------------------------------------------------------------------
         // MapReduce Options
