@@ -1060,7 +1060,7 @@ public class HStoreCoordinator implements Shutdownable {
     public void notifyClusterLiveMigrationAboutToStart(Catalog catalog){
         // We don't need to do this if there is only one site
         if (this.num_sites == 1) return;
-        
+        LOG.debug("site number: "+this.num_sites);
         final CountDownLatch latch = new CountDownLatch(this.num_sites - 1);
         
         RpcCallback<LiveMigrationSyncResponse> callback = new RpcCallback<LiveMigrationSyncResponse>() {
@@ -1096,11 +1096,11 @@ public class HStoreCoordinator implements Shutdownable {
         } catch (InterruptedException ex) {
             // nothing
         }
-        
+        LOG.debug("success? " + success);
         if (success == false) {
             LOG.warn(String.format("Failed to receive Live Migration responses from %d remote HStoreSites", this.num_sites - 1));
             assert (1 < 0) : "Failed to receive Live Migration responses";
-        } else if (debug.get()) LOG.trace("Received all Live Migration responses!");
+        } else if (debug.get()) LOG.debug("Received all Live Migration responses!");
         
     }
     
@@ -1178,7 +1178,7 @@ public class HStoreCoordinator implements Shutdownable {
                                             .setT0S(System.currentTimeMillis())
                                             .build();
             e.getValue().timeSync(new ProtoRpcController(), request, callback);
-            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(e.getKey()));
+            if (debug.get()) LOG.debug("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(e.getKey()));
         } // FOR
         
         if (trace.get()) LOG.trace("Sent out all TIMESYNC requests!");
@@ -1188,6 +1188,7 @@ public class HStoreCoordinator implements Shutdownable {
         } catch (InterruptedException ex) {
             // nothing
         }
+        LOG.debug("success? " + success);
         if (success == false) {
             LOG.warn(String.format("Failed to recieve time synchronization responses from %d remote HStoreSites", this.num_sites-1));
         } else if (trace.get()) LOG.trace("Received all TIMESYNC responses!");

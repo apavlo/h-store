@@ -133,7 +133,7 @@ public class ClusterConfiguration extends ClusterConfig {
             String host_name = hosts_value[i].getIpaddr();
             
             for(int j=0; j<sites_value.length; j++){
-                int site_id = sites_value[i].getId();
+                int site_id = sites_value[j].getId();
                 CatalogMap<Partition> partitions = sites_value[j].getPartitions();
                 Partition[] partitions_value = partitions.values();
                 int first_partition = partitions_value[0].getId();
