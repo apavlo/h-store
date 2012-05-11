@@ -14,41 +14,31 @@ import edu.brown.utils.CollectionUtil;
 @ProcInfo(
         mapInputQuery = "mapInputQuery"
 )
-public class MRquery19 extends VoltMapReduceProcedure<Long> {
+public class MRquery12 extends VoltMapReduceProcedure<Long> {
 
     public SQLStmt mapInputQuery = new SQLStmt(
-            "select    ol_number, sum(ol_amount) " +
-            "from   order_line " +
-            "where  ( " +
-//            "     ol_i_id = i_id " +
-//            "     and i_data like '%a' " +
-            "     ol_o_id >= 20 " +
-            "     and ol_o_id <= 100 " +
-//            "     and i_price between 1 and 20000 " +
-//            "     and ol_w_id in (1,2,3) " +
-            "   ) or ( " +
-//            "     ol_i_id = i_id " +
-//            "     and i_data like '%b' " +
-            "     ol_o_id >= 105 " +
-            "     and ol_o_id <= 200 " +
-//            "     and i_price between 80000 and 100000 " +
-//            "     and ol_w_id in (1,2,4) " +
-            "   ) or ( " +
-//            "     ol_i_id = i_id " +
-//            "     and i_data like '%c' " +
-            "     ol_o_id >= 210 " +
-            "     and ol_o_id <= 290 " +
-//            "     and i_price between 200000 and 250000 " +
-//            "     and ol_w_id in (1,5,3) " +
-            "   ) " +
-            "GROUP BY ol_number order by ol_number"
+//            "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), COUNT(*) " +
+//                    "FROM order_line " +
+//                    "WHERE ol_delivery_d > '2007-01-02 00:00:00.000000' " +
+//                    "GROUP BY ol_number " +
+//                    "ORDER BY ol_number"
+            "SELECT o_ol_cnt, o_carrier_id " +
+            "FROM ORDERS, ORDER_LINE " +
+            "WHERE ol_w_id = o_w_id " +
+            " and ol_d_id = o_d_id " + 
+            " and ol_o_id = o_id " +
+            " and o_entry_d <= ol_delivery_d " + 
+            " and ol_delivery_d < '2020-01-01 00:00:00.000000' " + 
+            //"GROUP BY o_ol_cnt " +
+            "ORDER BY o_ol_cnt"
     );
 
     @Override
     public VoltTable.ColumnInfo[] getMapOutputSchema() {
         return new VoltTable.ColumnInfo[]{
                 new VoltTable.ColumnInfo("ol_number", VoltType.BIGINT),
-                new VoltTable.ColumnInfo("ol_amount", VoltType.FLOAT),
+                new VoltTable.ColumnInfo("high_line_count", VoltType.BIGINT),
+                new VoltTable.ColumnInfo("low_line_count", VoltType.BIGINT),
         };
     }
 
@@ -63,24 +53,33 @@ public class MRquery19 extends VoltMapReduceProcedure<Long> {
     @Override
     public void map(VoltTableRow row) {
         long key = row.getLong(0); 
+        long line = row.getLong(1);
+        long high_line_ct = 0; 
+        long low_line_ct = 0;
+        if (line == 1 || line == 2) high_line_ct = 1;
+        if (line != 1 && line != 2) low_line_ct = 1;
         Object new_row[] = {
                 key,
-                row.getDouble(1)
+                high_line_ct,
+                low_line_ct
         };
         this.mapEmit(key, new_row);
     }
 
     @Override
     public void reduce(Long key, Iterator<VoltTableRow> rows) {
-        double sum_ol_amount = 0;
+        long sum_high = 0;
+        long sum_low = 0;
         for (VoltTableRow r : CollectionUtil.iterable(rows)) {
             assert(r != null);
-            sum_ol_amount += rows.next().getDouble(1);
+            sum_high += rows.next().getLong(1);
+            sum_low += rows.next().getLong(2);
         } // FOR
 
         Object new_row[] = {
                 key,
-                sum_ol_amount
+                sum_high,
+                sum_low
         };
         this.reduceEmit(new_row);
     }

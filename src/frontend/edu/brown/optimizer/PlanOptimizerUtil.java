@@ -53,11 +53,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param state
-     * @param orig_pc
-     * @param output_cols
-     * @return
-     */
+* @param state
+* @param orig_pc
+* @param output_cols
+* @return
+*/
     protected static Pair<PlanColumn, Integer> findMatchingColumn(final PlanOptimizerState state, PlanColumn orig_pc, List<Integer> output_cols) {
         PlanColumn new_pc = null;
         int new_idx = 0;
@@ -67,7 +67,7 @@ public abstract class PlanOptimizerUtil {
 
             if (new_pc.equals(orig_pc, true, true)) {
                 if (trace.get())
-                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, new_pc));
+                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW: %s", new_idx, orig_pc, new_pc));
                 break;
             }
             new_pc = null;
@@ -77,9 +77,9 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Populates the two data structures with information on the planNodes and
-     * Tables and their referenced columns
-     */
+* Populates the two data structures with information on the planNodes and
+* Tables and their referenced columns
+*/
     public static void populateTableNodeInfo(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
         // Traverse tree and build up our data structures that maps all nodes to
         // the columns they affect
@@ -98,12 +98,12 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Populate the mappings between AbstractPlanNodes and the tableNames, and
-     * the element id(?) to set of columns
-     * 
-     * @param state
-     * @param rootNode
-     */
+* Populate the mappings between AbstractPlanNodes and the tableNames, and
+* the element id(?) to set of columns
+*
+* @param state
+* @param rootNode
+*/
     public static void populateJoinTableInfo(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
         final Set<String> join_tbls = new HashSet<String>();
 
@@ -157,10 +157,10 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param node
-     * @param is_root
-     * @throws Exception
-     */
+* @param node
+* @param is_root
+* @throws Exception
+*/
     protected static void extractColumnInfo(final PlanOptimizerState state, final AbstractPlanNode node, final boolean is_root) throws Exception {
         if (trace.get())
             LOG.trace("Extracting Column Info for " + node);
@@ -259,12 +259,12 @@ public abstract class PlanOptimizerUtil {
     // ------------------------------------------------------------
 
     /**
-     * @param state
-     * @param rootNode
-     * @param force
-     *            TODO
-     * @return
-     */
+* @param state
+* @param rootNode
+* @param force
+* TODO
+* @return
+*/
     public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode, final boolean force) {
         // Walk up the tree in reverse so that we get all the Column offsets
         // right
@@ -355,9 +355,9 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param node
-     * @return
-     */
+* @param node
+* @return
+*/
     public static boolean updateDistinctColumns(final PlanOptimizerState state, DistinctPlanNode node) {
         // We really have one child here
         assert (node.getChildPlanNodeCount() == 1) : node;
@@ -379,7 +379,7 @@ public abstract class PlanOptimizerUtil {
         // assert (pc != null);
         // if (pc.equals(orig_pc, true, true)) {
         // if (trace.get())
-        // LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s",
+        // LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW: %s",
         // new_idx, orig_pc, pc));
         // new_pc = pc;
         // break;
@@ -416,11 +416,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Update OrderBy columns
-     * 
-     * @param node
-     * @return
-     */
+* Update OrderBy columns
+*
+* @param node
+* @return
+*/
     public static boolean updateOrderByColumns(final PlanOptimizerState state, OrderByPlanNode node) {
         if (debug.get())
             LOG.debug("Updating Sort Columns for " + node);
@@ -482,11 +482,11 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Update AggregatePlanNode columns
-     * 
-     * @param node
-     * @return
-     */
+* Update AggregatePlanNode columns
+*
+* @param node
+* @return
+*/
     public static boolean updateAggregateColumns(final PlanOptimizerState state, AggregatePlanNode node) {
         // We really have one child here
         assert (node.getChildPlanNodeCount() == 1) : node;
@@ -505,7 +505,7 @@ public abstract class PlanOptimizerUtil {
                 assert (pc != null);
                 if (pc.equals(orig_pc, true, true)) {
                     if (trace.get())
-                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
+                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW: %s", new_idx, orig_pc, pc));
                     new_pc = pc;
                     break;
                 }
@@ -577,10 +577,10 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param node
-     * @return
-     * @throws Exception
-     */
+* @param node
+* @return
+* @throws Exception
+*/
     public static boolean updateProjectionColumns(final PlanOptimizerState state, final ProjectionPlanNode node) {
         assert (node.getChildPlanNodeCount() == 1) : node;
         final AbstractPlanNode child_node = node.getChild(0);
@@ -669,10 +669,10 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param node
-     * @return
-     * @throws Exception
-     */
+* @param node
+* @return
+* @throws Exception
+*/
     public static boolean updateOutputOffsets(final PlanOptimizerState state, AbstractPlanNode node) {
         for (int i = 0, cnt = node.getOutputColumnGUIDCount(); i < cnt; i++) {
             // Check to make sure that the offset in the tuple value expression
@@ -719,9 +719,9 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * @param node
-     * @return
-     */
+* @param node
+* @return
+*/
     public static boolean updateJoinsColumns(final PlanOptimizerState state, final AbstractJoinPlanNode node) {
 
         // There's always going to be two input tables. One is always going to
@@ -824,7 +824,7 @@ public abstract class PlanOptimizerUtil {
         } // FOR
         if (trace.get()) {
             LOG.trace("Original Outer Input GUIDs: " + outer_orig_input_guids);
-            LOG.trace("New Outer Input GUIDs:      " + outer_output_guids);
+            LOG.trace("New Outer Input GUIDs: " + outer_output_guids);
         }
         if (outer_output_guids.size() != offset_xref.size()) {
             LOG.error("Outer Node: " + outer_node);
@@ -844,9 +844,9 @@ public abstract class PlanOptimizerUtil {
                 temp += String.format("[%02d] %s\n", i, pc);
                 temp += ExpressionUtil.debug(pc.getExpression()) + "\n--------\n";
             }
-            LOG.error("New Outer Input GUIDs:      " + outer_output_guids + "\n" + temp);
+            LOG.error("New Outer Input GUIDs: " + outer_output_guids + "\n" + temp);
 
-            LOG.error("Output Xref Offsets:      " + offset_xref);
+            LOG.error("Output Xref Offsets: " + offset_xref);
             // LOG.info("Trace Information:\n" + sb);
             LOG.error("Unexpected Query Plan\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
         }
@@ -900,7 +900,7 @@ public abstract class PlanOptimizerUtil {
             if (trace.get())
                 LOG.trace("Original Inner Input GUIDs: " + inner_orig_input_guids);
             if (trace.get())
-                LOG.trace("New Inner Input GUIDs:      " + inner_new_input_guids);
+                LOG.trace("New Inner Input GUIDs: " + inner_new_input_guids);
 
         // ---------------------------------------------------
         // NEST LOOP INDEX
@@ -954,7 +954,7 @@ public abstract class PlanOptimizerUtil {
                 // assert (pc != null);
                 // if (pc.equals(orig_pc, true, true)) {
                 // if (trace.get())
-                // LOG.trace(String.format("[%02d] Found inline output PlanColumn match:\nORIG: %s\nNEW:  %s",
+                // LOG.trace(String.format("[%02d] Found inline output PlanColumn match:\nORIG: %s\nNEW: %s",
                 // new_idx, orig_pc, pc));
                 // new_pc = pc;
                 // break;
@@ -983,7 +983,7 @@ public abstract class PlanOptimizerUtil {
             // System.out.println("expressions_to_fix: " + expressions_to_fix);
         }
         if (debug.get()) {
-            LOG.debug("Output Xref Offsets:      " + offset_xref);
+            LOG.debug("Output Xref Offsets: " + offset_xref);
             LOG.debug("New Output Columns GUIDS: " + new_sorted_output_guids);
         }
 
@@ -1035,7 +1035,7 @@ public abstract class PlanOptimizerUtil {
             assert (tv_exp != null);
             int orig_idx = tv_exp.getColumnIndex();
             // assert(new_idx == offset_xref.get(orig_idx)) :
-            // String.format("Offset Mismatch [orig_idx=%d] =>  [%d] != [%d]:\noffset_xref = %s\n%s",
+            // String.format("Offset Mismatch [orig_idx=%d] => [%d] != [%d]:\noffset_xref = %s\n%s",
             // orig_idx, new_idx, offset_xref.get(orig_idx), offset_xref,
             // PlanNodeUtil.debugNode(element));
             if (orig_idx != new_idx) {
@@ -1088,10 +1088,10 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Correct any offsets in join nodes
-     * 
-     * @param root
-     */
+* Correct any offsets in join nodes
+*
+* @param root
+*/
     public static void fixJoinColumnOffsets(final PlanOptimizerState state, AbstractPlanNode root) {
         new PlanNodeTreeWalker(false) {
             @Override
@@ -1137,13 +1137,13 @@ public abstract class PlanOptimizerUtil {
     }
 
     /**
-     * Extract all the PlanColumns that we are going to need in the query plan
-     * tree above the given node.
-     * 
-     * @param node
-     * @param tables
-     * @return
-     */
+* Extract all the PlanColumns that we are going to need in the query plan
+* tree above the given node.
+*
+* @param node
+* @param tables
+* @return
+*/
     public static Set<PlanColumn> extractReferencedColumns(final PlanOptimizerState state, final AbstractPlanNode node) {
         if (debug.get())
             LOG.debug("Extracting referenced column set for " + node);
