@@ -944,9 +944,19 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         if (t) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
-    public void voltClearQueue() {
+    public final void voltClearQueue() {
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
+    }
+    
+    /**
+     * Return the number of slots remaining in the current batch
+     * for this transaction. When this reaches zero, you will not
+     * be able to queue anymore SQLStmts
+     * @return
+     */
+    public final int voltRemainingQueue() {
+        return (batchQueryStmts.length - batchQueryStmtIndex);
     }
     
     /**

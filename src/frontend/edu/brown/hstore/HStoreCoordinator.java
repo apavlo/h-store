@@ -634,8 +634,10 @@ public class HStoreCoordinator implements Shutdownable {
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
             SerializableException error = null;
+
             if (request.hasError() && request.getError().isEmpty() == false) {
                 error = SerializableException.deserializeFromBuffer(request.getError().asReadOnlyByteBuffer());
+
 //                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
             }
             
