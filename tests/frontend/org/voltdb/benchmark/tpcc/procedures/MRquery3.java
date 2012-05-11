@@ -17,21 +17,22 @@ import edu.brown.utils.CollectionUtil;
 public class MRquery3 extends VoltMapReduceProcedure<Long> {
 
     public SQLStmt mapInputQuery = new SQLStmt(
-              //   "SELECT A_NAME FROM TABLEA WHERE A_AGE >= ?"
-            "select   ol_o_id, ol_w_id, ol_d_id, " +
-            "    sum(ol_amount)" +
-            "from    customer, neworder, orders, orderline " +
-            "where   c_state like 'A%' " +
-            "    and c_id = o_c_id " +
-            "    and c_w_id = o_w_id " +
-            "    and c_d_id = o_d_id " +
-            "    and no_w_id = o_w_id " +
-            "    and no_d_id = o_d_id " +
-            "    and no_o_id = o_id " +
-            "    and ol_w_id = o_w_id " +
-            "    and ol_d_id = o_d_id " +
-            "    and ol_o_id = o_id " +
-            "group by ol_o_id, ol_w_id, ol_d_id"
+                    " SELECT ol_o_id, ol_w_id, ol_d_id, SUM(ol_amount) as revenue, o_entry_d " +
+                    " FROM CUSTOMER, NEW_ORDER, ORDERS, ORDER_LINE " +
+                    " WHERE   c_id = o_c_id " + 
+                    " and c_w_id = o_w_id " +
+                    " and c_d_id = o_d_id " +
+                    " and no_w_id = o_w_id " +
+                    " and no_d_id = o_d_id " +
+                    " and no_o_id = o_id " +
+                    " and ol_w_id = o_w_id " +
+                    " and ol_d_id = o_d_id " +
+                    " and ol_o_id = o_id" +
+                    " and o_entry_d > '2007-01-02 00:00:00.000000' " +
+                    //" GROUP BY ol_o_id " +
+                    " GROUP BY ol_o_id, ol_w_id, ol_d_id, o_entry_d " + // mr_transaction can not support multi-column-keys right now
+                    //" ORDER BY revenue desc, o_entry_d"); // error: "ORDER BY with complex expressions not yet supported
+                    " ORDER BY o_entry_d"
     );
 
     @Override
@@ -41,6 +42,7 @@ public class MRquery3 extends VoltMapReduceProcedure<Long> {
                 new VoltTable.ColumnInfo("ol_w_id", VoltType.BIGINT),
                 new VoltTable.ColumnInfo("ol_d_id", VoltType.BIGINT),
                 new VoltTable.ColumnInfo("ol_amount", VoltType.FLOAT),
+                new VoltTable.ColumnInfo("o_entry_d", VoltType.TIMESTAMP),
         };
     }
 
@@ -51,6 +53,7 @@ public class MRquery3 extends VoltMapReduceProcedure<Long> {
                 new VoltTable.ColumnInfo("ol_w_id", VoltType.BIGINT),
                 new VoltTable.ColumnInfo("ol_d_id", VoltType.BIGINT),
                 new VoltTable.ColumnInfo("revenue", VoltType.FLOAT),
+                new VoltTable.ColumnInfo("o_entry_d", VoltType.TIMESTAMP),
         };
     }
 
@@ -61,7 +64,8 @@ public class MRquery3 extends VoltMapReduceProcedure<Long> {
                 key,
                 row.getLong(1),
                 row.getLong(2),
-                row.getDouble(3)
+                row.getDouble(3),
+                row.getTimestampAsTimestamp(4)
         };
         this.mapEmit(key, new_row);
     }
@@ -79,7 +83,8 @@ public class MRquery3 extends VoltMapReduceProcedure<Long> {
                 key,
                 rows.next().getLong(1),
                 rows.next().getLong(2),
-                sum_ol_amount
+                sum_ol_amount,
+                rows.next().getTimestampAsTimestamp(4)
         };
         this.reduceEmit(new_row);
     }
