@@ -32,11 +32,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import edu.brown.catalog.CatalogUtil;
@@ -180,9 +176,10 @@ public abstract class HStore {
         // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
         // check if there are optional parameters: far from elegant but it works...
         // only works for parameter like: localhost:1:2-3
-        if(args.getOptParamCount() != 0){
-        	String optParam = args.getOptParam(0);
-            ClusterConfiguration cc = new ClusterConfiguration(args.catalog_db.getCatalog(), optParam);
+        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
+        if(hstore_conf.site.newsiteinfo.length() != 0){
+        	LOG.debug("FOUND optional parameters: Live migration might start soon!");
+            ClusterConfiguration cc = new ClusterConfiguration(args.catalog_db.getCatalog(), hstore_conf.site.newsiteinfo);
         	FixCatalog.writeHostInfo(args.catalog_db.getCatalog(), cc);            
         }
         
@@ -194,7 +191,7 @@ public abstract class HStore {
         
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
-        HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
+        //hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
         if (debug.get()) 
             LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         

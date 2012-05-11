@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.junit.Assert;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
@@ -104,25 +105,33 @@ public class ClusterConfiguration extends ClusterConfig {
      * @param catalog
      * @param cc
      */
-    public ClusterConfiguration(Catalog catalog, String hostsFromOpt){
+    public ClusterConfiguration(Catalog catalog, String new_host_info){
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         Site[] sites_value = catalog_clus.getSites().values();
         Host[] hosts_value = catalog_clus.getHosts().values();
         
-        String[] host_info_pieces = hostsFromOpt.split(":");
-        
-        new_proc_port_num = 9988;
-        new_messager_port_num = 8899;
-        //HostFromOpt is in format host:1:2-3, 1 is the site id and we extract it here
+        String[] host_info_pieces = new_host_info.split(":");
+        if(host_info_pieces.length > 3){
+            new_host_info = host_info_pieces[0] + ":" +host_info_pieces[1] + ":" +host_info_pieces[2];
+            Assert.assertTrue(host_info_pieces.length == 5);
+            try {
+    			new_proc_port_num = Integer.parseInt(host_info_pieces[3]);
+    			new_messager_port_num = Integer.parseInt(host_info_pieces[4]);
+    			assert (new_proc_port_num > 1024) : "Use port number larger than 1024";
+    			assert (new_messager_port_num > 1024) : "Use port number larger than 1024";
+    			assert (new_messager_port_num !=  new_proc_port_num) : "listen port and message port should be different";
+    		} catch (NumberFormatException e) {
+    			e.printStackTrace();
+    			assert (1 < 0) : host_info_pieces[3] + " or " +host_info_pieces[4] +" cannot be parsed to integer";
+    		}
+        }
         new_site_id = Integer.parseInt(host_info_pieces[1]);
         
         //reconstruct host_info strings
         StringBuffer host_info = new StringBuffer();
         for(int i=0; i<hosts_value.length; i++){
-            String host_name = hosts_value[i].getName();
-            if(host_name.matches("host[0-9][0-9]")){
-                host_name = "localhost";
-            }
+            String host_name = hosts_value[i].getIpaddr();
+            
             for(int j=0; j<sites_value.length; j++){
                 int site_id = sites_value[i].getId();
                 CatalogMap<Partition> partitions = sites_value[j].getPartitions();
@@ -133,7 +142,7 @@ public class ClusterConfiguration extends ClusterConfig {
                 host_info.append(tmp_host_info);
             }
         }
-        host_info.append(hostsFromOpt);
+        host_info.append(new_host_info);
         
         List<String> host_triplets = new ArrayList<String>();
         if (FileUtil.exists(host_info.toString())) {

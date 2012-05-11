@@ -14,8 +14,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import junit.framework.Assert;
-
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -315,7 +313,7 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         // If we find a blank node from command line, we start the live migration process --Yang
-        if (hstore_conf.site.isBlank){
+        if (hstore_conf.site.newsiteinfo.length() != 0){
             this.startClusterReorganizer();
             notifyClusterLiveMigrationAboutToStart(this.catalog_site.getCatalog());
         }
@@ -1059,9 +1057,9 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void notifyClusterLiveMigrationAboutToStart(Catalog catalog){
         // We don't need to do this if there is only one site
-        if (this.num_sites == 0) return;
+        if (this.num_sites == 1) return;
         
-        final CountDownLatch latch = new CountDownLatch(this.num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites - 1);
         
         RpcCallback<LiveMigrationSyncResponse> callback = new RpcCallback<LiveMigrationSyncResponse>() {
             @Override
@@ -1076,11 +1074,7 @@ public class HStoreCoordinator implements Shutdownable {
         //is like host00:1:2-3 and host00 will be replaced by localhost(compromised solution)
         //Will be fixed later
         String host_info = getNewHostInfoFromCatalog(catalog);
-        String[] host_info_pieces = host_info.split(":");
-        assert(host_info_pieces.length == 3) : "host_info should be like localhost:1:2-3";
-        if(host_info_pieces[0].matches("host[0-9][0-9]")){
-            host_info = "localhost" + ":" + host_info_pieces[1] + ":" + host_info_pieces[2];
-        }
+        
         // Send out Live Migration request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             if (e.getKey().intValue() == this.local_site_id) continue;
@@ -1102,7 +1096,8 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         if (success == false) {
-            LOG.warn(String.format("Failed to recieve time Live Migration responses from %d remote HStoreSites", this.num_sites));
+            LOG.warn(String.format("Failed to receive Live Migration responses from %d remote HStoreSites", this.num_sites - 1));
+            assert (1 < 0) : "Failed to receive Live Migration responses";
         } else if (debug.get()) LOG.trace("Received all Live Migration responses!");
         
     }
@@ -1114,7 +1109,7 @@ public class HStoreCoordinator implements Shutdownable {
         Site[] sites_value = sites.values();
         Host[] hosts_value = hosts.values();
         
-        String host_name = hosts_value[hosts_value.length - 1].getName();
+        String host_name = hosts_value[hosts_value.length - 1].getIpaddr();
         int site_id = sites_value[sites_value.length - 1].getId();
         
         CatalogMap<Partition> partitions = sites_value[sites_value.length -1].getPartitions();
@@ -1159,7 +1154,6 @@ public class HStoreCoordinator implements Shutdownable {
     public void syncClusterTimes() {
         // We don't need to do this if there is only one site
         if (this.num_sites == 1) return;
-        
         final CountDownLatch latch = new CountDownLatch(this.num_sites);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
@@ -1169,6 +1163,7 @@ public class HStoreCoordinator implements Shutdownable {
                 long t1_r = System.currentTimeMillis();
                 int dt = (int)((request.getT1S() + request.getT0R()) - (t1_r + request.getT0S())) / 2;
                 time_deltas.put(request.getSenderSite(), dt);
+                if(debug.get()) LOG.debug("Got time syn response from site "+request.getSenderSite());
                 latch.countDown();
             }
         };

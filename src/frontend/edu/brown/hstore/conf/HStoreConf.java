@@ -136,11 +136,11 @@ public final class HStoreConf {
         public boolean cpu_affinity_one_partition_per_core;
         
         @ConfigProperty(
-                description="Mark if this site is a blank one for Live Migration.",
-                defaultBoolean=false,
+                description="one blank node for Live Migration.",
+                defaultString="",
                 experimental=true
             )
-        public boolean isBlank;
+        public String newsiteinfo;
         
         // ----------------------------------------------------------------------------
         // Execution Options
@@ -1359,10 +1359,6 @@ public final class HStoreConf {
                 this.loadFromArgs(confParams);
             }
             
-            //Live Migration Param -Yang(For now, just check if args has optional parameter)
-            if(args.getOptParamCount() != 0){
-                this.site.isBlank = true;
-            }
         }
         // TODO: Remove
         if (site.exec_neworder_cheat) {
