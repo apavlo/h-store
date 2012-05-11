@@ -492,7 +492,7 @@ public class HStoreCoordinator implements Shutdownable {
         RpcCallback<InitializeResponse> callback = new RpcCallback<InitializeResponse>() {
             @Override
             public void run(InitializeResponse parameter) {
-                LOG.info(String.format("Initialization Response: %s / %s",
+                if (debug.get()) LOG.debug(String.format("Initialization Response: %s / %s",
                                        HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
                                        parameter.getStatus()));
                 latch.countDown();
@@ -1026,7 +1026,7 @@ public class HStoreCoordinator implements Shutdownable {
         // We don't need to do this if there is only one site
         if (this.num_sites == 1) return;
         
-        final CountDownLatch latch = new CountDownLatch(this.num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
         RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
