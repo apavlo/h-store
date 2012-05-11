@@ -202,8 +202,14 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * @param exec_local
      * @return
      */
-    protected final AbstractTransaction init(Long txn_id, long client_handle, int base_partition, boolean sysproc,
-                                             boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
+    protected final AbstractTransaction init(Long txn_id,
+                                               long client_handle,
+                                               int base_partition,
+                                               boolean sysproc,
+                                               boolean predict_singlePartition,
+                                               boolean predict_readOnly,
+                                               boolean predict_abortable,
+                                               boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
@@ -353,7 +359,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
      */
-    public final boolean isPredictSinglePartition() {
+    public boolean isPredictSinglePartition() {
         return (this.predict_singlePartition);
     }
     

@@ -30,8 +30,8 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 
 /**
- * @author pavlo
- */
+* @author pavlo
+*/
 public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 
     final Set<String> DEBUG = new HashSet<String>();
@@ -45,7 +45,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         {
             this.addStmtProcedure("MultipleAggregates",
                                   "SELECT C_B_ID, SUM(C_VALUE0), SUM(C_VALUE1), " +
-                                  "       AVG(C_VALUE0), AVG(C_VALUE1) " +
+                                  " AVG(C_VALUE0), AVG(C_VALUE1) " +
                                   "FROM TABLEC GROUP BY C_B_ID");
             
             this.addStmtProcedure("DistinctAggregate",
@@ -81,7 +81,7 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah " +
                                   "FROM TABLEA, TABLEB, TABLEC " +
                                   "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_B_A_ID AND TABLEA.A_VALUE3 = ? " +
-                                  "  AND TABLEC.C_B_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+                                  " AND TABLEC.C_B_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
             
             this.addStmtProcedure("SingleProjection",
                                   "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
@@ -109,9 +109,9 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             
             this.addStmtProcedure("TwoTableJoin",
                                   "SELECT B_ID, B_A_ID, B_VALUE0, C_ID, C_VALUE0 " +
-                                  "  FROM TABLEB, TABLEC " +
+                                  " FROM TABLEB, TABLEC " +
                                   " WHERE B_A_ID = ? AND B_ID = ? " +
-                                  "   AND B_A_ID = C_B_A_ID AND B_ID = C_B_ID  " +
+                                  " AND B_A_ID = C_B_A_ID AND B_ID = C_B_ID " +
                                   " ORDER BY B_VALUE1 ASC LIMIT 25");
         }
     };
@@ -126,25 +126,25 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         for (boolean dtxn : new boolean[]{ true, false }) {
             AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, dtxn);
             assertNotNull(root);
-            if (DEBUG.contains(catalog_stmt.getParent().getName())) 
+            if (DEBUG.contains(catalog_stmt.getParent().getName()))
                 System.err.println(PlanNodeUtil.debug(root));
             BasePlanOptimizerTestCase.validate(root);
         } // FOR
     }
     
     /**
-     * testMultipleAggregates
-     */
+* testMultipleAggregates
+*/
     @Test
     public void testMultipleAggregates() throws Exception {
         Procedure catalog_proc = this.getProcedure("MultipleAggregates");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
-    }   
+    }
     
     /**
-     * testExtractReferencedColumns
-     */
+* testExtractReferencedColumns
+*/
     @Test
     public void testExtractReferencedColumns() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctCount");
@@ -161,10 +161,10 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Collection<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, scan_node);
         assertNotNull(referenced);
         
-        // Make sure all of the columns that we get back have a matching column in 
+        // Make sure all of the columns that we get back have a matching column in
         // the table scanned in the PlanNode
         Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
-//        System.err.println(referenced);
+// System.err.println(referenced);
         for (PlanColumn pc : referenced) {
             assertNotNull(pc);
             Collection<Column> columns = ExpressionUtil.getReferencedColumns(catalog_db, pc.getExpression());
@@ -176,18 +176,18 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testDistinctAggregate
-     */
+* testDistinctAggregate
+*/
     @Test
     public void testDistinctAggregate() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctAggregate");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
-    }    
+    }
 
     /**
-     * testDistinctCount
-     */
+* testDistinctCount
+*/
     @Test
     public void testDistinctCount() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctCount");
@@ -196,8 +196,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testMaxGroupPassThrough
-     */
+* testMaxGroupPassThrough
+*/
     @Test
     public void testMaxGroupPassThrough() throws Exception {
         Procedure catalog_proc = this.getProcedure("MaxGroupPassThrough");
@@ -206,8 +206,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testMaxMultiGroupBy
-     */
+* testMaxMultiGroupBy
+*/
     @Test
     public void testMaxMultiGroupBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("MaxMultiGroupBy");
@@ -216,8 +216,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testMax
-     */
+* testMax
+*/
     @Test
     public void testMax() throws Exception {
         Procedure catalog_proc = this.getProcedure("Max");
@@ -226,8 +226,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testMin
-     */
+* testMin
+*/
     @Test
     public void testMin() throws Exception {
         Procedure catalog_proc = this.getProcedure("Min");
@@ -236,8 +236,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testAggregateCount
-     */
+* testAggregateCount
+*/
     @Test
     public void testAggregateCount() throws Exception {
         Procedure catalog_proc = this.getProcedure("AggregateCount");
@@ -259,16 +259,16 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         assertNotNull(agg1);
         assertNotSame(agg0, agg1);
         
-//        System.err.println(PlanNodeUtil.debug(root));
+// System.err.println(PlanNodeUtil.debug(root));
         
         assertEquals(agg0.getAggregateOutputColumns(), agg1.getAggregateOutputColumns());
         assertEquals(agg0.getGroupByColumnNames(), agg1.getGroupByColumnNames());
-//        assertEquals(agg0.getGroupByColumnGuids(), agg1.getGroupByColumnGuids());
+// assertEquals(agg0.getGroupByColumnGuids(), agg1.getGroupByColumnGuids());
     }
 
     /**
-     * testLimit
-     */
+* testLimit
+*/
     @Test
     public void testLimit() throws Exception {
         Procedure catalog_proc = this.getProcedure("Limit");
@@ -302,8 +302,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testLimitJoin
-     */
+* testLimitJoin
+*/
     @Test
     public void testLimitJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("LimitJoin");
@@ -335,8 +335,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testThreeWayJoin
-     */
+* testThreeWayJoin
+*/
     @Test
     public void testThreeWayJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("ThreeWayJoin");
@@ -345,8 +345,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testSingleProjection
-     */
+* testSingleProjection
+*/
     @Test
     public void testSingleProjection() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleProjection");
@@ -394,8 +394,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     
 
     /**
-     * testJoinProjection
-     */
+* testJoinProjection
+*/
     @Test
     public void testJoinProjection() throws Exception {
         Procedure catalog_proc = this.getProcedure("JoinProjection");
@@ -530,8 +530,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testAggregateColumnAddition
-     */
+* testAggregateColumnAddition
+*/
     @Test
     public void testAggregateColumnAddition() throws Exception {
         Procedure catalog_proc = this.getProcedure("AggregateColumnAddition");
@@ -540,8 +540,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testAggregateOrderBy
-     */
+* testAggregateOrderBy
+*/
     @Test
     public void testAggregateOrderBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("OrderBy");
@@ -550,10 +550,10 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testLimitOrderBy
-     */
+* testLimitOrderBy
+*/
     @Test
-    public void testLimitOrderBy() throws Exception {   
+    public void testLimitOrderBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("LimitOrderBy");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
@@ -579,20 +579,20 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testSingleSelect
-     */
+* testSingleSelect
+*/
     @Test
-    public void testSingleSelect() throws Exception {   
+    public void testSingleSelect() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleSelect");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
     }
      
     /**
-     * testTwoTableJoin
-     */
+* testTwoTableJoin
+*/
     @Test
-    public void testTwoTableJoin() throws Exception {   
+    public void testTwoTableJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("TwoTableJoin");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);

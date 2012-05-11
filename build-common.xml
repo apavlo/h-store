@@ -69,6 +69,8 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
+<arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
+<arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.exec_command_logging=${site.exec_command_logging}" />
 <arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
 <arg value="site.exec_command_logging_group_commit=${site.exec_command_logging_group_commit}" />

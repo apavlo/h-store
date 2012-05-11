@@ -356,8 +356,15 @@ public final class HStoreConf {
                 defaultBoolean=true,
                 experimental=true
         )
-        public boolean mapreduce_reduce_blocking;
-       
+        public boolean mr_map_blocking;
+        
+        @ConfigProperty(
+                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean mr_reduce_blocking;
+
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------

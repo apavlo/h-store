@@ -227,8 +227,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
-     * TODO(xin): MapReduceHelperThread
+     * (xin): MapReduceHelperThread
      */
+    private boolean mr_helper_started = false;
     private final MapReduceHelperThread mr_helper;
     
     private final CommandLogWriter commandLogger;
@@ -843,14 +844,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-        // Start the MapReduceHelperThread
-        if (this.mr_helper != null) {
-            t = new Thread(this.mr_helper);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(handler);
-            t.start();
-        }
-        
         // Then we need to start all of the PartitionExecutor in threads
         if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions_arr.length + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions_arr) {
@@ -995,8 +988,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             p.shutdown();
         }
         // Tell the MapReduceHelperThread to shutdown too
-        if (this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
         if (this.commandLogger != null) this.commandLogger.shutdown();
+
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
@@ -1267,6 +1261,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         if (catalog_proc.getMapreduce()) {
+            // Start the MapReduceHelperThread
+            if (!this.mr_helper_started && this.mr_helper != null) {
+                EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
+                EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
+                    @Override
+                    public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                        Thread thread = arg.getFirst();
+                        Throwable error = arg.getSecond();
+                        LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
+                        hstore_coordinator.shutdownClusterBlocking(error);
+                    }
+                };
+                handler.addObserver(observer);
+                
+                Thread t = new Thread(this.mr_helper);
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(handler);
+                t.start();
+                
+                this.mr_helper_started = true;
+            }
+            
             ((MapReduceTransaction)ts).init(
                     txn_id, request.getClientHandle(), base_partition,
                     predict_touchedPartitions, predict_readOnly, predict_abortable,
@@ -1433,53 +1449,59 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
-                             ts, base_partition, ts.getClientHandle()));
-            
-            // Partitions
-            // Figure out what partitions we plan on touching for this transaction
-            Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
-            
-            if (ts.isMapReduce() == false) {
-                // TransactionEstimator
-                // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
-                // that we're done at any partitions because it will throw an error
-                // Instead, if we're not single-partitioned then that's that only time that 
-                // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-                TransactionEstimator.State s = ts.getEstimatorState(); 
-                if (s != null && s.getInitialEstimate() != null) {
-                    MarkovEstimate est = s.getInitialEstimate();
-                    assert(est != null);
-                    predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
-                }
-                assert(predict_touchedPartitions.isEmpty() == false) : 
-                    "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
+            if (ts.isMapReduce() && !hstore_conf.site.mr_map_blocking) {
+                if (d) LOG.debug(String.format("%s - Doing MapReduce Transaction asynchronously, start on partition %d [handle=%d]",
+                        ts, base_partition, ts.getClientHandle()));
+                this.transactionStart(ts, base_partition);
             }
-
-            // Check whether our transaction can't run right now because its id is less than
-            // the last seen txnid from the remote partitions that it wants to touch
-            for (int partition : predict_touchedPartitions) {
-                Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
-                if (txn_id.compareTo(last_txn_id) < 0) {
-                    // If we catch it here, then we can just block ourselves until
-                    // we generate a txn_id with a greater value and then re-add ourselves
-                    if (d) {
-                        LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
-                                       ts, partition, last_txn_id));
-                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
-                                           TransactionIdManager.toString(last_txn_id),
-                                           TransactionIdManager.toString(txn_id)));
+            else {
+                if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
+                        ts, base_partition, ts.getClientHandle()));
+                // Partitions
+                // Figure out what partitions we plan on touching for this transaction
+                Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
+                
+                if (ts.isMapReduce() == false) {
+                    // TransactionEstimator
+                    // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
+                    // that we're done at any partitions because it will throw an error
+                    // Instead, if we're not single-partitioned then that's that only time that 
+                    // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
+                    TransactionEstimator.State s = ts.getEstimatorState(); 
+                    if (s != null && s.getInitialEstimate() != null) {
+                        MarkovEstimate est = s.getInitialEstimate();
+                        assert(est != null);
+                        predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
                     }
-                    if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                    this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
-                    return;
+                    assert(predict_touchedPartitions.isEmpty() == false) : 
+                        "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
                 }
-            } // FOR
-            
-            // This callback prevents us from making additional requests to the Dtxn.Coordinator until
-            // we get hear back about our our initialization request
-            if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
-            this.txnQueueManager.initTransaction(ts);
+                
+                // Check whether our transaction can't run right now because its id is less than
+                // the last seen txnid from the remote partitions that it wants to touch
+                for (int partition : predict_touchedPartitions) {
+                    Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
+                    if (txn_id.compareTo(last_txn_id) < 0) {
+                        // If we catch it here, then we can just block ourselves until
+                        // we generate a txn_id with a greater value and then re-add ourselves
+                        if (d) {
+                            LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
+                                           ts, partition, last_txn_id));
+                            LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
+                                               TransactionIdManager.toString(last_txn_id),
+                                               TransactionIdManager.toString(txn_id)));
+                        }
+                        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
+                        this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
+                        return;
+                    }
+                } // FOR
+                
+                // This callback prevents us from making additional requests to the Dtxn.Coordinator until
+                // we get hear back about our our initialization request
+                if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
+                this.txnQueueManager.initTransaction(ts);
+            }
         }
     }
 
@@ -1671,9 +1693,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             if (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction) {
                 if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
-                cleanup_callback = ts.getCleanupCallback();
-                assert(cleanup_callback != null);
-                cleanup_callback.init(ts, status, partitions);
+                // TODO(xin): We should not be invoking this callback at the basePartition's site
+                if ( !(ts instanceof MapReduceTransaction && this.isLocalPartition(ts.getBasePartition()))) {
+                    cleanup_callback = ts.getCleanupCallback();
+                    assert(cleanup_callback != null);
+                    cleanup_callback.init(ts, status, partitions);
+                }
             } else {
                 finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
                 assert(finish_callback != null);
@@ -2019,17 +2044,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(status != Status.ABORT_MISPREDICT) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
-        if (hstore_conf.site.exec_command_logging && status == Status.OK) {
-            if (this.commandLogger.appendToLog(ts, cresponse) == false) {
-                if (d) LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
-                ts.markAsNotDeletable();    
-            }
+        boolean sendResponse = true;
+        if (this.commandLogger != null && status == Status.OK && ts.isSysProc() == false) {
+            sendResponse = this.commandLogger.appendToLog(ts, cresponse);
         }
-        
-        this.sendClientResponse(cresponse,
+
+        if (sendResponse) {
+            // NO GROUP COMMIT -- SEND OUT AND COMPLETE
+            // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
+            this.sendClientResponse(cresponse,
                                 ts.getClientCallback(),
                                 ts.getInitiateTime(),
                                 ts.getRestartCounter());
+        } else { // if (d) 
+            LOG.info(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+        }
+        
+        
     }
     
     /**
@@ -2139,9 +2170,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
+        if (d) LOG.debug(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
-        if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
@@ -2324,7 +2355,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	public void processPeriodicWork() {
-	    if (trace.get())
+	    if (t)
 		    LOG.trace("Checking for PeriodicWork...");
 
 	    // poll planner queue
@@ -2340,9 +2371,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		//LOG.info("HStoreSite - Checking for finished compiled work.");
-		
-
+		if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
@@ -2364,9 +2393,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                result.errorMsg);
                 this.sendClientResponse(result.ts, errorResponse);
                 
-                // TODO: Figure out how we will delete the txn handle even though we
-                // don't have a real txnID
-                // this.deleteTransaction(txn_id, status)
+                // HACK: Create a txnId for this LocalTransaction just so that we can
+                // store it and delete it. This is necessary so that we can return
+                // the txn back into the object pool
+                int base_partition = result.ts.getBasePartition();
+                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                this.inflight_txns.put(txn_id, result.ts);
+                this.deleteTransaction(txn_id, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------
             // AdHocPlannedStmt

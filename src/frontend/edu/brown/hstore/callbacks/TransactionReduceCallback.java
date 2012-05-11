@@ -46,7 +46,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
     
     @Override
     protected void finishImpl() {
-        this.finishImpl();
+        super.finishImpl();
         for (int i = 0; i < this.finalResults.length; i++) 
             this.finalResults[i] = null; 
     }
@@ -75,10 +75,13 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
                        ts.getPendingError()); 
         hstore_site.sendClientResponse(ts, cresponse);
 
-        // STEP 2
-        // Initialize the FinishCallback and tell every partition in the cluster
-        // to clean up this transaction because we're done with it!
-        this.finishTransaction(Status.OK);
+        if (hstore_site.getHStoreConf().site.mr_map_blocking) {
+            // STEP 2
+            // Initialize the FinishCallback and tell every partition in the cluster
+            // to clean up this transaction because we're done with it!
+            this.finishTransaction(Status.OK);
+        }
+        
         return (false);
     }
     
