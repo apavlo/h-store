@@ -294,25 +294,22 @@ public abstract class StatementCompiler {
                 		if (recv_nodes.size() == 1) {
                 		   ReceivePlanNode recv_node = CollectionUtil.first(recv_nodes);
                 		   assert(recv_node != null);
+                		   //mark a fragment, if it need fast aggregate
                 		   if (recv_node.getFast()) {
                 			   if(fastagg){
                 				   planFragment.setFastaggregate(true);
                 			   }
                 		       
                 		   }
-                		}
-                LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastaggregate()+"test of planfragment aggregate--mimosally");
-              //mark a fragment, if it need fast combine
-                Collection<ReceivePlanNode> recv_nodes2 =
-                		PlanNodeUtil.getPlanNodes(fragment.planGraph, ReceivePlanNode.class);
-                		if (recv_nodes2.size() == 1) {
-                		   ReceivePlanNode recv_node = CollectionUtil.first(recv_nodes2);
-                		   assert(recv_node != null);
+                		   //mark a fragment, if it need fast combine
                 		   if (recv_node.getFastcombine()) {
                 		       planFragment.setFastcombine(true);
-                		       LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastcombine()+"test of planfragment fastcombine--mimosally");
+                		       
                 		   }
                 		}
+                LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastaggregate()+"test of planfragment aggregate--mimosally");
+                LOG.debug(planFragment.getId()+"---fragmentid---"+planFragment.getFastcombine()+"test of planfragment fastcombine--mimosally");
+               
                 		 
                 String json = null;
                 try {
@@ -484,3 +481,4 @@ public abstract class StatementCompiler {
     }
    
 }
+

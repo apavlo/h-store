@@ -125,6 +125,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.executors.AggregateExcutor;
+import edu.brown.hstore.executors.FastCombineExecutor;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
@@ -315,6 +316,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // Internal Execution State
     // ----------------------------------------------------------------------------
     private AggregateExcutor aggexecutor; //fast aggregate in Java
+    private FastCombineExecutor combexecutor; //fast combine in Java
     /**
      * The transaction id of the current transaction
      * This is mostly used for testing and should not be relied on from the outside.
@@ -578,6 +580,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.tmp_fragmentParams = null;
         this.tmp_transactionRequestBuilders = null;
         this.aggexecutor=null;
+        this.combexecutor=null;
     }
 
     /**
@@ -609,6 +612,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
         this.aggexecutor=new AggregateExcutor(this);
+        this.combexecutor=new FastCombineExecutor(this);
         this.execState = new ExecutionState(this);
         
         this.backend_target = target;
@@ -1938,6 +1942,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
        		 LOG.debug("Determine to fast execute in Java:"+hstore_conf.site.exec_fast_executors);
     		 PlanFragment fragm = CatalogUtil.getPlanFragment(database, (int)fragmentIds[0]);
     		 LOG.debug("fragmentid:"+fragm.getId());
+    		 LOG.debug("fast combine?:"+fragm.getFastcombine());
     		 if(fragm.getFastaggregate()){
     			 // go into Java to execute fast aggregate
     			 
@@ -1970,6 +1975,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             this.tmp_EEdependencies);
          		}
     			
+    		 }else if(fragm.getFastcombine()){
+    			 //do fast combine in Java
+    			 
+    			 //=====================Debug==============================
+    			 LOG.debug("enter Java fastcombine fragmentId:"+fragm.getId());
+
+             	LOG.debug("Number of fragments: "+fragmentCount);
+             	
+             	LOG.debug("Size of tmp_EEdependencies: "+tmp_EEdependencies.size());
+             	
+                //======================Debug=================================
+             	result=combexecutor.executeFastCombine(outputDepIds[0], this.tmp_EEdependencies);
+             	LOG.debug("Complete fast combine in Java!");
     		 }else{
     			//send to ExecutionEngine
     			 result = this.executePlanFragments(ts,
