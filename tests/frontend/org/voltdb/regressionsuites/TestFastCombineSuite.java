@@ -69,6 +69,20 @@ public class TestFastCombineSuite extends RegressionSuite {
 
         client.drain();
     }
+    
+    //duplicate values in A_INT
+    private void loadWithDupes(Client client) throws NoConnectionsException, ProcCallException, IOException {
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(1), new Long(1), "Jane", "AAAAAA");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(2), new Long(1), "Lily", "BBBBBB");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(3), new Long(1), "Tommy", "CCCCCC");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(4), new Long(2), "Alice", "DDDDDD");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(5), new Long(2), "Mike", "EEEEEE");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(6), new Long(2), "Joe", "FFFFFF");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(7), new Long(2), "Jane", "GGGGGGG");
+        client.callProcedure(new SyncCallback(), "InsertO1", new Long(8), new Long(2), "Lily", "HHHHHH");
+        client.drain();
+    }
+    
     static public junit.framework.Test suite() {
         MultiConfigSuiteBuilder builder = 
                 new MultiConfigSuiteBuilder(TestFastCombineSuite.class);
@@ -81,8 +95,8 @@ public class TestFastCombineSuite extends RegressionSuite {
         project.addProcedures(PROCEDURES);
         // Single Statement Procedures
         
-        project.addStmtProcedure("TestSelectAll", "SELECT PKEY FROM O1 WHERE A_INT=?");
- 
+        project.addStmtProcedure("TestSelect", "SELECT PKEY FROM O1 WHERE A_INT=?");
+        
         // CLUSTER CONFIG #1
         // One site with two partitions running in this JVM
         config = new LocalSingleProcessServer("fastcomb-twoPart.jar", 2,
@@ -90,12 +104,12 @@ public class TestFastCombineSuite extends RegressionSuite {
         config.compile(project);
         builder.addServerConfig(config);
  
-        // CLUSTER CONFIG #2
+       /** // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
         config = new LocalCluster("fastcomb-twoSiteTwoPart.jar", 2, 2, 1,
                                   BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
-        builder.addServerConfig(config);
+        builder.addServerConfig(config);*/
  
         return builder;
     }
@@ -105,10 +119,10 @@ public class TestFastCombineSuite extends RegressionSuite {
     	int a=3;
     	Client client = this.getClient();
     	load(client);
-    	ClientResponse cr = client.callProcedure("TestSelectAll",a);
+    	ClientResponse cr = client.callProcedure("TestSelect",a);
     	assertEquals(Status.OK, cr.getStatus());
     	VoltTable result = cr.getResults()[0];
-    	//make sure select all 20 tuples
+    	//make sure select just one tuple
     	assertEquals(1, result.getRowCount());
     	//make sure the row contents
     	System.out.println("Start to compare the results...");
@@ -116,7 +130,27 @@ public class TestFastCombineSuite extends RegressionSuite {
     	//check content of result
     	//assertEquals(a,result.get(0, VoltType.INTEGER));
     	
-    	System.out.println("Finish the comparing successfully");
+    	System.out.println("Finish the comparing testCount() successfully");
+    
+    }
+    
+    @Test
+    public void testCountwithduplicates() throws IOException, ProcCallException, InterruptedException {
+    	Long a=new Long(2);
+    	Client client = this.getClient();
+    	loadWithDupes(client);
+    	ClientResponse cr = client.callProcedure("TestSelect",a);
+    	assertEquals(Status.OK, cr.getStatus());
+    	VoltTable result = cr.getResults()[0];
+    	//make sure select all 5 tuples which match the query
+    	assertEquals(5, result.getRowCount());
+    	//make sure the row contents
+    	System.out.println("Start to compare testCountwithduplicates() the results...");
+    	//result.advanceRow();
+    	//check content of result
+    	//assertEquals(a,result.get(0, VoltType.INTEGER));
+    	
+    	System.out.println("Finish the comparing testCountwithduplicates() successfully");
     
     }
 

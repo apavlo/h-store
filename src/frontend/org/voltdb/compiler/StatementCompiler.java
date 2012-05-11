@@ -288,7 +288,7 @@ public abstract class StatementCompiler {
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
                 planFragment.setId(id);
-              //mark a fragment, if it need fast execute
+                //mark a fragment, if it need fast execute
                 Collection<ReceivePlanNode> recv_nodes =
                 		PlanNodeUtil.getPlanNodes(fragment.planGraph, ReceivePlanNode.class);
                 		if (recv_nodes.size() == 1) {

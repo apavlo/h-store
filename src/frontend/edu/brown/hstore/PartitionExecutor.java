@@ -1938,7 +1938,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } else {
         	//determine to use fast feature --mimosally
        	 LOG.debug("Determine to fast execute in Java:"+hstore_conf.site.exec_fast_executors);
-       	 if(hstore_conf.site.exec_fast_executors==false){ 
+       	 if(hstore_conf.site.exec_fast_executors){ 
        		 LOG.debug("Determine to fast execute in Java:"+hstore_conf.site.exec_fast_executors);
     		 PlanFragment fragm = CatalogUtil.getPlanFragment(database, (int)fragmentIds[0]);
     		 LOG.debug("fragmentid:"+fragm.getId());
@@ -1949,9 +1949,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     			 //=====================Debug==============================
     			 LOG.debug("enter Java fastaggregate fragmentId:"+fragm.getId());
 
-             	LOG.debug("Number of fragments: "+fragmentCount);
+             	 LOG.debug("Number of fragments: "+fragmentCount);
              	
-             	LOG.debug("Size of tmp_EEdependencies: "+tmp_EEdependencies.size());
+             	 LOG.debug("Size of tmp_EEdependencies: "+tmp_EEdependencies.size());
              	
                 //======================Debug=================================
              	//make sure each voltTable just has one column, and do the simple summation
@@ -1981,13 +1981,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     			 //=====================Debug==============================
     			 LOG.debug("enter Java fastcombine fragmentId:"+fragm.getId());
 
-             	LOG.debug("Number of fragments: "+fragmentCount);
+             	 LOG.debug("Number of fragments: "+fragmentCount);
              	
-             	LOG.debug("Size of tmp_EEdependencies: "+tmp_EEdependencies.size());
+             	 LOG.debug("Size of tmp_EEdependencies: "+tmp_EEdependencies.size());
              	
-                //======================Debug=================================
-             	result=combexecutor.executeFastCombine(outputDepIds[0], this.tmp_EEdependencies);
-             	LOG.debug("Complete fast combine in Java!");
+                 //======================Debug=================================
+             	 result=combexecutor.executeFastCombine(outputDepIds[0], this.tmp_EEdependencies);
+             	 LOG.debug("Complete fast combine in Java!");
     		 }else{
     			//send to ExecutionEngine
     			 result = this.executePlanFragments(ts,
