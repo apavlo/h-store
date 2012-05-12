@@ -404,36 +404,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
-     * These are the PlanFragment ids that are read-only
-     */
-    // private static final Set<Long> FRAGMENT_READONLY = new HashSet<Long>();
-
-    /**
-     * Returns true if all of the fragments in the array are read-only
-     * 
-     * @param catalog_obj
-     * @param fragments
-     * @param cnt
-     * @return
-     */
-    public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
-        for (int i = 0; i < cnt; i++) {
-            if (fragments[i] >> 16 != 1)
-                return (false);
-        } // FOR
-        return (true);
-    }
-
-    /**
-     * @param next_id
-     * @param readonly
-     * @return
-     */
-    public static int createPlanFragmentId(int next_id, boolean readonly) {
-        return (next_id | 1 << 16);
-    }
-
-    /**
      * @param items
      * @return
      */
