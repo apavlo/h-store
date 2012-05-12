@@ -2028,6 +2028,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                 ts.getRestartCounter());
         } else { // if (d) 
             LOG.info(String.format("%s - Holding the ClientResponse until logged to disk", ts));
+            //ts.markAsNotDeletable();
         }
         
         
