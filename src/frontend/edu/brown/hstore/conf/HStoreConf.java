@@ -181,7 +181,7 @@ public final class HStoreConf {
         @ConfigProperty(description = "If this parameter is enabled, then the DBMS will queue up any single-partitioned " + "queries for later execution if they are marked as deferrable.", defaultBoolean = false, experimental = true)
         public boolean exec_deferrable_queries;
         @ConfigProperty(description = "PartitionExecutor will determine whether to use the fast execute in Java instead of ExecutionEngine", defaultBoolean = false, experimental = true)
-        public boolean exec_fast_executors; // mimosally
+        public boolean exec_fast_executors; 
 
         // ----------------------------------------------------------------------------
         // MapReduce Options

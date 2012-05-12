@@ -266,11 +266,8 @@ public abstract class StatementCompiler {
                 node_list = new PlanNodeList(fragment.planGraph);
 
                 boolean readonly = fragmentReadOnly(fragment.planGraph);
-                boolean fastagg = fragmentfastagg(fragment.planGraph); // check
-                                                                       // if it
-                                                                       // can be
-                                                                       // fast
-                                                                       // aggregate--mimosally
+                // check if it can be fast aggregate
+                boolean fastagg = fragmentfastagg(fragment.planGraph);
                 // Now update our catalog information
                 int id = getNextFragmentId(db);
                 String planFragmentName = Integer.toString(id);
@@ -313,8 +310,8 @@ public abstract class StatementCompiler {
 
                     }
                 }
-                LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastaggregate() + "test of planfragment aggregate--mimosally");
-                LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastcombine() + "test of planfragment fastcombine--mimosally");
+                LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastaggregate() + "test of planfragment aggregate");
+                LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastcombine() + "test of planfragment fastcombine");
 
                 String json = null;
                 try {

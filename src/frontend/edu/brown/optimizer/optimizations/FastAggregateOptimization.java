@@ -74,7 +74,7 @@ public class FastAggregateOptimization extends AbstractOptimization {
                     ReceivePlanNode receiv_node = (ReceivePlanNode) (node1.getChild(0));
                     assert (receiv_node != null);
                     receiv_node.setFast(true);
-                    LOG.debug("Set receivenode--mimosally" + receiv_node.getFast());
+                    LOG.debug("Set receivenode :" + receiv_node.getFast());
                     return Pair.of(true, rootNode); // need to modify
                 }
 

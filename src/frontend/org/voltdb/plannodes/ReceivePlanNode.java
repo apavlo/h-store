@@ -33,7 +33,7 @@ public class ReceivePlanNode extends AbstractPlanNode {
      */
 
     private boolean m_fast = false; // determine if it will be fast executed
-                                    // --mimosally
+
     private boolean fastcombine = false; // determine if it will be fast combine
 
     public void setFast(boolean fast) {

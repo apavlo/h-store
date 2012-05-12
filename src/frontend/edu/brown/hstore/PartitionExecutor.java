@@ -2076,7 +2076,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // REGULAR FRAGMENTS
             // -------------------------------
         } else {
-            // determine to use fast feature --mimosally
+            // determine to use fast feature
             LOG.debug("Determine to fast execute in Java:" + hstore_conf.site.exec_fast_executors);
             if (hstore_conf.site.exec_fast_executors) {
                 LOG.debug("Determine to fast execute in Java:" + hstore_conf.site.exec_fast_executors);
