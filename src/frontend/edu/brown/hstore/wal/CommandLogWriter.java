@@ -28,14 +28,14 @@ package edu.brown.hstore.wal;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Exchanger;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.zip.Deflater;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -43,7 +43,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
-import org.voltdb.utils.EstTime;
+import org.xerial.snappy.Snappy;
 
 import com.google.protobuf.RpcCallback;
 
@@ -191,6 +191,7 @@ public class CommandLogWriter implements Shutdownable {
     final int group_commit_size;
     final FastSerializer singletonSerializer;
     final LogEntry singletonLogEntry;
+    final Deflater compresser = new Deflater();
     boolean stop = false;
     private final Semaphore swapInProgress;
     private final AtomicInteger flushReady;
@@ -212,7 +213,7 @@ public class CommandLogWriter implements Shutdownable {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.outputFile = outputFile;
-        this.singletonSerializer = new FastSerializer(hstore_site.getBufferPool());
+        this.singletonSerializer = new FastSerializer();
         this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
         if (hstore_conf.site.exec_command_logging_group_commit > 0) {
             this.swapInProgress = new Semaphore(group_commit_size, false); //False = not fair
@@ -287,6 +288,7 @@ public class CommandLogWriter implements Shutdownable {
         assert(this.singletonSerializer != null);
         try {
             this.singletonSerializer.clear();
+            this.singletonSerializer.writeBoolean(hstore_conf.site.exec_command_logging_group_commit > 0);//Using group commit
             this.singletonSerializer.writeInt(hstore_site.getDatabase().getProcedures().size());
             
             for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
@@ -306,41 +308,66 @@ public class CommandLogWriter implements Shutdownable {
         return (true);
     }
     
+    private ByteBuffer compressBufferForMessaging(ByteBuffer buffer) throws IOException {
+        //assert(buffer.isDirect());
+        byte[] input = buffer.array();
+        byte[] output = new byte[4 + Snappy.maxCompressedLength(input.length)];
+        final int compressedSize = Snappy.compress(input, 0, input.length, output, 4);
+        ByteBuffer result = ByteBuffer.wrap(output);
+        result.putInt(0, compressedSize);
+        return result;
+    }
+    
     /**
      * GroupCommits the given buffer set all at once
      * @param eb
      */
     public void groupCommit(EntryBuffer[] eb) {
-        // XXX: Now that we have a single thread that writes out this buffer, we
-        // do not have to worry about locking here because we know that no other
-        // thread will be trying to write to the log file that same time.
+        //Write all to a single FastSerializer buffer
+        this.singletonSerializer.clear();
         for (int i = 0; i < eb.length; i++) {
             EntryBuffer buffer = eb[i];
             try {
-                FastSerializer fs = buffer.getSerializer();
-                assert(fs != null);
-                fs.clear();
+                assert(this.singletonSerializer != null);
                 int start = buffer.getStart();
                 for (int j = 0; j < buffer.getSize(); j++) {
                     WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                    fs.writeObject(entry);
-                    BBContainer b = fs.getBBContainer();
-                    fstream.write(b.b.asReadOnlyBuffer());
+                    this.singletonSerializer.writeObject(entry);
                 }
                 
             } catch (Exception e) {
-                String message = "Failed to group commit for buffer";
+                String message = "Failed to serialize buffer during group commit";
                 throw new ServerFaultException(message, e);
             }
         } // FOR
         
-        try {
-            fstream.force(true);
-        } catch (IOException ex) {
-            String message = "Failed to group commit for buffer";
-            throw new ServerFaultException(message, ex);
+        if (true) { //Compress
+            //Compress and force out to disk
+            this.singletonSerializer.getBBContainer().b.flip();
+            ByteBuffer compressed;
+            try {
+                compressed = compressBufferForMessaging(this.singletonSerializer.getBBContainer().b);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to compress WAL buffer");
+            }
+            
+            try {
+                fstream.write(compressed);
+                fstream.force(true);
+            } catch (IOException ex) {
+                String message = "Failed to group commit for buffer";
+                throw new ServerFaultException(message, ex);
+            }
+        } else {
+            try {
+                fstream.write(this.singletonSerializer.getBuffer());
+                fstream.force(true);
+            } catch (IOException ex) {
+                String message = "Failed to group commit for buffer";
+                throw new ServerFaultException(message, ex);
+            }
         }
-        
+        //Send responses
         for (int i = 0; i < eb.length; i++) {
             EntryBuffer buffer = eb[i];
             int start = buffer.getStart();
@@ -350,6 +377,7 @@ public class CommandLogWriter implements Shutdownable {
                                                entry.clientCallback,
                                                entry.initiateTime,
                                                entry.restartCounter);
+                
             }
             buffer.flushCleanup();
         }
