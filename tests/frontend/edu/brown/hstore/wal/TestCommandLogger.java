@@ -71,9 +71,10 @@ public class TestCommandLogger extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         HStoreConf hstore_conf = HStoreConf.singleton();
+        //hstore_conf.site.exec_command_logging_group_commit = 10;
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
-        outputFile = FileUtil.getTempFile("log"); //"/research/hstore/mkirsch/testwal.log";
+        outputFile = FileUtil.getTempFile("log");
         logger = new CommandLogWriter(hstore_site, outputFile);
     }
 
@@ -122,5 +123,10 @@ public class TestCommandLogger extends BaseTestCase {
             ctr++;
         }
         assertEquals(1, ctr);
+    }
+    
+    @Test
+    public void testSiteWithGroupCommitTest() {
+        
     }
 }

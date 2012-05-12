@@ -317,6 +317,13 @@ public final class HStoreConf {
         public int exec_command_logging_group_commit;
         
         @ConfigProperty(
+            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
+            defaultInt=1000,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit_timeout;
+        
+        @ConfigProperty(
             description="Setting this configuration parameter to true allows clients to " +
                         "issue ad hoc query requests use the @AdHoc sysproc.",
             defaultBoolean=true,

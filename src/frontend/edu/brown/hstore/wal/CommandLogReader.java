@@ -9,18 +9,25 @@ import java.nio.BufferUnderflowException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.utils.CompressionService;
+import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.NotImplementedException;
+import org.voltdb.utils.DBBPool.BBContainer;
 
 public class CommandLogReader implements Iterable<LogEntry> {
     
     final FastDeserializer fd;
     final Map<Integer, String> procedures;
+    boolean groupCommit;
     
     public CommandLogReader(String path) {
         FileChannel roChannel = null;
         ByteBuffer readonlybuffer = null;
+        
         File f = new File(path);
         try {
             roChannel = new RandomAccessFile(f, "r").getChannel();
@@ -37,8 +44,11 @@ public class CommandLogReader implements Iterable<LogEntry> {
     @Override
     public Iterator<LogEntry> iterator() {
         Iterator<LogEntry> it = new Iterator<LogEntry>() {
+            FastDeserializer decompressedFd;
             private LogEntry _next;
             {
+                decompressedFd = new FastDeserializer(ByteBuffer.allocate(0));
+                
                 this.next();
             }
             @Override
@@ -51,8 +61,30 @@ public class CommandLogReader implements Iterable<LogEntry> {
             public LogEntry next() {
                 LogEntry ret = _next;
                 _next = null;
+                
+                //Fill the decompressed buffer if it is empty
+                if (groupCommit && !decompressedFd.buffer().hasRemaining()) {
+                    try {
+                        int sizeCompressed = fd.readInt();
+                        byte[] b = new byte[sizeCompressed];
+                        fd.readFully(b);
+                        byte[] decompressed = CompressionService.decompressBytes(b);
+                        this.decompressedFd.setBuffer(ByteBuffer.wrap(decompressed));
+                    } catch (IOException ex) {
+                        throw new RuntimeException("Failed to decompress data from the WAL file!", ex);
+                    } catch (BufferUnderflowException ex) {
+                        this.decompressedFd.setBuffer(ByteBuffer.allocate(0));
+                    }
+                }
+                
                 try {
-                    _next = fd.readObject(LogEntry.class);
+                    if (groupCommit) {
+                        _next.finish();
+                        _next.readExternal(decompressedFd);
+                    }
+                    else {
+                        _next = fd.readObject(LogEntry.class);
+                    }
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
                 } catch (BufferUnderflowException ex) {
@@ -85,8 +117,8 @@ public class CommandLogReader implements Iterable<LogEntry> {
         Map<Integer, String> procedures = new HashMap<Integer, String>();
         
         try {
+            this.groupCommit = fd.readBoolean();
             int num_procs = fd.readInt();
-            
             for (int i = 0; i < num_procs; i++)
                 procedures.put(new Integer(fd.readInt()), fd.readString());
         } catch (IOException ex) {
