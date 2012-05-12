@@ -1,10 +1,10 @@
 package edu.brown.hstore;
 
 import jline.*;
+//import jline2.*;
 
 import java.io.*;
 import java.util.*;
-import java.util.zip.*;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -16,7 +16,6 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.protorpc.AbstractEventHandler;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 
@@ -27,10 +26,15 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
 	final Catalog catalog;
 	final Client client;
 	final jline.ConsoleReader reader = new ConsoleReader(); 
+	final jline.SimpleCompletor completer;
+	final HStoreDataList hstore_data;
 	
 	public HStoreTerminal(Catalog catalog) throws Exception{
 		this.catalog = catalog;
 		this.client = this.getClientConnection();
+		this.hstore_data = new HStoreDataList(null);
+		this.completer = new jline.SimpleCompletor(this.hstore_data.getData());
+		this.reader.addCompletor(this.completer);
 		usage();
 	}
 	
@@ -73,14 +77,14 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
 			} catch (Exception ex) {
 				throw new RuntimeException(ex);
 			}
-        } while(query != null && query.length() > 0);
+        } while(query != null); //TODO: Note to Andy, should there be an exit sequence or escape character?
 	}
 	
 	public static void main(String vargs[]) throws Exception {
 		ArgumentsParser args = ArgumentsParser.load(vargs,
                 ArgumentsParser.PARAM_CATALOG
 		);
-		//Ask Andy... is this right?
+		
 		HStoreTerminal term = new HStoreTerminal(args.catalog);
 		term.run();
 	}
