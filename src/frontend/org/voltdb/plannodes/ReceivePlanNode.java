@@ -31,16 +31,19 @@ public class ReceivePlanNode extends AbstractPlanNode {
     /**
      * @param id
      */
-	
-	private boolean m_fast = false; // determine if it will be fast executed --mimosally
-	private boolean fastcombine=false; //determine if it will be fast combine
+
+    private boolean m_fast = false; // determine if it will be fast executed
+                                    // --mimosally
+    private boolean fastcombine = false; // determine if it will be fast combine
 
     public void setFast(boolean fast) {
-    	m_fast = fast;
+        m_fast = fast;
     }
-    public boolean getFast(){
-    	return m_fast;
+
+    public boolean getFast() {
+        return m_fast;
     }
+
     public ReceivePlanNode(PlannerContext context, Integer id) {
         super(context, id);
     }
@@ -58,10 +61,12 @@ public class ReceivePlanNode extends AbstractPlanNode {
     @Override
     protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
     }
-	public boolean getFastcombine() {
-		return fastcombine;
-	}
-	public void setFastcombine(boolean fastcombine) {
-		this.fastcombine = fastcombine;
-	}
+
+    public boolean getFastcombine() {
+        return fastcombine;
+    }
+
+    public void setFastcombine(boolean fastcombine) {
+        this.fastcombine = fastcombine;
+    }
 }

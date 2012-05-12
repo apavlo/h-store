@@ -14,7 +14,6 @@ import edu.brown.optimizer.PlanOptimizerState;
 import edu.brown.plannodes.PlanNodeUtil;
 
 /**
- * 
  * @author mimosally
  * @author pavlo
  */
@@ -28,13 +27,13 @@ public class CombineOptimization extends AbstractOptimization {
 
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
-        
+
         if (root instanceof ReceivePlanNode) {
             // Mark as fast combine
             // System.err.println(PlanNodeUtil.debug(root));
-        	((ReceivePlanNode) root).setFastcombine(true);
+            ((ReceivePlanNode) root).setFastcombine(true);
         }
-        
+
         return (Pair.of(true, root));
     }
 
