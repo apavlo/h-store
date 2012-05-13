@@ -44,7 +44,11 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
 import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
+import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.ReceivePlanNode;
+import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -54,11 +58,11 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
 
 /**
- * Compiles individual SQL statements and updates the given catalog.
- * <br/>Invokes the Optimizer to generate plans.
- *
+ * Compiles individual SQL statements and updates the given catalog. <br/>
+ * Invokes the Optimizer to generate plans.
  */
 public abstract class StatementCompiler {
     private static final Logger LOG = Logger.getLogger(StatementCompiler.class);
@@ -66,6 +70,8 @@ public abstract class StatementCompiler {
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     private static AtomicInteger NEXT_FRAGMENT_ID = null;
+
+
     
     public static int getNextFragmentId(Database catalog_db) {
         return getNextFragmentId(catalog_db, false, false, false);
@@ -75,6 +81,7 @@ public abstract class StatementCompiler {
                                                         boolean readonly,
                                                         boolean fastAggregate,
                                                         boolean fastCombine) {
+
         // If this is the first time we are being called, figure out
         // where our ids should start at
         if (NEXT_FRAGMENT_ID == null) {
@@ -85,7 +92,8 @@ public abstract class StatementCompiler {
                 } // FOR
             } // FOR
             NEXT_FRAGMENT_ID = new AtomicInteger(max_id);
-            if (trace.get()) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
+            if (trace.get())
+                LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
         }
         // If it's not readonly, then we'll offset it so that we can
         // easily identify it at runtime
@@ -95,23 +103,21 @@ public abstract class StatementCompiler {
                                                               fastAggregate,
                                                               fastCombine));
     }
-    
-    public static void compile(VoltCompiler compiler, HSQLInterface hsql,
-            Catalog catalog, Database db, DatabaseEstimates estimates,
-            Statement catalogStmt, String stmt, boolean singlePartition)
-    throws VoltCompiler.VoltCompilerException {
+
+    public static void compile(VoltCompiler compiler, HSQLInterface hsql, Catalog catalog, Database db, DatabaseEstimates estimates, Statement catalogStmt, String stmt, boolean singlePartition)
+            throws VoltCompiler.VoltCompilerException {
 
         // Always add in a unique Id
         catalogStmt.setId(compiler.getNextStatementId());
-        
+
         // Strip newlines for catalog compatibility
         stmt = stmt.replaceAll("\n", " ");
         // remove leading and trailing whitespace so the lines not
         // too far below this doesn't fail (starts with "insert", etc...)
         stmt = stmt.trim();
 
-        //LOG.fine("Compiling Statement: ");
-        //LOG.fine(stmt);
+        // LOG.fine("Compiling Statement: ");
+        // LOG.fine(stmt);
         compiler.addInfo("Compiling Statement: " + stmt);
 
         // determine the type of the query
@@ -119,20 +125,16 @@ public abstract class StatementCompiler {
         if (stmt.toLowerCase().startsWith("insert")) {
             qtype = QueryType.INSERT;
             catalogStmt.setReadonly(false);
-        }
-        else if (stmt.toLowerCase().startsWith("update")) {
+        } else if (stmt.toLowerCase().startsWith("update")) {
             qtype = QueryType.UPDATE;
             catalogStmt.setReadonly(false);
-        }
-        else if (stmt.toLowerCase().startsWith("delete")) {
+        } else if (stmt.toLowerCase().startsWith("delete")) {
             qtype = QueryType.DELETE;
             catalogStmt.setReadonly(false);
-        }
-        else if (stmt.toLowerCase().startsWith("select")) {
+        } else if (stmt.toLowerCase().startsWith("select")) {
             qtype = QueryType.SELECT;
             catalogStmt.setReadonly(true);
-        }
-        else {
+        } else {
             throw compiler.new VoltCompilerException("Unparsable SQL statement.");
         }
         catalogStmt.setQuerytype(qtype.getValue());
@@ -147,38 +149,39 @@ public abstract class StatementCompiler {
 
         // PAVLO: Super Hack!
         // Always compile the multi-partition and single-partition query plans!
-        // We don't need the multi-partition query plans for MapReduce transactions
+        // We don't need the multi-partition query plans for MapReduce
+        // transactions
         Procedure catalog_proc = catalogStmt.getParent();
         boolean isMapReduce = catalog_proc.getMapreduce();
 
         CompiledPlan plan = null;
         CompiledPlan last_plan = null;
         PlanNodeList node_list = null;
-        
+
         QueryPlanner planner = new QueryPlanner(catalog.getClusters().get("cluster"), db, hsql, estimates, true, false);
 
         Throwable first_exception = null;
-        for (boolean _singleSited : new boolean[]{ true, false }) {
-            if (_singleSited == false && isMapReduce) continue;
-            
+        for (boolean _singleSited : new boolean[] { true, false }) {
+            if (_singleSited == false && isMapReduce)
+                continue;
+
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
             String msg = "Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited;
-            if (trace.get()) 
+            if (trace.get())
                 LOG.trace(msg);
             compiler.addInfo(msg);
 
             catalogStmt.setSinglepartition(_singleSited);
             String name = catalogStmt.getParent().getName() + "-" + catalogStmt.getName();
-    
+
             TrivialCostModel costModel = new TrivialCostModel();
             try {
-                plan = planner.compilePlan(costModel, catalogStmt.getSqltext(),
-                        catalogStmt.getName(), catalogStmt.getParent().getName(),
-                        catalogStmt.getSinglepartition(), null);
+                plan = planner.compilePlan(costModel, catalogStmt.getSqltext(), catalogStmt.getName(), catalogStmt.getParent().getName(), catalogStmt.getSinglepartition(), null);
             } catch (Throwable e) {
                 LOG.error("Failed to plan for stmt: " + catalogStmt.fullName(), e);
                 if (first_exception == null) {
-                    if (debug.get()) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
+                    if (debug.get())
+                        LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
                     first_exception = e;
                     continue;
                 }
@@ -190,35 +193,39 @@ public abstract class StatementCompiler {
                 msg = "Failed to plan for stmt: " + catalogStmt.fullName();
                 String plannerMsg = planner.getErrorMessage();
 
-                if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
-                
-                // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE
-                //       on a replicated table
+                if (plannerMsg == null)
+                    plannerMsg = "PlannerMessage was empty!";
+
+                // HACK: Ignore if they were trying to do a single-sited
+                // INSERT/UPDATE/DELETE
+                // on a replicated table
                 if (plannerMsg.contains("replicated table") && _singleSited) {
-                    if (debug.get()) 
+                    if (debug.get())
                         LOG.warn(String.format("Ignoring error for %s: %s", catalogStmt.fullName(), plannerMsg));
                     continue;
-                // HACK: If we get an unknown error message on an multi-sited INSERT/UPDATE/DELETE, assume
-                //       that it's because we are trying to insert on a non-replicated table
+                    // HACK: If we get an unknown error message on an
+                    // multi-sited INSERT/UPDATE/DELETE, assume
+                    // that it's because we are trying to insert on a
+                    // non-replicated table
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
-                    if (debug.get()) 
-                        LOG.warn(String.format("Ignoring multi-sited %s %s on non-replicated table: %s",
-                                               stmt_type.name(), catalogStmt.fullName(), plannerMsg));
+                    if (debug.get())
+                        LOG.warn(String.format("Ignoring multi-sited %s %s on non-replicated table: %s", stmt_type.name(), catalogStmt.fullName(), plannerMsg));
                     continue;
                 } else if (planner.getError() != null) {
-                    if (debug.get()) LOG.error(msg);
+                    if (debug.get())
+                        LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg, planner.getError());
-                // Otherwise, report the error
+                    // Otherwise, report the error
                 } else {
                     if (plannerMsg != null)
                         msg += " with error: \"" + plannerMsg + "\"";
-                    if (debug.get()) LOG.error(msg);
+                    if (debug.get())
+                        LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg);
                 }
             }
             if (trace.get())
-                LOG.trace(String.format("%s Analyzing %s query plan",
-                                        catalogStmt.fullName(), (_singleSited == false ? "DTXN" : "SP")));  
+                LOG.trace(String.format("%s Analyzing %s query plan", catalogStmt.fullName(), (_singleSited == false ? "DTXN" : "SP")));
 
             // serialize full where clause to the catalog
             // for the benefit of the designer
@@ -228,8 +235,8 @@ public abstract class StatementCompiler {
                     // serialize to pretty printed json
                     String jsonCompact = plan.fullWhereClause.toJSONString();
                     // pretty printing seems to cause issues
-                    //JSONObject jobj = new JSONObject(jsonCompact);
-                    //json = jobj.toString(4);
+                    // JSONObject jobj = new JSONObject(jsonCompact);
+                    // json = jobj.toString(4);
                     json = jsonCompact;
                 } catch (Exception e) {
                     // hopefully someone will notice
@@ -250,31 +257,55 @@ public abstract class StatementCompiler {
                     catalogStmt.setMs_fullplan(hexString);
                 }
             }
-    
-            //Store the list of parameters types and indexes in the plan node list.
-    
-            /*List<Pair<Integer, VoltType>> parameters = node_list.getParameters();
-            for (ParameterInfo param : plan.parameters) {
-                Pair<Integer, VoltType> parameter = new Pair<Integer, VoltType>(param.index, param.type);
-                parameters.add(parameter);
-            }*/
-    
+
+            // Store the list of parameters types and indexes in the plan node
+            // list.
+
+            /*
+             * List<Pair<Integer, VoltType>> parameters =
+             * node_list.getParameters(); for (ParameterInfo param :
+             * plan.parameters) { Pair<Integer, VoltType> parameter = new
+             * Pair<Integer, VoltType>(param.index, param.type);
+             * parameters.add(parameter); }
+             */
+
             int i = 0;
             Collections.sort(plan.fragments);
             if (trace.get())
                 LOG.trace(catalogStmt.fullName() + " Plan Fragments: " + plan.fragments);
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
-                
+
                 boolean readonly = fragmentReadOnly(fragment.planGraph);
+
+                // check if it can be fast aggregate
+                boolean fastagg = fragmentfastagg(fragment.planGraph);
+
                 boolean fastAggregate = false; // FIXME
                 boolean fastCombine = false; // FIXME
-                
+               
+                Collection<ReceivePlanNode> recv_nodes = PlanNodeUtil.getPlanNodes(fragment.planGraph, ReceivePlanNode.class);
+                if (recv_nodes.size() == 1) {
+                    ReceivePlanNode recv_node = CollectionUtil.first(recv_nodes);
+                    assert (recv_node != null);
+                    // mark a fragment id, if it need fast aggregate
+                    if (recv_node.getFast()) {
+                        if (fastagg) {
+                           fastAggregate=true;
+                        }
+
+                    }
+                    // mark a fragment id, if it need fast combine
+                    if (recv_node.getFastcombine()) {
+                        fastCombine=true;
+
+                    }
+                }
                 // Now update our catalog information
                 int id = getNextFragmentId(db, readonly, fastAggregate, fastCombine);
                 String planFragmentName = Integer.toString(id);
                 PlanFragment planFragment = null;
-                    
+
                 if (_singleSited) {
                     planFragment = catalogStmt.getFragments().add(planFragmentName);
                     catalogStmt.setHas_singlesited(true);
@@ -286,14 +317,20 @@ public abstract class StatementCompiler {
                     if (trace.get())
                         LOG.trace(String.format("%s DTXN PLAN FRAGMENT: %s", catalogStmt.fullName(), planFragment));
                 }
-    
-                // mark a fragment as non-transactional if it never touches a persistent table
+
+                // mark a fragment as non-transactional if it never touches a
+                // persistent table
                 planFragment.setNontransactional(!fragmentReferencesPersistentTable(fragment.planGraph));
                 planFragment.setReadonly(readonly);
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
                 planFragment.setId(id);
-
+               
+                if (debug.get()){
+                    LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastaggregate() + "test of planfragment aggregate");
+                    LOG.debug(planFragment.getId() + "---fragmentid---" + planFragment.getFastcombine() + "test of planfragment fastcombine");
+                }
+               
                 String json = null;
                 try {
                     JSONObject jobj = new JSONObject(node_list.toJSONString());
@@ -301,26 +338,31 @@ public abstract class StatementCompiler {
                 } catch (JSONException e2) {
                     throw new RuntimeException(e2);
                 }
-    
-                // TODO: can't re-enable this until the EE accepts PlanColumn GUIDs
-                // instead of column names because the deserialization is done without
-                // any connection to the child nodes - required to map the PlanColumn's
+
+                // TODO: can't re-enable this until the EE accepts PlanColumn
+                // GUIDs
+                // instead of column names because the deserialization is done
+                // without
+                // any connection to the child nodes - required to map the
+                // PlanColumn's
                 // GUID to the child's column name.
-    
+
                 // verify the plan serializes and deserializes correctly.
                 // assert(node_list.testJSONSerialization(db));
-    
+
                 // output the plan to disk for debugging
-                PrintStream plansOut = BuildDirectoryUtils.getDebugOutputPrintStream(
-                        "statement-winner-plans", name + "-" + String.valueOf(i++) + ".txt");
+                PrintStream plansOut = BuildDirectoryUtils.getDebugOutputPrintStream("statement-winner-plans", name + "-" + String.valueOf(i++) + ".txt");
                 plansOut.println(json);
                 plansOut.close();
-    
+
                 //
-                // We then stick a serialized version of PlanNodeTree into a PlanFragment
+                // We then stick a serialized version of PlanNodeTree into a
+                // PlanFragment
                 //
                 try {
-                    FastSerializer fs = new FastSerializer(false, false); // C++ needs little-endian
+                    FastSerializer fs = new FastSerializer(false, false); // C++
+                                                                          // needs
+                                                                          // little-endian
                     fs.write(json.getBytes());
                     String hexString = fs.getHexEncodedBytes();
                     planFragment.setPlannodetree(hexString);
@@ -329,14 +371,14 @@ public abstract class StatementCompiler {
                     throw compiler.new VoltCompilerException(e.getMessage());
                 }
             }
-            
+
             last_plan = plan;
         } // FOR (multipartition + singlepartition)
         if (last_plan == null) {
             throw compiler.new VoltCompilerException("Bad news! We don't have a last plan!!");
         }
         plan = last_plan;
-        
+
         // HACK
         AbstractPlanNode root = null;
         try {
@@ -344,9 +386,9 @@ public abstract class StatementCompiler {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
-        assert(root != null);
+        assert (root != null);
         Collection<Table> tables_accessed = CatalogUtil.getReferencedTablesForTree(db, root);
-        assert(tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
+        assert (tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
         boolean all_replicated = true;
         for (Table catalog_tbl : tables_accessed) {
             if (catalog_tbl.getIsreplicated() == false) {
@@ -355,7 +397,7 @@ public abstract class StatementCompiler {
             }
         } // FOR
         catalogStmt.setReplicatedonly(all_replicated);
-        
+
         // Input Parameters
         // We will need to update the system catalogs with this new information
         // If this is an ad hoc query then there won't be any parameters
@@ -372,7 +414,7 @@ public abstract class StatementCompiler {
             Column catColumn = catalogStmt.getOutput_columns().add(planColumn.getDisplayName()); // String.valueOf(index));
             catColumn.setNullable(false);
             catColumn.setIndex(index);
-//            catColumn.setName(planColumn.displayName());
+            // catColumn.setName(planColumn.displayName());
             catColumn.setType(planColumn.type().getValue());
             catColumn.setSize(planColumn.width());
             index++;
@@ -380,19 +422,20 @@ public abstract class StatementCompiler {
 
         catalogStmt.setReplicatedtabledml(plan.replicatedTableDML);
 
-        //Store the list of parameters types and indexes in the plan node list.
+        // Store the list of parameters types and indexes in the plan node list.
 
-        /*List<Pair<Integer, VoltType>> parameters = node_list.getParameters();
-        for (ParameterInfo param : plan.parameters) {
-            Pair<Integer, VoltType> parameter = new Pair<Integer, VoltType>(param.index, param.type);
-            parameters.add(parameter);
-        }*/
-
+        /*
+         * List<Pair<Integer, VoltType>> parameters = node_list.getParameters();
+         * for (ParameterInfo param : plan.parameters) { Pair<Integer, VoltType>
+         * parameter = new Pair<Integer, VoltType>(param.index, param.type);
+         * parameters.add(parameter); }
+         */
 
     }
 
     /**
-     * Check through a plan graph and return true if it ever touches a persistent table.
+     * Check through a plan graph and return true if it ever touches a
+     * persistent table.
      */
     static boolean fragmentReferencesPersistentTable(AbstractPlanNode node) {
         if (node == null)
@@ -418,7 +461,7 @@ public abstract class StatementCompiler {
         // if nothing found, return false
         return false;
     }
-    
+
     /**
      * Check through a plan graph and return true if it is read only
      */
@@ -435,10 +478,34 @@ public abstract class StatementCompiler {
 
         // recursively check out children
         for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
-            if (fragmentReadOnly(node.getChild(i)) == false) return (false);
+            if (fragmentReadOnly(node.getChild(i)) == false)
+                return (false);
         }
 
         // if nothing found, return true
         return true;
     }
+
+    /**
+     * Check through a plan graph and return true if it can fast aggregate
+     */
+    static boolean fragmentfastagg(AbstractPlanNode node) {
+        if (node == null)
+            return false;
+
+        if (node instanceof ProjectionPlanNode)
+            return false;
+        if (node instanceof OrderByPlanNode)
+            return false;
+
+        // recursively check out children
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
+            if (fragmentfastagg(node.getChild(i)) == false)
+                return (false);
+        }
+
+        // if nothing found, return true
+        return true;
+    }
+
 }

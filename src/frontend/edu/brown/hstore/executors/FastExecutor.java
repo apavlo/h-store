@@ -1,10 +1,12 @@
 package edu.brown.hstore.executors;
 
+import java.util.List;
+import java.util.Map;
+
+import org.voltdb.DependencySet;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.PlanFragment;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.dtxn.LocalTransaction;
 
 public abstract class FastExecutor {
 
@@ -26,6 +28,6 @@ public abstract class FastExecutor {
      * @param input
      * @return
      */
-    public abstract VoltTable execute(LocalTransaction ts, PlanFragment catalog_frag, VoltTable input[]);
+    public abstract DependencySet execute(int id, Map<Integer, List<VoltTable>> tmp_dependencies);
     
 }

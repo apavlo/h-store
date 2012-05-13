@@ -15,6 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AbstractOptimization;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 import edu.brown.optimizer.optimizations.CombineOptimization;
+import edu.brown.optimizer.optimizations.FastAggregateOptimization;
 import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
 import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
 import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
@@ -41,8 +42,9 @@ public class PlanOptimizer {
      */
     private static final PlanNodeType TO_IGNORE[] = { PlanNodeType.AGGREGATE, PlanNodeType.NESTLOOP, };
     private static final String BROKEN_SQL[] = {
-            // "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline DeleteReservation.GetCustomerReservation
-            // "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
+    // "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline
+    // DeleteReservation.GetCustomerReservation
+    // "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
     };
 
     /**
@@ -62,15 +64,9 @@ public class PlanOptimizer {
      * List of the Optimizations that we will want to apply
      */
     @SuppressWarnings("unchecked")
-    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = 
-        (Class<? extends AbstractOptimization>[]) new Class<?>[] {
-            RemoveDistributedReplicatedTableJoinOptimization.class,    
-            AggregatePushdownOptimization.class,
-            ProjectionPushdownOptimization.class,
-            LimitOrderByPushdownOptimization.class,
-            RemoveRedundantProjectionsOptimizations.class,
-            CombineOptimization.class,
-    };
+    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[]) new Class<?>[] { RemoveDistributedReplicatedTableJoinOptimization.class,
+            AggregatePushdownOptimization.class, ProjectionPushdownOptimization.class, LimitOrderByPushdownOptimization.class, RemoveRedundantProjectionsOptimizations.class,
+            CombineOptimization.class, FastAggregateOptimization.class, };
 
     // ----------------------------------------------------------------------------
     // INSTANCE CONFIGURATION
@@ -132,8 +128,8 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-//             LOG.debug("LET 'ER RIP!");
-//         }
+        // LOG.debug("LET 'ER RIP!");
+        // }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
@@ -160,9 +156,7 @@ public class PlanOptimizer {
             state.updateColumnInfo(new_root);
 
             try {
-                AbstractOptimization opt = ClassUtil.newInstance(optClass,
-                                                                 new Object[] { state },
-                                                                 new Class<?>[] { PlanOptimizerState.class });
+                AbstractOptimization opt = ClassUtil.newInstance(optClass, new Object[] { state }, new Class<?>[] { PlanOptimizerState.class });
                 assert (opt != null);
                 Pair<Boolean, AbstractPlanNode> p = opt.optimize(new_root);
                 if (p.getFirst()) {
@@ -182,8 +176,10 @@ public class PlanOptimizer {
             }
 
             // STEP #3
-            // If any nodes were modified by this optimization, go through the tree
-            // and make sure our output columns and other information is all in sync
+            // If any nodes were modified by this optimization, go through the
+            // tree
+            // and make sure our output columns and other information is all in
+            // sync
             if (state.hasDirtyNodes())
                 PlanOptimizerUtil.updateAllColumns(state, new_root, false);
         } // FOR

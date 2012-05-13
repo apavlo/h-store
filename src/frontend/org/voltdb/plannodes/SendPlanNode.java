@@ -24,7 +24,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.types.PlanNodeType;
 
-
 /**
  *
  */
@@ -33,10 +32,11 @@ public class SendPlanNode extends AbstractPlanNode {
     public enum Members {
         FAKE;
     }
-    
+
     // used for planning
     public boolean isMultiPartition = false;
     private boolean m_fake = false;
+    private boolean m_fast = false; // determine if it will be fast executed
 
     /**
      * @param id
@@ -49,12 +49,21 @@ public class SendPlanNode extends AbstractPlanNode {
     public PlanNodeType getPlanNodeType() {
         return PlanNodeType.SEND;
     }
-    
+
     public boolean getFake() {
         return m_fake;
     }
+
     public void setFake(boolean fake) {
         m_fake = fake;
+    }
+
+    public void setFast(boolean fast) {
+        m_fast = fast;
+    }
+
+    public boolean getFast() {
+        return m_fast;
     }
 
     @Override
@@ -62,7 +71,7 @@ public class SendPlanNode extends AbstractPlanNode {
         stringer.key(Members.FAKE.name()).value(m_fake);
         super.toJSONString(stringer);
     }
-    
+
     @Override
     protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
         m_fake = obj.getBoolean(Members.FAKE.name());
