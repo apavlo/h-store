@@ -630,11 +630,13 @@ public class TestPlansGroupBySuite extends RegressionSuite {
 
         config = new LocalSingleProcessServer("plansgroupby-onesite.jar",1,
                 BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
         config = new LocalSingleProcessServer("plansgroupby-threesites.jar",3,
                 BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
@@ -643,9 +645,11 @@ public class TestPlansGroupBySuite extends RegressionSuite {
 //        config.compile(project);
 //        builder.addServerConfig(config);
 
+
         // Cluster
         config = new LocalCluster("plansgroupby-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

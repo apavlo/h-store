@@ -36,7 +36,7 @@ import junit.framework.TestCase;
 public class TestAdHocQueries extends TestCase {
 
     public void testSimple() throws InterruptedException, IOException, ProcCallException {
-        Configuration config = new Configuration();
+        Configuration config = new Configuration();        
         config.m_backend = BackendTarget.NATIVE_EE_JNI;
         config.m_noLoadLibVOLTDB = false;
         config.setPathToCatalogForTest("tpcc.jar");
