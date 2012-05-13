@@ -19,30 +19,40 @@ public class TestLiveMigrationSuite extends RegressionSuite{
 		System.out.println("here");
 		assertEquals(1, 1);
 	}
-//	static public junit.framework.Test suite() {
-//        MultiConfigSuiteBuilder builder = 
-//                new MultiConfigSuiteBuilder(TestLiveMigrationSuite.class);
-//        
-//        VoltServerConfig config = null;
-//        
-//        TPCCProjectBuilder project = new TPCCProjectBuilder();
+	static public junit.framework.Test suite() {
+        MultiConfigSuiteBuilder builder = 
+                new MultiConfigSuiteBuilder(TestLiveMigrationSuite.class);
+        
+        VoltServerConfig config = null;
+        
+        TPCCProjectBuilder project = new TPCCProjectBuilder();
+        //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
+        project.addDefaultSchema();
+        project.addDefaultProcedures();
+        project.addDefaultPartitioning();
+        
+        // CLUSTER CONFIG #1
+        // One sites two partitions running in one JVM
+        config = new LocalCluster("onesitetwopart.jar", 2, 1, 1,
+                                  BackendTarget.NATIVE_EE_JNI);
+        config.compile(project);
+        builder.addServerConfig(config);
+ 
+        return builder;
+    }
+	
+	@Test
+    public void testLiveMigrationMessageAndCallBack() throws IOException, ProcCallException {
+//	    TPCCProjectBuilder project = new TPCCProjectBuilder();
 //        //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
 //        project.addDefaultSchema();
 //        project.addDefaultProcedures();
 //        project.addDefaultPartitioning();
-//        
 //        // CLUSTER CONFIG #1
 //        // One sites two partitions running in one JVM
-//        config = new LocalCluster("onesitetwopart.jar", 1, 2, 1,
+//	    VoltServerConfig config = new LocalCluster("onesitetwopartnewhostinfo.jar", 1, 2, 1,
 //                                  BackendTarget.NATIVE_EE_JNI);
+//	    config.setConfParameter("site.newhostinfo", "localhost:1:2-3:8899:9988");
 //        config.compile(project);
-//        builder.addServerConfig(config);
-// 
-//        return builder;
-//    }
-	
-	@Test
-    public void testLiveMigrationMessageAndCallBack() throws IOException, ProcCallException {
-        ;
     }
 }
