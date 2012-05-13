@@ -885,8 +885,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers();
         
-        // Start threads for processing AdHoc queries TODO: check that this thread is started correctly
-        //m_asyncCompilerWorkThread = new AsyncCompilerWorkThread();
+        // Start threads for processing AdHoc queries 
         if (this.periodicWorkTimer_thread != null) {
             this.periodicWorkTimer_thread.start();
             this.asyncCompilerWork_thread.start();

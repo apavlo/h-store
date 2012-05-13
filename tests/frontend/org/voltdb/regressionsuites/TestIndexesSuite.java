@@ -25,6 +25,7 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 
+import org.jfree.util.Log;
 import org.voltdb.*;
 import org.voltdb.client.*;
 import org.voltdb.compiler.VoltProjectBuilder;
@@ -84,11 +85,13 @@ public class TestIndexesSuite extends RegressionSuite {
             String query = String.format("select * from %s where %s.ID > 1",
                                          table, table);
             VoltTable[] results = client.callProcedure("@AdHoc", query).getResults();
+            System.out.println(results[0].toString());
             assertEquals(5, results[0].getRowCount());
             // make sure that we work if the value we want isn't present
             query = String.format("select * from %s where %s.ID > 4",
-                                  table, table);
+                                  table, table);            
             results = client.callProcedure("@AdHoc", query).getResults();
+            System.out.println(results[0].toString());
             assertEquals(3, results[0].getRowCount());
             query = String.format("select * from %s where %s.ID > 8",
                                   table, table);
@@ -533,10 +536,12 @@ public class TestIndexesSuite extends RegressionSuite {
         config.compile(project);
         builder.addServerConfig(config);*/
         // CONFIG #2: HSQL
+
 //        config = new LocalSingleProcessServer("testindexes-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
 //        success = config.compile(project);
 //        assertTrue(success);
 //        builder.addServerConfig(config);
+
 
 
         // JNI

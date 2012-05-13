@@ -932,7 +932,8 @@ public class TestRollbackSuite extends RegressionSuite {
 
         // get a server config for the native backend with one sites/partitions
         config = new LocalSingleProcessServer("rollback-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
-
+        // make it possible to run AdHoc Queries
+        config.setConfParameter("site.exec_adhoc_sql", true);
         // build the jarfile
         success = config.compile(project);
         assert(success);
