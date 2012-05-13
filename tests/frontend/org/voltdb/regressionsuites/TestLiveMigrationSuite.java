@@ -35,7 +35,7 @@ public class TestLiveMigrationSuite extends RegressionSuite{
         
         // CLUSTER CONFIG #1
         // One sites two partitions running in one JVM
-        config = new LocalCluster("onesitetwopart.jar", 2, 1, 1,
+        config = new LocalCluster("onesitetwopart.jar", 2, 2, 1,
                                   BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
         builder.addServerConfig(config);
@@ -69,6 +69,7 @@ public class TestLiveMigrationSuite extends RegressionSuite{
         }else{
             lastest_host_info = host_name + ":" +site_id +":"+first_partition;
         }
+        System.out.println(lastest_host_info.toString());
         assert(lastest_host_info.compareTo("localhost:1:2-3") == 0);
     }
 }
