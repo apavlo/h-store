@@ -314,8 +314,8 @@ public class HStoreCoordinator implements Shutdownable {
         
         // If we find a blank node from command line, we start the live migration process --Yang
         if (hstore_conf.site.newsiteinfo.length() != 0){
-            this.startClusterReorganizer();
             notifyClusterLiveMigrationAboutToStart(this.catalog_site.getCatalog());
+            this.startClusterReorganizer();
         }
         
         this.ready_observable.notifyObservers(this);
@@ -1099,7 +1099,7 @@ public class HStoreCoordinator implements Shutdownable {
         LOG.debug("success? " + success);
         if (success == false) {
             LOG.warn(String.format("Failed to receive Live Migration responses from %d remote HStoreSites", this.num_sites - 1));
-            assert (1 < 0) : "Failed to receive Live Migration responses";
+            assert (1 < 0) : "Failed to receive all Live Migration responses";
         } else if (debug.get()) LOG.debug("Received all Live Migration responses!");
         
     }
