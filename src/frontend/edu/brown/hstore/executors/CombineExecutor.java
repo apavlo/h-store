@@ -14,52 +14,51 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 
 public class CombineExecutor extends FastExecutor {
 
-    public CombineExecutor(PartitionExecutor executor) {
-        super(executor);
-        // TODO Auto-generated constructor stub
-    }
+	public CombineExecutor(PartitionExecutor executor) {
+		super(executor);
+		// TODO Auto-generated constructor stub
+	}
 
-   
-   
-    /**
-     * Execute a Java-only operation to generate the output of a PlanFragment
-     * for the given transaction without needing to go down in to
-     * ExecutionEngine
-     * 
-     * @param ts
-     * @param catalog_frag
-     * @param input
-     * @return
-     */
-    @Override
-    public DependencySet execute(int id, Map<Integer, List<VoltTable>> tmp_dependencies) {
-        Set<Integer> keys = tmp_dependencies.keySet();
-        Object[] Okey = keys.toArray();
-        VoltTable record = null;
-        Object key = Okey[0];
-        List<VoltTable> tmp = tmp_dependencies.get(key);
-        record = tmp.get(0).clone(0);
+	/**
+	 * Execute a Java-only operation to generate the output of a PlanFragment
+	 * for the given transaction without needing to go down in to
+	 * ExecutionEngine
+	 * 
+	 * @param ts
+	 * @param catalog_frag
+	 * @param input
+	 * @return
+	 */
+	@Override
+	public DependencySet execute(int id,
+			Map<Integer, List<VoltTable>> tmp_dependencies) {
+		Set<Integer> keys = tmp_dependencies.keySet();
+		Object[] Okey = keys.toArray();
+		VoltTable record = null;
+		Object key = Okey[0];
+		List<VoltTable> tmp = tmp_dependencies.get(key);
+		record = tmp.get(0).clone(0);
 
-        for (int i = 0, tmpsize=tmp.size(); i < tmpsize; i++) {
-            VoltTable t = tmp.get(i);
+		for (int i = 0, tmpsize = tmp.size(); i < tmpsize; i++) {
+			VoltTable t = tmp.get(i);
 
-            while (t.advanceRow()) {
-                VoltTableRow r = t.getRow();
-                record.add(r);
+			while (t.advanceRow()) {
+				VoltTableRow r = t.getRow();
+				record.add(r);
 
-            }// while
+			}// while
 
-        }// for
-        int b=1;
-        int[] depid={b};
-        depid[0] = id;
-        VoltTable[] vt;
-        vt = new VoltTable[1];
-        vt[0] = record;
-        DependencySet result = new DependencySet(depid, vt);
-        assert (result != null);
-        return result;
+		}// for
+		int b = 1;
+		int[] depid = { b };
+		depid[0] = id;
+		VoltTable[] vt;
+		vt = new VoltTable[1];
+		vt[0] = record;
+		DependencySet result = new DependencySet(depid, vt);
+		assert (result != null);
+		return result;
 
-    }
+	}
 
 }

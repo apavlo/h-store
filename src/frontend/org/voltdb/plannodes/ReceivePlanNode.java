@@ -28,45 +28,46 @@ import org.voltdb.types.PlanNodeType;
  */
 public class ReceivePlanNode extends AbstractPlanNode {
 
-    /**
-     * @param id
-     */
+	/**
+	 * @param id
+	 */
 
-    private boolean m_fast = false; // determine if it will be fast executed
+	private boolean m_fast = false; // determine if it will be fast executed
 
-    private boolean fastcombine = false; // determine if it will be fast combine
+	private boolean fastcombine = false; // determine if it will be fast combine
 
-    public void setFast(boolean fast) {
-        m_fast = fast;
-    }
+	public void setFast(boolean fast) {
+		m_fast = fast;
+	}
 
-    public boolean getFast() {
-        return m_fast;
-    }
+	public boolean getFast() {
+		return m_fast;
+	}
 
-    public ReceivePlanNode(PlannerContext context, Integer id) {
-        super(context, id);
-    }
+	public ReceivePlanNode(PlannerContext context, Integer id) {
+		super(context, id);
+	}
 
-    @Override
-    public PlanNodeType getPlanNodeType() {
-        return PlanNodeType.RECEIVE;
-    }
+	@Override
+	public PlanNodeType getPlanNodeType() {
+		return PlanNodeType.RECEIVE;
+	}
 
-    @Override
-    public void validate() throws Exception {
-        super.validate();
-    }
+	@Override
+	public void validate() throws Exception {
+		super.validate();
+	}
 
-    @Override
-    protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
-    }
+	@Override
+	protected void loadFromJSONObject(JSONObject obj, Database db)
+			throws JSONException {
+	}
 
-    public boolean getFastcombine() {
-        return fastcombine;
-    }
+	public boolean getFastcombine() {
+		return fastcombine;
+	}
 
-    public void setFastcombine(boolean fastcombine) {
-        this.fastcombine = fastcombine;
-    }
+	public void setFastcombine(boolean fastcombine) {
+		this.fastcombine = fastcombine;
+	}
 }

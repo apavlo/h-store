@@ -18,23 +18,25 @@ import edu.brown.plannodes.PlanNodeUtil;
  * @author pavlo
  */
 public class CombineOptimization extends AbstractOptimization {
-    private static final Logger LOG = Logger.getLogger(CombineOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+	private static final Logger LOG = Logger
+			.getLogger(CombineOptimization.class);
+	private static final LoggerBoolean debug = new LoggerBoolean(
+			LOG.isDebugEnabled());
 
-    public CombineOptimization(PlanOptimizerState state) {
-        super(state);
-    }
+	public CombineOptimization(PlanOptimizerState state) {
+		super(state);
+	}
 
-    @Override
-    public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
+	@Override
+	public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
 
-        if (root instanceof ReceivePlanNode) {
-            // Mark as fast combine
-            // System.err.println(PlanNodeUtil.debug(root));
-            ((ReceivePlanNode) root).setFastcombine(true);
-        }
+		if (root instanceof ReceivePlanNode) {
+			// Mark as fast combine
+			// System.err.println(PlanNodeUtil.debug(root));
+			((ReceivePlanNode) root).setFastcombine(true);
+		}
 
-        return (Pair.of(true, root));
-    }
+		return (Pair.of(true, root));
+	}
 
 }

@@ -17,48 +17,50 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 
 public class AggregateExecutor extends FastExecutor {
-    private static final Logger LOG = Logger.getLogger(AggregatePushdownOptimization.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+	private static final Logger LOG = Logger
+			.getLogger(AggregatePushdownOptimization.class);
+	private static final LoggerBoolean debug = new LoggerBoolean(
+			LOG.isDebugEnabled());
+	private static final LoggerBoolean trace = new LoggerBoolean(
+			LOG.isTraceEnabled());
 
-    public AggregateExecutor(PartitionExecutor executor) {
-        super(executor);
-        // TODO Auto-generated constructor stub
-    }
+	public AggregateExecutor(PartitionExecutor executor) {
+		super(executor);
+		// TODO Auto-generated constructor stub
+	}
 
+	@Override
+	public DependencySet execute(int id,
+			Map<Integer, List<VoltTable>> tmp_dependencies) {
 
-   
-    @Override
-    public DependencySet execute(int id, Map<Integer, List<VoltTable>> tmp_dependencies) {
+		Set<Integer> keys = tmp_dependencies.keySet();
+		Object[] Okey = keys.toArray();
+		int finalsum = 0;
+		VoltTable record = null;
 
-        Set<Integer> keys = tmp_dependencies.keySet();
-        Object[] Okey = keys.toArray();
-        int finalsum = 0;
-        VoltTable record = null;
+		Object key = Okey[0];
+		List<VoltTable> tmp = tmp_dependencies.get(key);
+		record = tmp.get(0).clone(0);
+		for (int i = 0, tmpsize = tmp.size(); i < tmpsize; i++) {
+			VoltTable t = tmp.get(i);
 
-        Object key = Okey[0];
-        List<VoltTable> tmp = tmp_dependencies.get(key);
-        record = tmp.get(0).clone(0);
-        for (int i = 0, tmpsize=tmp.size();i < tmpsize; i++) {
-            VoltTable t = tmp.get(i);
+			while (t.advanceRow()) {
+				VoltTableRow r = t.getRow();
+				finalsum += ((Long) r.get(0)).intValue(); // do the sum in Java
 
-            while (t.advanceRow()) {
-                VoltTableRow r = t.getRow();
-                finalsum += ((Long) r.get(0)).intValue(); // do the sum in Java
+			}// while
 
-            }// while
+		}// for
 
-        }// for
-
-        record.addRow((long) finalsum); // add the final result
-        int b=1;
-        int[] depid={b};
-        depid[0] = id;
-        VoltTable[] vt;
-        vt = new VoltTable[1];
-        vt[0] = record;
-        DependencySet result = new DependencySet(depid, vt);
-        return result;
-    }
+		record.addRow((long) finalsum); // add the final result
+		int b = 1;
+		int[] depid = { b };
+		depid[0] = id;
+		VoltTable[] vt;
+		vt = new VoltTable[1];
+		vt[0] = record;
+		DependencySet result = new DependencySet(depid, vt);
+		return result;
+	}
 
 }

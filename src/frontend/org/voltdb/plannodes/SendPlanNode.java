@@ -29,51 +29,52 @@ import org.voltdb.types.PlanNodeType;
  */
 public class SendPlanNode extends AbstractPlanNode {
 
-    public enum Members {
-        FAKE;
-    }
+	public enum Members {
+		FAKE;
+	}
 
-    // used for planning
-    public boolean isMultiPartition = false;
-    private boolean m_fake = false;
-    private boolean m_fast = false; // determine if it will be fast executed
+	// used for planning
+	public boolean isMultiPartition = false;
+	private boolean m_fake = false;
+	private boolean m_fast = false; // determine if it will be fast executed
 
-    /**
-     * @param id
-     */
-    public SendPlanNode(PlannerContext context, Integer id) {
-        super(context, id);
-    }
+	/**
+	 * @param id
+	 */
+	public SendPlanNode(PlannerContext context, Integer id) {
+		super(context, id);
+	}
 
-    @Override
-    public PlanNodeType getPlanNodeType() {
-        return PlanNodeType.SEND;
-    }
+	@Override
+	public PlanNodeType getPlanNodeType() {
+		return PlanNodeType.SEND;
+	}
 
-    public boolean getFake() {
-        return m_fake;
-    }
+	public boolean getFake() {
+		return m_fake;
+	}
 
-    public void setFake(boolean fake) {
-        m_fake = fake;
-    }
+	public void setFake(boolean fake) {
+		m_fake = fake;
+	}
 
-    public void setFast(boolean fast) {
-        m_fast = fast;
-    }
+	public void setFast(boolean fast) {
+		m_fast = fast;
+	}
 
-    public boolean getFast() {
-        return m_fast;
-    }
+	public boolean getFast() {
+		return m_fast;
+	}
 
-    @Override
-    public void toJSONString(JSONStringer stringer) throws JSONException {
-        stringer.key(Members.FAKE.name()).value(m_fake);
-        super.toJSONString(stringer);
-    }
+	@Override
+	public void toJSONString(JSONStringer stringer) throws JSONException {
+		stringer.key(Members.FAKE.name()).value(m_fake);
+		super.toJSONString(stringer);
+	}
 
-    @Override
-    protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
-        m_fake = obj.getBoolean(Members.FAKE.name());
-    }
+	@Override
+	protected void loadFromJSONObject(JSONObject obj, Database db)
+			throws JSONException {
+		m_fake = obj.getBoolean(Members.FAKE.name());
+	}
 }
