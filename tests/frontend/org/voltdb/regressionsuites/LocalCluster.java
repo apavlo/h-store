@@ -1,25 +1,25 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
+* Copyright (C) 2008-2010 VoltDB L.L.C.
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+* OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+* ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+* OTHER DEALINGS IN THE SOFTWARE.
+*/
 package org.voltdb.regressionsuites;
 
 import java.io.File;
@@ -48,10 +48,10 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 
 /**
- * Implementation of a VoltServerConfig for a multi-process
- * cluster. All cluster processes run locally (keep this in
- * mind if building memory or load intensive tests.)
- */
+* Implementation of a VoltServerConfig for a multi-process
+* cluster. All cluster processes run locally (keep this in
+* mind if building memory or load intensive tests.)
+*/
 public class LocalCluster extends VoltServerConfig {
 
     // configuration data
@@ -75,9 +75,9 @@ public class LocalCluster extends VoltServerConfig {
     ProcessBuilder m_procBuilder;
 
     /* class pipes a process's output to a file name.
-     * Also watches for "Server completed initialization"
-     * in output - the sygil of readiness!
-     */
+* Also watches for "Server completed initialization"
+* in output - the sygil of readiness!
+*/
     public static class PipeToFile implements Runnable {
         FileWriter m_writer ;
         InputStream m_input;
@@ -157,39 +157,35 @@ public class LocalCluster extends VoltServerConfig {
         assert (replication >= 0);
         
         /*// (1) Load catalog from Jar
-        Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
-        
-        // (2) Update catalog to include target cluster configuration
-        ClusterConfiguration cc = new ClusterConfiguration();
-        // Update cc with a bunch of hosts/sites/partitions
-        for (int site = 0, currentPartition = 0; site < hostCount; ++site) {
-            for (int partition = 0; partition < siteCount; ++partition, ++currentPartition) {
-                cc.addPartition("localhost", site, currentPartition);
-            }
-        }
-        System.err.println(cc.toString());
-        this.catalog = FixCatalog.addHostInfo(tmpCatalog, cc);
-        
-        System.err.println(CatalogInfo.getInfo(this.catalog, new File(jarFileName)));
-        System.err.println(catalog.serialize());
-        
-        // (3) Write updated catalog back out to jar file
-        try {
-            CatalogUtil.updateCatalogInJar(jarFileName, catalog, "catalog.txt");
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        
-        tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
-        System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
+Catalog tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
+// (2) Update catalog to include target cluster configuration
+ClusterConfiguration cc = new ClusterConfiguration();
+// Update cc with a bunch of hosts/sites/partitions
+for (int site = 0, currentPartition = 0; site < hostCount; ++site) {
+for (int partition = 0; partition < siteCount; ++partition, ++currentPartition) {
+cc.addPartition("localhost", site, currentPartition);
+}
+}
+System.err.println(cc.toString());
+this.catalog = FixCatalog.addHostInfo(tmpCatalog, cc);
+System.err.println(CatalogInfo.getInfo(this.catalog, new File(jarFileName)));
+System.err.println(catalog.serialize());
+// (3) Write updated catalog back out to jar file
+try {
+CatalogUtil.updateCatalogInJar(jarFileName, catalog, "catalog.txt");
+} catch (Exception e) {
+// TODO Auto-generated catch block
+e.printStackTrace();
+}
+tmpCatalog = CatalogUtil.loadCatalogFromJar(jarFileName);
+System.err.println("XXXXXXXXXXXXXXXXXXXXX\n" + CatalogInfo.getInfo(this.catalog, new File(jarFileName)));*/
         
         m_jarFileName = VoltDB.Configuration.getPathToCatalogForTest(jarFileName);
-        m_partitionPerSite = partitionsPerSite;
+        m_partitionPerSite = siteCount;
         m_target = target;
-        m_siteCount = siteCount;
+        m_siteCount = partitionsPerSite;
         m_replication = replication;
-        String buildDir = System.getenv("VOLTDB_BUILD_DIR");  // via build.xml
+        String buildDir = System.getenv("VOLTDB_BUILD_DIR"); // via build.xml
         if (buildDir == null)
             m_buildDir = System.getProperty("user.dir") + "/obj/release";
         else
@@ -234,9 +230,9 @@ public class LocalCluster extends VoltServerConfig {
         // System.err.println(CatalogInfo.getInfo(this.catalog, new File(m_jarFileName)));
         
         // Construct the base command that we will want to use to start
-        // all of the "remote" HStoreSites 
+        // all of the "remote" HStoreSites
         List<String> siteCommand = new ArrayList<String>();
-        CollectionUtil.addAll(siteCommand, 
+        CollectionUtil.addAll(siteCommand,
             "ant",
             "hstore-site",
             "-Djar=" + m_jarFileName
@@ -274,12 +270,12 @@ public class LocalCluster extends VoltServerConfig {
         }
 
         // create the in-process server
-//        Configuration config = new Configuration();
-//        config.m_backend = m_target;
-//        config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
-//        config.m_pathToCatalog = m_jarFileName;
-//        config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
-//        config.m_port = HStoreConstants.DEFAULT_PORT;
+// Configuration config = new Configuration();
+// config.m_backend = m_target;
+// config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
+// config.m_pathToCatalog = m_jarFileName;
+// config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
+// config.m_port = HStoreConstants.DEFAULT_PORT;
 
         HStoreConf hstore_conf = HStoreConf.singleton(HStoreConf.isInitialized() == false);
         hstore_conf.loadFromArgs(this.confParams);
@@ -288,7 +284,7 @@ public class LocalCluster extends VoltServerConfig {
         // Loop through all of the sites in the catalog and start them
         int offset = m_procBuilder.command().size() - 1;
         for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
-            final int site_id = catalog_site.getId(); 
+            final int site_id = catalog_site.getId();
             
             // If this is the first site, then start the HStoreSite in this JVM
             if (site_id == 0) {
@@ -365,7 +361,7 @@ public class LocalCluster extends VoltServerConfig {
     synchronized public List<String> shutDown() throws InterruptedException {
         // there are couple of ways to shutdown. sysproc @kill could be
         // issued to listener. this would require that the test didn't
-        // break the cluster somehow.  Or ... just old fashioned kill?
+        // break the cluster somehow. Or ... just old fashioned kill?
 
         try {
             if (m_localServer != null) m_localServer.shutdown();
