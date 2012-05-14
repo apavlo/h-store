@@ -725,11 +725,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param hstore_site
      */
     public void initHStoreSite(HStoreSite hstore_site) {
-    	LOG.info(String.format("@ambell Starting HStoreSite!!!!!!!!!!!!!!!"));
         if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
-    	LOG.info(String.format("@ambell hstore_site is "+hstore_site));
         tmp_def_txn = new LocalTransaction(hstore_site);
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
@@ -792,11 +790,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 	if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                 	
                     // See if there is anything that we can do while we wait
+                	boolean hasdeferredwork = true;
                 	do {
-                		this.utilityWork();
+                		hasdeferredwork = this.utilityWork();
                 		work = this.work_queue.poll();
-                	} while (work == null);
-                    if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
+                	} while (work == null && hasdeferredwork == true);
+                	if (work==null) {
+                		try {
+                            if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
+                            if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
+                            work = this.work_queue.take();
+                            if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
+                        } catch (InterruptedException ex) {
+                            if (d && this.isShuttingDown() == false)
+                                LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
+                            stop = true;
+                            break;
+                        }
+                	}
                 }
                 
                 this.currentTxnId = work.getTxnId();
@@ -952,22 +963,22 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Special function that allows us to do some utility work while 
      * we are waiting for a response or something real to do.
+     * Note: this tracks how long the system spends doing utility work. It would
+     * be interesting to have the system report on this before it shuts down.
      */
-    protected void utilityWork() {
+    protected boolean utilityWork() {
         // TODO: Set the txnId in our handle to be what the original txn was that
         //       deferred this query.
-    	System.out.println("entering utilitywork");
-        if (! hstore_conf.site.exec_deferrable_queries){
-        	return; // for now, unless andy wants to free up meomory in utilityWork
+        if (hstore_conf.site.exec_deferrable_queries==false){
+        	return false; // for now, unless andy wants to free up meomory in utilityWork
         }
-    	if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
+        if (d) LOG.debug("entering utilitywork");
 		DeferredWork def_work = deferred_queue.poll();
-		if (def_work == null) return;
-		
-
+		if (def_work == null) return false;
+		// we have work to do
+		if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
 		tmp_def_stmt[0] = def_work.getStmt();
 		tmp_def_params[0] = def_work.getParams();
-		
 		tmp_def_txn.init(def_work.getTxnId(), 
 				   -1, // We don't really need the clientHandle
 				   this.partitionId,
@@ -980,12 +991,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 				);
 		executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
     	if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
+		
     	
 		// Try to free some memory
 		// TODO(pavlo): Is this really safe to do?
 //        this.tmp_fragmentParams.reset();
 //        this.tmp_serializedParams.clear();
 //        this.tmp_EEdependencies.clear();
+    	return true;
     }
 
     public void tick() {
@@ -2556,10 +2569,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
                 fragments = queue.poll(); // NON-BLOCKING
                 if (fragments == null) {
-                	do {
-                		this.utilityWork();
-                		fragments = queue.poll();
-                	} while (fragments == null);
+                	boolean hasdeferredwork = true;
+                	do{
+                		hasdeferredwork = this.utilityWork();
+						fragments = queue.poll();
+                	} while (fragments == null && hasdeferredwork == true);
+                }
+                if (fragments == null) {
+                	try {
+                        fragments = queue.takeFirst(); // BLOCKING
+                    } catch (InterruptedException ex) {
+                        if (this.hstore_site.isShuttingDown() == false) {
+                            LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
+                        }
+                        return (null);
+                    } finally {
+                        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                    }
                 }
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
@@ -2756,11 +2782,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
             boolean timeout = false;
+            boolean hasdeferredwork=true;
             do {
-            	this.utilityWork();
+            	hasdeferredwork = this.utilityWork();
             	// TODO: Need to add timeout check
             	// hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
-            } while (latch.getCount() > 0);
+            } while (latch.getCount() > 0 && hasdeferredwork==true);
+            try {
+                timeout = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+                if (this.hstore_site.isShuttingDown() == false) {
+                    LOG.error(String.format("%s - We were interrupted while waiting for results", ts), ex);
+                }
+                timeout = true;
+            } catch (Throwable ex) {
+                new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
+            } finally {
+                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+            }
             if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             
             if (timeout && this.isShuttingDown() == false) {
