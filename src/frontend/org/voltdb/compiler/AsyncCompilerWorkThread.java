@@ -201,7 +201,7 @@ public class AsyncCompilerWorkThread extends Thread implements DumpManager.Dumpa
             else {
                 // deal with reloading the global catalog
                 if (m_shouldUpdateCatalog.compareAndSet(true, false)) {
-                	//TODO: @AdHoc for hstoresite, how to switch catalogcontext for hstoresite?
+                    //TODO: @AdHoc for hstoresite, how to switch catalogcontext for hstoresite?
                     m_context = VoltDB.instance().getCatalogContext();
                     // kill the planner process which has an outdated catalog
                     // it will get created again for the next stmt

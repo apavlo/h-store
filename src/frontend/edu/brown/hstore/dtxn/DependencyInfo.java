@@ -261,8 +261,8 @@ public class DependencyInfo implements Poolable {
                                        this.results_ctr, this.partitions.cardinality()));
         assert(this.results_ctr <= this.partitions.cardinality()) :
             String.format("Invalid DependencyInfo state for txn #%d. " +
-            		      "There are %d results but %d partitions",
-            		      this.txn_id, this.results_ctr, this.partitions.cardinality());
+                          "There are %d results but %d partitions",
+                          this.txn_id, this.results_ctr, this.partitions.cardinality());
         
         return (this.blockedTasks.isEmpty() == false) &&
                (this.blockedTasksReleased == false) &&

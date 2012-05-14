@@ -253,7 +253,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             if (debug && d)
                 LOG.debug("-----------------------------------------\n" +
-                		  "Looking for implicit reference joins in " + catalog_stmt0 + "\n" + 
+                          "Looking for implicit reference joins in " + catalog_stmt0 + "\n" + 
                           "TABLES: " + stmt0_tables);
             for (Table catalog_tbl : stmt0_tables) {
                 this.createImplicitEdges(agraph, proc_tables, catalog_stmt0, catalog_tbl);

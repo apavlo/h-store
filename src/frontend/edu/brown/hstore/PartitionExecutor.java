@@ -983,17 +983,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         * because we know we this.work_queue.isEmpty() will be false as soon as we
         * pop one local txn off of deferred_queue. We will arrive back in utilityWork() 
         * when that txn finishes if no new txn's have entered.*/
-    	do {
-    		LocalTransaction ts = deferred_queue.poll();
-    		if (ts == null) break;
-    		this.queueNewTransaction(ts);
+        do {
+            LocalTransaction ts = deferred_queue.poll();
+            if (ts == null) break;
+            this.queueNewTransaction(ts);
         } while ((dtxnLatch != null && dtxnLatch.getCount() > 0) || (dtxnLatch == null && this.work_queue.isEmpty()));
         //while (this.work_queue.isEmpty()) {
         //}
-	     // Try to free some memory
-//	        this.tmp_fragmentParams.reset();
-//	        this.tmp_serializedParams.clear();
-//	        this.tmp_EEdependencies.clear();
+         // Try to free some memory
+//          this.tmp_fragmentParams.reset();
+//          this.tmp_serializedParams.clear();
+//          this.tmp_EEdependencies.clear();
     }
 
     public void tick() {

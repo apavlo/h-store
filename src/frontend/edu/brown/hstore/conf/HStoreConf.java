@@ -108,7 +108,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="When enabled, the HStoreSite will preload objects when the system is started. " +
-            		    "This should only be disabled for regression test cases.",
+                        "This should only be disabled for regression test cases.",
             defaultBoolean=true,
             experimental=false
         )
@@ -198,13 +198,13 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
-            		    "Each request will execute as a single-partition transaction at a random partition on the node " +
-            		    "that the request originally arrives on. When the transaction makes a query request that needs " +
-            		    "to touch data from a partition that is different than its base partition, then that transaction " +
-            		    "is immediately aborted, rolled back, and restarted on the partition that has the data that it " +
-            		    "was requesting. If the transaction requested more than partition when it was aborted, then it " +
-            		    "will be executed as a multi-partition transaction on the partition that was requested most often " +
-            		    "by queries using random tie breakers). " +
+                        "Each request will execute as a single-partition transaction at a random partition on the node " +
+                        "that the request originally arrives on. When the transaction makes a query request that needs " +
+                        "to touch data from a partition that is different than its base partition, then that transaction " +
+                        "is immediately aborted, rolled back, and restarted on the partition that has the data that it " +
+                        "was requesting. If the transaction requested more than partition when it was aborted, then it " +
+                        "will be executed as a multi-partition transaction on the partition that was requested most often " +
+                        "by queries using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
             defaultBoolean=true,
             experimental=true
@@ -224,9 +224,9 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Use the VoltDB @ProcInfo annotations for stored procedures to determine whether " +
-            		    "a new request will be executed as a single-partitioned or distributed transaction. " +
-            		    "Note that if this option is enabled, any distributed transaction will have to lock all " +
-            		    "of the partitions in the cluster.",
+                        "a new request will be executed as a single-partitioned or distributed transaction. " +
+                        "Note that if this option is enabled, any distributed transaction will have to lock all " +
+                        "of the partitions in the cluster.",
             defaultBoolean=false,
             experimental=false
         )
@@ -326,7 +326,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
-            		    "queries on remote partitions for distributed transactions.",
+                        "queries on remote partitions for distributed transactions.",
             defaultBoolean=false,
             experimental=true
         )
@@ -334,7 +334,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
-            		    "queries for later execution if they are marked as deferrable.",
+                        "queries for later execution if they are marked as deferrable.",
             defaultBoolean=false,
             experimental=true
         )

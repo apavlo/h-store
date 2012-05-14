@@ -120,34 +120,34 @@ public class TestHStoreSite extends BaseTestCase {
     
 //    @Test
 //    public void testHStoreSite_AdHoc(){
-//    	this.hstore_site.run();
-//    	Client client = ClientFactory.createClient();
+//      this.hstore_site.run();
+//      Client client = ClientFactory.createClient();
 //        try {
-//			client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
-//		} catch (UnknownHostException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		} catch (IOException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
+//          client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
+//      } catch (UnknownHostException e1) {
+//          // TODO Auto-generated catch block
+//          e1.printStackTrace();
+//      } catch (IOException e1) {
+//          // TODO Auto-generated catch block
+//          e1.printStackTrace();
+//      }
 //        VoltTable result;
-//		try {
-//			result = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;").getResults()[0];
-//			assertTrue(result.getRowCount() == 1);
-//	        System.out.println(result.toString());
-//		} catch (NoConnectionsException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ProcCallException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+//      try {
+//          result = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;").getResults()[0];
+//          assertTrue(result.getRowCount() == 1);
+//          System.out.println(result.toString());
+//      } catch (NoConnectionsException e) {
+//          // TODO Auto-generated catch block
+//          e.printStackTrace();
+//      } catch (IOException e) {
+//          // TODO Auto-generated catch block
+//          e.printStackTrace();
+//      } catch (ProcCallException e) {
+//          // TODO Auto-generated catch block
+//          e.printStackTrace();
+//      }
 //        
-//    	
+//      
 //    }
     
   

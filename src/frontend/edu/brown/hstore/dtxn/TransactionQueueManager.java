@@ -387,9 +387,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         assert(this.hstore_site.isLocalPartition(partition)) :
             "Trying to mark txn #" + txn_id + " as finished on remote partition #" + partition;
         if (d) LOG.debug(String.format("Notifying queue manager that txn #%d is finished on partition %d " +
-        		                       "[status=%s, basePartition=%d]",
-        		                       txn_id, partition, status,
-        		                       TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
+                                       "[status=%s, basePartition=%d]",
+                                       txn_id, partition, status,
+                                       TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
         
         // If the given txnId is the current transaction at this partition and still holds
         // the lock on the partition, then we will want to release it

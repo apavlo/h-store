@@ -562,7 +562,7 @@ public class BatchPlanner implements Loggable {
     }
     
     public int getBatchSize() {
-    	return (this.batchSize);
+        return (this.batchSize);
     }
 
     public ProfileMeasurement getBuildFragmentTaskMessagesTime() {

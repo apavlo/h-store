@@ -784,7 +784,7 @@ public class LocalTransaction extends AbstractTransaction {
      * parameters for this transaction
      */
     public ParameterSet getProcedureParameters() {
-    	return (this.invocation.getParams());
+        return (this.invocation.getParams());
     }
     
     public int getDependencyCount() { 

@@ -120,6 +120,7 @@ import edu.brown.utils.ThreadUtil;
 /**
  * 
  * @author pavlo
+ * @author gen
  */
 public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable, Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreSite.class);
@@ -336,7 +337,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @SuppressWarnings("unchecked")
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-    	
+        
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
@@ -965,7 +966,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform shutdown operations for this HStoreSiteNode
      * This should only be called by HStoreMessenger 
      */
-	@Override
+    @Override
     public synchronized void shutdown(){
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
@@ -1293,7 +1294,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.dispatchInvocation(ts);
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
-        		         "Returning back to listen on incoming socket");
+                         "Returning back to listen on incoming socket");
     }
     
     /**
@@ -1336,7 +1337,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // 'task' in ClientInterface.handleRead()
             else if (request.getParams().toArray().length != 1) {
                 msg = "AdHoc system procedure requires exactly one parameter, " +
-                	  "the SQL statement to execute.";
+                      "the SQL statement to execute.";
             }
             
             if (msg != null) {
@@ -2317,25 +2318,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Added for @AdHoc processes, periodically checks for AdHoc queries waiting to be compiled.
      * 
      */
-	public void processPeriodicWork() {
-	    if (trace.get())
-		    LOG.trace("Checking for PeriodicWork...");
+    public void processPeriodicWork() {
+        if (trace.get())
+            LOG.trace("Checking for PeriodicWork...");
 
-	    // poll planner queue
-	    if (asyncCompilerWork_thread != null) {
-	        checkForFinishedCompilerWork();
-	    }
+        // poll planner queue
+        if (asyncCompilerWork_thread != null) {
+            checkForFinishedCompilerWork();
+        }
 
         return;
-	}
+    }
 
-	/**
+    /**
      * Added for @AdHoc processes
      * 
      */
-	private void checkForFinishedCompilerWork() {
-		//LOG.info("HStoreSite - Checking for finished compiled work.");
-		
+    private void checkForFinishedCompilerWork() {
+        //LOG.info("HStoreSite - Checking for finished compiled work.");
+        
 
         AsyncCompilerResult result = null;
  
@@ -2374,7 +2375,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                plannedStmt.collectorFragment,
                                plannedStmt.sql,
                                plannedStmt.isReplicatedTableDML ? 1 : 0
-        		);
+                );
 
                 // initiate the transaction
                 int base_partition = result.ts.getBasePartition();
@@ -2393,5 +2394,5 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         "Should not be able to get here (HStoreSite.checkForFinishedCompilerWork())");
             }
         } // WHILE
-	}
+    }
 }

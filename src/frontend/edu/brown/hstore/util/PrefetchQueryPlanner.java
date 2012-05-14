@@ -99,8 +99,8 @@ public class PrefetchQueryPlanner implements Loggable {
 
         this.partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(catalog_db);
         if (debug.get()) LOG.debug(String.format("Initialized QueryPrefetchPlanner for %d " +
-        		                                 "Procedures with prefetchable Statements",
-        		                                 this.planners.size()));
+                                                 "Procedures with prefetchable Statements",
+                                                 this.planners.size()));
     }
 
     /**

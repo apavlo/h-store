@@ -81,7 +81,7 @@ public class LocalSingleProcessServer extends VoltServerConfig {
             return true;
         builder.clearPartitions();
         for (int partition = 0; partition < m_partitionCount; ++partition) {
-        	builder.addPartition("localhost", 0, partition);
+            builder.addPartition("localhost", 0, partition);
         } // FOR
         m_compiled = builder.compile(m_jarFileName, m_partitionCount, 0);
         return m_compiled;

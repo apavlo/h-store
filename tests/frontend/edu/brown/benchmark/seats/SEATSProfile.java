@@ -333,7 +333,7 @@ public class SEATSProfile {
     private final void loadConfigProfile(VoltTable vt) {
         boolean adv = vt.advanceRow();
         assert(adv) : "No data in " + SEATSConstants.TABLENAME_CONFIG_PROFILE + ". " +
-        		      "Did you forget to load the database first?";
+                      "Did you forget to load the database first?";
         int col = 0;
         this.scale_factor = vt.getDouble(col++);
         JSONUtil.fromJSONString(this.airport_max_customer_id, vt.getString(col++));

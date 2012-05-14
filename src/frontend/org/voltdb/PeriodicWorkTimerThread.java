@@ -42,11 +42,11 @@ public class PeriodicWorkTimerThread extends Thread implements Shutdownable {
     }
 
     public PeriodicWorkTimerThread(HStoreSite hStoreSite) {
-    	m_hStoreSite = hStoreSite;
-    	m_isClientInterfaceThread = false;
-	}
+        m_hStoreSite = hStoreSite;
+        m_isClientInterfaceThread = false;
+    }
 
-	@Override
+    @Override
     public void run() {
         Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
         Thread.currentThread().setName("PeriodicWork");
@@ -60,14 +60,14 @@ public class PeriodicWorkTimerThread extends Thread implements Shutdownable {
                 return;
             }
             if(m_isClientInterfaceThread){
-	            if(!m_clientInterfaces.isEmpty()){
-		            for (ClientInterface ci : m_clientInterfaces) {
-		                ci.processPeriodicWork();
-		            }
-	            }
+                if(!m_clientInterfaces.isEmpty()){
+                    for (ClientInterface ci : m_clientInterfaces) {
+                        ci.processPeriodicWork();
+                    }
+                }
             }
             else{
-            	m_hStoreSite.processPeriodicWork();
+                m_hStoreSite.processPeriodicWork();
             }
             //long duration = System.nanoTime() - beforeTime;
             //double millis = duration / 1000000.0;

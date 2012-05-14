@@ -794,7 +794,7 @@ public class VoltProjectBuilder {
                     Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmtPair.getFirst());
                     assert(catalog_stmt != null) :
                         "Invalid Statement name '" + stmtPair.getFirst() + "' for ParameterMappings " +
-                		"for Procedure '" + procName + "'";
+                        "for Procedure '" + procName + "'";
                     StmtParameter catalog_stmtParam = catalog_stmt.getParameters().get(stmtPair.getSecond().intValue());
                     assert(catalog_stmtParam != null) :
                         "Invalid StmtParameter for '" + catalog_stmt.fullName() + "' at offset " + stmtPair.getSecond();
