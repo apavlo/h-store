@@ -1,3 +1,29 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
+
 package edu.brown.hstore.wal;
 
 import java.io.File;
@@ -12,12 +38,18 @@ import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import org.jfree.util.Log;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+/**
+ * Transaction Command Log Reader
+ * @author mkirsch
+ * @author pavlo
+ */
 public class CommandLogReader implements Iterable<LogEntry> {
     
     final FastDeserializer fd;
@@ -64,8 +96,10 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 
                 //Fill the decompressed buffer if it is empty
                 if (groupCommit && !decompressedFd.buffer().hasRemaining()) {
+                    Log.info("filling the decompressed buffer");
+                    int sizeCompressed = 0;
                     try {
-                        int sizeCompressed = fd.readInt();
+                        sizeCompressed = fd.readInt();
                         byte[] b = new byte[sizeCompressed];
                         fd.readFully(b);
                         byte[] decompressed = CompressionService.decompressBytes(b);
@@ -78,16 +112,14 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 }
                 
                 try {
-                    if (groupCommit) {
-                        _next.finish();
-                        _next.readExternal(decompressedFd);
-                    }
-                    else {
+                    if (groupCommit)
+                        _next = decompressedFd.readObject(LogEntry.class);
+                    else
                         _next = fd.readObject(LogEntry.class);
-                    }
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
                 } catch (BufferUnderflowException ex) {
+                    
                     _next = null;
                 }
                 return (ret);

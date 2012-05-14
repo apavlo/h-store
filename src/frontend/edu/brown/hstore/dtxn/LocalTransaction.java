@@ -317,7 +317,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Testing Constructor with Parameters
+     * Testing Constructor with Parameters and Callback
      * @param txn_id
      * @param base_partition
      * @param predict_touchedPartitions
@@ -327,6 +327,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction testInit(Long txn_id, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc, Object... proc_params) {
         this.invocation = new StoredProcedureInvocation(0, catalog_proc.getName(), proc_params);
+        this.client_callback = new RpcCallback<byte[]>() { public void run(byte[] parameter) {} };
         return testInit(txn_id, base_partition, predict_touchedPartitions, catalog_proc);
     }
     
