@@ -53,7 +53,7 @@ public class GetCatalog extends VoltSystemProcedure {
         return (result);
     }
 
-    public VoltTable[] run(int partitionId) {
+    public VoltTable[] run() {
         // Blast that mofo and get the catalog for the client
         final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[1];
         final ParameterSet params = new ParameterSet();
