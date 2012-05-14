@@ -54,6 +54,7 @@ import edu.brown.utils.ProjectType;
 
 /**
  * @author mkirsch
+ * @author pavlo
  */
 public class TestCommandLogger extends BaseTestCase {
     
