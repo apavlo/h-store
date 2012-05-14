@@ -24,47 +24,57 @@ import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.types.PlanNodeType;
 
-
 /**
  *
  */
 public class SendPlanNode extends AbstractPlanNode {
 
-    public enum Members {
-        FAKE;
-    }
-    
-    // used for planning
-    public boolean isMultiPartition = false;
-    private boolean m_fake = false;
+	public enum Members {
+		FAKE;
+	}
 
-    /**
-     * @param id
-     */
-    public SendPlanNode(PlannerContext context, Integer id) {
-        super(context, id);
-    }
+	// used for planning
+	public boolean isMultiPartition = false;
+	private boolean m_fake = false;
+	private boolean m_fast = false; // determine if it will be fast executed
 
-    @Override
-    public PlanNodeType getPlanNodeType() {
-        return PlanNodeType.SEND;
-    }
-    
-    public boolean getFake() {
-        return m_fake;
-    }
-    public void setFake(boolean fake) {
-        m_fake = fake;
-    }
+	/**
+	 * @param id
+	 */
+	public SendPlanNode(PlannerContext context, Integer id) {
+		super(context, id);
+	}
 
-    @Override
-    public void toJSONString(JSONStringer stringer) throws JSONException {
-        stringer.key(Members.FAKE.name()).value(m_fake);
-        super.toJSONString(stringer);
-    }
-    
-    @Override
-    protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
-        m_fake = obj.getBoolean(Members.FAKE.name());
-    }
+	@Override
+	public PlanNodeType getPlanNodeType() {
+		return PlanNodeType.SEND;
+	}
+
+	public boolean getFake() {
+		return m_fake;
+	}
+
+	public void setFake(boolean fake) {
+		m_fake = fake;
+	}
+
+	public void setFast(boolean fast) {
+		m_fast = fast;
+	}
+
+	public boolean getFast() {
+		return m_fast;
+	}
+
+	@Override
+	public void toJSONString(JSONStringer stringer) throws JSONException {
+		stringer.key(Members.FAKE.name()).value(m_fake);
+		super.toJSONString(stringer);
+	}
+
+	@Override
+	protected void loadFromJSONObject(JSONObject obj, Database db)
+			throws JSONException {
+		m_fake = obj.getBoolean(Members.FAKE.name());
+	}
 }

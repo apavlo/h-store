@@ -28,24 +28,46 @@ import org.voltdb.types.PlanNodeType;
  */
 public class ReceivePlanNode extends AbstractPlanNode {
 
-    /**
-     * @param id
-     */
-    public ReceivePlanNode(PlannerContext context, Integer id) {
-        super(context, id);
-    }
+	/**
+	 * @param id
+	 */
 
-    @Override
-    public PlanNodeType getPlanNodeType() {
-        return PlanNodeType.RECEIVE;
-    }
+	private boolean m_fast = false; // determine if it will be fast executed
 
-    @Override
-    public void validate() throws Exception {
-        super.validate();
-    }
+	private boolean fastcombine = false; // determine if it will be fast combine
 
-    @Override
-    protected void loadFromJSONObject(JSONObject obj, Database db) throws JSONException {
-    }
+	public void setFast(boolean fast) {
+		m_fast = fast;
+	}
+
+	public boolean getFast() {
+		return m_fast;
+	}
+
+	public ReceivePlanNode(PlannerContext context, Integer id) {
+		super(context, id);
+	}
+
+	@Override
+	public PlanNodeType getPlanNodeType() {
+		return PlanNodeType.RECEIVE;
+	}
+
+	@Override
+	public void validate() throws Exception {
+		super.validate();
+	}
+
+	@Override
+	protected void loadFromJSONObject(JSONObject obj, Database db)
+			throws JSONException {
+	}
+
+	public boolean getFastcombine() {
+		return fastcombine;
+	}
+
+	public void setFastcombine(boolean fastcombine) {
+		this.fastcombine = fastcombine;
+	}
 }
