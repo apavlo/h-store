@@ -1,0 +1,480 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[letterpaper, top=1in, bottom=1in, inner=1in, outer=1in, columnsep=2pc, foot=.25in]{geometry}
+\usepackage{url}
+
+\usepackage[ps2pdf,
+            hyperfigures=false,
+            hyperindex=false,
+            pdfborder={ 0 0 0 },
+            pdftitle={AuctionMark: A Stored Procedured-based OLTP Auction Site Benchmark},
+            pdfauthor={Visawee Angka, Andrew Pavlo, Randy Shoup, Stan Zdonik},
+            pdfkeywords={}]{hyperref}
+
+
+%opening
+\title{AuctionMark: A Stored Procedured-based OLTP Auction Site Benchmark}
+\author{Visawee Angka, Andrew Pavlo, Randy Shoup, Stan Zdonik}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Extension to TPC-C
+
+\end{abstract}
+
+\section{Introduction}
+
+Other OLTP benchmarks: TPC-C~\cite{tpc-c}, TPC-E~\cite{tpc-e}, RuBIS~\cite{rubis}, and TM1~\cite{tm1}.
+
+\section{Data Tables}
+
+The tables are all named in a singular form. Each column is prefixed with an abbreviation of the table that it is a member of. Foreign key references include the abrreviation of the parent column. The only exception to this rule are those tables with more than one column referencing the same foreign key parent table (e.g., \texttt{ITEM\_COMMENT.ic\_u\_id} and \texttt{ITEM\_COMMENT.ic\_buyer\_id}).
+
+\subsection{Global Tables}
+
+\subsubsection{\texttt{REGION}}
+
+\begin{tabular}{ll}
+Number of Records:      & 62 \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+r\_id              & BIGINT     & TODO & -               & - \\
+r\_name            & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{GLOBAL\_ATTRIBUTE\_GROUP}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+gag\_id            & BIGINT     & TODO & -               & - \\
+gag\_c\_id         & BIGINT     & TODO & CATEGORY.c\_id  & - \\
+gag\_name          & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{GLOBAL\_ATTRIBUTE\_VALUE}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+gav\_id            & BIGINT     & TODO & -               & - \\
+gav\_gag\_id       & BIGINT     & TODO & GLOBAL\_ATTRIBUTE\_GROUP.gag\_id & - \\
+gav\_name          & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{CATEGORY}}
+TODO: Screenscrape from eBay the category heirarchy. This will also give us the distribution histograms.
+
+\begin{tabular}{ll}
+Number of Records:      & 20 (rubis) \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+c\_id              & BIGINT     & TODO & -               & - \\
+c\_name            & VARCHAR    & TODO & -               & - \\
+c\_parent\_id      & BIGINT     & TODO & CATEGORY.c\_id  & - \\
+\end{tabular*}
+
+\subsection{User Tables}
+
+\subsubsection{\texttt{USER}}
+
+% TODO: What percentage of the users are strictly sellers, strictly buyers, or both?
+% TODO: What percentage of the users have "idle accounts" (i.e., no activity in the last 90 days)?      
+
+\begin{tabular}{ll}
+Number of Records:      & 1,000,000 \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+u\_id              & BIGINT     & TODO & -               & 0--$2^{48}$ \\
+u\_firstname       & VARCHAR    & TODO & -               & - \\
+u\_lastname        & VARCHAR    & TODO & -               & - \\
+u\_password        & VARCHAR    & TODO & -               & - \\
+u\_email           & VARCHAR    & TODO & -               & - \\
+u\_rating          & BIGINT     & TODO & -               & - \\
+u\_balance         & DOUBLE     & TODO & -               & - \\
+u\_created         & TIMESTAMP  & TODO & -               & - \\
+u\_r\_id           & BIGINT     & TODO & REGION.r\_id    & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{USER\_ATTRIBUTES}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ua\_id             & BIGINT     & TODO & -               & - \\
+ua\_u\_id          & BIGINT     & TODO & USER.u\_id      & - \\
+ua\_name           & VARCHAR    & TODO & -               & - \\
+ua\_value          & VARCHAR    & TODO & -               & - \\
+u\_created         & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{USER\_ITEMS}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ui\_u\_id          & BIGINT     & TODO & USER.u\_id      & - \\
+ui\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+ui\_seller\_id     & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+ui\_created        & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\subsection{Item Tables}
+
+\subsubsection{\texttt{ITEM}}
+
+\begin{tabular}{ll}
+Number of Records:      & 33,000 (rubis $\rightarrow$ active) \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent The ITEM id consists of a composite key where the lower 48-bits of the number is the USER.u\_id and the upper 16-bits is the auction count for that user. \\
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+i\_id              & BIGINT     & TODO & -               & - \\
+i\_u\_id           & BIGINT     & TODO & USER.u\_id      & - \\
+i\_c\_id           & BIGINT     & TODO & CATEGORY.c\_id  & - \\
+i\_name            & VARCHAR    & TODO & -               & - \\
+i\_description     & VARCHAR    & TODO & -               & - \\
+i\_initial\_price  & DOUBLE     & TODO & -               & - \\
+i\_reserve\_price  & DOUBLE     & TODO & -               & - \\
+i\_buy\_now        & DOUBLE     & TODO & -               & - \\
+i\_num\_bids       & BIGINT     & TODO & -               & - \\
+i\_max\_bid        & DOUBLE     & TODO & -               & - \\
+i\_user\_attributes & VARCHAR    & TODO & -               & - \\
+i\_start\_date     & TIMESTAMP  & TODO & -               & - \\
+i\_end\_date       & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_ATTRIBUTE}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ia\_id             & BIGINT     & TODO & -               & - \\
+ia\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+ia\_u\_id          & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+ia\_gav\_id        & BIGINT     & TODO & GLOBAL\_ATTRIBUTE\_VALUE.gav\_id & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_IMAGE}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ii\_id             & BIGINT     & TODO & -               & - \\
+ii\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+ii\_u\_id          & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+ii\_path           & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_COMMENT}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ic\_id             & BIGINT     & TODO & -               & - \\
+ic\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+ic\_u\_id          & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+ic\_buyer\_id      & BIGINT     & TODO & USER.u\_id      & - \\
+ic\_date           & TIMESTAMP  & TODO & -               & - \\
+ic\_question       & VARCHAR    & TODO & -               & - \\
+ic\_response       & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_FEEDBACK}}
+
+\begin{tabular}{ll}
+Number of Records:      & 95\% of total txns (500k are old items) \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+if\_id             & BIGINT     & TODO & -               & - \\
+if\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+if\_u\_id          & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+if\_buyer\_id      & BIGINT     & TODO & USER.u\_id      & - \\
+if\_rating         & BIGINT     & TODO & -               & - \\
+if\_date           & TIMESTAMP  & TODO & -               & - \\
+if\_comment        & VARCHAR    & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_BID}}
+
+\begin{tabular}{ll}
+Number of Records:      & 10x the active items (10\% are ``instant purchase'') - What percentage of active items have bids? \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ib\_id             & BIGINT     & TODO & -               & - \\
+ib\_i\_id          & BIGINT     & TODO & ITEM.i\_id      & - \\
+ib\_u\_id          & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+ib\_buyer\_id      & BIGINT     & TODO & USER.u\_id      & - \\
+ib\_type           & BIGINT     & TODO & -               & - \\
+ib\_bid            & DOUBLE     & TODO & -               & - \\
+ib\_max\_bid       & DOUBLE     & TODO & -               & - \\
+ib\_created        & TIMESTAMP  & TODO & -               & - \\
+ib\_updated        & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_MAX\_BID}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+imb\_i\_id         & BIGINT     & TODO & ITEM.i\_id      & - \\
+imb\_u\_id         & BIGINT     & TODO & ITEM.i\_u\_id   & - \\
+imb\_ib\_id        & BIGINT     & TODO & ITEM\_BID.ib\_id & - \\
+imb\_ib\_i\_id     & BIGINT     & TODO & ITEM\_BID.ib\_i\_id & - \\
+imb\_ib\_u\_id     & BIGINT     & TODO & ITEM\_BID.ib\_u\_id & - \\
+imb\_created       & TIMESTAMP  & TODO & -               & - \\
+imb\_updated       & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\subsubsection{\texttt{ITEM\_PURCHASE}}
+
+\begin{tabular}{ll}
+Number of Records:      & TODO \\
+Average Tuple Size:     & TODO \\
+Total Size:             & TODO \\
+\end{tabular}
+
+\vspace*{0.1in}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} lllll}
+\textbf{Column} & \textbf{Type} & \textbf{Cardinality} & \textbf{References} & \textbf{Description} \\
+ip\_id             & BIGINT     & TODO & -               & - \\
+ip\_ib\_id         & BIGINT     & TODO & ITEM\_BID.ip\_ib\_id & - \\
+ip\_i\_id          & BIGINT     & TODO & ITEM\_BID.ib\_i\_id & - \\
+ip\_u\_id          & BIGINT     & TODO & ITEM\_BID.ib\_u\_id & - \\
+ip\_date           & TIMESTAMP  & TODO & -               & - \\
+\end{tabular*}
+
+\section{Stored Procedures}
+
+\subsection{\texttt{new-user}}
+Creates a new USER record. The rating and balance are both set to zero. \\
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+u\_id           & BIGINT                & The new user's unique id \\
+u\_r\_id        & BIGINT                & User's region \\
+attributes[]    & 8 $\times$ VARCHAR(12-64)        & An array of random string attributes for this user \\
+\end{tabular*}
+
+\subsection{\texttt{new-item}}
+Insert a new ITEM record for a user. The benchmark client provides all of the preliminary information required for the new item, as well as optional information to create derivative image and attribute records. After inserting the new ITEM record, the transaction then inserts any GLOBAL\_ATTRIBUTE\_VALUE and ITEM\_IMAGE. The unique identifer for each of these records is a composite 64-bit key where the lower 60-bits are the i\_id parameter and the upper 4-bits are used to represent the index of the image/attribute. For example, if the i\_id is 100 and there are four items, then the composite key will be $\left\langle\left\langle 0\right\rangle\left\langle 100\right\rangle\right\rangle$ for the first image, $\left\langle\left\langle 1\right\rangle\left\langle 100\right\rangle\right\rangle$ for the second, and so on. After these records are inserted, the transaction then updates the USER record to add the listing fee to the seller's balance.  \\
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The new item's unique id (0--$2^{60}$)\\
+u\_id           & BIGINT                & The seller's user id \\
+c\_id           & BIGINT                & The new item's category id \\
+name            & VARCHAR               & The title of the new item \\
+description     & VARCHAR               & The text description of the new item \\
+initial\_price  & DOUBLE                & The initial price of the new item \\
+reserve\_price  & DOUBLE                & The seller's reserve selling price (can be null) \\
+buy\_now        & DOUBLE                & The seller's ``instance purchase'' price (can be null) \\
+attributes      & VARCHAR               & Textual BLOB of user-defined attributes for the item \\
+gag\_ids[]      & (0-16) $\times$ BIGINT & List of GLOBAL\_ATTRIBUTE\_GROUP ids to include for this item \\
+gav\_ids[]      & (0-16) $\times$ BIGINT & List of GLOBAL\_ATTRIBUTE\_VALUE ids to include for this item \\
+images[]        & (0-16) $\times$ VARCHAR(128) & List of unique image paths \\
+\end{tabular*}
+
+\subsection{\texttt{new-bid}}
+A buyer enters in a new bidding for an open item. If there is no existing bid on the item, the new bid is marked as the winning bid and the item is updated accordingly. If there is an existing highest bid, then the transaction has to check whether the new bid amount is greater than the existing bid. The id for the new ITEM\_BID record is the ITEM.i\_num\_bids + 1. \\
+
+\noindent Things to check:
+\begin{itemize}
+   \item The auction is still open.
+   \item The potential buyer is not the seller.
+   \item The new bid is greater than the current bid.
+\end{itemize}
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The item that is being bidded on \\
+seller\_id      & BIGINT                & The seller's user id \\
+buyer\_id       & BIGINT                & The buyer's user id \\
+max\_bid        & BIGINT                & The maximum amount the buyer bids on the item \\
+\end{tabular*}
+
+\subsection{\texttt{new-comment}}
+A potential buyer posts a question/comment about a seller's item. Each transaction inserts a new ITEM\_COMMENT record. \\
+
+\noindent \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The item that the potential buyer is commenting on \\
+seller\_id      & BIGINT                & The seller's user id \\
+buyer\_id       & BIGINT                & The potential buyer's user id \\
+question        & VARCHAR(128)          & The new question posed for the item \\
+\end{tabular*}
+
+\subsection{\texttt{new-comment-response}}
+The seller responds to an open question/comment created by \texttt{new-comment-response}.  \\
+
+\noindent \fbox{ \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The item \\
+i\_c\_id        & BIGINT                & The item comment record that the seller is replying to \\
+seller\_id      & BIGINT                & The seller's user id \\
+response        & VARCHAR(128)          & The response to the existing comment/question \\
+\end{tabular*} }
+
+\subsection{\texttt{new-purchase}}
+TODO
+
+\subsection{\texttt{new-feedback}}
+The buyer adds a seller feedback for a previously won auction. The rating is either -1, 0, or 1 and is added to the USER.u\_rating attribute. \\
+
+\noindent \fbox{ \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The purchased item \\
+seller\_id      & BIGINT                & The seller's user id \\
+buyer\_id       & BIGINT                & The potential buyer's user id \\
+rating          & BIGINT                & $\left[ -1, 0, 1 \right]$ \\
+comment         & VARCHAR(128)          & An optional comment for the seller \\
+\end{tabular*} }
+
+\subsection{\texttt{get-item}}
+The transaction simply retrieves the ITEM record, and all subsequent ITEM\_COMMENT, ITEM\_IMAGE, and ITEM\_ATTRIBUTE records. \\
+
+\noindent \fbox{ \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The id of the item to retrieve \\
+i\_u\_id        & BIGINT                & The seller's user id for this item \\
+\end{tabular*} }
+
+\subsection{\texttt{update-item}}
+The buyer modifies an existing auction that is still available. The transaction will just update the description of the auction. A small percentage of the transactions will be for auctions that are uneditable (1.0\%?); when this occurs, the transaction will abort. \\
+
+\noindent \fbox{ \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+i\_id           & BIGINT                & The id of the item to modify \\
+i\_u\_id        & BIGINT                & The seller's user id for this item \\
+description     & VARCHAR(255)          & The new description for the item \\
+\end{tabular*}}
+
+\subsection{\texttt{check-winning-bids}}
+This stored procedure is called once a minute to examine whether any auctions ended within the last 60 seconds. It returns a list of ITEM.i\_ids of the auctions that need to be processed. This is a broadcast transaction that must be executed on all nodes (really? is there any reason why we need to do this? Why not just execute it per partition?) \\
+
+\noindent \fbox{ \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} llll}
+\textbf{Parameter} & \textbf{Type} & \textbf{Description} \\
+-               & -                     & - \\
+\end{tabular*} }
+
+\subsection{\texttt{post-auction}}
+Each transaction performs post-processing of a single recently closed auction item. First the transaction processes the seller's records: the item is marked as closed and moved into the archive 
+
+
+
+
+The key reason why this has to be broken up into separate transactions is everytime you close an auction, you need to update both the buyer's information and the seller's information. That means you are going to touch data on possibly two partitions.
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{auctionmark-benchmark}
+
+%% =========================================================================
+%% APPENDIX
+%% =========================================================================
+\twocolumn
+\appendix
+
+%% -----------------------------------------------
+%% BENCHMARKS
+%% -----------------------------------------------
+
+
+\end{document}

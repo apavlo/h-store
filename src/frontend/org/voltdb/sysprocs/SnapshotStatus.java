@@ -29,6 +29,7 @@ import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 @ProcInfo(singlePartition = false)
@@ -50,7 +51,7 @@ public class SnapshotStatus extends VoltSystemProcedure {
         ArrayList<Integer> catalogIds = new ArrayList<Integer>();
         catalogIds.add(0);
         return new VoltTable[] {
-            VoltDB.instance().getStatsAgent().getStats(SysProcSelector.SNAPSHOTSTATUS,
+            CatalogUtil.getStatsAgent().getStats(SysProcSelector.SNAPSHOTSTATUS,
                                                        catalogIds,
                                                        false,
                                                        System.currentTimeMillis())

@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.log4j.Logger;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.Pair;
 
 /**
  * Encapsulates the state needed to manage an ongoing snapshot at the
@@ -34,12 +35,13 @@ import org.voltdb.utils.DBBPool.BBContainer;
  * which has a SnapshotSiteProcessor.
  */
 public class SnapshotSiteProcessor {
+	
     private static final Logger LOG = Logger.getLogger(SnapshotSiteProcessor.class);
 
     /** Global count of execution sites on this node performing snapshot */
     public static final AtomicInteger ExecutionSitesCurrentlySnapshotting =
         new AtomicInteger(-1);
-
+    
     /**
      * Ensure the first thread to run the fragment does the creation
      * of the targets and the distribution of the work.
@@ -103,7 +105,7 @@ public class SnapshotSiteProcessor {
      * and does any potential snapshot work with that buffer
      */
     private final Runnable m_onPotentialSnapshotWork;
-
+    
     /**
      * A class identifying a table that should be snapshotted as well as the destination
      * for the resulting tuple blocks
@@ -171,13 +173,13 @@ public class SnapshotSiteProcessor {
                 assert(m_snapshotTargets != null);
                 m_snapshotTargets.add(task.m_target);
             }
-            // FIXME meng
-//            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT )) {
-//                LOG.error("Attempted to activate copy on write mode for table "
-//                        + task.m_name + " and failed");
-//                LOG.error(task);
-//                VoltDB.crashVoltDB();
-//            }
+			// FIXME meng
+            if (!ee.activateTableStream(task.m_tableId, TableStreamType.SNAPSHOT)) {
+                LOG.error("Attempted to activate copy on write mode for table "
+                        + task.m_name + " and failed");
+                LOG.error(task);
+                VoltDB.crashVoltDB();
+            }
         }
     }
 
@@ -206,12 +208,13 @@ public class SnapshotSiteProcessor {
             assert(snapshotBuffer != null);
             snapshotBuffer.b.clear();
             snapshotBuffer.b.position(headerSize);
-            final int serialized = 0; // FIXME (meng)
-//                ee.tableStreamSerializeMore(
-//                    snapshotBuffer,
-//                    currentTask.m_tableId,
-//                    TableStreamType.SNAPSHOT);
-
+            final int serialized =
+            // FIXME (meng)
+                ee.tableStreamSerializeMore(
+                    snapshotBuffer,
+                    currentTask.m_tableId,
+                    TableStreamType.SNAPSHOT);
+            LOG.info("serialized = " + serialized);
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
                 VoltDB.crashVoltDB();
@@ -294,10 +297,10 @@ public class SnapshotSiteProcessor {
                             }
                         } finally {
                             /**
-                             * Set it to -1 indicating the system is ready to perform another snapshot.
-                             * Changed to wait until all the previous snapshot work has finished so
-                             * that snapshot initiation doesn't wait on the file system
-                             */
+							* Set it to -1 indicating the system is ready to perform another snapshot.
+							* Changed to wait until all the previous snapshot work has finished so
+							* that snapshot initiation doesn't wait on the file system
+							*/
                             ExecutionSitesCurrentlySnapshotting.decrementAndGet();
                         }
                     }
@@ -318,8 +321,8 @@ public class SnapshotSiteProcessor {
      * until the fsync() and close() of snapshot data targets has completed.
      */
     public HashSet<Exception> completeSnapshotWork(ExecutionEngine ee) throws InterruptedException {
-        HashSet<Exception> retval = new HashSet<Exception>();
-        m_snapshotTargetTerminators = new ArrayList<Thread>();
+    	HashSet<Exception> retval = new HashSet<Exception>();
+    	m_snapshotTargetTerminators = new ArrayList<Thread>();
         while (m_snapshotTableTasks != null) {
             Future<?> result = doSnapshotWork(ee);
             if (result != null) {

@@ -45,13 +45,11 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
         this.addObserver(failure_observer);
     }
     
-    @Override
     public String formatFinalResults(BenchmarkResults results) {
         // Nothing to do
         return (null);
     }
     
-    @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);

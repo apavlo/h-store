@@ -176,6 +176,7 @@ for f in glob.glob(os.path.join(CTX.INPUT_PREFIX, 'catalog', '*.cpp')):
 CTX.INPUT['catalog'] = "\n".join(sorted(catalog_files))
 
 CTX.INPUT['common'] = """
+ SegvException.cpp
  SerializableEEException.cpp
  SQLException.cpp
  tabletuple.cpp
@@ -183,6 +184,9 @@ CTX.INPUT['common'] = """
  types.cpp
  UndoLog.cpp
  NValue.cpp
+ RecoveryProtoMessage.cpp
+ RecoveryProtoMessageBuilder.cpp
+ DefaultTupleSerializer.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -252,7 +256,6 @@ CTX.INPUT['storage'] = """
  constraintutil.cpp
  CopyOnWriteContext.cpp
  CopyOnWriteIterator.cpp
- DefaultTupleSerializer.cpp
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
@@ -260,13 +263,16 @@ CTX.INPUT['storage'] = """
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
  PersistentTableUndoUpdateAction.cpp
+ StreamedTableStats.cpp
  streamedtable.cpp
  table.cpp
+ TableCatalogDelegate.cpp
  tablefactory.cpp
  TableStats.cpp
  tableutil.cpp
  temptable.cpp
  TupleStreamWrapper.cpp
+ RecoveryContext.cpp
 """
 
 CTX.INPUT['stats'] = """
@@ -313,7 +319,6 @@ CTX.TESTS['common'] = """
 
 CTX.TESTS['execution'] = """
  engine_test
- executors_test
 """
 
 CTX.TESTS['expressions'] = """
@@ -335,7 +340,7 @@ CTX.TESTS['storage'] = """
  StreamedTable_test
  table_and_indexes_test
  table_test
- tabletuple_elt_test
+ tabletuple_export_test
  TupleStreamWrapper_test
 """
 

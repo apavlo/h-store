@@ -1,0 +1,25 @@
+#set( $procPackageSuffix = ".*" )
+#set( $procClassSuffix = ".class" )
+
+package $packageName;
+
+import edu.brown.benchmark.AbstractProjectBuilder;
+import $procPackageName$procPackageSuffix;
+import java.io.IOException;
+
+public class ProjectBuilder extends AbstractProjectBuilder 
+{
+
+    public static final Class<?> PROCEDURES[] = new Class<?>[] 
+    {
+    #foreach( $proc in $procs )
+    $proc.getName()$procClassSuffix,
+    #end
+    
+    };
+
+    public ProjectBuilder() throws IOException
+    {
+        super($benchmarkName, ProjectBuilder.class, PROCEDURES, new String[][]{});
+    }
+}

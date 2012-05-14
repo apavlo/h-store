@@ -28,6 +28,8 @@ import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
 import org.voltdb.catalog.Table;
 import org.voltdb.sysprocs.SysProcFragmentId;
 
+import edu.brown.catalog.CatalogUtil;
+
 public class ReplicatedTableSaveFileState extends TableSaveFileState
 {
     ReplicatedTableSaveFileState(String tableName, int allowExport)
@@ -62,6 +64,9 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
     generateRestorePlan(Table catalogTable)
     {
         for (int hostId : m_hostsWithThisTable) {
+        	
+        	//m_sitesWithThisTable.addAll(CatalogUtil.getSitesForHost(catalog_host));
+        	
             m_sitesWithThisTable.addAll(VoltDB.instance().getCatalogContext().
                                         siteTracker.getLiveExecutionSitesForHost(hostId));
         }
@@ -93,7 +98,7 @@ public class ReplicatedTableSaveFileState extends TableSaveFileState
     generateReplicatedToReplicatedPlan()
     {
         SynthesizedPlanFragment[] restore_plan = null;
-        Set<Integer> execution_site_ids =
+        Set<Integer> execution_site_ids = 
             VoltDB.instance().getCatalogContext().siteTracker.getExecutionSiteIds();
         Set<Integer> sites_missing_table =
             getSitesMissingTable(execution_site_ids);

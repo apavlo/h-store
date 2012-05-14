@@ -56,7 +56,6 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         this.output_basepartitions = output_basepartitions;
     }
     
-    @Override
     public String formatFinalResults(BenchmarkResults results) {
         StringBuilder sb = new StringBuilder();
         FinalResult fr = new FinalResult(results);
@@ -136,7 +135,6 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         return (sb.toString());
     }
     
-    @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);

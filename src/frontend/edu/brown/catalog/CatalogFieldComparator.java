@@ -15,7 +15,6 @@ public final class CatalogFieldComparator<T extends CatalogType> implements Comp
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    @Override
     public int compare(T obj0, T obj1) {
         if (obj0 == null && obj1 == null)
             return (0);

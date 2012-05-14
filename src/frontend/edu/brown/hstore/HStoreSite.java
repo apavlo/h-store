@@ -516,7 +516,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
-
+    
     @Override
     public void updateLogging() {
         d = debug.get();
@@ -930,7 +930,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //        }
 //    } // END CLASS
 
-    @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
         if (this.hstore_coordinator != null)
@@ -960,6 +959,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
 	@Override
     public synchronized void shutdown(){
+
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug("Already told to shutdown... Ignoring");
             return;
@@ -1014,7 +1014,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Returns true if HStoreSite is in the process of shutting down
      * @return
      */
-    @Override
     public boolean isShuttingDown() {
         return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
     }
@@ -1023,7 +1022,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // EXECUTION METHODS
     // ----------------------------------------------------------------------------
     
-    @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
@@ -2272,7 +2270,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This is a blocking call!
      * @throws Exception
      */
-    @Override
     public void run() {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final HStoreSite hstore_site = this;

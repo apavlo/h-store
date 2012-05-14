@@ -1,0 +1,31 @@
+package protorpc;
+option java_package = "ca.evanjones.protorpc";
+
+message RpcRequest {
+    required int32 sequence_number = 1;
+    required string method_name = 2;
+    required bytes request = 3;
+}
+
+// Indicates if the RPC succeeded or failed.
+enum Status {
+    // Indicate that the status or object is in an invalid state. Should not be returned by any
+    // RPC or method.
+    INVALID = -1;
+
+    // The RPC completed successfully.
+    OK = 0;
+
+    // The implementation code on the server side returned a failure.
+    ERROR_USER = 1;
+
+    // Some communication error occurred (eg. failed to connect, connection closed).
+    ERROR_COMMUNICATION = 2;
+}
+
+message RpcResponse {
+    required int32 sequence_number = 1;
+    required Status status = 2;
+    optional bytes response = 3;
+    optional string error_reason = 4;
+}

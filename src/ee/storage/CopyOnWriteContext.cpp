@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,7 +93,6 @@ bool CopyOnWriteContext::serializeMore(ReferenceSerializeOutput *out) {
     out->writeInt(partitionIdCRC.checksum());
     const std::size_t crcPosition = out->reserveBytes(4);//For CRC
     int rowsSerialized = 0;
-
     TableTuple tuple(m_table->schema());
     if (out->remaining() < (m_maxTupleLength + sizeof(int32_t))) {
         throwFatalException("Serialize more should never be called "

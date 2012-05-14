@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,9 @@ ConstraintRef::ConstraintRef(Catalog *catalog, CatalogType *parent, const string
     m_fields["constraint"] = value;
 }
 
+ConstraintRef::~ConstraintRef() {
+}
+
 void ConstraintRef::update() {
     m_constraint = m_fields["constraint"].typeValue;
 }
@@ -46,8 +49,9 @@ CatalogType * ConstraintRef::getChild(const std::string &collectionName, const s
     return NULL;
 }
 
-void ConstraintRef::removeChild(const std::string &collectionName, const std::string &childName) {
+bool ConstraintRef::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 const Constraint * ConstraintRef::constraint() const {

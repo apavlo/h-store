@@ -31,23 +31,18 @@ public class TransactionCounter implements JSONSerializable {
     // ----------------------------------------------------------------------------
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
-    @Override
     public void load(String input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
-    @Override
     public void save(String output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
-    @Override
     public String toJSONString() {
         return (JSONUtil.toJSONString(this));
     }
-    @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, JSONUtil.getSerializableFields(this.getClass()));
     }
-    @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
     }

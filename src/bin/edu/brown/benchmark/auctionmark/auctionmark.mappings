@@ -1,0 +1,1640 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'UpdateItem':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.updateItem':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateItem':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.updateItem':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateItem':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.updateItem':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_DESCRIPTION'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateItem':'deleteItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.deleteItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateItem':'deleteItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.deleteItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'UpdateItem':'deleteItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'UpdateItem.deleteItemAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_ID'}",
+  "PROCEDURE_PARAMETER": "{'UpdateItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateUserItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateUserItem':'6'}",
+  "STATEMENT_COLUMN": "{'USER_ITEM':'UI_I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateUserItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateUserItem':'5'}",
+  "STATEMENT_COLUMN": "{'USER_ITEM':'UI_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateUserItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateUserItem':'3'}",
+  "STATEMENT_COLUMN": "{'USER_ITEM':'UI_IP_IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateUserItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateUserItem':'2'}",
+  "STATEMENT_COLUMN": "{'USER_ITEM':'UI_IP_IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateUserBalance'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateUserBalance':'1'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateItem':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.updateItem':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'insertPurchase'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.insertPurchase':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_PURCHASE':'IP_IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'insertPurchase'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.insertPurchase':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_PURCHASE':'IP_IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'getItemInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.getItemInfo':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewPurchase':'getItemInfo'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewPurchase.getItemInfo':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewPurchase':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'updateUserBalance'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.updateUserBalance':'1'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'7'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_CURRENT_PRICE'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'7'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'6'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_INITIAL_PRICE'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'7'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'5'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_USER_ATTRIBUTES'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'8'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_NAME'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItem':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertItemAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertItemAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_ATTRIBUTE':'IA_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'11'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'insertImage'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.insertImage':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_IMAGE':'II_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 8,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 7,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 6,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 5,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 4,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 3,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 2,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 1,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'1'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_GAG_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'9'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getGlobalAttribute'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.getGlobalAttribute':'0'}",
+  "STATEMENT_COLUMN": "{'GLOBAL_ATTRIBUTE_VALUE':'GAV_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'10'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getCategory'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.getCategory':'0'}",
+  "STATEMENT_COLUMN": "{'CATEGORY':'C_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewItem':'getCategoryParent'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewItem.getCategoryParent':'0'}",
+  "STATEMENT_COLUMN": "{'CATEGORY':'C_PARENT_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewItem':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'updateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.updateUser':'2'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'updateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.updateUser':'0'}",
+  "STATEMENT_COLUMN": "{'USER':'U_RATING'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'7'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_SATTR0'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'5'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'5'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_RATING'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'4'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_FROM_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'3'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'2'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'insertFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.insertFeedback':'1'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'getMaxFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.getMaxFeedback':'1'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewFeedback':'getMaxFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewFeedback.getMaxFeedback':'0'}",
+  "STATEMENT_COLUMN": "{'USER_FEEDBACK':'UF_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewFeedback':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'updateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.updateUser':'1'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'insertItemComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.insertItemComment':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_QUESTION'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'insertItemComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.insertItemComment':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_BUYER_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'insertItemComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.insertItemComment':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'insertItemComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.insertItemComment':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'getMaxItemCommentId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.getMaxItemCommentId':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewComment':'getMaxItemCommentId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewComment.getMaxItemCommentId':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewComment':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewCommentResponse':'updateUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewCommentResponse.updateUser':'1'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewCommentResponse':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewCommentResponse':'updateComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewCommentResponse.updateComment':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewCommentResponse':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewCommentResponse':'updateComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewCommentResponse.updateComment':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewCommentResponse':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewCommentResponse':'updateComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewCommentResponse.updateComment':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewCommentResponse':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewCommentResponse':'updateComment'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewCommentResponse.updateComment':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_COMMENT':'IC_RESPONSE'}",
+  "PROCEDURE_PARAMETER": "{'NewCommentResponse':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItem':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItem':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItemMaxBid':'5'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItemMaxBid':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItemMaxBid':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateItemMaxBid':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateBid':'5'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'updateBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.updateBid':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemMaxBid':'4'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemMaxBid':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemMaxBid':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemMaxBid':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemBid':'5'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_MAX_BID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'4'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemBid':'3'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_BUYER_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'3'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemBid':'2'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'insertItemBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.insertItemBid':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getMaxBidId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getMaxBidId':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getMaxBidId'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getMaxBidId':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_BID':'IB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getItem':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getItem':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getItemMaxBid':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'NewBid':'getItemMaxBid'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'NewBid.getItemMaxBid':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM_MAX_BID':'IMB_I_ID'}",
+  "PROCEDURE_PARAMETER": "{'NewBid':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getWatchedItems'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getWatchedItems':'0'}",
+  "STATEMENT_COLUMN": "{'USER_WATCH':'UW_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getUser':'0'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getUserFeedback'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getUserFeedback':'0'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getSellerItems'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getSellerItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getItemComments'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getItemComments':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetUserInfo':'getBuyerItems'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetUserInfo.getBuyerItems':'0'}",
+  "STATEMENT_COLUMN": "{'USER_ITEM':'UI_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetUserInfo':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetItem':'getUser'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetItem.getUser':'0'}",
+  "STATEMENT_COLUMN": "{'USER':'U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetItem':'getItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetItem.getItem':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_U_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetItem':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'GetItem':'getItem'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'GetItem.getItem':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_ID'}",
+  "PROCEDURE_PARAMETER": "{'GetItem':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 9,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 8,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 7,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 6,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 4,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 3,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 2,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 1,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'0'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'CloseAuctions':'getDueItems'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'CloseAuctions.getDueItems':'1'}",
+  "STATEMENT_COLUMN": "{'ITEM':'I_START_DATE'}",
+  "PROCEDURE_PARAMETER": "{'CloseAuctions':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

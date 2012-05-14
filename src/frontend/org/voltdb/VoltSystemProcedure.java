@@ -44,6 +44,7 @@ import edu.brown.utils.PartitionEstimator;
  * user procedures (which extend VoltProcedure).
  */
 public abstract class VoltSystemProcedure extends VoltProcedure {
+	
     private static final Logger LOG = Logger.getLogger(VoltSystemProcedure.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -91,11 +92,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         VoltTable result = null;
         VoltTable vt = operands.get(0);
         if (vt != null) {
-            VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[vt
-                                                                        .getColumnCount()];
+            VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[vt.getColumnCount()];
             for (int ii = 0; ii < vt.getColumnCount(); ii++) {
                 columns[ii] = new VoltTable.ColumnInfo(vt.getColumnName(ii),
-                                                       vt.getColumnType(ii));
+                        vt.getColumnType(ii));
             }
             result = new VoltTable(columns);
             for (Object table : operands) {
@@ -110,14 +110,16 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     /** Bundles the data needed to describe a plan fragment. */
     public static class SynthesizedPlanFragment {
+    	public int siteId = -1;
+    	public int fragmentId = -1;
         public int destPartitionId = -1;
-        public int fragmentId = -1;
         public int inputDependencyIds[] = null;
         public int outputDependencyIds[] = null;
         public ParameterSet parameters = null;
         public boolean multipartition = false;   /** true if distributes to all executable partitions */
         public boolean nonExecSites = false;     /** true if distributes once to each node */
         public boolean last_task = false;
+        public boolean suppressDuplicates = false;
     }
 
     abstract public DependencySet executePlanFragment(long txn_id,
@@ -136,8 +138,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      *        The id of the table returned as the result of this procedure.
      * @return the resulting VoltTable as a length-one array.
      */
-    protected VoltTable[] executeSysProcPlanFragments(SynthesizedPlanFragment pfs[],
-                                                      int aggregatorOutputDependencyId) {
+    protected VoltTable[] executeSysProcPlanFragments(
+            SynthesizedPlanFragment pfs[], int aggregatorOutputDependencyId) {
         // Block until we get all of our responses.
         // We can do this because our ExecutionSite is multi-threaded
         return (executeSysProcPlanFragmentsAsync(pfs));
@@ -227,7 +229,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
         // For some reason we have problems if we're using the transaction profiler
         // with sysprocs, so we'll just always turn it off
-        if (hstore_conf.site.txn_profiling) ts.profiler.disableProfiling();
+        if (hstore_conf.site.txn_profiling) 
+        	ts.profiler.disableProfiling();
         
         // Bombs away!
         return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));

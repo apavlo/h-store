@@ -739,7 +739,6 @@ public class BenchmarkController {
             } // FOR
             
             runnables.add(new Runnable() {
-                @Override
                 public void run() {
                     for (int i = 0, cnt = clientIds.size(); i < cnt; i++) {
                         if (m_config.listenForDebugger) {

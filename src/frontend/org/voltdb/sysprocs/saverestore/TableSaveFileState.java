@@ -1,19 +1,19 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
- *
- * VoltDB is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * VoltDB is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2010 VoltDB Inc.
+*
+* VoltDB is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* VoltDB is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with VoltDB. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 package org.voltdb.sysprocs.saverestore;
 
@@ -27,7 +27,7 @@ import org.voltdb.catalog.Table;
 
 public abstract class TableSaveFileState
 {
-    // XXX This look a lot like similar stuff hiding in PlanAssembler.  I bet
+    // XXX This look a lot like similar stuff hiding in PlanAssembler. I bet
     // there's no easy way to consolidate it, though.
     private static int NEXT_DEPENDENCY_ID = 1;
 

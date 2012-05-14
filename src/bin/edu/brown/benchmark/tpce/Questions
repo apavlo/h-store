@@ -1,0 +1,6 @@
+trade-order frame2:  NULL string: null or ""? 
+
+
+trade-update frame1: if(ex_name like "% X %") then...
+
+trade-result frame2: -trade_qty? 

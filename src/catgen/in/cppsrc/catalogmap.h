@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ class CatalogType;
 
 /**
  * A safe interface to a generic map of CatalogType instances. It is safe
- * because it is read-only.
+ * because it is read-only. (Exception: maps can be cleared.)
  *
  * @param <T> The subclass of CatalogType that this map will contain.
  */
@@ -52,7 +52,7 @@ protected:
 public:
     CatalogMap(Catalog *globalCatalog, CatalogType *parent, const std::string &path);
     T * add(const std::string &name);
-    void remove(const std::string &name);
+    bool remove(const std::string &name);
 
 public:
     /**
@@ -86,6 +86,11 @@ public:
      * @return The end iterator for the items in the map
      */
     field_map_iter end() const;
+
+    /**
+     * Clear the map. Does no destruction.
+     */
+    void clear();
 };
 
 template <class T>
@@ -111,17 +116,22 @@ T * CatalogMap<T>::add(const std::string &name) {
 }
 
 template <class T>
-void CatalogMap<T>::remove(const std::string &name) {
+bool CatalogMap<T>::remove(const std::string &name) {
     typename std::map<std::string, T*>::iterator iter;
     iter = m_items.find(name);
-    assert (iter != m_items.end());
+    if (iter == m_items.end()) {
+        return false;
+    }
     m_items.erase(iter);
 
     // assign all the children of this map a relative index
     int index = 1;
     typename std::map<std::string, T*>::const_iterator iter2;
-    for (iter2 = m_items.begin(); iter2 != m_items.end(); iter2++)
+    for (iter2 = m_items.begin(); iter2 != m_items.end(); iter2++) {
         iter2->second->m_relativeIndex = index++;
+    }
+
+    return true;
 }
 
 template <class T>
@@ -151,6 +161,12 @@ typename std::map<std::string, T*>::const_iterator CatalogMap<T>::begin() const 
 template <class T>
 typename std::map<std::string, T*>::const_iterator CatalogMap<T>::end() const {
     return m_items.end();
+}
+
+// this is totally not const
+template <class T>
+void CatalogMap<T>::clear() {
+    m_items.clear();
 }
 
 

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,12 +36,12 @@ public class Host extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("id", m_id);
-        this.addField("ipaddr", m_ipaddr);
-        this.addField("num_cpus", m_num_cpus);
-        this.addField("corespercpu", m_corespercpu);
-        this.addField("threadspercore", m_threadspercore);
-        this.addField("memory", m_memory);
+        m_fields.put("id", m_id);
+        m_fields.put("ipaddr", m_ipaddr);
+        m_fields.put("num_cpus", m_num_cpus);
+        m_fields.put("corespercpu", m_corespercpu);
+        m_fields.put("threadspercore", m_threadspercore);
+        m_fields.put("memory", m_memory);
         m_cpus = new CatalogMap<HardwareCPU>(catalog, this, path + "/" + "cpus", HardwareCPU.class);
         m_childCollections.put("cpus", m_cpus);
     }

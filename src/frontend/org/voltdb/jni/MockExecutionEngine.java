@@ -21,12 +21,12 @@ import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
+import org.voltdb.TableStreamType;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Table;
-import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 public class MockExecutionEngine extends ExecutionEngine {
@@ -61,7 +61,7 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO
         return (null);
     }
-    
+
     @Override
     public VoltTable executeCustomPlanFragment(final String plan, int outputDepId,
             int inputDepId, final long txnId, final long lastCommittedTxnId, final long undoQuantumToken)
@@ -92,13 +92,13 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void updateCatalog(final String catalogDiffs) throws EEException {
+    public void updateCatalog(final String catalogDiffs, int catalogVersion) throws EEException {
         // TODO Auto-generated method stub
     }
 
     @Override
     public void loadTable(final int tableId, final VoltTable table, final long txnId,
-        final long lastCommittedTxnId, final long undoToken, final boolean allowELT)
+        final long lastCommittedTxnId, final long undoToken, final boolean allowExport)
     throws EEException
     {
         // TODO Auto-generated method stub
@@ -116,7 +116,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable serializeTable(final Table catalog_tbl, int offset, int limit) throws EEException {
+    public VoltTable serializeTable(final int tableId) throws EEException {
         // TODO Auto-generated method stub
         return null;
     }
@@ -151,29 +151,40 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public boolean activateCopyOnWrite(int tableId) {
+    public boolean activateTableStream(int tableId, TableStreamType type) {
         // TODO Auto-generated method stub
         return false;
     }
 
     @Override
-    public int cowSerializeMore(BBContainer c, int tableId) {
+    public int tableStreamSerializeMore(BBContainer c, int tableId, TableStreamType type) {
         // TODO Auto-generated method stub
         return 0;
     }
 
     @Override
-    public ELTProtoMessage eltAction(boolean mAckAction, boolean mPollAction,
-            long mAckTxnId, int partitionId, int mTableId) {
+    public ExportProtoMessage exportAction(boolean ackAction, boolean pollAction,
+            boolean resetAction, boolean syncAction,
+            long ackOffset, long seqNo, int partitionId, long mTableId) {
         // TODO Auto-generated method stub
         return null;
     }
 
-//    @Override
-//    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds, int numFragmentIds, int[] input_depIds, int[] output_depIds, ByteString[] serializedParameterSets,
-//            int numParameterSets, long txnId, long lastCommittedTxnId, long undoQuantumToken) throws EEException {
-//        // TODO Auto-generated method stub
-//        return null;
-//    }
+    @Override
+    public void processRecoveryMessage( java.nio.ByteBuffer buffer, long pointer) {
+        // TODO Auto-generated method stub
 
+    }
+
+    @Override
+    public long tableHashCode( int tableId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int hashinate(Object value, int partitionCount)
+    {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 }

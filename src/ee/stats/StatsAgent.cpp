@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,8 +36,22 @@ StatsAgent::StatsAgent() {}
  * @param catalogId CatalogId of the resource
  * @param statsSource statsSource containing statistics for the resource
  */
-void StatsAgent::registerStatsSource(voltdb::StatisticsSelectorType sst, voltdb::CatalogId catalogId, voltdb::StatsSource* statsSource) {
+void StatsAgent::registerStatsSource(voltdb::StatisticsSelectorType sst, voltdb::CatalogId catalogId, voltdb::StatsSource* statsSource)
+{
     m_statsCategoryByStatsSelector[sst][catalogId] = statsSource;
+}
+
+void StatsAgent::unregisterStatsSource(voltdb::StatisticsSelectorType sst)
+{
+    // get the map of id-to-source
+    std::map<voltdb::StatisticsSelectorType,
+      std::map<voltdb::CatalogId, voltdb::StatsSource*> >::iterator it1 =
+      m_statsCategoryByStatsSelector.find(sst);
+
+    if (it1 == m_statsCategoryByStatsSelector.end()) {
+        return;
+    }
+    it1->second.clear();
 }
 
 /**
@@ -49,7 +63,8 @@ void StatsAgent::registerStatsSource(voltdb::StatisticsSelectorType sst, voltdb:
  */
 Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
                             std::vector<voltdb::CatalogId> catalogIds,
-                            bool interval, int64_t now) {
+                            bool interval, int64_t now)
+{
     assert (catalogIds.size() > 0);
     if (catalogIds.size() < 1) {
         return NULL;
@@ -62,10 +77,12 @@ Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
          */
         voltdb::StatsSource *ss = (*statsSources)[catalogIds[0]];
         voltdb::Table *table = ss->getStatsTable(interval, now);
-        statsTable = reinterpret_cast<Table*>(voltdb::TableFactory::getCopiedTempTable(
+        statsTable = reinterpret_cast<Table*>(
+            voltdb::TableFactory::getTempTable(
                 table->databaseId(),
-                "Persistent Table aggregated stats temp table",
-                table,
+                std::string("Persistent Table aggregated stats temp table"),
+                TupleSchema::createTupleSchema(table->schema()),
+                table->columnNames(),
                 NULL));
         m_statsTablesByStatsSelector[sst] = statsTable;
     }
@@ -85,7 +102,8 @@ Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
     return statsTable;
 }
 
-StatsAgent::~StatsAgent() {
+StatsAgent::~StatsAgent()
+{
     for (std::map<voltdb::StatisticsSelectorType, voltdb::Table*>::iterator i = m_statsTablesByStatsSelector.begin();
         i != m_statsTablesByStatsSelector.end(); i++) {
         delete i->second;

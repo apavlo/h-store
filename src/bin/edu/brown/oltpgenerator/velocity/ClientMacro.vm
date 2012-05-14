@@ -1,0 +1,54 @@
+#set( $suffix = ".*")
+
+package $packageName;
+
+import org.voltdb.benchmark.ClientMain;
+import org.voltdb.compiler.VoltProjectBuilder;
+
+import $abstractBenchmark$suffix;
+import $procPackageName$suffix;
+
+public class $className extends AbstractClient 
+{
+
+    private AbstractTransaction[] m_xacts;  
+
+    public $className(String[] args) 
+    {
+        super(args);
+        m_xacts = new AbstractTransaction[$xacts.size()];
+    #set( $idx = 0 )
+    #foreach( $xact in $xacts )
+m_xacts[$idx] = new $xact.getName()();
+    #set( $idx = $idx + 1 )
+    #end
+
+    }
+
+    @Override
+    protected AbstractTransaction[] getTransactions()
+    {
+        return m_xacts;
+    }
+
+    /**
+     * @param args
+     */
+    public static void main(String[] args) 
+    {
+        ClientMain.main($classFile, args, false);
+    }
+
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = ProjectBuilder.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends ClientMain> m_loaderClass = Loader.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final String m_jarFileName = "$jarFileName";
+}

@@ -42,42 +42,41 @@ public class SnapshotSave extends VoltSystemProcedure
     private static final Logger LOG = Logger.getLogger(SnapshotSave.class);
 
     private static final int DEP_saveTest = (int)
-        SysProcFragmentId.PF_saveTest | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-    private static final int DEP_saveTestResults = (int)
-        SysProcFragmentId.PF_saveTestResults;
-    private static final int DEP_createSnapshotTargets = (int)
-        SysProcFragmentId.PF_createSnapshotTargets | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-    private static final int DEP_createSnapshotTargetsResults = (int)
-        SysProcFragmentId.PF_createSnapshotTargetsResults;
-
+            SysProcFragmentId.PF_saveTest | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        private static final int DEP_saveTestResults = (int)
+            SysProcFragmentId.PF_saveTestResults;
+        private static final int DEP_createSnapshotTargets = (int)
+            SysProcFragmentId.PF_createSnapshotTargets | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        private static final int DEP_createSnapshotTargetsResults = (int)
+            SysProcFragmentId.PF_createSnapshotTargetsResults;
+    
     public static final ColumnInfo nodeResultsColumns[] =
-        new ColumnInfo[] {
-            new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
-            new ColumnInfo("HOSTNAME", VoltType.STRING),
-            new ColumnInfo("TABLE", VoltType.STRING),
-            new ColumnInfo("RESULT", VoltType.STRING),
-            new ColumnInfo("ERR_MSG", VoltType.STRING)
-    };
+            new ColumnInfo[] {
+                new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
+                new ColumnInfo("HOSTNAME", VoltType.STRING),
+                new ColumnInfo("TABLE", VoltType.STRING),
+                new ColumnInfo("RESULT", VoltType.STRING),
+                new ColumnInfo("ERR_MSG", VoltType.STRING)
+        };
 
     public static final ColumnInfo partitionResultsColumns[] =
-        new ColumnInfo[] {
-                          new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
-                          new ColumnInfo("HOSTNAME", VoltType.STRING),
-                          new ColumnInfo(CNAME_SITE_ID, CTYPE_ID),
-                          new ColumnInfo("RESULT", VoltType.STRING),
-                          new ColumnInfo("ERR_MSG", VoltType.STRING)
-    };
+            new ColumnInfo[] {
+                              new ColumnInfo(CNAME_HOST_ID, CTYPE_ID),
+                              new ColumnInfo("HOSTNAME", VoltType.STRING),
+                              new ColumnInfo(CNAME_SITE_ID, CTYPE_ID),
+                              new ColumnInfo("RESULT", VoltType.STRING),
+                              new ColumnInfo("ERR_MSG", VoltType.STRING)
+        };
 
-    public static final VoltTable constructNodeResultsTable()
-    {
-        return new VoltTable(nodeResultsColumns);
-    }
+        public static final VoltTable constructNodeResultsTable()
+        {
+            return new VoltTable(nodeResultsColumns);
+        }
 
-    public static final VoltTable constructPartitionResultsTable()
-    {
-        return new VoltTable(partitionResultsColumns);
-    }
-
+        public static final VoltTable constructPartitionResultsTable()
+        {
+            return new VoltTable(partitionResultsColumns);
+        }
 
     @Override
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
@@ -134,7 +133,7 @@ public class SnapshotSave extends VoltSystemProcedure
 
     private DependencySet createSnapshotTargetsResults(
             Map<Integer, List<VoltTable>> dependencies) {
-        {
+
             LOG.trace("Aggregating create snapshot target results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_createSnapshotTargets);
@@ -162,12 +161,12 @@ public class SnapshotSave extends VoltSystemProcedure
             }
             return new
                 DependencySet( DEP_createSnapshotTargetsResults, result);
-        }
     }
 
     private DependencySet saveTest(String file_path, String file_nonce,
             SystemProcedureExecutionContext context, String hostname) {
-        {
+    	{
+ 
             VoltTable result = constructNodeResultsTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
@@ -176,12 +175,12 @@ public class SnapshotSave extends VoltSystemProcedure
             Integer lowest_site_id = catalog_site.getId();
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
-                LOG.trace("Checking feasibility of save with path and nonce: "
-                                + file_path + ", " + file_nonce);
+                LOG.trace("Checking feasibility of save with path and nonce: " + file_path + ", " + file_nonce);
 
                 if (SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() != -1) {
                     result.addRow(
-                                  Integer.parseInt(context.getSite().getHost().getTypeName()),
+                                  //context.getSite().getHost().getId(),
+                    		      catalog_host.getId(),
                                   hostname,
                                   "",
                                   "FAILURE",
@@ -191,11 +190,12 @@ public class SnapshotSave extends VoltSystemProcedure
 
                 for (Table table : SnapshotUtil.getTablesToSave(context.getDatabase()))
                 {
-                    File saveFilePath =
-                        SnapshotUtil.constructFileForTable(table, file_path, file_nonce,
-                                              context.getSite().getHost().getTypeName());
-                    LOG.trace("Host ID " + context.getSite().getHost().getTypeName() +
-                                    " table: " + table.getTypeName() +
+                	File saveFilePath =
+                            SnapshotUtil.constructFileForTable(table, file_path, file_nonce,
+                                                  context.getSite().getHost().getTypeName());
+                    
+                    LOG.trace("Host ID " + context.getSite().getHost().getId() +
+                                    " created table: " + table.getTypeName() +
                                     " to path: " + saveFilePath);
                     String file_valid = "SUCCESS";
                     String err_msg = "";
@@ -222,7 +222,9 @@ public class SnapshotSave extends VoltSystemProcedure
                             "RESULTED IN IOException: " + ex.getMessage();
                         }
                     }
-                    result.addRow(catalog_host.getId(),
+                    result.addRow(
+                    		      //context.getSite().getHost().getId(),
+                    		      context.getHost().getId(),
                                   hostname,
                                   table.getTypeName(),
                                   file_valid,
@@ -230,12 +232,12 @@ public class SnapshotSave extends VoltSystemProcedure
                 }
             }
             return new DependencySet(DEP_saveTest, result);
-        }
+     }
     }
 
     private DependencySet saveTestResults(
             Map<Integer, List<VoltTable>> dependencies) {
-        {
+    {
             LOG.trace("Aggregating save feasiblity results");
             assert (dependencies.size() > 0);
             List<VoltTable> dep = dependencies.get(DEP_saveTest);
@@ -248,15 +250,16 @@ public class SnapshotSave extends VoltSystemProcedure
                     result.add(table);
                 }
             }
-            return new DependencySet( DEP_saveTestResults, result);
-        }
+            return new DependencySet(DEP_saveTestResults, result);
+     }
     }
 
     public VoltTable[] run(String path, String nonce, long block) throws VoltAbortException
     {
         final long startTime = System.currentTimeMillis();
-        LOG.info("Saving database to path: " + path + ", ID: " + nonce + " at " + startTime);
-
+        String async = (block == 0) ? "Asynchronously" : "Synchronously";
+        LOG.info(async + " Saving database to path: " + path + ", ID: " + nonce + " at " + startTime);
+                
         if (path == null || path.equals("")) {
             ColumnInfo[] result_columns = new ColumnInfo[1];
             int ii = 0;
@@ -287,7 +290,6 @@ public class SnapshotSave extends VoltSystemProcedure
         // See if we think the save will succeed
         VoltTable[] results;
         results = performSaveFeasibilityWork(path, nonce);
-        LOG.info("performSaveFeasibilityWork Results:\n" + results);
 
         // Test feasibility results for fail
         while (results[0].advanceRow())
@@ -301,7 +303,7 @@ public class SnapshotSave extends VoltSystemProcedure
         }
 
         results = performSnapshotCreationWork( path, nonce, startTime, (byte)block);
-
+        
         final long finishTime = System.currentTimeMillis();
         final long duration = finishTime - startTime;
         LOG.info("Snapshot initiation took " + duration + " milliseconds");
@@ -309,10 +311,10 @@ public class SnapshotSave extends VoltSystemProcedure
     }
 
     private final VoltTable[] performSaveFeasibilityWork(String filePath,
-                                                         String fileNonce)
+            String fileNonce)
     {
-        SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
-
+    	SynthesizedPlanFragment[] pfs = new SynthesizedPlanFragment[2];
+        
         // This fragment causes each execution site to confirm the likely
         // success of writing tables to disk
         pfs[0] = new SynthesizedPlanFragment();
@@ -333,7 +335,7 @@ public class SnapshotSave extends VoltSystemProcedure
         pfs[1].parameters = new ParameterSet();
 
         VoltTable[] results;
-        results = executeSysProcPlanFragments(pfs, DEP_saveTestResults);
+        results = executeSysProcPlanFragments(pfs, DEP_saveTestResults); 
         return results;
     }
 

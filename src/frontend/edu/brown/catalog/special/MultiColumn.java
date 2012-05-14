@@ -29,27 +29,22 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
         return InnerMultiAttributeCatalogType.get(MultiColumn.class, cols);
     }
 
-    @Override
     public Collection<Column> getAttributes() {
         return this.inner.getAttributes();
     }
 
-    @Override
     public Iterator<Column> iterator() {
         return this.inner.iterator();
     }
 
-    @Override
     public String getPrefix() {
         return (PREFIX);
     }
 
-    @Override
     public int size() {
         return this.inner.size();
     }
 
-    @Override
     public Column get(int idx) {
         return (Column) this.inner.get(idx);
     }
@@ -87,52 +82,42 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
         return this.inner.equals(((MultiColumn) obj).inner);
     }
 
-    @Override
     public boolean add(Column e) {
         return this.inner.add(e);
     }
 
-    @Override
     public boolean addAll(Collection<? extends Column> c) {
         return this.inner.addAll(c);
     }
 
-    @Override
     public void clear() {
         this.inner.clear();
     }
 
-    @Override
     public boolean contains(Object o) {
         return this.inner.contains(o);
     }
 
-    @Override
     public boolean containsAll(Collection<?> c) {
         return this.inner.containsAll(c);
     }
 
-    @Override
     public boolean isEmpty() {
         return this.inner.isEmpty();
     }
 
-    @Override
     public boolean remove(Object o) {
         return this.inner.remove(o);
     }
 
-    @Override
     public boolean removeAll(Collection<?> c) {
         return this.inner.removeAll(c);
     }
 
-    @Override
     public boolean retainAll(Collection<?> c) {
         return this.inner.retainAll(c);
     }
 
-    @Override
     public Object[] toArray() {
         return this.inner.toArray();
     }

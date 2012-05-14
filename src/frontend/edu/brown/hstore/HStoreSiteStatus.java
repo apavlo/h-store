@@ -189,11 +189,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     private void printSnapshot() {
-        LOG.info("STATUS SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+        /*LOG.info("STATUS SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
-                                              hstore_conf.site.pool_profiling)));
+                                              hstore_conf.site.pool_profiling)));*/
     }
     
     @Override

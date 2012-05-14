@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,9 @@ AuthProgram::AuthProgram(Catalog *catalog, CatalogType *parent, const string &pa
     CatalogValue value;
 }
 
+AuthProgram::~AuthProgram() {
+}
+
 void AuthProgram::update() {
 }
 
@@ -43,7 +46,8 @@ CatalogType * AuthProgram::getChild(const std::string &collectionName, const std
     return NULL;
 }
 
-void AuthProgram::removeChild(const std::string &collectionName, const std::string &childName) {
+bool AuthProgram::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 

@@ -60,7 +60,6 @@ public class BenchmarkComponentSet implements Runnable {
         } // FOR
     }
     
-    @Override
     public void run() {
         String line = null;
         final BufferedReader in = new BufferedReader(new InputStreamReader(System.in));

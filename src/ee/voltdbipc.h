@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,11 +59,6 @@ public:
      */
     char *retrieveDependency(int32_t dependencyId, size_t *dependencySz);
 
-    /**
-     * Push an EL buffer over the socket
-     */
-    void handoffReadyELBuffer(char* bufferPtr, int32_t bytesUsed, int32_t tableId);
-
     bool execute(struct ipc_command *cmd);
 
     /**
@@ -118,11 +113,17 @@ private:
 
     int8_t loadTable(struct ipc_command *cmd);
 
+    int8_t processRecoveryMessage( struct ipc_command *cmd);
+
+    void tableHashCode( struct ipc_command *cmd);
+
+    void hashinate(struct ipc_command* cmd);
+
     void sendException( int8_t errorCode);
 
-    int8_t activateCopyOnWrite(struct ipc_command *cmd);
-    void  cowSerializeMore(struct ipc_command *cmd);
-    void  eltAction(struct ipc_command *cmd);
+    int8_t activateTableStream(struct ipc_command *cmd);
+    void  tableStreamSerializeMore(struct ipc_command *cmd);
+    void  exportAction(struct ipc_command *cmd);
 
     void signalHandler(int signum, siginfo_t *info, void *context);
     static void signalDispatcher(int signum, siginfo_t *info, void *context);

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,16 +35,17 @@ class UserRef : public CatalogType {
 
 protected:
     UserRef(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     CatalogType* m_user;
 
     virtual void update();
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~UserRef();
+
     const User * user() const;
 };
 

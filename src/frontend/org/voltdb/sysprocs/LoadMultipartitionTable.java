@@ -31,6 +31,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
@@ -61,8 +62,9 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     }
     
 
-    static final long DEP_distribute = SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
-    static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
+    static final long DEP_distribute = (int)SysProcFragmentId.PF_loadDistribute | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    static final long DEP_aggregate = (int)SysProcFragmentId.PF_loadAggregate;
+    private Cluster m_cluster = null;
 
     private Histogram<Integer> allPartitionsHistogram = new Histogram<Integer>();
     
@@ -87,7 +89,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         // need to return something ..
         VoltTable[] result = new VoltTable[1];
         result[0] = new VoltTable(new VoltTable.ColumnInfo("TxnId", VoltType.BIGINT));
-        result[0].addRow(txn_id);
+        result[0].addRow(VoltSystemProcedure.STATUS_OK);
 
         if (fragmentId == SysProcFragmentId.PF_loadDistribute) {
             assert context.getCluster().getName() != null;

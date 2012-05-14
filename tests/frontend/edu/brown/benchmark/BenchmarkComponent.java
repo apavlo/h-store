@@ -1007,7 +1007,6 @@ public abstract class BenchmarkComponent {
             if (debug.get())
                 LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds", (m_tickInterval / 1000.0)));
             Runnable r = new Runnable() {
-                @Override
                 public void run() {
                     try {
                         while (true) {

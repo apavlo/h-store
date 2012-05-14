@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.catalog.*;
 import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
@@ -65,6 +66,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.CollectionUtil;
 
 @ProcInfo (
     singlePartition = false
@@ -75,11 +77,15 @@ public class SnapshotRestore extends VoltSystemProcedure
 
     private static final int DEP_restoreScan = (int)
         SysProcFragmentId.PF_restoreScan | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+    
     private static final int DEP_restoreScanResults = (int)
         SysProcFragmentId.PF_restoreScanResults;
 
     private static HashSet<String>  m_initializedTableSaveFiles = new HashSet<String>();
     private static ArrayDeque<TableSaveFile> m_saveFiles = new ArrayDeque<TableSaveFile>();
+    
+    /*see if restore sysproc has been done*/
+    public static volatile boolean m_haveDoneRestore = false;
 
     private static synchronized void initializeTableSaveFiles(
             String filePath,
@@ -87,16 +93,27 @@ public class SnapshotRestore extends VoltSystemProcedure
             String tableName,
             int originalHostIds[],
             int relevantPartitionIds[]) throws IOException {
+
         if (!m_initializedTableSaveFiles.add(tableName)) {
             return;
         }
+        
+        HashSet<Integer> relevantPartitionSet =
+                new HashSet<Integer>();
+        for (int part_id : relevantPartitionIds)
+        {
+            relevantPartitionSet.add(part_id);
+        }
+        
         for (int originalHostId : originalHostIds) {
             final File f = getSaveFileForPartitionedTable( filePath, fileNonce, tableName, originalHostId);
             m_saveFiles.offer(
                     getTableSaveFile(
                             f,
-                            org.voltdb.VoltDB.instance().getLocalSites().size() * 4,
+                            1,
+                            //VoltDB.instance().getLocalSites().size() * 4,
                             relevantPartitionIds));
+            
             assert(m_saveFiles.peekLast().getCompleted());
         }
     }
@@ -184,10 +201,9 @@ public class SnapshotRestore extends VoltSystemProcedure
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
-            Integer lowest_site_id =
-                VoltDB.instance().getCatalogContext().siteTracker.
-                getLowestLiveExecSiteIdForHost(host_id);
+            Host catalog_host = context.getExecutionSite().getHost();
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
+            Integer lowest_site_id = catalog_site.getId(); 
             if (context.getExecutionSite().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
@@ -926,11 +942,13 @@ public class SnapshotRestore extends VoltSystemProcedure
         // LoadMultipartitionTable.  Consider ways to consolidate later
         Map<Integer, Integer> sites_to_partitions =
             new HashMap<Integer, Integer>();
-        for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
+        
+        for (Site site :	CatalogUtil.getUpSites(cluster))
+        //for (Site site : VoltDB.instance().getCatalogContext().siteTracker.getUpSites())
         {
             for (Partition partition : site.getPartitions()) {
-                sites_to_partitions.put(Integer.parseInt(site.getTypeName()),
-                                        partition.getId());
+                sites_to_partitions.put(site.getId(),
+                        partition.getId());
             }
         }
 

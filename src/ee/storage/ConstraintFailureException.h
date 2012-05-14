@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,13 +39,12 @@ public:
      * @param otherTuple updated tuple values or a null tuple.
      * @param type Type of constraint that was violated
      */
-    ConstraintFailureException(PersistentTable *table, CatalogId tableId, TableTuple tuple, TableTuple otherTuple, ConstraintType type);
+    ConstraintFailureException(PersistentTable *table, TableTuple tuple, TableTuple otherTuple, ConstraintType type);
     virtual ~ConstraintFailureException();
 protected:
     void p_serialize(ReferenceSerializeOutput *output);
 
     PersistentTable *m_table;
-    CatalogId m_tableId;
     TableTuple m_tuple;
     TableTuple m_otherTuple;
     ConstraintType m_type;

@@ -34,7 +34,7 @@ public class SnapshotRegistry {
     private static final TreeSet<Snapshot> m_snapshots = new TreeSet<Snapshot>(
             new java.util.Comparator<Snapshot>() {
 
-                @Override
+            	@Override
                 public int compare(Snapshot o1, Snapshot o2) {
                     return new Long(o1.timeStarted).compareTo(o2.timeStarted);
                 }
@@ -50,8 +50,8 @@ public class SnapshotRegistry {
         public final boolean result; //true success, false failure
 
         public final long bytesWritten;
-
-        private final HashMap< String, Table> tables = new HashMap< String, Table>();
+        
+        private final HashMap<String, Table> tables = new HashMap< String, Table>();
 
         private Snapshot(long startTime, int hostId, String path, String nonce,
                          org.voltdb.catalog.Table tables[]) {

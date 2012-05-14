@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
 #include "common/serializeio.h"
 #include "common/Pool.hpp"
 #include "common/FatalException.hpp"
+#include "common/SegvException.hpp"
+#include "common/RecoveryProtoMessage.h"
+#include "common/TheHashinator.h"
 #include "execution/IPCTopend.h"
 #include "execution/VoltDBEngine.h"
 
@@ -110,7 +113,7 @@ typedef struct {
     int64_t txnId;
     int64_t lastCommittedTxnId;
     int64_t undoToken;
-    int16_t  allowELT;
+    int16_t  allowExport;
     char data[0];
 }__attribute__((packed)) load_table_cmd;
 
@@ -148,7 +151,8 @@ struct undo_token {
 typedef struct {
     struct ipc_command cmd;
     voltdb::CatalogId tableId;
-}__attribute__((packed)) activate_copy_on_write;
+    voltdb::TableStreamType streamType;
+}__attribute__((packed)) activate_tablestream;
 
 /*
  * Header for a Copy On Write Serialize More request
@@ -156,22 +160,70 @@ typedef struct {
 typedef struct {
     struct ipc_command cmd;
     voltdb::CatalogId tableId;
+    voltdb::TableStreamType streamType;
     int bufferSize;
-}__attribute__((packed)) cow_serialize_more;
+}__attribute__((packed)) tablestream_serialize_more;
 
 /*
- * Header for an ELT action.
+ * Header for an incoming recovery message
+ */
+typedef struct {
+    struct ipc_command cmd;
+    int32_t messageLength;
+    char message[0];
+}__attribute__((packed)) recovery_message;
+
+/*
+ * Header for a request for a table hash code
+ */
+typedef struct {
+    struct ipc_command cmd;
+    int32_t tableId;
+}__attribute__((packed)) table_hash_code;
+
+typedef struct {
+    struct ipc_command cmd;
+    int32_t partitionCount;
+    char data[0];
+}__attribute__((packed)) hashinate_msg;
+
+/*
+ * Header for an Export action.
  */
 typedef struct {
     struct ipc_command cmd;
     int32_t isAck;
     int32_t isPoll;
+    int32_t isReset;
+    int32_t isSync;
     int64_t offset;
-    int32_t tableId;
-}__attribute__((packed)) elt_action;
+    int64_t seqNo;
+    int64_t tableId;
+}__attribute__((packed)) export_action;
 
 
 using namespace voltdb;
+
+// file static help function to do a blocking write.
+// exit on a -1.. otherwise return when all bytes
+// written.
+static void writeOrDie(int fd, unsigned char *data, ssize_t sz) {
+    ssize_t written = 0;
+    ssize_t last = 0;
+    if (sz == 0) {
+        return;
+    }
+    do {
+        last = write(fd, data + written, sz - written);
+        if (last < 0) {
+            printf("\n\nIPC write to JNI returned -1. Exiting\n\n");
+            fflush(stdout);
+            exit(-1);
+        }
+        written += last;
+    } while (written < sz);
+}
+
 
 /*
  * This is used by the signal dispatcher
@@ -220,6 +272,7 @@ bool VoltDBIPC::execute(struct ipc_command *cmd) {
         break;
       case 5:
         getStats(cmd);
+        result = kErrorCode_None;
         break;
       case 6:
         // also writes results directly
@@ -251,19 +304,30 @@ bool VoltDBIPC::execute(struct ipc_command *cmd) {
         result = quiesce(cmd);
         break;
       case 17:
-        result = activateCopyOnWrite(cmd);
+        result = activateTableStream(cmd);
         break;
       case 18:
-        cowSerializeMore(cmd);
+        tableStreamSerializeMore(cmd);
         result = kErrorCode_None;
         break;
       case 19:
         result = updateCatalog(cmd);
         break;
       case 20:
-        eltAction(cmd);
+        exportAction(cmd);
         result = kErrorCode_None;
         break;
+      case 21:
+          result = processRecoveryMessage(cmd);
+        break;
+      case 22:
+          tableHashCode(cmd);
+          result = kErrorCode_None;
+          break;
+      case 23:
+          hashinate(cmd);
+          result = kErrorCode_None;
+          break;
       default:
         result = stub(cmd);
     }
@@ -272,14 +336,13 @@ bool VoltDBIPC::execute(struct ipc_command *cmd) {
     // complex commands write directly in the command
     // implementation.
     if (result != kErrorCode_None) {
-        ssize_t bytes = 0;
         if (result == kErrorCode_Error) {
             char msg[5];
             msg[0] = result;
             *reinterpret_cast<int32_t*>(&msg[1]) = 0;//exception length 0
-            bytes = write(m_fd, msg, sizeof(int8_t) + sizeof(int32_t));
+            writeOrDie(m_fd, (unsigned char*)msg, sizeof(int8_t) + sizeof(int32_t));
         } else {
-            bytes = write(m_fd, &result, sizeof(int8_t));
+            writeOrDie(m_fd, (unsigned char*)&result, sizeof(int8_t));
         }
     }
     return m_terminate;
@@ -309,11 +372,18 @@ int8_t VoltDBIPC::loadCatalog(struct ipc_command *cmd) {
 int8_t VoltDBIPC::updateCatalog(struct ipc_command *cmd) {
     printf("updateCatalog\n");
     assert(m_engine);
-    if (!m_engine)
+    if (!m_engine) {
         return kErrorCode_Error;
+    }
 
+    struct updatecatalog {
+        struct ipc_command cmd;
+        int catalogVersion;
+        char data[];
+    };
+    struct updatecatalog *uc = (struct updatecatalog*)cmd;
     try {
-        if (m_engine->updateCatalog(std::string(cmd->data)) == true) {
+        if (m_engine->updateCatalog(std::string(uc->data), ntohl(uc->catalogVersion)) == true) {
             return kErrorCode_Success;
         }
     } catch (FatalException e) {
@@ -509,12 +579,7 @@ void VoltDBIPC::executeQueryPlanFragmentsAndGetResults(struct ipc_command *cmd) 
         const int32_t size = m_engine->getResultsSize();
         char *resultBuffer = m_engine->getReusedResultBuffer();
         resultBuffer[0] = kErrorCode_Success;
-        ssize_t bytes = write(m_fd, resultBuffer, size);
-        if (bytes != size) {
-            printf("Error - blocking write failed. %ld", bytes);
-            assert(false);
-            exit(-1);
-        }
+        writeOrDie(m_fd, (unsigned char*)resultBuffer, size);
     } else {
         sendException(kErrorCode_Error);
     }
@@ -570,41 +635,24 @@ void VoltDBIPC::executePlanFragmentAndGetResults(struct ipc_command *cmd) {
         const int32_t size = m_engine->getResultsSize();
         char *resultBuffer = m_engine->getReusedResultBuffer();
         resultBuffer[0] = kErrorCode_Success;
-        ssize_t bytes = write(m_fd, resultBuffer, size);
-        if (bytes != size) {
-            printf("Error - blocking write failed. %ld", bytes);
-            assert(false);
-            exit(-1);
-        }
+        writeOrDie(m_fd, (unsigned char*)resultBuffer, size);
     } else {
         sendException(kErrorCode_Error);
     }
 }
 
 void VoltDBIPC::sendException(int8_t errorCode) {
-    ssize_t bytes = write(m_fd, &errorCode, sizeof(int8_t));
-    if (bytes != sizeof(int8_t)) {
-        printf("Error - blocking write failed. %ld", (uintmax_t)bytes);
-        fflush(stdout);
-        assert(false);
-        exit(-1);
-    }
+    writeOrDie(m_fd, (unsigned char*)&errorCode, sizeof(int8_t));
 
-    const void* exceptionData = m_engine->getExceptionOutputSerializer()->data();
-    int32_t exceptionLength = static_cast<int32_t>(ntohl(*reinterpret_cast<const int32_t*>(exceptionData)));
+    const void* exceptionData =
+      m_engine->getExceptionOutputSerializer()->data();
+    int32_t exceptionLength =
+      static_cast<int32_t>(ntohl(*reinterpret_cast<const int32_t*>(exceptionData)));
     printf("Sending exception length %d\n", exceptionLength);
     fflush(stdout);
 
     const std::size_t expectedSize = exceptionLength + sizeof(int32_t);
-    bytes = write(m_fd, exceptionData, expectedSize);
-
-
-    if (bytes != expectedSize) {
-        printf("Error - blocking write failed. %jd written %jd attempted", (intmax_t)bytes, (intmax_t)expectedSize);
-        fflush(stdout);
-        assert(false);
-        exit(-1);
-    }
+    writeOrDie(m_fd, (unsigned char*)exceptionData, expectedSize);
 }
 
 void VoltDBIPC::executeCustomPlanFragmentAndGetResults(struct ipc_command *cmd) {
@@ -635,13 +683,11 @@ void VoltDBIPC::executeCustomPlanFragmentAndGetResults(struct ipc_command *cmd) 
     // write the results array back across the wire
     const int8_t successResult = kErrorCode_Success;
     if (errors == 0) {
-        size_t bytes;
-        bytes = write(m_fd, &successResult, sizeof(int8_t));
-        assert(bytes == sizeof(int8_t));
+        writeOrDie(m_fd, (unsigned char*)&successResult, sizeof(int8_t));
         const int32_t size = m_engine->getResultsSize();
+
         // write the dependency tables back across the wire
-        bytes = write(m_fd, m_engine->getReusedResultBuffer(), size);
-        assert(bytes == size);
+        writeOrDie(m_fd, (unsigned char*)(m_engine->getReusedResultBuffer()), size);
     } else {
         sendException(kErrorCode_Error);
     }
@@ -660,7 +706,7 @@ int8_t VoltDBIPC::loadTable(struct ipc_command *cmd) {
     const int64_t txnId = ntohll(loadTableCommand->txnId);
     const int64_t lastCommittedTxnId = ntohll(loadTableCommand->lastCommittedTxnId);
     const int64_t undoToken = ntohll(loadTableCommand->undoToken);
-    const bool    allowELT = (loadTableCommand->allowELT != 0);
+    const bool    allowExport = (loadTableCommand->allowExport != 0);
     // ...and fast serialized table last.
     void* offset = loadTableCommand->data;
     int sz = static_cast<int> (ntohl(cmd->msgsize) - sizeof(load_table_cmd));
@@ -668,7 +714,7 @@ int8_t VoltDBIPC::loadTable(struct ipc_command *cmd) {
         ReferenceSerializeInput serialize_in(offset, sz);
 
         m_engine->setUndoToken(undoToken);
-        bool success = m_engine->loadTable(allowELT, tableId, serialize_in, txnId, lastCommittedTxnId);
+        bool success = m_engine->loadTable(allowExport, tableId, serialize_in, txnId, lastCommittedTxnId);
         if (success) {
             return kErrorCode_Success;
         } else {
@@ -703,25 +749,17 @@ void VoltDBIPC::terminate() {
  * The returned allocated memory must be freed by the caller.
  */
 char *VoltDBIPC::retrieveDependency(int32_t dependencyId, size_t *dependencySz) {
-    ssize_t bytes;
     char message[5];
     *dependencySz = 0;
 
     // tell java to send the dependency over the socket
     message[0] = static_cast<int8_t>(kErrorCode_RetrieveDependency);
     *reinterpret_cast<int32_t*>(&message[1]) = htonl(dependencyId);
-    bytes = write(m_fd, message, sizeof(int8_t) + sizeof(int32_t));
-    if (bytes != sizeof(int8_t) + sizeof(int32_t)) {
-        printf("Error - blocking write failed. %jd written %jd attempted",
-                (intmax_t)bytes, (intmax_t)sizeof(int8_t) + sizeof(int32_t));
-        fflush(stdout);
-        assert(false);
-        exit(-1);
-    }
+    writeOrDie(m_fd, (unsigned char*)message, sizeof(int8_t) + sizeof(int32_t));
 
     // read java's response code
     int8_t responseCode;
-    bytes = read(m_fd, &responseCode, sizeof(int8_t));
+    ssize_t bytes = read(m_fd, &responseCode, sizeof(int8_t));
     if (bytes != sizeof(int8_t)) {
         printf("Error - blocking read failed. %jd read %jd attempted",
                 (intmax_t)bytes, (intmax_t)sizeof(int8_t));
@@ -834,18 +872,7 @@ void VoltDBIPC::crashVoltDB(voltdb::FatalException e) {
         position += traceLength;
     }
 
-    ssize_t toWrite = 5 + messageLength;
-    ssize_t written = 0;
-    while (written < toWrite) {
-        ssize_t bytes = write(m_fd,  m_reusedResultBuffer + written, toWrite - written);
-        if (bytes == -1) {
-            printf("Error - blocking write failed. %jd read %jd attempted",
-                    (intmax_t)bytes, (intmax_t)(toWrite - written));
-            fflush(stdout);
-            assert(false);
-            exit(-1);
-        }
-    }
+    writeOrDie(m_fd,  (unsigned char*)m_reusedResultBuffer, 5 + messageLength);
     exit(-1);
 }
 
@@ -879,14 +906,12 @@ void VoltDBIPC::getStats(struct ipc_command *cmd) {
         // write the results array back across the wire
         const int8_t successResult = kErrorCode_Success;
         if (result == 1) {
-            size_t bytes = write(m_fd, &successResult, sizeof(int8_t));
-            assert(bytes == sizeof(int8_t));
+            writeOrDie(m_fd, (unsigned char*)&successResult, sizeof(int8_t));
 
             // write the dependency tables back across the wire
             // the result set includes the total serialization size
             const int32_t size = m_engine->getResultsSize();
-            bytes = write(m_fd, m_engine->getReusedResultBuffer(), size);
-            assert(bytes == size);
+            writeOrDie(m_fd, (unsigned char*)(m_engine->getReusedResultBuffer()), size);
         } else {
             sendException(kErrorCode_Error);
         }
@@ -895,42 +920,13 @@ void VoltDBIPC::getStats(struct ipc_command *cmd) {
     }
 }
 
-void
-VoltDBIPC::handoffReadyELBuffer(char* bufferPtr, int32_t bytesUsed, int32_t tableId) {
-    size_t bytes = 0;
-
-    // serialized in network order.
-    // serialize as {int8_t indicator,
-    //              int32_t tableId,
-    //              int32_t bytes,
-    //              buffer}
-
-    char message[1 + 4 + 4];
-    message[0] = static_cast<int8_t>(kErrorCode_HandoffReadELBuffer);
-    *reinterpret_cast<int32_t*>(&message[1]) = htonl(tableId);
-    *reinterpret_cast<int32_t*>(&message[5]) = htonl(bytesUsed);
-
-    bytes = write(m_fd, message, 9);
-    if (bytes != 9) {
-        printf("Error. Blocking write of handoffReadyElBuffer indicator failed");
-        fflush(stdout);
-        assert(false);
-        exit(-1);
-    }
-    bytes = write(m_fd, bufferPtr, bytesUsed);
-    if (bytes != bytesUsed) {
-        printf("Error. Blocking write of handoffReadyElBuffer data failed.");
-        fflush(stdout);
-        assert(false);
-        exit(-1);
-    }
-}
-
-int8_t VoltDBIPC::activateCopyOnWrite(struct ipc_command *cmd) {
-    activate_copy_on_write *activateCopyOnWriteCommand = (activate_copy_on_write*) cmd;
-    const voltdb::CatalogId tableId = ntohl(activateCopyOnWriteCommand->tableId);
+int8_t VoltDBIPC::activateTableStream(struct ipc_command *cmd) {
+    activate_tablestream *activateTableStreamCommand = (activate_tablestream*) cmd;
+    const voltdb::CatalogId tableId = ntohl(activateTableStreamCommand->tableId);
+    const voltdb::TableStreamType streamType =
+            static_cast<voltdb::TableStreamType>(ntohl(activateTableStreamCommand->streamType));
     try {
-        if (m_engine->activateCopyOnWrite(tableId)) {
+        if (m_engine->activateTableStream(tableId, streamType)) {
             return kErrorCode_Success;
         } else {
             return kErrorCode_Error;
@@ -941,31 +937,26 @@ int8_t VoltDBIPC::activateCopyOnWrite(struct ipc_command *cmd) {
     return kErrorCode_Error;
 }
 
-void VoltDBIPC::cowSerializeMore(struct ipc_command *cmd) {
-    cow_serialize_more *cowSerializeMore = (cow_serialize_more*) cmd;
-    const voltdb::CatalogId tableId = ntohl(cowSerializeMore->tableId);
-    const int bufferLength = ntohl(cowSerializeMore->bufferSize);
+void VoltDBIPC::tableStreamSerializeMore(struct ipc_command *cmd) {
+    tablestream_serialize_more *tableStreamSerializeMore = (tablestream_serialize_more*) cmd;
+    const voltdb::CatalogId tableId = ntohl(tableStreamSerializeMore->tableId);
+    const voltdb::TableStreamType streamType =
+            static_cast<voltdb::TableStreamType>(ntohl(tableStreamSerializeMore->streamType));
+    const int bufferLength = ntohl(tableStreamSerializeMore->bufferSize);
     assert(bufferLength < MAX_MSG_SZ - 5);
 
     if (bufferLength >= MAX_MSG_SZ - 5) {
         char msg[3];
         msg[0] = kErrorCode_Error;
         *reinterpret_cast<int16_t*>(&msg[1]) = 0;//exception length 0
-        ssize_t bytes = write(m_fd, msg, sizeof(int8_t) + sizeof(int16_t));
-
-        if (bytes != sizeof(int8_t)) {
-            printf("Error - blocking write failed. %ld", bytes);
-            assert(false);
-            exit(-1);
-        }
+        writeOrDie(m_fd, (unsigned char*)msg, sizeof(int8_t) + sizeof(int16_t));
     }
 
     try {
         ReferenceSerializeOutput out(m_reusedResultBuffer + 5, bufferLength);
-        int serialized = m_engine->cowSerializeMore( &out, tableId);
+        int serialized = m_engine->tableStreamSerializeMore( &out, tableId, streamType);
         m_reusedResultBuffer[0] = kErrorCode_Success;
         *reinterpret_cast<int32_t*>(&m_reusedResultBuffer[1]) = htonl(serialized);
-        ssize_t bytesWritten = 0;
 
         /*
          * Already put the -1 code into the message.
@@ -975,145 +966,89 @@ void VoltDBIPC::cowSerializeMore(struct ipc_command *cmd) {
             serialized = 0;
         }
         const ssize_t toWrite = serialized + 5;
-        while (bytesWritten < toWrite) {
-            ssize_t thisTime = write(m_fd, m_reusedResultBuffer + bytesWritten, toWrite - bytesWritten);
-            if (thisTime == -1) {
-                printf("Error - blocking write failed. %ld", toWrite);
-                assert(false);
-                exit(-1);
-            }
-            bytesWritten += thisTime;
-        }
+        writeOrDie(m_fd, (unsigned char*)m_reusedResultBuffer, toWrite);
     } catch (FatalException e) {
         crashVoltDB(e);
     }
 }
 
-void VoltDBIPC::eltAction(struct ipc_command *cmd) {
-    elt_action *action = (elt_action*)cmd;
-    ssize_t bytesWritten = 0;
+int8_t VoltDBIPC::processRecoveryMessage( struct ipc_command *cmd) {
+    recovery_message *recoveryMessage = (recovery_message*) cmd;
+    const int32_t messageLength = ntohl(recoveryMessage->messageLength);
+    ReferenceSerializeInput input(recoveryMessage->message, messageLength);
+    RecoveryProtoMsg message(&input);
+    m_engine->processRecoveryMessage(&message);
+    return kErrorCode_Success;
+}
+
+void VoltDBIPC::tableHashCode( struct ipc_command *cmd) {
+    table_hash_code *hashCodeRequest = (table_hash_code*) cmd;
+    const int32_t tableId = ntohl(hashCodeRequest->tableId);
+    int64_t tableHashCode = m_engine->tableHashCode(tableId);
+    char response[9];
+    response[0] = kErrorCode_Success;
+    *reinterpret_cast<int64_t*>(&response[1]) = htonll(tableHashCode);
+    writeOrDie(m_fd, (unsigned char*)response, 9);
+}
+
+void VoltDBIPC::exportAction(struct ipc_command *cmd) {
+    export_action *action = (export_action*)cmd;
+
     m_engine->resetReusedResultOutputBuffer();
-    long result = m_engine->eltAction(action->isAck,
-                                      action->isPoll,
-                                      ntohll(action->offset),
-                                      ntohl(action->tableId));
+    long result = m_engine->exportAction(action->isAck,
+                                         action->isPoll,
+                                         action->isReset,
+                                         action->isSync,
+                                         static_cast<int64_t>(ntohll(action->offset)),
+                                         static_cast<int64_t>(ntohll(action->seqNo)),
+                                         static_cast<int64_t>(ntohll(action->tableId)));
     int buflength = m_engine->getResultsSize();
 
     // write offset across bigendian.
     result = htonll(result);
-    for (bytesWritten = 0; bytesWritten < 8; ) {
-        bytesWritten += write(m_fd, &result, 8 - bytesWritten);
-    }
+    writeOrDie(m_fd, (unsigned char*)&result, sizeof(result));
 
     // write the poll data. It is at least 4 bytes of length prefix.
-    for (bytesWritten = 0; bytesWritten < buflength; ) {
-        bytesWritten += write(m_fd,
-                              (m_engine->getReusedResultBuffer() + bytesWritten),
-                              (buflength - bytesWritten));
-    }
+    writeOrDie(m_fd, (unsigned char*)(m_engine->getReusedResultBuffer()), buflength);
 }
 
+void VoltDBIPC::hashinate(struct ipc_command* cmd)
+{
+    hashinate_msg* hash = (hashinate_msg*)cmd;
+    NValueArray& params = m_engine->getParameterContainer();
 
-/**
- * The following code is for handling signals. A stack trace will be printed
- * when a SIGSEGV is caught.
- *
- * The code is modified based on the original code found at
- * http://tlug.up.ac.za/wiki/index.php/Obtaining_a_stack_trace_in_C_upon_SIGSEGV
- *
- * This source file is used to print out a stack-trace when your program
- * segfaults. It is relatively reliable and spot-on accurate.
- *
- * This code is in the public domain. Use it as you see fit, some credit
- * would be appreciated, but is not a prerequisite for usage. Feedback
- * on it's use would encourage further development and maintenance.
- *
- * Due to a bug in gcc-4.x.x you currently have to compile as C++ if you want
- * demangling to work.
- *
- * Please note that it's been ported into my ULS library, thus the check for
- * HAS_ULSLIB and the use of the sigsegv_outp macro based on that define.
- *
- * Author: Jaco Kroon <jaco@kroon.co.za>
- *
- * Copyright (C) 2005 - 2010 Jaco Kroon
- */
-#if defined(REG_RIP)
-# define SIGSEGV_STACK_IA64
-#elif defined(REG_EIP)
-# define SIGSEGV_STACK_X86
-#else
-# define SIGSEGV_STACK_GENERIC
-#endif
+    int32_t partCount = ntohl(hash->partitionCount);
+    void* offset = hash->data;
+    int sz = static_cast<int> (ntohl(cmd->msgsize) - sizeof(hash));
+    ReferenceSerializeInput serialize_in(offset, sz);
+
+    int retval = -1;
+    try {
+        int cnt = serialize_in.readShort();
+        assert(cnt> -1);
+        Pool *pool = m_engine->getStringPool();
+        deserializeParameterSetCommon(cnt, serialize_in, params, pool);
+        retval =
+            voltdb::TheHashinator::hashinate(params[0], partCount);
+        pool->purge();
+    } catch (FatalException e) {
+        crashVoltDB(e);
+    }
+
+    char response[5];
+    response[0] = kErrorCode_Success;
+    *reinterpret_cast<int32_t*>(&response[1]) = htonl(retval);
+    writeOrDie(m_fd, (unsigned char*)response, 5);
+}
 
 void VoltDBIPC::signalHandler(int signum, siginfo_t *info, void *context) {
     char err_msg[128];
-    sprintf(err_msg, "SIGSEGV caught: signal number %d, error value %d, signal"
-            " code %d\n\n", info->si_signo, info->si_errno, info->si_code);
+    snprintf(err_msg, 128, "SIGSEGV caught: signal number %d, error value %d,"
+             " signal code %d\n\n", info->si_signo, info->si_errno,
+             info->si_code);
     std::string message = err_msg;
     message.append(m_engine->debug());
-    FatalException e = FatalException(message.c_str(), __FILE__, __LINE__);
-
-#ifndef SIGSEGV_NOSTACK
-#if defined(SIGSEGV_STACK_IA64) || defined(SIGSEGV_STACK_X86)
-
-    ucontext_t *ucontext = (ucontext_t *)context;
-    int f = 0;
-    Dl_info dlinfo;
-    void **bp = 0;
-    void *ip = 0;
-    std::vector<std::string> traces;
-
-#if defined(SIGSEGV_STACK_IA64)
-    ip = (void*)ucontext->uc_mcontext.gregs[REG_RIP];
-    bp = (void**)ucontext->uc_mcontext.gregs[REG_RBP];
-#elif defined(SIGSEGV_STACK_X86)
-    ip = (void*)ucontext->uc_mcontext.gregs[REG_EIP];
-    bp = (void**)ucontext->uc_mcontext.gregs[REG_EBP];
-#endif
-
-    if (!bp || !ip) {
-        e.m_traces = traces;
-    }
-
-    while(bp && ip) {
-        if(!dladdr(ip, &dlinfo))
-            break;
-
-        const char *symname = dlinfo.dli_sname;
-        char trace[1024];
-
-#ifndef NO_CPP_DEMANGLE
-        int status;
-        char * tmp = abi::__cxa_demangle(symname, NULL, 0, &status);
-
-        if (status == 0 && tmp)
-            symname = tmp;
-#endif
-
-        sprintf(trace, "% 2d: %p <%s+%lu> (%s)\n",
-                ++f,
-                ip,
-                symname,
-                (unsigned long)ip - (unsigned long)dlinfo.dli_saddr,
-                dlinfo.dli_fname);
-        traces.push_back(std::string(trace));
-
-#ifndef NO_CPP_DEMANGLE
-        if (tmp)
-            free(tmp);
-#endif
-
-        if(dlinfo.dli_sname && !strcmp(dlinfo.dli_sname, "main"))
-            break;
-
-        ip = bp[1];
-        bp = (void**)bp[0];
-    }
-#endif
-#endif
-
-    crashVoltDB(e);
+    crashVoltDB(SegvException(message.c_str(), context, __FILE__, __LINE__));
 }
 
 void VoltDBIPC::signalDispatcher(int signum, siginfo_t *info, void *context) {
@@ -1134,43 +1069,54 @@ void VoltDBIPC::setupSigHandler(void) const {
 
 int main(int argc, char **argv) {
     const int pid = getpid();
-    printf("==%d==", pid);
+    printf("==%d==\n", pid);
     fflush(stdout);
     int sock = -1;
     int fd = -1;
     /* max message size that can be read from java */
     int max_ipc_message_size = (1024 * 1024 * 2);
 
-    int port = 21214;
-    if (argc == 2)
-        port = atoi(argv[1]);
+    int port = 0;
 
-    if (argc == 2)
-        printf("Attempting to bind to port %d which was passed in as %s\n", port, argv[1]);
+    if (argc == 2) {
+        printf("Binding to a specific socket is no longer supported\n");
+        exit(-1);
+    }
 
     struct sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     address.sin_addr.s_addr = INADDR_ANY;
 
+
     // read args which presumably configure VoltDBIPC
 
     // and set up an accept socket.
     if ((sock = socket(AF_INET,SOCK_STREAM, 0)) < 0) {
         printf("Failed to create socket.\n");
-        exit(-1);
+        exit(-2);
     }
 
     if ((bind(sock, (struct sockaddr*) (&address), sizeof(struct sockaddr_in))) != 0) {
         printf("Failed to bind socket.\n");
-        exit(-2);
+        exit(-3);
     }
+
+    socklen_t address_len = sizeof(struct sockaddr_in);
+    if (getsockname( sock, reinterpret_cast<sockaddr*>(&address), &address_len)) {
+        printf("Failed to find socket address\n");
+        exit(-4);
+    }
+
+    port = ntohs(address.sin_port);
+    printf("==%d==\n", port);
+    fflush(stdout);
 
     if ((listen(sock, 1)) != 0) {
         printf("Failed to listen on socket.\n");
-        exit(-3);
+        exit(-5);
     }
-    printf("listening\nPort %d\n", port);
+    printf("listening\n");
     fflush(stdout);
 
     struct sockaddr_in client_addr;
@@ -1178,7 +1124,7 @@ int main(int argc, char **argv) {
     fd = accept(sock, (struct sockaddr*) (&client_addr), &addr_size);
     if (fd < 0) {
         printf("Failed to accept socket.\n");
-        exit(-4);
+        exit(-6);
     }
 
     int flag = 1;
@@ -1195,7 +1141,6 @@ int main(int argc, char **argv) {
 
     // instantiate voltdbipc to interface to EE.
     VoltDBIPC *voltipc = new VoltDBIPC(fd);
-
     int more = 1;
     while (more) {
         size_t bytesread = 0;
@@ -1254,7 +1199,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    done: close(sock);
+  done:
+    close(sock);
     close(fd);
     delete voltipc;
     free(data);

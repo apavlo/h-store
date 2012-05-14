@@ -1062,6 +1062,78 @@ TEST CASES
     />-->
 </target>
 
+   <target name="junit-regression" description="Run only regression testcases for Java classes.">
+       <!-- Run the unit tests -->
+       <condition property="timeoutLength" value="${timeoutLength}" else='600000'>
+           <isset property="timeoutLength"/>
+       </condition>
+       
+       <run_junit timeout="${timeoutLength}" printsummary="no">
+           <formatters>
+               <formatter type="plain" unless="hudson"/>
+               <formatter
+               type='xml'
+               classname="org.voltdb.VoltJUnitFormatter"
+               usefile='false'
+               extension="none"
+                   />
+                <formatter type="xml" />
+            </formatters>
+            <tests>
+                <fileset dir='${build.test.dir}'>
+                    <include name='org/voltdb/regressionsuites/Test*.class'/>
+                    <exclude name="**/*$*.class"/>
+                    <exclude name="**/TestCatalogUpdateSuite.class" />
+                    <exclude name="**/TestFailureDetectSuite.class" />
+                    <exclude name="**/TestIndexesSuite.class" />
+                    <exclude name="**/TestMaterializedViewSuite.class" />
+                    <exclude name="**/TestOrderBySuite.class" />
+                    <exclude name="**/TestReplicationSuite.class" />
+                    <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                    <exclude name="**/TestSystemProcedureSuite.class" />
+                    <exclude name="**/TestMaliciousClientSuite.class" />
+                    <exclude name="**/TestELTSuite.class" />
+                    <exclude name="**/TestFailuresSuite.class" />
+                    <exclude name="**/TestPlansGroupBySuite.class" />
+                    <exclude name="**/TestRollbackSuite.class" />
+                    <exclude name="**/TestSaveRestoreSysprocSuite.class" />
+                    <exclude name="**/TestPrefetchableSuite.class" />
+                </fileset>
+            </tests>
+        </run_junit>
+               
+        <!-- Generate unit test reports. -->
+        <mkdir dir='${build.testoutput.dir}/report' />
+        <junitreport todir="${build.testoutput.dir}">
+            <fileset dir='${build.testoutput.dir}'>
+                <include name="*.xml" />
+                <exclude name='TESTS-TestSuites.xml' />
+            </fileset>
+            <report format="noframes" todir="${build.testoutput.dir}/report"/>
+            <report
+                styledir="tools"
+                format="noframes"
+                todir="${build.testoutput.dir}"
+                />
+        </junitreport>
+            
+        <exec dir="${build.testoutput.dir}" executable='cat'>
+            <arg line="junit-noframes.html"/>
+        </exec>
+        <delete
+            dir='${build.testoutput.dir}'
+            includes='*.xml'
+            excludes='TESTS-TestSuites.xml'
+        />
+        <!-- Fail the build if there were any problems.
+        This runs all the tests before failing. -->
+        <fail
+            if="junit.failures"
+            unless="emma.enabled"
+            message="JUnit had failures"
+            />
+</target>
+
 <target
     name='emma-report'
     depends='with.emma, junit'

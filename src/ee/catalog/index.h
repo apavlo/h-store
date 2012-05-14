@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@ class Index : public CatalogType {
 
 protected:
     Index(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     bool m_unique;
     int32_t m_type;
     CatalogMap<ColumnRef> m_columns;
@@ -47,9 +46,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~Index();
+
     /** GETTER: May the index contain duplicate keys? */
     bool unique() const;
     /** GETTER: What data structure is the index using and what kinds of keys does it support? */

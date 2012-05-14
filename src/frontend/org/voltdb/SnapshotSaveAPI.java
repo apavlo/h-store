@@ -68,13 +68,13 @@ public class SnapshotSaveAPI
         if (SnapshotSiteProcessor.m_snapshotCreateSetupPermit.tryAcquire()) {
             createSetup(file_path, file_nonce, startTime, context, hostname, result);
         }
-
+        
         // All sites wait for a permit to start their individual snapshot tasks
         VoltTable error = acquireSnapshotPermit(context, hostname, result);
         if (error != null) {
             return error;
         }
-
+        
         synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
             final Deque<SnapshotTableTask> m_taskList = SnapshotSiteProcessor.m_taskListsForSites.poll();
             if (m_taskList == null) {
@@ -103,9 +103,12 @@ public class SnapshotSaveAPI
 
             if (failures.isEmpty()) {
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        //context.getSite().getHost().getId(),
+                		context.getHost().getId(),
+                        //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getSite().getId(),
+                        //Integer.parseInt(context.getSite().getTypeName()),
                         status,
                         err);
             } else {
@@ -114,25 +117,27 @@ public class SnapshotSaveAPI
                     err = e.toString();
                 }
                 blockingResult.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        //context.getSite().getHost().getId(),
+                		context.getHost().getId(),
+                        //Integer.parseInt(context.getSite().getHost().getTypeName()),
                         hostname,
-                        Integer.parseInt(context.getSite().getTypeName()),
+                        context.getSite().getId(),
+                        //Integer.parseInt(context.getSite().getTypeName()),
                         status,
                         err);
             }
             return blockingResult;
         }
-
         return result;
     }
-
-
+    
     private void createSetup(String file_path, String file_nonce,
             long startTime, SystemProcedureExecutionContext context,
             String hostname, final VoltTable result) {
         {
-            final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
-
+        	//final int numLocalSites = VoltDB.instance().getLocalSites().values().size();
+            final int numLocalSites = CatalogUtil.getSitesForHost(context.getSite().getHost()).size();
+            
             /*
              * Used to close targets on failure
              */
@@ -174,38 +179,39 @@ public class SnapshotSaveAPI
                                     saveFilePath,
                                     table,
                                     context.getSite().getHost(),
-                                    CatalogUtil.getNumberOfPartitions(context.getCluster()),
+                                    context.getCluster().getNum_partitions(),
                                     startTime);
                         targets.add(sdt);
                         final SnapshotDataTarget sdtFinal = sdt;
                         final Runnable onClose = new Runnable() {
-                            @Override
-                            public void run() {
-                                snapshotRecord.updateTable(table.getTypeName(),
-                                        new SnapshotRegistry.Snapshot.TableUpdater() {
-                                    @Override
-                                    public SnapshotRegistry.Snapshot.Table update(
-                                            SnapshotRegistry.Snapshot.Table registryTable) {
-                                        return snapshotRecord.new Table(
-                                                registryTable,
-                                                sdtFinal.getBytesWritten(),
-                                                sdtFinal.getLastWriteException());
-                                    }
-                                });
-                                int tablesLeft = numTables.decrementAndGet();
-                                if (tablesLeft == 0) {
-                                    final SnapshotRegistry.Snapshot completed =
-                                        SnapshotRegistry.finishSnapshot(snapshotRecord);
-                                    final double duration =
-                                        (completed.timeFinished - completed.timeStarted) / 1000.0;
-                                    LOG.info(
-                                            "Snapshot " + snapshotRecord.nonce + " finished at " +
-                                             completed.timeFinished + " and took " + duration
-                                             + " seconds ");
-                                }
-                            }
+                        	@Override
+                        	public void run() {
+                        		snapshotRecord.updateTable(table.getTypeName(),
+                        				new SnapshotRegistry.Snapshot.TableUpdater() {
+                        			@Override
+                        			public SnapshotRegistry.Snapshot.Table update(
+                        					SnapshotRegistry.Snapshot.Table registryTable) {
+                        				return snapshotRecord.new Table(
+                        						registryTable,
+                        						sdtFinal.getBytesWritten(),
+                        						sdtFinal.getLastWriteException());
+                        			}
+                        		});
+                        		int tablesLeft = numTables.decrementAndGet();
+                        		
+                        		if (tablesLeft == 0) {
+                        			final SnapshotRegistry.Snapshot completed =
+                        					SnapshotRegistry.finishSnapshot(snapshotRecord);
+                        			final double duration =
+                        					(completed.timeFinished - completed.timeStarted) / 1000.0;
+                        			LOG.info(
+                        					"Snapshot " + snapshotRecord.nonce + " finished at " +
+                        							completed.timeFinished + " and took " + duration
+                        							+ " seconds ");
+                        		}
+                        	}
                         };
-
+                        
                         sdt.setOnCloseHandler(onClose);
 
                         final SnapshotTableTask task =
@@ -244,17 +250,18 @@ public class SnapshotSaveAPI
                         "RESULTED IN IOException: \n" + sw.toString();
                     }
 
-                    result.addRow(Integer.parseInt(context.getSite().getHost().getTypeName()),
+                    result.addRow(context.getHost().getId(),//context.getSite().getHost().getId(),
                             hostname,
                             table.getTypeName(),
                             canSnapshot,
                             err_msg);
                 }
-
+               
                 synchronized (SnapshotSiteProcessor.m_taskListsForSites) {
                     if (!partitionedSnapshotTasks.isEmpty() || !replicatedSnapshotTasks.isEmpty()) {
                         SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.set(
-                                VoltDB.instance().getLocalSites().values().size());
+                                //VoltDB.instance().getLocalSites().values().size()
+                        		CatalogUtil.getSitesForHost(context.getSite().getHost()).size());
                         for (int ii = 0; ii < numLocalSites; ii++) {
                             SnapshotSiteProcessor.m_taskListsForSites.add(new ArrayDeque<SnapshotTableTask>());
                         }
@@ -274,6 +281,7 @@ public class SnapshotSaveAPI
                         SnapshotSiteProcessor.m_taskListsForSites.get(siteIndex++ % numLocalSites).offer(t);
                     }
                 }
+               
             } catch (Exception ex) {
                 /*
                  * Close all the targets to release the threads. Don't let sites get any tasks.
@@ -292,7 +300,7 @@ public class SnapshotSaveAPI
                 ex.printStackTrace(pw);
                 pw.flush();
                 result.addRow(
-                        Integer.parseInt(context.getSite().getHost().getTypeName()),
+                        context.getHost().getId(),//context.getSite().getHost().getId(),
                         hostname,
                         "",
                         "FAILURE",
@@ -329,9 +337,8 @@ public class SnapshotSaveAPI
                 }
             }
         }
-        return null;
+         return null;
     }
-
 
     private final SnapshotDataTarget constructSnapshotDataTargetForTable(
             SystemProcedureExecutionContext context,
@@ -343,7 +350,7 @@ public class SnapshotSaveAPI
     throws IOException
     {
         return new DefaultSnapshotDataTarget(f,
-                                             Integer.parseInt(h.getTypeName()),
+                                             h.getId(),
                                              context.getCluster().getTypeName(),
                                              context.getDatabase().getTypeName(),
                                              table.getTypeName(),
@@ -353,5 +360,4 @@ public class SnapshotSaveAPI
                                              CatalogUtil.getVoltTable(table),
                                              createTime);
     }
-
 }

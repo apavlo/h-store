@@ -1,6 +1,7 @@
 package edu.brown.catalog;
 
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -20,6 +21,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
+import org.voltdb.StatsAgent;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -106,6 +108,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static final String DEFAULT_STATEMENT_NAME = "statement";
 
     private static final Random rand = new Random();
+    
 
     // ------------------------------------------------------------
     // CACHES
@@ -826,7 +829,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (sites.isEmpty()) {
             // Sort them by site ids
             final Comparator<Site> comparator = new Comparator<Site>() {
-                @Override
                 public int compare(Site o1, Site o2) {
                     return (o1.getId() - o2.getId());
                 }
@@ -1019,9 +1021,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
-            if (catalog_tbl.getSystable() == false &&
-                catalog_tbl.getMapreduce() == false &&
-                catalog_tbl.getMaterializer() == null)
+            if (catalog_tbl.getSystable() == false && catalog_tbl.getMapreduce() == false)
                 tables.add(catalog_tbl);
         }
         return (tables);
@@ -1076,6 +1076,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (CatalogUtil.getAllTableNames(catalog_obj, false));
     }
 
+    /**
+     * Return a set of all the names of the tables in the catalog This set will
+     * exclude system table names
+     * 
+     * @param catalog_obj
+     */
+    public static StatsAgent getStatsAgent() {
+        StatsAgent m_statsAgent = new StatsAgent();
+    	return m_statsAgent;
+    }
+    
     /**
      * Return a set of all the names of the tables in the catalog If include_sys
      * is set to true, then the output will include system table names
@@ -1530,6 +1541,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (getReferencedColumnsForTree(catalog_db, node, new ListOrderedSet<Column>(), null, null));
     }
 
+    public static ArrayDeque<Site> getUpSites(CatalogType catalog_item)
+    {
+        ArrayDeque<Site> retval = new ArrayDeque<Site>();
+        for (Site site : CatalogUtil.getAllSites(catalog_item))
+        {
+            if (site.getIsup())
+            {
+                retval.add(site);
+            }
+        }
+        return retval;
+    }
+    
     private static Set<Column> getReferencedColumnsForTree(final Database catalog_db, final AbstractPlanNode node, final Set<Column> columns, final Set<Column> modified, final Set<Column> readOnly)
             throws Exception {
         new PlanNodeTreeWalker(true) {
