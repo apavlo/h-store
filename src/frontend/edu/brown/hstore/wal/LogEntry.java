@@ -1,3 +1,29 @@
+/***************************************************************************
+ *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
+
 package edu.brown.hstore.wal;
 
 import java.io.IOException;
@@ -11,6 +37,11 @@ import org.voltdb.utils.EstTime;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.utils.Poolable;
 
+/**
+ * LogEntry class for command logging
+ * @author mkirsch
+ * @author pavlo
+ */
 public class LogEntry implements FastSerializable, Poolable {
     
     protected Long txnId;
@@ -45,14 +76,6 @@ public class LogEntry implements FastSerializable, Poolable {
         this.timestamp = in.readLong();
         this.procId = in.readInt();
         this.procParams = in.readObject(ParameterSet.class);
-        
-        //throw new RuntimeException("stupidInt : " + stupidInt + "txnId : " + txnId + " timestamp : " + timestamp + " procId : " + procId + " procParams : " + procParams.toString());
-        
-        // TODO: We need to figure out how we want to read these entries
-        // back in. I suppose we could just make a new LocalTransaction
-        // entry each time. What we really should do is recreate
-        // the StoredProcedureInvocation and then pass that into
-        // the HStoreSite so that we can replay the transaction
     }
 
     @Override
@@ -61,8 +84,6 @@ public class LogEntry implements FastSerializable, Poolable {
         out.writeLong(EstTime.currentTimeMillis());
         out.writeInt(this.procId);
         out.writeObject(this.procParams);
-        
-        //throw new RuntimeException("txnId : " + txnId + " timestamp : " + EstTime.currentTimeMillis() + " procId : " + procId + " procParams : " + procParams.toString());
     }
     
     public String toString() {
