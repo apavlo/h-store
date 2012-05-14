@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import org.jfree.util.Log;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.DBBPool;
@@ -64,8 +65,10 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 
                 //Fill the decompressed buffer if it is empty
                 if (groupCommit && !decompressedFd.buffer().hasRemaining()) {
+                    Log.info("filling the decompressed buffer");
+                    int sizeCompressed = 0;
                     try {
-                        int sizeCompressed = fd.readInt();
+                        sizeCompressed = fd.readInt();
                         byte[] b = new byte[sizeCompressed];
                         fd.readFully(b);
                         byte[] decompressed = CompressionService.decompressBytes(b);
@@ -78,16 +81,14 @@ public class CommandLogReader implements Iterable<LogEntry> {
                 }
                 
                 try {
-                    if (groupCommit) {
-                        _next.finish();
-                        _next.readExternal(decompressedFd);
-                    }
-                    else {
+                    if (groupCommit)
+                        _next = decompressedFd.readObject(LogEntry.class);
+                    else
                         _next = fd.readObject(LogEntry.class);
-                    }
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to deserialize LogEntry!", ex);
                 } catch (BufferUnderflowException ex) {
+                    
                     _next = null;
                 }
                 return (ret);
