@@ -83,14 +83,14 @@ public class TestCommandLogger extends BaseTestCase {
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         assert(hstore_site.isLocalPartition(0));
         
-        outputFile = new File("/ltmp/hstore/wal.log");//FileUtil.getTempFile("log");
+        outputFile = FileUtil.getTempFile("log");
         logger = new CommandLogWriter(hstore_site, outputFile);
     }
 
     @Override
     public void tearDown() throws Exception {
-        //if (outputFile != null && outputFile.exists())
-            //outputFile.delete();
+        if (outputFile != null && outputFile.exists())
+            outputFile.delete();
     }
     
     @Test
