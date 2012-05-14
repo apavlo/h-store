@@ -16,6 +16,10 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 
+/**
+ * @author mimosally
+ *
+ */
 public class AggregateExecutor extends FastExecutor {
 	private static final Logger LOG = Logger
 			.getLogger(AggregatePushdownOptimization.class);

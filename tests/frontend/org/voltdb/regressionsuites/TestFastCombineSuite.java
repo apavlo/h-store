@@ -18,6 +18,10 @@ import org.voltdb.regressionsuites.orderbyprocs.InsertO1;
 
 import edu.brown.hstore.Hstoreservice.Status;
 
+/**
+ * @author mimosally
+ *
+ */
 public class TestFastCombineSuite extends RegressionSuite {
 
 	public TestFastCombineSuite(String name) {

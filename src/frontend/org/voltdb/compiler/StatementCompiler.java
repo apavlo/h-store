@@ -64,6 +64,11 @@ import edu.brown.utils.CollectionUtil;
  * Compiles individual SQL statements and updates the given catalog. <br/>
  * Invokes the Optimizer to generate plans.
  */
+
+/**
+ * @author mimosally
+ *
+ */
 public abstract class StatementCompiler {
 	private static final Logger LOG = Logger.getLogger(StatementCompiler.class);
 	private static final LoggerBoolean debug = new LoggerBoolean(

@@ -21,6 +21,10 @@ import edu.brown.optimizer.PlanOptimizerState;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 
+/**
+ * @author mimosally
+ * 
+ */
 public class FastAggregateOptimization extends AbstractOptimization {
 	private static final Logger LOG = Logger
 			.getLogger(FastAggregateOptimization.class);
@@ -29,6 +33,9 @@ public class FastAggregateOptimization extends AbstractOptimization {
 	private static final LoggerBoolean trace = new LoggerBoolean(
 			LOG.isTraceEnabled());
 
+	/**
+	 * @param state
+	 */
 	public FastAggregateOptimization(PlanOptimizerState state) {
 		super(state);
 		// TODO Auto-generated constructor stub

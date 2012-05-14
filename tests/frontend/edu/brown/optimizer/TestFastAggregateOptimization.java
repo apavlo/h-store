@@ -6,6 +6,10 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.utils.ProjectType;
 
+/**
+ * @author mimosally
+ * 
+ */
 public class TestFastAggregateOptimization extends BaseTestCase {
 
 	@Override

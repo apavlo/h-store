@@ -154,6 +154,10 @@ import edu.brown.utils.TypedPoolableObjectFactory;
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
+/**
+ * @author mimosally
+ * 
+ */
 public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 	private static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
 	private static final LoggerBoolean debug = new LoggerBoolean(

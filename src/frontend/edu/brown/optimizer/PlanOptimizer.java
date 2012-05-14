@@ -27,7 +27,9 @@ import edu.brown.utils.StringUtil;
 /**
  * @author pavlo
  * @author sw47
+ * @author mimosally
  */
+
 public class PlanOptimizer {
 	private static final Logger LOG = Logger.getLogger(PlanOptimizer.class);
 	private static final LoggerBoolean debug = new LoggerBoolean(

@@ -12,6 +12,10 @@ import org.voltdb.catalog.PlanFragment;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
+/**
+ * @author mimosally
+ *
+ */
 public class CombineExecutor extends FastExecutor {
 
 	public CombineExecutor(PartitionExecutor executor) {
