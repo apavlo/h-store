@@ -318,7 +318,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
-            defaultInt=1000,
+            defaultInt=500,
             experimental=true
         )
         public int exec_command_logging_group_commit_timeout;

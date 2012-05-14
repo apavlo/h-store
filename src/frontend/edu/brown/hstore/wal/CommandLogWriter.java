@@ -34,6 +34,7 @@ import java.util.concurrent.Exchanger;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 
@@ -42,6 +43,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.utils.CompressionService;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.xerial.snappy.Snappy;
 
@@ -108,6 +110,7 @@ public class CommandLogWriter implements Shutdownable {
         private int nextPos;
         
         public EntryBuffer(int size, FastSerializer serializer) {
+            size += 1; //hack to make wrapping around work
             this.fs = serializer;
             this.buffer = new WriterLogEntry[size];
             for (int i = 0; i < size; i++) {
@@ -128,12 +131,12 @@ public class CommandLogWriter implements Shutdownable {
             // in theory be able to keep filling their buffers right up until the exchange.
             // I'm not sure it's possible though.
             LogEntry ret = this.buffer[nextPos].init(ts, cresponse); 
-            nextPos = (nextPos + 1) % this.buffer.length;
+            nextPos = (nextPos + 1) % this.buffer.length;;
             return ret;
         }
         public void flushCleanup() {
-            for (int i = 0; i < Math.abs(this.nextPos - this.startPos); i++)
-                this.buffer[(this.startPos + i) % this.buffer.length].finish();
+            //for (int i = 0; i < this.getSize(); i++)
+                //this.buffer[(this.startPos + i) % this.buffer.length].finish();
             this.startPos = this.nextPos;
         }
         public int getStart() {
@@ -160,8 +163,8 @@ public class CommandLogWriter implements Shutdownable {
             while (!stop) {
                 try {
                     entriesFlushing = bufferExchange.exchange(entriesFlushing, hstore_conf.site.exec_command_logging_group_commit_timeout, TimeUnit.MILLISECONDS);
-                    //entriesFlushing = bufferExchange.exchange(entriesFlushing);
                     groupCommit(entriesFlushing); //Group commit is responsible for sending responses, and cleaning up the buffer before its next use
+                    flushInProgress.set(false);
                 } catch (InterruptedException e) {
                     throw new RuntimeException("WAL writer thread interrupted while waiting for a new buffer" + e.getStackTrace().toString());
                 } catch (TimeoutException e) {
@@ -172,12 +175,18 @@ public class CommandLogWriter implements Shutdownable {
                     // often the case in testing), then it won't be blocked indefinitely.
                     // Added a new HStoreConf parameter that defines the time in milliseconds
                     // Use EstTime.currentTimeMillis() to get the current time
+                    flushInProgress.set(true);
                     int permsFree = swapInProgress.drainPermits(); //Locks out other threads from starting the process
+                    if (permsFree == group_commit_size) {
+                        swapInProgress.release(group_commit_size);
+                        continue;
+                    }
                     while (flushReady.get() < (group_commit_size - permsFree)) {} //Wait for the in progress slots to fill
                     groupCommit(entries);
                     //Release IN THE RIGHT ORDER
                     assert(flushReady.compareAndSet((group_commit_size - permsFree), 0));
                     swapInProgress.release(group_commit_size);
+                    flushInProgress.set(false);
                 }
             } // WHILE
         }
@@ -193,6 +202,7 @@ public class CommandLogWriter implements Shutdownable {
     final LogEntry singletonLogEntry;
     final Deflater compresser = new Deflater();
     boolean stop = false;
+    AtomicBoolean flushInProgress = new AtomicBoolean(false);
     private final Semaphore swapInProgress;
     private final AtomicInteger flushReady;
     private final WriterThread flushThread;
@@ -213,21 +223,22 @@ public class CommandLogWriter implements Shutdownable {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.outputFile = outputFile;
-        this.singletonSerializer = new FastSerializer();
+        this.singletonSerializer = new FastSerializer(true, true);
         this.group_commit_size = Math.max(1, hstore_conf.site.exec_command_logging_group_commit); //Group commit threshold, or 1 if group commit is turned off
         if (hstore_conf.site.exec_command_logging_group_commit > 0) {
             this.swapInProgress = new Semaphore(group_commit_size, false); //False = not fair
             this.flushReady = new AtomicInteger(0);
             this.bufferExchange = new Exchanger<EntryBuffer[]>();
             // Make one entry buffer per partition SO THAT SYNCHRONIZATION ON EACH BUFFER IS NOT REQUIRED
-            int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getDatabase());
+            int num_partitions = hstore_site.getLocalPartitionIds().size();//CatalogUtil.getNumberOfPartitions(hstore_site.getDatabase());
+            LOG.info("local partitions on " + hstore_site.getSiteName() + " : " + num_partitions);
             this.entries = new EntryBuffer[num_partitions];
             this.entriesFlushing = new EntryBuffer[num_partitions];
             for (int partition = 0; partition < num_partitions; partition++) {
-                if (hstore_site.isLocalPartition(partition)) {
+                //if (hstore_site.isLocalPartition(partition)) {
                     this.entries[partition] = new EntryBuffer(group_commit_size, new FastSerializer(hstore_site.getBufferPool()));
                     this.entriesFlushing[partition] = new EntryBuffer(group_commit_size, new FastSerializer(hstore_site.getBufferPool()));
-                }
+                //}
             } // FOR
             this.flushThread = new WriterThread();
             this.singletonLogEntry = null;
@@ -265,7 +276,13 @@ public class CommandLogWriter implements Shutdownable {
         this.stop = true;
         this.flushThread.interrupt();
     }
-
+    
+    //For use in test cases to make sure everything flushes
+    public void finishAndPrepareShutdown() {
+        this.stop = true;
+        while(this.flushInProgress.get()) {} //wait until it's done running
+    }
+    
     @Override
     public void shutdown() {
         if (debug.get()) LOG.debug("Closing WAL file");
@@ -308,16 +325,6 @@ public class CommandLogWriter implements Shutdownable {
         return (true);
     }
     
-    private ByteBuffer compressBufferForMessaging(ByteBuffer buffer) throws IOException {
-        //assert(buffer.isDirect());
-        byte[] input = buffer.array();
-        byte[] output = new byte[4 + Snappy.maxCompressedLength(input.length)];
-        final int compressedSize = Snappy.compress(input, 0, input.length, output, 4);
-        ByteBuffer result = ByteBuffer.wrap(output);
-        result.putInt(0, compressedSize);
-        return result;
-    }
-    
     /**
      * GroupCommits the given buffer set all at once
      * @param eb
@@ -341,32 +348,23 @@ public class CommandLogWriter implements Shutdownable {
             }
         } // FOR
         
-        if (true) { //Compress
-            //Compress and force out to disk
-            this.singletonSerializer.getBBContainer().b.flip();
-            ByteBuffer compressed;
-            try {
-                compressed = compressBufferForMessaging(this.singletonSerializer.getBBContainer().b);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to compress WAL buffer");
-            }
-            
-            try {
-                fstream.write(compressed);
-                fstream.force(true);
-            } catch (IOException ex) {
-                String message = "Failed to group commit for buffer";
-                throw new ServerFaultException(message, ex);
-            }
-        } else {
-            try {
-                fstream.write(this.singletonSerializer.getBuffer());
-                fstream.force(true);
-            } catch (IOException ex) {
-                String message = "Failed to group commit for buffer";
-                throw new ServerFaultException(message, ex);
-            }
+        //Compress and force out to disk
+        //this.singletonSerializer.getBBContainer().b.flip();
+        ByteBuffer compressed;
+        try {
+            compressed = CompressionService.compressBufferForMessaging(this.singletonSerializer.getBBContainer().b);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to compress WAL buffer");
         }
+        
+        try {
+            fstream.write(compressed);
+            fstream.force(true);
+        } catch (IOException ex) {
+            String message = "Failed to group commit for buffer";
+            throw new ServerFaultException(message, ex);
+        }
+        
         //Send responses
         for (int i = 0; i < eb.length; i++) {
             EntryBuffer buffer = eb[i];
@@ -397,6 +395,8 @@ public class CommandLogWriter implements Shutdownable {
         
         if (hstore_conf.site.exec_command_logging_group_commit > 0) { //GROUP COMMIT
             int basePartition = ts.getBasePartition();
+            assert(hstore_site.isLocalPartition(basePartition));
+            basePartition = hstore_site.getLocalPartitionOffset(basePartition);
             
             EntryBuffer buffer = this.entries[basePartition];
             assert(buffer != null) :
@@ -421,6 +421,7 @@ public class CommandLogWriter implements Shutdownable {
                 //same number have finished filling their slots. No one will acquire new
                 //slots until all buffers have been exchanged for clean ones.
                 try {
+                    this.flushInProgress.set(true);
                     entries = bufferExchange.exchange(entries);
                     //XXX: As soon as we have a new empty buffer, we can reset the count
                     //and release the semaphore permits to continue. NOTE: THESE MUST GO 
