@@ -42,8 +42,8 @@ public class ClusterReorganizer implements Runnable, Shutdownable {
         this.hstore_site.getReadyObservable().addObserver(new EventObserver<Object>() {
             @Override
             public void update(EventObservable<Object> arg0, Object arg1) {
-//                if (debug.get())
-                    LOG.info("A blank HStore_site is ready to run !!! --Live Migration");
+                if (debug.get())
+                    LOG.debug("A blank HStore_site is ready to run !!! --Live Migration");
             }
         });
     }
@@ -60,8 +60,8 @@ public class ClusterReorganizer implements Runnable, Shutdownable {
         this.hstore_site.getReadyObservable().addObserver(new EventObserver<Object>() {
             @Override
             public void update(EventObservable<Object> arg0, Object arg1) {
-//                if (debug.get())
-                    LOG.info("A blank HStore_site is ready to run !!! --Live Migration");
+                if (debug.get())
+                    LOG.debug("A blank HStore_site is ready to run !!! --Live Migration");
             }
         });
     }
@@ -73,12 +73,12 @@ public class ClusterReorganizer implements Runnable, Shutdownable {
         self.setName(HStoreThreadManager.getThreadName(hstore_site, "mon"));
         if (hstore_conf.site.cpu_affinity)
             hstore_site.getThreadManager().registerProcessingThread();
-        if (LOG.isDebugEnabled()) LOG.debug("Cluster Reorganizer for Live Migration is running now !!");
+        if (debug.get()) LOG.debug("Cluster Reorganizer for Live Migration is running now !!");
         
         while(!this.self.isInterrupted()){
             try {
                 Thread.sleep(this.interval);
-                LOG.info("Cluster Reorganizer is still running");
+                if(debug.get()) LOG.info("Cluster Reorganizer is still running");
             } catch (InterruptedException ex) {
                 return;
             }

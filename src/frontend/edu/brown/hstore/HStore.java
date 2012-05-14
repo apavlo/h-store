@@ -178,7 +178,7 @@ public abstract class HStore {
         // only works for parameter like: localhost:1:2-3
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
         if(hstore_conf.site.newsiteinfo.length() != 0){
-        	LOG.debug("FOUND optional parameters: Live migration might start soon!");
+        	if(debug.get()) LOG.debug("FOUND optional parameters: Live migration might start soon!");
             ClusterConfiguration cc = new ClusterConfiguration(args.catalog_db.getCatalog(), hstore_conf.site.newsiteinfo);
         	FixCatalog.writeHostInfo(args.catalog_db.getCatalog(), cc);            
         }
