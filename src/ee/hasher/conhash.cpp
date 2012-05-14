@@ -11,6 +11,7 @@ Conhash::Conhash(unsigned int n, unsigned int partition_num, unsigned int *map){
 		node_to_partition[i] = map[i];
 		i ++;
 	}
+	
 	int num_partitions = i;
 	unsigned int new_hash = conhash_getMigrationHash(map, num_partitions, partition_num, 2);
 	node_to_partition[i] = new_hash;
