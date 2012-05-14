@@ -45,9 +45,17 @@ public class TestLiveMigrationSuite extends RegressionSuite{
 	
 	@Test
     public void testLiveMigrationMessageAndCallBack() throws IOException, ProcCallException, InterruptedException {
+	    // This test case is used to check if the existing sites add the new site into their catalogs
+	    // In this test case, the existing site is a site that with two partitions. Feel free to 
+	    // create several sites with several partitions. But remember to modify the new site information accordingly.
+	    // For instance, remeber to change the -Dsite.newsiteinfo and -Dsite.id accordingly
 	    Runtime.getRuntime().exec("ant hstore-site -Dproject=onesitetwopart -Dsite.id=1 " +
 	    		                    "-Dconf=properties/default.properties -Dsite.newsiteinfo=localhost:1:2-3:8899:9988");
-	    Thread.sleep(5000);
+	    Thread.sleep(5000);//sleep to make sure the cluster is ready
+	    
+	    //The following code is used to get the lastest site info from the cluster's catalog
+	    //If the new site information is in the cluster's catlog, it means that they successfully
+	    //updated catalog
 	    Catalog cl = getCatalog();
 	    Cluster catalog_clus = CatalogUtil.getCluster(cl);
         CatalogMap<Host> hosts = catalog_clus.getHosts();
