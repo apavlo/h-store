@@ -35,10 +35,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.tm1.procedures.InsertSubscriber;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
@@ -60,7 +57,12 @@ public class TestCommandLogger extends BaseTestCase {
     
     static final AtomicLong TXN_ID = new AtomicLong(1000);
     static final int BASE_PARTITION = 0;
-    static final Class<? extends VoltProcedure>[] TARGET_PROC = (Class<? extends VoltProcedure> []) new Class[2];
+    
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure>[] TARGET_PROC = (Class<? extends VoltProcedure>[])new Class<?>[]{
+        UpdateLocation.class,
+        UpdateSubscriberData.class
+    };
     static final Object TARGET_PARAMS[][] = new Object[][]{{ 12345l, "ABCDEF"},{ 666l, 777l, 888l, 999l}};
     
     HStoreSite hstore_site; 
@@ -71,8 +73,6 @@ public class TestCommandLogger extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        TARGET_PROC[0] = UpdateLocation.class;
-        TARGET_PROC[1] = UpdateSubscriberData.class;
         this.catalog_proc = new Procedure[2];
         this.catalog_proc[0] = this.getProcedure(TARGET_PROC[0]);
         this.catalog_proc[1] = this.getProcedure(TARGET_PROC[1]);
