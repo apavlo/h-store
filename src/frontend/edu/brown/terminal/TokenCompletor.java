@@ -21,6 +21,7 @@ import edu.brown.utils.CollectionUtil;
 /**
  * This is a class that holds a list of the table names for an instance of HStore
  * @author gen
+ * @author pavlo
  */
 public class TokenCompletor implements Completor {
     private static final Logger LOG = Logger.getLogger(TokenCompletor.class);
@@ -42,6 +43,7 @@ public class TokenCompletor implements Completor {
     };
     private static final String COLUMN_PREFIXES[] = {
         "WHERE",
+        "SET"
     };
     private static final String PROC_PREFIXES[] = {
         "EXEC"
@@ -50,9 +52,9 @@ public class TokenCompletor implements Completor {
     
     final Catalog catalog;
     
-    final List<String> commandTokens = new ArrayList<String>();
     final SortedSet<String> allTokens = new TreeSet<String>();
     final SortedSet<String> sqlTokens = new TreeSet<String>();
+    final SortedSet<String> commandTokens = new TreeSet<String>();
     final SortedSet<String> tableTokens = new TreeSet<String>();
     final SortedSet<String> columnTokens = new TreeSet<String>();
     final SortedSet<String> procTokens = new TreeSet<String>();
@@ -127,60 +129,55 @@ public class TokenCompletor implements Completor {
         
         // Figure out whether they are trying to enter in a SQL
         // token, or a name of an element in the database
-        Collection<String> matches = null;
-        boolean sorted = true;
+        String prevToken = null;
+        if (buffer.endsWith(DELIMITER) || tokens.length == 1) {
+            prevToken = last;
+        } else {
+            prevToken = tokens[tokens.length-2].toUpperCase();
+        }
+        prevToken = prevToken.trim().toUpperCase();
+        
+        if (debug.get()) LOG.debug("PREV: " + prevToken);
         
         // The first token must always be a SQL command token
-        if (tokens.length == 1) {
-            matches = this.commandTokens;
-            sorted = false;
-        }
         // Otherwise, check which candidates to use based on
         // what's in the previous token
-        else {
-            SortedSet<String> candidates = this.allTokens;
-            String prevToken = null;
-            if (buffer.endsWith(DELIMITER)) {
-                prevToken = last;
-            } else {
-                prevToken = tokens[tokens.length-2].toUpperCase();
-            }
-            if (debug.get()) LOG.debug("PREV: " + prevToken);
-            
-            if (this.tablePrefixes.contains(prevToken)) {
-                if (debug.get()) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
-                candidates = this.tableTokens;
-            }
-            else if (this.columnPrefixes.contains(prevToken)) {
-                if (debug.get()) LOG.debug("COLUMN PREFIX: " + prevToken);
-                candidates = this.columnTokens;
-            }
-            else if (this.procPrefixes.contains(prevToken)) {
-                if (debug.get()) LOG.debug("PROC PREFIX: " + prevToken);
-                candidates = this.procTokens;
-            } else if (debug.get()) {
-                LOG.debug("Using all candidates!");
-            }
-            assert(candidates != null);
-            if (debug.get()) LOG.debug("CANDIDATES: " + candidates);
-            if (buffer.endsWith(DELIMITER)) {
-                matches = candidates;
-            } else {
-                matches = candidates.tailSet(last);
-            }
-        }
+        SortedSet<String> candidates = (tokens.length == 1 ? this.commandTokens : this.sqlTokens);
         
-        if (debug.get()) LOG.debug("MATCHES: " + matches);
+        if (this.tablePrefixes.contains(prevToken)) {
+            if (debug.get()) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
+            candidates = this.tableTokens;
+        }
+        else if (this.columnPrefixes.contains(prevToken)) {
+            if (debug.get()) LOG.debug("COLUMN PREFIX: " + prevToken);
+            candidates = this.columnTokens;
+        }
+        else if (this.procPrefixes.contains(prevToken)) {
+            if (debug.get()) LOG.debug("PROC PREFIX: " + prevToken);
+            candidates = this.procTokens;
+        } else if (debug.get()) {
+            LOG.debug("Using all candidates!");
+        }
+        assert(candidates != null);
+        if (debug.get()) LOG.debug("CANDIDATES: " + candidates);
+        
         if (buffer.endsWith(DELIMITER)) {
-            clist.addAll(matches);
+            for (String can : candidates) {
+                if (this.tokenCaseSensitive.containsKey(can)) {
+                    can = this.tokenCaseSensitive.get(can);
+                }
+                clist.add(can);
+            } // FOR
+            
         } else {
+            Collection<String> matches = candidates.tailSet(last);
+            if (debug.get()) LOG.debug("MATCHES: " + matches);
             for (String can : matches) {
                 if (debug.get()) LOG.debug("Candidate: " + can);
     
                 if (can.startsWith(last) == false || can.equalsIgnoreCase(last)) {
                     if (debug.get()) LOG.debug("Invalid match!");
-                    if (sorted) break;
-                    else continue;
+                    break;
                 }
                 
                 // Fix capitalization
