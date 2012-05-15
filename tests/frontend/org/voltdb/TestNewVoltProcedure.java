@@ -103,14 +103,6 @@ public class TestNewVoltProcedure extends BaseTestCase {
     }
     
     /**
-     * testCallAndBlock
-     */
-    public void testCallAndBlock() throws Exception {
-        // ClientResponse response = volt_proc.callAndBlock(rand.nextLong(), CLIENT_HANDLE++, TARGET_PARAMS); 
-        // assertNotNull(response);
-    }
-    
-    /**
      * testExecuteLocalBatch
      */
     public void testExecuteLocalBatch() throws Exception {

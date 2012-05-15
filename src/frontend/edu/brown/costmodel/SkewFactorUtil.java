@@ -71,7 +71,7 @@ public abstract class SkewFactorUtil {
         ArrayList<Long> counts = new ArrayList<Long>();
         StringBuilder sb = (debug ? new StringBuilder() : null);
         for (int i = 0; i < num_partitions; i++) {
-            long current = h.get(i, 0l);
+            long current = h.get(i, 0);
             counts.add(current);
 
             orig_ratio = ratio = current / (double) total_ctr;

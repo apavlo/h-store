@@ -36,18 +36,13 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.benchmark.seats.SEATSBaseTestCase;
 import edu.brown.benchmark.seats.SEATSConstants;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.FileUtil;
 
-public abstract class HistogramUtil {
-    private static final Logger LOG = Logger.getLogger(HistogramUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    static {
-        LoggerUtil.attachObserver(LOG, debug, trace);
-    }
+public abstract class SEATSHistogramUtil {
+    private static final Logger LOG = Logger.getLogger(SEATSHistogramUtil.class);
 
 //    private static final Pattern p = Pattern.compile("\\|");
     
@@ -84,7 +79,7 @@ public abstract class HistogramUtil {
         
         File file = getHistogramFile(data_path, SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
         Histogram<String> h = new Histogram<String>();
-        h.load(file.getAbsolutePath(), null);
+        h.load(file.getAbsolutePath());
         
         Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         Pattern pattern = Pattern.compile("-");
@@ -116,38 +111,29 @@ public abstract class HistogramUtil {
         Histogram<String> histogram = cached_Histograms.get(file);
         if (histogram == null) {
             histogram = new Histogram<String>();
-            histogram.load(file.getAbsolutePath(), null);
+            histogram.load(file.getAbsolutePath());
             cached_Histograms.put(file, histogram);
         }
-        
-//        BufferedReader reader = FileUtil.getReader(file);
-//        boolean first = true;
-//        int ctr = -1;
-//        while (reader.ready()) {
-//            ctr++;
-//            String line = reader.readLine();
-//            if (first && has_header) {
-//                first = false;
-//                continue;
-//            }
-//            if (line.isEmpty()) continue;
-//            
-//            String data[] = p.split(line);
-//            if (data.length != 2) {
-//                LOG.warn("Unexpected data on line " + ctr + " in '" + name + "'");
-//            } else {
-//                try {
-//                    String key = data[0];
-//                    Integer value = Integer.valueOf(data[1].trim());
-//                    histogram.put(key, value);
-//                } catch (Exception ex) {
-//                    throw new Exception(String.format("Failed to parse data on line %d in '%s'", ctr, name), ex);
-//                }
-//            }
-//        } // WHILE
-        
-        if (debug.get()) LOG.debug(String.format("Histogram %s\n%s", name, histogram.toString()));
+        if (LOG.isDebugEnabled()) 
+            LOG.debug(String.format("Histogram %s\n%s", name, histogram.toString()));
         
         return (histogram);
+    }
+
+    public static File findDataDir() {
+        File dataDir = null;
+        try {
+            File dir = FileUtil.findDirectory("tests");
+            assert(dir != null);
+            assert(dir.exists()) : "Missing " + dir.getAbsolutePath();
+            dataDir = new File(dir.getAbsolutePath() + 
+                               "/frontend/" +
+                               SEATSBaseTestCase.class.getPackage().getName().replace(".", "/") + 
+                               "/data");
+            assert(dataDir.exists()) : "Missing " + dataDir.getAbsolutePath();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        return (dataDir);
     }
 }

@@ -643,7 +643,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // histogram_txn_partitions because we will do that down below
             this.histogram_java_partitions.remove(txn_entry.base_partition, txn_entry.weight);
             if (this.isJavaExecutionWeightEnabled()) {
-                txn_entry.touched_partitions.remove(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+                txn_entry.touched_partitions.remove(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
             }
             if (trace.get())
                 LOG.trace("Global Java Histogram:\n" + this.histogram_java_partitions);
@@ -747,7 +747,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     txn_entry.touched_partitions.setKeepZeroEntries(true);
                     this.histogram_java_partitions.remove(txn_entry.base_partition, txn_entry.weight);
                     if (this.isJavaExecutionWeightEnabled()) {
-                        txn_entry.touched_partitions.remove(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+                        txn_entry.touched_partitions.remove(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
                     }
                     txn_entry.base_partition = null;
                     invalidate_modifiedTxns.add(txn_entry);
@@ -924,7 +924,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // partitions histogram, but notice
         // that we can weight how much the java execution costs
         if (this.isJavaExecutionWeightEnabled()) {
-            txn_entry.touched_partitions.put(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+            txn_entry.touched_partitions.put(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
         }
         this.histogram_java_partitions.put(txn_entry.base_partition, txn_entry.weight);
     }

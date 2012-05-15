@@ -33,7 +33,7 @@ import java.util.Random;
 import org.voltdb.catalog.Catalog;
 
 import edu.brown.BaseTestCase;
-import edu.brown.utils.FileUtil;
+import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.utils.ProjectType;
 
 public abstract class SEATSBaseTestCase extends BaseTestCase {
@@ -48,11 +48,7 @@ public abstract class SEATSBaseTestCase extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.SEATS);
         if (isFirstSetup()) {
-            File dir = FileUtil.findDirectory("tests");
-            assertNotNull(dir);
-            assert(dir.exists()) : "Missing " + dir.getAbsolutePath();
-            AIRLINE_DATA_DIR = new File(dir.getAbsolutePath() + "/frontend/" + SEATSBaseTestCase.class.getPackage().getName().replace(".", "/") + "/data");
-            assert(AIRLINE_DATA_DIR.exists()) : "Missing " + AIRLINE_DATA_DIR.getAbsolutePath();
+            AIRLINE_DATA_DIR = SEATSHistogramUtil.findDataDir();
             
 //            final Catalog loader_catalog = catalog;
 //            loader = new SEATSLoader(

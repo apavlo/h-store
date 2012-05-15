@@ -137,7 +137,7 @@ public abstract class PartitionerUtil {
                 continue;
             String proc_key = CatalogKey.createKey(catalog_proc);
             Long weight = hist.get(proc_key);
-            if (weight != null && weight > 0) {
+            if (weight != null && weight.longValue() > 0) {
                 proc_weights.put(catalog_proc, weight.doubleValue());
                 proc_visit_order.add(catalog_proc);
             }

@@ -17,6 +17,8 @@
 
 package org.voltdb.compiler;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
+
 public class AdHocPlannedStmt extends AsyncCompilerResult {
     private static final long serialVersionUID = -8627490621430290801L;
 
@@ -24,6 +26,10 @@ public class AdHocPlannedStmt extends AsyncCompilerResult {
     public String collectorFragment;
     public String sql;
     public boolean isReplicatedTableDML;
+    
+    public AdHocPlannedStmt(LocalTransaction ts) {
+        super(ts);
+    }
 
     @Override
     public String toString() {
