@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 import jline.Completor;
-import jline.SimpleCompletor;
 
 import org.apache.log4j.Logger;
 import org.hsqldb.Tokens;
@@ -26,9 +25,9 @@ import edu.brown.utils.CollectionUtil;
 public class TokenCompletor implements Completor {
     private static final Logger LOG = Logger.getLogger(TokenCompletor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
-    private static final Pattern SPLIT = Pattern.compile("[ ]+");
+    protected static final String DELIMITER = " ";
+    protected static final Pattern SPLIT = Pattern.compile("[" + DELIMITER + "]+");
     
     private static final String SPECIAL_TOKENS[] = {
         "DESCRIBE",
@@ -108,6 +107,7 @@ public class TokenCompletor implements Completor {
         this.allTokens.addAll(this.procTokens);
     }
     
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public int complete(String buffer, int cursor, List clist) {
         if (buffer == null || buffer.isEmpty()) {
@@ -116,65 +116,91 @@ public class TokenCompletor implements Completor {
         }
         
         // Find the current token up to the previous space
+        int lastIndex = buffer.lastIndexOf(DELIMITER);
         String tokens[] = SPLIT.split(buffer);
-        String start = (buffer == null) ? "" : buffer;
         String last = tokens[tokens.length - 1].trim().toUpperCase();
         
-        LOG.info("BUFFER: " + buffer);
-        LOG.info("START: '" + start + "'");
-        LOG.info("CURSOR: " + cursor);
+        if (debug.get()) {
+            LOG.debug("BUFFER: '" + buffer + "'");
+            LOG.debug("CURSOR: " + cursor);
+        }
         
         // Figure out whether they are trying to enter in a SQL
         // token, or a name of an element in the database
-        SortedSet<String> candidates = this.allTokens;
+        Collection<String> matches = null;
+        boolean sorted = true;
         
-        // The first token must always be a SQL token
+        // The first token must always be a SQL command token
         if (tokens.length == 1) {
-            candidates = this.sqlTokens;
+            matches = this.commandTokens;
+            sorted = false;
         }
         // Otherwise, check which candidates to use based on
         // what's in the previous token
         else {
-            String prevToken = tokens[tokens.length-2].toUpperCase();
-            LOG.info("PREV: " + prevToken);
+            SortedSet<String> candidates = this.allTokens;
+            String prevToken = null;
+            if (buffer.endsWith(DELIMITER)) {
+                prevToken = last;
+            } else {
+                prevToken = tokens[tokens.length-2].toUpperCase();
+            }
+            if (debug.get()) LOG.debug("PREV: " + prevToken);
             
             if (this.tablePrefixes.contains(prevToken)) {
+                if (debug.get()) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
                 candidates = this.tableTokens;
             }
-            if (this.columnPrefixes.contains(prevToken)) {
+            else if (this.columnPrefixes.contains(prevToken)) {
+                if (debug.get()) LOG.debug("COLUMN PREFIX: " + prevToken);
                 candidates = this.columnTokens;
             }
             else if (this.procPrefixes.contains(prevToken)) {
+                if (debug.get()) LOG.debug("PROC PREFIX: " + prevToken);
                 candidates = this.procTokens;
+            } else if (debug.get()) {
+                LOG.debug("Using all candidates!");
+            }
+            assert(candidates != null);
+            if (debug.get()) LOG.debug("CANDIDATES: " + candidates);
+            if (buffer.endsWith(DELIMITER)) {
+                matches = candidates;
+            } else {
+                matches = candidates.tailSet(last);
             }
         }
-        assert(candidates != null);
-        LOG.info("CANDIDATES: " + candidates);
         
-        SortedSet<String> matches = candidates.tailSet(last);
-        LOG.info("MATCHES: " + matches);
-
-        for (String can : matches) {
-            LOG.info("Candidate: " + can);
-
-            if (can.startsWith(last) == false) {
-                LOG.info("Invalid match!");
-                break;
-            }
-            if (this.tokenCaseSensitive.containsKey(can)) {
-                clist.add(this.tokenCaseSensitive.get(can));
-            } else {
+        if (debug.get()) LOG.debug("MATCHES: " + matches);
+        if (buffer.endsWith(DELIMITER)) {
+            clist.addAll(matches);
+        } else {
+            for (String can : matches) {
+                if (debug.get()) LOG.debug("Candidate: " + can);
+    
+                if (can.startsWith(last) == false || can.equalsIgnoreCase(last)) {
+                    if (debug.get()) LOG.debug("Invalid match!");
+                    if (sorted) break;
+                    else continue;
+                }
+                
+                // Fix capitalization
+                if (this.tokenCaseSensitive.containsKey(can)) {
+                    can = this.tokenCaseSensitive.get(can);
+                }
+                
+                int index = can.indexOf(DELIMITER, cursor);
+                if (index != -1) {
+                    can = can.substring(0, index + 1);
+                }
                 clist.add(can);
-            }
-        } // FOR
+            } // FOR
+        }
 
-//        if (clist.size() == 1) {
-//            clist.set(0, ((String) clist.get(0)) + " ");
-//        }
+        if (clist.size() == 1) {
+            clist.set(0, ((String) clist.get(0)) + " ");
+        }
 
-        // the index of the completion is always from the beginning of
-        // the buffer.
-        return (clist.size() == 0 ? -1 : 0);
+        return (clist.size() == 0 ? -1 : lastIndex+1);
     }
     
 }

@@ -74,11 +74,12 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
         do {
             try {
                 query = reader.readLine(PROMPT);
-                cresponse = this.client.callProcedure("@AdHoc", query);
-                VoltTable[] results = cresponse.getResults();
-                System.out.println(results[0].toString());
-            } catch (ProcCallException ex) {
-                LOG.error(ex.getMessage());
+                LOG.info("QUERY: " + query);
+//                cresponse = this.client.callProcedure("@AdHoc", query);
+//                VoltTable[] results = cresponse.getResults();
+//                System.out.println(results[0].toString());
+//            } catch (ProcCallException ex) {
+//                LOG.error(ex.getMessage());
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
