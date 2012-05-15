@@ -1222,7 +1222,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         this.dispatchInvocation(ts);
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
-        		         "Returning back to listen on incoming socket");
+                 "Returning back to listen on incoming socket");
         
     }
 

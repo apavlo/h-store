@@ -453,9 +453,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * The following three arrays are used by utilityWork() to create transactions
      * for deferred queries
      */
-	private final SQLStmt[] tmp_def_stmt = new SQLStmt[1];
-	private final ParameterSet[] tmp_def_params = new ParameterSet[1];
-	private LocalTransaction tmp_def_txn;
+    private final SQLStmt[] tmp_def_stmt = new SQLStmt[1];
+    private final ParameterSet[] tmp_def_params = new ParameterSet[1];
+    private LocalTransaction tmp_def_txn;
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -786,18 +786,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 work = this.work_queue.poll();
                 if (work == null) {
-                	if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
-                	if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
-                	
+                    if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
+                    if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
+                    
                     // See if there is anything that we can do while we wait
-                	boolean hasdeferredwork = true;
-                	do {
-                		//hasdeferredwork = this.utilityWork();
-                		hasdeferredwork = false; //ambellremove
-                		work = this.work_queue.poll();
-                	} while (work == null && hasdeferredwork == true);
-                	if (work==null) {
-                		try {
+                    boolean hasdeferredwork = true;
+                    do {
+                        hasdeferredwork = this.utilityWork();
+                        work = this.work_queue.poll();
+                    } while (work == null && hasdeferredwork == true);
+                    if (work==null) {
+                        try {
                             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
                             if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                             work = this.work_queue.take();
@@ -808,7 +807,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             stop = true;
                             break;
                         }
-                	}
+                    }
                 }
                 
                 this.currentTxnId = work.getTxnId();
@@ -968,39 +967,38 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * be interesting to have the system report on this before it shuts down.
      */
     protected boolean utilityWork() {
-    	int x = 10/0; //ambellremove
         // TODO: Set the txnId in our handle to be what the original txn was that
         //       deferred this query.
         if (hstore_conf.site.exec_deferrable_queries==false){
-        	return false; // for now, unless andy wants to free up meomory in utilityWork
+            return false; // for now, unless andy wants to free up meomory in utilityWork
         }
         if (d) LOG.debug("entering utilitywork");
-		DeferredWork def_work = deferred_queue.poll();
-		if (def_work == null) return false;
-		// we have work to do
-		if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
-		tmp_def_stmt[0] = def_work.getStmt();
-		tmp_def_params[0] = def_work.getParams();
-		tmp_def_txn.init(def_work.getTxnId(), 
-				   -1, // We don't really need the clientHandle
-				   this.partitionId,
-				   hstore_site.getSingletonPartitionList(partitionId),
-				   false,
-				   false,
-				   tmp_def_stmt[0].getProcedure(),
-				   null, // We don't need the invocation anymore
-				   null // We don't need the client callback either
-				);
-		executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
-    	if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
-		
-    	
-		// Try to free some memory
-		// TODO(pavlo): Is this really safe to do?
+        DeferredWork def_work = deferred_queue.poll();
+        if (def_work == null) return false;
+        // we have work to do
+        if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
+        tmp_def_stmt[0] = def_work.getStmt();
+        tmp_def_params[0] = def_work.getParams();
+        tmp_def_txn.init(def_work.getTxnId(), 
+                   -1, // We don't really need the clientHandle
+                   this.partitionId,
+                   hstore_site.getSingletonPartitionList(partitionId),
+                   false,
+                   false,
+                   tmp_def_stmt[0].getProcedure(),
+                   null, // We don't need the invocation anymore
+                   null // We don't need the client callback either
+                );
+        executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
+        if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
+        
+        
+        // Try to free some memory
+        // TODO(pavlo): Is this really safe to do?
 //        this.tmp_fragmentParams.reset();
 //        this.tmp_serializedParams.clear();
 //        this.tmp_EEdependencies.clear();
-    	return true;
+        return true;
     }
 
     public void tick() {
@@ -2174,16 +2172,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         if (hstore_conf.site.exec_deferrable_queries) {
             for (int i=0; i<batchSize; i++){
-            	if (batchStmts[i].getStatement().getDeferrable()){
-            		deferred_queue.add(new DeferredWork(ts.getTransactionId(), batchStmts[i], batchParams[i]));
-            		for (int toSlide = i+1; toSlide<batchSize; toSlide++) {
-            			batchStmts[toSlide-1]=batchStmts[toSlide];
-            			batchParams[toSlide-1]=batchParams[toSlide];
-            		}
-            		batchSize--;
-            	}
+                if (batchStmts[i].getStatement().getDeferrable()){
+                    deferred_queue.add(new DeferredWork(ts.getTransactionId(), batchStmts[i], batchParams[i]));
+                    for (int toSlide = i+1; toSlide<batchSize; toSlide++) {
+                        batchStmts[toSlide-1]=batchStmts[toSlide];
+                        batchParams[toSlide-1]=batchParams[toSlide];
+                    }
+                    batchSize--;
+                }
             }
-        	   
+               
         }
         
         // Calculate the hash code for this batch to see whether we already have a planner
@@ -2571,15 +2569,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
                 fragments = queue.poll(); // NON-BLOCKING
                 if (fragments == null) {
-                	boolean hasdeferredwork = true;
-                	do{
-                		hasdeferredwork = false; //ambellremove
-                		//hasdeferredwork = this.utilityWork();
-						fragments = queue.poll();
-                	} while (fragments == null && hasdeferredwork == true);
+                    boolean hasdeferredwork = true;
+                    do{
+                        hasdeferredwork = this.utilityWork();
+                        fragments = queue.poll();
+                    } while (fragments == null && hasdeferredwork == true);
                 }
                 if (fragments == null) {
-                	try {
+                    try {
                         fragments = queue.takeFirst(); // BLOCKING
                     } catch (InterruptedException ex) {
                         if (this.hstore_site.isShuttingDown() == false) {
@@ -2787,10 +2784,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             boolean timeout = false;
             boolean hasdeferredwork=true;
             do {
-            	//hasdeferredwork = this.utilityWork();
-            	hasdeferredwork = false; //ambellremove
-            	// TODO: Need to add timeout check
-            	// hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
+                hasdeferredwork = this.utilityWork();
+                // TODO: Need to add timeout check
+                // hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
             } while (latch.getCount() > 0 && hasdeferredwork==true);
             try {
                 timeout = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
