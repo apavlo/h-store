@@ -62,7 +62,5 @@ if __name__ == '__main__':
         p.wait()
     except:
         pass
-    finally:
-        p.kill()
     sys.exit(p.returncode)
 ## MAIN
