@@ -29,14 +29,14 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
     final Catalog catalog;
     final Client client;
     final jline.ConsoleReader reader = new ConsoleReader(); 
-    final jline.SimpleCompletor completer;
-    final HStoreDataList hstore_data;
+    final TokenCompletor completer;
     
     public HStoreTerminal(Catalog catalog) throws Exception{
         this.catalog = catalog;
         this.client = this.getClientConnection();
-        this.hstore_data = new HStoreDataList(null);
-        this.completer = new jline.SimpleCompletor(this.hstore_data.getData());
+        
+        LOG.info("Generating tab-completion keywords");
+        this.completer = new TokenCompletor(catalog);
         this.reader.addCompletor(this.completer);
         usage();
     }

@@ -44,18 +44,25 @@ JVM_ARGS = [
     "-ea", 
 ]
 JVM_CLASSPATH = [ BUILD_DIR ] + glob("%s/*.jar" % THIRD_PARTY_DIR)
-JVM_TARGET = "edu.brown.hstore.HStoreTerminal"
+JVM_TARGET = "edu.brown.terminal.HStoreTerminal"
 
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
     
-    cmd = "java %s -classpath %s %s" % (\
+    cmd = "java %s -classpath %s %s %s" % (\
         " ".join(JVM_ARGS), \
         ":".join(JVM_CLASSPATH), \
-        JVM_TARGET)
+        JVM_TARGET, \
+        " ".join(sys.argv[1:]))
     print(cmd)
-    p = subprocess.Popen(cmd, shell=True)
-    p.wait()
+    try:
+        p = subprocess.Popen(cmd, shell=True)
+        p.wait()
+    except:
+        pass
+    finally:
+        p.kill()
+    sys.exit(p.returncode)
 ## MAIN
