@@ -11,24 +11,24 @@ import org.voltdb.SQLStmt;
  *
  */
 public class DeferredWork {
-	private Long _txnid;
-	private SQLStmt _stmt;
-	private ParameterSet _params;
-	
-	public DeferredWork(Long txnid, SQLStmt stmt, ParameterSet params){
-		// TODO: have it take a timer, also! so we can see how long deferred work lasts, on average
-		_txnid = txnid;
-		_stmt = stmt;
-		_params = params;
-	}
-	
-	public Long getTxnId(){
-		return _txnid;
-	}
-	public SQLStmt getStmt(){
-		return _stmt;
-	}
-	public ParameterSet getParams(){
-		return _params;
-	}
+    private Long _txnid;
+    private SQLStmt _stmt;
+    private ParameterSet _params;
+    
+    public DeferredWork(Long txnid, SQLStmt stmt, ParameterSet params){
+        // TODO: have it take a timer, also! so we can see how long deferred work lasts, on average
+        _txnid = txnid;
+        _stmt = stmt;
+        _params = params;
+    }
+    
+    public Long getTxnId(){
+        return _txnid;
+    }
+    public SQLStmt getStmt(){
+        return _stmt;
+    }
+    public ParameterSet getParams(){
+        return _params;
+    }
 }
