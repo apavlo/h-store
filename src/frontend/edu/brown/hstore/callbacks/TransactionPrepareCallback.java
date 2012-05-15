@@ -1,6 +1,8 @@
 package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
@@ -22,6 +24,8 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private ClientResponseImpl cresponse;
+    
     /**
      * Constructor
      * @param hstore_site
@@ -30,15 +34,16 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         super(hstore_site);
     }
     
-    public void init(LocalTransaction ts) {
+    public void init(LocalTransaction ts, ClientResponseImpl cresponse) {
         super.init(ts,
                    ts.getPredictTouchedPartitions().size(),
                    ts.getClientCallback());
+        this.cresponse = cresponse;
     }
     
     @Override
     public boolean unblockTransactionCallback() {
-        assert(this.ts.getClientResponse().isInitialized()) :
+        assert(this.cresponse.isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
 
         // Everybody returned ok, so we'll tell them all commit right now
@@ -49,7 +54,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         // send the 2PC COMMIT message to all of our friends.
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
-        this.hstore_site.sendClientResponse(this.ts, this.ts.getClientResponse());
+        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
         return (false);
     }
     
@@ -60,8 +65,8 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<byte
         this.finishTransaction(status);
         
         // Change the response's status and send back the result to the client
-        this.ts.getClientResponse().setStatus(status);
-        this.hstore_site.sendClientResponse(this.ts, this.ts.getClientResponse());
+        this.cresponse.setStatus(status);
+        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
         
         return (false);
     }

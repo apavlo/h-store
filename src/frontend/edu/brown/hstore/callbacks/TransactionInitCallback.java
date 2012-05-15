@@ -2,13 +2,13 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * This callback is meant to block a transaction from executing until all of the

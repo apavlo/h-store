@@ -2,6 +2,8 @@ package edu.brown.hstore;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,9 +28,14 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.messaging.*;
 
 import edu.brown.protorpc.StoreResultCallback;
@@ -83,7 +90,7 @@ public class TestHStoreSite extends BaseTestCase {
     
     @Override
     protected void tearDown() throws Exception {
-        hstore_site.shutdown();
+//        hstore_site.shutdown();
     }
     
     /**
@@ -110,6 +117,40 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
         assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
     }
+    
+//    @Test
+//    public void testHStoreSite_AdHoc(){
+//    	this.hstore_site.run();
+//    	Client client = ClientFactory.createClient();
+//        try {
+//			client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
+//		} catch (UnknownHostException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		} catch (IOException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
+//        VoltTable result;
+//		try {
+//			result = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;").getResults()[0];
+//			assertTrue(result.getRowCount() == 1);
+//	        System.out.println(result.toString());
+//		} catch (NoConnectionsException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (ProcCallException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//        
+//    	
+//    }
+    
+  
     
     @Test
     public void testSinglePartitionPassThrough() {

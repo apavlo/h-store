@@ -33,7 +33,7 @@ import org.voltdb.types.TimestampType;
 
 public class TestReturnFlight extends TestCase {
     
-    private final long customer_base_id  = 1000;
+    private final int customer_base_id  = 1000;
     private final long depart_airport_id = 9999;
     private final int return_days[]      = { 1, 5, 14 };
     

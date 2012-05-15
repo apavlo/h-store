@@ -66,7 +66,7 @@ if __name__ == '__main__':
         l = logging.getLogger()
         l.setLevel(logging.DEBUG)
         output = os.path.join(OPT_LOGDIR, "killstragglers.log")
-        logging.info("Writing KillStragglers log to '%s'" % output)
+        logging.debug("Writing KillStragglers log to '%s'" % output)
         
         if not os.path.exists(OPT_LOGDIR): os.makedirs(OPT_LOGDIR)
         handler = logging.FileHandler(output)

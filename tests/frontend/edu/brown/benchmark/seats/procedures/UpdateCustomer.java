@@ -34,6 +34,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 
 import edu.brown.benchmark.seats.SEATSConstants;
+import edu.brown.benchmark.seats.util.ErrorType;
 
 @ProcInfo(
     partitionInfo = "CUSTOMER.C_ID: 0"
@@ -123,6 +124,12 @@ public class UpdateCustomer extends VoltProcedure {
         
         voltQueueSQL(UpdateCustomer, attr0, attr1, c_id);
         results = voltExecuteSQL();
+        long updated = results[results.length - 1].asScalarLong();
+        if (updated != 1) {
+            String msg = String.format("Failed to update customer #%d - Updated %d records", c_id, updated);
+            throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
+        }
+        
         assert (results.length >= 1);
         return (results);
     }

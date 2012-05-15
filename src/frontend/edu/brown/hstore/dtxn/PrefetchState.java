@@ -1,18 +1,25 @@
 package edu.brown.hstore.dtxn;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 
 import org.voltdb.ParameterSet;
 
 import com.google.protobuf.ByteString;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.utils.Poolable;
 
 public class PrefetchState implements Poolable {
 
+    /**
+     * Which partitions have recieved prefetch WorkFragments
+     */
+    protected final BitSet partitions;
+    
     /**
      * The list of the FragmentIds that were sent out in a prefetch request
      * This should only be access from LocalTransaction
@@ -40,6 +47,11 @@ public class PrefetchState implements Poolable {
      */
     protected final List<WorkResult> results = new ArrayList<WorkResult>();
     
+    public PrefetchState(HStoreSite hstore_site) {
+        int num_partitions = hstore_site.getLocalPartitionIds().size();
+        this.partitions = new BitSet(num_partitions);
+    }
+    
     @Override
     public boolean isInitialized() {
         // TODO Auto-generated method stub
@@ -48,6 +60,7 @@ public class PrefetchState implements Poolable {
 
     @Override
     public void finish() {
+        this.partitions.clear();
         this.fragmentIds.clear();
         this.fragments = null;
         this.paramsRaw = null;

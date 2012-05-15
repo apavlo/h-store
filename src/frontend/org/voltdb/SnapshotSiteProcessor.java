@@ -131,7 +131,7 @@ public class SnapshotSiteProcessor {
         }
     }
 
-    SnapshotSiteProcessor(Runnable onPotentialSnapshotWork) {
+    public SnapshotSiteProcessor(Runnable onPotentialSnapshotWork) {
         m_onPotentialSnapshotWork = onPotentialSnapshotWork;
         initializeBufferPool();
     }
