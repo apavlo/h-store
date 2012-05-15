@@ -792,7 +792,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     // See if there is anything that we can do while we wait
                 	boolean hasdeferredwork = true;
                 	do {
-                		hasdeferredwork = this.utilityWork();
+                		//hasdeferredwork = this.utilityWork();
+                		hasdeferredwork = false; //ambellremove
                 		work = this.work_queue.poll();
                 	} while (work == null && hasdeferredwork == true);
                 	if (work==null) {
@@ -967,6 +968,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * be interesting to have the system report on this before it shuts down.
      */
     protected boolean utilityWork() {
+    	int x = 10/0; //ambellremove
         // TODO: Set the txnId in our handle to be what the original txn was that
         //       deferred this query.
         if (hstore_conf.site.exec_deferrable_queries==false){
@@ -2571,7 +2573,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (fragments == null) {
                 	boolean hasdeferredwork = true;
                 	do{
-                		hasdeferredwork = this.utilityWork();
+                		hasdeferredwork = false; //ambellremove
+                		//hasdeferredwork = this.utilityWork();
 						fragments = queue.poll();
                 	} while (fragments == null && hasdeferredwork == true);
                 }
@@ -2784,7 +2787,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             boolean timeout = false;
             boolean hasdeferredwork=true;
             do {
-            	hasdeferredwork = this.utilityWork();
+            	//hasdeferredwork = this.utilityWork();
+            	hasdeferredwork = false; //ambellremove
             	// TODO: Need to add timeout check
             	// hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
             } while (latch.getCount() > 0 && hasdeferredwork==true);
