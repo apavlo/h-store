@@ -748,9 +748,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
-        tmp_def_txn = new LocalTransaction(hstore_site);
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
+        tmp_def_txn = new LocalTransaction(hstore_site);
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<AbstractTransaction> eo = this.hstore_site.getStartWorkloadObservable();
@@ -828,22 +828,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             break;
                         }
                     }
-                }
-                
-                this.currentTxnId = work.getTxnId();
-                current_txn = hstore_site.getTransaction(this.currentTxnId);
-                if (current_txn == null) {
-                    String msg = String.format("No transaction state for txn #%d [%s]",
-                                               this.currentTxnId, work.getClass().getSimpleName());
-                    LOG.error(msg + "\n" + work.toString());
-                    throw new ServerFaultException(msg, this.currentTxnId);
-                }
-                // If this transaction has already been aborted and they are trying to give us
-                // something that isn't a FinishTaskMessage, then we won't bother processing it
-                else if (current_txn.isAborted() && (work instanceof FinishTaskMessage) == false) {
-                    if (d) LOG.debug(String.format("%s - Was marked as aborted. Will not process %s on partition %d",
-                                                   current_txn, work.getClass().getSimpleName(), this.partitionId));
-                    continue;
                 }
                 
                 // -------------------------------
