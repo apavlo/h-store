@@ -46,6 +46,8 @@ public enum ProjectType {
     WIKIPEDIA("Wikipedia", "edu.brown.benchmark.wikipedia"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     TEST("Test", null),
+    ABC ("ABC Benchmark", "com.mytest.benchmark.abc"),
+
     ;
 
 
