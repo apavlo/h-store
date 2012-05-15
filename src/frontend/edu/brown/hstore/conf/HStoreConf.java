@@ -324,10 +324,20 @@ public final class HStoreConf {
         public int exec_command_logging_group_commit_timeout;
         
         @ConfigProperty(
-            description="Setting this configuration parameter to true allows clients to " +
-                        "issue ad hoc query requests use the @AdHoc sysproc.",
-            defaultBoolean=true,
+            description="If enabled, then the CommandLogWriter will keep track of various internal " +
+            		    "profile statistics.",
+            defaultBoolean=false,
             experimental=true
+        )
+        public boolean exec_command_logging_profile;
+        
+        @ConfigProperty(
+            description="Setting this configuration parameter to true allows clients to " +
+                        "issue ad hoc query requests use the @AdHoc sysproc. This should be " +
+                        "set to false if you are running benchmarking experiments because it " +
+                        "will reduce the number of threads that are started per HStoreSite.",
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean exec_adhoc_sql;
         
