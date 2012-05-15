@@ -26,6 +26,9 @@ public class TestTokenCompletor extends BaseTestCase {
         this.completor.complete(sql, cursor, clist);
         System.err.println(clist);
         assertFalse(sql, clist.isEmpty());
+        for (int i = 0, cnt = clist.size(); i < cnt; i++) {
+            clist.set(i, clist.get(i).trim());
+        } // FOR
         return (clist);
     }
     
