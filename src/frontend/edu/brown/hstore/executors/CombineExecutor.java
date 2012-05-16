@@ -16,7 +16,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * @author mimosally
  * 
  */
-public class CombineExecutor extends FastExecutor {
+public final class CombineExecutor extends FastExecutor {
 
 	public CombineExecutor(PartitionExecutor executor) {
 		super(executor);
@@ -34,8 +34,8 @@ public class CombineExecutor extends FastExecutor {
 	 * @return
 	 */
 	@Override
-	public DependencySet execute(int[] outputid, int[] inputid,
-			Map<Integer, List<VoltTable>> tmp_dependencies) {
+	public final DependencySet execute(final int[] outputid, final int[] inputid,
+			final Map<Integer, List<VoltTable>> tmp_dependencies) {
 
 		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
 		// record = tmp.get(0).clone(0);

@@ -20,7 +20,7 @@ import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
  * @author mimosally
  * 
  */
-public class AggregateExecutor extends FastExecutor {
+public final class AggregateExecutor extends FastExecutor {
 
 	public AggregateExecutor(PartitionExecutor executor) {
 		super(executor);
@@ -28,8 +28,8 @@ public class AggregateExecutor extends FastExecutor {
 	}
 
 	@Override
-	public DependencySet execute(int[] outputid, int[] inputid,
-			Map<Integer, List<VoltTable>> tmp_dependencies) {
+	public final DependencySet execute(final int[] outputid, final int[] inputid,
+			final Map<Integer, List<VoltTable>> tmp_dependencies) {
 		Long finalsum = new Long(0);
 		VoltTable record = null;
 		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
