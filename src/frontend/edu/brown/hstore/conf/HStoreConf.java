@@ -350,6 +350,12 @@ public final class HStoreConf {
         public boolean exec_prefetch_queries;
         
         @ConfigProperty(
+//                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
+//                		    "while idle or waiting on a distribute transaction.",
+//                defaultBoolean=false,
+//                experimental=true
+//            )
+//        public boolean exec_deferred_queries;
             description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
             		    "queries for later execution if they are marked as deferrable.",
             defaultBoolean=false,

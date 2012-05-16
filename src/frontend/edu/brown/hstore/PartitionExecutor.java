@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -453,6 +454,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final IntArrayCache tmp_inputDepIds = new IntArrayCache(10);
     
+    
+    /**
+     * The following three arrays are used by utilityWork() to create transactions
+     * for deferred queries
+     */
+    private final SQLStmt[] tmp_def_stmt = new SQLStmt[1];
+    private final ParameterSet[] tmp_def_params = new ParameterSet[1];
+    private LocalTransaction tmp_def_txn;
+    
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
     // ----------------------------------------------------------------------------
@@ -465,6 +475,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * How much time it takes for this PartitionExecutor to execute a transaction
      */
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
+    /**
+     * How much time did this PartitionExecutor spend on utility work
+     */
+    private final ProfileMeasurement work_utility_time = new ProfileMeasurement("EE_UTILITY");
     
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -736,6 +750,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
+        tmp_def_txn = new LocalTransaction(hstore_site);
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<AbstractTransaction> eo = this.hstore_site.getStartWorkloadObservable();
@@ -789,22 +804,30 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                try {
-                    work = this.work_queue.poll();
-                    if (work == null) {
-                        // See if there is anything that we can do while we wait
-                        // XXX this.utilityWork(null);
-                        
-                        if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-                        if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
-                        work = this.work_queue.take();
-                        if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
+                work = this.work_queue.poll();
+                if (work == null) {
+                    if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
+                    if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
+                    
+                    // See if there is anything that we can do while we wait
+                    boolean hasdeferredwork = true;
+                    do {
+                        hasdeferredwork = this.utilityWork();
+                        work = this.work_queue.poll();
+                    } while (work == null && hasdeferredwork == true);
+                    if (work==null) {
+                        try {
+                            if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
+                            if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
+                            work = this.work_queue.take();
+                            if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
+                        } catch (InterruptedException ex) {
+                            if (d && this.isShuttingDown() == false)
+                                LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
+                            stop = true;
+                            break;
+                        }
                     }
-                } catch (InterruptedException ex) {
-                    if (d && this.isShuttingDown() == false) 
-                        LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
-                    stop = true;
-                    break;
                 }
                 
                 // -------------------------------
@@ -974,27 +997,42 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Special function that allows us to do some utility work while 
      * we are waiting for a response or something real to do.
+     * Note: this tracks how long the system spends doing utility work. It would
+     * be interesting to have the system report on this before it shuts down.
      */
-    protected void utilityWork(CountDownLatch dtxnLatch) {
+    protected boolean utilityWork() {
         // TODO: Set the txnId in our handle to be what the original txn was that
         //       deferred this query.
+        if (hstore_conf.site.exec_deferrable_queries==false){
+            return false; // for now, unless andy wants to free up meomory in utilityWork
+        }
+        if (d) LOG.debug("entering utilitywork");
+        DeferredWork def_work = deferred_queue.poll();
+        if (def_work == null) return false;
+        // we have work to do
+        if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
+        tmp_def_stmt[0] = def_work.getStmt();
+        tmp_def_params[0] = def_work.getParams();
+        tmp_def_txn.init(def_work.getTxnId(), 
+                   -1, // We don't really need the clientHandle
+                   this.partitionId,
+                   hstore_site.getSingletonPartitionList(partitionId),
+                   false,
+                   false,
+                   tmp_def_stmt[0].getProcedure(),
+                   null, // We don't need the invocation anymore
+                   null // We don't need the client callback either
+                );
+        executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
+        if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
         
-       /* We need to start popping from the deferred_queue here. There is no need
-        * for a while loop if we're going to requeue each popped txn in wthe work_queue,
-        * because we know we this.work_queue.isEmpty() will be false as soon as we
-        * pop one local txn off of deferred_queue. We will arrive back in utilityWork() 
-        * when that txn finishes if no new txn's have entered.*/
-    	do {
-    		LocalTransaction ts = deferred_queue.poll();
-    		if (ts == null) break;
-    		this.queueNewTransaction(ts);
-        } while ((dtxnLatch != null && dtxnLatch.getCount() > 0) || (dtxnLatch == null && this.work_queue.isEmpty()));
-        //while (this.work_queue.isEmpty()) {
-        //}
-	     // Try to free some memory
-//	        this.tmp_fragmentParams.reset();
-//	        this.tmp_serializedParams.clear();
-//	        this.tmp_EEdependencies.clear();
+        
+        // Try to free some memory
+        // TODO(pavlo): Is this really safe to do?
+//        this.tmp_fragmentParams.reset();
+//        this.tmp_serializedParams.clear();
+//        this.tmp_EEdependencies.clear();
+        return true;
     }
 
     public void tick() {
@@ -1146,6 +1184,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public ProfileMeasurement getWorkExecTime() {
         return (this.work_exec_time);
+    }
+    public ProfileMeasurement getWorkUtilityTime() {
+        return (this.work_utility_time);
     }
     /**
      * Returns the number of txns that have been invoked on this partition
@@ -2589,16 +2630,27 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 
                 if (t) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
                 if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
-                try {
-                    fragments = queue.takeFirst(); // BLOCKING
-                } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) {
-                        LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
-                    }
-                    return (null);
-                } finally {
-                    if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                fragments = queue.poll(); // NON-BLOCKING
+                if (fragments == null) {
+                    boolean hasdeferredwork = true;
+                    do{
+                        hasdeferredwork = this.utilityWork();
+                        fragments = queue.poll();
+                    } while (fragments == null && hasdeferredwork == true);
                 }
+                if (fragments == null) {
+                    try {
+                        fragments = queue.takeFirst(); // BLOCKING
+                    } catch (InterruptedException ex) {
+                        if (this.hstore_site.isShuttingDown() == false) {
+                            LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
+                        }
+                        return (null);
+                    } finally {
+                        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                    }
+                }
+                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
             assert(fragments != null);
             
@@ -2792,21 +2844,28 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (t) LOG.trace(ts.toString());
             }
             if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
-            boolean done = false;
-            // XXX this.utilityWork(latch);
+            boolean timeout = false;
+            boolean hasdeferredwork=true;
+            do {
+                hasdeferredwork = this.utilityWork();
+                // TODO: Need to add timeout check
+                // hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS
+            } while (latch.getCount() > 0 && hasdeferredwork==true);
             try {
-                done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
+                timeout = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
                 if (this.hstore_site.isShuttingDown() == false) {
                     LOG.error(String.format("%s - We were interrupted while waiting for results", ts), ex);
                 }
-                done = true;
+                timeout = true;
             } catch (Throwable ex) {
                 new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
-            if (done == false && this.isShuttingDown() == false) {
+            if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+            
+            if (timeout && this.isShuttingDown() == false) {
                 LOG.warn(String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
                                                 ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
                 LOG.warn("Procedure Parameters:\n" + ts.getInvocation().getParams());
