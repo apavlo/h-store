@@ -43,10 +43,9 @@ public class CombineExecutor extends FastExecutor {
 		int tmpsize = tmp.size();
 		for (int i = 0; i < tmpsize; i++) {
 			VoltTable t = tmp.get(i);
-
 			while (t.advanceRow()) {
-				VoltTableRow r = t.getRow();
-				record.add(r);
+			
+				record.add(t.getRow());
 
 			}// while
 
@@ -54,9 +53,8 @@ public class CombineExecutor extends FastExecutor {
 
 		VoltTable[] vt = new VoltTable[1];
 		vt[0] = record;
-		DependencySet result = new DependencySet(outputid, vt);
-		assert (result != null);
-		return result;
+	
+		return (new DependencySet(outputid, vt));
 
 	}
 

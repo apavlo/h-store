@@ -13,7 +13,7 @@ import org.voltdb.VoltTable;
  */
 public class GetIds extends VoltProcedure {
 	public final SQLStmt GETB = new SQLStmt(
-			"SELECT B_ID FROM TABLEB WHERE B_A_ID = ?");
+			"SELECT B_ID FROM TABLEBB WHERE B_A_ID = ?");
 
 	public VoltTable[] run() {
 		voltQueueSQL(GETB);

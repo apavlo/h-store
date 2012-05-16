@@ -46,8 +46,8 @@ public class AggregateExecutor extends FastExecutor {
 		record.addRow(finalsum); // add the final result
 		VoltTable[] vt = new VoltTable[1];
 		vt[0] = record;
-		DependencySet result = new DependencySet(outputid, vt);
-		return result;
+		
+		return (new DependencySet(outputid, vt));
 	}
 
 }

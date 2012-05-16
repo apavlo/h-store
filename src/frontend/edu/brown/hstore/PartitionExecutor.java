@@ -2389,13 +2389,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 						LOG.debug("value of fastaggre:" + fastaggre);
 					if (fastaggre) {
 						// go into Java to execute fast aggregate
-						if (d)
-							LOG.debug("enter Java fastaggregate fragmentId:"
-									+ fragmentIds[i]);
+						
 						// make sure each voltTable just has one column, and do
 						// the
 						// simple summation
-
 						result = aggexecutor.execute(outputDepIds, inputDepIds,
 								this.tmp_EEdependencies);
 						if (d)
@@ -2403,9 +2400,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
 					} else if (fastcombi) {
 						// do fast combine in Java
-						if (d)
-							LOG.debug("enter Java fastcombine fragmentId:"
-									+ fragmentIds[i]);
 						result = combexecutor.execute(outputDepIds,
 								inputDepIds, this.tmp_EEdependencies);
 						if (d)
