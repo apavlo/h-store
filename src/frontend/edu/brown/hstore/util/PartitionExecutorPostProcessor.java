@@ -4,6 +4,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
@@ -36,7 +37,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingDeque<LocalTransaction> queue;
+    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queue;
 
     /**
      * Handle to ourselves
@@ -47,7 +48,8 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
      * 
      * @param hstore_site
      */
-    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<LocalTransaction> queue) {
+    public PartitionExecutorPostProcessor(HStoreSite hstore_site,
+                                          LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
     }
@@ -63,19 +65,22 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
             LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        LocalTransaction ts = null;
+        Pair<LocalTransaction, ClientResponseImpl> pair = null;
         while (this.stop == false) {
             try {
                 if (hstore_conf.site.status_show_executor_info) idleTime.start();
-                ts = this.queue.takeFirst();
+                pair = this.queue.takeFirst();
                 if (hstore_conf.site.status_show_executor_info) idleTime.stop();
-                assert(ts != null);
             } catch (InterruptedException ex) {
                 this.stop = true;
                 break;
             }
+            LocalTransaction ts = pair.getFirst();
+            assert(ts != null);
+            ClientResponseImpl cr = pair.getSecond();
+            assert(cr != null);
+            
             if (hstore_conf.site.status_show_executor_info) execTime.start();
-            ClientResponseImpl cr = ts.getClientResponse();
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                                      ts, ts.getBasePartition(), cr.getStatus()));
             try {

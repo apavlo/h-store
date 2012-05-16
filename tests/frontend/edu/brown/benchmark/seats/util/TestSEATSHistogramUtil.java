@@ -35,13 +35,13 @@ import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
-public class TestHistogramUtil extends SEATSBaseTestCase {
+public class TestSEATSHistogramUtil extends SEATSBaseTestCase {
 
     /**
      * testLoadAirportFlights
      */
     public void testLoadAirportFlights() throws Exception {
-        Map<String, Histogram<String>> histograms = HistogramUtil.loadAirportFlights(AIRLINE_DATA_DIR);
+        Map<String, Histogram<String>> histograms = SEATSHistogramUtil.loadAirportFlights(AIRLINE_DATA_DIR);
         assertNotNull(histograms);
         assertFalse(histograms.isEmpty());
         assert(histograms.size() >= 200);
@@ -74,7 +74,7 @@ public class TestHistogramUtil extends SEATSBaseTestCase {
      * testLoadFlightDepartTime
      */
     public void testLoadFlightDepartTime() throws Exception {
-        Histogram<String> histogram = HistogramUtil.loadHistogram(SEATSConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES, AIRLINE_DATA_DIR, true);
+        Histogram<String> histogram = SEATSHistogramUtil.loadHistogram(SEATSConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES, AIRLINE_DATA_DIR, true);
         assertFalse(histogram.values().isEmpty());
         
         // We expect the times to be in 15 minute increments, therefore there should

@@ -68,6 +68,8 @@ public class BenchmarkConfig {
     public int snapshotRetain;
     
     public String statsDatabaseURL;
+    public String statsDatabaseUser;
+    public String statsDatabasePass;
     public String statsDatabaseJDBC;
     public int statsPollInterval;
     
@@ -98,6 +100,8 @@ public class BenchmarkConfig {
     public Double markov_thresholdsValue;
     public boolean markovRecomputeAfterEnd;
     public boolean markovRecomputeAfterWarmup;
+    
+    public String deferrable[];
     
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
@@ -195,7 +199,8 @@ public class BenchmarkConfig {
             String snapshotFrequency,
             int snapshotRetain,
             String statsDatabaseURL,
-            String resultsDatabaseURL,
+            String statsDatabaseUser,
+            String statsDatabasePass,
             String statsDatabaseJDBC,
             int statsPollInterval,
             String statsTag,
@@ -218,6 +223,7 @@ public class BenchmarkConfig {
             Double thresholdsValue,
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
+            String deferrable[],
             boolean dumpDatabase,
             String dumpDatabaseDir,
             boolean jsonOutput
@@ -247,9 +253,11 @@ public class BenchmarkConfig {
         this.snapshotFrequency = snapshotFrequency;
         this.snapshotRetain = snapshotRetain;
         
-        this.resultsDatabaseURL = resultsDatabaseURL;
+        // FIXME this.resultsDatabaseURL = resultsDatabaseURL;
         
         this.statsDatabaseURL = statsDatabaseURL;
+        this.statsDatabaseUser = statsDatabaseUser;
+        this.statsDatabasePass = statsDatabasePass;
         this.statsDatabaseJDBC = statsDatabaseJDBC;
         this.statsTag = statsTag;
         this.statsPollInterval = statsPollInterval;
@@ -278,6 +286,8 @@ public class BenchmarkConfig {
         this.markov_thresholdsValue = thresholdsValue;
         this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
         this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
+        
+        this.deferrable = deferrable;
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;

@@ -269,7 +269,6 @@ public final class HStoreConf {
         )
         public int exec_postprocessing_thread_count;
         
-
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
@@ -295,6 +294,52 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_validate_work;
+
+        @ConfigProperty(
+            description="If enabled, log all transaction requests to disk",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_command_logging;
+        
+        @ConfigProperty(
+            description="Directory for storage of command logging files",
+            defaultString="${global.temp_dir}/wal",
+            experimental=true
+        )
+        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
+        
+        @ConfigProperty(
+            description="Transactions to queue before flush for group commit command logging optimization (0 = no group commit)",
+            defaultInt=0,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit;
+        
+        @ConfigProperty(
+            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
+            defaultInt=500,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit_timeout;
+        
+        @ConfigProperty(
+            description="If enabled, then the CommandLogWriter will keep track of various internal " +
+            		    "profile statistics.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_command_logging_profile;
+        
+        @ConfigProperty(
+            description="Setting this configuration parameter to true allows clients to " +
+                        "issue ad hoc query requests use the @AdHoc sysproc. This should be " +
+                        "set to false if you are running benchmarking experiments because it " +
+                        "will reduce the number of threads that are started per HStoreSite.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean exec_adhoc_sql;
         
         @ConfigProperty(
             description="If this parameter is enabled, then the DBMS will attempt to prefetch commutative " +
@@ -305,12 +350,37 @@ public final class HStoreConf {
         public boolean exec_prefetch_queries;
         
         @ConfigProperty(
+//                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
+//                		    "while idle or waiting on a distribute transaction.",
+//                defaultBoolean=false,
+//                experimental=true
+//            )
+//        public boolean exec_deferred_queries;
+            description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
+            		    "queries for later execution if they are marked as deferrable.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_deferrable_queries;
+        
+        // ----------------------------------------------------------------------------
+        // MapReduce Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
                 description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
                 defaultBoolean=true,
                 experimental=true
         )
-        public boolean mapreduce_reduce_blocking;
+        public boolean mr_map_blocking;
         
+        @ConfigProperty(
+                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean mr_reduce_blocking;
+
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------

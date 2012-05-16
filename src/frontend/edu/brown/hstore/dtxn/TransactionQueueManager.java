@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreObjectPools;
@@ -134,7 +135,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * A queue of aborted transactions that need to restart and add back into the system
      * <B>NOTE:</B> Anything that shows up in this queue will be deleted by this manager
      */
-    private final LinkedBlockingQueue<LocalTransaction> restartQueue = new LinkedBlockingQueue<LocalTransaction>(); 
+    private final LinkedBlockingQueue<Pair<LocalTransaction, Status>> restartQueue = new LinkedBlockingQueue<Pair<LocalTransaction, Status>>(); 
     
     // ----------------------------------------------------------------------------
     // INTIALIZATION
@@ -658,8 +659,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
         
         // HACK: Store the status in the embedded ClientResponse
-        ts.getClientResponse().setStatus(status);
-        if (this.restartQueue.offer(ts) == false) {
+        if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.markAsDeletable();
             this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
@@ -669,9 +669,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     }
     
     private void checkRestartQueue() {
-        LocalTransaction ts = null;
-        while ((ts = this.restartQueue.poll()) != null) {
-            Status status = ts.getClientResponse().getStatus();
+        Pair<LocalTransaction, Status> pair = null;
+        while ((pair = this.restartQueue.poll()) != null) {
+            LocalTransaction ts = pair.getFirst();
+            Status status = pair.getSecond();
             ts.markAsNotDeletable();
             this.hstore_site.transactionRestart(ts, status);
             ts.markAsDeletable();

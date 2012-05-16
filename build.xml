@@ -520,6 +520,7 @@ JAVA COMPILATION
     <copy flatten='false' todir='${build.test.dir}'>
         <fileset dir="${src.test.dir}">
             <include name="**/*.sql"/>
+            <include name="**/*.mappings"/>
         </fileset>
     </copy>
 
@@ -915,27 +916,21 @@ TEST CASES
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
-                <exclude name="**/TestIndexesSuite.class" />
-                <exclude name="**/TestMaterializedViewSuite.class" />
-                <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
                 <exclude name="**/TestFailuresSuite.class" />
-                <exclude name="**/TestPlansGroupBySuite.class" />
-                <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
-
+                <exclude name="**/TestPrefetchableSuite.class" />
+                
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
+                
                 <!-- Misc VoltDB stuff -->
-                <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTwoSitePlans*'/>
-
                 <exclude name="**/*$*.class"/>
             </fileset>
         </tests>
@@ -985,6 +980,15 @@ TEST CASES
         <tests>
             <fileset dir='${build.test.dir}'>
                 <exclude name="**/*$*.class"/>
+                
+                <!-- Brown Tests -->
+                <include name='edu/brown/**/Test*.class'/>
+                <include name='edu/brown/**/*Test.class'/>
+
+                <!-- Canadian Tests -->
+                <include name='ca/evanjones/**/*Test.class'/>
+                <include name='edu/mit/**/*Test.class'/>
+                <include name='edu/mit/**/Test*.class'/>
 
                 <!-- VoltDB Tests -->
                 <include name='org/hsqldb/**/Test*.class'/>
@@ -993,41 +997,25 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-
-                <exclude name='org/voltdb/client/TestDistributer*'/>
+                
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTwoSitePlans*'/>
-
+                
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
-                <exclude name="**/TestIndexesSuite.class" />
-                <exclude name="**/TestMaterializedViewSuite.class" />
-                <exclude name="**/TestOrderBySuite.class" />
                 <exclude name="**/TestReplicationSuite.class" />
                 <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                <exclude name="**/TestSqlAggregateSuite.class" />
                 <exclude name="**/TestSystemProcedureSuite.class" />
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name="**/TestELTSuite.class" />
                 <exclude name="**/TestFailuresSuite.class" />
-                <exclude name="**/TestPlansGroupBySuite.class" />
-                <exclude name="**/TestRollbackSuite.class" />
                 <exclude name="**/TestSaveRestoreSysprocSuite.class" />
-                <exclude name="**/TestSqlUpdateSuite.class" />
+                <exclude name="**/TestPrefetchableSuite.class" />
 
-                <!-- Brown Tests -->
-                <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/**/*Test.class'/>
-
-                <!-- We run out of memory on this one -->
+                <!-- Tests that use too much memory -->
+                <exclude name='edu/brown/benchmark/seats/TestSEATSSuite.class'/>
                 <exclude name='edu/brown/benchmark/tpce/*'/>
-
-                <!-- Canadian Tests -->
-                <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
-                <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
     </run_junit>
@@ -1519,7 +1507,8 @@ BENCHMARKS
         <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
-
+        <arg value="DEFERRABLE=${deferrable}" />
+        
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
@@ -1578,6 +1567,8 @@ BENCHMARKS
         <arg value="NUMCONNECTIONS=${numconnections}" />
         <arg value="STATSDATABASETAG=${statsDatabaseTag}" />
         <arg value="STATSDATABASEURL=${statsDatabaseURL}" />
+        <arg value="STATSDATABASEUSER=${statsDatabaseUser}" />
+        <arg value="STATSDATABASEPASS=${statsDatabasePass}" />
         <arg value="STATSDATABASEJDBC=${statsDatabaseJDBC}" />
 
         <!-- measureoverhead parameters -->
@@ -2296,7 +2287,7 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <!-- <jvmarg value="-Djava.library.path=${build.dir}/nativelibs:${jprofiler.dir}/bin/linux-x64:/usr/lib" /> -->
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
-        <jvmarg value="-Xcheck:jni" />
+<!--         <jvmarg value="-Xcheck:jni" /> -->
 
         <arg value="catalog.jar=${jar}" />
         <arg value="conf=${conf}" />
@@ -2348,6 +2339,19 @@ H-STORE REMIX
         <arg value="${param7}" />
         <arg value="${param8}" />
         <arg value="${param9}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
+</target>
+
+<target name='hstore-term'
+        description="H-Store Commandline Terminal">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.HStoreTerminal">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xms256m" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>

@@ -14,21 +14,20 @@ import edu.brown.utils.CollectionUtil;
 @ProcInfo(
         mapInputQuery = "mapInputQuery"
 )
-public class MRquery6 extends VoltMapReduceProcedure<Long> {
-
+public class MRquery6 extends VoltMapReduceProcedure<Double> {
+    // It's silly for me to do this query for MR transaction, simple sum with only one key
     public SQLStmt mapInputQuery = new SQLStmt(
-              //   "SELECT A_NAME FROM TABLEA WHERE A_AGE >= ?"
-            "select  ol_number, sum(ol_amount) " +
-            "from    order_line " +
-            "where  ol_quantity between 1 and 100000 " +
-            "group by ol_number order by ol_number "
-
+            "SELECT SUM(ol_amount) as revenue " +
+            "FROM ORDER_LINE " +
+            "WHERE ol_delivery_d >= '1999-01-01 00:00:00.000000' " +
+                "and ol_delivery_d < '2020-01-01 00:00:00.000000' " +
+                "and ol_quantity between 1 and 100000"
     );
 
     @Override
     public VoltTable.ColumnInfo[] getMapOutputSchema() {
         return new VoltTable.ColumnInfo[]{
-                new VoltTable.ColumnInfo("ol_number", VoltType.BIGINT),
+                new VoltTable.ColumnInfo("key", VoltType.FLOAT),
                 new VoltTable.ColumnInfo("ol_amount", VoltType.FLOAT),
         };
     }
@@ -36,23 +35,22 @@ public class MRquery6 extends VoltMapReduceProcedure<Long> {
     @Override
     public VoltTable.ColumnInfo[] getReduceOutputSchema() {
         return new VoltTable.ColumnInfo[]{
-                new VoltTable.ColumnInfo("ol_number", VoltType.BIGINT),
-                new VoltTable.ColumnInfo("revenue", VoltType.FLOAT),
+                new VoltTable.ColumnInfo("revenue", VoltType.FLOAT)
         };
     }
 
     @Override
     public void map(VoltTableRow row) {
-        long key = row.getLong(0);
+        double value = row.getDouble(0);
         Object new_row[] = {
-                key,
-                row.getDouble(1)
+                0.1,
+                value
         };
-        this.mapEmit(key, new_row);
+        this.mapEmit(0.1, new_row);
     }
 
     @Override
-    public void reduce(Long key, Iterator<VoltTableRow> rows) {
+    public void reduce(Double key, Iterator<VoltTableRow> rows) {
         double sum_ol_amount = 0;
         
         for (VoltTableRow r : CollectionUtil.iterable(rows)) {
@@ -61,7 +59,6 @@ public class MRquery6 extends VoltMapReduceProcedure<Long> {
         } // FOR
 
         Object new_row[] = {
-                key,
                 sum_ol_amount
         };
         this.reduceEmit(new_row);

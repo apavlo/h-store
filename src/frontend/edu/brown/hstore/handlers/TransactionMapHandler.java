@@ -85,6 +85,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         }
         assert(mr_ts.isMapPhase());
         mr_ts.initTransactionMapWrapperCallback(callback);
+
         /*
          * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
          * This is to avoid the double invoke for remote task. 

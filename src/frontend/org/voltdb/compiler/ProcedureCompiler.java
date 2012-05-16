@@ -48,6 +48,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.interfaces.Prefetchable;
+import edu.brown.hstore.interfaces.Deferrable;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -234,8 +235,15 @@ public abstract class ProcedureCompiler {
                 // set the "prefetchable" flag in the catalog for the Statement + Procedure
                 if (f.getAnnotation(Prefetchable.class) != null ||
                     procedureDescriptor.m_prefetchable.contains(catalogStmt.getName())) {
-                    catalogStmt.setPrefetch(true);
-                    procedure.setPrefetch(true);
+                    catalogStmt.setPrefetchable(true);
+                    procedure.setPrefetchable(true);
+                }
+                // If this Field has a Deferrable annotation or the Statement was 
+                // identified as deferrable in the project XML, then we will want to
+                // set the "deferrable" flag in the catalog for the Statement + Procedure
+                if (f.getAnnotation(Deferrable.class) != null) {
+                    catalogStmt.setDeferrable(true);
+                    procedure.setDeferrable(true);
                 }
 
                 // if a single stmt is not read only, then the proc is not read

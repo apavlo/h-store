@@ -7,7 +7,9 @@ import org.junit.Test;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -20,6 +22,7 @@ import org.voltdb.regressionsuites.prefetchprocs.SquirrelsSingle;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Special test cases for checking complex operations in the PlanOptimizer
@@ -43,7 +46,7 @@ public class TestPrefetchableSuite extends RegressionSuite {
         int prefetch_ctr = 0;
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             assertNotNull(catalog_stmt);
-            if (catalog_stmt.getPrefetch()) prefetch_ctr++;
+            if (catalog_stmt.getPrefetchable()) prefetch_ctr++;
         } // FOR
         assertEquals(1, prefetch_ctr);
         
@@ -56,12 +59,20 @@ public class TestPrefetchableSuite extends RegressionSuite {
         // queued up waiting for the first txn to finish. This will guarantee that our 
         // prefetch query gets executed before the txn's control code is invoked
         int a_id = 0; // rand.nextInt(num_tuples);
-        int sleep = 2000;
+        int sleep = 1000;
         client.callProcedure(new NullCallback(), SquirrelsSingle.class.getSimpleName(), a_id, sleep);
         
         ClientResponse cr = client.callProcedure(SquirrelsDistributed.class.getSimpleName(), a_id);
         System.err.println(cr.toString());
         assertEquals(cr.toString(), Status.OK, cr.getStatus());
+        
+        // Make sure that the transactions have committed at each partition
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_db)) {
+            cr = client.callProcedure("@ExecutorStatus", catalog_part.getId());
+            System.err.println(cr.toString());
+            assertEquals(cr.toString(), Status.OK, cr.getStatus());    
+        } // FOR
+        
     }
     
     protected void checkDatabase(Client client, int a_expected) throws IOException, ProcCallException {

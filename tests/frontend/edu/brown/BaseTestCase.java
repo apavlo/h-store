@@ -47,6 +47,7 @@ import edu.brown.benchmark.markov.MarkovProjectBuilder;
 import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
+import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
@@ -191,27 +192,31 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             }
             if (catalog == null) {
                 switch (type) {
-                    case TPCC:
-                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
-                        // Update the ProcParameter mapping used in the catalogs
-//                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
-                        break;
+//                    case TPCC:
+//                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
+//                        // Update the ProcParameter mapping used in the catalogs
+////                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+//                        break;
                     case TPCE:
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
+                    case TPCC:
                     case TM1:
                     case SEATS:
                     case AUCTIONMARK:
                     case MARKOV:
                     case LOCALITY:
                     case MAPREDUCE:
+                    case WIKIPEDIA:
                         catalog = projectBuilder.getFullCatalog(fkeys);
+                        if (LOG.isDebugEnabled()) 
+                            LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
                         break;
                     default:
                         assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
-            if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
+            //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
             this.init(type, catalog);
         }
     }
@@ -255,6 +260,9 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     break;
                 case MARKOV:
                     projectBuilder = new MarkovProjectBuilder();
+                    break;
+                case WIKIPEDIA:
+                    projectBuilder = new WikipediaProjectBuilder();
                     break;
                 default:
                     assert(false) : "Invalid project type - " + type;

@@ -17,6 +17,7 @@
 package org.voltdb.client;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,6 +27,8 @@ import java.sql.Types;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
+import edu.brown.catalog.CatalogUtil;
+
 /**
  * Polls a Distributer instance for IO and procedure invocation information and ELTs the results
  * to a database via JDBC.
@@ -34,6 +37,7 @@ import org.voltdb.VoltTable;
 public class ClientStatsLoader {
     private static final Logger LOG = Logger.getLogger(ClientStatsLoader.class);
     
+    private final StatsUploaderSettings m_settings;
     private final Connection m_conn;
     private final String m_applicationName;
     private final String m_subApplicationName;
@@ -49,8 +53,9 @@ public class ClientStatsLoader {
     private static final String procedureStatsTable = tablePrefix + "clientProcedureStats";
 
     private static final String createInstanceStatement = "insert into " + instancesTable +
-            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName) " +
-            "values ( ?, ?, ?, ? );";
+            " ( clusterStartTime, clusterLeaderAddress, applicationName, subApplicationName, " +
+            " numHosts, numSites, numPartitions) " +
+            "values ( ?, ?, ?, ?, ?, ?, ? );";
 
     private static final String insertConnectionStatsStatement = "insert into " + connectionStatsTable +
             " ( instanceId, tsEvent, hostname, connectionId, serverHostId, serverHostname, " +
@@ -71,7 +76,24 @@ public class ClientStatsLoader {
     public ClientStatsLoader(
             StatsUploaderSettings settings,
             Distributer distributer) {
-        m_conn = settings.conn;
+        try {
+            if (settings.databaseJDBC != null && settings.databaseJDBC.isEmpty() == false) {
+                Class.forName(settings.databaseJDBC);
+            }
+            
+            m_conn = DriverManager.getConnection(settings.databaseURL,
+                                               settings.databaseUser,
+                                               settings.databasePass);
+            m_conn.setAutoCommit(false);
+            m_conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        }
+        catch (Exception e) {
+            String msg = "Failed to connect to SQL reporting server with message:\n    ";
+            msg += e.getMessage();
+            throw new RuntimeException(msg);
+        }
+        
+        m_settings = settings;
         m_applicationName = settings.applicationName;
         m_subApplicationName = settings.subApplicationName;
         m_pollInterval = settings.pollInterval;
@@ -79,13 +101,17 @@ public class ClientStatsLoader {
     }
 
     public void start(long startTime, int leaderAddress) throws SQLException {
+        Timestamp timestamp = new Timestamp(startTime);
+        if (LOG.isDebugEnabled())
+            LOG.debug(String.format("Cluster Start Time: %s [%d]", timestamp, startTime));
+        
         PreparedStatement instanceStmt =
             m_conn.prepareStatement(
                     createInstanceStatement,
                     PreparedStatement.RETURN_GENERATED_KEYS);
         insertConnectionStatsStmt = m_conn.prepareStatement(insertConnectionStatsStatement);
         insertProcedureStatsStmt = m_conn.prepareStatement(insertProcedureStatsStatement);
-        instanceStmt.setLong( 1, startTime);
+        instanceStmt.setTimestamp( 1, timestamp);
         instanceStmt.setInt( 2, leaderAddress);
         instanceStmt.setString( 3, m_applicationName);
         if (m_subApplicationName != null) {
@@ -93,6 +119,9 @@ public class ClientStatsLoader {
         } else {
             instanceStmt.setNull( 4, Types.VARCHAR);
         }
+        instanceStmt.setInt(5, CatalogUtil.getNumberOfHosts(m_settings.getCatalog()));
+        instanceStmt.setInt(6, CatalogUtil.getNumberOfSites(m_settings.getCatalog()));
+        instanceStmt.setInt(7, CatalogUtil.getNumberOfPartitions(m_settings.getCatalog()));
         instanceStmt.execute();
         ResultSet results = instanceStmt.getGeneratedKeys();
         while (results.next()) {
@@ -106,8 +135,10 @@ public class ClientStatsLoader {
         insertConnectionStatsStmt.setInt( 1, m_instanceId);
         insertProcedureStatsStmt.setInt( 1, m_instanceId);
         m_conn.commit();
+        m_loadThread.setDaemon(true);
         m_loadThread.start();
-        LOG.info("ClientStatsLoader has been started");
+        if (LOG.isDebugEnabled())
+            LOG.debug("ClientStatsLoader has been started");
     }
 
     public synchronized void stop() throws InterruptedException {

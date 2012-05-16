@@ -47,12 +47,13 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
     private int[] partition_site_xref;
     private Random rand = new Random(0);
 
-    Object proc_params[] = { 100l, // r_id
-            LOCAL_PARTITION + 1l, // c_id
-            LOCAL_PARTITION, // f_id
-            this.rand.nextInt(100), // seatnum
-            100d, // price
-            new long[0], // attrs
+    Object proc_params[] = {
+        100l, // r_id
+        LOCAL_PARTITION + 1l, // c_id
+        LOCAL_PARTITION, // f_id
+        this.rand.nextInt(100), // seatnum
+        100d, // price
+        new long[0], // attrs
     };
 
     @Override
@@ -62,15 +63,16 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
 
         Procedure catalog_proc = this.getProcedure(TARGET_PREFETCH_PROCEDURE);
         Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_PREFETCH_STATEMENT);
-        catalog_stmt.setPrefetch(true);
-        catalog_proc.setPrefetch(true);
+        catalog_stmt.setPrefetchable(true);
+        catalog_proc.setPrefetchable(true);
 
         // Hard-code ParameterMapping
         int mappings[][] = {
-        // StmtParameter -> ProcParameter
-        { 0, 1 }, };
-        List<ProcParameter> procParams = org.voltdb.utils.CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index");
-        List<StmtParameter> stmtParams = org.voltdb.utils.CatalogUtil.getSortedCatalogItems(catalog_stmt.getParameters(), "index");
+            // StmtParameter -> ProcParameter
+            { 0, 1 },
+        };
+        List<ProcParameter> procParams = CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index");
+        List<StmtParameter> stmtParams = CatalogUtil.getSortedCatalogItems(catalog_stmt.getParameters(), "index");
         assertNotNull(stmtParams);
         assertEquals(catalog_stmt.getParameters().size(), mappings.length);
         for (int m[] : mappings) {

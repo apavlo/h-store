@@ -69,7 +69,7 @@ public class SEATSTableStatisticsGenerator extends AbstractTableStatisticsGenera
         this.addTableProfile(p);
         
         // CUSTOMER
-        p = new TableProfile(this.catalog_db, SEATSConstants.TABLENAME_CUSTOMER, false, SEATSConstants.NUM_CUSTOMERS);
+        p = new TableProfile(this.catalog_db, SEATSConstants.TABLENAME_CUSTOMER, false, SEATSConstants.CUSTOMERS_COUNT);
         this.addTableProfile(p);
         
         // FREQUENT_FLYER
@@ -78,13 +78,13 @@ public class SEATSTableStatisticsGenerator extends AbstractTableStatisticsGenera
         this.addTableProfile(p);
 
         // FLIGHT
-        long num_flights = (int)Math.round(SEATSConstants.MAX_FLIGHTS_PER_DAY);
-        num_flights *= SEATSConstants.DAYS_FUTURE + SEATSConstants.DAYS_PAST + 1; 
+        long num_flights = (int)Math.round(SEATSConstants.FLIGHTS_PER_DAY_MAX);
+        num_flights *= SEATSConstants.FLIGHTS_DAYS_FUTURE + SEATSConstants.FLIGHTS_DAYS_PAST + 1; 
         p = new TableProfile(this.catalog_db, SEATSConstants.TABLENAME_FLIGHT, false, num_flights);
         this.addTableProfile(p);
         
         // RESERVATION
         p = new TableProfile(this.catalog_db, SEATSConstants.TABLENAME_RESERVATION, false);
-        p.addMultiplicativeDependency(this.catalog_db, SEATSConstants.TABLENAME_FLIGHT, SEATSConstants.NUM_SEATS_PER_FLIGHT); // ESTIMATE
+        p.addMultiplicativeDependency(this.catalog_db, SEATSConstants.TABLENAME_FLIGHT, SEATSConstants.FLIGHTS_NUM_SEATS); // ESTIMATE
     }
 }

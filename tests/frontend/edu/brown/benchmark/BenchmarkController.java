@@ -91,6 +91,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
@@ -103,9 +106,6 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.conf.HStoreConf;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
@@ -335,6 +335,24 @@ public class BenchmarkController {
     public boolean compileBenchmark() {
         if (m_config.hosts.length == 0) {
             m_config.hosts = new String[] { hstore_conf.global.defaulthost };
+        }
+        
+        if (m_config.deferrable != null) {
+            for (String entry : m_config.deferrable) {
+                String parts[] = entry.split("\\.");
+                assert(parts.length == 2) :
+                    "Invalid deferrable entry '" + entry + "'";
+                
+                String procName = parts[0];
+                String stmtName = parts[1];
+                assert(procName.isEmpty() == false) :
+                    "Invalid procedure name in deferrable entry '" + entry + "'";
+                assert(stmtName.isEmpty() == false) :
+                    "Invalid statement name in deferrable entry '" + entry + "'";
+                m_projectBuilder.markStatementDeferrable(procName, stmtName);
+                if (debug.get()) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
+                                                         procName, stmtName, this.getProjectName())); 
+            } // FOR
         }
         
         boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
@@ -579,9 +597,17 @@ public class BenchmarkController {
         allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
-        allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allLoaderArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allLoaderArgs.add("LOADER=true");
+        allLoaderArgs.add("EXITONCOMPLETION=false");
+        
+        if (m_config.statsDatabaseURL != null) {
+            allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+            allLoaderArgs.add("STATSDATABASEUSER=" + m_config.statsDatabaseUser);
+            allLoaderArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
+            allLoaderArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
+            allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+            LOG.info("Loader Stats Database: " + m_config.statsDatabaseURL);
+        }
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
             String arg = String.format("%s=%s", e.getKey(), e.getValue());
@@ -590,9 +616,16 @@ public class BenchmarkController {
 
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
-        allLoaderArgs.add("EXITONCOMPLETION=false");
+        
         try {
-            BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allLoaderArgs.toArray(new String[0]), true);
+            if (trace.get()) {
+                LOG.trace("Loader Class: " + m_loaderClass);
+                LOG.trace("Parameters: " + StringUtil.join(" ", allLoaderArgs));
+            }
+            BenchmarkComponent.main(m_loaderClass,
+                                    m_clientFileUploader,
+                                    allLoaderArgs.toArray(new String[0]),
+                                    true);
         } catch (Throwable ex) {
             this.failed = true;
             throw new RuntimeException("Failed to load data using " + m_loaderClass.getSimpleName(), ex);
@@ -672,11 +705,16 @@ public class BenchmarkController {
         allClientArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
-        allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
-        allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
-        // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         allClientArgs.add("LOADER=false");
+        
+        if (m_config.statsDatabaseURL != null) {
+            allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+            allClientArgs.add("STATSDATABASEUSER=" + m_config.statsDatabaseUser);
+            allClientArgs.add("STATSDATABASEPASS=" + m_config.statsDatabasePass);
+            allClientArgs.add("STATSDATABASEJDBC=" + m_config.statsDatabaseJDBC);
+            allClientArgs.add("STATSPOLLINTERVAL=" + m_config.statsPollInterval);
+            // allClientArgs.add("STATSTAG=" + m_config.statsTag);
+        }
         
         int threads_per_client = hstore_conf.client.processesperclient;
         if (hstore_conf.client.processesperclient_per_partition) {
@@ -837,6 +875,9 @@ public class BenchmarkController {
                                 (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
                                 
         ));
+        if (m_config.statsDatabaseURL != null) {
+            LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
+        }
         
         // HACK
         int gdb_sleep = 0;
@@ -1222,6 +1263,12 @@ public class BenchmarkController {
         boolean checkTables = false;
         
         String statsTag = null;
+        String statsDatabaseURL = null;
+        String statsDatabaseUser = null;
+        String statsDatabasePass = null;
+        String statsDatabaseJDBC = null;
+        int statsPollInterval = 1000;
+        
         String applicationName = null;
         String subApplicationName = null;
         
@@ -1248,6 +1295,9 @@ public class BenchmarkController {
         boolean markov_recomputeAfterEnd = false;
         boolean markov_recomputeAfterWarmup = false;
         
+        // Deferrable Queries
+        String deferrable[] = null;
+        
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
         
@@ -1257,9 +1307,7 @@ public class BenchmarkController {
         // try to read connection string for reporting database
         // from a "mysqlp" file
         // set value to null on failure
-        String[] databaseURL = { "", "" };
-        String statsDatabaseJDBC = null;
-        int statsPollInterval = 1000;
+
 //        try {
 //            databaseURL = readConnectionStringFromFile(remotePath);
 //            assert(databaseURL.length == 2);
@@ -1382,10 +1430,16 @@ public class BenchmarkController {
                 
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-                databaseURL[0] = parts[1];
+                statsDatabaseURL = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASEJDBC")) {
                 statsDatabaseJDBC = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEUSER")) {
+                statsDatabaseUser = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("STATSDATABASEPASS")) {
+                statsDatabasePass = parts[1];
             }
             else if (parts[0].equalsIgnoreCase("STATSDATABASETAG")) {
                 statsTag = parts[1];
@@ -1424,6 +1478,14 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
+                
+            /*
+             * List of deferrable queries
+             * Format: <ProcedureName>.<StatementName>
+             */
+            } else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
+                if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
+                deferrable = parts[1].split(",");
             
             /* Disable starting the database cluster  */
             } else if (parts[0].equalsIgnoreCase("NOSITES")) {
@@ -1587,8 +1649,9 @@ public class BenchmarkController {
                 snapshotPrefix,
                 snapshotFrequency, 
                 snapshotRetain, 
-                databaseURL[0], 
-                databaseURL[1],
+                statsDatabaseURL, 
+                statsDatabaseUser,
+                statsDatabasePass,
                 statsDatabaseJDBC,
                 statsPollInterval,
                 statsTag,
@@ -1611,6 +1674,7 @@ public class BenchmarkController {
                 markov_thresholdsValue,
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
+                deferrable,
                 dumpDatabase,
                 dumpDatabaseDir,
                 jsonOutput
