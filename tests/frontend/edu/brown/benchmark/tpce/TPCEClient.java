@@ -178,7 +178,7 @@ public class TPCEClient extends BenchmarkComponent {
     protected static Transaction selectTransaction() {
         int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
         // return XTRANS[ordinal];
-        return Transaction.MARKET_WATCH;
+        return Transaction.CUSTOMER_POSITION;
     }
 
     private static void initSampleTable() {

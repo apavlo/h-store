@@ -46,6 +46,9 @@ public class IndustryGenerator extends TableGenerator {
         table_size = ind_file.getRecordsNum();
     }
     
+    public int getTableSize(){
+    	return table_size;
+    }
     @Override
     public boolean hasNext() {
         return counter < table_size;

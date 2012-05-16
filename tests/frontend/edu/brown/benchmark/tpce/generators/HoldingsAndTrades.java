@@ -46,7 +46,8 @@ public class HoldingsAndTrades {
      public static final int LIMIT_BUY_LOAD_THRESHOLD    = MARKET_SELL_LOAD_THRESHOLD  + 20; // 61% - 80%
      public static final int LIMIT_SELL_LOAD_THRESHOLD   = LIMIT_BUY_LOAD_THRESHOLD    + 10; // 81% - 90%
      public static final int STOP_LOSS_LOAD_THRESHOLD    = LIMIT_SELL_LOAD_THRESHOLD   + 10; // 91% - 100%
-     
+     public static final  double fMinSecPrice = 20.00;
+     public static final  double fMaxSecPrice = 30.00;
      /*
       * Used to generate trades
       */

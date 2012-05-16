@@ -68,7 +68,7 @@ public class CustomerSelection {
     private long myStartCustomer;
     private final long customerCount;
     private long myCustomerCount;
-    
+     
     public CustomerSelection(EGenRandom rnd, long startCustomer, long customerCount, int partPercent,
             long myStartCustomer, long myCustomerCount) {
         this.rnd = rnd;
@@ -84,6 +84,15 @@ public class CustomerSelection {
         else {
             isPartition = true;
         }
+    }
+  
+    public CustomerSelection(EGenRandom rnd, long startCustomer, long customerCount){
+    	this.rnd = rnd;
+    	this.startCustomer = startCustomer + TPCEConstants.IDENT_SHIFT;
+    	this.myStartCustomer = 0 + TPCEConstants.IDENT_SHIFT;
+    	this.customerCount = customerCount;
+    	this.partPercent = 0;
+    	this.isPartition = false;
     }
     
     public void setPartitionRange(long startFromCustomer, long customerCount) {

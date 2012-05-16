@@ -45,9 +45,9 @@ public class EGenClientDriver {
      * @param scaleFactor
      * @param initialDays
      */
-    public native long initialize(String data_path, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays);
+//    public native long initialize(String data_path, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays);
 
-    private native Object[] egenBrokerVolume(long driver_ptr);
+/*    private native Object[] egenBrokerVolume(long driver_ptr);
 
     private native Object[] egenCustomerPosition(long driver_ptr);
 
@@ -69,9 +69,9 @@ public class EGenClientDriver {
 
     private native Object[] egenTradeStatus(long driver_ptr);
 
-    private native Object[] egenTradeUpdate(long driver_ptr);
+    private native Object[] egenTradeUpdate(long driver_ptr);*/
 
-    private final long driver_ptr;
+    private ClientDriver driver_ptr;
 
     /**
      * Constructor
@@ -97,7 +97,7 @@ public class EGenClientDriver {
 
         String input_path = new File(egenloader_path + File.separator + "flat_in").getAbsolutePath();
         LOG.debug("Invoking initialization method on driver using data path '" + input_path + "'");
-        this.driver_ptr = this.initialize(input_path, totalCustomerCount, totalCustomerCount, scaleFactor, initialDays);
+        driver_ptr = new ClientDriver(input_path, totalCustomerCount, totalCustomerCount, scaleFactor, initialDays);
     }
 
     private Object[] cleanParams(Object[] orig) {
@@ -111,50 +111,52 @@ public class EGenClientDriver {
     }
 
     public Object[] getBrokerVolumeParams() {
-        return (this.cleanParams(this.egenBrokerVolume(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateBrokerVolumeInput().InputParameters().toArray()));
     }
 
     public Object[] getCustomerPositionParams() {
-        return (this.cleanParams(this.egenCustomerPosition(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateCustomerPositionInput().InputParameters().toArray()));
     }
 
     public Object[] getDataMaintenanceParams() {
-        return (this.cleanParams(this.egenDataMaintenance(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateDataMaintenanceInput().InputParameters().toArray()));
     }
 
-    public Object[] getMarketFeedParams() {
-        return (this.cleanParams(this.egenMarketFeed(this.driver_ptr)));
+/*    public Object[] getMarketFeedParams() {
+        return (this.cleanParams(driver_ptr.generateMarketFeedInput().InputParameters().toArray()));
     }
-
+*/
     public Object[] getMarketWatchParams() {
-        return (this.cleanParams(this.egenMarketWatch(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateMarketWatchInput().InputParameters().toArray()));
     }
 
     public Object[] getSecurityDetailParams() {
-        return (this.cleanParams(this.egenSecurityDetail(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateSecurityDetailInput().InputParameters().toArray()));
     }
 
     public Object[] getTradeCleanupParams() {
-        return (this.cleanParams(this.egenTradeCleanup(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateTradeCleanupInput().InputParameters().toArray()));
     }
 
     public Object[] getTradeLookupParams() {
-        return (this.cleanParams(this.egenTradeLookup(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateTradeLookupInput().InputParameters().toArray()));
     }
 
     public Object[] getTradeOrderParams() {
-        return (this.cleanParams(this.egenTradeOrder(this.driver_ptr)));
+    	int   iTradeType = 0;
+        boolean    bExecutorIsAccountOwner = true;
+        return (this.cleanParams(driver_ptr.generateTradeOrderInput(iTradeType, bExecutorIsAccountOwner).InputParameters().toArray()));
     }
 
-    public Object[] getTradeResultParams() {
-        return (this.cleanParams(this.egenTradeResult(this.driver_ptr)));
+/*    public Object[] getTradeResultParams() {
+        return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
     }
-
+*/
     public Object[] getTradeStatusParams() {
-        return (this.cleanParams(this.egenTradeStatus(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateTradeStatusInput().InputParameters().toArray()));
     }
 
     public Object[] getTradeUpdateParams() {
-        return (this.cleanParams(this.egenTradeUpdate(this.driver_ptr)));
+        return (this.cleanParams(driver_ptr.generateTradeUpdateInput().InputParameters().toArray()));
     }
 }
