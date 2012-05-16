@@ -830,7 +830,8 @@ def clear_logs():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
-            with settings(host_string=inst.public_dns_name), settings(warn_only=True):
+            #### below 'and' changed from comma by ambell
+            with settings(host_string=inst.public_dns_name) and settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
                 log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
                 run("rm -rf %s/*" % log_dir)

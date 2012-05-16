@@ -49,7 +49,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     /**
      * Retrieved via reflection by BenchmarkController
      */
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = MultiLoader.class;
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCCLoader.class;
 
     /**
      * All procedures needed for TPC-C tests + benchmark
@@ -71,6 +71,9 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
         MRquery1.class,
+        //MRquery3.class,
+        MRquery6.class,
+        MRquery12.class,
         MRqueryJoinAgg.class,
     };
     
@@ -105,32 +108,41 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
 
     public TPCCProjectBuilder() {
         super("tpcc", TPCCProjectBuilder.class, PROCEDURES, partitioning);
-    }
-    
-    /**
-     * Add the TPC-C procedures to the VoltProjectBuilder base class.
-     */
-    public void addDefaultProcedures() {
-        addProcedures(PROCEDURES);
         
         // MapReduce OLAP Experimental Queries
         addStmtProcedure("OLAPQuery1",
                          "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
-                         "       AVG(ol_quantity), AVG(ol_amount), COUNT(*)" +
-                         "  FROM ORDER_LINE " +
-                         " GROUP BY ol_number order by ol_number");
+                         "       AVG(ol_quantity), AVG(ol_amount), COUNT(*) " +
+                         " FROM ORDER_LINE " +
+                         " WHERE ol_delivery_d > '2007-01-02 00:00:00.000000'" + // "The data can be"
+                         " GROUP BY ol_number " +
+                         " ORDER BY ol_number");
+        
+//        addStmtProcedure("OLAPQuery3",
+//                "SELECT ol_o_id, ol_w_id, ol_d_id, SUM(ol_amount) as revenue, o_entry_d " +
+//                "  FROM CUSTOMER, NEW_ORDER, ORDERS, ORDER_LINE " +
+//                " WHERE   c_id = o_c_id " + 
+//                    " and c_w_id = o_w_id " +
+//                    " and c_d_id = o_d_id " +
+//                    " and no_w_id = o_w_id " +
+//                    " and no_d_id = o_d_id " +
+//                    " and no_o_id = o_id " +
+//                    " and ol_w_id = o_w_id " +
+//                    " and ol_d_id = o_d_id " +
+//                    " and ol_o_id = o_id" +
+//                    " and o_entry_d > '2007-01-02 00:00:00.000000' " +
+//                    //" GROUP BY ol_o_id " +
+//                    " GROUP BY ol_o_id, ol_w_id, ol_d_id, o_entry_d " + // mr_transaction can not support multi-column-keys right now
+//                //" ORDER BY revenue desc, o_entry_d"); // error: "ORDER BY with complex expressions not yet supported
+//                " ORDER BY o_entry_d");
+        
         addStmtProcedure("OLAPQuery6",
-                         "SELECT ol_number, SUM(ol_amount) " +
-                         "  FROM ORDER_LINE " +
-                         " WHERE ol_quantity between 1 and 100000 " +
-                         " GROUP BY ol_number order by ol_number");
-        addStmtProcedure("OLAPQuery19",
-                         "SELECT ol_number, SUM(ol_amount) " +
-                         "  FROM ORDER_LINE " +
-                         "WHERE (ol_o_id >= 20 and ol_o_id <= 100) " +
-                         "   OR (ol_o_id >= 105 and ol_o_id <= 200)" +
-                         "   OR (ol_o_id >= 210 and ol_o_id <= 290)" +
-                         "GROUP BY ol_number order by ol_number");
+                         "SELECT SUM(ol_amount) as revenue " +
+                         "FROM ORDER_LINE " +
+                         "WHERE ol_delivery_d >= '1999-01-01 00:00:00.000000' " +
+                                 "and ol_delivery_d < '2020-01-01 00:00:00.000000' " +
+                                 "and ol_quantity between 1 and 100000");
+        
         addStmtProcedure("OLAPJoinAgg",
                          "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
                          "       SUM(i_price), AVG(ol_quantity), AVG(ol_amount), " +
@@ -142,49 +154,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         
         // Helpers
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
-        
-    }
-
-    /**
-     * Add the TPC-C partitioning to the VoltProjectBuilder base class.
-     */
-    public void addDefaultPartitioning() {
-        for (String pair[] : partitioning) {
-            addTablePartitionInfo(pair[0], pair[1]);
-        }
-    }
-
-    /**
-     * Add the TPC-C schema to the VoltProjectBuilder base class.
-     */
-    public void addDefaultSchema() {
-        addSchema(this.getDDLURL(true));
-    }
-
-    public void addDefaultELT() {
-        addELT("org.voltdb.elt.connectors.VerticaConnector", true, null, null);
-
-        /* Fixed after the loader completes. */
-        // addELTTable("WAREHOUSE", false);
-        // addELTTable("DISTRICT", false);
-        // addELTTable("ITEM", false);
-        // addELTTable("CUSTOMER", false);
-        // addELTTable("CUSTOMER_NAME", false);
-        // addELTTable("STOCK", false);
-
-        /* Modified by actual benchmark: approx 6.58 ins/del per txn. */
-        // addELTTable("HISTORY", false);     // 1 insert per payment (43%)
-        // addELTTable("ORDERS", false);      // 1 insert per new order (45%)
-        // addELTTable("NEW_ORDER", false);   // 1 insert per new order; 10 deletes per delivery (4%)
-        addELTTable("ORDER_LINE", false);     // 10 inserts per new order
-    }
-
-    @Override
-    public void addAllDefaults() {
-        addDefaultProcedures();
-        addDefaultPartitioning();
-        addDefaultSchema();
-        // addDefaultELT();
     }
 
     /**

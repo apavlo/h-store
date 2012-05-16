@@ -68,8 +68,16 @@
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
+<arg value="site.exec_command_logging=${site.exec_command_logging}" />
+<arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
+<arg value="site.exec_command_logging_group_commit=${site.exec_command_logging_group_commit}" />
+<arg value="site.exec_command_logging_group_commit_timeout=${site.exec_command_logging_group_commit_timeout}" />
+<arg value="site.exec_command_logging_profile=${site.exec_command_logging_profile}" />
+<arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
-<arg value="site.mapreduce_reduce_blocking=${site.mapreduce_reduce_blocking}" />
+<arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
+<arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
+<arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
@@ -122,6 +130,7 @@
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
 <arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
+<arg value="site.pool_dtxnstates_idle=${site.pool_dtxnstates_idle}" />
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
 <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />

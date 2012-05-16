@@ -44,7 +44,7 @@ public class UserIdGenerator implements Iterator<UserId> {
     private UserId next = null;
     private Long currentItemCount = null;
     private long currentOffset;
-    private long currentPosition = 0l;
+    private int currentPosition = 0;
     
     /**
      * Construct a new generator based on the given histogram.
@@ -83,10 +83,10 @@ public class UserIdGenerator implements Iterator<UserId> {
         // so that we always get the same UserIds back per client
         this.currentPosition = 0;
         for (long i = 0; i < size; i++) {
-            this.currentPosition += this.users_per_item_count.get(i, 0l);
+            this.currentPosition += this.users_per_item_count.get(i, 0);
         } // FOR
         this.currentItemCount = size;
-        this.currentOffset = this.users_per_item_count.get(this.currentItemCount, 0l);
+        this.currentOffset = this.users_per_item_count.get(this.currentItemCount, 0);
     }
     
     public long getCurrentPosition() {
@@ -124,7 +124,7 @@ public class UserIdGenerator implements Iterator<UserId> {
             } // WHILE
             if (found != null) break;
             this.currentItemCount++;
-            this.currentOffset = (int)this.users_per_item_count.get(this.currentItemCount, 0l);
+            this.currentOffset = (int)this.users_per_item_count.get(this.currentItemCount, 0);
         } // WHILE
         if (found == null) return (null);
         

@@ -129,7 +129,13 @@ public class SysProcFragmentId
     public static final int PF_recomputeMarkovsAggregate = 181;
 
     // @GarbageCollection
-    public static final int PF_gcDistribute = 190;
-    public static final int PF_gcAggregate = 191;
+    public static final int PF_gcDistribute = 185;
+    public static final int PF_gcAggregate = 186;
+    
+    // @ExecutorStatus
+    public static final int PF_execStatus = 190;
+    
+    // @GetCatalog
+    public static final int PF_getCatalog = 195;
     
 }

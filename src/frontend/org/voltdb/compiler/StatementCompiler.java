@@ -51,6 +51,7 @@ import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.PlanFragmentIdGenerator;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 
@@ -66,11 +67,14 @@ public abstract class StatementCompiler {
 
     private static AtomicInteger NEXT_FRAGMENT_ID = null;
     
-    public synchronized static int getNextFragmentId(Database catalog_db) {
-        return getNextFragmentId(catalog_db, false);
+    public static int getNextFragmentId(Database catalog_db) {
+        return getNextFragmentId(catalog_db, false, false, false);
     }
     
-    public synchronized static int getNextFragmentId(Database catalog_db, boolean readonly) {
+    public synchronized static int getNextFragmentId(Database catalog_db,
+                                                        boolean readonly,
+                                                        boolean fastAggregate,
+                                                        boolean fastCombine) {
         // If this is the first time we are being called, figure out
         // where our ids should start at
         if (NEXT_FRAGMENT_ID == null) {
@@ -85,7 +89,11 @@ public abstract class StatementCompiler {
         }
         // If it's not readonly, then we'll offset it so that we can
         // easily identify it at runtime
-        return (CatalogUtil.createPlanFragmentId(NEXT_FRAGMENT_ID.incrementAndGet(), readonly));
+        int next_id = NEXT_FRAGMENT_ID.incrementAndGet();
+        return (PlanFragmentIdGenerator.createPlanFragmentId(next_id,
+                                                              readonly,
+                                                              fastAggregate,
+                                                              fastCombine));
     }
     
     public static void compile(VoltCompiler compiler, HSQLInterface hsql,
@@ -259,9 +267,11 @@ public abstract class StatementCompiler {
                 node_list = new PlanNodeList(fragment.planGraph);
                 
                 boolean readonly = fragmentReadOnly(fragment.planGraph);
+                boolean fastAggregate = false; // FIXME
+                boolean fastCombine = false; // FIXME
                 
                 // Now update our catalog information
-                int id = getNextFragmentId(db);
+                int id = getNextFragmentId(db, readonly, fastAggregate, fastCombine);
                 String planFragmentName = Integer.toString(id);
                 PlanFragment planFragment = null;
                     
