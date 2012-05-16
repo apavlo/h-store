@@ -2371,22 +2371,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 			// REGULAR FRAGMENTS
 			// -------------------------------
 		} else {
-			// determine to use fast feature
-			if (d)
-				LOG.debug("Determine to fast execute in Java:"
-						+ hstore_conf.site.exec_fast_executors);
-			if (hstore_conf.site.exec_fast_executors) {
-				if (d)
-					LOG.debug("Determine to fast execute in Java:"
-							+ hstore_conf.site.exec_fast_executors);
-
+			
 				for (int i = 0; i < fragmentCount; i++) {
 					fastaggre = PlanFragmentIdGenerator
 							.isPlanFragmentFastAggregate(fragmentIds[i]);
 					fastcombi = PlanFragmentIdGenerator
 							.isPlanFragmentFastCombine(fragmentIds[i]);
+					// determine to use fast feature
 					if (d)
-						LOG.debug("value of fastaggre:" + fastaggre);
+						LOG.debug("Determine to fast execute in Java:"
+								+ hstore_conf.site.exec_fast_executors);
+					if (hstore_conf.site.exec_fast_executors) {
+						
 					if (fastaggre) {
 						// go into Java to execute fast aggregate
 						
@@ -2395,15 +2391,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 						// simple summation
 						result = aggexecutor.execute(outputDepIds, inputDepIds,
 								this.tmp_EEdependencies);
-						if (d)
-							LOG.debug("Complete fast aggregate in Java!");
-
+						
 					} else if (fastcombi) {
 						// do fast combine in Java
 						result = combexecutor.execute(outputDepIds,
 								inputDepIds, this.tmp_EEdependencies);
-						if (d)
-							LOG.debug("Complete fast combine in Java!");
+						
 					} else {
 						// send to ExecutionEngine
 						result = this.executePlanFragments(ts, undoToken,
@@ -2411,13 +2404,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 								outputDepIds, inputDepIds,
 								this.tmp_EEdependencies);
 					}
-				} // for
-			} else {
-				// donnot use the fast feature
-				result = this.executePlanFragments(ts, undoToken,
-						fragmentCount, fragmentIds, parameters, outputDepIds,
-						inputDepIds, this.tmp_EEdependencies);
-			}
+				} else {
+					// donnot use the fast feature
+					result = this.executePlanFragments(ts, undoToken,
+							fragmentCount, fragmentIds, parameters, outputDepIds,
+							inputDepIds, this.tmp_EEdependencies);
+				}
+			}//for
+				
 
 			if (result == null) {
 				if (d)

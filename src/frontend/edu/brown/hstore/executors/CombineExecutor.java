@@ -39,9 +39,10 @@ public class CombineExecutor extends FastExecutor {
 
 		VoltTable record = null;
 		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
-		record = tmp.get(0).clone(0);
+		//record = tmp.get(0).clone(0);
+		record=tmp.get(0);
 		int tmpsize = tmp.size();
-		for (int i = 0; i < tmpsize; i++) {
+		for (int i = 1; i < tmpsize; i++) {
 			VoltTable t = tmp.get(i);
 			while (t.advanceRow()) {
 			
