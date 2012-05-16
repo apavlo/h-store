@@ -30,17 +30,14 @@ public class AggregateExecutor extends FastExecutor {
 	@Override
 	public DependencySet execute(int[] outputid, int[] inputid,
 			Map<Integer, List<VoltTable>> tmp_dependencies) {
-        Long finalsum=null;
+		Long finalsum = new Long(0);
 		VoltTable record = null;
 		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
 		record = tmp.get(0).clone(0);
-		int tmpsize = tmp.size();
-		if(tmp.get(0).advanceRow()){
-			finalsum=(Long)tmp.get(0).getLong(0);
-		}
-		for (int i = 1; i < tmpsize; i++) {
-			VoltTable t = tmp.get(i);
-			if(t.advanceRow()) {
+
+		for (VoltTable t : tmp) {
+
+			if (t.advanceRow()) {
 				finalsum += (Long) t.get(0); // do the sum in Java
 			}
 
@@ -48,7 +45,7 @@ public class AggregateExecutor extends FastExecutor {
 		record.addRow(finalsum); // add the final result
 		VoltTable[] vt = new VoltTable[1];
 		vt[0] = record;
-		
+
 		return (new DependencySet(outputid, vt));
 	}
 

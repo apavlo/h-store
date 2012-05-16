@@ -2371,32 +2371,32 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 			// REGULAR FRAGMENTS
 			// -------------------------------
 		} else {
-			
-				for (int i = 0; i < fragmentCount; i++) {
-					fastaggre = PlanFragmentIdGenerator
-							.isPlanFragmentFastAggregate(fragmentIds[i]);
-					fastcombi = PlanFragmentIdGenerator
-							.isPlanFragmentFastCombine(fragmentIds[i]);
-					// determine to use fast feature
-					if (d)
-						LOG.debug("Determine to fast execute in Java:"
-								+ hstore_conf.site.exec_fast_executors);
-					if (hstore_conf.site.exec_fast_executors) {
-						
+
+			for (int i = 0; i < fragmentCount; i++) {
+				fastaggre = PlanFragmentIdGenerator
+						.isPlanFragmentFastAggregate(fragmentIds[i]);
+				fastcombi = PlanFragmentIdGenerator
+						.isPlanFragmentFastCombine(fragmentIds[i]);
+				// determine to use fast feature
+				if (d)
+					LOG.debug("Determine to fast execute in Java:"
+							+ hstore_conf.site.exec_fast_executors);
+				if (hstore_conf.site.exec_fast_executors) {
+
 					if (fastaggre) {
 						// go into Java to execute fast aggregate
-						
+
 						// make sure each voltTable just has one column, and do
 						// the
 						// simple summation
 						result = aggexecutor.execute(outputDepIds, inputDepIds,
 								this.tmp_EEdependencies);
-						
+
 					} else if (fastcombi) {
 						// do fast combine in Java
 						result = combexecutor.execute(outputDepIds,
 								inputDepIds, this.tmp_EEdependencies);
-						
+
 					} else {
 						// send to ExecutionEngine
 						result = this.executePlanFragments(ts, undoToken,
@@ -2407,11 +2407,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 				} else {
 					// donnot use the fast feature
 					result = this.executePlanFragments(ts, undoToken,
-							fragmentCount, fragmentIds, parameters, outputDepIds,
-							inputDepIds, this.tmp_EEdependencies);
+							fragmentCount, fragmentIds, parameters,
+							outputDepIds, inputDepIds, this.tmp_EEdependencies);
 				}
-			}//for
-				
+			}// for
 
 			if (result == null) {
 				if (d)
