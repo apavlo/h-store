@@ -34,6 +34,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.StatusTypeGenerator.StatusTypeId;
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
+import edu.brown.benchmark.tpce.util.EGenRandom;
 
 /**
  * @author akalinin
@@ -96,12 +97,21 @@ public class BrokerGenerator extends TableGenerator {
         }
     }
     
-    private String generateBrokerName(long brokerId) {
+    public long GenerateRandomBrokerId(EGenRandom  rnd)
+	{
+	    return rnd.int64Range(startFromBroker, startFromBroker + totalBrokers - 1);
+	}
+    
+    public String generateBrokerName(long brokerId) {
         return personHandler.getFirstName(brokerId + BROKER_NAME_ID_SHIFT) + " " +
                 personHandler.getMiddleName(brokerId + BROKER_NAME_ID_SHIFT) + " " +
                 personHandler.getLastName(brokerId + BROKER_NAME_ID_SHIFT);
     }
 
+    public long GetBrokerCount()
+	{
+	    return totalBrokers;
+	}
     /* (non-Javadoc)
      * @see java.util.Iterator#hasNext()
      */

@@ -135,6 +135,9 @@ public class CompanyGenerator extends TableGenerator {
         return coId;
     }
     
+    public long getCompanyCount(){
+    	return companyCount;
+    }
     @Override
     public boolean hasNext() {
         return counter < startingCompany + companyCount;

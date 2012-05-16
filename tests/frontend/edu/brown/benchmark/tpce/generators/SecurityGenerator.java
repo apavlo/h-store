@@ -111,6 +111,9 @@ public class SecurityGenerator extends TableGenerator {
                 compGenerator.generateCompanyName(coId - 1 - TPCEConstants.IDENT_SHIFT); // <issue> of <company name>
     }
 
+    public long getNumSecurity(){
+    	return numSecurity;
+    }
     /* (non-Javadoc)
      * @see java.util.Iterator#next()
      */

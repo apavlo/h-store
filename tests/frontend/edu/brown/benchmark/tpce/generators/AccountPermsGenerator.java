@@ -36,10 +36,10 @@ import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class AccountPermsGenerator extends TableGenerator {
-    private final static int percentAccountAdditionalPermissions_0 = 60;
-    private final static int percentAccountAdditionalPermissions_1 = 38;
-    private final static int percentAccountAdditionalPermissions_2 = 2;
-    private final static long accountPermissionIDRange = 4024L * 1024 * 1024 - TPCEConstants.DEFAULT_START_CUSTOMER_ID;
+	public final static int percentAccountAdditionalPermissions_0 = 60;
+	public final static int percentAccountAdditionalPermissions_1 = 38;
+	public final static int percentAccountAdditionalPermissions_2 = 2;
+	public final static long accountPermissionIDRange = 4024L * 1024 * 1024 - TPCEConstants.DEFAULT_START_CUSTOMER_ID;
 
     private final CustomerAccountsGenerator accsGenerator;
     private final EGenRandom rnd;
@@ -48,7 +48,7 @@ public class AccountPermsGenerator extends TableGenerator {
     private int permsGenerated;
     private int permsToGenerate;
     private long currentAccId;
-    private long[] permCids = new long[3];
+    public long[] permCids = new long[3];
     private final static String[] permACLs = {"000", "001", "011"};
     
     public AccountPermsGenerator(Table catalog_tbl, TPCEGenerator generator) {
@@ -72,7 +72,7 @@ public class AccountPermsGenerator extends TableGenerator {
         generateCids();
     }
     
-    private int getNumPermsForAcc(long accId) {
+    public int getNumPermsForAcc(long accId) {
         long oldSeed = rnd.getSeed();
         
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_NUMBER_OF_ACCOUNT_PERMISSIONS, accId);
@@ -90,7 +90,7 @@ public class AccountPermsGenerator extends TableGenerator {
         }
     }
     
-    private void generateCids() {
+    public void generateCids() {
         if (permsToGenerate == 1) { // only the customer himself has permissions
             return;
         }

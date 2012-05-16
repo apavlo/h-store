@@ -65,6 +65,46 @@ public abstract class TPCEConstants {
         FIXED, SCALING, GROWING,
     }
 
+    //DriverType
+    public static enum DriverType{
+    	  eDriverEGenLoader(0),
+    	  eDriverAll(1),
+    	  eDriverCE(2),
+    	  eDriverMEE(3),
+    	  eDriverDM(4),
+    	  eDriverMax(5);
+    	  
+    	  private DriverType(int index){
+    		  this.index = index;
+    	  }
+    	  public int getVal(){
+    		  return index;
+    	  }
+    	  private int index;
+    }
+    public static enum eStatusTypeID{
+        eCompleted(0),
+        eActive(1),
+        eSubmitted(2),
+        ePending(3),
+        eCanceled(4),
+
+        eMaxStatusTypeID(5);    // should be the last - contains the number of items in the enumeration
+        private eStatusTypeID(int index){
+  		  this.index = index;
+        }
+        public int getVal(){
+        	return index;
+        }
+        private int index;
+    }
+    public static String[] szDriverTypeNames = {
+    	"EGenLoader",
+    	"EGenDriverAll",
+    	"EGenDriverCE",
+    	"EGenDriverMEE",
+    	"EGenDriverDM"
+  };
     // Data Parameters
     public static final int DEFAULT_NUM_CUSTOMERS = 5000; // Default total number of customers (EGen uses 'long' here) 
     public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the
@@ -80,6 +120,7 @@ public abstract class TPCEConstants {
     public static final long TRADE_SHIFT = 200000000000000L;  // 200 trillion (2 * 10^14); trade ids shift
 
     public static final long DEFAULT_START_CUSTOMER_ID = 1;
+    public static final long ACTIVECUSTOMERCOUNT = 5000;
     
     /*
      * Parameters for scaling tables
@@ -89,8 +130,11 @@ public abstract class TPCEConstants {
     public static final long DEFAULT_SECURITIES_PER_UNIT = 685;
 
     public static final int  BROKERS_DIV = 100;  // by what number to divide the customer count to get the broker count
-    public final static long STARTING_BROKER_ID = 1;
-
+    public static final long STARTING_BROKER_ID = 1;
+    public static final int  AbortTrade = 101;
+    public static final int  MAXHOSTNAME = 64;
+    public static final int  MAXDBNAME = 64;
+	public static final int  MAXPATH = 512;
 
     /*
      * Some importand dates for the generator
@@ -116,6 +160,60 @@ public abstract class TPCEConstants {
     public static final int daysPerWorkWeek = 5;
     public static final int newsItemsPerCompany = 2;
     
+    // Range of financial rows to return from Security Detail
+    public static final int iSecurityDetailMinRows = 5;
+    public static final int iSecurityDetailMaxRows = 20;    // max_fin_len
+    
+    /*
+     * Trade-Lookup constants
+     */
+    public static final int     TradeLookupMaxTradeHistoryRowsReturned  = 3;    //Based on the maximum number of status changes a trade can go through.
+    public static final int     TradeLookupMaxRows                      = 20;   // Max number of rows for the frames
+    public static final int     TradeLookupFrame1MaxRows                = TradeLookupMaxRows;
+    public static final int     TradeLookupFrame2MaxRows                = TradeLookupMaxRows;
+    public static final int     TradeLookupFrame3MaxRows                = TradeLookupMaxRows;
+    public static final int     TradeLookupFrame4MaxRows                = TradeLookupMaxRows;
+
+    /*
+     *  Trade-Update constants
+     */
+    
+    public static final int     TradeUpdateMaxTradeHistoryRowsReturned  = 3;    //Based on the maximum number of status changes a trade can go through.
+    public static final int     TradeUpdateMaxRows                      = 20;   // Max number of rows for the frames
+    public static final int     TradeUpdateFrame1MaxRows                = TradeUpdateMaxRows;
+    public static final int     TradeUpdateFrame2MaxRows                = TradeUpdateMaxRows;
+    public static final int     TradeUpdateFrame3MaxRows                = TradeUpdateMaxRows;
+
+    // These two arrays are used for platform independence
+    public static final char[]      UpperCaseLetters  =   "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+    public static final char[]      LowerCaseLetters  =   "abcdefghijklmnopqrstuvwxyz".toCharArray();
+    public static final char[]      Numerals          =   "0123456789".toCharArray();
+    public static final int       MaxLowerCaseLetters =   LowerCaseLetters.toString().length() - 1;
+
+    //
+    // Constants for non-uniform distribution of various transaction parameters.
+    //
+
+    // Trade Lookup
+    public static final int     TradeLookupAValueForTradeIDGenFrame1    = 65535;
+    public static final int     TradeLookupSValueForTradeIDGenFrame1    = 7;
+    public static final int     TradeLookupAValueForTimeGenFrame2       = 4095;
+    public static final int     TradeLookupSValueForTimeGenFrame2       = 16;
+    public static final int     TradeLookupAValueForSymbolFrame3        = 0;
+    public static final int     TradeLookupSValueForSymbolFrame3        = 0;
+    public static final int     TradeLookupAValueForTimeGenFrame3       = 4095;
+    public static final int     TradeLookupSValueForTimeGenFrame3       = 16;
+    public static final int     TradeLookupAValueForTimeGenFrame4       = 4095;
+    public static final int     TradeLookupSValueForTimeGenFrame4       = 16;
+    // Trade Update
+    public static final int     TradeUpdateAValueForTradeIDGenFrame1    = 65535;
+    public static final int     TradeUpdateSValueForTradeIDGenFrame1    = 7;
+    public static final int     TradeUpdateAValueForTimeGenFrame2       = 4095;
+    public static final int     TradeUpdateSValueForTimeGenFrame2       = 16;
+    public static final int     TradeUpdateAValueForSymbolFrame3        = 0;
+    public static final int     TradeUpdateSValueForSymbolFrame3        = 0;
+    public static final int     TradeUpdateAValueForTimeGenFrame3       = 4095;
+    public static final int     TradeUpdateSValueForTimeGenFrame3       = 16;
     /*
      * Constants for securities
      */
