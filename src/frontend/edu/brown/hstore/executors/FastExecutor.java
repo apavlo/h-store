@@ -28,6 +28,6 @@ public abstract class FastExecutor {
      * @param input
      * @return
      */
-    public abstract DependencySet execute(int id, Map<Integer, List<VoltTable>> tmp_dependencies);
+    public abstract DependencySet execute(int[] outputid,int[] inputid, Map<Integer, List<VoltTable>> tmp_dependencies);
     
 }

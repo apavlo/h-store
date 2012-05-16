@@ -32,27 +32,28 @@ import org.voltdb.VoltType;
 
 public abstract class ABCTables {
 
-    public static VoltTable initializeTableA() {
-        ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
-        String prefix = "A";
+	public static VoltTable initializeTableA() {
+		ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
+		String prefix = "A";
 
-        columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
+		columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
+		columns.add(new VoltTable.ColumnInfo(prefix + "_NUM", VoltType.BIGINT));
+		columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
 
-        VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
-        return (new VoltTable(columns.toArray(cols)));
-    }
-    public static VoltTable initializeTableB() {
-        ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
-        String prefix = "B";
+		VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
+		return (new VoltTable(columns.toArray(cols)));
+	}
 
-        columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
-        columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
+	public static VoltTable initializeTableB() {
+		ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
+		String prefix = "B";
 
-        VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
-        return (new VoltTable(columns.toArray(cols)));
-    }
+		columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
+		columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
+		columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
 
-   
+		VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
+		return (new VoltTable(columns.toArray(cols)));
+	}
+
 }

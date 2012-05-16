@@ -20,7 +20,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * @author mimosally
- *
+ * 
  */
 public class TestFastCombineSuite extends RegressionSuite {
 

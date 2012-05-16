@@ -9,16 +9,17 @@ import edu.brown.benchmark.locality.LocalityConstants;
 
 /**
  * @author mimosally
- *
+ * 
  */
 public class GetTableCounts extends VoltProcedure {
 	public final SQLStmt COUNTA = new SQLStmt("SELECT COUNT(*) FROM TABLEA");
-	public final SQLStmt GetB = new SQLStmt("SELECT B_ID FROM TABLEB WHERE B_A_ID=?");
-	 public VoltTable[] run(long a_id) {
-	        voltQueueSQL(COUNTA);
-	        voltQueueSQL(GetB,a_id);
-	        return (voltExecuteSQL());
-	    }   
+	public final SQLStmt GetB = new SQLStmt(
+			"SELECT A_ID FROM TABLEA WHERE A_NUM=?");
 
+	public VoltTable[] run(long a_id) {
+		voltQueueSQL(COUNTA);
+		voltQueueSQL(GetB, a_id);
+		return (voltExecuteSQL());
+	}
 
 }

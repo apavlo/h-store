@@ -2289,6 +2289,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 		int fragmentCount = fragment.getFragmentIdCount();
 		boolean fastaggre = false; // fast aggregate flag
 		boolean fastcombi = false; // fast combine flag
+
 		if (fragmentCount == 0) {
 			LOG.warn(String
 					.format("Got a FragmentTask for %s that does not have any fragments?!?",
@@ -2374,11 +2375,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 			if (d)
 				LOG.debug("Determine to fast execute in Java:"
 						+ hstore_conf.site.exec_fast_executors);
-			if (hstore_conf.site.exec_fast_executors) {
+			if (hstore_conf.site.exec_fast_executors == false) {
 				if (d)
 					LOG.debug("Determine to fast execute in Java:"
 							+ hstore_conf.site.exec_fast_executors);
-				for (int i = 0, num = fragmentIds.length; i < num; i++) {
+
+				for (int i = 0; i < fragmentCount; i++) {
 					fastaggre = PlanFragmentIdGenerator
 							.isPlanFragmentFastAggregate(fragmentIds[i]);
 					fastcombi = PlanFragmentIdGenerator
@@ -2393,30 +2395,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 						// make sure each voltTable just has one column, and do
 						// the
 						// simple summation
-						Set<Integer> keys = this.tmp_EEdependencies.keySet();
-						Object[] Okey = keys.toArray();
-						Object key = Okey[0];
-						List<VoltTable> tmp = tmp_EEdependencies.get(key);
-						VoltTable t = tmp.get(0);
-						if (t.getColumnCount() == 1) {
-							result = aggexecutor.execute(outputDepIds[0],
-									this.tmp_EEdependencies);
-							if (d)
-								LOG.debug("Complete fast aggregate in Java!");
-						} else {
-							// send to ExecutionEngine
-							result = this.executePlanFragments(ts, undoToken,
-									fragmentCount, fragmentIds, parameters,
-									outputDepIds, inputDepIds,
-									this.tmp_EEdependencies);
-						}
+
+						result = aggexecutor.execute(outputDepIds, inputDepIds,
+								this.tmp_EEdependencies);
+						if (d)
+							LOG.debug("Complete fast aggregate in Java!");
+
 					} else if (fastcombi) {
 						// do fast combine in Java
 						if (d)
 							LOG.debug("enter Java fastcombine fragmentId:"
 									+ fragmentIds[i]);
-						result = combexecutor.execute(outputDepIds[0],
-								this.tmp_EEdependencies);
+						result = combexecutor.execute(outputDepIds,
+								inputDepIds, this.tmp_EEdependencies);
 						if (d)
 							LOG.debug("Complete fast combine in Java!");
 					} else {

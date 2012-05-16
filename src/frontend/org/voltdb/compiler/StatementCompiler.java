@@ -67,7 +67,7 @@ import edu.brown.utils.CollectionUtil;
 
 /**
  * @author mimosally
- *
+ * 
  */
 public abstract class StatementCompiler {
 	private static final Logger LOG = Logger.getLogger(StatementCompiler.class);

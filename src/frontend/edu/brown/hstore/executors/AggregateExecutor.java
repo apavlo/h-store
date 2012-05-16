@@ -18,15 +18,9 @@ import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 
 /**
  * @author mimosally
- *
+ * 
  */
 public class AggregateExecutor extends FastExecutor {
-	private static final Logger LOG = Logger
-			.getLogger(AggregatePushdownOptimization.class);
-	private static final LoggerBoolean debug = new LoggerBoolean(
-			LOG.isDebugEnabled());
-	private static final LoggerBoolean trace = new LoggerBoolean(
-			LOG.isTraceEnabled());
 
 	public AggregateExecutor(PartitionExecutor executor) {
 		super(executor);
@@ -34,36 +28,25 @@ public class AggregateExecutor extends FastExecutor {
 	}
 
 	@Override
-	public DependencySet execute(int id,
+	public DependencySet execute(int[] outputid, int[] inputid,
 			Map<Integer, List<VoltTable>> tmp_dependencies) {
 
-		Set<Integer> keys = tmp_dependencies.keySet();
-		Object[] Okey = keys.toArray();
-		int finalsum = 0;
+		Long finalsum = new Long(0);
 		VoltTable record = null;
-
-		Object key = Okey[0];
-		List<VoltTable> tmp = tmp_dependencies.get(key);
+		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
 		record = tmp.get(0).clone(0);
-		for (int i = 0, tmpsize = tmp.size(); i < tmpsize; i++) {
+		int tmpsize = tmp.size();
+		for (int i = 0; i < tmpsize; i++) {
 			VoltTable t = tmp.get(i);
-
 			while (t.advanceRow()) {
-				VoltTableRow r = t.getRow();
-				finalsum += ((Long) r.get(0)).intValue(); // do the sum in Java
-
-			}// while
+				finalsum += (Long) t.get(0); // do the sum in Java
+			}
 
 		}// for
-
-		record.addRow((long) finalsum); // add the final result
-		int b = 1;
-		int[] depid = { b };
-		depid[0] = id;
-		VoltTable[] vt;
-		vt = new VoltTable[1];
+		record.addRow(finalsum); // add the final result
+		VoltTable[] vt = new VoltTable[1];
 		vt[0] = record;
-		DependencySet result = new DependencySet(depid, vt);
+		DependencySet result = new DependencySet(outputid, vt);
 		return result;
 	}
 

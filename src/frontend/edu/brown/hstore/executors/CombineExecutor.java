@@ -14,7 +14,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 
 /**
  * @author mimosally
- *
+ * 
  */
 public class CombineExecutor extends FastExecutor {
 
@@ -34,16 +34,14 @@ public class CombineExecutor extends FastExecutor {
 	 * @return
 	 */
 	@Override
-	public DependencySet execute(int id,
+	public DependencySet execute(int[] outputid, int[] inputid,
 			Map<Integer, List<VoltTable>> tmp_dependencies) {
-		Set<Integer> keys = tmp_dependencies.keySet();
-		Object[] Okey = keys.toArray();
-		VoltTable record = null;
-		Object key = Okey[0];
-		List<VoltTable> tmp = tmp_dependencies.get(key);
-		record = tmp.get(0).clone(0);
 
-		for (int i = 0, tmpsize = tmp.size(); i < tmpsize; i++) {
+		VoltTable record = null;
+		List<VoltTable> tmp = tmp_dependencies.get(inputid[0]);
+		record = tmp.get(0).clone(0);
+		int tmpsize = tmp.size();
+		for (int i = 0; i < tmpsize; i++) {
 			VoltTable t = tmp.get(i);
 
 			while (t.advanceRow()) {
@@ -53,13 +51,10 @@ public class CombineExecutor extends FastExecutor {
 			}// while
 
 		}// for
-		int b = 1;
-		int[] depid = { b };
-		depid[0] = id;
-		VoltTable[] vt;
-		vt = new VoltTable[1];
+
+		VoltTable[] vt = new VoltTable[1];
 		vt[0] = record;
-		DependencySet result = new DependencySet(depid, vt);
+		DependencySet result = new DependencySet(outputid, vt);
 		assert (result != null);
 		return result;
 

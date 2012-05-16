@@ -90,6 +90,12 @@ public class FastAggregateOptimization extends AbstractOptimization {
 			// Check the type of aggregate and prevent the GroupBy operation
 			if (node1.getAggregateTypes()
 					.contains(ExpressionType.AGGREGATE_SUM)
+					&& !(node1.getAggregateTypes()
+							.contains(ExpressionType.AGGREGATE_AVG))
+					&& !(node1.getAggregateTypes()
+							.contains(ExpressionType.AGGREGATE_MAX))
+					&& !(node1.getAggregateTypes()
+							.contains(ExpressionType.AGGREGATE_MIN))
 					&& node1.getGroupByColumnNames().size() == 0) {
 				if (debug.get())
 					LOG.debug("have entered!");

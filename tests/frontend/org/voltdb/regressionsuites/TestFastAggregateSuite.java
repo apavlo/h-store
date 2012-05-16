@@ -30,7 +30,7 @@ public class TestFastAggregateSuite extends RegressionSuite {
 	/**
 	 * @param name
 	 */
-	
+
 	public TestFastAggregateSuite(String name) {
 		super(name);
 		// TODO Auto-generated constructor stub
