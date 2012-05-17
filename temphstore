@@ -1,1 +1,0 @@
-ant hstore-benchmark –Dproject=tpcc -Dclient.host=ironman  -Dclient.processesesperclient=50  -Dclient.warmup=20000 -Dclient.duration=60000
