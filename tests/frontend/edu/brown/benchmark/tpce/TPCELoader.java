@@ -88,6 +88,25 @@ public class TPCELoader extends BenchmarkComponent {
             initial_days = Integer.valueOf(m_extraParams.get("TPCE_INITIAL_DAYS"));
         }
         
+        // validating parameters
+        if (total_customers <= 0 || total_customers % TPCEConstants.DEFAULT_LOAD_UNIT != 0) {
+            throw new IllegalArgumentException("The total number of customers must be a positive integer multiple of the load unit size");
+        }
+        
+        /*
+         * Completed trades in 8 hours must be a non-zero integral multiple of 100
+         * so that exactly 1% extra trade ids can be assigned to simulate aborts.
+         */
+        if ((8 * 3600 * TPCEConstants.DEFAULT_LOAD_UNIT / scale_factor) % 100 != 0) { // 8 hours per work day
+            throw new IllegalArgumentException("Wrong scale factor: 8 * 3600 * Load Unit Size (" +
+                    TPCEConstants.DEFAULT_LOAD_UNIT + ") / Scale Factor(" + scale_factor + ") must be " +
+                    "integral multiple of 100 to simulate trades");
+        }
+        
+        if (initial_days <= 0) {
+            throw new IllegalArgumentException("The number of initial trade days must be a positive integer");
+        }
+        
         LOG.info("TPC-E parameters are: flat_in = '" + flatFilesPath + "', total_customers = " + total_customers +
                 ", scale_factor = " + scale_factor + ", initial_days = " + initial_days);
         

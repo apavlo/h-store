@@ -86,7 +86,13 @@ public class CustomerGenerator extends TableGenerator {
         areaCodes = generator.getInputFile(InputFile.AREA);
         
         exchNum = generator.getInputFile(InputFile.EXCHANGE).getRecordsNum();
-        compNum = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
+        
+        /*
+         * The official EGen uses the number of companies in the input file.
+         * That seems incorrect since the number of companies for the ADDRESS table
+         * changes according to the total number of customers
+         */
+        compNum = generator.getCompanyCount(generator.getTotalCustomers());
     }
     
     private void initNextLoadUnit() {

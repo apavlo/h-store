@@ -232,7 +232,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
     
     @Override
     public boolean hasNext() {
-        // we either have more customers or are still generating acounts for the last one
+        // we either have more customers or are still generating accounts for the last one
         return customerGenerator.hasNext() || accsGenerated < accsToGenerate;
     }
     
