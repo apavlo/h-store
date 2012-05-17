@@ -60,7 +60,6 @@ public class NewsXRefGenerator extends TableGenerator {
      */
     @Override
     public boolean hasNext() {
-        // TODO Auto-generated method stub
         return compGen.hasNext() || newsGenerated < TPCEConstants.newsItemsPerCompany;
     }
 
