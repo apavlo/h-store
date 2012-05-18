@@ -52,6 +52,7 @@ import edu.brown.workload.Workload;
 
 /**
  * Main Wrapper Class for an HStoreSite
+ * 
  * @author pavlo
  */
 public abstract class HStore {
@@ -64,18 +65,21 @@ public abstract class HStore {
     }
 
     private static HStoreSite singleton;
-    
+
     /**
      * Initialize the HStore server.
      */
     public synchronized static HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
         singleton = new HStoreSite(catalog_site, hstore_conf);
-        
-        // For every partition in our local site, we want to setup a new ExecutionSite
-        // Thankfully I had enough sense to have PartitionEstimator take in the local partition
-        // as a parameter, so we can share a single instance across all ExecutionSites
+
+        // For every partition in our local site, we want to setup a new
+        // ExecutionSite
+        // Thankfully I had enough sense to have PartitionEstimator take in the
+        // local partition
+        // as a parameter, so we can share a single instance across all
+        // ExecutionSites
         PartitionEstimator p_estimator = singleton.getPartitionEstimator();
-        
+
         // ----------------------------------------------------------------------------
         // MarkovGraphs
         // ----------------------------------------------------------------------------
@@ -85,21 +89,20 @@ public abstract class HStore {
             if (path.exists()) {
                 Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
-                    markovs = MarkovGraphContainersUtil.loadIds(catalog_db,
-                                                                path.getAbsolutePath(), 
-                                                                CatalogUtil.getLocalPartitionIds(catalog_site));
+                    markovs = MarkovGraphContainersUtil.loadIds(catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
                 MarkovGraphContainersUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
                 LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
-            } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+            } else if (debug.get())
+                LOG.warn("The Markov Graphs file '" + path + "' does not exist");
         }
-        
+
         // ----------------------------------------------------------------------------
         // ParameterMappings
         // ----------------------------------------------------------------------------
-        ParameterMappingsSet mappings = new ParameterMappingsSet(); 
+        ParameterMappingsSet mappings = new ParameterMappingsSet();
         if (hstore_conf.site.mappings_path != null) {
             File path = new File(hstore_conf.site.mappings_path);
             if (path.exists()) {
@@ -109,9 +112,10 @@ public abstract class HStore {
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
-            } else if (debug.get()) LOG.warn("The ParameterMappings file '" + path + "' does not exist");
+            } else if (debug.get())
+                LOG.warn("The ParameterMappings file '" + path + "' does not exist");
         }
-        
+
         // ----------------------------------------------------------------------------
         // PartitionExecutor Initialization
         // ----------------------------------------------------------------------------
@@ -124,80 +128,80 @@ public abstract class HStore {
                 } else {
                     local_markovs = markovs.get(local_partition);
                 }
-                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
+                assert (local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
             }
 
             // Initialize TransactionEstimator stuff
-            // Load the Markov models if we were given an input path and pass them to t_estimator
-            // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
+            // Load the Markov models if we were given an input path and pass
+            // them to t_estimator
+            // Load in all the partition-specific TransactionEstimators and
+            // ExecutionSites in order to
             // stick them into the HStoreSite
-            if (debug.get()) LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
+            if (debug.get())
+                LOG.debug("Creating Estimator for " + HStoreThreadManager.formatSiteName(catalog_site.getId()));
             TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, mappings, local_markovs);
 
             // setup the EE
-            if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
-            PartitionExecutor executor = new PartitionExecutor(
-                    local_partition,
-                    catalog_site.getCatalog(),
-                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                    p_estimator,
-                    t_estimator);
+            if (debug.get())
+                LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            PartitionExecutor executor = new PartitionExecutor(local_partition, catalog_site.getCatalog(), BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
+                    p_estimator, t_estimator);
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
-        
+
         return (singleton);
     }
-    
+
     /**
-     * Retrieve a reference to the object implementing VoltDBInterface.  When
+     * Retrieve a reference to the object implementing VoltDBInterface. When
      * running a real server (and not a test harness), this instance will only
      * be useful after calling VoltDB.initialize().
-     *
+     * 
      * @return A reference to the underlying VoltDBInterface object.
      */
     public static HStoreSite instance() {
         return singleton;
     }
-    
+
     /**
      * Main Start-up Method
+     * 
      * @param vargs
      * @throws Exception
      */
     public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs,
-                    ArgumentsParser.PARAM_CATALOG,
-                    ArgumentsParser.PARAM_SITE_ID,
-                    ArgumentsParser.PARAM_CONF
-        );
-        
+        ArgumentsParser args = ArgumentsParser.load(vargs, ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_SITE_ID, ArgumentsParser.PARAM_CONF);
+
         // HStoreSite Stuff
-        
+
         // Migration Stuff --Yang (Now only one Optional Parameter is allowed)
-        // check if there are optional parameters: far from elegant but it works...
+        // check if there are optional parameters: far from elegant but it
+        // works...
         // only works for parameter like: localhost:1:2-3
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args);
-        if(hstore_conf.site.newsiteinfo.length() != 0){
-        	if(debug.get()) LOG.debug("FOUND optional parameters: Live migration might start soon!");
+        if (hstore_conf.site.newsiteinfo.length() != 0) {
+            if (debug.get())
+                LOG.debug("FOUND optional parameters: Live migration might start soon!");
             ClusterConfiguration cc = new ClusterConfiguration(args.catalog_db.getCatalog(), hstore_conf.site.newsiteinfo);
-        	FixCatalog.writeHostInfo(args.catalog_db.getCatalog(), cc);            
+            FixCatalog.writeHostInfo(args.catalog_db.getCatalog(), cc);
         }
-        
+
         final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
-        
+
         Thread t = Thread.currentThread();
         t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
-        
-        if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
-        
-        //hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
-        if (debug.get()) 
+
+        if (catalog_site == null)
+            throw new RuntimeException("Invalid site #" + site_id);
+
+        // hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
+        if (debug.get())
             LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
-        
+
         HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
 
-        //___________________________________________________________________________
+        // ___________________________________________________________________________
         // ----------------------------------------------------------------------------
         // Workload Trace Output
         // ----------------------------------------------------------------------------
@@ -210,8 +214,9 @@ public abstract class HStore {
             LOG.info("Enabled workload logging '" + tracePath + "'");
         }
 
-        if (args.thresholds != null) hstore_site.setThresholds(args.thresholds);
-        
+        if (args.thresholds != null)
+            hstore_site.setThresholds(args.thresholds);
+
         // ----------------------------------------------------------------------------
         // Bombs Away!
         // ----------------------------------------------------------------------------
