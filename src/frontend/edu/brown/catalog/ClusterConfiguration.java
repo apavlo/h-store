@@ -42,12 +42,12 @@ public class ClusterConfiguration extends ClusterConfig {
     private static final Pattern COMMA_SPLIT = Pattern.compile(",");
     private static final Pattern HYPHEN_SPLIT = Pattern.compile(Pattern.quote("-"));
 
-    //Hardcoded port number for Live Migration --Yang (For test issue)
-    //This will be replaced by a sophisticated method once this works
+    // Hardcoded port number for Live Migration --Yang (For test issue)
+    // This will be replaced by a sophisticated method once this works
     private int new_proc_port_num = -1;
     private int new_messager_port_num = -1;
     private int new_site_id = -1;
-    
+
     /**
      * Host -> SiteId -> Set<PartitionConfiguration>
      */
@@ -71,8 +71,7 @@ public class ClusterConfiguration extends ClusterConfig {
 
         @Override
         public String toString() {
-            return String.format("%s - %s", this.host,
-                                            HStoreThreadManager.getThreadName(this.site, this.partition));
+            return String.format("%s - %s", this.host, HStoreThreadManager.getThreadName(this.site, this.partition));
         }
     }
 
@@ -99,51 +98,53 @@ public class ClusterConfiguration extends ClusterConfig {
             this.addPartition(host_info);
         } // FOR
     }
+
     /**
-     * This constructor populates the hostinfo in the catalog and cc into
-     * one new cc, particularly used for Live Migration --Yang
+     * This constructor populates the hostinfo in the catalog and cc into one
+     * new cc, particularly used for Live Migration --Yang
+     * 
      * @param catalog
      * @param cc
      */
-    public ClusterConfiguration(Catalog catalog, String new_host_info){
+    public ClusterConfiguration(Catalog catalog, String new_host_info) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         Site[] sites_value = catalog_clus.getSites().values();
         Host[] hosts_value = catalog_clus.getHosts().values();
-        
+
         String[] host_info_pieces = new_host_info.split(":");
-        if(host_info_pieces.length > 3){
-            new_host_info = host_info_pieces[0] + ":" +host_info_pieces[1] + ":" +host_info_pieces[2];
+        if (host_info_pieces.length > 3) {
+            new_host_info = host_info_pieces[0] + ":" + host_info_pieces[1] + ":" + host_info_pieces[2];
             Assert.assertTrue(host_info_pieces.length == 5);
             try {
-    			new_proc_port_num = Integer.parseInt(host_info_pieces[3]);
-    			new_messager_port_num = Integer.parseInt(host_info_pieces[4]);
-    			assert (new_proc_port_num > 1024) : "Use port number larger than 1024";
-    			assert (new_messager_port_num > 1024) : "Use port number larger than 1024";
-    			assert (new_messager_port_num !=  new_proc_port_num) : "listen port and message port should be different";
-    		} catch (NumberFormatException e) {
-    			e.printStackTrace();
-    			assert (1 < 0) : host_info_pieces[3] + " or " +host_info_pieces[4] +" cannot be parsed to integer";
-    		}
+                this.new_proc_port_num = Integer.parseInt(host_info_pieces[3]);
+                this.new_messager_port_num = Integer.parseInt(host_info_pieces[4]);
+                assert (this.new_proc_port_num > 1024) : "Use port number larger than 1024";
+                assert (this.new_messager_port_num > 1024) : "Use port number larger than 1024";
+                assert (this.new_messager_port_num != this.new_proc_port_num) : "listen port and message port should be different";
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+                assert (1 < 0) : host_info_pieces[3] + " or " + host_info_pieces[4] + " cannot be parsed to integer";
+            }
         }
-        new_site_id = Integer.parseInt(host_info_pieces[1]);
-        
-        //reconstruct host_info strings
+        this.new_site_id = Integer.parseInt(host_info_pieces[1]);
+
+        // reconstruct host_info strings
         StringBuffer host_info = new StringBuffer();
-        for(int i=0; i<hosts_value.length; i++){
+        for (int i = 0; i < hosts_value.length; i++) {
             String host_name = hosts_value[i].getIpaddr();
-            
-            for(int j=0; j<sites_value.length; j++){
+
+            for (int j = 0; j < sites_value.length; j++) {
                 int site_id = sites_value[j].getId();
                 CatalogMap<Partition> partitions = sites_value[j].getPartitions();
                 Partition[] partitions_value = partitions.values();
                 int first_partition = partitions_value[0].getId();
                 int last_partition = partitions_value[partitions_value.length - 1].getId();
-                String tmp_host_info = host_name + ":" +site_id +":"+first_partition+"-"+(last_partition)+";";
+                String tmp_host_info = host_name + ":" + site_id + ":" + first_partition + "-" + (last_partition) + ";";
                 host_info.append(tmp_host_info);
             }
         }
         host_info.append(new_host_info);
-        
+
         List<String> host_triplets = new ArrayList<String>();
         if (FileUtil.exists(host_info.toString())) {
             String contents = FileUtil.readFile(host_info.toString());
@@ -157,23 +158,23 @@ public class ClusterConfiguration extends ClusterConfig {
     }
 
     /**
-     * The following three methods are used to get
-     * hardcoded new port num for the new site
-     * Live Migration --Yang
+     * The following three methods are used to get hardcoded new port num for
+     * the new site Live Migration --Yang
+     * 
      * @return
      */
-    public int getNewProcPortNum(){
-        return new_proc_port_num;
+    public int getNewProcPortNum() {
+        return this.new_proc_port_num;
     }
-    
-    public int getNewMessagerPortNum(){
-        return new_messager_port_num;
+
+    public int getNewMessagerPortNum() {
+        return this.new_messager_port_num;
     }
-    
-    public int getNewSiteId(){
-        return new_site_id;
+
+    public int getNewSiteId() {
+        return this.new_site_id;
     }
-    
+
     public void clear() {
         this.host_sites.clear();
         this.all_partitions.clear();
@@ -190,14 +191,16 @@ public class ClusterConfiguration extends ClusterConfig {
 
     public void addPartition(String host_info) {
         host_info = host_info.trim();
-        if (host_info.isEmpty())
+        if (host_info.isEmpty()) {
             return;
+        }
         String data[] = COLON_SPLIT.split(host_info);
         assert (data.length == 3) : "Invalid host information '" + host_info + "'";
 
         String host = data[0];
-        if (host.startsWith("#"))
+        if (host.startsWith("#")) {
             return;
+        }
         int site = Integer.parseInt(data[1]);
 
         // Partition Ranges
@@ -222,8 +225,9 @@ public class ClusterConfiguration extends ClusterConfig {
         if (this.all_partitions.contains(partition)) {
             throw new IllegalArgumentException("Duplicate partition id #" + partition + " for host '" + host + "'");
         }
-        if (debug.get())
+        if (debug.get()) {
             LOG.info(String.format("Adding Partition: %s:%d:%d", host, site, partition));
+        }
 
         PartitionConfiguration pc = new PartitionConfiguration(host, site, partition);
         this.all_partitions.add(partition);
@@ -236,8 +240,9 @@ public class ClusterConfiguration extends ClusterConfig {
             this.host_sites.get(host).put(site, new HashSet<PartitionConfiguration>());
         }
         this.host_sites.get(host).get(site).add(pc);
-        if (debug.get())
+        if (debug.get()) {
             LOG.debug("New PartitionConfiguration: " + pc);
+        }
     }
 
     public Collection<String> getHosts() {
@@ -259,7 +264,7 @@ public class ClusterConfiguration extends ClusterConfig {
         } // FOR
         return (ids);
     }
-    
+
     @Override
     public String toString() {
         return StringUtil.formatMaps(this.host_sites);
