@@ -17,11 +17,11 @@ import edu.brown.catalog.CatalogUtil;
 
 public class TestLiveMigrationSuite extends RegressionSuite{
 
-	public TestLiveMigrationSuite(String name) {
-		super(name);
-		// TODO Auto-generated constructor stub
-	}
-	static public junit.framework.Test suite() {
+    public TestLiveMigrationSuite(String name) {
+        super(name);
+        // TODO Auto-generated constructor stub
+    }
+    static public junit.framework.Test suite() {
         MultiConfigSuiteBuilder builder = 
                 new MultiConfigSuiteBuilder(TestLiveMigrationSuite.class);
         
@@ -42,8 +42,8 @@ public class TestLiveMigrationSuite extends RegressionSuite{
  
         return builder;
     }
-	
-	@Test
+
+    @Test
     public void testLiveMigrationMessageAndCallBack() throws IOException, ProcCallException, InterruptedException {
 	    // This test case is used to check if the existing sites add the new site into their catalogs
 	    // In this test case, the existing site is a site that with two partitions. Feel free to 

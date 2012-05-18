@@ -29,8 +29,8 @@ public class TestConsistentHasher extends BaseTestCase {
         Random r = new Random();
         Histogram<Integer> h = new Histogram<Integer>();
         for(int i=0; i<Integer.MAX_VALUE/200; i++){
-        	int hash = this.hasher.hash(r.nextInt());
-        	h.put(hash);
+            int hash = this.hasher.hash(r.nextInt());
+            h.put(hash);
         }
         System.out.println(h);
     }

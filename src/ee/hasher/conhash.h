@@ -14,6 +14,6 @@ public:
     Conhash(unsigned int n, unsigned int partition_num, unsigned int *map);
     ~Conhash(void);
     int lookup(const unsigned object);
-	unsigned int* get_map();
+    unsigned int* get_map();
 };
 
