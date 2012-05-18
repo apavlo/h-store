@@ -17,16 +17,16 @@
 /* virtual node structure */
 struct virtual_node_s
 {
-	long hash;
-	struct node_s *node; /* pointer to node */
+    long hash;
+    struct node_s *node; /* pointer to node */
 };
 
 /* consistent hashing */
 struct conhash_s
 {
-	util_rbtree_t vnode_tree; /* rbtree of virtual nodes */
+    util_rbtree_t vnode_tree; /* rbtree of virtual nodes */
     u_int ivnodes; /* virtual node number */
-	long (*cb_hashfunc)(const u_int);
+    long (*cb_hashfunc)(const u_int);
 };
 
 struct __get_vnodes_s

@@ -120,40 +120,40 @@ const struct node_s* conhash_lookup(const struct conhash_s *conhash, const u_int
 
 unsigned int conhash_getMigrationHash(unsigned int *map, int map_len, int partition_num, int factor)
 {
-	/*factor is used for fine grained hash chosen: unused now*/
-	//char str[100]; /*the magic number 100 is for temperary usage*/
-	int i;
-	unsigned int *alias_map = malloc(map_len * sizeof(unsigned int));
-	memcpy(alias_map, map, map_len*sizeof(unsigned int));
-	/*for(i = 0; i < map_len; i ++){
-	    printf("before: partition %d\t hash: %u\n", i, alias_map[i]);
-	}*/
-	__conhash_quicksort(alias_map, map_len);
-	//puts("alias sorted hashes________________");
-	/*for(i = 0; i < map_len; i ++){
-	    printf("partition %d\t hash: %ld\n", i, alias_map[i]);
-	}*/
-	unsigned int partition_hash = map[partition_num];
-	//printf("The hash for partition %d is %ld\n", partition_num, partition_hash);
-	for(i = 0; i < map_len; ++i){
-		if(alias_map[i] == partition_hash){
-			break;
-		}
-	}
-	if(i == map_len){
-		/*didn't find the hash*/
-		//printf("conhash_getMigrationHash: Cannot find partition %d's hash in the hash map\n", partition_num);
-		free(alias_map);
-		return -1;
-	}
-	if(i == 0){/*if the hash is the smallest one in the map*/
-		free(alias_map);
-		return partition_hash/factor;
-	}else{
-		unsigned int pre_hash = alias_map[i - 1];
-		free(alias_map);
-		return (partition_hash + pre_hash)/factor;
-	}
+    /*factor is used for fine grained hash chosen: unused now*/
+    //char str[100]; /*the magic number 100 is for temperary usage*/
+    int i;
+    unsigned int *alias_map = malloc(map_len * sizeof(unsigned int));
+    memcpy(alias_map, map, map_len*sizeof(unsigned int));
+    /*for(i = 0; i < map_len; i ++){
+        printf("before: partition %d\t hash: %u\n", i, alias_map[i]);
+    }*/
+    __conhash_quicksort(alias_map, map_len);
+    //puts("alias sorted hashes________________");
+    /*for(i = 0; i < map_len; i ++){
+        printf("partition %d\t hash: %ld\n", i, alias_map[i]);
+    }*/
+    unsigned int partition_hash = map[partition_num];
+    //printf("The hash for partition %d is %ld\n", partition_num, partition_hash);
+    for(i = 0; i < map_len; ++i){
+        if(alias_map[i] == partition_hash){
+            break;
+        }
+    }
+    if(i == map_len){
+        /*didn't find the hash*/
+        //printf("conhash_getMigrationHash: Cannot find partition %d's hash in the hash map\n", partition_num);
+        free(alias_map);
+        return -1;
+    }
+    if(i == 0){/*if the hash is the smallest one in the map*/
+        free(alias_map);
+        return partition_hash/factor;
+    }else{
+        unsigned int pre_hash = alias_map[i - 1];
+        free(alias_map);
+        return (partition_hash + pre_hash)/factor;
+    }
 }
 
 void conhash_mapPartitionToHash(unsigned int *map, int partition_num, unsigned int hash)
