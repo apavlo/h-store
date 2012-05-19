@@ -87,21 +87,17 @@ public class CETxnInputGenerator {
                                                 int iScaleFactor, int iHoursOfInitialTrades,
                                                 BaseLogger pLogger,
                                                 TDriverCETxnSettings pDriverCETxnSettings){
-    	inputFiles.parseInputFiles();
+    	
         m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);   //initialize with a default seed
         m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
         m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-        
-        m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
-        m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
-        //m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
-        //m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
+        //TODO table
+        m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+        m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
         m_Holdings = new HoldingsAndTrades(inputFiles);
-       
-        m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);
-        m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
-       // m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
-       // m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
+        //TODO table
+        m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+        m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
         m_pSecurities = new SecurityHandler(inputFiles);
         m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
         m_pSectors = inputFiles.getInputFile(InputFile.SECTOR);
@@ -116,7 +112,6 @@ public class CETxnInputGenerator {
         m_iPartitionPercent = 100;
         m_iScaleFactor = iScaleFactor;
         m_iHoursOfInitialTrades = iHoursOfInitialTrades;
-        
         Initialize();
     }
 
@@ -145,17 +140,17 @@ public class CETxnInputGenerator {
             long RNGSeed,
             BaseLogger pLogger,
             TDriverCETxnSettings pDriverCETxnSettings){
-    	  inputFiles.parseInputFiles();
+    	
     	m_rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
         m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
         m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-        
-        m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
-        m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
+        //TODO table
+        m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+        m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
         m_Holdings = new HoldingsAndTrades(inputFiles);
-        
-        m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
-        m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
+        //TODO table
+        m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+        m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
         m_pSecurities = new SecurityHandler(inputFiles);
         m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
         m_pSectors = inputFiles.getInputFile(InputFile.SECTOR);
@@ -170,7 +165,6 @@ public class CETxnInputGenerator {
         m_iPartitionPercent = 100;
         m_iScaleFactor = iScaleFactor;
         m_iHoursOfInitialTrades = iHoursOfInitialTrades;
-        
         Initialize();
     }
         
@@ -198,17 +192,17 @@ public class CETxnInputGenerator {
               long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
               BaseLogger pLogger,
               TDriverCETxnSettings pDriverCETxnSettings){
-    	  inputFiles.parseInputFiles();
+    	  
     	  m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);   //initialize with a default seed
           m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
           m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-          
-          m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
-          m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
+          //TODO table
+          m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+          m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
           m_Holdings = new HoldingsAndTrades(inputFiles);
-          
-          m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
-          m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
+          //TODO table
+          m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+          m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
           m_pSecurities = new SecurityHandler(inputFiles);
           m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
           m_pSectors = inputFiles.getInputFile(InputFile.SECTOR);
@@ -254,17 +248,17 @@ public class CETxnInputGenerator {
               long RNGSeed,
               BaseLogger pLogger,
               TDriverCETxnSettings pDriverCETxnSettings){
-    	  inputFiles.parseInputFiles();
+    	  
     	  m_rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
           m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
           m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-          
-          m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
-          m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
+          //TODO table
+          m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+          m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
           m_Holdings = new HoldingsAndTrades(inputFiles);
-          
-          m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
-          m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
+          //TODO table
+          m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+          m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
           m_pSecurities = new SecurityHandler(inputFiles);
           m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
           m_pSectors = inputFiles.getInputFile(InputFile.SECTOR);
@@ -359,9 +353,6 @@ public class CETxnInputGenerator {
     */
     public void UpdateTunables()
     {
-    	
-//    		System.out.println(m_pDriverCETxnSettings == null);
-    	
         m_iTradeLookupFrame2MaxTimeInMilliSeconds = (long)(( m_iHoursOfInitialTrades * EGenDate.SecondsPerHour ) - ( m_pDriverCETxnSettings.TL_settings.cur_BackOffFromEndTimeFrame2 )) * EGenDate.MsPerSecond;
         m_iTradeLookupFrame3MaxTimeInMilliSeconds = (long)(( m_iHoursOfInitialTrades * EGenDate.SecondsPerHour ) - ( m_pDriverCETxnSettings.TL_settings.cur_BackOffFromEndTimeFrame3 )) * EGenDate.MsPerSecond;
         m_iTradeLookupFrame4MaxTimeInMilliSeconds = (long)(( m_iHoursOfInitialTrades * EGenDate.SecondsPerHour ) - ( m_pDriverCETxnSettings.TL_settings.cur_BackOffFromEndTimeFrame4 )) * EGenDate.MsPerSecond;
@@ -422,7 +413,7 @@ public class CETxnInputGenerator {
 
         customerId = m_CustomerSelection.genRandomCustomer();       
         iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
+        iCustomerTier = (TierId)customerId[0];
         
         iCustomerAccountId = m_Accs.genRandomAccId( m_rnd, iCustomerId, iCustomerTier)[0];
 
@@ -566,14 +557,11 @@ public class CETxnInputGenerator {
         customerId = m_CustomerSelection.genRandomCustomer();
         
         long iCustomerId = Long.parseLong(customerId[0].toString());
-        TierId tierID = (TierId)customerId[1];
+        TierId tierID = (TierId)customerId[0];
         
         if (m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_by_tax_id))
         {
             //send tax id instead of customer id
-        	if (TxnReq == null){
-        		System.out.println("null");
-        	}
         	TxnReq.tax_id = m_Person.getTaxID(iCustomerId).toCharArray();
 
             TxnReq.cust_id = 0; //don't need customer id since filled in the tax id
@@ -652,7 +640,7 @@ public class CETxnInputGenerator {
             {
                 // Send customer id
             	
-                iCustomerTier = (TierId)customerId[1];
+                iCustomerTier = (TierId)customerId[0];
                 TxnReq.c_id = Long.parseLong(customerId[0].toString());
                 
                 TxnReq.acct_id = 0;
@@ -662,7 +650,7 @@ public class CETxnInputGenerator {
                 // Send account id
             	
             	iCustomerId = Long.parseLong(customerId[0].toString());
-            	iCustomerTier = (TierId)customerId[1];
+            	iCustomerTier = (TierId)customerId[0];
             	m_Accs.genRandomAccId(m_rnd, iCustomerId, iCustomerTier, TxnReq.acct_id, -1);
 
                 TxnReq.c_id = 0;
@@ -899,7 +887,7 @@ public class CETxnInputGenerator {
         customerId = m_CustomerSelection.genRandomCustomer();
         
         iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
+        iCustomerTier = (TierId)customerId[0];
 
         // Generate random account id and security index
         // 
@@ -1009,6 +997,7 @@ public class CETxnInputGenerator {
                 //Limit Buy
                 eTradeType = TradeType.eLimitBuy;
             }
+//TODO Is TxnReq.type_is_margin boolean or int
             
             // Set margin or cash for Buy
             TxnReq.type_is_margin = m_rnd.rndPercent(
@@ -1042,6 +1031,8 @@ public class CETxnInputGenerator {
             TxnReq.type_is_margin = false;  //all sell orders are cash
         }
         iTradeType = eTradeType.getValue();
+
+        //TODO
         
         // Distribution of last-in-first-out flag
         TxnReq.is_lifo = m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo);
@@ -1054,6 +1045,7 @@ public class CETxnInputGenerator {
         
         System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0], 0, TxnReq.st_submitted_id, 0, TableConsts.cST_ID_len);
 
+        //TODO
         TxnReq.roll_it_back = ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit ));
 
         // Need to address logging more comprehensively.
@@ -1079,7 +1071,7 @@ public class CETxnInputGenerator {
         //select customer id first
         customerId = m_CustomerSelection.genRandomCustomer();
         iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
+        iCustomerTier = (TierId)customerId[0];
         
 
         //select random account id

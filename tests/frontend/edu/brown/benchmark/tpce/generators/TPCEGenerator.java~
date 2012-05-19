@@ -134,7 +134,6 @@ public class TPCEGenerator {
         genClasses.put(TPCEConstants.TABLENAME_SECURITY, SecurityGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_WATCH_LIST, WatchListGenerator.class);
         genClasses.put(TPCEConstants.TABLENAME_WATCH_ITEM, WatchItemsGenerator.class);
-        genClasses.put(TPCEConstants.TABLENAME_BROKER, BrokerGenerator.class);
     }
     
 /*    private static final Map<String, Class<? extends TableGenerator>> genClassesMixed = new HashMap<String, Class<? extends TableGenerator>>();
@@ -189,29 +188,7 @@ public class TPCEGenerator {
         this.initial_days = initial_days;
     }
     
-    /**
-     * This function changes customer parameters for every subsequent table generator created afterwards.
-     * Each generator that depends on the number of customers will use these to generate its tuple. The number
-     * of customers MUST be multiple of the load unit size (i.e., 1000) and the customers should start from
-     * the beginning of the unit. The same table generators can work in parallel. To create generators with different
-     * parameters, this function must be called first and then the generators created.
-     * 
-     * @param numCustomers The number of customers
-     * @param startCustomer The starting customer number
-     */
     public void changeSessionParams(long numCustomers, long startCustomer) {
-        if (numCustomers <= 0 || numCustomers % TPCEConstants.DEFAULT_LOAD_UNIT != 0) {
-            throw new IllegalArgumentException("The number of customers must be a positive integer multiple of the load unit size");
-        }
-        
-        if (startCustomer % TPCEConstants.DEFAULT_LOAD_UNIT != 1) {
-            throw new IllegalArgumentException("The customer number must start from the beginning of a unit");
-        }
-        
-        if (startCustomer + numCustomers - 1 > total_customers) {
-            throw new IllegalArgumentException("The number of customers for a session must not exceed the total number of customers");
-        }
-        
         this.currentCustomers = numCustomers;
         this.customerStartId = startCustomer;
     }

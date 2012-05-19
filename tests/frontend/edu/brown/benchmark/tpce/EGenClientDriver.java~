@@ -85,20 +85,17 @@ public class EGenClientDriver {
         assert (egenloader_path != null) : "The EGENLOADER_PATH parameter is null";
         assert (!egenloader_path.isEmpty()) : "The EGENLOADER_PATH parameter is empty";
 
-        
-	File library_path = new File(egenloader_path + File.separator + "lib" + File.separator + "libegen.so");
+        File library_path = new File(egenloader_path + File.separator + "lib" + File.separator + "libegen.so");
         LOG.debug("Loading in " + EGenClientDriver.class.getSimpleName() + " library '" + library_path + "'");
-        
-	
-/*try {
+        try {
             System.load(library_path.getAbsolutePath());
         } catch (Exception ex) {
             ex.printStackTrace();
             LOG.fatal("Failed to load " + EGenClientDriver.class.getSimpleName() + " library", ex);
             System.exit(1);
-        }*/
+        }
 
-        String input_path = new File(egenloader_path + File.separator).getAbsolutePath();
+        String input_path = new File(egenloader_path + File.separator + "flat_in").getAbsolutePath();
         LOG.debug("Invoking initialization method on driver using data path '" + input_path + "'");
         driver_ptr = new ClientDriver(input_path, totalCustomerCount, totalCustomerCount, scaleFactor, initialDays);
     }

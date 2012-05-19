@@ -71,7 +71,7 @@ public class TPCELoader extends BenchmarkComponent {
             LOG.error("Unable to start benchmark. Missing 'TPCE_LOADER_FILES' parameter");
             System.exit(1);
         }
-        File flatFilesPath = new File(m_extraParams.get("TPCE_LOADER_FILES") + File.separator + "flat_in");
+        File flatFilesPath = new File(m_extraParams.get("TPCE_LOADER_FILES") + File.separator);
         
         long total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
         if (m_extraParams.containsKey("TPCE_TOTAL_CUSTOMERS")) {
