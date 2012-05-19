@@ -131,12 +131,14 @@ public class DM {
 	 public DM( DMSUTInterface pSUT, BaseLogger pLogger, TPCEGenerator inputFiles, long iConfiguredCustomerCount, long iActiveCustomerCount, int iScaleFactor, int iDaysOfInitialTrades, long UniqueId ){
 		 	m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
 		    m_DriverDMSettings = new DriverDMSettings( UniqueId, 0 );
+		    //TODO seed parameter
+		    m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);
 		    m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
 		  //TODO table
-	        m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+		    m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
 	        
 		    m_pSecurities = new SecurityHandler(inputFiles);
-		    m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
+		    m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
 		    m_pTaxRatesDivision = inputFiles.getInputFile(InputFile.TAXDIV);
 		    m_pStatusType = inputFiles.getInputFile(InputFile.STATUS);
 		    m_iDivisionTaxCount = 0;
@@ -158,10 +160,10 @@ public class DM {
 		    m_DriverDMSettings = new DriverDMSettings( UniqueId, RNGSeed );
 		    m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
 		  //TODO table
-	        m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
+		    m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
 	        m_rnd = new EGenRandom(RNGSeed);
 		    m_pSecurities = new SecurityHandler(inputFiles);
-		    m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
+		    m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
 		    m_pTaxRatesDivision = inputFiles.getInputFile(InputFile.TAXDIV);
 		    m_pStatusType = inputFiles.getInputFile(InputFile.STATUS);
 		    m_iDivisionTaxCount = 0;

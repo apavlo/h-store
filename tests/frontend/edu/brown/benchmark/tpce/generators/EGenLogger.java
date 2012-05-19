@@ -20,16 +20,16 @@ public class EGenLogger extends BaseLogger{
 		}
 		
 	}
-	
+	//TODO lock
 	protected boolean SendToLoggerImpl(final char[] szPrefix, String szTimestamp, final String szMsg){
-		m_LogLock = new ReentrantLock();
+//		m_LogLock = new ReentrantLock();
 		try{
 			buffered.write(szPrefix.toString() + " " + szTimestamp + " " + szMsg);
 		}catch(IOException e){
 			e.printStackTrace();
-		}finally{
+		}/*finally{
 			m_LogLock.unlock();
-		}
+		}*/
 		return true;
 	}
 }

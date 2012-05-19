@@ -158,7 +158,7 @@ public class TPCEClient extends BenchmarkComponent {
     public TPCEClient(String[] args) {
     	
         super(args);
-        LOG.debug("TPCEClient Constructor() 161:");
+LOG.debug("Executing txn the test line is here:");
         if (!m_extraParams.containsKey("TPCE_LOADER_FILES")) {
             LOG.error("Unable to start benchmark. Missing '" + "TPCE_LOADER_FILES" + "' parameter");
             System.exit(1);
@@ -201,7 +201,7 @@ public class TPCEClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-LOG.debug("TPCEClient runLoop() 204:");
+
         long thread_id = Thread.currentThread().getId();
         int no_connection = 10000;
         try {

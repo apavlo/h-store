@@ -82,9 +82,7 @@ public class ClientDriver {
 		
 		char[] szFileName = new char[TPCEConstants.MAXPATH];
 	    char   pStartInFileName;  // start of the filename part in the szFileName buffer
-	    int    iDirLen;
-//	    int    iFileNameMaxLen;
-	    
+/*	    int    iDirLen;
 	    szFileName = Arrays.copyOf(dataPath.toCharArray(), TPCEConstants.MAXPATH);
 	    iDirLen = szFileName.toString().length();
 	    pStartInFileName = szFileName[TPCEConstants.MAXPATH - 1];
@@ -92,9 +90,21 @@ public class ClientDriver {
 	    if (pStartInFileName != '/' && pStartInFileName != '\\') {
 	    	szFileName = Arrays.toString(szFileName).concat("/").toCharArray();
 	        iDirLen++;
-	    }
-		
-		File inputDir = new File(szFileName.toString());
+	    }*/
+	    m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();
+		m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
+		m_DataMaintenanceTxnInput = new TDataMaintenanceTxnInput();
+		m_MarketFeedTxnInput = new TMarketFeedTxnInput();
+		m_MarketWatchTxnInput = new TMarketWatchTxnInput();
+		m_SecurityDetailTxnInput = new TSecurityDetailTxnInput();
+		m_TradeCleanupTxnInput = new TTradeCleanupTxnInput();
+		m_TradeLookupTxnInput = new TTradeLookupTxnInput();
+		m_TradeOrderTxnInput = new TTradeOrderTxnInput();
+		m_TradeResultTxnInput = new TTradeResultTxnInput();
+		m_TradeStatusTxnInput = new TTradeStatusTxnInput();
+		m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
+	    m_DriverCETxnSettings = new TDriverCETxnSettings();
+		File inputDir = new File(dataPath /*szFileName.toString()*/);
 	    TPCEGenerator inputFiles = new TPCEGenerator(inputDir, totalCustomerCount, scaleFactor, initialDays);
 	    
 	    m_TxnInputGenerator = new CETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, 
