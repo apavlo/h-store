@@ -122,7 +122,7 @@ public class TPCEClient extends BenchmarkComponent {
         BROKER_VOLUME("Broker Volume", "BrokerVolume", TPCEConstants.FREQUENCY_BROKER_VOLUME),
 
         CUSTOMER_POSITION("Customer Position", "CustomerPosition", TPCEConstants.FREQUENCY_CUSTOMER_POSITION),
-
+//TODO not supported transaction
         MARKET_FEED("Market Feed", "MarketFeed", TPCEConstants.FREQUENCY_MARKET_FEED),
 
         MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
@@ -182,7 +182,7 @@ public class TPCEClient extends BenchmarkComponent {
     protected static Transaction selectTransaction() {
         int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
         // return XTRANS[ordinal];
-        return Transaction.TRADE_RESULT;
+        return Transaction.TRADE_UPDATE;
     }
 
     private static void initSampleTable() {
@@ -202,7 +202,7 @@ public class TPCEClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
 LOG.debug("TPCEClient runLoop() 204:");
-        long thread_id = Thread.currentThread().getId();
+ //       long thread_id = Thread.currentThread().getId();
         int no_connection = 10000;
         try {
             //
@@ -215,21 +215,21 @@ LOG.debug("TPCEClient runLoop() 204:");
             // LOG.info(TableStatistics.debug());
 
             while (true) {
-            	final Transaction target = TPCEClient.selectTransaction();
+ /*           	final Transaction target = TPCEClient.selectTransaction();
             	StatsCallback statsCallback = new StatsCallback();
                 this.getClientHandle().callProcedure(statsCallback, target.callName, SysProcSelector.TABLE.name());
                 statsCallback.latch.await();
-                assert (!TableStatistics.getTables().isEmpty());
+                assert (!TableStatistics.getTables().isEmpty());*/
                 
                 
                 callback.latch = new CountDownLatch(1);
                 runOnce();
-//                final Transaction target = TPCEClient.selectTransaction();
+/*                final Transaction target = TPCEClient.selectTransaction();
                 System.err.println("Trying to execute " + target);
                 this.thread_xact_xref.put(thread_id, target.ordinal());
                 this.getClientHandle().backpressureBarrier();
                 this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
-                LOG.debug("Executing txn " + target);
+                LOG.debug("Executing txn " + target);*/
                 this.getClientHandle().backpressureBarrier();
                 callback.latch.await();
             } // WHILE
@@ -248,12 +248,24 @@ LOG.debug("TPCEClient runLoop() 204:");
 //	TODO unsure
     @Override
     protected boolean runOnce() throws IOException {
-    	
-    	/*    	long thread_id = Thread.currentThread().getId();
+    	long thread_id = Thread.currentThread().getId();
+    	boolean ret = false;
+    	try {
+            final Transaction target = TPCEClient.selectTransaction();
+            System.err.println("Trying to execute " + target);
+            this.thread_xact_xref.put(thread_id, target.ordinal());
+            this.getClientHandle().backpressureBarrier();
+            ret = this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
+            LOG.debug("Executing txn " + target);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+        return ret;
+/*    	long thread_id = Thread.currentThread().getId();
     	final Transaction target = TPCEClient.selectTransaction();
         System.err.println("Trying to execute " + target);
         this.thread_xact_xref.put(thread_id, target.ordinal());
-        System.out.print(thread_id + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" + target.ordinal() + "\n");
         boolean ret = this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
         
         final Transaction target = this.txnWeights.nextValue();
@@ -263,8 +275,6 @@ LOG.debug("TPCEClient runLoop() 204:");
         this.stopComputeTime(target.displayName);
 
         boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);*/
-        
-        return true;
     }
     
     /**
