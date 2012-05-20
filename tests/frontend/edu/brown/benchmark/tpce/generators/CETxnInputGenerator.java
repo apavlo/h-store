@@ -546,7 +546,8 @@ public class CETxnInputGenerator {
         //select sector name
         iSectorIndex = m_rnd.intRange(0, m_iSectorCount-1);
 
-        System.arraycopy(m_pSectors.getTupleByIndex(iSectorIndex)[1], 0, TxnReq.sector_name, 0, TableConsts.cSC_NAME_len);
+        TxnReq.sector_name = (String)m_pSectors.getTupleByIndex(iSectorIndex)[1].toString();
+//        System.arraycopy((String)m_pSectors.getTupleByIndex(iSectorIndex)[1], 0, TxnReq.sector_name, 0, TableConsts.cSC_NAME_len);
     }
 
 
@@ -1047,12 +1048,12 @@ public class CETxnInputGenerator {
         TxnReq.is_lifo = m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo);
 
         // Copy the trade type id from the flat file
-        System.arraycopy((m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0], 0, TxnReq.trade_type_id, 0, TableConsts.cTT_ID_len);
+        System.arraycopy((m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray(), 0, TxnReq.trade_type_id, 0, TableConsts.cTT_ID_len);
 
         // Copy the status type id's from the flat file
-        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0], 0, TxnReq.st_pending_id, 0, TableConsts.cST_ID_len);
+        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0].toCharArray(), 0, TxnReq.st_pending_id, 0, TableConsts.cST_ID_len);
         
-        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0], 0, TxnReq.st_submitted_id, 0, TableConsts.cST_ID_len);
+        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray(), 0, TxnReq.st_submitted_id, 0, TableConsts.cST_ID_len);
 
         TxnReq.roll_it_back = ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit ));
 

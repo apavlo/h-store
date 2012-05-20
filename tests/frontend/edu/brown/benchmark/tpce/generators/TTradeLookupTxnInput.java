@@ -2,6 +2,7 @@ package edu.brown.benchmark.tpce.generators;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.GregorianCalendar;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
 
@@ -18,6 +19,8 @@ public class TTradeLookupTxnInput {
     public TTradeLookupTxnInput(){
     	trade_id = new long [TPCEConstants.TradeLookupFrame1MaxRows];
     	symbol = new char[TableConsts.cSYMBOL_len];
+    	start_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();
+        end_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();
     }
     
     public ArrayList<String>InputParameters(){
