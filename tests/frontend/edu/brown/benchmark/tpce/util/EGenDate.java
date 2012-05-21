@@ -33,6 +33,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
+import org.voltdb.types.*;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
 
@@ -156,7 +157,7 @@ public class EGenDate {
         
         return cal.getTime();
     }
-    
+    //TODO not thread safe
     public static Date getDateFromTime(int year, int month, int day, int hour, int min, int sec, int msec) {
         cal.set(year, month, day, hour, min, sec);
         cal.set(Calendar.MILLISECOND, msec);
@@ -187,8 +188,8 @@ public class EGenDate {
         date = (Date)addDaysMsecs( date, WorkDays, (int)(WorkMs % MsPerWorkDay), true ).clone();
     }
     
-    public static void getTimeStamp(Date timeStamp, Date date){
-    	timeStamp = (Date)date.clone();
+    public static void getTimeStamp(TimestampType timeStamp, Date date){
+    	timeStamp = new TimestampType(date);
     }
 }
 

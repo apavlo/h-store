@@ -114,11 +114,21 @@ public class EGenClientDriver {
     }
 
     public Object[] getBrokerVolumeParams() {
-        return (this.cleanParams(driver_ptr.generateBrokerVolumeInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateBrokerVolumeInput().InputParameters().toArray();
+    	
+    	System.out.println("EGenClientDriver: line: 118: " + obj[0]);
+        return (this.cleanParams(obj));
     }
 
     public Object[] getCustomerPositionParams() {
-        return (this.cleanParams(driver_ptr.generateCustomerPositionInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateCustomerPositionInput().InputParameters().toArray();
+    	
+System.out.println("EGenClientDriver: line: 123: acct_id_idx: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 124: cust_id: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 125: get_history: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
+    	return (this.cleanParams(obj));
+//        return (this.cleanParams(driver_ptr.generateCustomerPositionInput().InputParameters().toArray()));
     }
 
     public Object[] getDataMaintenanceParams() {

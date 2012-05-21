@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 import org.voltdb.catalog.Table;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
 
@@ -468,7 +469,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           none.
     */
-    public void GenerateNonUniformTradeDTS( Date dts, long MaxTimeInMilliSeconds, int AValue, int SValue )
+    public void GenerateNonUniformTradeDTS( TimestampType dts, long MaxTimeInMilliSeconds, int AValue, int SValue )
     {
     	GregorianCalendar TradeTime = new GregorianCalendar(TPCEConstants.initialTradePopulationBaseYear,
     			TPCEConstants.initialTradePopulationBaseMonth,
@@ -508,11 +509,8 @@ public class CETxnInputGenerator {
         long[]        B_ID = new long [TxnHarnessStructs.max_broker_list_len];
         int           iSectorIndex;
 
-        //init all broker names to null
-        for (i = 0; i < TxnHarnessStructs.max_broker_list_len; ++i)
-        {
-            TxnReq.broker_list[i] = null;
-        }
+
+        
 
         // Select the range of brokers, honoring partitioning by CID settings.
         //iBrokersStart = iStartingBrokerID;
@@ -537,7 +535,7 @@ public class CETxnInputGenerator {
             if (i == iCount)    //make sure brokers are distinct
             {
                 //put the broker name into the input parameter
-                m_Brokers.generateBrokerName(B_ID[iCount]);
+            	TxnReq.broker_list[i] = m_Brokers.generateBrokerName(B_ID[iCount]);
                 ++iCount;
             }
 
@@ -575,7 +573,7 @@ public class CETxnInputGenerator {
         	if (TxnReq == null){
         		System.out.println("null");
         	}
-        	TxnReq.tax_id = m_Person.getTaxID(iCustomerId).toCharArray();
+        	TxnReq.tax_id = m_Person.getTaxID(iCustomerId);
 
             TxnReq.cust_id = 0; //don't need customer id since filled in the tax id
         }
@@ -584,7 +582,7 @@ public class CETxnInputGenerator {
             // send customer id and not the tax id
             TxnReq.cust_id = iCustomerId;
 
-            TxnReq.tax_id[0] = '\0';
+            
         }
 
         TxnReq.get_history = m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_get_history);
@@ -625,7 +623,7 @@ public class CETxnInputGenerator {
         if (iThreshold <= m_pDriverCETxnSettings.MW_settings.cur_by_industry)
         {
             //send industry name
-            System.arraycopy(m_pIndustries.getTupleByIndex(m_rnd.intRange(0, m_iIndustryCount-1)), 0, TxnReq.industry_name, 0, TableConsts.cIN_NAME_len);
+        	TxnReq.industry_name = m_pIndustries.getTupleByIndex(m_rnd.intRange(0, m_iIndustryCount-1))[1];
 
             TxnReq.c_id = TxnReq.acct_id = 0;
 
@@ -644,7 +642,7 @@ public class CETxnInputGenerator {
         }
         else
         {
-            TxnReq.industry_name[0] = '\0';
+            
             TxnReq.starting_co_id = 0;
             TxnReq.ending_co_id = 0;
             customerId = m_CustomerSelection.genRandomCustomer();
@@ -731,7 +729,9 @@ public class CETxnInputGenerator {
         int       iStartDay;  // day from the StartDate
 
         // random symbol
-        TxnReq.symbol = m_pSecurities.createSymbol( m_rnd.int64Range(0, m_iActiveSecurityCount-1), TxnReq.symbol.toString().length()).toCharArray();
+        char[] tmp = m_pSecurities.createSymbol( m_rnd.int64Range(0, m_iActiveSecurityCount-1), TableConsts.cSYMBOL_len).toCharArray();
+        
+        TxnReq.symbol = String.copyValueOf(tmp, 0, tmp.length);
 
         // Whether or not to access the LOB.
         TxnReq.access_lob_flag = m_rnd.rndPercent( m_pDriverCETxnSettings.SD_settings.cur_LOBAccessPercentage );
@@ -743,7 +743,7 @@ public class CETxnInputGenerator {
 
         // add the offset
         date = EGenDate.addDaysMsecs(date, iStartDay, 0, false);
-//TODO unsure
+//TODO needs to delete date
         EGenDate.getTimeStamp(TxnReq.start_day, date);
     }
 
@@ -797,9 +797,6 @@ public class CETxnInputGenerator {
             // Params not used by this frame /////////////////////////////////////////
             TxnReq.acct_id = 0;                                                     //
             TxnReq.max_acct_id = 0;                                                 //
-            Arrays.fill(TxnReq.symbol, '\0');                                       //
-            TxnReq.start_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();  //
-            TxnReq.end_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();    //
             //////////////////////////////////////////////////////////////////////////
         }
         else if( iThreshold <=  m_pDriverCETxnSettings.TL_settings.cur_do_frame1 +
@@ -821,7 +818,6 @@ public class CETxnInputGenerator {
 
             // Params not used by this frame /////////////////////////
             TxnReq.max_acct_id = 0;                                 //
-            Arrays.fill(TxnReq.symbol, '\0');     					//
             Arrays.fill( TxnReq.trade_id, 0); 						//
             //////////////////////////////////////////////////////////
         }
@@ -835,7 +831,7 @@ public class CETxnInputGenerator {
 
             TxnReq.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
             		TPCEConstants.TradeLookupAValueForSymbolFrame3,
-            		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len).toCharArray();
+            		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len);
 
             GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
                                         m_iTradeLookupFrame3MaxTimeInMilliSeconds,
@@ -864,7 +860,6 @@ public class CETxnInputGenerator {
             // Params not used by this frame /////////////////////////
             TxnReq.max_trades = 0;                                  //
             TxnReq.max_acct_id = 0;									//
-            Arrays.fill( TxnReq.symbol, '0');     					//
             Arrays.fill( TxnReq.trade_id, 0); 						//
             //////////////////////////////////////////////////////////
         }
@@ -965,9 +960,9 @@ public class CETxnInputGenerator {
             }
         }
         
-        TxnReq.exec_f_name = flTaxId[0].toCharArray();
-    	TxnReq.exec_l_name = flTaxId[1].toCharArray();
-    	TxnReq.exec_tax_id = flTaxId[2].toCharArray();
+        TxnReq.exec_f_name = flTaxId[0];
+    	TxnReq.exec_l_name = flTaxId[1];
+    	TxnReq.exec_tax_id = flTaxId[2];
 
         // Select either stock symbol or company from the securities flat file.
         //
@@ -976,19 +971,20 @@ public class CETxnInputGenerator {
         if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_security_by_symbol))
         {
             //Submit the symbol
-        	TxnReq.symbol = m_pSecurities.createSymbol(iFlatFileSymbIndex, TableConsts.cSYMBOL_len).toCharArray();
+        	char[] tmp = m_pSecurities.createSymbol(iFlatFileSymbIndex, TableConsts.cSYMBOL_len).toCharArray();
+            
+            TxnReq.symbol = String.copyValueOf(tmp, 0, tmp.length);
 
-            TxnReq.co_name[0] = '\0';
-            TxnReq.issue[0] = '\0';
         }
         else
         {
             //Submit the company name
-        	TxnReq.co_name = m_pCompanies.generateCompanyName( m_pSecurities.getCompanyIndex( iFlatFileSymbIndex )).toCharArray();
+        	TxnReq.co_name = m_pCompanies.generateCompanyName( m_pSecurities.getCompanyIndex( iFlatFileSymbIndex ));
 
-            System.arraycopy(m_pSecurities.getSecRecord(iFlatFileSymbIndex)[1], 0, TxnReq.issue, 0, TableConsts.cS_ISSUE_len);
+        	char[] tmp = m_pSecurities.getSecRecord(iFlatFileSymbIndex)[1].toCharArray();
+        	
+        	TxnReq.issue = String.copyValueOf(tmp, 0, tmp.length);
 
-            TxnReq.symbol[0] = '\0';
         }
 
         TxnReq.trade_qty = HoldingsAndTrades.TRADE_QTY_SIZES[m_rnd.intRange(0, HoldingsAndTrades.TRADE_QTY_SIZES.length - 1)];
@@ -1048,12 +1044,14 @@ public class CETxnInputGenerator {
         TxnReq.is_lifo = m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo);
 
         // Copy the trade type id from the flat file
-        System.arraycopy((m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray(), 0, TxnReq.trade_type_id, 0, TableConsts.cTT_ID_len);
+        char[] tmp = (m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray();
+        TxnReq.trade_type_id = String.copyValueOf(tmp, 0, tmp.length);
 
         // Copy the status type id's from the flat file
-        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0].toCharArray(), 0, TxnReq.st_pending_id, 0, TableConsts.cST_ID_len);
-        
-        System.arraycopy((m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray(), 0, TxnReq.st_submitted_id, 0, TableConsts.cST_ID_len);
+        tmp = (m_pStatusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0].toCharArray();
+        TxnReq.st_pending_id = String.copyValueOf(tmp, 0, tmp.length);
+        tmp = (m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray();
+        TxnReq.st_submitted_id = String.copyValueOf(tmp, 0, tmp.length);
 
         TxnReq.roll_it_back = ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit ));
 
@@ -1137,9 +1135,6 @@ public class CETxnInputGenerator {
             // Params not used by this frame /////////////////////////////////////////
             TxnReq.acct_id = 0;                                                     //
             TxnReq.max_acct_id = 0;                                                 //
-            Arrays.fill(TxnReq.symbol, '\0');                                       //
-            TxnReq.start_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();  //
-            TxnReq.end_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();    //
             //////////////////////////////////////////////////////////////////////////
         }
         else if( iThreshold <=  m_pDriverCETxnSettings.TU_settings.cur_do_frame1 +
@@ -1161,8 +1156,6 @@ public class CETxnInputGenerator {
 
             // Params not used by this frame /////////////////////////
             TxnReq.max_acct_id = 0;                                 //
-            Arrays.fill(TxnReq.symbol, '\0');     					//
-            Arrays.fill( TxnReq.trade_id, 0); 						//
             //////////////////////////////////////////////////////////
             
         }
@@ -1175,7 +1168,7 @@ public class CETxnInputGenerator {
             
             TxnReq.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
             		TPCEConstants.TradeLookupAValueForSymbolFrame3,
-            		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len).toCharArray();
+            		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len);
 
             GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
             							m_iTradeUpdateFrame3MaxTimeInMilliSeconds,
