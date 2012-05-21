@@ -8,14 +8,14 @@ public class TDataMaintenanceTxnInput {
     long  co_id;
     int   day_of_month;
     int   vol_incr;
-    char[]    symbol;
-    char[]    table_name;
-    char[]    tx_id;
+    String    symbol;
+    String    table_name;
+    String    tx_id;
     
     public TDataMaintenanceTxnInput(){
-    	symbol = new char[TableConsts.cSYMBOL_len];
-    	table_name = new char[TxnHarnessStructs.max_table_name];
-    	tx_id = new char[TableConsts.cTX_ID_len];
+    	symbol = new String();
+    	table_name = new String();
+    	tx_id = new String();
     }
     public void setZero(){
     	acct_id = 0;
@@ -23,21 +23,19 @@ public class TDataMaintenanceTxnInput {
         co_id = 0;
         day_of_month = 0;
         vol_incr = 0;
-        symbol[0] = '\0';
-        table_name[0] = '\0';
-        tx_id[0] = '\0';
+        
     }
     
-    public ArrayList<String>InputParameters(){
-    	ArrayList<String> para = new ArrayList<String>();
-    	para.add(String.valueOf(acct_id));
-    	para.add(String.valueOf(c_id));
-    	para.add(String.valueOf(co_id));
-    	para.add(String.valueOf(day_of_month));
-    	para.add(String.valueOf(vol_incr));
-    	para.add(String.valueOf(symbol));
-    	para.add(String.valueOf(table_name));
-    	para.add(String.valueOf(tx_id));
+    public ArrayList<Object>InputParameters(){
+    	ArrayList<Object> para = new ArrayList<Object>();
+    	para.add(acct_id);
+    	para.add(c_id);
+    	para.add(co_id);
+    	para.add(day_of_month);
+    	para.add(vol_incr);
+    	para.add(symbol);
+    	para.add(table_name);
+    	para.add(tx_id);
     	return para;
     }
 }

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import org.voltdb.types.TimestampType;
+
 import edu.brown.benchmark.tpce.TPCEConstants;
 
 public class TTradeUpdateTxnInput {
@@ -13,28 +15,28 @@ public class TTradeUpdateTxnInput {
     int               frame_to_execute;                   // which of the frames to execute
     int               max_trades;
     int               max_updates;
-    Date    end_trade_dts;
-    Date    start_trade_dts;
-    char[]                symbol;
+    TimestampType    end_trade_dts;
+    TimestampType    start_trade_dts;
+    String                symbol;
     
     public TTradeUpdateTxnInput(){
     	trade_id = new long [TPCEConstants.TradeUpdateFrame1MaxRows];
-    	symbol = new char[TableConsts.cSYMBOL_len];
-    	start_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();  
-        end_trade_dts = new GregorianCalendar(0,0,0,0,0,0).getTime();    
+    	symbol = new String();
+    	start_trade_dts = new TimestampType(new GregorianCalendar(0,0,0,0,0,0).getTime());
+        end_trade_dts = new TimestampType(new GregorianCalendar(0,0,0,0,0,0).getTime());
     }
     
-    public ArrayList<String>InputParameters(){
-    	ArrayList<String> para = new ArrayList<String>();
-    	para.add(String.valueOf(trade_id));
-    	para.add(String.valueOf(acct_id));
-    	para.add(String.valueOf(max_acct_id));
-    	para.add(String.valueOf(frame_to_execute));
-    	para.add(String.valueOf(max_trades));
-    	para.add(String.valueOf(max_updates));
-    	para.add(end_trade_dts.toString());
-    	para.add(start_trade_dts.toString());
-    	para.add(String.valueOf(symbol));
+    public ArrayList<Object>InputParameters(){
+    	ArrayList<Object> para = new ArrayList<Object>();
+    	para.add(trade_id);
+    	para.add(acct_id);
+    	para.add(max_acct_id);
+    	para.add(frame_to_execute);
+    	para.add(max_trades);
+    	para.add(max_updates);
+    	para.add(end_trade_dts);
+    	para.add(start_trade_dts);
+    	para.add(symbol);
     	return para;
     }
 }

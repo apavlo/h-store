@@ -208,7 +208,7 @@ public class DM {
 		     m_TxnInput.c_id = GenerateRandomCustomerId();
 		     break;
 		 case 5: // DAILY_MARKET
-			 m_TxnInput.symbol = m_pSecurities.createSymbol( GenerateRandomSecurityId(), m_TxnInput.symbol.toString().length()).toCharArray();
+			 m_TxnInput.symbol = m_pSecurities.createSymbol( GenerateRandomSecurityId(), m_TxnInput.symbol.length());
 		     m_TxnInput.day_of_month = m_rnd.intRange(1, 31);
 		     m_TxnInput.vol_incr = m_rnd.intRange(-2, 3);
 		     if (m_TxnInput.vol_incr == 0)   // don't want 0 as increment
@@ -225,7 +225,7 @@ public class DM {
 		     m_TxnInput.co_id = GenerateRandomCompanyId();
 		     break;
 		 case 9: // SECURITY
-			 m_TxnInput.symbol = m_pSecurities.createSymbol( GenerateRandomSecurityId(), m_TxnInput.symbol.toString().length()).toCharArray();
+			 m_TxnInput.symbol = m_pSecurities.createSymbol( GenerateRandomSecurityId(), m_TxnInput.symbol.length());
 		     break;
 		     
 		     //TODO unsure
