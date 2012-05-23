@@ -6,7 +6,7 @@ import org.voltdb.types.*;
 
 public class TSecurityDetailTxnInput {
 	public int                   max_rows_to_return;
-    public boolean               access_lob_flag;
+    public long               access_lob_flag;
     public TimestampType                  start_day;
     public String                symbol;
     public TSecurityDetailTxnInput(){

@@ -585,13 +585,15 @@ public class CETxnInputGenerator {
             
         }
 
-        TxnReq.get_history = m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_get_history);
-        if( TxnReq.get_history )
+        boolean get_history = m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_get_history);
+        if( get_history )
         {
+        	TxnReq.get_history = 1;
             TxnReq.acct_id_idx = m_rnd.intRange( 0, (int)m_Accs.genRandomAccId(m_rnd, iCustomerId, tierID)[1] - 1);
         }
         else
         {
+        	TxnReq.get_history = 0;
             TxnReq.acct_id_idx = -1;
         }
     }
@@ -734,8 +736,9 @@ public class CETxnInputGenerator {
         TxnReq.symbol = String.copyValueOf(tmp, 0, tmp.length);
 
         // Whether or not to access the LOB.
-        TxnReq.access_lob_flag = m_rnd.rndPercent( m_pDriverCETxnSettings.SD_settings.cur_LOBAccessPercentage );
-
+        if(m_rnd.rndPercent( m_pDriverCETxnSettings.SD_settings.cur_LOBAccessPercentage ))
+        	TxnReq.access_lob_flag = 1;
+        else TxnReq.access_lob_flag = 0;
         // random number of financial rows to return
         TxnReq.max_rows_to_return = m_rnd.intRange(TPCEConstants.iSecurityDetailMinRows, TPCEConstants.iSecurityDetailMaxRows);
 
@@ -1008,11 +1011,15 @@ public class CETxnInputGenerator {
             }
             
             // Set margin or cash for Buy
-            TxnReq.type_is_margin = m_rnd.rndPercent(
-                                                    // type_is_margin is specified for all orders, but used only for buys
-                                                    m_pDriverCETxnSettings.TO_settings.cur_type_is_margin *
-                                                    100 /
-                                                    m_pDriverCETxnSettings.TO_settings.cur_buy_orders);
+            if (m_rnd.rndPercent(
+                    // type_is_margin is specified for all orders, but used only for buys
+                    m_pDriverCETxnSettings.TO_settings.cur_type_is_margin *
+                    100 /
+                    m_pDriverCETxnSettings.TO_settings.cur_buy_orders)){
+            	TxnReq.type_is_margin = 1;
+            }
+            else TxnReq.type_is_margin = 0;
+            
         }
         else
         {
@@ -1036,12 +1043,15 @@ public class CETxnInputGenerator {
                 }
             }
 
-            TxnReq.type_is_margin = false;  //all sell orders are cash
+            TxnReq.type_is_margin = 0;  //all sell orders are cash
         }
         iTradeType = eTradeType.getValue();
         
         // Distribution of last-in-first-out flag
-        TxnReq.is_lifo = m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo);
+        if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo)){
+        	TxnReq.is_lifo = 1;
+        }
+        else TxnReq.is_lifo = 0;
 
         // Copy the trade type id from the flat file
         char[] tmp = (m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray();
@@ -1052,8 +1062,11 @@ public class CETxnInputGenerator {
         TxnReq.st_pending_id = String.copyValueOf(tmp, 0, tmp.length);
         tmp = (m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray();
         TxnReq.st_submitted_id = String.copyValueOf(tmp, 0, tmp.length);
-
-        TxnReq.roll_it_back = ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit ));
+        
+        if ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit )){
+        	TxnReq.roll_it_back = 1;
+        }
+        else TxnReq.roll_it_back = 0;
 
         // Need to address logging more comprehensively.
         //return eTradeType;

@@ -24,16 +24,17 @@ public class TDriverCETxnSettings {
     	TU_settings = new TradeUpdateSettings();
     	TxnMixGenerator_settings = new TxnMixGeneratorSettings();
     }
-    public void IsValid(){
-    	
-    	BV_settings.CheckValid();
-        CP_settings.CheckValid();
-        MW_settings.CheckValid();
-        SD_settings.CheckValid();
-        TL_settings.CheckValid();
-        TO_settings.CheckValid();
-        TU_settings.CheckValid();
-        TxnMixGenerator_settings.CheckValid();
+    public boolean IsValid(){
+    	boolean isValid = true;
+    	isValid &= BV_settings.CheckValid();
+    	isValid &= CP_settings.CheckValid();
+    	isValid &= MW_settings.CheckValid();
+    	isValid &= SD_settings.CheckValid();
+    	isValid &= TL_settings.CheckValid();
+    	isValid &= TO_settings.CheckValid();
+    	isValid &= TU_settings.CheckValid();
+    	isValid &= TxnMixGenerator_settings.CheckValid();
+    	return isValid;
       
     }
 

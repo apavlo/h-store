@@ -6,10 +6,10 @@ public class TTradeOrderTxnInput {
 
 	public double          requested_price;
 	public long          	acct_id;
-	public boolean           	is_lifo;
-	public boolean           	roll_it_back;
-	public int           	trade_qty;
-	public boolean           	type_is_margin;
+	public long           	is_lifo;
+	public long           	roll_it_back;
+	public long           	trade_qty;
+	public long           	type_is_margin;
 	public String          co_name;
 	public String          exec_f_name;
 	public String          exec_l_name;
