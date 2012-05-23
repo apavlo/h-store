@@ -10,7 +10,7 @@ public class TBrokerVolumeTxnInput {
 		sector_name = new String ();
 		for (int i = 0; i < TxnHarnessStructs.max_broker_list_len; ++i)
         {
-            broker_list[i] = null;
+            broker_list[i] = new String();
         }
     }
     public ArrayList<Object>InputParameters(){
