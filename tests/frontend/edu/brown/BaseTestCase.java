@@ -322,6 +322,16 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     // CONVENIENCE METHODS
     // --------------------------------------------------------------------------------------
     
+    protected final Catalog getCatalog() {
+        assertNotNull(catalog);
+        return (catalog);
+    }
+    
+    protected final Database getDatabase() {
+        assertNotNull(catalog);
+        return (catalog_db);
+    }
+    
     protected Cluster getCluster() {
         assertNotNull(catalog);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
