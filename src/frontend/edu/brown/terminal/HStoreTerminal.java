@@ -9,9 +9,11 @@ import jline.ConsoleReader;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
@@ -19,6 +21,7 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreThreadManager;
@@ -117,18 +120,31 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
             throw new Exception("Invalid stored procedure name '" + procName + "'");
         }
         
-        LOG.info("Executing " + catalog_proc.getName());
-        
         // We now need to go through the rest of the parameters and convert them
         // to proper type
-        Pattern p = Pattern.compile("^EXEC[ ]+" + procName + "[ ]+(.*)", Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile("^EXEC[ ]+" + procName + "[ ]+(.*?)[;]*", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(query);
+        List<Object> procParams = new ArrayList<Object>(); 
         if (m.matches()) {
+            // Extract the parameters and then convert them to their appropriate type
             List<String> params = HStoreTerminal.extractParams(m.group(1));
-            LOG.info("PARAMS: " + params);            
+            LOG.info("PARAMS: " + params);
+            if (params.size() != catalog_proc.getParameters().size()) {
+                String msg = String.format("Expected %d params for '%s' but %d parameters were given",
+                                           catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());
+                throw new Exception(msg);
+            }
+            int i = 0;
+            for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                VoltType vtype = VoltType.get(catalog_param.getType());
+                procParams.add(VoltTypeUtil.getObjectFromString(vtype, params.get(i)));
+                i++;
+            } // FOR
         }
         
-        
+        LOG.info(String.format("Executing %s(%s)", 
+                 catalog_proc.getName(), StringUtil.join(", ", procParams)));
+        client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
     }
     
@@ -229,10 +245,13 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
                         VoltTable[] results = cresponse.getResults();
                         System.out.println(StringUtil.join("\n", results));
                     }
-                } catch (ProcCallException ex) {
-                    LOG.error(ex.getMessage());
+                    
+                // Fatal Error
+                } catch (RuntimeException ex) {
+                    throw ex;
+                // Friendly Error
                 } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                    LOG.error(ex.getMessage());
                 }
             } while(query != null); //TODO: Note to Andy, should there be an exit sequence or escape character?
         } finally {
