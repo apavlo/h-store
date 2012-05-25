@@ -19,7 +19,6 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
 

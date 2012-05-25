@@ -8,8 +8,10 @@ import org.voltdb.types.TimestampType;
 import junit.framework.TestCase;
 
 public class TestHStoreTerminal extends TestCase {
-
     
+    /**
+     * testExtractParams
+     */
     @Test
     public void testExtractParams() throws Exception {
         Object params[] = {
@@ -28,6 +30,7 @@ public class TestHStoreTerminal extends TestCase {
         } // FOR
         System.err.println("ORIG: " + paramStr);
         
+        // Just check that we get the same number of parameters back
         List<String> extracted = HStoreTerminal.extractParams(paramStr.toString());
         System.err.println("EXTRACTED: " + extracted);
         assertEquals(params.length, extracted.size());
