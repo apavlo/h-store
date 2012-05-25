@@ -47,7 +47,7 @@ sys.path.append(os.path.realpath(os.path.join(basedir, "third_party/python")))
 import argparse
 
 logging.basicConfig(level = logging.INFO,
-                    format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
+                    format="%(asctime)s %(levelname)-5s: %(message)s",
                     datefmt="%m-%d-%Y %H:%M:%S",
                     stream = sys.stdout)
 
@@ -86,7 +86,8 @@ if __name__ == '__main__':
     if not os.path.exists(args['project']):
         benchmarks = getBenchmarks()
         if not args['project'] in benchmarks:
-            logging.error("Invalid benchmark '%s'. Valid options %s" % (args['project'], benchmarks))
+            logging.error("Invalid benchmark name '%s'" % args['project'])
+            logging.error("Valid benchmarks: %s" % ", ".join(benchmarks))
             sys.exit(1)
         args['project'] = "%s.jar" % args['project']
     if not os.path.exists(args['project']):
