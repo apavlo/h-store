@@ -116,7 +116,7 @@ public class EGenClientDriver {
     public Object[] getBrokerVolumeParams() {
     	Object[] obj = driver_ptr.generateBrokerVolumeInput().InputParameters().toArray();
     	
-    	System.out.println("EGenClientDriver: line: 118: " + obj[0]);
+System.out.println("EGenClientDriver: line: 119: " + obj[1]);
         return (this.cleanParams(obj));
     }
 
@@ -140,11 +140,22 @@ System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
     }
 */
     public Object[] getMarketWatchParams() {
-        return (this.cleanParams(driver_ptr.generateMarketWatchInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateMarketWatchInput().InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 144: acct_id: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 145: c_id: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 146: ending_co_id: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 147: starting_co_id: " + obj[3].toString());
+System.out.println("EGenClientDriver: line: 149: industry_name: " + obj[4].toString());
+        return (this.cleanParams(obj));
     }
 
     public Object[] getSecurityDetailParams() {
-        return (this.cleanParams(driver_ptr.generateSecurityDetailInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateSecurityDetailInput().InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 154: max_rows_to_return: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 155: access_lob_flag: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 156: start_day: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 157: symbol: " + obj[3].toString());
+        return (this.cleanParams(obj));
     }
 
     public Object[] getTradeCleanupParams() {
@@ -152,13 +163,38 @@ System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
     }
 
     public Object[] getTradeLookupParams() {
-        return (this.cleanParams(driver_ptr.generateTradeLookupInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateTradeLookupInput().InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 167: trade_id: " + obj[0]);
+System.out.println("EGenClientDriver: line: 168: acct_id: " + obj[1]);
+System.out.println("EGenClientDriver: line: 169: max_acct_id: " + obj[2]);
+System.out.println("EGenClientDriver: line: 170: frame_to_execute: " + obj[3]);
+System.out.println("EGenClientDriver: line: 171: max_trades: " + obj[4]);
+System.out.println("EGenClientDriver: line: 172: end_trade_dts: " + obj[5].toString());
+System.out.println("EGenClientDriver: line: 173: start_trade_dts: " + obj[6].toString());
+System.out.println("EGenClientDriver: line: 174: symbol: " + obj[7].toString());
+        return (this.cleanParams(obj));
     }
 
     public Object[] getTradeOrderParams() {
     	int   iTradeType = 0;
         boolean    bExecutorIsAccountOwner = true;
-        return (this.cleanParams(driver_ptr.generateTradeOrderInput(iTradeType, bExecutorIsAccountOwner).InputParameters().toArray()));
+        Object[] obj = driver_ptr.generateTradeOrderInput(iTradeType, bExecutorIsAccountOwner).InputParameters().toArray();
+        System.out.println("EGenClientDriver: line: 182: requested_price: " + obj[0]);
+        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
+        System.out.println("EGenClientDriver: line: 184: is_lifo: " + obj[2]);
+        System.out.println("EGenClientDriver: line: 185: roll_it_back: " + obj[3]);
+        System.out.println("EGenClientDriver: line: 186: trade_qty: " + obj[4]);
+        System.out.println("EGenClientDriver: line: 187: type_is_margin: " + obj[5]);
+        System.out.println("EGenClientDriver: line: 188: co_name: " + obj[6]);
+        System.out.println("EGenClientDriver: line: 189: exec_f_name: " + obj[7]);
+        System.out.println("EGenClientDriver: line: 190: exec_l_name: " + obj[8]);
+        System.out.println("EGenClientDriver: line: 191: exec_tax_id: " + obj[9]);
+        System.out.println("EGenClientDriver: line: 192: issue: " + obj[10]);
+        System.out.println("EGenClientDriver: line: 193: st_pending_id: " + obj[11]);
+        System.out.println("EGenClientDriver: line: 194: st_submitted_id: " + obj[12]);
+        System.out.println("EGenClientDriver: line: 195: symbol: " + obj[13]);
+        System.out.println("EGenClientDriver: line: 196: trade_type_id: " + obj[14]);
+        return (this.cleanParams(obj));
     }
 
 /*    public Object[] getTradeResultParams() {
@@ -166,10 +202,22 @@ System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
     }
 */
     public Object[] getTradeStatusParams() {
-        return (this.cleanParams(driver_ptr.generateTradeStatusInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateTradeStatusInput().InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 206: acct_id: " + obj[0]);
+        return (this.cleanParams(obj));
     }
 
     public Object[] getTradeUpdateParams() {
-        return (this.cleanParams(driver_ptr.generateTradeUpdateInput().InputParameters().toArray()));
+    	Object[] obj = driver_ptr.generateTradeUpdateInput().InputParameters().toArray();
+    	System.out.println("EGenClientDriver: line: 182: trade_id: " + obj[0]);
+        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
+        System.out.println("EGenClientDriver: line: 184: max_acct_id: " + obj[2]);
+        System.out.println("EGenClientDriver: line: 185: frame_to_execute: " + obj[3]);
+        System.out.println("EGenClientDriver: line: 186: max_trades: " + obj[4]);
+        System.out.println("EGenClientDriver: line: 187: max_updates: " + obj[5]);
+        System.out.println("EGenClientDriver: line: 188: end_trade_dts: " + obj[6]);
+        System.out.println("EGenClientDriver: line: 189: start_trade_dts: " + obj[7]);
+        System.out.println("EGenClientDriver: line: 190: symbol: " + obj[8]);
+        return (this.cleanParams(obj));
     }
 }

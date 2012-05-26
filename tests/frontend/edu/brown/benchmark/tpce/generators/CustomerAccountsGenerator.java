@@ -126,9 +126,10 @@ public class CustomerAccountsGenerator extends TableGenerator {
         return res;
     }
     
-    public void genRandomAccId(EGenRandom rnd, long custId, TierId tier, long acct_id, int accountCount) {
+    public long[] genRandomAccId(EGenRandom rnd, long custId, TierId tier, long acct_id, int accountCount) {
         long custAcc,  startAcc;
         int accCount;
+        long[] res = new long[2];
         
         accCount = getNumberofAccounts(custId, tier.getValue());
         startAcc = getStartingAccId(custId);
@@ -136,11 +137,12 @@ public class CustomerAccountsGenerator extends TableGenerator {
         custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
         
         if (acct_id != -1){
-        	acct_id = custAcc;
+        	res[0] = acct_id = custAcc;
         }
         if(accountCount != -1){
-        	accountCount = accCount;
+        	res[1] = accountCount = accCount;
         }
+        return res;
     }
     
     private int getNumberofAccounts(long cid, int tier) {
