@@ -181,7 +181,8 @@ public class TPCEClient extends BenchmarkComponent {
 
     protected static Transaction selectTransaction() {
         int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
-        // return XTRANS[ordinal];
+System.out.println("TPCEClient line 184: protected static Transaction selectTransaction(): ordinal: " + ordinal);
+//        return XTRANS[ordinal];
         return Transaction.CUSTOMER_POSITION;
     }
 
@@ -325,6 +326,7 @@ LOG.debug("TPCEClient runLoop() 204:");
      */
     public static void main(String[] args) {
         initSampleTable();
+System.out.println("TPCEClient line 329: main");
         BenchmarkComponent.main(TPCEClient.class, args, false);
     }
 }

@@ -177,19 +177,17 @@ public class EGenDate {
         return cal.getTime();
     }
     
-    public static void AddMinutes(Date date, int minutes)
-    {
-    	date = (Date)addDaysMsecs( date, 0, minutes * SecondsPerMinute * MsPerSecond, false).clone();
+    public static Date AddMinutes(Date date, int minutes){
+    	return (Date)addDaysMsecs( date, 0, minutes * SecondsPerMinute * MsPerSecond, false);
     }
     
-    public static void AddWorkMs(Date date, long WorkMs)
-    {
+    public static Date AddWorkMs(Date date, long WorkMs){
         int WorkDays  = (int)(WorkMs / (long) MsPerWorkDay);
-        date = (Date)addDaysMsecs( date, WorkDays, (int)(WorkMs % MsPerWorkDay), true ).clone();
+        return (Date)addDaysMsecs( date, WorkDays, (int)(WorkMs % MsPerWorkDay), true );
     }
     
-    public static void getTimeStamp(TimestampType timeStamp, Date date){
-    	timeStamp = new TimestampType(date);
+    public static TimestampType getTimeStamp(Date date){
+    	return new TimestampType(date);
     }
 }
 

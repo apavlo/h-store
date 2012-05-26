@@ -1,6 +1,7 @@
 package edu.brown.benchmark.tpce.generators;
 
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
@@ -315,8 +316,8 @@ public class CETxnInputGenerator {
         		TPCEConstants.initialTradePopulationBaseMinute,
         		TPCEConstants.initialTradePopulationBaseSecond,
         		TPCEConstants.initialTradePopulationBaseFraction );
-
-        // UpdateTunables() is called from CCE constructor (Initialize)
+//TODO
+//        UpdateTunables(); //is called from CCE constructor (Initialize)
     }
 
     /*
@@ -373,7 +374,7 @@ public class CETxnInputGenerator {
         // Set the completion time of the last initial trade.
         // 15 minutes are added at the end of hours of initial trades for pending trades.
         m_EndTime = m_StartTime;
-        EGenDate.AddWorkMs( m_EndTime, (long)(m_iHoursOfInitialTrades * EGenDate.SecondsPerHour + 15 * EGenDate.SecondsPerMinute) * EGenDate.MsPerSecond );
+        m_EndTime = EGenDate.AddWorkMs( m_EndTime, (long)(m_iHoursOfInitialTrades * EGenDate.SecondsPerHour + 15 * EGenDate.SecondsPerMinute) * EGenDate.MsPerSecond );
 
         // Based on 10 * Trade-Order transaction mix percentage.
         // This is currently how the mix levels are set, so use that.
@@ -391,41 +392,26 @@ public class CETxnInputGenerator {
     }
 
     /*
-    *  Generate Non-Uniform customer ID.
-    *
-    *  PARAMETERS:
-    *           OUT  iCustomerId        - generated C_ID
-    *           OUT  iCustomerTier      - generated C_TIER
-    *
-    *  RETURNS:
-    *           none.
-    */
- /*   public static void GenerateNonUniformRandomCustomerId()
-    {
-        m_CustomerSelection.genRandomCustomer();
-    }
-*/
-    /*
     *  Generate customer account ID (uniformly distributed).
     *
     *  PARAMETERS:
     *           none.
     *
     *  RETURNS:
-    *           CA_ID uniformly distributed across all load units.
+    *           iCustomerAccountId uniformly distributed across all load units.
     */
     public long GenerateRandomCustomerAccountId()
     {
-        long          iCustomerId;
+        long          customerID;
         long          iCustomerAccountId;
-        TierId        iCustomerTier;
-        Object[] customerId = new Object[2];
+        TierId        tierID;
+        Object[] customer = new Object[2];
 
-        customerId = m_CustomerSelection.genRandomCustomer();       
-        iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
+        customer = m_CustomerSelection.genRandomCustomer();       
+        customerID = Long.parseLong(customer[0].toString());
+        tierID = (TierId)customer[1];
         
-        iCustomerAccountId = m_Accs.genRandomAccId( m_rnd, iCustomerId, iCustomerTier)[0];
+        iCustomerAccountId = m_Accs.genRandomAccId( m_rnd, customerID, tierID)[0];
 
         return(iCustomerAccountId);
     }
@@ -434,26 +420,21 @@ public class CETxnInputGenerator {
     *  Generate a trade id to be used in Trade-Lookup / Trade-Update Frame 1.
     *
     *  PARAMETERS:
-    *           IN  AValue      - parameter to NURAND function
-    *           IN  SValue      - parameter to NURAND function
+    *           IN  aValue      - parameter to NURAND function
+    *           IN  sValue      - parameter to NURAND function
     *
     *  RETURNS:
-    *           T_ID, distributed non-uniformly.
+    *           TradeId, distributed non-uniformly.
     */
-    public long GenerateNonUniformTradeID( int AValue, int SValue )
+    public long GenerateNonUniformTradeID( int aValue, int sValue )
     {
     	long TradeId;
 
-        TradeId = m_rnd.rndNU( 1, m_iMaxActivePrePopulatedTradeID, AValue, SValue );
-
-        // Skip over trade id's that were skipped over during load time.
-        if ( HoldingsAndTrades.isAbortedTrade(TradeId) )
-        {
+        TradeId = m_rnd.rndNU( 1, m_iMaxActivePrePopulatedTradeID, aValue, sValue );
+        if ( HoldingsAndTrades.isAbortedTrade(TradeId) ){
             TradeId++;
         }
-
-        TradeId += TPCEConstants.TRADE_SHIFT;    // shift trade id to 64-bit value
-
+        TradeId += TPCEConstants.TRADE_SHIFT;
         return( TradeId );
     }
 
@@ -462,90 +443,68 @@ public class CETxnInputGenerator {
     *
     *  PARAMETERS:
     *           OUT dts                     - returned timestamp
-    *           IN  MaxTimeInMilliSeconds   - time interval (from the first initial trade) in which to generate the timestamp
-    *           IN  AValue                  - parameter to NURAND function
-    *           IN  SValue                  - parameter to NURAND function
+    *           IN  maxTimeInMS   			- time interval (from the first initial trade) in which to generate the timestamp
+    *           IN  aValue                  - parameter to NURAND function
+    *           IN  sValue                  - parameter to NURAND function
     *
     *  RETURNS:
-    *           none.
+    *           TimestampType.
     */
-    public void GenerateNonUniformTradeDTS( TimestampType dts, long MaxTimeInMilliSeconds, int AValue, int SValue )
+    public TimestampType GenerateNonUniformTradeDTS( TimestampType dts, long maxTimeInMS, int aValue, int sValue )
     {
     	GregorianCalendar TradeTime = new GregorianCalendar(TPCEConstants.initialTradePopulationBaseYear,
-    			TPCEConstants.initialTradePopulationBaseMonth,
-    			TPCEConstants.initialTradePopulationBaseDay,
-    			TPCEConstants.initialTradePopulationBaseHour,
-    			TPCEConstants.initialTradePopulationBaseMinute,
-    			TPCEConstants.initialTradePopulationBaseSecond );   //NOTE: Interpret Fraction as milliseconds,
-                                                                        // probably 0 anyway.
+    														TPCEConstants.initialTradePopulationBaseMonth,
+    														TPCEConstants.initialTradePopulationBaseDay,
+    														TPCEConstants.initialTradePopulationBaseHour,
+    														TPCEConstants.initialTradePopulationBaseMinute,
+    														TPCEConstants.initialTradePopulationBaseSecond );   
+    	
     	TradeTime.setTimeInMillis(TPCEConstants.initialTradePopulationBaseFraction);
         long       TradeTimeOffset;
 
-        // Generate random number of seconds from the base time.
-        //
-        TradeTimeOffset = m_rnd.rndNU( 1, MaxTimeInMilliSeconds, AValue, SValue );
-
-        // The time we have is an offset into the initial pre-populated trading time.
-        // This needs to be converted into a "real" time taking into account 8 hour
-        // business days, etc.
-
-        EGenDate.AddWorkMs( TradeTime.getTime(), TradeTimeOffset );
-        EGenDate.getTimeStamp( dts, TradeTime.getTime() );
+        TradeTimeOffset = m_rnd.rndNU( 1, maxTimeInMS, aValue, sValue );
+        dts = EGenDate.getTimeStamp(EGenDate.AddWorkMs( TradeTime.getTime(), TradeTimeOffset ));
+        return dts;
     }
 
     /*
     *  Generate Broker-Volume transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
-    *           the number of brokers generated.
+    *           none.
     */
-    public void GenerateBrokerVolumeInput(TBrokerVolumeTxnInput TxnReq)
-    {
-    	int           iNumBrokers;
-        int           iCount, i;
-        long[]        B_ID = new long [TxnHarnessStructs.max_broker_list_len];
-        int           iSectorIndex;
-
-
+    public void GenerateBrokerVolumeInput(TBrokerVolumeTxnInput inputStructure){
+    	int           numBrokers;
+        int           count, i;
+        long[]        brokerID = new long [TxnHarnessStructs.max_broker_list_len];
+        int           sectorIndex;
         
-
-        // Select the range of brokers, honoring partitioning by CID settings.
-        //iBrokersStart = iStartingBrokerID;
-        //iBrokersCount = m_iActiveCustomerCount / iBrokersDiv;
-        iNumBrokers = m_rnd.intRange(TxnHarnessStructs.min_broker_list_len, TxnHarnessStructs.max_broker_list_len);       // 20..40 brokers
-        // Small databases (<=4LUs) may contain less than the chosen number of brokers.
-        // Broker names for Broker Volume are unique, so need to re-adjust or be caught
-        // in an infinite loop below.
-        if (iNumBrokers > m_Brokers.GetBrokerCount())	//m_Brokers.GetBrokerCount() = 50;
-        {
-            iNumBrokers = (int)m_Brokers.GetBrokerCount();     // adjust for small databases
+        //Generates the Broker number randomly from the range
+        numBrokers = m_rnd.intRange(TxnHarnessStructs.min_broker_list_len, TxnHarnessStructs.max_broker_list_len); 
+        
+        inputStructure.broker_list = new String[numBrokers];
+		for (i = 0; i < numBrokers; ++i){
+			inputStructure.broker_list[i] = new String();
         }
-
-        iCount = 0;
-        do
-        {
-            //select random broker ID (from active customer range)
-            B_ID[iCount] = m_Brokers.GenerateRandomBrokerId(m_rnd);
-
-            for (i = 0; (i < iCount) && (B_ID[i] != B_ID[iCount]); ++i) { };
-
-            if (i == iCount)    //make sure brokers are distinct
-            {
-                //put the broker name into the input parameter
-            	TxnReq.broker_list[i] = m_Brokers.generateBrokerName(B_ID[iCount]);
-                ++iCount;
+		
+        if (numBrokers > m_Brokers.GetBrokerCount()){
+            numBrokers = (int)m_Brokers.GetBrokerCount();
+        }
+        count = 0;
+        do{
+            brokerID[count] = m_Brokers.GenerateRandomBrokerId(m_rnd);
+            for (i = 0; (i < count) && (brokerID[i] != brokerID[count]); ++i) { };
+            if (i == count){
+            	inputStructure.broker_list[i] = m_Brokers.generateBrokerName(brokerID[count]);
+                ++count;
             }
+        } while (count < numBrokers);
 
-        } while (iCount < iNumBrokers);
-
-        //select sector name
-        iSectorIndex = m_rnd.intRange(0, m_iSectorCount-1);
-
-        TxnReq.sector_name = (String)m_pSectors.getTupleByIndex(iSectorIndex)[1].toString();
-//        System.arraycopy((String)m_pSectors.getTupleByIndex(iSectorIndex)[1], 0, TxnReq.sector_name, 0, TableConsts.cSC_NAME_len);
+        sectorIndex = m_rnd.intRange(0, m_iSectorCount-1);
+        inputStructure.sector_name = (String)m_pSectors.getTupleByIndex(sectorIndex)[1].toString();
     }
 
 
@@ -553,48 +512,35 @@ public class CETxnInputGenerator {
     *  Generate Customer-Position transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateCustomerPositionInput(TCustomerPositionTxnInput TxnReq)
-    {
-        Object[] customerId = new Object[2];
-
-        customerId = m_CustomerSelection.genRandomCustomer();
+    public void GenerateCustomerPositionInput(TCustomerPositionTxnInput inputStructure){
+        Object[] customer = new Object[2];
+        customer = m_CustomerSelection.genRandomCustomer();
+        long customerID = Long.parseLong(customer[0].toString());
+        TierId tierID = (TierId)customer[1];
         
-        long iCustomerId = Long.parseLong(customerId[0].toString());
-        TierId tierID = (TierId)customerId[1];
-        
-        if (m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_by_tax_id))
-        {
-            //send tax id instead of customer id
-        	if (TxnReq == null){
-        		System.out.println("null");
-        	}
-        	TxnReq.tax_id = m_Person.getTaxID(iCustomerId);
-
-            TxnReq.cust_id = 0; //don't need customer id since filled in the tax id
+        if (m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_by_tax_id)){
+        	
+        	inputStructure.tax_id = m_Person.getTaxID(customerID);
+            inputStructure.cust_id = 0;
         }
-        else
-        {
-            // send customer id and not the tax id
-            TxnReq.cust_id = iCustomerId;
-
-            
+        else{
+            inputStructure.cust_id = customerID;
+            inputStructure.tax_id = new String();
         }
 
         boolean get_history = m_rnd.rndPercent(m_pDriverCETxnSettings.CP_settings.cur_get_history);
-        if( get_history )
-        {
-        	TxnReq.get_history = 1;
-            TxnReq.acct_id_idx = m_rnd.intRange( 0, (int)m_Accs.genRandomAccId(m_rnd, iCustomerId, tierID)[1] - 1);
+        if( get_history ){
+        	inputStructure.get_history = 1;
+            inputStructure.acct_id_idx = m_rnd.intRange( 0, (int)m_Accs.genRandomAccId(m_rnd, customerID, tierID)[1] - 1);
         }
-        else
-        {
-        	TxnReq.get_history = 0;
-            TxnReq.acct_id_idx = -1;
+        else{
+        	inputStructure.get_history = 0;
+            inputStructure.acct_id_idx = -1;
         }
     }
 
@@ -602,269 +548,202 @@ public class CETxnInputGenerator {
     *  Generate Market-Watch transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateMarketWatchInput(TMarketWatchTxnInput TxnReq)
-    {
-        long          iCustomerId;
-        TierId        iCustomerTier;
-        int           iThreshold;
-        int           iWeek;
-        int           iDailyMarketDay;
-        Object[] customerId = new Object[2];
-
+    public void GenerateMarketWatchInput(TMarketWatchTxnInput inputStructure){
+        long          customerID;
+        TierId        tierID;
+        int           threshold;
+        int           week;
+        int           dailyMarketDay;
+        Object[] customer = new Object[2];
         Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
         							TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
         							TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
-        iThreshold = m_rnd.rndPercentage();
+        threshold = m_rnd.rndPercentage();
+        if (threshold <= m_pDriverCETxnSettings.MW_settings.cur_by_industry){
+            
+        	inputStructure.industry_name = m_pIndustries.getTupleByIndex(m_rnd.intRange(0, m_iIndustryCount-1))[1];
+            inputStructure.c_id = inputStructure.acct_id = 0;
 
-        //have some distribution on what inputs to send
-        if (iThreshold <= m_pDriverCETxnSettings.MW_settings.cur_by_industry)
-        {
-            //send industry name
-        	TxnReq.industry_name = m_pIndustries.getTupleByIndex(m_rnd.intRange(0, m_iIndustryCount-1))[1];
-
-            TxnReq.c_id = TxnReq.acct_id = 0;
-
-            if( TxnHarnessStructs.iBaseCompanyCount < m_iActiveCompanyCount )
-            {
-                TxnReq.starting_co_id = m_rnd.int64Range( m_iStartFromCompany,
-                                                            m_iStartFromCompany +
-                                                            m_iActiveCompanyCount - ( TxnHarnessStructs.iBaseCompanyCount - 1 ));
-                TxnReq.ending_co_id = TxnReq.starting_co_id + ( TxnHarnessStructs.iBaseCompanyCount - 1 );
+            if( TxnHarnessStructs.iBaseCompanyCount < m_iActiveCompanyCount ){
+                inputStructure.starting_co_id = m_rnd.int64Range( m_iStartFromCompany, m_iStartFromCompany + m_iActiveCompanyCount - ( TxnHarnessStructs.iBaseCompanyCount - 1 ));
+                inputStructure.ending_co_id = inputStructure.starting_co_id + ( TxnHarnessStructs.iBaseCompanyCount - 1 );
             }
-            else
-            {
-                TxnReq.starting_co_id = m_iStartFromCompany;
-                TxnReq.ending_co_id = m_iStartFromCompany + m_iActiveCompanyCount - 1;
+            else{
+                inputStructure.starting_co_id = m_iStartFromCompany;
+                inputStructure.ending_co_id = m_iStartFromCompany + m_iActiveCompanyCount - 1;
             }
         }
-        else
-        {
+        else{
+			inputStructure.starting_co_id = 0;
+			inputStructure.ending_co_id = 0;
+			inputStructure.industry_name = new String();
+            customer = m_CustomerSelection.genRandomCustomer();
             
-            TxnReq.starting_co_id = 0;
-            TxnReq.ending_co_id = 0;
-            customerId = m_CustomerSelection.genRandomCustomer();
-            
-            if (iThreshold <= (m_pDriverCETxnSettings.MW_settings.cur_by_industry + m_pDriverCETxnSettings.MW_settings.cur_by_watch_list))
-            {
-                // Send customer id
-            	
-                iCustomerTier = (TierId)customerId[1];
-                TxnReq.c_id = Long.parseLong(customerId[0].toString());
+            if (threshold <= (m_pDriverCETxnSettings.MW_settings.cur_by_industry + m_pDriverCETxnSettings.MW_settings.cur_by_watch_list)){
+                tierID = (TierId)customer[1];
+                inputStructure.c_id = Long.parseLong(customer[0].toString());
                 
-                TxnReq.acct_id = 0;
+                inputStructure.acct_id = 0;
             }
-            else
-            {
-                // Send account id
-            	
-            	iCustomerId = Long.parseLong(customerId[0].toString());
-            	iCustomerTier = (TierId)customerId[1];
-            	m_Accs.genRandomAccId(m_rnd, iCustomerId, iCustomerTier, TxnReq.acct_id, -1);
+            else{
+            	customerID = Long.parseLong(customer[0].toString());
+            	tierID = (TierId)customer[1];
+            	inputStructure.acct_id = m_Accs.genRandomAccId(m_rnd, customerID, tierID, inputStructure.acct_id, -1)[0];
 
-                TxnReq.c_id = 0;
+                inputStructure.c_id = 0;
             }
         }
 
-        // Set start_day for both cases of the 'if'.
-        //
-        iWeek = (int)m_rnd.rndNU(0, 255, 255, 0) + 5; // A = 255, S = 0
-        // Week is now between 5 and 260.
-        // Select a day within the week.
-        //
-        iThreshold = m_rnd.rndPercentage();
-        if (iThreshold > 40)
-        {
-            iDailyMarketDay = iWeek * EGenDate.DaysPerWeek + 4;    // Friday
+        week = (int)m_rnd.rndNU(0, 255, 255, 0) + 5; 
+       
+        threshold = m_rnd.rndPercentage();
+        if (threshold > 40){
+            dailyMarketDay = week * EGenDate.DaysPerWeek + 4; 
         }
-        else    // 1..40 case
-        {
-            if (iThreshold <= 20)
-            {
-                iDailyMarketDay = iWeek * EGenDate.DaysPerWeek;    // Monday
+        else{
+            if (threshold <= 20){
+                dailyMarketDay = week * EGenDate.DaysPerWeek; 
             }
-            else
-            {
-                if (iThreshold <= 27)
-                {
-                    iDailyMarketDay = iWeek * EGenDate.DaysPerWeek + 1;    // Tuesday
+            else{
+                if (threshold <= 27){
+                    dailyMarketDay = week * EGenDate.DaysPerWeek + 1;
                 }
-                else
-                {
-                    if (iThreshold <= 33)
-                    {
-                        iDailyMarketDay = iWeek * EGenDate.DaysPerWeek + 2;    // Wednesday
+                else{
+                    if (threshold <= 33){
+                        dailyMarketDay = week * EGenDate.DaysPerWeek + 2;
                     }
-                    else
-                    {
-                        iDailyMarketDay = iWeek * EGenDate.DaysPerWeek + 3;    // Thursday
+                    else{
+                        dailyMarketDay = week * EGenDate.DaysPerWeek + 3;
                     }
                 }
             }
         }
+        date = EGenDate.addDaysMsecs(date, dailyMarketDay, 0, false);
 
-        // Go back 256 weeks and then add our calculated day.
-        //
-        date = EGenDate.addDaysMsecs(date, iDailyMarketDay, 0, false);
-
-        EGenDate.getTimeStamp(TxnReq.start_day, date);
+        inputStructure.start_day = EGenDate.getTimeStamp(date);
     }
 
     /*
     *  Generate Security-Detail transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateSecurityDetailInput(TSecurityDetailTxnInput TxnReq)
+    public void GenerateSecurityDetailInput(TSecurityDetailTxnInput inputStructure)
     {
     	Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
 				TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
 				TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
-        int       iStartDay;  // day from the StartDate
+        int startDay;
 
-        // random symbol
         char[] tmp = m_pSecurities.createSymbol( m_rnd.int64Range(0, m_iActiveSecurityCount-1), TableConsts.cSYMBOL_len).toCharArray();
         
-        TxnReq.symbol = String.copyValueOf(tmp, 0, tmp.length);
+        inputStructure.symbol = String.copyValueOf(tmp, 0, tmp.length);
 
-        // Whether or not to access the LOB.
         if(m_rnd.rndPercent( m_pDriverCETxnSettings.SD_settings.cur_LOBAccessPercentage ))
-        	TxnReq.access_lob_flag = 1;
-        else TxnReq.access_lob_flag = 0;
-        // random number of financial rows to return
-        TxnReq.max_rows_to_return = m_rnd.intRange(TPCEConstants.iSecurityDetailMinRows, TPCEConstants.iSecurityDetailMaxRows);
+        	inputStructure.access_lob_flag = 1;
+        else inputStructure.access_lob_flag = 0;
 
-        iStartDay = m_rnd.intRange(0, DailyMarketGenerator.iDailyMarketTotalRows - TxnReq.max_rows_to_return);
+        inputStructure.max_rows_to_return = m_rnd.intRange(TPCEConstants.iSecurityDetailMinRows, TPCEConstants.iSecurityDetailMaxRows);
 
-        // add the offset
-        date = EGenDate.addDaysMsecs(date, iStartDay, 0, false);
-//TODO needs to delete date
-        EGenDate.getTimeStamp(TxnReq.start_day, date);
+        startDay = m_rnd.intRange(0, DailyMarketGenerator.iDailyMarketTotalRows - inputStructure.max_rows_to_return);
+
+        date = EGenDate.addDaysMsecs(date, startDay, 0, false);
+        inputStructure.start_day = EGenDate.getTimeStamp(date);
     }
 
     /*
     *  Generate Trade-Lookup transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateTradeLookupInput(TTradeLookupTxnInput TxnReq)
-    {
-        int           iThreshold;
+    public void GenerateTradeLookupInput(TTradeLookupTxnInput inputStructure){
+        int           threshold;
+        threshold = m_rnd.rndPercentage();
 
-        iThreshold = m_rnd.rndPercentage();
+        if( threshold <= m_pDriverCETxnSettings.TL_settings.cur_do_frame1 ){  
+            inputStructure.frame_to_execute = 1;
+            inputStructure.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame1;
 
-        if( iThreshold <= m_pDriverCETxnSettings.TL_settings.cur_do_frame1 )
-        {
-            // Frame 1
-            TxnReq.frame_to_execute = 1;
-            TxnReq.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame1;
+            int     i, j;
+            boolean    accepted;
+            long  tradeID;
 
-            // Generate list of unique trade id's
-            int     ii, jj;
-            boolean    Accepted;
-            long  TID;
-
-            for( ii = 0; ii < TxnReq.max_trades; ii++ )
-            {
-                Accepted = false;
-                while( ! Accepted )
-                {
-                    TID = GenerateNonUniformTradeID(TPCEConstants.TradeLookupAValueForTradeIDGenFrame1,
+            for( i = 0; i < inputStructure.max_trades; i++ ){
+                accepted = false;
+                while( ! accepted ){
+                    tradeID = GenerateNonUniformTradeID(TPCEConstants.TradeLookupAValueForTradeIDGenFrame1,
                     		TPCEConstants.TradeLookupSValueForTradeIDGenFrame1);
-                    jj = 0;
-                    while( jj < ii && TxnReq.trade_id[jj] != TID )
-                    {
-                        jj++;
+                    j = 0;
+                    while( j < i && inputStructure.trade_id[j] != tradeID ){
+                        j++;
                     }
-                    if( jj == ii )
-                    {
-                        // We have a unique TID for this batch
-                        TxnReq.trade_id[ii] = TID;
-                        Accepted = true;
+                    if( j == i ){
+                        inputStructure.trade_id[i] = tradeID;
+                        accepted = true;
                     }
                 }
             }
-
-            // Params not used by this frame /////////////////////////////////////////
-            TxnReq.acct_id = 0;                                                     //
-            TxnReq.max_acct_id = 0;                                                 //
-            //////////////////////////////////////////////////////////////////////////
-        }
-        else if( iThreshold <=  m_pDriverCETxnSettings.TL_settings.cur_do_frame1 +
-                                m_pDriverCETxnSettings.TL_settings.cur_do_frame2 )
-        {
-            // Frame 2
-            TxnReq.frame_to_execute = 2;
-            TxnReq.acct_id = GenerateRandomCustomerAccountId();
-            TxnReq.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame2;
-
-            GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
-                                        m_iTradeLookupFrame2MaxTimeInMilliSeconds,
-                                        TPCEConstants.TradeLookupAValueForTimeGenFrame2,
-                                        TPCEConstants.TradeLookupSValueForTimeGenFrame2 );
-
-            // Set to the end of initial trades.
+        
+            inputStructure.acct_id = 0;                                          
+            inputStructure.max_acct_id = 0;                                      
+            inputStructure.symbol = new String();							     
             
-            EGenDate.getTimeStamp(TxnReq.end_trade_dts, m_EndTime);
-
-            // Params not used by this frame /////////////////////////
-            TxnReq.max_acct_id = 0;                                 //
-            Arrays.fill( TxnReq.trade_id, 0); 						//
-            //////////////////////////////////////////////////////////
+            GregorianCalendar date = new GregorianCalendar(0,0,0,0,0);        
+            inputStructure.start_trade_dts = new TimestampType(date.getTime());  
+            inputStructure.end_trade_dts = new TimestampType(date.getTime());  
         }
-        else if( iThreshold <=  m_pDriverCETxnSettings.TL_settings.cur_do_frame1 +
-                                m_pDriverCETxnSettings.TL_settings.cur_do_frame2 +
-                                m_pDriverCETxnSettings.TL_settings.cur_do_frame3 )
-        {
-            // Frame 3
-            TxnReq.frame_to_execute = 3;
-            TxnReq.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame3;
+        else if( threshold <=  m_pDriverCETxnSettings.TL_settings.cur_do_frame1 + m_pDriverCETxnSettings.TL_settings.cur_do_frame2 ){
+            inputStructure.frame_to_execute = 2;
+            inputStructure.acct_id = GenerateRandomCustomerAccountId();
+            inputStructure.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame2;
 
-            TxnReq.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
+            inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts, m_iTradeLookupFrame2MaxTimeInMilliSeconds, TPCEConstants.TradeLookupAValueForTimeGenFrame2, TPCEConstants.TradeLookupSValueForTimeGenFrame2 );
+            
+            inputStructure.end_trade_dts = EGenDate.getTimeStamp( m_EndTime);
+
+            inputStructure.max_acct_id = 0;
+            inputStructure.symbol = new String();
+            Arrays.fill(inputStructure.trade_id, 0);
+        }
+        else if( threshold <=  m_pDriverCETxnSettings.TL_settings.cur_do_frame1 + m_pDriverCETxnSettings.TL_settings.cur_do_frame2 + m_pDriverCETxnSettings.TL_settings.cur_do_frame3 ){
+
+            inputStructure.frame_to_execute = 3;
+            inputStructure.max_trades = m_pDriverCETxnSettings.TL_settings.cur_MaxRowsFrame3;
+
+            inputStructure.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
             		TPCEConstants.TradeLookupAValueForSymbolFrame3,
             		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len);
 
-            GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
-                                        m_iTradeLookupFrame3MaxTimeInMilliSeconds,
-                                        TPCEConstants.TradeLookupAValueForTimeGenFrame3,
-                                        TPCEConstants.TradeLookupSValueForTimeGenFrame3 );
+            inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts,  m_iTradeLookupFrame3MaxTimeInMilliSeconds, TPCEConstants.TradeLookupAValueForTimeGenFrame3, TPCEConstants.TradeLookupSValueForTimeGenFrame3 );
 
-            // Set to the end of initial trades.
-            EGenDate.getTimeStamp(TxnReq.end_trade_dts, m_EndTime);
+            inputStructure.end_trade_dts = EGenDate.getTimeStamp(m_EndTime);
 
-            TxnReq.max_acct_id = CustomerAccountsGenerator.getEndtingAccId( m_iActiveCustomerCount );
-            // Params not used by this frame /////////////////////////
-            TxnReq.acct_id = 0;                                     //
-            Arrays.fill( TxnReq.trade_id, 0); //
-            //////////////////////////////////////////////////////////
+            inputStructure.max_acct_id = CustomerAccountsGenerator.getEndtingAccId( m_iActiveCustomerCount );
+     
+            inputStructure.acct_id = 0;
+            Arrays.fill(inputStructure.trade_id, 0);
         }
-        else
-        {
-            // Frame 4
-            TxnReq.frame_to_execute = 4;
-            TxnReq.acct_id = GenerateRandomCustomerAccountId();
-            GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
-                                        m_iTradeLookupFrame4MaxTimeInMilliSeconds,
-                                        TPCEConstants.TradeLookupAValueForTimeGenFrame4,
-                                        TPCEConstants.TradeLookupSValueForTimeGenFrame4 );
-
-            // Params not used by this frame /////////////////////////
-            TxnReq.max_trades = 0;                                  //
-            TxnReq.max_acct_id = 0;									//
-            Arrays.fill( TxnReq.trade_id, 0); 						//
-            //////////////////////////////////////////////////////////
+        else{
+            inputStructure.frame_to_execute = 4;
+            inputStructure.acct_id = GenerateRandomCustomerAccountId();
+            inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts, m_iTradeLookupFrame4MaxTimeInMilliSeconds, TPCEConstants.TradeLookupAValueForTimeGenFrame4, TPCEConstants.TradeLookupSValueForTimeGenFrame4 );
+            inputStructure.max_trades = 0;                                  
+            inputStructure.max_acct_id = 0;
+            inputStructure.symbol = new String();
+            Arrays.fill(inputStructure.trade_id, 0);
         }
     }
 
@@ -872,330 +751,241 @@ public class CETxnInputGenerator {
     *  Generate Trade-Order transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
-    *           OUT TradeType               - integer representation of generated trade type (as eTradeTypeID enum).
-    *           OUT bExecutorIsAccountOwner - whether Trade-Order frame 2 should (FALSE) or shouldn't (TRUE) be called.
+    *           OUT inputStructure         - input parameter structure filled in for the transaction.
+    *           OUT TradeType              - integer representation of generated trade type (as eTradeTypeID enum).
+    *           OUT executorIsAccountOwner - whether Trade-Order frame 2 should (FALSE) or shouldn't (TRUE) be called.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateTradeOrderInput(TTradeOrderTxnInput TxnReq, int iTradeType, boolean bExecutorIsAccountOwner)
-    {
-        long          iCustomerId;    //owner
-        TierId   		iCustomerTier;
-        long          CID_1, CID_2;
+    public void GenerateTradeOrderInput(TTradeOrderTxnInput inputStructure, int iTradeType, boolean executorIsAccountOwner){
+        long          customerID;
+        TierId   		tierID;
         boolean            bMarket;
-        int           iAdditionalPerms;
-        int             iSymbIndex;
-        long          iFlatFileSymbIndex;
+        int           additionalPerms;
+        int             secAcct;
+        long          secFlatFileIndex;
         String[] flTaxId;
         TradeType    eTradeType;
 
-        // Generate random customer
-        //
-        Object[] customerId = new Object[2];
+        Object[] customer = new Object[2];
 
-        customerId = m_CustomerSelection.genRandomCustomer();
+        customer = m_CustomerSelection.genRandomCustomer();
         
-        iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
+        customerID = Long.parseLong(customer[0].toString());
+        tierID = (TierId)customer[1];
+        
+        long[] randomAccSecurity = m_Holdings.generateRandomAccSecurity(customerID, tierID);
 
-        // Generate random account id and security index
-        // 
-        long[] randomAccSecurity = m_Holdings.generateRandomAccSecurity(iCustomerId, iCustomerTier);
-
-        TxnReq.acct_id = randomAccSecurity[0];
-        iFlatFileSymbIndex = randomAccSecurity[1];
-        iSymbIndex = (int)randomAccSecurity[2];
-        //find out how many permission rows there are for this account (in addition to the owner's)
-        iAdditionalPerms = m_AccountPerms.getNumPermsForAcc(TxnReq.acct_id);
-        //distribution same as in the loader for now
-        if (iAdditionalPerms == 0)
-        {   //select the owner
-        	flTaxId = m_Person.getFirstNameLastNameTaxID(iCustomerId);
+        inputStructure.acct_id = randomAccSecurity[0];
+        secFlatFileIndex = randomAccSecurity[2];
+        secAcct = (int)randomAccSecurity[1];
+        additionalPerms = m_AccountPerms.getNumPermsForAcc(inputStructure.acct_id);
+        if (additionalPerms == 1){
+        	flTaxId = m_Person.getFirstNameLastNameTaxID(customerID);
         	
-            bExecutorIsAccountOwner = true;
+            executorIsAccountOwner = true;
         }
-        else
-        {
-            // If there is more than one permission set on the account,
-            // have some distribution on whether the executor is still
-            // the account owner, or it is one of the additional permissions.
-            // Here we must take into account the fact that we've excluded
-            // a large portion of customers that don't have any additional
-            // executors in the above code (iAdditionalPerms == 0); the
-            // "exec_is_owner" percentage implicitly includes such customers
-            // and must be factored out here.
-
+        else{
             int exec_is_owner = (m_pDriverCETxnSettings.TO_settings.cur_exec_is_owner - AccountPermsGenerator.percentAccountAdditionalPermissions_0) * 100 / (100 - AccountPermsGenerator.percentAccountAdditionalPermissions_0);
 
-            if ( m_rnd.rndPercent(exec_is_owner) )
-            {
-                flTaxId = m_Person.getFirstNameLastNameTaxID(iCustomerId);
+            if ( m_rnd.rndPercent(exec_is_owner) ){
+                flTaxId = m_Person.getFirstNameLastNameTaxID(customerID);
 
-                bExecutorIsAccountOwner = true;
+                executorIsAccountOwner = true;
             }
-            else
-            {
-                if (iAdditionalPerms == 1)
-                {
-                    //select the first non-owner
-                	m_AccountPerms.generateCids();
-                	
-                	CID_1 = m_AccountPerms.permCids[1];
-                	CID_2 = m_AccountPerms.permCids[2];
+            else{
+            	m_AccountPerms.generateCids();
+                if (additionalPerms == 2){
 
-                	flTaxId = m_Person.getFirstNameLastNameTaxID(CID_1);
+                	flTaxId = m_Person.getFirstNameLastNameTaxID(m_AccountPerms.permCids[1]);
                 }
-                else
-                {
-                    //select the second non-owner
-                	m_AccountPerms.getNumPermsForAcc(TxnReq.acct_id);
-                	
-                	CID_1 = m_AccountPerms.permCids[1];
-                	CID_2 = m_AccountPerms.permCids[2];
-                	
-                    //generate third account permission row
-                	flTaxId = m_Person.getFirstNameLastNameTaxID(CID_2);
+                else{
+                	flTaxId = m_Person.getFirstNameLastNameTaxID(m_AccountPerms.permCids[2]);
                 }
 
-                bExecutorIsAccountOwner = false;
+                executorIsAccountOwner = false;
             }
         }
         
-        TxnReq.exec_f_name = flTaxId[0];
-    	TxnReq.exec_l_name = flTaxId[1];
-    	TxnReq.exec_tax_id = flTaxId[2];
+        inputStructure.exec_f_name = flTaxId[0];
+    	inputStructure.exec_l_name = flTaxId[1];
+    	inputStructure.exec_tax_id = flTaxId[2];
 
-        // Select either stock symbol or company from the securities flat file.
-        //
-
-        //have some distribution on the company/symbol input preference
-        if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_security_by_symbol))
-        {
-            //Submit the symbol
-        	char[] tmp = m_pSecurities.createSymbol(iFlatFileSymbIndex, TableConsts.cSYMBOL_len).toCharArray();
+        if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_security_by_symbol)){
+        	char[] tmp = m_pSecurities.createSymbol(secFlatFileIndex, TableConsts.cSYMBOL_len).toCharArray();
             
-            TxnReq.symbol = String.copyValueOf(tmp, 0, tmp.length);
-
+            inputStructure.symbol = String.copyValueOf(tmp, 0, tmp.length);
+            inputStructure.co_name = new String();
+            inputStructure.issue = new String();
         }
-        else
-        {
-            //Submit the company name
-        	TxnReq.co_name = m_pCompanies.generateCompanyName( m_pSecurities.getCompanyIndex( iFlatFileSymbIndex ));
+        else{
+        	inputStructure.co_name = m_pCompanies.generateCompanyName( m_pSecurities.getCompanyIndex( secFlatFileIndex ));
 
-        	char[] tmp = m_pSecurities.getSecRecord(iFlatFileSymbIndex)[1].toCharArray();
+        	char[] tmp = m_pSecurities.getSecRecord(secFlatFileIndex)[1].toCharArray();
         	
-        	TxnReq.issue = String.copyValueOf(tmp, 0, tmp.length);
+        	inputStructure.issue = String.copyValueOf(tmp, 0, tmp.length);
 
+        	inputStructure.symbol = new String();
         }
 
-        TxnReq.trade_qty = HoldingsAndTrades.TRADE_QTY_SIZES[m_rnd.intRange(0, HoldingsAndTrades.TRADE_QTY_SIZES.length - 1)];
-        TxnReq.requested_price = m_rnd.doubleIncrRange(HoldingsAndTrades.fMinSecPrice, HoldingsAndTrades.fMaxSecPrice, 0.01);
+        inputStructure.trade_qty = HoldingsAndTrades.TRADE_QTY_SIZES[m_rnd.intRange(0, HoldingsAndTrades.TRADE_QTY_SIZES.length - 1)];
+        inputStructure.requested_price = m_rnd.doubleIncrRange(HoldingsAndTrades.fMinSecPrice, HoldingsAndTrades.fMaxSecPrice, 0.01);
 
-        // Determine whether Market or Limit order
         bMarket = m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_market);
 
-        //Determine whether Buy or Sell trade
-        if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_buy_orders))
-        {
-            if (bMarket)
-            {
-                //Market Buy
+        if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_buy_orders)){
+            if (bMarket){
                 eTradeType = TradeType.eMarketBuy;
             }
-            else
-            {
-                //Limit Buy
+            else{
                 eTradeType = TradeType.eLimitBuy;
             }
             
-            // Set margin or cash for Buy
             if (m_rnd.rndPercent(
-                    // type_is_margin is specified for all orders, but used only for buys
                     m_pDriverCETxnSettings.TO_settings.cur_type_is_margin *
                     100 /
                     m_pDriverCETxnSettings.TO_settings.cur_buy_orders)){
-            	TxnReq.type_is_margin = 1;
+            	inputStructure.type_is_margin = 1;
             }
-            else TxnReq.type_is_margin = 0;
+            else inputStructure.type_is_margin = 0;
             
         }
-        else
-        {
-            if (bMarket)
-            {
-                //Market Sell
+        else{
+            if (bMarket){
                 eTradeType = TradeType.eMarketSell;
             }
-            else
-            {
-                // determine whether the Limit Sell is a Stop Loss
-                if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_stop_loss))
-                {
-                    //Stop Loss
+            else{
+                if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_stop_loss)){
                     eTradeType = TradeType.eStopLoss;
                 }
-                else
-                {
-                    //Limit Sell
+                else{
                     eTradeType = TradeType.eLimitSell;
                 }
             }
 
-            TxnReq.type_is_margin = 0;  //all sell orders are cash
+            inputStructure.type_is_margin = 0;
         }
         iTradeType = eTradeType.getValue();
         
-        // Distribution of last-in-first-out flag
         if (m_rnd.rndPercent(m_pDriverCETxnSettings.TO_settings.cur_lifo)){
-        	TxnReq.is_lifo = 1;
+        	inputStructure.is_lifo = 1;
         }
-        else TxnReq.is_lifo = 0;
+        else inputStructure.is_lifo = 0;
 
-        // Copy the trade type id from the flat file
         char[] tmp = (m_pTradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray();
-        TxnReq.trade_type_id = String.copyValueOf(tmp, 0, tmp.length);
+        inputStructure.trade_type_id = String.copyValueOf(tmp, 0, tmp.length);
 
-        // Copy the status type id's from the flat file
         tmp = (m_pStatusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0].toCharArray();
-        TxnReq.st_pending_id = String.copyValueOf(tmp, 0, tmp.length);
+        inputStructure.st_pending_id = String.copyValueOf(tmp, 0, tmp.length);
         tmp = (m_pStatusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray();
-        TxnReq.st_submitted_id = String.copyValueOf(tmp, 0, tmp.length);
+        inputStructure.st_submitted_id = String.copyValueOf(tmp, 0, tmp.length);
         
         if ( m_iTradeOrderRollbackLevel >= m_rnd.intRange( 1, m_iTradeOrderRollbackLimit )){
-        	TxnReq.roll_it_back = 1;
+        	inputStructure.roll_it_back = 1;
         }
-        else TxnReq.roll_it_back = 0;
-
-        // Need to address logging more comprehensively.
-        //return eTradeType;
+        else inputStructure.roll_it_back = 0;
     }
 
     /*
     *  Generate Trade-Status transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateTradeStatusInput(TTradeStatusTxnInput TxnReq)
-    {
-        long          iCustomerId;
-        TierId   	  iCustomerTier;
+    public void GenerateTradeStatusInput(TTradeStatusTxnInput inputStructure){
+        long          customerID;
+        TierId   	  tierID;
 
-        Object[] customerId = new Object[2];
-
-        //select customer id first
-        customerId = m_CustomerSelection.genRandomCustomer();
-        iCustomerId = Long.parseLong(customerId[0].toString());
-        iCustomerTier = (TierId)customerId[1];
-        
-
-        //select random account id
-        m_Accs.genRandomAccId(m_rnd, iCustomerId, iCustomerTier, TxnReq.acct_id, -1);
+        Object[] customer = new Object[2];
+        customer = m_CustomerSelection.genRandomCustomer();
+        customerID = Long.parseLong(customer[0].toString());
+        tierID = (TierId)customer[1];
+        inputStructure.acct_id = m_Accs.genRandomAccId(m_rnd, customerID, tierID, inputStructure.acct_id, -1)[0];
     }
 
     /*
     *  Generate Trade-Update transaction input.
     *
     *  PARAMETERS:
-    *           OUT TxnReq                  - input parameter structure filled in for the transaction.
+    *           OUT inputStructure                  - input parameter structure filled in for the transaction.
     *
     *  RETURNS:
     *           none.
     */
-    public void GenerateTradeUpdateInput(TTradeUpdateTxnInput TxnReq)
-    {
-        int           iThreshold;
+    public void GenerateTradeUpdateInput(TTradeUpdateTxnInput inputStructure){
+        int           threshold;
 
-        iThreshold = m_rnd.rndPercentage();
+        threshold = m_rnd.rndPercentage();
 
-        if( iThreshold <= m_pDriverCETxnSettings.TU_settings.cur_do_frame1 )
-        {
-            // Frame 1
-            TxnReq.frame_to_execute = 1;
-            TxnReq.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame1;
-            TxnReq.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame1;
+        if( threshold <= m_pDriverCETxnSettings.TU_settings.cur_do_frame1 ){
+            inputStructure.frame_to_execute = 1;
+            inputStructure.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame1;
+            inputStructure.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame1;
 
-            // Generate list of unique trade id's
-            int     ii, jj;
-            boolean    Accepted;
-            long  TID;
+            int     i, j;
+            boolean    accepted;
+            long  tradeID;
 
-            for( ii = 0; ii < TxnReq.max_trades; ii++ )
-            {
-                Accepted = false;
-                while( ! Accepted )
-                {
-                    TID = GenerateNonUniformTradeID(TPCEConstants.TradeUpdateAValueForTradeIDGenFrame1, TPCEConstants.TradeUpdateSValueForTradeIDGenFrame1);
-                    jj = 0;
-                    while( jj < ii && TxnReq.trade_id[jj] != TID )
-                    {
-                        jj++;
+            for( i = 0; i < inputStructure.max_trades; i++ ){
+                accepted = false;
+                while( ! accepted ){
+                    tradeID = GenerateNonUniformTradeID(TPCEConstants.TradeUpdateAValueForTradeIDGenFrame1, TPCEConstants.TradeUpdateSValueForTradeIDGenFrame1);
+                    j = 0;
+                    while( j < i && inputStructure.trade_id[j] != tradeID ){
+                        j++;
                     }
-                    if( jj == ii )
-                    {
-                        // We have a unique TID for this batch
-                        TxnReq.trade_id[ii] = TID;
-                        Accepted = true;
+                    if( j == i ){
+                        inputStructure.trade_id[i] = tradeID;
+                        accepted = true;
                     }
                 }
             }
 
-            // Params not used by this frame /////////////////////////////////////////
-            TxnReq.acct_id = 0;                                                     //
-            TxnReq.max_acct_id = 0;                                                 //
-            //////////////////////////////////////////////////////////////////////////
+            inputStructure.acct_id = 0;                                                     
+            inputStructure.max_acct_id = 0;                                                 
+            inputStructure.symbol = new String();
+            
+            GregorianCalendar date = new GregorianCalendar(0,0,0,0,0);        
+            inputStructure.start_trade_dts = new TimestampType(date.getTime());  
+            inputStructure.end_trade_dts = new TimestampType(date.getTime());  
         }
-        else if( iThreshold <=  m_pDriverCETxnSettings.TU_settings.cur_do_frame1 +
-                                m_pDriverCETxnSettings.TU_settings.cur_do_frame2 )
-        {
-            // Frame 2
-            TxnReq.frame_to_execute = 2;
-            TxnReq.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame2;
-            TxnReq.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame2;
-            TxnReq.acct_id = GenerateRandomCustomerAccountId();
+        else if( threshold <=  m_pDriverCETxnSettings.TU_settings.cur_do_frame1 +
+                                m_pDriverCETxnSettings.TU_settings.cur_do_frame2 ){
+            inputStructure.frame_to_execute = 2;
+            inputStructure.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame2;
+            inputStructure.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame2;
+            inputStructure.acct_id = GenerateRandomCustomerAccountId();
+System.out.println("CETXN: LINE 985: inputStructure.start_trade_dts: " + inputStructure.start_trade_dts);
+			inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts, m_iTradeUpdateFrame2MaxTimeInMilliSeconds,
+                                        TPCEConstants.TradeUpdateAValueForTimeGenFrame2, TPCEConstants.TradeUpdateSValueForTimeGenFrame2 );
+System.out.println("CETXN: LINE 988: inputStructure.start_trade_dts: " + inputStructure.start_trade_dts);
+			inputStructure.end_trade_dts = EGenDate.getTimeStamp(m_EndTime);
 
-            GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
-                                        m_iTradeUpdateFrame2MaxTimeInMilliSeconds,
-                                        TPCEConstants.TradeUpdateAValueForTimeGenFrame2,
-                                        TPCEConstants.TradeUpdateSValueForTimeGenFrame2 );
-
-            // Set to the end of initial trades.
-            EGenDate.getTimeStamp(TxnReq.end_trade_dts, m_EndTime);
-
-            // Params not used by this frame /////////////////////////
-            TxnReq.max_acct_id = 0;                                 //
-            //////////////////////////////////////////////////////////
+            inputStructure.max_acct_id = 0;                                 
+            inputStructure.symbol = new String();
+            Arrays.fill( inputStructure.trade_id, 0); 
             
         }
-        else
-        {
-            // Frame 3
-            TxnReq.frame_to_execute = 3;
-            TxnReq.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame3;
-            TxnReq.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame3;
+        else{
+            inputStructure.frame_to_execute = 3;
+            inputStructure.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame3;
+            inputStructure.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame3;
             
-            TxnReq.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
-            		TPCEConstants.TradeLookupAValueForSymbolFrame3,
-            		TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len);
+            inputStructure.symbol = m_pSecurities.createSymbol( m_rnd.rndNU( 0, m_iActiveSecurityCount-1,
+            		TPCEConstants.TradeLookupAValueForSymbolFrame3, TPCEConstants.TradeLookupSValueForSymbolFrame3 ),TableConsts.cSYMBOL_len);
 
-            GenerateNonUniformTradeDTS( TxnReq.start_trade_dts,
-            							m_iTradeUpdateFrame3MaxTimeInMilliSeconds,
-                                        TPCEConstants.TradeLookupAValueForTimeGenFrame3,
-                                        TPCEConstants.TradeLookupSValueForTimeGenFrame3 );
+            inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts, m_iTradeUpdateFrame3MaxTimeInMilliSeconds,
+                                        TPCEConstants.TradeLookupAValueForTimeGenFrame3, TPCEConstants.TradeLookupSValueForTimeGenFrame3 );
 
-            // Set to the end of initial trades.
-            EGenDate.getTimeStamp(TxnReq.end_trade_dts, m_EndTime);
+            inputStructure.end_trade_dts = EGenDate.getTimeStamp(m_EndTime);
 
-            TxnReq.max_acct_id = CustomerAccountsGenerator.getEndtingAccId( m_iActiveCustomerCount );
-            // Params not used by this frame /////////////////////////
-            TxnReq.acct_id = 0;                                     //
-            Arrays.fill( TxnReq.trade_id, 0); //
-            //////////////////////////////////////////////////////////
+            inputStructure.max_acct_id = CustomerAccountsGenerator.getEndtingAccId( m_iActiveCustomerCount );
+            inputStructure.acct_id = 0;                                     
+            Arrays.fill( inputStructure.trade_id, 0); 
 
         }
     }
