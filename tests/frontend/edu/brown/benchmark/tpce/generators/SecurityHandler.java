@@ -29,6 +29,9 @@
 
 package edu.brown.benchmark.tpce.generators;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 
@@ -46,6 +49,8 @@ public class SecurityHandler {
     private final InputFileHandler secFile;
     private final int secRecords;
     private final int compRecords;
+    
+    private final Map<String, Long> symbolToIdMap = new HashMap<String, Long>();
     
     public SecurityHandler(TPCEGenerator generator) {
         secFile = generator.getInputFile(InputFile.SECURITY);
@@ -93,6 +98,18 @@ public class SecurityHandler {
         return suff;
     }
     
+    private long parseSuffix(String suffix) {
+        int suffixLen = suffix.length();
+        long multiplier = power26Sum[suffixLen]; 
+
+        for (int i = 0; i < suffix.length(); i++) {
+            multiplier += power26[suffixLen - 1] * (suffix.charAt(i) - 'a'); // assuming lower case letters go continuously
+            suffixLen--;
+        }
+        
+        return multiplier;
+    }
+    
     public long getCompanyId(long counter) {
         
         return Long.valueOf(getSecRecord(counter)[5]) + TPCEConstants.IDENT_SHIFT +
@@ -131,5 +148,34 @@ public class SecurityHandler {
     
     public static long getSecurityStart(long customerStart) {
         return customerStart / TPCEConstants.DEFAULT_LOAD_UNIT * TPCEConstants.DEFAULT_SECURITIES_PER_UNIT;
+    }
+    
+    public void loadSymbolToIdMap() {
+        if (symbolToIdMap.isEmpty()) {
+            for (int i = 0; i < secFile.getRecordsNum(); i++) {
+                String[] secTuple = secFile.getTupleByIndex(i);
+                symbolToIdMap.put(secTuple[2], Long.valueOf(secTuple[0]));
+            }
+        }
+    }
+    
+    public long getId(String symbol) {
+        if (symbolToIdMap.isEmpty()) {
+            loadSymbolToIdMap();
+        }
+        
+        // first, look for the separator -- '-'
+        int sepIndex = symbol.indexOf('-');
+        
+        if (sepIndex == -1) {
+            // simple name, no suffix
+            return symbolToIdMap.get(symbol);
+        }
+        
+        // suffix present, have to parse it
+        long baseId = symbolToIdMap.get(symbol.substring(0, sepIndex));
+        long multiplier = parseSuffix(symbol.substring(sepIndex + 1));
+        
+        return multiplier * secFile.getRecordsNum() + baseId;      
     }
 }
