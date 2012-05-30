@@ -29,7 +29,9 @@
 
 package edu.brown.benchmark.tpce.generators;
 
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
 import edu.brown.benchmark.tpce.generators.TradeGenerator.TradeType;
@@ -253,5 +255,21 @@ public class MEESecurity {
         res[1] = calculatePrice(secIndex, submissionTime + completionDelay);
 
         return res;
+    }
+    
+    public EGenMoney getMinPrice(){
+    	return rangeLow;
+    }
+    
+    public EGenMoney getMaxPrice(){
+    	return rangeHigh;
+    }
+    
+    public EGenMoney getCurrentPrice(long secId){
+    	GregorianCalendar currGreTime = new GregorianCalendar();
+    	GregorianCalendar baseGreTime = new GregorianCalendar();
+    	currGreTime.setTime(currTime);
+    	baseGreTime.setTime(baseTime);
+    	return calculatePrice(secId, (currGreTime.getTimeInMillis() - baseGreTime.getTimeInMillis()) / 1000);
     }
 }

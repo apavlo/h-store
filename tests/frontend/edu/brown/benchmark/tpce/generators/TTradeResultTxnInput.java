@@ -6,10 +6,10 @@ public class TTradeResultTxnInput {
 	 public double      trade_price;
 	 public long      trade_id;
 	 
-	 public ArrayList<String>InputParameters(){
-	    	ArrayList<String> para = new ArrayList<String>();
-	    	para.add(String.valueOf(trade_price));
-	    	para.add(String.valueOf(trade_id));
+	 public ArrayList<Object>InputParameters(){
+	    	ArrayList<Object> para = new ArrayList<Object>();
+	    	para.add(trade_price);
+	    	para.add(trade_id);
 	    	return para;
 	    }
 }

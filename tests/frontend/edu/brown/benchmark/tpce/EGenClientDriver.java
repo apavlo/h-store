@@ -197,10 +197,10 @@ System.out.println("EGenClientDriver: line: 174: symbol: " + obj[7].toString());
         return (this.cleanParams(obj));
     }
 
-/*    public Object[] getTradeResultParams() {
+   public Object[] getTradeResultParams() {
         return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
     }
-*/
+
     public Object[] getTradeStatusParams() {
     	Object[] obj = driver_ptr.generateTradeStatusInput().InputParameters().toArray();
 System.out.println("EGenClientDriver: line: 206: acct_id: " + obj[0]);

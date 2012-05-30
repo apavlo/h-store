@@ -40,7 +40,6 @@ import java.util.Arrays;
 public class ClientDriver {
     /*The constructor should load all the files*/
 //	private FileLoader fileloader;
-	private String m_dataPath;
 	private int m_configuredCustomerCount;
 	private int m_totalCustomerCount;
 	private int m_scaleFactor;
@@ -65,12 +64,11 @@ public class ClientDriver {
 	private DMSUTInterface        		m_DataMaintenanceCallback;
 	private MEE                   		m_MarketExchangeGenerator;
 	private MEESUTInterface       		m_MarketExchangeCallback;
-	
+	private SecurityHandler				m_SecurityHandler;
 	//TODO Datetime.h
 	public int HoursPerWorkDay = 8;
 	
 	public ClientDriver(String dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays){
-		m_dataPath = dataPath;
 		m_configuredCustomerCount = configuredCustomerCount;
 		m_totalCustomerCount = totalCustomerCount;
 		m_scaleFactor = scaleFactor;
@@ -80,9 +78,9 @@ public class ClientDriver {
 		m_LogFormat = new EGenLogFormatterTab();
 		m_Logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, m_LogFormat);
 		
-		char[] szFileName = new char[TPCEConstants.MAXPATH];
+		/*		char[] szFileName = new char[TPCEConstants.MAXPATH];
 	    char   pStartInFileName;  // start of the filename part in the szFileName buffer
-/*	    int    iDirLen;
+	    int    iDirLen;
 	    szFileName = Arrays.copyOf(dataPath.toCharArray(), TPCEConstants.MAXPATH);
 	    iDirLen = szFileName.toString().length();
 	    pStartInFileName = szFileName[TPCEConstants.MAXPATH - 1];
@@ -104,8 +102,10 @@ public class ClientDriver {
 		m_TradeStatusTxnInput = new TTradeStatusTxnInput();
 		m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
 	    m_DriverCETxnSettings = new TDriverCETxnSettings();
-		File inputDir = new File(dataPath /*szFileName.toString()*/);
+	    
+		File inputDir = new File(dataPath);
 	    TPCEGenerator inputFiles = new TPCEGenerator(inputDir, totalCustomerCount, scaleFactor, initialDays);
+	    m_SecurityHandler = new SecurityHandler(inputFiles);
 	    
 	    m_TxnInputGenerator = new CETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, 
 	    		m_initialDays * HoursPerWorkDay, m_Logger, m_DriverCETxnSettings);
@@ -117,8 +117,8 @@ public class ClientDriver {
 	   	    
 	    // As well as our trusty ol' MarketExchange input generator
 	    m_MarketExchangeCallback = new MarketExchangeCallback(m_TradeResultTxnInput, m_MarketFeedTxnInput);
-//	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, inputFiles.Securities, 1);
-//	    m_MarketExchangeGenerator.EnableTickerTape();
+//	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, m_SecurityHandler, 1, configuredCustomerCount);
+//	    m_MarketExchangeGenerator.enableTickerTape();
 	    
 	}
 	public TBrokerVolumeTxnInput generateBrokerVolumeInput() {
@@ -175,11 +175,11 @@ public class ClientDriver {
 	    return (m_TradeOrderTxnInput);
 	}
 
-/*	public TTradeResultTxnInput generateTradeResultInput() {
+	public TTradeResultTxnInput generateTradeResultInput() {
 	    System.out.println("Executing %s...\n" + "generateTradeResultInput");
-	    m_MarketExchangeGenerator.GenerateTradeResult();
+	    m_MarketExchangeGenerator.generateTradeResult();
 	    return (m_TradeResultTxnInput);
-	}*/
+	}
 
 	public TTradeStatusTxnInput generateTradeStatusInput() {
 		System.out.println("Executing generateTradeStatusInput ... \n");

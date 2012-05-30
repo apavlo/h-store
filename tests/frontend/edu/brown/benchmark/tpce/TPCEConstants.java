@@ -65,6 +65,20 @@ public abstract class TPCEConstants {
         FIXED, SCALING, GROWING,
     }
 
+    public enum eMEETradeRequestAction
+    {
+        eMEEProcessOrder(0),
+        eMEESetLimitOrderTrigger(1);
+        private eMEETradeRequestAction(int index){
+        	this.index = index;
+        }
+        public int getVal(){
+        	return index;
+        }
+        private int index;
+    }
+
+    
     //DriverType
     public static enum DriverType{
     	  eDriverEGenLoader(0),

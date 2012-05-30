@@ -5,14 +5,12 @@ import edu.brown.benchmark.tpce.util.EGenDate;
 
 public class CE {
 	
-	private void Initialize( TDriverCETxnSettings pTxnParamSettings )
-	{
+	private void Initialize( TDriverCETxnSettings pTxnParamSettings ){
 	    m_pLogger.SendToLogger(m_DriverGlobalSettings);
 
 	    // If the provided parameter settings are valid, use them.
 	    // Otherwise use default settings.
-	    if( pTxnParamSettings != null)
-	    {
+	    if( pTxnParamSettings != null){
 	        SetTxnTunables( pTxnParamSettings );
 	    }
 	    else
@@ -36,8 +34,7 @@ public class CE {
 //	                  the generated values every 5 years.
 	//  Bits    44 - 63 Current time of day measured in 1/10's of a second.
 	//
-	private void AutoSetRNGSeeds( int UniqueId )
-	{
+	private void AutoSetRNGSeeds( int UniqueId ){
 		 int       baseYear, baseMonth, baseDay, millisec;
 
 		    baseYear = EGenDate.getYear();
