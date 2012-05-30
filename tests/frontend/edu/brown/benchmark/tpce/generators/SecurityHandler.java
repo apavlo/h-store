@@ -178,4 +178,7 @@ public class SecurityHandler {
         
         return multiplier * secFile.getRecordsNum() + baseId;      
     }
+    public long getCompanyIndex(long counter){
+    	return getCompanyId(counter) - 1 - TPCEConstants.IDENT_SHIFT;
+	}
 }
