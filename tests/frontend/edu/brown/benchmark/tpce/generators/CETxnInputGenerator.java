@@ -1,11 +1,9 @@
 package edu.brown.benchmark.tpce.generators;
 
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
-import org.voltdb.catalog.Table;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.tpce.TPCEConstants;
@@ -18,7 +16,7 @@ import edu.brown.benchmark.tpce.generators.TradeGenerator.TradeType;
 
 
 public class CETxnInputGenerator {
-	private EGenRandom                                m_rnd;      //used inside for parameter generation
+	private EGenRandom                                m_rnd;
 	private PersonHandler                             m_Person;
 	private CustomerSelection                         m_CustomerSelection;
 	private AccountPermsGenerator					  m_AccountPerms;
@@ -26,8 +24,7 @@ public class CETxnInputGenerator {
 	private HoldingsAndTrades                         m_Holdings;
 	private BrokerGenerator                           m_Brokers;
 	private CompanyGenerator                          m_pCompanies;
-	private SecurityHandler                           m_pSecurities;
-	
+	private SecurityHandler                           m_pSecurities;	
 	private InputFileHandler                          m_pIndustries;
 	private InputFileHandler       					  m_pSectors;
 	private InputFileHandler                          m_pStatusType;
@@ -37,37 +34,28 @@ public class CETxnInputGenerator {
 
 	private long                                      m_iConfiguredCustomerCount;
 	private long                                      m_iActiveCustomerCount;
-
 	private long                                      m_iMyStartingCustomerId;
 	private long                                      m_iMyCustomerCount;
 	private int                                       m_iPartitionPercent;
-
 	private int                                       m_iScaleFactor;
 	private int                                       m_iHoursOfInitialTrades;
 	private int                                       m_iMaxActivePrePopulatedTradeID;
-
 	private long                                      m_iTradeLookupFrame2MaxTimeInMilliSeconds;
 	private long                                      m_iTradeLookupFrame3MaxTimeInMilliSeconds;
 	private long                                      m_iTradeLookupFrame4MaxTimeInMilliSeconds;
-
 	private long                                      m_iTradeUpdateFrame2MaxTimeInMilliSeconds;
 	private long                                      m_iTradeUpdateFrame3MaxTimeInMilliSeconds;
-
-    //number of securities (scaled based on active customers)
 	private long                                      m_iActiveSecurityCount;
 	private long                                      m_iActiveCompanyCount;
-    //number of industries (from flat file)
 	private int                                       m_iIndustryCount;
-    //number of sector names (from flat file)
 	private int                                       m_iSectorCount;
-    //starting ids
 	private long                                      m_iStartFromCompany;
-	
-	private Date								  m_StartTime;
-	private Date								  m_EndTime;
+	private int                                       m_iTradeOrderRollbackLimit;
+	private int                                       m_iTradeOrderRollbackLevel;
+	private Date								  	  m_StartTime;
+	private Date								  	  m_EndTime;
 
-    int                                       m_iTradeOrderRollbackLimit;
-    int                                       m_iTradeOrderRollbackLevel;
+	
 
     /*
     *  Constructor - no partitioning by C_ID.
@@ -84,26 +72,17 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           not applicable.
     */
-    public CETxnInputGenerator( TPCEGenerator inputFiles,
-                                                long iConfiguredCustomerCount, long iActiveCustomerCount,
-                                                int iScaleFactor, int iHoursOfInitialTrades,
-                                                BaseLogger pLogger,
-                                                TDriverCETxnSettings pDriverCETxnSettings){
+    public CETxnInputGenerator( TPCEGenerator inputFiles, long iConfiguredCustomerCount, long iActiveCustomerCount,
+                                int iScaleFactor, int iHoursOfInitialTrades, BaseLogger pLogger, TDriverCETxnSettings pDriverCETxnSettings){
     	inputFiles.parseInputFiles();
-        m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);   //initialize with a default seed
+        m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);
         m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
         m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-        
         m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
         m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
-        //m_Accs = new CustomerAccountsGenerator(new Table(), inputFiles);
-        //m_AccountPerms = new AccountPermsGenerator(new Table(), inputFiles);
         m_Holdings = new HoldingsAndTrades(inputFiles);
-       
         m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);
         m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
-       // m_Brokers = new BrokerGenerator(new Table(), inputFiles);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
-       // m_pCompanies = new CompanyGenerator(new Table(), inputFiles);
         m_pSecurities = new SecurityHandler(inputFiles);
         m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
         m_pSectors = inputFiles.getInputFile(InputFile.SECTOR);
@@ -141,21 +120,16 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           not applicable.
     */
-      public CETxnInputGenerator( TPCEGenerator inputFiles,
-            long iConfiguredCustomerCount, long iActiveCustomerCount,
-            int iScaleFactor, int iHoursOfInitialTrades,
-            long RNGSeed,
-            BaseLogger pLogger,
-            TDriverCETxnSettings pDriverCETxnSettings){
+      public CETxnInputGenerator( TPCEGenerator inputFiles, long iConfiguredCustomerCount, long iActiveCustomerCount,
+    		  					  int iScaleFactor, int iHoursOfInitialTrades, long RNGSeed, BaseLogger pLogger,
+    		  					  TDriverCETxnSettings pDriverCETxnSettings){
     	  inputFiles.parseInputFiles();
     	m_rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
         m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
-        m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);
-        
+        m_CustomerSelection = new CustomerSelection(m_rnd, TPCEConstants.DEFAULT_START_CUSTOMER_ID, TPCEConstants.ACTIVECUSTOMERCOUNT);    
         m_Accs = (CustomerAccountsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_CUSTOMER_ACCOUNT, null);
         m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
-        m_Holdings = new HoldingsAndTrades(inputFiles);
-        
+        m_Holdings = new HoldingsAndTrades(inputFiles); 
         m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
         m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
         m_pSecurities = new SecurityHandler(inputFiles);
@@ -194,12 +168,9 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           not applicable.
     */
-      public CETxnInputGenerator( TPCEGenerator inputFiles,
-              long iConfiguredCustomerCount, long iActiveCustomerCount,
-              int iScaleFactor, int iHoursOfInitialTrades,
-              long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
-              BaseLogger pLogger,
-              TDriverCETxnSettings pDriverCETxnSettings){
+      public CETxnInputGenerator( TPCEGenerator inputFiles, long iConfiguredCustomerCount, long iActiveCustomerCount,
+              					  int iScaleFactor, int iHoursOfInitialTrades,  long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
+              					  BaseLogger pLogger, TDriverCETxnSettings pDriverCETxnSettings){
     	  inputFiles.parseInputFiles();
     	  m_rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);   //initialize with a default seed
           m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -249,13 +220,9 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           not applicable.
     */
-      public CETxnInputGenerator( TPCEGenerator inputFiles,
-              long iConfiguredCustomerCount, long iActiveCustomerCount,
-              int iScaleFactor, int iHoursOfInitialTrades,
-              long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
-              long RNGSeed,
-              BaseLogger pLogger,
-              TDriverCETxnSettings pDriverCETxnSettings){
+      public CETxnInputGenerator( TPCEGenerator inputFiles, long iConfiguredCustomerCount, long iActiveCustomerCount,
+              					  int iScaleFactor, int iHoursOfInitialTrades, long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
+              					  long RNGSeed, BaseLogger pLogger, TDriverCETxnSettings pDriverCETxnSettings){
     	  inputFiles.parseInputFiles();
     	  m_rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
           m_Person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -265,7 +232,7 @@ public class CETxnInputGenerator {
           m_AccountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
           m_Holdings = new HoldingsAndTrades(inputFiles);
           
-          m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+          m_Brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);
           m_pCompanies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
           m_pSecurities = new SecurityHandler(inputFiles);
           m_pIndustries = inputFiles.getInputFile(InputFile.INDUSTRY);
@@ -297,13 +264,12 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           none.
     */
-    public void Initialize()
-    {
+    public void Initialize(){
         m_iActiveCompanyCount = m_pCompanies.getCompanyCount();
         m_iActiveSecurityCount = SecurityHandler.getSecurityNum(m_iMyCustomerCount);
         m_iIndustryCount = m_pIndustries.getMaxKey();
         m_iSectorCount = m_pSectors.getMaxKey();
-        m_iStartFromCompany = m_pCompanies.generateCompId();    // from the first company
+        m_iStartFromCompany = m_pCompanies.generateCompId();
 
         m_iMaxActivePrePopulatedTradeID = (int)(( m_iHoursOfInitialTrades * EGenDate.SecondsPerHour * ( m_iActiveCustomerCount / m_iScaleFactor )) * TPCEConstants.AbortTrade / 100 );  // 1.01 to account for rollbacks
 
@@ -329,8 +295,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           current random number generator seed.
     */
-    public long GetRNGSeed()
-    {
+    public long GetRNGSeed(){
         return( m_rnd.getSeed() );
     }
 
@@ -343,8 +308,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           none.
     */
-    public void SetRNGSeed( long RNGSeed )
-    {
+    public void SetRNGSeed( long RNGSeed ){
         m_rnd.setSeed( RNGSeed );
     }
 
@@ -359,8 +323,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           none.
     */
-    public void UpdateTunables()
-    {
+    public void UpdateTunables(){
     	
 //    		System.out.println(m_pDriverCETxnSettings == null);
     	
@@ -400,8 +363,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           iCustomerAccountId uniformly distributed across all load units.
     */
-    public long GenerateRandomCustomerAccountId()
-    {
+    public long GenerateRandomCustomerAccountId(){
         long          customerID;
         long          iCustomerAccountId;
         TierId        tierID;
@@ -426,8 +388,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           TradeId, distributed non-uniformly.
     */
-    public long GenerateNonUniformTradeID( int aValue, int sValue )
-    {
+    public long GenerateNonUniformTradeID( int aValue, int sValue ){
     	long TradeId;
 
         TradeId = m_rnd.rndNU( 1, m_iMaxActivePrePopulatedTradeID, aValue, sValue );
@@ -450,8 +411,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           TimestampType.
     */
-    public TimestampType GenerateNonUniformTradeDTS( TimestampType dts, long maxTimeInMS, int aValue, int sValue )
-    {
+    public TimestampType GenerateNonUniformTradeDTS( TimestampType dts, long maxTimeInMS, int aValue, int sValue ){
     	GregorianCalendar TradeTime = new GregorianCalendar(TPCEConstants.initialTradePopulationBaseYear,
     														TPCEConstants.initialTradePopulationBaseMonth,
     														TPCEConstants.initialTradePopulationBaseDay,
@@ -637,8 +597,7 @@ public class CETxnInputGenerator {
     *  RETURNS:
     *           none.
     */
-    public void GenerateSecurityDetailInput(TSecurityDetailTxnInput inputStructure)
-    {
+    public void GenerateSecurityDetailInput(TSecurityDetailTxnInput inputStructure){
     	Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
 				TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
 				TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);

@@ -11,13 +11,3 @@ public class TMarketFeedTxnInput {
     	Entries = new TTickerEntry[TxnHarnessStructs.max_feed_len];
     }
 }
-
-class TTickerEntry{
-	public double            price_quote;
-	public int               trade_qty;
-	public char[]            symbol;
-	 
-	 public TTickerEntry(){
-		 symbol = new char[TableConsts.cSYMBOL_len];
-	 }
-}
