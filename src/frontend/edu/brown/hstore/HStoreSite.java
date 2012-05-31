@@ -2365,7 +2365,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
+		//if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {
