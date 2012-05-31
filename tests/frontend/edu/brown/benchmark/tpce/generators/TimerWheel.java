@@ -17,7 +17,7 @@ public class TimerWheel {
 	private  WheelTime                          m_CurrentTime;
 	private  WheelTime                          m_NextTime;
 	private TWheelConfig                        m_WheelConfig;
-	private ArrayList<LinkedList< TimerWheelTimer>>  m_TimerWheel;//[ ( Period * ( MsPerSecond / Resolution )) ];
+	private ArrayList<LinkedList< TimerWheelTimer>>  m_TimerWheel;
 	private  int                               m_NumberOfTimers;
 	private int 								m_period;
 	private int 								m_resolution;
@@ -28,42 +28,19 @@ public class TimerWheel {
 
 	 
 	public TimerWheel(Object expiryData, Object expiryObject, Method pExpiryFunction, int Period, int Resolution){
+		m_WheelConfig = new TWheelConfig(( Period * ( EGenDate.MsPerSecond / Resolution )), Resolution );
 		m_period = Period;
 		m_resolution = Resolution;
-		 m_BaseTime = new GregorianCalendar();
-		 m_LastTime = new WheelTime( m_WheelConfig, 0, 0 );
-		 m_CurrentTime = new WheelTime( m_WheelConfig, 0, 0 );
-		 m_NextTime = new WheelTime( m_WheelConfig, TWheelConfig.MaxWheelCycles, ( Period * ( EGenDate.MsPerSecond / Resolution )) - 1 );
-		 m_WheelConfig = new TWheelConfig(( Period * ( EGenDate.MsPerSecond / Resolution )), Resolution );
-		 m_NumberOfTimers = 0;
-		 m_TimerWheel = new ArrayList<LinkedList< TimerWheelTimer>>(Period * ( EGenDate.MsPerSecond / Resolution )) ;
-		 m_pExpiryData = expiryData;
-		 m_pExpiryObject = expiryObject;
-		 m_pExpiryFunction = pExpiryFunction;
+		m_BaseTime = new GregorianCalendar();
+		m_LastTime = new WheelTime( m_WheelConfig, 0, 0 );
+		m_CurrentTime = new WheelTime( m_WheelConfig, 0, 0 );
+		m_NextTime = new WheelTime( m_WheelConfig, TWheelConfig.MaxWheelCycles, ( Period * ( EGenDate.MsPerSecond / Resolution )) - 1 );
+		m_NumberOfTimers = 0;
+		m_TimerWheel = new ArrayList<LinkedList< TimerWheelTimer>>(Period * ( EGenDate.MsPerSecond / Resolution )) ;
+		m_pExpiryData = expiryData;
+		m_pExpiryObject = expiryObject;
+		m_pExpiryFunction = pExpiryFunction;
 	 }
-	   
-	
-/*	 
-	 ~CTimerWheel()
-	{
-	    typename list< CTimerWheelTimer<T, T2>* >::iterator ExpiredTimer;
-
-	    for( int ii=0; ii < ( Period * ( MsPerSecond / Resolution )); ii++ )
-	    {
-	        if( ! m_TimerWheel[ii].empty() )
-	        {
-	            ExpiredTimer = m_TimerWheel[ii].begin();
-	            while( ExpiredTimer != m_TimerWheel[ii].end() )
-	            {
-	                delete *ExpiredTimer;
-	                m_NumberOfTimers--;
-	                ExpiredTimer++;
-	            }
-	            m_TimerWheel[ii].clear();
-	        }
-	    }
-	}
-*/
 	 
 	public boolean  Empty(){
 	    return( m_NumberOfTimers == 0 ? true : false );
@@ -101,11 +78,9 @@ public class TimerWheel {
 	}
 
 	private int  ExpiryProcessing(){
-	    while( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles ? ( m_LastTime.m_Index < m_CurrentTime.m_Index ) : ( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles ))
-	    {
+	    while( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles ? ( m_LastTime.m_Index < m_CurrentTime.m_Index ) : ( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles )){
 	        m_LastTime.Add(1);
-	        if( ! m_TimerWheel.get( m_LastTime.Index()).isEmpty() )
-	        {
+	        if( ! m_TimerWheel.get( m_LastTime.Index()).isEmpty() ){
 	            ProcessTimerList( m_TimerWheel.get( m_LastTime.Index()) );
 	        }
 	    }
@@ -113,8 +88,7 @@ public class TimerWheel {
 	}
 
 			 
-	private void  ProcessTimerList( LinkedList<TimerWheelTimer> pList )
-	{
+	private void  ProcessTimerList( LinkedList<TimerWheelTimer> pList ){
 		ListIterator<TimerWheelTimer>  ExpiredTimer = pList.listIterator();
 
 	    while (ExpiredTimer.hasNext()){
@@ -131,18 +105,14 @@ public class TimerWheel {
 	}
 
 	 
-	private int  SetNextTime()
-	{
-	    if( 0 == m_NumberOfTimers )
-	    {
+	private int  SetNextTime(){
+	    if( 0 == m_NumberOfTimers ){
 	        m_NextTime.Set( TWheelConfig.MaxWheelCycles, ( m_period * ( EGenDate.MsPerSecond / m_resolution )) - 1 );
 	        return( NO_OUTSTANDING_TIMERS );
 	    }
-	    else
-	    {
+	    else{
 	        m_NextTime = m_CurrentTime;
-	        while( m_TimerWheel.get(m_NextTime.Index()).isEmpty() )
-	        {
+	        while( m_TimerWheel.get(m_NextTime.Index()).isEmpty() ){
 	            m_NextTime.Add(1);
 	        }
 	        return( m_NextTime.Offset( m_CurrentTime ));

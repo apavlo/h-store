@@ -181,4 +181,9 @@ public class SecurityHandler {
     public long getCompanyIndex(long counter){
     	return getCompanyId(counter) - 1 - TPCEConstants.IDENT_SHIFT;
 	}
+    public long getIndex( String pSymbol )
+    {
+        // Indices and Id's are offset by 1
+        return( getId( pSymbol ) - 1 );
+    }
 }

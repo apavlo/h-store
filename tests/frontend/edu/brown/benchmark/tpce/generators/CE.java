@@ -1,5 +1,9 @@
 package edu.brown.benchmark.tpce.generators;
 
+import java.util.Date;
+
+import org.voltdb.types.TimestampType;
+
 import edu.brown.benchmark.tpce.generators.TradeGenerator.TradeType;
 import edu.brown.benchmark.tpce.util.EGenDate;
 
@@ -13,27 +17,11 @@ public class CE {
 	    if( pTxnParamSettings != null){
 	        SetTxnTunables( pTxnParamSettings );
 	    }
-	    else
-	    {
+	    else{
 	        SetTxnTunables( m_DriverCETxnSettings );
 	    }
 	}
 
-	// Automatically generate unique RNG seeds.
-	// The CRandom class uses an unsigned 64-bit value for the seed.
-	// This routine automatically generates two unique seeds. One is used for
-	// the TxnInput generator RNG, and the other is for the TxnMixGenerator RNG.
-	// The 64 bits are used as follows.
-	//
-	//  Bits    0 - 31  Caller provided unique unsigned 32-bit id.
-	//  Bit     32      0 for TxnInputGenerator, 1 for TxnMixGenerator
-	//  Bits    33 - 43 Number of days since the base time. The base time
-//	                  is set to be January 1 of the most recent year that is
-//	                  a multiple of 5. This allows enough space for the last
-//	                  field, and it makes the algorithm "timeless" by resetting
-//	                  the generated values every 5 years.
-	//  Bits    44 - 63 Current time of day measured in 1/10's of a second.
-	//
 	private void AutoSetRNGSeeds( int UniqueId ){
 		 int       baseYear, baseMonth, baseDay, millisec;
 
@@ -42,37 +30,21 @@ public class CE {
 		    baseDay = EGenDate.getDay();
 		    //TODO compare to c++
 		    millisec = (EGenDate.getHour() * EGenDate.MinutesPerHour + EGenDate.getMinute()) * EGenDate.SecondsPerMinute + EGenDate.getSecond(); 
-		    // Set the base year to be the most recent year that was a multiple of 5.
 		    baseYear -= ( baseYear % 5 );
 
-		    // Initialize the seed with the current time of day measured in 1/10's of a second.
-		    // This will use up to 20 bits.
 		    long Seed;
 		    Seed = millisec / 100;
 
-		    // Now add in the number of days since the base time.
-		    // The number of days in the 5 year period requires 11 bits.
-		    // So shift up by that much to make room in the "lower" bits.
 		    Seed <<= 11;
 		    Seed += EGenDate.getDayNo(baseYear, baseMonth, baseDay) - EGenDate.getDayNo(baseYear, 1, 1);
 
-		    // So far, we've used up 31 bits.
-		    // Save the "last" bit of the "upper" 32 for the RNG id. In
-		    // this case, it is always 0 since we don't have a second
-		    // RNG in this class.
-		    // In addition, make room for the caller's 32-bit unique id.
-		    // So shift a total of 33 bits.
 		    Seed <<= 33;
 
-		    // Now the "upper" 32-bits have been set with a value for RNG 0.
-		    // Add in the sponsor's unique id for the "lower" 32-bits.
 		    Seed += UniqueId;
-
-	    // Set the TxnMixGenerator RNG to the unique seed.
+		    
 	    m_TxnMixGenerator.setRNGSeed( Seed );
 	    m_DriverCESettings.cur_TxnMixRNGSeed = Seed;
 
-	    // Set the RNG Id to 1 for the TxnInputGenerator.
 	    Seed |= 0x0000000100000000L;
 	    m_TxnInputGenerator.SetRNGSeed( Seed );
 	    m_DriverCESettings.cur_TxnInputRNGSeed = Seed;
@@ -86,6 +58,7 @@ public class CE {
 	                           int iScaleFactor, int iDaysOfInitialTrades,
 	                           int UniqueId,
 	                           final TDriverCETxnSettings pDriverCETxnSettings ){
+		m_DriverCETxnSettings = new TDriverCETxnSettings();
 		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
 	    m_DriverCESettings = new DriverCESettings( UniqueId, 0, 0 );
 	    m_pSUT = pSUT;
@@ -97,7 +70,6 @@ public class CE {
 
 	    Initialize( pDriverCETxnSettings );
 	    AutoSetRNGSeeds( UniqueId );
-
 	    m_pLogger.SendToLogger(m_DriverCESettings);    // log the RNG seeds
 	}
 	   
@@ -109,6 +81,7 @@ public class CE {
             long iConfiguredCustomerCount, long iActiveCustomerCount,
             int iScaleFactor, int iDaysOfInitialTrades,
             int UniqueId,long TxnMixRNGSeed, long TxnInputRNGSeed, final TDriverCETxnSettings pDriverCETxnSettings ){
+		m_DriverCETxnSettings = new TDriverCETxnSettings();
 		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
 	    m_DriverCESettings = new DriverCESettings( UniqueId, TxnMixRNGSeed, TxnInputRNGSeed );
 	    m_pSUT = pSUT;
@@ -134,6 +107,7 @@ public class CE {
 	                            int iScaleFactor, int iDaysOfInitialTrades,
 	                            int UniqueId,
 	                            final TDriverCETxnSettings pDriverCETxnSettings ){
+		m_DriverCETxnSettings = new TDriverCETxnSettings();
 		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
 	    m_DriverCESettings = new DriverCESettings( UniqueId, 0, 0 );
 	    m_DriverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
@@ -162,6 +136,7 @@ public class CE {
 	                            long TxnMixRNGSeed,
 	                            long TxnInputRNGSeed,
 	                            final TDriverCETxnSettings pDriverCETxnSettings ){
+		m_DriverCETxnSettings = new TDriverCETxnSettings();
 		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
 	    m_DriverCESettings = new DriverCESettings( UniqueId, TxnMixRNGSeed, TxnInputRNGSeed );
 	    m_DriverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
@@ -213,7 +188,7 @@ public class CE {
 	}
 
 	public void DoTxn(){
-	    int iTxnType = m_TxnMixGenerator.GenerateNextTxnType( );
+	    int iTxnType = m_TxnMixGenerator.generateNextTxnType( );
 
 	    if (m_bClearBufferBeforeGeneration){
 	        ZeroInputBuffer(iTxnType);
@@ -319,8 +294,163 @@ public class CE {
 	{
 	    m_bClearBufferBeforeGeneration = bClearBufferBeforeGeneration;
 	}
+
 	
 	
+	
+	
+/*	
+	private Object[] cleanParams(Object[] orig) {
+        // We need to switch java.util.Dates to the stupid volt TimestampType
+        for (int i = 0; i < orig.length; i++) {
+            if (orig[i] instanceof Date) {
+                orig[i] = new TimestampType(((Date) orig[i]).getTime());
+            }
+        } // FOR
+        return (orig);
+    }
+	
+    public Object[] getBrokerVolumeParams() {
+    	System.out.println("Executing generateBrokerVolumeInput ... \n");
+    	m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();
+	    m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
+    	Object[] obj = m_BrokerVolumeTxnInput.InputParameters().toArray();
+    	
+System.out.println("CE: line: 342: " + obj[1]);
+        return (this.cleanParams(obj));
+    }
+
+    public Object[] getCustomerPositionParams() {
+    	System.out.println("Executing generateCustomerPositionInput ... \n");
+    	m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
+		m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
+    	Object[] obj = m_CustomerPositionTxnInput.InputParameters().toArray();
+    	
+System.out.println("EGenClientDriver: line: 123: acct_id_idx: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 124: cust_id: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 125: get_history: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
+    	return (this.cleanParams(obj));
+//        return (this.cleanParams(driver_ptr.generateCustomerPositionInput().InputParameters().toArray()));
+    }
+
+    public Object[] getDataMaintenanceParams() {
+    	System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+	    m_DataMaintenanceGenerator.DoTxn();
+        return (this.cleanParams(driver_ptr.generateDataMaintenanceInput().InputParameters().toArray()));
+    }
+
+    public Object[] getMarketFeedParams() {
+        return (this.cleanParams(driver_ptr.generateMarketFeedInput().InputParameters().toArray()));
+    }
+
+    public Object[] getMarketWatchParams() {
+    	System.out.println("Executing generateMarketWatchInput ... \n");
+    	m_MarketWatchTxnInput = new TMarketWatchTxnInput();
+	    m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
+    	Object[] obj = m_MarketWatchTxnInput.InputParameters().toArray();
+    	
+System.out.println("EGenClientDriver: line: 144: acct_id: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 145: c_id: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 146: ending_co_id: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 147: starting_co_id: " + obj[3].toString());
+System.out.println("EGenClientDriver: line: 149: industry_name: " + obj[4].toString());
+        return (this.cleanParams(obj));
+    }
+
+    public Object[] getSecurityDetailParams() {
+    	System.out.println("Executing generateSecurityDetailInput ... \n");
+    	m_SecurityDetailTxnInput = new TSecurityDetailTxnInput();
+	    m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
+    	Object[] obj = m_SecurityDetailTxnInput.InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 154: max_rows_to_return: " + obj[0].toString());
+System.out.println("EGenClientDriver: line: 155: access_lob_flag: " + obj[1].toString());
+System.out.println("EGenClientDriver: line: 156: start_day: " + obj[2].toString());
+System.out.println("EGenClientDriver: line: 157: symbol: " + obj[3].toString());
+        return (this.cleanParams(obj));
+    }
+
+    public Object[] getTradeCleanupParams() {
+    	System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+	    m_DataMaintenanceGenerator.DoCleanupTxn();
+        return (this.cleanParams(driver_ptr.generateTradeCleanupInput().InputParameters().toArray()));
+    }
+
+    public Object[] getTradeLookupParams() {
+    	System.out.println("Executing generateTradeLookupInput ... \n");
+    	m_TradeLookupTxnInput = new TTradeLookupTxnInput();
+	    m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
+    	Object[] obj = m_TradeLookupTxnInput.InputParameters().toArray();
+System.out.println("EGenClientDriver: line: 167: trade_id: " + obj[0]);
+System.out.println("EGenClientDriver: line: 168: acct_id: " + obj[1]);
+System.out.println("EGenClientDriver: line: 169: max_acct_id: " + obj[2]);
+System.out.println("EGenClientDriver: line: 170: frame_to_execute: " + obj[3]);
+System.out.println("EGenClientDriver: line: 171: max_trades: " + obj[4]);
+System.out.println("EGenClientDriver: line: 172: end_trade_dts: " + obj[5].toString());
+System.out.println("EGenClientDriver: line: 173: start_trade_dts: " + obj[6].toString());
+System.out.println("EGenClientDriver: line: 174: symbol: " + obj[7].toString());
+        return (this.cleanParams(obj));
+    }
+
+    public Object[] getTradeOrderParams() {
+    	int   iTradeType = 0;
+        boolean    bExecutorIsAccountOwner = true;
+        System.out.println("Executing generateTradeOrderInput ... \n");
+        m_TradeOrderTxnInput = new TTradeOrderTxnInput();
+	    m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
+        Object[] obj = m_TradeOrderTxnInput.InputParameters().toArray();
+        
+        System.out.println("EGenClientDriver: line: 182: requested_price: " + obj[0]);
+        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
+        System.out.println("EGenClientDriver: line: 184: is_lifo: " + obj[2]);
+        System.out.println("EGenClientDriver: line: 185: roll_it_back: " + obj[3]);
+        System.out.println("EGenClientDriver: line: 186: trade_qty: " + obj[4]);
+        System.out.println("EGenClientDriver: line: 187: type_is_margin: " + obj[5]);
+        System.out.println("EGenClientDriver: line: 188: co_name: " + obj[6]);
+        System.out.println("EGenClientDriver: line: 189: exec_f_name: " + obj[7]);
+        System.out.println("EGenClientDriver: line: 190: exec_l_name: " + obj[8]);
+        System.out.println("EGenClientDriver: line: 191: exec_tax_id: " + obj[9]);
+        System.out.println("EGenClientDriver: line: 192: issue: " + obj[10]);
+        System.out.println("EGenClientDriver: line: 193: st_pending_id: " + obj[11]);
+        System.out.println("EGenClientDriver: line: 194: st_submitted_id: " + obj[12]);
+        System.out.println("EGenClientDriver: line: 195: symbol: " + obj[13]);
+        System.out.println("EGenClientDriver: line: 196: trade_type_id: " + obj[14]);
+        return (this.cleanParams(obj));
+    }
+
+   public Object[] getTradeResultParams() {
+	   System.out.println("Executing %s...\n" + "generateTradeResultInput");
+	    m_MarketExchangeGenerator.generateTradeResult();
+        return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
+    }
+
+    public Object[] getTradeStatusParams() {
+    	System.out.println("Executing generateTradeStatusInput ... \n");
+    	m_TradeStatusTxnInput = new TTradeStatusTxnInput();
+	    m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
+    	Object[] obj = m_TradeStatusTxnInput.InputParameters().toArray();
+    	
+System.out.println("EGenClientDriver: line: 206: acct_id: " + obj[0]);
+        return (this.cleanParams(obj));
+    }
+
+    public Object[] getTradeUpdateParams() {
+    	System.out.println("Executing generateTradeUpdateInput ... \n");
+    	m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
+	    m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
+    	Object[] obj = m_TradeUpdateTxnInput.InputParameters().toArray();
+    	
+    	System.out.println("EGenClientDriver: line: 182: trade_id: " + obj[0]);
+        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
+        System.out.println("EGenClientDriver: line: 184: max_acct_id: " + obj[2]);
+        System.out.println("EGenClientDriver: line: 185: frame_to_execute: " + obj[3]);
+        System.out.println("EGenClientDriver: line: 186: max_trades: " + obj[4]);
+        System.out.println("EGenClientDriver: line: 187: max_updates: " + obj[5]);
+        System.out.println("EGenClientDriver: line: 188: end_trade_dts: " + obj[6]);
+        System.out.println("EGenClientDriver: line: 189: start_trade_dts: " + obj[7]);
+        System.out.println("EGenClientDriver: line: 190: symbol: " + obj[8]);
+        return (this.cleanParams(obj));
+    }*/
 
 	private  DriverGlobalSettings       m_DriverGlobalSettings;
 	private  DriverCESettings           m_DriverCESettings;
@@ -329,8 +459,8 @@ public class CE {
 
 	private  CESUTInterface            m_pSUT;
 	private  BaseLogger                m_pLogger;
-	private  CETxnMixGenerator          m_TxnMixGenerator;
-	private  CETxnInputGenerator        m_TxnInputGenerator;
+	public  CETxnMixGenerator          m_TxnMixGenerator;
+	public  CETxnInputGenerator        m_TxnInputGenerator;
 
 	private  TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
 	private  TCustomerPositionTxnInput   m_CustomerPositionTxnInput;

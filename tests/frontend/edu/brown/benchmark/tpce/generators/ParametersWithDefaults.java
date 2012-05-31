@@ -47,7 +47,7 @@ public abstract class ParametersWithDefaults {
 	}
     
     public void driverParamCheckBetween(String name, int lhs, int minval, int maxval) throws checkException{
-    	driverParamCheckLE(name, lhs, minval);
+    	driverParamCheckGE(name, lhs, minval);
     	driverParamCheckLE(name, lhs, maxval);
 	}
     

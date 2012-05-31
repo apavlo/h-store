@@ -45,7 +45,7 @@ public class ClientDriver {
 	private int m_scaleFactor;
 	private int m_initialDays;
 	private TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
-	private CETxnInputGenerator         m_TxnInputGenerator;
+//	private CETxnInputGenerator         m_TxnInputGenerator;
 	private TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
 	private TDataMaintenanceTxnInput    m_DataMaintenanceTxnInput;
 	private TMarketFeedTxnInput         m_MarketFeedTxnInput;
@@ -60,15 +60,18 @@ public class ClientDriver {
 	private TDriverCETxnSettings        m_DriverCETxnSettings;
 	private EGenLogFormatterTab         m_LogFormat;
 	private BaseLogger            		m_Logger;
+	public CE                   		m_CustomerGenerator;
+	private CESUTInterface       		m_Sut;
 	private DM                    		m_DataMaintenanceGenerator;
 	private DMSUTInterface        		m_DataMaintenanceCallback;
-	private MEE                   		m_MarketExchangeGenerator;
+	public MEE                   		m_MarketExchangeGenerator;
 	private MEESUTInterface       		m_MarketExchangeCallback;
 	private SecurityHandler				m_SecurityHandler;
 	//TODO Datetime.h
 	public int HoursPerWorkDay = 8;
 	
 	public ClientDriver(String dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays){
+		//TODO unnecessary
 		m_configuredCustomerCount = configuredCustomerCount;
 		m_totalCustomerCount = totalCustomerCount;
 		m_scaleFactor = scaleFactor;
@@ -78,17 +81,6 @@ public class ClientDriver {
 		m_LogFormat = new EGenLogFormatterTab();
 		m_Logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, m_LogFormat);
 		
-		/*		char[] szFileName = new char[TPCEConstants.MAXPATH];
-	    char   pStartInFileName;  // start of the filename part in the szFileName buffer
-	    int    iDirLen;
-	    szFileName = Arrays.copyOf(dataPath.toCharArray(), TPCEConstants.MAXPATH);
-	    iDirLen = szFileName.toString().length();
-	    pStartInFileName = szFileName[TPCEConstants.MAXPATH - 1];
-	    
-	    if (pStartInFileName != '/' && pStartInFileName != '\\') {
-	    	szFileName = Arrays.toString(szFileName).concat("/").toCharArray();
-	        iDirLen++;
-	    }*/
 	    m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();
 		m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
 		m_DataMaintenanceTxnInput = new TDataMaintenanceTxnInput();
@@ -107,29 +99,32 @@ public class ClientDriver {
 	    TPCEGenerator inputFiles = new TPCEGenerator(inputDir, totalCustomerCount, scaleFactor, initialDays);
 	    m_SecurityHandler = new SecurityHandler(inputFiles);
 	    
-	    m_TxnInputGenerator = new CETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, 
+	    //CE input generator
+	    m_Sut = new SUT();
+	    m_CustomerGenerator = new CE(m_Sut, m_Logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, m_DriverCETxnSettings);
+/*	    m_TxnInputGenerator = new CETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, 
 	    		m_initialDays * HoursPerWorkDay, m_Logger, m_DriverCETxnSettings);
-	    m_TxnInputGenerator.UpdateTunables();
+	    m_TxnInputGenerator.UpdateTunables();*/
 	    
-	 // We also need a DataMaintenance input generator
+	    // DataMaintenance input generator
 	    m_DataMaintenanceCallback = new DataMaintenanceCallback(m_DataMaintenanceTxnInput, m_TradeCleanupTxnInput);
 	    m_DataMaintenanceGenerator = new DM(m_DataMaintenanceCallback, m_Logger, inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays, 1);
 	   	    
-	    // As well as our trusty ol' MarketExchange input generator
+	    //MarketExchange input generator
 	    m_MarketExchangeCallback = new MarketExchangeCallback(m_TradeResultTxnInput, m_MarketFeedTxnInput);
-//	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, m_SecurityHandler, 1, configuredCustomerCount);
-//	    m_MarketExchangeGenerator.enableTickerTape();
+	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, m_SecurityHandler, 1, configuredCustomerCount);
+	    m_MarketExchangeGenerator.enableTickerTape();
 	    
 	}
 	public TBrokerVolumeTxnInput generateBrokerVolumeInput() {
 		System.out.println("Executing generateBrokerVolumeInput ... \n");
-	    m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
 	    return (m_BrokerVolumeTxnInput);
 	}
 	
 	public TCustomerPositionTxnInput generateCustomerPositionInput() {
 		System.out.println("Executing generateCustomerPositionInput ... \n");
-		m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
 	    return (m_CustomerPositionTxnInput);
 	}
 
@@ -147,13 +142,13 @@ public class ClientDriver {
 
 	public TMarketWatchTxnInput generateMarketWatchInput() {
 		System.out.println("Executing generateMarketWatchInput ... \n");
-	    m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
 	    return (m_MarketWatchTxnInput);
 	}
 
 	public TSecurityDetailTxnInput generateSecurityDetailInput() {
 		System.out.println("Executing generateSecurityDetailInput ... \n");
-	    m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
 	    return (m_SecurityDetailTxnInput);
 	}
 
@@ -165,13 +160,13 @@ public class ClientDriver {
 
 	public TTradeLookupTxnInput generateTradeLookupInput() {
 		System.out.println("Executing generateTradeLookupInput ... \n");
-	    m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
 	    return (m_TradeLookupTxnInput);
 	}
 
 	public TTradeOrderTxnInput generateTradeOrderInput(int iTradeType, boolean bExecutorIsAccountOwner) {
 		System.out.println("Executing generateTradeOrderInput ... \n");
-	    m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
 	    return (m_TradeOrderTxnInput);
 	}
 
@@ -183,13 +178,13 @@ public class ClientDriver {
 
 	public TTradeStatusTxnInput generateTradeStatusInput() {
 		System.out.println("Executing generateTradeStatusInput ... \n");
-	    m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
 	    return (m_TradeStatusTxnInput);
 	}
 
 	public TTradeUpdateTxnInput generateTradeUpdateInput() {
 		System.out.println("Executing generateTradeUpdateInput ... \n");
-	    m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
+		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
 	    return (m_TradeUpdateTxnInput);
 	}
 
