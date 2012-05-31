@@ -43,12 +43,12 @@ public class MEEPriceBoard {
 
 	public EGenMoney   getCurrentPrice( String  pSecuritySymbol ){
 		return new EGenMoney(0);
-//		return( m_Security.getCurrentPrice( m_pSecurityFile.getIndex( pSecuritySymbol )));//needs LoadSymbolToIdMap
+		//		return( m_Security.getCurrentPrice( m_pSecurityFile.getIndex( pSecuritySymbol )));//needs LoadSymbolToIdMap
 	}
 	
 	public EGenMoney   CalculatePrice(String pSecuritySymbol, double fTime ){
 		return new EGenMoney(0);
-//		return( m_Security.CalculatePrice( m_pSecurityFile.getIndex( pSecuritySymbol ), fTime ));
+		//		return( m_Security.CalculatePrice( m_pSecurityFile.getIndex( pSecuritySymbol ), fTime ));
 	}
 	
 	public double   getSubmissionTime(String pSecuritySymbol, double fPendingTime, EGenMoney fLimitPrice, TradeType eTradeTypeID){

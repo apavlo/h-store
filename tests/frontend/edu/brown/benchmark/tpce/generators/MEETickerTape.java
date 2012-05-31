@@ -21,6 +21,7 @@ public class MEETickerTape {
 	}
 
 	public void  initialize(){
+		m_TxnInput = new TMarketFeedTxnInput();
 	    m_TxnInput.StatusAndTradeType.status_submitted = new String("SBMT");
 	    m_TxnInput.StatusAndTradeType.type_limit_buy = new String("TLB");
 	    m_TxnInput.StatusAndTradeType.type_limit_sell = new String("TLS");

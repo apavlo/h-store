@@ -419,7 +419,7 @@ public class CETxnInputGenerator {
     														TPCEConstants.initialTradePopulationBaseMinute,
     														TPCEConstants.initialTradePopulationBaseSecond );   
     	
-    	TradeTime.setTimeInMillis(TPCEConstants.initialTradePopulationBaseFraction);
+ //   	TradeTime.setTimeInMillis(TPCEConstants.initialTradePopulationBaseFraction); 
         long       TradeTimeOffset;
 
         TradeTimeOffset = m_rnd.rndNU( 1, maxTimeInMS, aValue, sValue );
@@ -918,10 +918,8 @@ public class CETxnInputGenerator {
             inputStructure.max_trades = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsFrame2;
             inputStructure.max_updates = m_pDriverCETxnSettings.TU_settings.cur_MaxRowsToUpdateFrame2;
             inputStructure.acct_id = GenerateRandomCustomerAccountId();
-System.out.println("CETXN: LINE 985: inputStructure.start_trade_dts: " + inputStructure.start_trade_dts);
 			inputStructure.start_trade_dts = GenerateNonUniformTradeDTS( inputStructure.start_trade_dts, m_iTradeUpdateFrame2MaxTimeInMilliSeconds,
                                         TPCEConstants.TradeUpdateAValueForTimeGenFrame2, TPCEConstants.TradeUpdateSValueForTimeGenFrame2 );
-System.out.println("CETXN: LINE 988: inputStructure.start_trade_dts: " + inputStructure.start_trade_dts);
 			inputStructure.end_trade_dts = EGenDate.getTimeStamp(m_EndTime);
 
             inputStructure.max_acct_id = 0;                                 
