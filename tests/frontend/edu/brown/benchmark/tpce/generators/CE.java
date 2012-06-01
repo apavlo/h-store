@@ -1,219 +1,188 @@
 package edu.brown.benchmark.tpce.generators;
 
-import java.util.Date;
-
-import org.voltdb.types.TimestampType;
-
 import edu.brown.benchmark.tpce.generators.TradeGenerator.TradeType;
 import edu.brown.benchmark.tpce.util.EGenDate;
 
 public class CE {
 	
-	private void Initialize( TDriverCETxnSettings pTxnParamSettings ){
-	    m_pLogger.SendToLogger(m_DriverGlobalSettings);
+	private void initialize( TDriverCETxnSettings txnParamSettings ){
+	    logger.sendToLogger(driverGlobalSettings);
 
-	    // If the provided parameter settings are valid, use them.
-	    // Otherwise use default settings.
-	    if( pTxnParamSettings != null){
-	        SetTxnTunables( pTxnParamSettings );
+	    if( txnParamSettings != null){
+	        setTxnTunables( txnParamSettings );
 	    }
 	    else{
-	        SetTxnTunables( m_DriverCETxnSettings );
+	        setTxnTunables( driverCETxnSettings );
 	    }
 	}
 
-	private void AutoSetRNGSeeds( int UniqueId ){
-		 int       baseYear, baseMonth, baseDay, millisec;
+	private void autoSetRNGSeeds( int uniqueID ){
+		int       baseYear, baseMonth, baseDay, millisec;
 
-		    baseYear = EGenDate.getYear();
-		    baseMonth = EGenDate.getMonth();
-		    baseDay = EGenDate.getDay();
-		    //TODO compare to c++
-		    millisec = (EGenDate.getHour() * EGenDate.MinutesPerHour + EGenDate.getMinute()) * EGenDate.SecondsPerMinute + EGenDate.getSecond(); 
-		    baseYear -= ( baseYear % 5 );
+		baseYear = EGenDate.getYear();
+		baseMonth = EGenDate.getMonth();
+		baseDay = EGenDate.getDay();
+		millisec = (EGenDate.getHour() * EGenDate.MinutesPerHour + EGenDate.getMinute()) * EGenDate.SecondsPerMinute + EGenDate.getSecond(); 
+		baseYear -= ( baseYear % 5 );
 
-		    long Seed;
-		    Seed = millisec / 100;
-
-		    Seed <<= 11;
-		    Seed += EGenDate.getDayNo(baseYear, baseMonth, baseDay) - EGenDate.getDayNo(baseYear, 1, 1);
-
-		    Seed <<= 33;
-
-		    Seed += UniqueId;
+		long Seed;
+		Seed = millisec / 100;
+		Seed <<= 11;
+		Seed += EGenDate.getDayNo(baseYear, baseMonth, baseDay) - EGenDate.getDayNo(baseYear, 1, 1);
+		Seed <<= 33;
+		Seed += uniqueID;
 		    
-	    m_TxnMixGenerator.setRNGSeed( Seed );
-	    m_DriverCESettings.cur_TxnMixRNGSeed = Seed;
-
+	    txnMixGenerator.setRNGSeed( Seed );
+	    driverCESettings.cur_TxnMixRNGSeed = Seed;
 	    Seed |= 0x0000000100000000L;
-	    m_TxnInputGenerator.SetRNGSeed( Seed );
-	    m_DriverCESettings.cur_TxnInputRNGSeed = Seed;
+	    txnInputGenerator.setRNGSeed( Seed );
+	    driverCESettings.cur_TxnInputRNGSeed = Seed;
 	}
 
 	/*
 	* Constructor - no partitioning by C_ID, automatic RNG seed generation (requires unique input)
 	*/
-	public CE( CESUTInterface pSUT, BaseLogger pLogger, final TPCEGenerator inputFiles,
-	                           long iConfiguredCustomerCount, long iActiveCustomerCount,
-	                           int iScaleFactor, int iDaysOfInitialTrades,
-	                           int UniqueId,
-	                           final TDriverCETxnSettings pDriverCETxnSettings ){
-		m_DriverCETxnSettings = new TDriverCETxnSettings();
-		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
-	    m_DriverCESettings = new DriverCESettings( UniqueId, 0, 0 );
-	    m_pSUT = pSUT;
-	    m_pLogger = pLogger;
-	    m_TxnMixGenerator = new CETxnMixGenerator(m_DriverCETxnSettings, m_pLogger );
-	    m_TxnInputGenerator = new CETxnInputGenerator( inputFiles, iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades * EGenDate.HoursPerWorkDay, m_pLogger, m_DriverCETxnSettings );
-	    m_bClearBufferBeforeGeneration = false;
-	    m_pLogger.SendToLogger("CE object constructed using constructor 1 (valid for publication: YES).");
+	public CE( CESUTInterface sut, BaseLogger logger, final TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
+	           int scaleFactor, int daysOfInitialTrades, int uniqueID, final TDriverCETxnSettings driverCETxnSettings ){
+		this.driverCETxnSettings = new TDriverCETxnSettings();
+		driverGlobalSettings = new DriverGlobalSettings( configuredCustomerCount, activeCustomerCount, scaleFactor, daysOfInitialTrades );
+	    driverCESettings = new DriverCESettings( uniqueID, 0, 0 );
+	    this.sut = sut;
+	    this.logger = logger;
+	    txnMixGenerator = new CETxnMixGenerator(driverCETxnSettings, logger );
+	    txnInputGenerator = new CETxnInputGenerator( inputFiles, configuredCustomerCount, activeCustomerCount, scaleFactor, 
+	    		daysOfInitialTrades * EGenDate.HoursPerWorkDay, logger, driverCETxnSettings );
+	    bClearBufferBeforeGeneration = false;
+	    logger.sendToLogger("CE object constructed using constructor 1 (valid for publication: YES).");
 
-	    Initialize( pDriverCETxnSettings );
-	    AutoSetRNGSeeds( UniqueId );
-	    m_pLogger.SendToLogger(m_DriverCESettings);    // log the RNG seeds
+	    initialize( driverCETxnSettings );
+	    autoSetRNGSeeds( uniqueID );
+	    logger.sendToLogger(driverCESettings);
 	}
 	   
 	/*
 	* Constructor - no partitioning by C_ID, RNG seeds provided
 	*/
 	
-	public CE( CESUTInterface pSUT, BaseLogger pLogger, final TPCEGenerator inputFiles,
-            long iConfiguredCustomerCount, long iActiveCustomerCount,
-            int iScaleFactor, int iDaysOfInitialTrades,
-            int UniqueId,long TxnMixRNGSeed, long TxnInputRNGSeed, final TDriverCETxnSettings pDriverCETxnSettings ){
-		m_DriverCETxnSettings = new TDriverCETxnSettings();
-		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
-	    m_DriverCESettings = new DriverCESettings( UniqueId, TxnMixRNGSeed, TxnInputRNGSeed );
-	    m_pSUT = pSUT;
-	    m_pLogger = pLogger;
-	    m_TxnMixGenerator = new CETxnMixGenerator(m_DriverCETxnSettings, TxnMixRNGSeed, m_pLogger );
-	    m_TxnInputGenerator = new CETxnInputGenerator( inputFiles, iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades * EGenDate.HoursPerWorkDay, TxnInputRNGSeed, m_pLogger, m_DriverCETxnSettings );
-	    m_bClearBufferBeforeGeneration = false;
-	    m_pLogger.SendToLogger("CE object constructed using constructor 2 (valid for publication: YES).");
+	public CE( CESUTInterface sut, BaseLogger logger, final TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
+            	int scaleFactor, int daysOfInitialTrades, int uniqueID,long TxnMixRNGSeed, long TxnInputRNGSeed, final TDriverCETxnSettings driverCETxnSettings ){
+		this.driverCETxnSettings = new TDriverCETxnSettings();
+		driverGlobalSettings = new DriverGlobalSettings( configuredCustomerCount, activeCustomerCount, scaleFactor, daysOfInitialTrades );
+	    driverCESettings = new DriverCESettings( uniqueID, TxnMixRNGSeed, TxnInputRNGSeed );
+	    this.sut = sut;
+	    this.logger = logger;
+	    txnMixGenerator = new CETxnMixGenerator(driverCETxnSettings, TxnMixRNGSeed, logger );
+	    txnInputGenerator = new CETxnInputGenerator( inputFiles, configuredCustomerCount, activeCustomerCount, scaleFactor, daysOfInitialTrades * EGenDate.HoursPerWorkDay, TxnInputRNGSeed, logger, driverCETxnSettings );
+	    bClearBufferBeforeGeneration = false;
+	    logger.sendToLogger("CE object constructed using constructor 2 (valid for publication: YES).");
 
-	    Initialize( pDriverCETxnSettings );
-	    AutoSetRNGSeeds( UniqueId );
+	    initialize( driverCETxnSettings );
+	    autoSetRNGSeeds( uniqueID );
 
-	    m_pLogger.SendToLogger(m_DriverCESettings);    // log the RNG seeds
+	    logger.sendToLogger(driverCESettings);
 		
 	}
 
 	/*
 	* Constructor - partitioning by C_ID, automatic RNG seed generation (requires unique input)
 	*/
-	public CE( CESUTInterface pSUT, BaseLogger pLogger, final TPCEGenerator inputFiles,
-	                            long iConfiguredCustomerCount, long iActiveCustomerCount,
-	                            long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
-	                            int iScaleFactor, int iDaysOfInitialTrades,
-	                            int UniqueId,
-	                            final TDriverCETxnSettings pDriverCETxnSettings ){
-		m_DriverCETxnSettings = new TDriverCETxnSettings();
-		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
-	    m_DriverCESettings = new DriverCESettings( UniqueId, 0, 0 );
-	    m_DriverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
-	    m_pSUT = pSUT;
-	    m_pLogger = pLogger;
-	    m_TxnMixGenerator = new CETxnMixGenerator(m_DriverCETxnSettings,  m_pLogger );
-	    m_TxnInputGenerator = new CETxnInputGenerator( inputFiles, iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, 
-	    		iDaysOfInitialTrades * EGenDate.HoursPerWorkDay, iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent, m_pLogger, m_DriverCETxnSettings );
-	    m_bClearBufferBeforeGeneration = false;
-	    m_pLogger.SendToLogger("CE object constructed using constructor 3 (valid for publication: YES).");
+	public CE( CESUTInterface sut, BaseLogger logger, final TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
+	           long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent, int scaleFactor, int daysOfInitialTrades,
+	           int uniqueID, final TDriverCETxnSettings driverCETxnSettings ){
+		this.driverCETxnSettings = new TDriverCETxnSettings();
+		driverGlobalSettings = new DriverGlobalSettings( configuredCustomerCount, activeCustomerCount, scaleFactor, daysOfInitialTrades );
+	    driverCESettings = new DriverCESettings( uniqueID, 0, 0 );
+	    driverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
+	    this.sut = sut;
+	    this.logger = logger;
+	    txnMixGenerator = new CETxnMixGenerator(driverCETxnSettings,  logger );
+	    txnInputGenerator = new CETxnInputGenerator( inputFiles, configuredCustomerCount, activeCustomerCount, scaleFactor, 
+	    		daysOfInitialTrades * EGenDate.HoursPerWorkDay, iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent, logger, driverCETxnSettings );
+	    bClearBufferBeforeGeneration = false;
+	    logger.sendToLogger("CE object constructed using constructor 3 (valid for publication: YES).");
 
-	    Initialize( pDriverCETxnSettings );
-	    AutoSetRNGSeeds( UniqueId );
-	    m_pLogger.SendToLogger(m_DriverCEPartitionSettings); // log the partition settings
-	    m_pLogger.SendToLogger(m_DriverCESettings);    // log the RNG seeds
+	    initialize( driverCETxnSettings );
+	    autoSetRNGSeeds( uniqueID );
+	    logger.sendToLogger(driverCEPartitionSettings);
+	    logger.sendToLogger(driverCESettings);
 	}
 
 	/*
 	* Constructor - partitioning by C_ID, RNG seeds provided
 	*/
-	public CE(  CESUTInterface pSUT, BaseLogger pLogger, final TPCEGenerator inputFiles,
-	                            long iConfiguredCustomerCount, long iActiveCustomerCount,
-	                            long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent,
-	                            int iScaleFactor, int iDaysOfInitialTrades,
-	                            int UniqueId,
-	                            long TxnMixRNGSeed,
-	                            long TxnInputRNGSeed,
-	                            final TDriverCETxnSettings pDriverCETxnSettings ){
-		m_DriverCETxnSettings = new TDriverCETxnSettings();
-		m_DriverGlobalSettings = new DriverGlobalSettings( iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, iDaysOfInitialTrades );
-	    m_DriverCESettings = new DriverCESettings( UniqueId, TxnMixRNGSeed, TxnInputRNGSeed );
-	    m_DriverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
-	    m_pSUT = pSUT;
-	    m_pLogger = pLogger;
-	    m_TxnMixGenerator = new CETxnMixGenerator(m_DriverCETxnSettings, TxnMixRNGSeed, m_pLogger );
-	    m_TxnInputGenerator = new CETxnInputGenerator( inputFiles, iConfiguredCustomerCount, iActiveCustomerCount, iScaleFactor, 
-	    		iDaysOfInitialTrades * EGenDate.HoursPerWorkDay, iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent, 
-	    		TxnInputRNGSeed, m_pLogger, m_DriverCETxnSettings );
-	    m_bClearBufferBeforeGeneration = false;
-	    m_pLogger.SendToLogger("CE object constructed using constructor 4 (valid for publication: YES).");
+	public CE( CESUTInterface sut, BaseLogger logger, final TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
+	           long iMyStartingCustomerId, long iMyCustomerCount, int iPartitionPercent, int scaleFactor, int daysOfInitialTrades,
+	           int uniqueID, long TxnMixRNGSeed, long TxnInputRNGSeed, final TDriverCETxnSettings driverCETxnSettings ){
+		this.driverCETxnSettings = new TDriverCETxnSettings();
+		driverGlobalSettings = new DriverGlobalSettings( configuredCustomerCount, activeCustomerCount, scaleFactor, daysOfInitialTrades );
+	    driverCESettings = new DriverCESettings( uniqueID, TxnMixRNGSeed, TxnInputRNGSeed );
+	    driverCEPartitionSettings = new DriverCEPartitionSettings( iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent );
+	    this.sut = sut;
+	    this.logger = logger;
+	    txnMixGenerator = new CETxnMixGenerator(driverCETxnSettings, TxnMixRNGSeed, logger );
+	    txnInputGenerator = new CETxnInputGenerator( inputFiles, configuredCustomerCount, activeCustomerCount, scaleFactor, 
+	    		daysOfInitialTrades * EGenDate.HoursPerWorkDay, iMyStartingCustomerId, iMyCustomerCount, iPartitionPercent, 
+	    		TxnInputRNGSeed, logger, driverCETxnSettings );
+	    bClearBufferBeforeGeneration = false;
+	    logger.sendToLogger("CE object constructed using constructor 4 (valid for publication: YES).");
 
-	    Initialize( pDriverCETxnSettings );
-	    AutoSetRNGSeeds( UniqueId );
+	    initialize( driverCETxnSettings );
+	    autoSetRNGSeeds( uniqueID );
 
-	    m_pLogger.SendToLogger(m_DriverCEPartitionSettings); // log the partition settings
-	    m_pLogger.SendToLogger(m_DriverCESettings);    // log the RNG seeds
+	    logger.sendToLogger(driverCEPartitionSettings);
+	    logger.sendToLogger(driverCESettings);
 	}
 
-	public long getTxnInputGeneratorRNGSeed( )
-	{
-	    return( m_TxnInputGenerator.GetRNGSeed() );
+	public long getTxnInputGeneratorRNGSeed( ){
+	    return( txnInputGenerator.getRNGSeed() );
 	}
 
-	public long getTxnMixGeneratorRNGSeed( )
-	{
-	    return( m_TxnMixGenerator.GetRNGSeed() );
+	public long getTxnMixGeneratorRNGSeed( ){
+	    return( txnMixGenerator.getRNGSeed() );
 	}
 
-	public boolean SetTxnTunables( final TDriverCETxnSettings pTxnParamSettings )
-	{
-	    if( pTxnParamSettings.IsValid() == true )
-	    {
-	        // Update Tunables
-	        if (pTxnParamSettings != m_DriverCETxnSettings)    // only copy from a different location
-	        {
-	            m_DriverCETxnSettings = pTxnParamSettings;
+	public boolean setTxnTunables( final TDriverCETxnSettings txnParamSettings ){
+	    if( txnParamSettings.isValid() == true ){
+	        if (txnParamSettings != driverCETxnSettings){
+	            driverCETxnSettings = txnParamSettings;
 	        }
 
-	        // Trigger Runtime Updates
-	        m_TxnMixGenerator.UpdateTunables();
-	        m_TxnInputGenerator.UpdateTunables();
+	        txnMixGenerator.updateTunables();
+	        txnInputGenerator.updateTunables();
 	        return true;
 	    }
-	    else
-	    {
+	    else{
 	        return false;
 	    }
 	}
 
-	public void DoTxn(){
-	    int iTxnType = m_TxnMixGenerator.generateNextTxnType( );
+	public void doTxn(){
+	    int iTxnType = txnMixGenerator.generateNextTxnType( );
 
-	    if (m_bClearBufferBeforeGeneration){
-	        ZeroInputBuffer(iTxnType);
+	    if (bClearBufferBeforeGeneration){
+	        zeroInputBuffer(iTxnType);
 	    }
 
 	    switch( iTxnType ){
 	    case CETxnMixGenerator.BROKER_VOLUME:
-	        m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
-	        m_pSUT.BrokerVolume( m_BrokerVolumeTxnInput );
+	        txnInputGenerator.generateBrokerVolumeInput( brokerVolumeTxnInput );
+	        sut.BrokerVolume( brokerVolumeTxnInput );
 	        break;
 	    case CETxnMixGenerator.CUSTOMER_POSITION:
-	        m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
-	        m_pSUT.CustomerPosition( m_CustomerPositionTxnInput );
+	        txnInputGenerator.generateCustomerPositionInput( customerPositionTxnInput );
+	        sut.CustomerPosition( customerPositionTxnInput );
 	        break;
 	    case CETxnMixGenerator.MARKET_WATCH:
-	        m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
-	        m_pSUT.MarketWatch( m_MarketWatchTxnInput );
+	        txnInputGenerator.generateMarketWatchInput( marketWatchTxnInput );
+	        sut.MarketWatch( marketWatchTxnInput );
 	        break;
 	    case CETxnMixGenerator.SECURITY_DETAIL:
-	        m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
-	        m_pSUT.SecurityDetail( m_SecurityDetailTxnInput );
+	        txnInputGenerator.generateSecurityDetailInput( securityDetailTxnInput );
+	        sut.SecurityDetail( securityDetailTxnInput );
 	        break;
 	    case CETxnMixGenerator.TRADE_LOOKUP:
-	        m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
-	        m_pSUT.TradeLookup( m_TradeLookupTxnInput );
+	        txnInputGenerator.generateTradeLookupInput( tradeLookupTxnInput );
+	        sut.TradeLookup( tradeLookupTxnInput );
 	        break;
 	    case CETxnMixGenerator.TRADE_ORDER:
 	    	/*
@@ -221,16 +190,16 @@ public class CE {
 	    	 */
 	        boolean    bExecutorIsAccountOwner = true;
 	        int   iTradeType = TradeType.eLimitBuy.getValue();
-	        m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
-	        m_pSUT.TradeOrder( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
+	        txnInputGenerator.generateTradeOrderInput( tradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
+	        sut.TradeOrder( tradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
 	        break;
 	    case CETxnMixGenerator.TRADE_STATUS:
-	        m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
-	        m_pSUT.TradeStatus( m_TradeStatusTxnInput );
+	        txnInputGenerator.generateTradeStatusInput( tradeStatusTxnInput );
+	        sut.TradeStatus( tradeStatusTxnInput );
 	        break;
 	    case CETxnMixGenerator.TRADE_UPDATE:
-	        m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
-	        m_pSUT.TradeUpdate( m_TradeUpdateTxnInput );
+	        txnInputGenerator.generateTradeUpdateInput( tradeUpdateTxnInput );
+	        sut.TradeUpdate( tradeUpdateTxnInput );
 	        break;
 	    default:
 	    	System.err.println("CE: Generated illegal transaction");
@@ -238,239 +207,65 @@ public class CE {
 	    }
 	}
 
-	/*
-	*  Zero transaction input buffer.
-	*
-	*  PARAMETERS:
-	*           IN iTxnType     - what transaction to zero the buffer for.
-	*
-	*  RETURNS:
-	*           none.
-	*/
-	public void ZeroInputBuffer(int iTxnType)
-	{
-	    switch( iTxnType )
-	    {
+	public void zeroInputBuffer(int iTxnType){
+	    switch( iTxnType ){
 	    case CETxnMixGenerator.BROKER_VOLUME:
-	        m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();        
+	        brokerVolumeTxnInput = new TBrokerVolumeTxnInput();        
 	        break;
 	    case CETxnMixGenerator.CUSTOMER_POSITION:
-	        m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
+	        customerPositionTxnInput = new TCustomerPositionTxnInput();
 	        break;
 	    case CETxnMixGenerator.MARKET_WATCH:
-	        m_MarketWatchTxnInput = new TMarketWatchTxnInput();
+	        marketWatchTxnInput = new TMarketWatchTxnInput();
 	        break;
 	    case CETxnMixGenerator.SECURITY_DETAIL:
-	        m_SecurityDetailTxnInput = new TSecurityDetailTxnInput();
+	        securityDetailTxnInput = new TSecurityDetailTxnInput();
 	        break;
 	    case CETxnMixGenerator.TRADE_LOOKUP:
-	        m_TradeLookupTxnInput = new TTradeLookupTxnInput();
+	        tradeLookupTxnInput = new TTradeLookupTxnInput();
 	        break;
 	    case CETxnMixGenerator.TRADE_ORDER:
-	        m_TradeOrderTxnInput = new TTradeOrderTxnInput();
+	        tradeOrderTxnInput = new TTradeOrderTxnInput();
 	        break;
 	    case CETxnMixGenerator.TRADE_STATUS:
-	        m_TradeStatusTxnInput = new TTradeStatusTxnInput();
+	        tradeStatusTxnInput = new TTradeStatusTxnInput();
 	        break;
 	    case CETxnMixGenerator.TRADE_UPDATE:
-	        m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
+	        tradeUpdateTxnInput = new TTradeUpdateTxnInput();
 	        break;
 	    }
 	}
 
-	/*
-	*  Whether to zero the buffer before generating transaction input data.
-	*  Allows bitwise comparison of transaction input buffers.
-	*
-	*  Note: the option is set to 'false' by default (in the constructor).
-	*
-	*  PARAMETERS:
-	*           IN bClearBufferBeforeGeneration     - zero the buffer before input generation, if true
-	*
-	*  RETURNS:
-	*           none.
-	*/
-	public void SetClearBufferOption(boolean bClearBufferBeforeGeneration)
-	{
-	    m_bClearBufferBeforeGeneration = bClearBufferBeforeGeneration;
+	public void setClearBufferOption(boolean bClearBufferBeforeGeneration){
+		this.bClearBufferBeforeGeneration = bClearBufferBeforeGeneration;
 	}
 
+	public CETxnMixGenerator getCETxnMixGenerator(){
+		return txnMixGenerator;
+	}
 	
-	
-	
-	
-/*	
-	private Object[] cleanParams(Object[] orig) {
-        // We need to switch java.util.Dates to the stupid volt TimestampType
-        for (int i = 0; i < orig.length; i++) {
-            if (orig[i] instanceof Date) {
-                orig[i] = new TimestampType(((Date) orig[i]).getTime());
-            }
-        } // FOR
-        return (orig);
-    }
-	
-    public Object[] getBrokerVolumeParams() {
-    	System.out.println("Executing generateBrokerVolumeInput ... \n");
-    	m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();
-	    m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
-    	Object[] obj = m_BrokerVolumeTxnInput.InputParameters().toArray();
-    	
-System.out.println("CE: line: 342: " + obj[1]);
-        return (this.cleanParams(obj));
-    }
+	public CETxnInputGenerator getCETxnInputGenerator(){
+		return txnInputGenerator;
+	}
 
-    public Object[] getCustomerPositionParams() {
-    	System.out.println("Executing generateCustomerPositionInput ... \n");
-    	m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
-		m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
-    	Object[] obj = m_CustomerPositionTxnInput.InputParameters().toArray();
-    	
-System.out.println("EGenClientDriver: line: 123: acct_id_idx: " + obj[0].toString());
-System.out.println("EGenClientDriver: line: 124: cust_id: " + obj[1].toString());
-System.out.println("EGenClientDriver: line: 125: get_history: " + obj[2].toString());
-System.out.println("EGenClientDriver: line: 126: tax_id: " + obj[3]);
-    	return (this.cleanParams(obj));
-//        return (this.cleanParams(driver_ptr.generateCustomerPositionInput().InputParameters().toArray()));
-    }
+	private  DriverGlobalSettings        driverGlobalSettings;
+	private  DriverCESettings            driverCESettings;
+	private  DriverCEPartitionSettings   driverCEPartitionSettings;
+	private  TDriverCETxnSettings        driverCETxnSettings;
 
-    public Object[] getDataMaintenanceParams() {
-    	System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
-	    m_DataMaintenanceGenerator.DoTxn();
-        return (this.cleanParams(driver_ptr.generateDataMaintenanceInput().InputParameters().toArray()));
-    }
+	private  CESUTInterface              sut;
+	private  BaseLogger                  logger;
+	private  CETxnMixGenerator           txnMixGenerator;
+	private  CETxnInputGenerator         txnInputGenerator;
 
-    public Object[] getMarketFeedParams() {
-        return (this.cleanParams(driver_ptr.generateMarketFeedInput().InputParameters().toArray()));
-    }
+	private  TBrokerVolumeTxnInput       brokerVolumeTxnInput;
+	private  TCustomerPositionTxnInput   customerPositionTxnInput;
+	private  TMarketWatchTxnInput        marketWatchTxnInput;
+	private  TSecurityDetailTxnInput     securityDetailTxnInput;
+	private  TTradeLookupTxnInput        tradeLookupTxnInput;
+	private  TTradeOrderTxnInput         tradeOrderTxnInput;
+	private  TTradeStatusTxnInput        tradeStatusTxnInput;
+	private  TTradeUpdateTxnInput        tradeUpdateTxnInput;
 
-    public Object[] getMarketWatchParams() {
-    	System.out.println("Executing generateMarketWatchInput ... \n");
-    	m_MarketWatchTxnInput = new TMarketWatchTxnInput();
-	    m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
-    	Object[] obj = m_MarketWatchTxnInput.InputParameters().toArray();
-    	
-System.out.println("EGenClientDriver: line: 144: acct_id: " + obj[0].toString());
-System.out.println("EGenClientDriver: line: 145: c_id: " + obj[1].toString());
-System.out.println("EGenClientDriver: line: 146: ending_co_id: " + obj[2].toString());
-System.out.println("EGenClientDriver: line: 147: starting_co_id: " + obj[3].toString());
-System.out.println("EGenClientDriver: line: 149: industry_name: " + obj[4].toString());
-        return (this.cleanParams(obj));
-    }
-
-    public Object[] getSecurityDetailParams() {
-    	System.out.println("Executing generateSecurityDetailInput ... \n");
-    	m_SecurityDetailTxnInput = new TSecurityDetailTxnInput();
-	    m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
-    	Object[] obj = m_SecurityDetailTxnInput.InputParameters().toArray();
-System.out.println("EGenClientDriver: line: 154: max_rows_to_return: " + obj[0].toString());
-System.out.println("EGenClientDriver: line: 155: access_lob_flag: " + obj[1].toString());
-System.out.println("EGenClientDriver: line: 156: start_day: " + obj[2].toString());
-System.out.println("EGenClientDriver: line: 157: symbol: " + obj[3].toString());
-        return (this.cleanParams(obj));
-    }
-
-    public Object[] getTradeCleanupParams() {
-    	System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
-	    m_DataMaintenanceGenerator.DoCleanupTxn();
-        return (this.cleanParams(driver_ptr.generateTradeCleanupInput().InputParameters().toArray()));
-    }
-
-    public Object[] getTradeLookupParams() {
-    	System.out.println("Executing generateTradeLookupInput ... \n");
-    	m_TradeLookupTxnInput = new TTradeLookupTxnInput();
-	    m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
-    	Object[] obj = m_TradeLookupTxnInput.InputParameters().toArray();
-System.out.println("EGenClientDriver: line: 167: trade_id: " + obj[0]);
-System.out.println("EGenClientDriver: line: 168: acct_id: " + obj[1]);
-System.out.println("EGenClientDriver: line: 169: max_acct_id: " + obj[2]);
-System.out.println("EGenClientDriver: line: 170: frame_to_execute: " + obj[3]);
-System.out.println("EGenClientDriver: line: 171: max_trades: " + obj[4]);
-System.out.println("EGenClientDriver: line: 172: end_trade_dts: " + obj[5].toString());
-System.out.println("EGenClientDriver: line: 173: start_trade_dts: " + obj[6].toString());
-System.out.println("EGenClientDriver: line: 174: symbol: " + obj[7].toString());
-        return (this.cleanParams(obj));
-    }
-
-    public Object[] getTradeOrderParams() {
-    	int   iTradeType = 0;
-        boolean    bExecutorIsAccountOwner = true;
-        System.out.println("Executing generateTradeOrderInput ... \n");
-        m_TradeOrderTxnInput = new TTradeOrderTxnInput();
-	    m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
-        Object[] obj = m_TradeOrderTxnInput.InputParameters().toArray();
-        
-        System.out.println("EGenClientDriver: line: 182: requested_price: " + obj[0]);
-        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
-        System.out.println("EGenClientDriver: line: 184: is_lifo: " + obj[2]);
-        System.out.println("EGenClientDriver: line: 185: roll_it_back: " + obj[3]);
-        System.out.println("EGenClientDriver: line: 186: trade_qty: " + obj[4]);
-        System.out.println("EGenClientDriver: line: 187: type_is_margin: " + obj[5]);
-        System.out.println("EGenClientDriver: line: 188: co_name: " + obj[6]);
-        System.out.println("EGenClientDriver: line: 189: exec_f_name: " + obj[7]);
-        System.out.println("EGenClientDriver: line: 190: exec_l_name: " + obj[8]);
-        System.out.println("EGenClientDriver: line: 191: exec_tax_id: " + obj[9]);
-        System.out.println("EGenClientDriver: line: 192: issue: " + obj[10]);
-        System.out.println("EGenClientDriver: line: 193: st_pending_id: " + obj[11]);
-        System.out.println("EGenClientDriver: line: 194: st_submitted_id: " + obj[12]);
-        System.out.println("EGenClientDriver: line: 195: symbol: " + obj[13]);
-        System.out.println("EGenClientDriver: line: 196: trade_type_id: " + obj[14]);
-        return (this.cleanParams(obj));
-    }
-
-   public Object[] getTradeResultParams() {
-	   System.out.println("Executing %s...\n" + "generateTradeResultInput");
-	    m_MarketExchangeGenerator.generateTradeResult();
-        return (this.cleanParams(driver_ptr.generateTradeResultInput().InputParameters().toArray()));
-    }
-
-    public Object[] getTradeStatusParams() {
-    	System.out.println("Executing generateTradeStatusInput ... \n");
-    	m_TradeStatusTxnInput = new TTradeStatusTxnInput();
-	    m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
-    	Object[] obj = m_TradeStatusTxnInput.InputParameters().toArray();
-    	
-System.out.println("EGenClientDriver: line: 206: acct_id: " + obj[0]);
-        return (this.cleanParams(obj));
-    }
-
-    public Object[] getTradeUpdateParams() {
-    	System.out.println("Executing generateTradeUpdateInput ... \n");
-    	m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
-	    m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
-    	Object[] obj = m_TradeUpdateTxnInput.InputParameters().toArray();
-    	
-    	System.out.println("EGenClientDriver: line: 182: trade_id: " + obj[0]);
-        System.out.println("EGenClientDriver: line: 183: acct_id: " + obj[1]);
-        System.out.println("EGenClientDriver: line: 184: max_acct_id: " + obj[2]);
-        System.out.println("EGenClientDriver: line: 185: frame_to_execute: " + obj[3]);
-        System.out.println("EGenClientDriver: line: 186: max_trades: " + obj[4]);
-        System.out.println("EGenClientDriver: line: 187: max_updates: " + obj[5]);
-        System.out.println("EGenClientDriver: line: 188: end_trade_dts: " + obj[6]);
-        System.out.println("EGenClientDriver: line: 189: start_trade_dts: " + obj[7]);
-        System.out.println("EGenClientDriver: line: 190: symbol: " + obj[8]);
-        return (this.cleanParams(obj));
-    }*/
-
-	private  DriverGlobalSettings       m_DriverGlobalSettings;
-	private  DriverCESettings           m_DriverCESettings;
-	private  DriverCEPartitionSettings  m_DriverCEPartitionSettings;
-	private  TDriverCETxnSettings        m_DriverCETxnSettings;
-
-	private  CESUTInterface            m_pSUT;
-	private  BaseLogger                m_pLogger;
-	public  CETxnMixGenerator          m_TxnMixGenerator;
-	public  CETxnInputGenerator        m_TxnInputGenerator;
-
-	private  TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
-	private  TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
-	private  TMarketWatchTxnInput        m_MarketWatchTxnInput;
-	private  TSecurityDetailTxnInput     m_SecurityDetailTxnInput;
-	private  TTradeLookupTxnInput        m_TradeLookupTxnInput;
-	private  TTradeOrderTxnInput         m_TradeOrderTxnInput;
-	private  TTradeStatusTxnInput        m_TradeStatusTxnInput;
-	private  TTradeUpdateTxnInput        m_TradeUpdateTxnInput;
-
-	    // Whether to zero the buffer before generating transaction input data into it.
-	private  boolean                        m_bClearBufferBeforeGeneration;
+	private  boolean                     bClearBufferBeforeGeneration;
 }

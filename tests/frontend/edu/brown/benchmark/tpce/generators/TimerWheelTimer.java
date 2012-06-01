@@ -3,13 +3,23 @@ package edu.brown.benchmark.tpce.generators;
 import java.lang.reflect.Method;
 
 public class TimerWheelTimer {
-	Object m_pExpiryData;                      //The data to be passed back
-    Object m_pExpiryObject;                    //The object on which to call the function
-    Method m_pExpiryFunction;  //The function to call at expiration
+	private Object expiryData;                      
+	private Object expiryObject;                    
+	private Method expiryFunction;  
 
-    public TimerWheelTimer( Object pExpiryObject, Method pExpiryFunction, Object pExpiryData){
-        m_pExpiryData = pExpiryData;
-        m_pExpiryObject = pExpiryObject;
-        m_pExpiryFunction = pExpiryFunction;
+    public TimerWheelTimer( Object expiryObject, Method expiryFunction, Object expiryData){
+        this.expiryData = expiryData;
+        this.expiryObject = expiryObject;
+        this.expiryFunction = expiryFunction;
+    }
+    
+    public Object getExpiryData(){
+    	return expiryData;
+    }
+    public Object getExpiryObject(){
+    	return expiryObject;
+    }
+    public Method getExpiryFunction(){
+    	return expiryFunction;
     }
 }

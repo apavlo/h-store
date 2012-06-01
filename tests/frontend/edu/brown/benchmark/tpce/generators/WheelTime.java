@@ -3,111 +3,87 @@ package edu.brown.benchmark.tpce.generators;
 import java.util.GregorianCalendar;
 
 public class WheelTime {
-	private TWheelConfig    m_pWheelConfig; //Pointer to configuration info for the wheel
-    int           m_Cycles;       //Number of completed cycles so far
-    int           m_Index;        //Index into the current cycle
+	private TWheelConfig    wheelConfig; 
+	private int             cycles;      
+	private int             index;        
 
 	public WheelTime( TWheelConfig pWheelConfig ){
-		m_pWheelConfig = pWheelConfig;
-	    m_Cycles = 0;
-	    m_Index = 0;
+		wheelConfig = pWheelConfig;
+	    cycles = 0;
+	    index = 0;
 	}
 	
 	public WheelTime( TWheelConfig pWheelConfig, int cycles, int index ){
-		m_pWheelConfig = pWheelConfig;
-	    m_Cycles = cycles;
-	    m_Index = index;
+		wheelConfig = pWheelConfig;
+		this.cycles = cycles;
+		this.index = index;
 	}
 
-	public WheelTime( TWheelConfig pWheelConfig, GregorianCalendar Base, GregorianCalendar Now, int offset ){
-	    m_pWheelConfig = pWheelConfig ;
-	    Set( Base , Now );
-	    Add( offset );
+	public WheelTime( TWheelConfig pWheelConfig, GregorianCalendar base, GregorianCalendar now, int offset ){
+	    wheelConfig = pWheelConfig ;
+	    set( base , now );
+	    add( offset );
 	}
-	public int Cycles() { return m_Cycles; };
-    public int Index() { return m_Index; };
+	public int getCycles(){ 
+		return cycles; 
+	}
+    public int getIndex(){ 
+    	return index; 
+    }
 
-	public void  Add( int Interval ){
-	    //DJ - should throw error if Interval >= m_pWheelConfig.WheelSize?
-	    m_Cycles += Interval / m_pWheelConfig.WheelSize;
-	    m_Index += Interval % m_pWheelConfig.WheelSize;
-	    if( m_Index >= m_pWheelConfig.WheelSize ){
-	        //Handle wrapping in the wheel - assume we don't allow multi-cycle intervals
-	        m_Cycles++;
-	        m_Index -= m_pWheelConfig.WheelSize;
+	public void  add( int interval ){
+
+	    cycles += interval / wheelConfig.getWheelSize();
+	    index += interval % wheelConfig.getWheelSize();
+	    if( index >= wheelConfig.getWheelSize() ){
+	      
+	        cycles++;
+	        index -= wheelConfig.getWheelSize();
 	    }
 	}
 	
-	public int  Offset( final WheelTime Time ){
-	    int   Interval;
+	public int  offset( final WheelTime Time ){
+	    int   interval;
 	
-	    Interval = ( m_Cycles - Time.m_Cycles ) * m_pWheelConfig.WheelSize;
-	    Interval += ( m_Index - Time.m_Index );
-	    return( Interval );
+	    interval = ( cycles - Time.cycles ) * wheelConfig.getWheelSize();
+	    interval += ( index - Time.index );
+	    return( interval );
 	}
 	
-	public void  Set( int cycles, int index ){
-	    m_Cycles = cycles;
-	    m_Index = index;    //DJ - should throw error if Index >= m_pWheelConfig.WheelSize
+	public void  set( int cycles, int index ){
+	    this.cycles = cycles;
+	    this.index = index;   
 	}
 	
-	// Set is overloaded. This version is used by the timer wheel.
-	public void  Set( GregorianCalendar Base, GregorianCalendar Now ){
-	    int       offset; //offset from BaseTime in milliseconds
+	public void  set( GregorianCalendar base, GregorianCalendar now ){
+	    int       offset; 
 	
-	    //DJ - If Now < Base, then we should probably throw an exception
-	
-	    offset = (int)(Now.getTimeInMillis() - Base.getTimeInMillis()) / m_pWheelConfig.WheelResolution; // convert based on wheel resolution
-	    m_Cycles = offset / m_pWheelConfig.WheelSize;
-	    m_Index = offset % m_pWheelConfig.WheelSize;
+	    offset = (int)(now.getTimeInMillis() - base.getTimeInMillis()) / wheelConfig.getWheelSize(); // convert based on wheel resolution
+	    cycles = offset / wheelConfig.getWheelSize();
+	    index = offset % wheelConfig.getWheelSize();
 	}
-	
-	// Set is overloaded. This version is used by the event wheel.
-	/*	public void  Set( GregorianCalendar pBase, GregorianCalendar pNow )
-	{
-	    int       offset; //offset from BaseTime in milliseconds
-	
-	    //DJ - If Now < Base, then we should probably throw an exception
-	
-	    offset = (int)(pNow.getTimeInMillis() - pBase.getTimeInMillis()) / m_pWheelConfig.WheelResolution; // convert based on wheel resolution
-	    m_Cycles = offset / m_pWheelConfig.WheelSize;
-	    m_Index = offset % m_pWheelConfig.WheelSize;
-	}*/
-	/*
-	bool  operator <(const WheelTime& Time)
-	{
-	    return ( m_Cycles == Time.m_Cycles ) ? ( m_Index < Time.m_Index ) : ( m_Cycles < Time.m_Cycles );
-	}
-	
-	WheelTime&  operator = (const WheelTime& Time)
-	{
-	    m_pWheelConfig = Time.m_pWheelConfig;
-	    m_Cycles = Time.m_Cycles;
-	    m_Index = Time.m_Index;
-	
-	    return *this;
-	}
-	
-	WheelTime&  operator += ( const int& Interval )
-	{
-	    Add( Interval );
-	    return *this;
-	}
-	
-	WheelTime  operator ++ ( int )
-	{
-	    Add( 1 );
-	    return *this;
-	}*/
+
 }
 
 class TWheelConfig{
 	public static final int MaxWheelCycles = 999999999;
-	public int   WheelSize;          // Total size of the wheel (based on the period and resolution)
-	public int   WheelResolution;    // Expressed in milliseconds
+	private int   WheelSize;          
+	private int   WheelResolution;    
 
     TWheelConfig( int Size, int Resolution ){
     	WheelSize = Size;
     	WheelResolution = Resolution;
+    }
+    public int getWheelSize(){
+    	return WheelSize;
+    }
+    public int getWheelResolution(){
+    	return WheelResolution;
+    }
+    public void setWheelSize(int WheelSize){
+    	this.WheelSize = WheelSize;
+    }
+    public void setWheelResolution(int WheelResolution){
+    	this.WheelResolution = WheelResolution;
     }
 }

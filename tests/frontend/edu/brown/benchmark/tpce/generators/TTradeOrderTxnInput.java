@@ -4,32 +4,18 @@ import java.util.ArrayList;
 
 public class TTradeOrderTxnInput {
 
-	public double          requested_price;
-	public long          	acct_id;
-	public long           	is_lifo;
-	public long           	roll_it_back;
-	public long           	trade_qty;
-	public long           	type_is_margin;
-	public String          co_name;
-	public String          exec_f_name;
-	public String          exec_l_name;
-	public String          exec_tax_id;
-	public String          issue;
-	public String          st_pending_id;
-	public String          st_submitted_id;
-	public String          symbol;
-	public String          trade_type_id;
+	
     
     public TTradeOrderTxnInput(){
-    	co_name = new String()/*char[TableConsts.cCO_NAME_len]*/;
-    	exec_f_name = new String()/*char[TableConsts.cF_NAME_len]*/;
-    	exec_l_name = new String()/*char[TableConsts.cL_NAME_len]*/;
-    	exec_tax_id = new String()/*char[TableConsts.cTAX_ID_len]*/;
-    	issue = new String()/*char[TableConsts.cS_ISSUE_len]*/;
-    	st_pending_id = new String()/*char[TableConsts.cST_ID_len]*/;
-    	st_submitted_id = new String()/*char[TableConsts.cST_ID_len]*/;
-    	symbol = new String()/*char[TableConsts.cSYMBOL_len]*/;
-    	trade_type_id = new String()/*char[TableConsts.cTT_ID_len]*/;
+    	co_name = new String();
+    	exec_f_name = new String();
+    	exec_l_name = new String();
+    	exec_tax_id = new String();
+    	issue = new String();
+    	st_pending_id = new String();
+    	st_submitted_id = new String();
+    	symbol = new String();
+    	trade_type_id = new String();
     }
     
     public ArrayList<Object>InputParameters(){
@@ -51,4 +37,111 @@ public class TTradeOrderTxnInput {
     	para.add(symbol);
     	return para;
     }
+    
+    public double getRequestedPrice(){
+    	return requested_price;
+    }
+    public long getAcctId(){
+    	return acct_id;
+    }
+    public long getIsLifo(){
+    	return is_lifo;
+    }
+    public long getRollItBack(){
+    	return roll_it_back;
+    }
+    public long getTradeQty(){
+    	return trade_qty;
+    }
+    public long getTypeIsMargin(){
+    	return type_is_margin;
+    }
+    public String getCoNmae(){
+    	return co_name;
+    }
+    public String getExecFirstName(){
+    	return exec_f_name;
+    }
+    public String getExecLastName(){
+    	return exec_l_name;
+    }
+    public String getExecTaxId(){
+    	return exec_tax_id;
+    }
+    public String getIssue(){
+    	return issue;
+    }
+    public String getStPendingId(){
+    	return st_pending_id;
+    }
+    public String getStSubmittedId(){
+    	return st_submitted_id;
+    }
+    public String getSymbol(){
+    	return symbol;
+    }
+    public String getTradeTypeId(){
+    	return trade_type_id;
+    }
+    
+    public void setRequestedPrice(double requested_price){
+    	this.requested_price = requested_price;
+    }
+    public void setAcctId(long acct_id){
+    	this.acct_id = acct_id;
+    }
+    public void setIsLifo(long is_lifo){
+    	this.is_lifo = is_lifo;
+    }
+    public void setRollItBack(long roll_it_back){
+    	this.roll_it_back = roll_it_back;
+    }
+    public void setTradeQty(long trade_qty){
+    	this.trade_qty = trade_qty;
+    }
+    public void setTypeIsMargin(long type_is_margin){
+    	this.type_is_margin = type_is_margin;
+    }
+    public void setCoNmae(String co_name){
+    	this.co_name = co_name;
+    }
+    public void setExecFirstName(String exec_f_name){
+    	this.exec_f_name = exec_f_name;
+    }
+    public void setExecLastName(String exec_l_name){
+    	this.exec_l_name = exec_l_name;
+    }
+    public void setExecTaxId(String exec_tax_id){
+    	this.exec_tax_id = exec_tax_id;
+    }
+    public void setIssue(String issue){
+    	this.issue = issue;
+    }
+    public void setStPendingId(String st_pending_id){
+    	this.st_pending_id = st_pending_id;
+    }
+    public void setStSubmittedId(String st_submitted_id){
+    	this.st_submitted_id = st_submitted_id;
+    }
+    public void setSymbol(String symbol){
+    	this.symbol = symbol;
+    }
+    public void setTradeTypeId(String trade_type_id){
+    	this.trade_type_id = trade_type_id;
+    }
+    private double          requested_price;
+    private long            acct_id;
+    private long            is_lifo;
+    private long            roll_it_back;
+	private long            trade_qty;
+	private long            type_is_margin;
+	private String          co_name;
+	private String          exec_f_name;
+	private String          exec_l_name;
+	private String          exec_tax_id;
+	private String          issue;
+	private String          st_pending_id;
+	private String          st_submitted_id;
+	private String          symbol;
+	private String          trade_type_id;
 }

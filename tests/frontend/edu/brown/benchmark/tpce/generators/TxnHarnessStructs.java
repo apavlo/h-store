@@ -2,8 +2,6 @@ package edu.brown.benchmark.tpce.generators;
 
 
 public class TxnHarnessStructs {
-	//declare the < operator for timestamps
-	/*	bool operator< (const TIMESTAMP_STRUCT& ts1, const TIMESTAMP_STRUCT& ts2);*/
 
 		public static final int iFinYears = 5;
 		public static final int iFinQtrPerYear = 4;
@@ -12,8 +10,6 @@ public class TxnHarnessStructs {
 
 		public static final int min_broker_list_len = 20;   // for Broker-Volume
 		public static final int max_broker_list_len = 40;   // for Broker-Volume
-//		public static final int max_acct_len = iMaxAccountsPerCust; // for Customer-Position
-//		public static final int max_hist_len = max_acct_len * 3;    // for Customer-Position
 		public static final int max_feed_len = 20;      // for Market-Feed
 		public static final int min_day_len = 5;        // for Security-Detail
 		public static final int max_day_len = 20;       // for Security-Detail
@@ -132,37 +128,5 @@ class TableConsts{
 	public static int cZC_DIV_len = cDIV_len;
 	public static int cZC_CODE_len = cCODE_len;
 	
-	// Status Type IDs corresponding to the StatusType.txt flat file.
-	// Note: The order of enumeration members must match the order
-	// of rows in the StatusType.txt flat file.
-/*	public static enum eStatusTypeID{
-	    eCompleted (0),
-	    eActive (1),
-	    eSubmitted (2),
-	    ePending (3),
-	    eCanceled (4),
-
-	    eMaxStatusTypeID(5);    // should be the last - contains the number of items in the enumeration
-	    
-	    private int id;
-	    private eStatusTypeID(int id){
-	    	this.id = id;
-	    }
-	}
-
-	// Exchange IDs corresponding to the Exchange.txt flat file.
-	// Note: The order of enumeration members must match the order
-	// of rows in the Exchange.txt flat file.
-	public static enum eExchangeID{
-	    eNYSE (0),
-	    eNASDAQ (1),
-	    eAMEX(2),
-	    ePCX(3);
-	    
-	    private int id;
-	    private eExchangeID(int id){
-	    	this.id = id;
-	    }
-	}*/
 	
 }

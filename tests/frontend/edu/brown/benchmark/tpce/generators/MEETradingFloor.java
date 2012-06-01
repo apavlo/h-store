@@ -8,112 +8,110 @@ import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class MEETradingFloor {
 	
-	public long  GetRNGSeed(){
-	    return( m_rnd.getSeed() );
+	public long  getRNGSeed(){
+	    return( rnd.getSeed() );
 	}
 	
-	public void  SetRNGSeed( long RNGSeed ){
-	    m_rnd.setSeed( RNGSeed );
+	public void  setRNGSeed( long RNGSeed ){
+	    rnd.setSeed( RNGSeed );
 	}
 	
-	// Constructor - use default RNG seed
-	 public MEETradingFloor( MEESUTInterface  pSUT, MEEPriceBoard  pPriceBoard, MEETickerTape  pTickerTape, Date  pBaseTime, Date  pCurrentTime ){
-		 m_pSUT = pSUT ;
-		 m_pPriceBoard = pPriceBoard;
-		 m_pTickerTape = pTickerTape;
-		 m_pBaseTime = pBaseTime;
-		 m_pCurrentTime = pCurrentTime;
-		 m_rnd =  new EGenRandom(EGenRandom.RNG_SEED_BASE_MEE_TRADING_FLOOR );
-		 m_OrderProcessingDelayMean = 1.0;
+	 public MEETradingFloor( MEESUTInterface  sut, MEEPriceBoard  priceBoard, MEETickerTape  tickerTape, Date  baseTime, Date  currentTime ){
+		 this.sut = sut ;
+		 this.priceBoard = priceBoard;
+		 this.tickerTape = tickerTape;
+		 this.baseTime = baseTime;
+		 this.currentTime = currentTime;
+		 rnd =  new EGenRandom(EGenRandom.RNG_SEED_BASE_MEE_TRADING_FLOOR );
+		 orderProcessingDelayMean = 1.0;
 		 Method SendTradeResult = null;
 	        try{
-	        	SendTradeResult = MEETradingFloor.class.getMethod("SendTradeResult", TTradeRequest.class);
+	        	SendTradeResult = MEETradingFloor.class.getMethod("sendTradeResult", TTradeRequest.class);
 	        }catch(Exception e){
 	        	e.printStackTrace();
 	        }
-		 m_OrderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
+		 orderTimers = new TimerWheel(TTradeRequest.class, this, SendTradeResult, 5, 1);
 	 }
 	    
 	
-	// Constructor - RNG seed provided
-	 public MEETradingFloor(MEESUTInterface  pSUT, MEEPriceBoard  pPriceBoard, MEETickerTape  pTickerTape, Date  pBaseTime, Date  pCurrentTime, long RNGSeed){
-		 m_pSUT = pSUT ;
-		 m_pPriceBoard = pPriceBoard;
-		 m_pTickerTape = pTickerTape;
-		 m_pBaseTime = pBaseTime;
-		 m_pCurrentTime = pCurrentTime;
-		 m_rnd =  new EGenRandom(RNGSeed );
-		 m_OrderProcessingDelayMean = 1.0;
+	 public MEETradingFloor(MEESUTInterface  sut, MEEPriceBoard  priceBoard, MEETickerTape  tickerTape, Date  baseTime, Date  currentTime, long RNGSeed){
+		 this.sut = sut ;
+		 this.priceBoard = priceBoard;
+		 this.tickerTape = tickerTape;
+		 this.baseTime = baseTime;
+		 this.currentTime = currentTime;
+		 rnd =  new EGenRandom(RNGSeed );
+		 orderProcessingDelayMean = 1.0;
 	 }
 	 
-	 private double  genProcessingDelay(double Mean){
-	    double result = ( -1.0 * Math.log( m_rnd.rndDouble() )) * Mean;
+	 private double  genProcessingDelay(double mean){
+	    double result = ( -1.0 * Math.log( rnd.rndDouble() )) * mean;
 	
-	    if( result > m_MaxOrderProcessingDelay ){
-	        return( m_MaxOrderProcessingDelay );
+	    if( result > maxOrderProcessingDelay ){
+	        return( maxOrderProcessingDelay );
 	    }
 	    else{
 	        return result;
 	    }
 	}
 	
-	 public int  SubmitTradeRequest( TTradeRequest tradeReq ){
+	 public int  submitTradeRequest( TTradeRequest tradeReq ){
 	    switch( tradeReq.eAction ){
 	    case eMEEProcessOrder:
 	        {
-	        	return( m_OrderTimers.StartTimer( genProcessingDelay( m_OrderProcessingDelayMean )));
+	        	return( orderTimers.startTimer( genProcessingDelay( orderProcessingDelayMean )));
 	        }
 	    case eMEESetLimitOrderTrigger:
-	        m_pTickerTape.PostLimitOrder( tradeReq );
-	        return( m_OrderTimers.ProcessExpiredTimers() );
+	        tickerTape.PostLimitOrder( tradeReq );
+	        return( orderTimers.processExpiredTimers() );
 	    default:
-	        return( m_OrderTimers.ProcessExpiredTimers() );
+	        return( orderTimers.processExpiredTimers() );
 	    }
 	}
 	
 	 public int  generateTradeResult(){
-	    return( m_OrderTimers.ProcessExpiredTimers() );
+	    return( orderTimers.processExpiredTimers() );
 	}
 	
-	public void  SendTradeResult( TTradeRequest tradeReq ){
+	public void  sendTradeResult( TTradeRequest tradeReq ){
 	    TradeType            eTradeType;
-	    TTradeResultTxnInput    TxnInput = new TTradeResultTxnInput();
+	    TTradeResultTxnInput    txnInput = new TTradeResultTxnInput();
 	    TTickerEntry            TickerEntry = new TTickerEntry();
 	    double                  CurrentPrice = -1.0;
 	
-	    eTradeType = m_pTickerTape.ConvertTradeTypeIdToEnum( tradeReq.trade_type_id.toCharArray() );
-	    CurrentPrice = m_pPriceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
+	    eTradeType = tickerTape.ConvertTradeTypeIdToEnum( tradeReq.trade_type_id.toCharArray() );
+	    CurrentPrice = priceBoard.getCurrentPrice( tradeReq.symbol ).getDollars();
 	
-	    TxnInput.trade_id = tradeReq.trade_id;
+	    txnInput.trade_id = tradeReq.trade_id;
 	
 	    if(( eTradeType == TradeType.eLimitBuy && tradeReq.price_quote < CurrentPrice )||( eTradeType == TradeType.eLimitSell && tradeReq.price_quote > CurrentPrice )){
-	        TxnInput.trade_price = tradeReq.price_quote;
+	        txnInput.trade_price = tradeReq.price_quote;
 	    }
 	    else{
-	        TxnInput.trade_price = CurrentPrice;
+	        txnInput.trade_price = CurrentPrice;
 	    }
 	
-	    m_pSUT.TradeResult(  TxnInput );
+	    sut.TradeResult(  txnInput );
 	
 	    TickerEntry.symbol = new String( tradeReq.symbol);
 	    TickerEntry.trade_qty = tradeReq.trade_qty;
 	
 	    TickerEntry.price_quote = CurrentPrice;
 	
-	    m_pTickerTape.AddEntry(TickerEntry);
+	    tickerTape.AddEntry(TickerEntry);
 	}
 	
-	private MEESUTInterface                                        m_pSUT;
-	private MEEPriceBoard                                          m_pPriceBoard;
-	private MEETickerTape                                          m_pTickerTape;
+	private MEESUTInterface                                        sut;
+	private MEEPriceBoard                                          priceBoard;
+	private MEETickerTape                                          tickerTape;
 
-	private Date   m_pBaseTime;
-	private Date   m_pCurrentTime;
+	private Date   												   baseTime;
+	private Date   												   currentTime;
 
-	private TimerWheel    m_OrderTimers;
-	private EGenRandom                                                 m_rnd;
-	private  double                                                  m_OrderProcessingDelayMean;
-	private static final int                                     m_MaxOrderProcessingDelay = 5;
+	private TimerWheel    										   orderTimers;
+	private EGenRandom                                             rnd;
+	private  double                                                orderProcessingDelayMean;
+	private static final int                                       maxOrderProcessingDelay = 5;
 
 	public static final int  NO_OUTSTANDING_TRADES = -1;
 }

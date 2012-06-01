@@ -73,33 +73,7 @@ public class TPCEClient extends BenchmarkComponent {
     private ClientDriver driver_ptr;
     // EGen Drivers
     protected final EGenClientDriver egen_clientDriver;
-/*
-    private CE customerEmulator;
-    private CESUTInterface pSut;
-    
-    private final TPCEGenerator inputFiles;
-    private static CETxnMixGenerator mixGenerator;
-    private final TDriverCETxnSettings pDriverCETxnSettings;
-    
-    private EGenLogger pLogger;
-    private EGenLogFormatterTab pLoggerFormatterTab;
-    
-    private MEE                   		m_MarketExchangeGenerator;
-	private MEESUTInterface       		m_MarketExchangeCallback;
-	
-	private TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
-	private CETxnInputGenerator         m_TxnInputGenerator;
-	private TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
-	private TDataMaintenanceTxnInput    m_DataMaintenanceTxnInput;
-	private TMarketFeedTxnInput         m_MarketFeedTxnInput;
-	private TMarketWatchTxnInput        m_MarketWatchTxnInput;
-	private TSecurityDetailTxnInput     m_SecurityDetailTxnInput;
-	private TTradeCleanupTxnInput       m_TradeCleanupTxnInput;
-	private TTradeLookupTxnInput        m_TradeLookupTxnInput;
-	private TTradeOrderTxnInput         m_TradeOrderTxnInput;
-	private TTradeResultTxnInput        m_TradeResultTxnInput;
-	private TTradeStatusTxnInput        m_TradeStatusTxnInput;
-	private TTradeUpdateTxnInput        m_TradeUpdateTxnInput;*/
+
     /**
      * @author pavlo
      */
@@ -195,24 +169,7 @@ public class TPCEClient extends BenchmarkComponent {
         int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
         int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
         int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
-        /*        String loader_path = m_extraParams.get("TPCE_LOADER_FILES");
-//        File library_path = new File(loader_path + File.separator + "lib" + File.separator + "libegen.so");
-/*        String input_path = new File(loader_path + File.separator).getAbsolutePath();
-        driver_ptr = new ClientDriver(input_path, total_customers, total_customers, scale_factor, initial_days);*/
         
-        /*        File inputDir = new File(input_path);
-	    inputFiles = new TPCEGenerator(inputDir, total_customers, scale_factor, initial_days);
-	    
-        String filename = new String("/tmp/EGenClientDriver.log");
-        pLoggerFormatterTab = new EGenLogFormatterTab();
-		pLogger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, pLoggerFormatterTab);
-		pSut = new SUT();
-		pDriverCETxnSettings = new TDriverCETxnSettings();
-        customerEmulator = new CE(pSut, pLogger, inputFiles, total_customers, total_customers, scale_factor, initial_days, 0, pDriverCETxnSettings );	
-        
-        m_MarketExchangeCallback = new MarketExchangeCallback(m_TradeResultTxnInput, m_MarketFeedTxnInput);
-//	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, m_SecurityHandler, 1, configuredCustomerCount);
-//	    m_MarketExchangeGenerator.enableTickerTape();*/
         this.egen_clientDriver = new EGenClientDriver(m_extraParams.get("TPCE_LOADER_FILES"), total_customers, scale_factor, initial_days);
     }
 
@@ -227,12 +184,10 @@ public class TPCEClient extends BenchmarkComponent {
     }
 
     protected Transaction selectTransaction() {
-    	int iTxnType = egen_clientDriver.driver_ptr.m_CustomerGenerator.m_TxnMixGenerator.generateNextTxnType( );
-    	egen_clientDriver.driver_ptr.m_CustomerGenerator.ZeroInputBuffer(iTxnType);
-//        int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
-//    	egen_clientDriver.driver_ptr.m_MarketExchangeGenerator.generateTradeResult();
+    	int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
+    	egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
+    	//    	return Transaction.TRADE_UPDATE;
         return XTRANS[iTxnType];
-        //return Transaction.TRADE_RESULT;
     }
 
     private static void initSampleTable() {
@@ -251,7 +206,6 @@ public class TPCEClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
- //       long thread_id = Thread.currentThread().getId();
         int no_connection = 10000;
         try {
             //
@@ -264,32 +218,9 @@ public class TPCEClient extends BenchmarkComponent {
             // LOG.info(TableStatistics.debug());
 
             while (true) {
- /*           	final Transaction target = TPCEClient.selectTransaction();
-            	StatsCallback statsCallback = new StatsCallback();
-                this.getClientHandle().callProcedure(statsCallback, target.callName, SysProcSelector.TABLE.name());
-                statsCallback.latch.await();
-                assert (!TableStatistics.getTables().isEmpty());*/
-                
-            	
+    	
                 callback.latch = new CountDownLatch(1);
                 runOnce();
-/*                long thread_id = Thread.currentThread().getId();
-            	boolean ret = false;
-            	
-                    final Transaction target = TPCEClient.selectTransaction();
-                    System.err.println("Trying to execute " + target);
-                    this.thread_xact_xref.put(thread_id, target.ordinal());
-                    System.out.println("TPCEClient runLoop target.ordinal()" + target.ordinal());
-                    this.getClientHandle().backpressureBarrier();
-                    ret = this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
-                    LOG.debug("Executing txn " + target);*/
-               
-/*                final Transaction target = TPCEClient.selectTransaction();
-                System.err.println("Trying to execute " + target);
-                this.thread_xact_xref.put(thread_id, target.ordinal());
-                this.getClientHandle().backpressureBarrier();
-                this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
-                LOG.debug("Executing txn " + target);*/
                 this.getClientHandle().backpressureBarrier();
                 callback.latch.await();
             } // WHILE
@@ -305,7 +236,7 @@ public class TPCEClient extends BenchmarkComponent {
             System.exit(1);
         }
     }
-//	TODO unsure
+//	TODO
     @Override
     protected boolean runOnce() throws IOException {
 //    	long thread_id = Thread.currentThread().getId();
@@ -322,19 +253,7 @@ public class TPCEClient extends BenchmarkComponent {
             System.exit(1);
         }
         return ret;
-/*    	long thread_id = Thread.currentThread().getId();
-    	final Transaction target = TPCEClient.selectTransaction();
-        System.err.println("Trying to execute " + target);
-        this.thread_xact_xref.put(thread_id, target.ordinal());
-        boolean ret = this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
-        
-        final Transaction target = this.txnWeights.nextValue();
 
-        this.startComputeTime(target.displayName);
-        Object params[] = target.ag.genArgs(subscriberSize);
-        this.stopComputeTime(target.displayName);
-
-        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);*/
     }
     
     /**

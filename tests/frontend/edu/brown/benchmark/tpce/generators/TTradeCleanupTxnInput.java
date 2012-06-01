@@ -4,29 +4,22 @@ import java.util.ArrayList;
 
 public class TTradeCleanupTxnInput {
 	 long                start_trade_id;
-	 char[]              st_canceled_id;
-	 char[]              st_pending_id;
-	 char[]              st_submitted_id;
+	 String              st_canceled_id;
+	 String              st_pending_id;
+	 String              st_submitted_id;
 	 
 	 public TTradeCleanupTxnInput(){
-		 st_canceled_id = new char [TableConsts.cST_ID_len];
-		 st_pending_id = new char [TableConsts.cST_ID_len];
-		 st_submitted_id = new char [TableConsts.cST_ID_len];
+		 st_canceled_id = new String();
+		 st_pending_id = new String();
+		 st_submitted_id = new String();
 	 }
 	 
-	 public void setZero(){
-		 start_trade_id = 0;
-		 st_canceled_id[0] = '\0';
-		 st_pending_id[0] = '\0';
-		 st_submitted_id[0] = '\0';
-	 }
-	 
-	 public ArrayList<String>InputParameters(){
-	    	ArrayList<String> para = new ArrayList<String>();
-	    	para.add(String.valueOf(start_trade_id));
-	    	para.add(String.valueOf(st_canceled_id));
-	    	para.add(String.valueOf(st_pending_id));
-	    	para.add(String.valueOf(st_submitted_id));
+	 public ArrayList<Object>InputParameters(){
+	    	ArrayList<Object> para = new ArrayList<Object>();
+	    	para.add(start_trade_id);
+	    	para.add(st_canceled_id);
+	    	para.add(st_pending_id);
+	    	para.add(st_submitted_id);
 	    	return para;
 	    }
 }
