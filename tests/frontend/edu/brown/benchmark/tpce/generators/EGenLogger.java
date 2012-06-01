@@ -6,12 +6,8 @@ import edu.brown.benchmark.tpce.TPCEConstants.DriverType;
 
 public class EGenLogger extends BaseLogger{
 
-	private ReentrantLock m_LogLock;
-	private FileWriter fileWriter;
-	private BufferedWriter buffered;
-	
-	public EGenLogger(DriverType drvType, long UniqueId, final String szFilename, BaseLogFormatter pLogFormatter){
-		super(drvType, UniqueId, pLogFormatter);
+	public EGenLogger(DriverType drvType, long uniqueID, final String szFilename, BaseLogFormatter logFormatter){
+		super(drvType, uniqueID, logFormatter);
 		try{
 			fileWriter = new FileWriter(szFilename);
 			buffered = new BufferedWriter(fileWriter);
@@ -20,16 +16,17 @@ public class EGenLogger extends BaseLogger{
 		}
 		
 	}
-	//TODO lock
-	protected boolean SendToLoggerImpl(final char[] szPrefix, String szTimestamp, final String szMsg){
-//		m_LogLock = new ReentrantLock();
+	
+	protected boolean sendToLoggerImpl(final char[] szPrefix, String szTimestamp, final String szMsg){
 		try{
 			buffered.write(szPrefix.toString() + " " + szTimestamp + " " + szMsg);
 		}catch(IOException e){
 			e.printStackTrace();
-		}/*finally{
-			m_LogLock.unlock();
-		}*/
+		}
 		return true;
 	}
+	
+	private FileWriter fileWriter;
+	private BufferedWriter buffered;
+	
 }

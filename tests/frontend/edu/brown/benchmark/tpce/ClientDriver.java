@@ -30,162 +30,147 @@ package edu.brown.benchmark.tpce;
 
 import edu.brown.benchmark.tpce.TPCEConstants.DriverType;
 import edu.brown.benchmark.tpce.generators.*;
-//import java.util.Random;
 import java.io.File;
-import java.util.Arrays;
-//import org.apache.log4j.Logger;
-//import org.voltdb.types.TimestampType;
 
 
 public class ClientDriver {
-    /*The constructor should load all the files*/
-//	private FileLoader fileloader;
-	private int m_configuredCustomerCount;
-	private int m_totalCustomerCount;
-	private int m_scaleFactor;
-	private int m_initialDays;
-	private TBrokerVolumeTxnInput       m_BrokerVolumeTxnInput;
-//	private CETxnInputGenerator         m_TxnInputGenerator;
-	private TCustomerPositionTxnInput   m_CustomerPositionTxnInput;
-	private TDataMaintenanceTxnInput    m_DataMaintenanceTxnInput;
-	private TMarketFeedTxnInput         m_MarketFeedTxnInput;
-	private TMarketWatchTxnInput        m_MarketWatchTxnInput;
-	private TSecurityDetailTxnInput     m_SecurityDetailTxnInput;
-	private TTradeCleanupTxnInput       m_TradeCleanupTxnInput;
-	private TTradeLookupTxnInput        m_TradeLookupTxnInput;
-	private TTradeOrderTxnInput         m_TradeOrderTxnInput;
-	private TTradeResultTxnInput        m_TradeResultTxnInput;
-	private TTradeStatusTxnInput        m_TradeStatusTxnInput;
-	private TTradeUpdateTxnInput        m_TradeUpdateTxnInput;
-	private TDriverCETxnSettings        m_DriverCETxnSettings;
-	private EGenLogFormatterTab         m_LogFormat;
-	private BaseLogger            		m_Logger;
-	public CE                   		m_CustomerGenerator;
-	private CESUTInterface       		m_Sut;
-	private DM                    		m_DataMaintenanceGenerator;
-	private DMSUTInterface        		m_DataMaintenanceCallback;
-	public MEE                   		m_MarketExchangeGenerator;
-	private MEESUTInterface       		m_MarketExchangeCallback;
-	private SecurityHandler				m_SecurityHandler;
-	//TODO Datetime.h
-	public int HoursPerWorkDay = 8;
 	
 	public ClientDriver(String dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays){
-		//TODO unnecessary
-		m_configuredCustomerCount = configuredCustomerCount;
-		m_totalCustomerCount = totalCustomerCount;
-		m_scaleFactor = scaleFactor;
-		m_initialDays = initialDays;
 		
 		String filename = new String("/tmp/EGenClientDriver.log");
-		m_LogFormat = new EGenLogFormatterTab();
-		m_Logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, m_LogFormat);
+		logFormat = new EGenLogFormatterTab();
+		logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, logFormat);
 		
-	    m_BrokerVolumeTxnInput = new TBrokerVolumeTxnInput();
-		m_CustomerPositionTxnInput = new TCustomerPositionTxnInput();
-		m_DataMaintenanceTxnInput = new TDataMaintenanceTxnInput();
-		m_MarketFeedTxnInput = new TMarketFeedTxnInput();
-		m_MarketWatchTxnInput = new TMarketWatchTxnInput();
-		m_SecurityDetailTxnInput = new TSecurityDetailTxnInput();
-		m_TradeCleanupTxnInput = new TTradeCleanupTxnInput();
-		m_TradeLookupTxnInput = new TTradeLookupTxnInput();
-		m_TradeOrderTxnInput = new TTradeOrderTxnInput();
-		m_TradeResultTxnInput = new TTradeResultTxnInput();
-		m_TradeStatusTxnInput = new TTradeStatusTxnInput();
-		m_TradeUpdateTxnInput = new TTradeUpdateTxnInput();
-	    m_DriverCETxnSettings = new TDriverCETxnSettings();
+	    brokerVolumeTxnInput = new TBrokerVolumeTxnInput();
+		customerPositionTxnInput = new TCustomerPositionTxnInput();
+		dataMaintenanceTxnInput = new TDataMaintenanceTxnInput();
+		marketFeedTxnInput = new TMarketFeedTxnInput();
+		marketWatchTxnInput = new TMarketWatchTxnInput();
+		securityDetailTxnInput = new TSecurityDetailTxnInput();
+		tradeCleanupTxnInput = new TTradeCleanupTxnInput();
+		tradeLookupTxnInput = new TTradeLookupTxnInput();
+		tradeOrderTxnInput = new TTradeOrderTxnInput();
+		tradeResultTxnInput = new TTradeResultTxnInput();
+		tradeStatusTxnInput = new TTradeStatusTxnInput();
+		tradeUpdateTxnInput = new TTradeUpdateTxnInput();
+	    driverCETxnSettings = new TDriverCETxnSettings();
 	    
 		File inputDir = new File(dataPath);
 	    TPCEGenerator inputFiles = new TPCEGenerator(inputDir, totalCustomerCount, scaleFactor, initialDays);
-	    m_SecurityHandler = new SecurityHandler(inputFiles);
+	    securityHandler = new SecurityHandler(inputFiles);
 	    
 	    //CE input generator
-	    m_Sut = new SUT();
-	    m_CustomerGenerator = new CE(m_Sut, m_Logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, m_DriverCETxnSettings);
-/*	    m_TxnInputGenerator = new CETxnInputGenerator(inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, 
-	    		m_initialDays * HoursPerWorkDay, m_Logger, m_DriverCETxnSettings);
-	    m_TxnInputGenerator.UpdateTunables();*/
+	    sut = new SUT();
+	    cutomerEmulator = new CE(sut, logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 0, driverCETxnSettings);
 	    
 	    // DataMaintenance input generator
-	    m_DataMaintenanceCallback = new DataMaintenanceCallback(m_DataMaintenanceTxnInput, m_TradeCleanupTxnInput);
-	    m_DataMaintenanceGenerator = new DM(m_DataMaintenanceCallback, m_Logger, inputFiles, m_configuredCustomerCount, m_totalCustomerCount, m_scaleFactor, m_initialDays, 1);
+	    dataMaintenanceCallback = new DataMaintenanceCallback(dataMaintenanceTxnInput, tradeCleanupTxnInput);
+	    dataMaintenanceGenerator = new DM(dataMaintenanceCallback, logger, inputFiles, configuredCustomerCount, totalCustomerCount, scaleFactor, initialDays, 1);
 	   	    
 	    //MarketExchange input generator
-	    m_MarketExchangeCallback = new MarketExchangeCallback(m_TradeResultTxnInput, m_MarketFeedTxnInput);
-	    m_MarketExchangeGenerator = new MEE(0, m_MarketExchangeCallback, m_Logger, m_SecurityHandler, 1, configuredCustomerCount);
-	    m_MarketExchangeGenerator.enableTickerTape();
+	    marketExchangeCallback = new MarketExchangeCallback(tradeResultTxnInput, marketFeedTxnInput);
+	    marketExchangeGenerator = new MEE(0, marketExchangeCallback, logger, securityHandler, 1, configuredCustomerCount);
+	    marketExchangeGenerator.enableTickerTape();
 	    
+	}
+	public CE getCE(){
+		return cutomerEmulator;
+	}
+	public MEE getMEE(){
+		return marketExchangeGenerator;
 	}
 	public TBrokerVolumeTxnInput generateBrokerVolumeInput() {
 		System.out.println("Executing generateBrokerVolumeInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateBrokerVolumeInput( m_BrokerVolumeTxnInput );
-	    return (m_BrokerVolumeTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateBrokerVolumeInput( brokerVolumeTxnInput );
+	    return (brokerVolumeTxnInput);
 	}
 	
 	public TCustomerPositionTxnInput generateCustomerPositionInput() {
 		System.out.println("Executing generateCustomerPositionInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateCustomerPositionInput( m_CustomerPositionTxnInput );
-	    return (m_CustomerPositionTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateCustomerPositionInput( customerPositionTxnInput );
+	    return (customerPositionTxnInput);
 	}
 
 	public TDataMaintenanceTxnInput generateDataMaintenanceInput() {
 	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
-	    m_DataMaintenanceGenerator.DoTxn();
-	    return (m_DataMaintenanceTxnInput);
+	    dataMaintenanceGenerator.DoTxn();
+	    return (dataMaintenanceTxnInput);
 	}
 
 	public TMarketFeedTxnInput generateMarketFeedInput() {
 	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
-//	    m_TxnInputGenerator.GenerateMarketFeedInput( m_MarketFeedTxnInput );
-	    return (m_MarketFeedTxnInput);
+	    return (marketFeedTxnInput);
 	}
 
 	public TMarketWatchTxnInput generateMarketWatchInput() {
 		System.out.println("Executing generateMarketWatchInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateMarketWatchInput( m_MarketWatchTxnInput );
-	    return (m_MarketWatchTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateMarketWatchInput( marketWatchTxnInput );
+	    return (marketWatchTxnInput);
 	}
 
 	public TSecurityDetailTxnInput generateSecurityDetailInput() {
 		System.out.println("Executing generateSecurityDetailInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateSecurityDetailInput( m_SecurityDetailTxnInput );
-	    return (m_SecurityDetailTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateSecurityDetailInput( securityDetailTxnInput );
+	    return (securityDetailTxnInput);
 	}
 
 	public TTradeCleanupTxnInput generateTradeCleanupInput() {
 	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
-	    m_DataMaintenanceGenerator.DoCleanupTxn();
-	    return (m_TradeCleanupTxnInput);
+	    dataMaintenanceGenerator.DoCleanupTxn();
+	    return (tradeCleanupTxnInput);
 	}
 
 	public TTradeLookupTxnInput generateTradeLookupInput() {
 		System.out.println("Executing generateTradeLookupInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeLookupInput( m_TradeLookupTxnInput );
-	    return (m_TradeLookupTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateTradeLookupInput( tradeLookupTxnInput );
+	    return (tradeLookupTxnInput);
 	}
 
-	public TTradeOrderTxnInput generateTradeOrderInput(int iTradeType, boolean bExecutorIsAccountOwner) {
+	public TTradeOrderTxnInput generateTradeOrderInput(int tradeType, boolean bExecutorIsAccountOwner) {
 		System.out.println("Executing generateTradeOrderInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeOrderInput( m_TradeOrderTxnInput, iTradeType, bExecutorIsAccountOwner );
-	    return (m_TradeOrderTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateTradeOrderInput( tradeOrderTxnInput, tradeType, bExecutorIsAccountOwner );
+	    return (tradeOrderTxnInput);
 	}
 
 	public TTradeResultTxnInput generateTradeResultInput() {
 	    System.out.println("Executing %s...\n" + "generateTradeResultInput");
-	    m_MarketExchangeGenerator.generateTradeResult();
-	    return (m_TradeResultTxnInput);
+	    marketExchangeGenerator.generateTradeResult();
+	    return (tradeResultTxnInput);
 	}
 
 	public TTradeStatusTxnInput generateTradeStatusInput() {
 		System.out.println("Executing generateTradeStatusInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeStatusInput( m_TradeStatusTxnInput );
-	    return (m_TradeStatusTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateTradeStatusInput( tradeStatusTxnInput );
+	    return (tradeStatusTxnInput);
 	}
 
 	public TTradeUpdateTxnInput generateTradeUpdateInput() {
 		System.out.println("Executing generateTradeUpdateInput ... \n");
-		m_CustomerGenerator.m_TxnInputGenerator.GenerateTradeUpdateInput( m_TradeUpdateTxnInput );
-	    return (m_TradeUpdateTxnInput);
+		cutomerEmulator.getCETxnInputGenerator().generateTradeUpdateInput( tradeUpdateTxnInput );
+	    return (tradeUpdateTxnInput);
 	}
+	
+	private TBrokerVolumeTxnInput       brokerVolumeTxnInput;
+	private TCustomerPositionTxnInput   customerPositionTxnInput;
+	private TDataMaintenanceTxnInput    dataMaintenanceTxnInput;
+	private TMarketFeedTxnInput         marketFeedTxnInput;
+	private TMarketWatchTxnInput        marketWatchTxnInput;
+	private TSecurityDetailTxnInput     securityDetailTxnInput;
+	private TTradeCleanupTxnInput       tradeCleanupTxnInput;
+	private TTradeLookupTxnInput        tradeLookupTxnInput;
+	private TTradeOrderTxnInput         tradeOrderTxnInput;
+	private TTradeResultTxnInput        tradeResultTxnInput;
+	private TTradeStatusTxnInput        tradeStatusTxnInput;
+	private TTradeUpdateTxnInput        tradeUpdateTxnInput;
+	private TDriverCETxnSettings        driverCETxnSettings;
+	private EGenLogFormatterTab         logFormat;
+	private BaseLogger            		logger;
+	private CE                   		cutomerEmulator;
+	private CESUTInterface       		sut;
+	private DM                    		dataMaintenanceGenerator;
+	private DMSUTInterface        		dataMaintenanceCallback;
+	private MEE                   		marketExchangeGenerator;
+	private MEESUTInterface       		marketExchangeCallback;
+	private SecurityHandler				securityHandler;
 
 }

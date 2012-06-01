@@ -9,16 +9,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.tpce.TPCEConstants;
 
 public class TTradeUpdateTxnInput {
-	long[]              trade_id;
-    long              acct_id;
-    long              max_acct_id;
-    int               frame_to_execute;                   // which of the frames to execute
-    int               max_trades;
-    int               max_updates;
-    TimestampType    end_trade_dts;
-    TimestampType    start_trade_dts;
-    String                symbol;
-    
+	
     public TTradeUpdateTxnInput(){
     	trade_id = new long [TPCEConstants.TradeUpdateFrame1MaxRows];
     	symbol = new String();
@@ -39,4 +30,70 @@ public class TTradeUpdateTxnInput {
     	para.add(symbol);
     	return para;
     }
+    public long[] getTradeId(){
+    	return trade_id;
+    }
+    public long getAcctId(){
+    	return acct_id;
+    }
+    public long getMaxAcctId(){
+    	return max_acct_id;
+    }
+    public int getFrameToExecute(){
+    	return frame_to_execute;
+    }
+    public int getMaxTrades(){
+    	return max_trades;
+    }
+    public int getMaxUpdates(){
+    	return max_updates;
+    }
+    public TimestampType getEndTradeDts(){
+    	return end_trade_dts;
+    }
+    public TimestampType getStartTradeDts(){
+    	return start_trade_dts;
+    }
+    public String getSymbol(){
+    	return symbol;
+    }
+    
+    public void setTradeId(int index, long tradeID){
+    	trade_id[index] = tradeID;
+    }
+    public void setAcctId(long acct_id){
+    	this.acct_id = acct_id;
+    }
+    public void setMaxAcctId(long max_acct_id){
+    	this.max_acct_id = acct_id;
+    }
+    public void setFrameToExecute(int frame_to_execute){
+    	this.frame_to_execute = frame_to_execute;
+    }
+    public void setMaxTrades(int max_trades){
+    	this.max_trades = max_trades;
+    }
+    public void setMaxUpdates(int max_updates){
+    	this.max_updates = max_updates;
+    }
+    public void setEndTradeDts(TimestampType end_trade_dts){
+    	this.end_trade_dts = end_trade_dts;
+    }
+    public void setStartTradeDts(TimestampType start_trade_dts){
+    	this.start_trade_dts = start_trade_dts;
+    }
+    public void setSymbol(String symbol){
+    	this.symbol = symbol;
+    }
+    
+    private long[]            trade_id;
+	private long              acct_id;
+	private long              max_acct_id;
+	private int               frame_to_execute;                   
+	private int               max_trades;
+	private int               max_updates;
+	private TimestampType     end_trade_dts;
+	private TimestampType     start_trade_dts;
+	private String            symbol;
+    
 }

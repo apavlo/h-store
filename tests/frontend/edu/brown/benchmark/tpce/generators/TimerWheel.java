@@ -11,91 +11,86 @@ import java.lang.reflect.*;
 
 public class TimerWheel {
 	
-	private GregorianCalendar                           m_BaseTime;
+	private GregorianCalendar                           baseTime;
 
-	private WheelTime                          m_LastTime;
-	private  WheelTime                          m_CurrentTime;
-	private  WheelTime                          m_NextTime;
-	private TWheelConfig                        m_WheelConfig;
-	private ArrayList<LinkedList< TimerWheelTimer>>  m_TimerWheel;
-	private  int                               m_NumberOfTimers;
-	private int 								m_period;
-	private int 								m_resolution;
-	private Object								m_pExpiryData;
-	private Object 								m_pExpiryObject;
-	private Method 								m_pExpiryFunction;
-	public  static final int  NO_OUTSTANDING_TIMERS = -1;
+	private WheelTime                          			lastTime;
+	private WheelTime                          			currentTime;
+	private WheelTime                          			nextTime;
+	private TWheelConfig                        		wheelConfig;
+	private ArrayList<LinkedList< TimerWheelTimer>>  	timerWheel;
+	private int                               			numberOfTimers;
+	private int 										period;
+	private int 										resolution;
+	private Object										expiryData;
+	private Object 										expiryObject;
+	private Method 										expiryFunction;
+	public  static final int  							NO_OUTSTANDING_TIMERS = -1;
 
 	 
-	public TimerWheel(Object expiryData, Object expiryObject, Method pExpiryFunction, int Period, int Resolution){
-		m_WheelConfig = new TWheelConfig(( Period * ( EGenDate.MsPerSecond / Resolution )), Resolution );
-		m_period = Period;
-		m_resolution = Resolution;
-		m_BaseTime = new GregorianCalendar();
-		m_LastTime = new WheelTime( m_WheelConfig, 0, 0 );
-		m_CurrentTime = new WheelTime( m_WheelConfig, 0, 0 );
-		m_NextTime = new WheelTime( m_WheelConfig, TWheelConfig.MaxWheelCycles, ( Period * ( EGenDate.MsPerSecond / Resolution )) - 1 );
-		m_NumberOfTimers = 0;
-		m_TimerWheel = new ArrayList<LinkedList< TimerWheelTimer>>(Period * ( EGenDate.MsPerSecond / Resolution )) ;
-		m_pExpiryData = expiryData;
-		m_pExpiryObject = expiryObject;
-		m_pExpiryFunction = pExpiryFunction;
+	public TimerWheel(Object expiryData, Object expiryObject, Method expiryFunction, int period, int resolution){
+		wheelConfig = new TWheelConfig(( period * ( EGenDate.MsPerSecond / resolution )), resolution );
+		this.period = period;
+		this.resolution = resolution;
+		baseTime = new GregorianCalendar();
+		lastTime = new WheelTime( wheelConfig, 0, 0 );
+		currentTime = new WheelTime( wheelConfig, 0, 0 );
+		nextTime = new WheelTime( wheelConfig, TWheelConfig.MaxWheelCycles, ( period * ( EGenDate.MsPerSecond / resolution )) - 1 );
+		numberOfTimers = 0;
+		timerWheel = new ArrayList<LinkedList< TimerWheelTimer>>(period * ( EGenDate.MsPerSecond / resolution )) ;
+		this.expiryData = expiryData;
+		this.expiryObject = expiryObject;
+		this.expiryFunction = expiryFunction;
 	 }
 	 
-	public boolean  Empty(){
-	    return( m_NumberOfTimers == 0 ? true : false );
+	public boolean  empty(){
+	    return( numberOfTimers == 0 ? true : false );
 	}
 
 	 
-	public int  StartTimer( double Offset){
+	public int  startTimer( double Offset){
 		GregorianCalendar                   Now = new GregorianCalendar();
-	    WheelTime                  RequestedTime = new WheelTime( m_WheelConfig , m_BaseTime, Now, (int) (Offset * ( EGenDate.MsPerSecond / m_resolution )));
-	    TimerWheelTimer    pNewTimer = new TimerWheelTimer( m_pExpiryObject, m_pExpiryFunction, m_pExpiryData );
+	    WheelTime                  RequestedTime = new WheelTime( wheelConfig , baseTime, Now, (int) (Offset * ( EGenDate.MsPerSecond / resolution )));
+	    TimerWheelTimer    pNewTimer = new TimerWheelTimer( expiryObject, expiryFunction, expiryData );
 
-	    //Update current wheel position
-	    m_CurrentTime.Set( m_BaseTime, Now );
+	    currentTime.set( baseTime, Now );
+	    expiryProcessing();
 
-	    // Since the current time has been updated, we should make sure
-	    // any outstanding timers have been processed before proceeding.
-	    ExpiryProcessing();
-
-	    m_TimerWheel.get(RequestedTime.Index()).add( pNewTimer );
-	    m_NumberOfTimers++;
-	    if( RequestedTime.m_Cycles == m_NextTime.m_Cycles ? (RequestedTime.m_Index < m_NextTime.m_Index) : ( RequestedTime.m_Cycles < m_NextTime.m_Cycles )){
-	        m_NextTime = RequestedTime;
+	    timerWheel.get(RequestedTime.getIndex()).add( pNewTimer );
+	    numberOfTimers++;
+	    if( RequestedTime.getCycles() == nextTime.getCycles() ? (RequestedTime.getIndex() < nextTime.getIndex()) : ( RequestedTime.getCycles() < nextTime.getCycles() )){
+	        nextTime = RequestedTime;
 	    }
 
-	    return( m_NextTime.Offset( m_CurrentTime ));
+	    return( nextTime.offset( currentTime ));
 	}
 
-	public int  ProcessExpiredTimers(){
+	public int  processExpiredTimers(){
 		GregorianCalendar   Now = new GregorianCalendar();
 
-	    // Update current wheel position
-	    m_CurrentTime.Set( m_BaseTime, Now );
+	    currentTime.set( baseTime, Now );
 
-	    return( ExpiryProcessing() );
+	    return( expiryProcessing() );
 	}
 
-	private int  ExpiryProcessing(){
-	    while( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles ? ( m_LastTime.m_Index < m_CurrentTime.m_Index ) : ( m_LastTime.m_Cycles < m_CurrentTime.m_Cycles )){
-	        m_LastTime.Add(1);
-	        if( ! m_TimerWheel.get( m_LastTime.Index()).isEmpty() ){
-	            ProcessTimerList( m_TimerWheel.get( m_LastTime.Index()) );
+	private int  expiryProcessing(){
+	    while( lastTime.getCycles() < currentTime.getCycles() ? ( lastTime.getIndex() < currentTime.getIndex() ) : ( lastTime.getCycles() < currentTime.getCycles() )){
+	        lastTime.add(1);
+	        if( ! timerWheel.get( lastTime.getIndex()).isEmpty() ){
+	            processTimerList( timerWheel.get( lastTime.getIndex()) );
 	        }
 	    }
-	    return( SetNextTime() );
+	    return( setNextTime() );
 	}
 
 			 
-	private void  ProcessTimerList( LinkedList<TimerWheelTimer> pList ){
+	private void  processTimerList( LinkedList<TimerWheelTimer> pList ){
 		ListIterator<TimerWheelTimer>  ExpiredTimer = pList.listIterator();
 
 	    while (ExpiredTimer.hasNext()){
 	    	try{
-	    		ExpiredTimer.next().m_pExpiryFunction.invoke(m_pExpiryObject, m_pExpiryData);
+	    		ExpiredTimer.next().getExpiryFunction().invoke(expiryObject, expiryData);
 	    		ExpiredTimer.remove();
-		        m_NumberOfTimers--;
+		        numberOfTimers--;
 	    	}catch(Exception e){
 	    		e.printStackTrace();
 	    	}
@@ -105,17 +100,17 @@ public class TimerWheel {
 	}
 
 	 
-	private int  SetNextTime(){
-	    if( 0 == m_NumberOfTimers ){
-	        m_NextTime.Set( TWheelConfig.MaxWheelCycles, ( m_period * ( EGenDate.MsPerSecond / m_resolution )) - 1 );
+	private int  setNextTime(){
+	    if( 0 == numberOfTimers ){
+	        nextTime.set( TWheelConfig.MaxWheelCycles, ( period * ( EGenDate.MsPerSecond / resolution )) - 1 );
 	        return( NO_OUTSTANDING_TIMERS );
 	    }
 	    else{
-	        m_NextTime = m_CurrentTime;
-	        while( m_TimerWheel.get(m_NextTime.Index()).isEmpty() ){
-	            m_NextTime.Add(1);
+	        nextTime = currentTime;
+	        while( timerWheel.get(nextTime.getIndex()).isEmpty() ){
+	            nextTime.add(1);
 	        }
-	        return( m_NextTime.Offset( m_CurrentTime ));
+	        return( nextTime.offset( currentTime ));
 	    }
 	}
 

@@ -8,86 +8,86 @@ import edu.brown.benchmark.tpce.TPCEConstants;
 
 public abstract class BaseLogger {
 
-	    private String                m_Prefix;
-	    private BaseLogFormatter  m_pLogFormatter;
+	    private String prefix;
+	    private BaseLogFormatter  logFormatter;
 	    
-	    protected BaseLogger(DriverType drvType, long UniqueId, BaseLogFormatter formatter){
+	    protected BaseLogger(DriverType drvType, long uniqueID, BaseLogFormatter formatter){
 	    	char[] m_Version = new char[32];
 	    		
-	    	m_pLogFormatter = formatter;
+	    	logFormatter = formatter;
 	    	EGenVersion.GetEGenVersionString(m_Version, 32);
-	    	m_Prefix = new String (TPCEConstants.szDriverTypeNames[drvType.getVal()] + "(" + m_Version.toString() + ")" + UniqueId);
+	    	prefix = new String (TPCEConstants.szDriverTypeNames[drvType.getVal()] + "(" + m_Version.toString() + ")" + uniqueID);
 	    	
 	    }
 	    
 	    
-	    protected abstract boolean SendToLoggerImpl(final char[] szPrefix, String szTimestamp, final String szMsg);
+	    protected abstract boolean sendToLoggerImpl(final char[] szPrefix, String szTimestamp, final String szMsg);
 	    
-	    public boolean SendToLogger(final char[] szPrefix, final String szMsg){
+	    public boolean sendToLogger(final char[] szPrefix, final String szMsg){
 	    	SimpleDateFormat sdf = new SimpleDateFormat();
 	    	sdf.applyPattern("dd MMM yyyy HH:mm:ss z");
 	    	Date curTime = new Date();
-	    	return SendToLoggerImpl(szPrefix, sdf.format(curTime), szMsg);
+	    	return sendToLoggerImpl(szPrefix, sdf.format(curTime), szMsg);
 	    }
 	    
 	    // Strings
-	    public boolean SendToLogger(String str){
-	    	return SendToLogger(m_Prefix.toCharArray(), str);
+	    public boolean sendToLogger(String str){
+	    	return sendToLogger(prefix.toCharArray(), str);
 	    }
 
 	    // Parameter Structures
-	    public boolean SendToLogger(LoaderSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(LoaderSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(DriverGlobalSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(DriverGlobalSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(DriverCESettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(DriverCESettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(DriverCEPartitionSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(DriverCEPartitionSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(DriverMEESettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(DriverMEESettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(DriverDMSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(DriverDMSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(BrokerVolumeSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(BrokerVolumeSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(CustomerPositionSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(CustomerPositionSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(MarketWatchSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(MarketWatchSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(SecurityDetailSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(SecurityDetailSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(TradeLookupSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(TradeLookupSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(TradeOrderSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(TradeOrderSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(TradeUpdateSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(TradeUpdateSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(TxnMixGeneratorSettings parms){
-	    	return SendToLogger(m_pLogFormatter.GetLogOutput(parms ));
+	    public boolean sendToLogger(TxnMixGeneratorSettings parms){
+	    	return sendToLogger(logFormatter.getLogOutput(parms ));
 	    }
-	    public boolean SendToLogger(TDriverCETxnSettings parms){
+	    public boolean sendToLogger(TDriverCETxnSettings parms){
 	    	boolean result = false;
-	    	result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.BV_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.CP_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.MW_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.SD_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.TL_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.TO_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.TU_settings ));
-	        result |= SendToLogger(m_pLogFormatter.GetLogOutput(parms.TxnMixGenerator_settings ));
+	    	result |= sendToLogger(logFormatter.getLogOutput(parms.BV_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.CP_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.MW_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.SD_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.TL_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.TO_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.TU_settings ));
+	        result |= sendToLogger(logFormatter.getLogOutput(parms.TxnMixGenerator_settings ));
 	        return result;
 	    }
 }

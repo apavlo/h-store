@@ -1,55 +1,16 @@
 package edu.brown.benchmark.tpce.generators;
 
-//TODO unsure
-/*
-public abstract class myException extends Exception{
-
-	private static final long serialVersionUID = 1L;
+class CheckException extends Exception{
 	
-	protected Throwable myThrow;
-	private String m_location;
-	private int m_idMsg;
-	
-	public myException(){
-		super();
-		m_location = null;
-		m_idMsg = exceptionType.INV_ERROR_CODE;
-	}
-	
-	public myException(String szLoc){
-		super(szLoc);
-		m_location = szLoc;
-		m_idMsg = exceptionType.INV_ERROR_CODE;
-	}
-	
-	public myException(int idMsg){
-		super();
-		m_location = null;
-		m_idMsg = idMsg;
-	}
-	public myException(int idMsg, String szLoc){
-		super(szLoc);
-		m_location = szLoc;
-		m_idMsg = idMsg;
-	}
-	public abstract String errorText();
-	public abstract int errorType();
-}
-*/
-class checkException extends Exception{
-	
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 	
 	private Throwable myThrow;
 	
-	public checkException(){
+	public CheckException(){
 		super();
 	}
 	
-	public checkException(String name, Throwable myThrow){
+	public CheckException(String name, Throwable myThrow){
 		super(name, myThrow);
 		this.myThrow = myThrow;
 	}

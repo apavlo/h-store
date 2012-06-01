@@ -6,12 +6,11 @@ public class MarketExchangeCallback extends MEESUTInterface{
      		m_TradeResultTxnInput = trTxnInput;
             m_MarketFeedTxnInput = mfTxnInput;
      	} 
-    //TODO
+    
         public boolean TradeResult( TTradeResultTxnInput pTxnInput ) {
             
             m_TradeResultTxnInput.trade_id = pTxnInput.trade_id;
             m_TradeResultTxnInput.trade_price = pTxnInput.trade_price;
-            // strncpy(m_TradeResultTxnInput.st_completed_id, pTxnInput.st_completed_id, sizeof(pTxnInput.st_completed_id));
             
             return (true);
         }

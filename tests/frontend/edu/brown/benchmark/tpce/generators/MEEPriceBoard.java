@@ -7,67 +7,66 @@ import edu.brown.benchmark.tpce.util.EGenDate;
 import edu.brown.benchmark.tpce.util.EGenMoney;
 
 public class MEEPriceBoard {
-	public MEEPriceBoard( int TradingTimeSoFar, Date pBaseTime, Date pCurrentTime, SecurityHandler pSecurityFile, int configuredCustomerCount){
-		m_fMeanInTheMoneySubmissionDelay = 1.0 ;
-		m_Security = new MEESecurity();
-		m_pSecurityFile = pSecurityFile;
-		m_iNumberOfSecurities = 0;
+	public MEEPriceBoard( int tradingTimeSoFar, Date baseTime, Date currentTime, SecurityHandler securityFile, int configuredCustomerCount){
+		fMeanInTheMoneySubmissionDelay = 1.0 ;
+		security = new MEESecurity();
+		this.securityFile = securityFile;
+		numberOfSecurities = 0;
 		
-		m_iNumberOfSecurities = SecurityHandler.getSecurityNum(configuredCustomerCount);
-		m_Security.init( TradingTimeSoFar, pBaseTime, pCurrentTime, m_fMeanInTheMoneySubmissionDelay );
-		//TODO IMPORTANT
-//		m_pSecurityFile.LoadSymbolToIdMap();
+		numberOfSecurities = SecurityHandler.getSecurityNum(configuredCustomerCount);
+		security.init( tradingTimeSoFar, baseTime, currentTime, fMeanInTheMoneySubmissionDelay );
+		securityFile.loadSymbolToIdMap();
 		
 	}
 	
-	public	void getSymbol(long SecurityIndex,String szOutput, int outputLen){
-		szOutput = m_pSecurityFile.createSymbol( SecurityIndex, outputLen );
+	public	void getSymbol(long securityIndex,String szOutput, int outputLen){
+		szOutput = securityFile.createSymbol( securityIndex, outputLen );
 	}
 	
 	public	EGenMoney getMinPrice(){
-		return( m_Security.getMinPrice( ));
+		return( security.getMinPrice( ));
 	}
 	
 	public	EGenMoney   getMaxPrice(){
-		return( m_Security.getMaxPrice( ));
+		return( security.getMaxPrice( ));
 	}
 	
-	public EGenMoney   getCurrentPrMEESecurityice( long SecurityIndex ){
-		return( m_Security.getCurrentPrice( SecurityIndex ));
+	public EGenMoney   getCurrentPrMEESecurityice( long securityIndex ){
+		return( security.getCurrentPrice( securityIndex ));
 	}
 	
-	public EGenMoney  getCurrentPrice( long SecurityIndex )
+	public EGenMoney  getCurrentPrice( long securityIndex )
 	{
-	    return( m_Security.getCurrentPrice( SecurityIndex ));
+	    return( security.getCurrentPrice( securityIndex ));
 	}
 
-	public EGenMoney   getCurrentPrice( String  pSecuritySymbol ){
-		return new EGenMoney(0);
-		//		return( m_Security.getCurrentPrice( m_pSecurityFile.getIndex( pSecuritySymbol )));//needs LoadSymbolToIdMap
+	public EGenMoney   getCurrentPrice( String  securitySymbol ){
+		return( security.getCurrentPrice( securityFile.getIndex( securitySymbol )));
 	}
 	
-	public EGenMoney   CalculatePrice(String pSecuritySymbol, double fTime ){
-		return new EGenMoney(0);
-		//		return( m_Security.CalculatePrice( m_pSecurityFile.getIndex( pSecuritySymbol ), fTime ));
+	public EGenMoney   CalculatePrice(String securitySymbol, double fTime ){
+		return( security.calculatePrice( securityFile.getIndex( securitySymbol ), fTime ));
 	}
 	
-	public double   getSubmissionTime(String pSecuritySymbol, double fPendingTime, EGenMoney fLimitPrice, TradeType eTradeTypeID){
-		return 0.00;
-//		return( m_Security.getSubmissionTime( m_pSecurityFile.getIndex( pSecuritySymbol ), fPendingTime, fLimitPrice, eTradeTypeID ));
+	public double   getSubmissionTime(String securitySymbol, double fPendingTime, EGenMoney fLimitPrice, TradeType eTradeTypeID){
+		return( security.getSubmissionTime( securityFile.getIndex( securitySymbol ), fPendingTime, fLimitPrice, eTradeTypeID ));
 	}
 	
-	public double   getSubmissionTime(long SecurityIndex, double fPendingTime, EGenMoney fLimitPrice, TradeType eTradeTypeID){
-		return( m_Security.getSubmissionTime( SecurityIndex, fPendingTime, fLimitPrice, eTradeTypeID ));
+	public double   getSubmissionTime(long securityIndex, double fPendingTime, EGenMoney fLimitPrice, TradeType eTradeTypeID){
+		return( security.getSubmissionTime( securityIndex, fPendingTime, fLimitPrice, eTradeTypeID ));
 	}
 	
-	public double   getCompletionTime(long SecurityIndex,double fSubmissionTime, EGenMoney pCompletionPrice ){
-		Object obj = m_Security.getCompletionTimeAndPrice( SecurityIndex, fSubmissionTime)[0];
+	public double   getCompletionTime(long securityIndex,double fSubmissionTime, EGenMoney pCompletionPrice ){
+		Object obj = security.getCompletionTimeAndPrice( securityIndex, fSubmissionTime)[0];
 		String str = obj.toString();
 		return Double.valueOf(str).doubleValue();
 	}
 	
-	public long m_iNumberOfSecurities;
-	private double              m_fMeanInTheMoneySubmissionDelay;
-    private MEESecurity        m_Security;
-    private SecurityHandler      m_pSecurityFile;
+	public long getNumOfSecurities(){
+		return numberOfSecurities;
+	}
+	private long 				numberOfSecurities;
+	private double              fMeanInTheMoneySubmissionDelay;
+    private MEESecurity         security;
+    private SecurityHandler     securityFile;
 }
