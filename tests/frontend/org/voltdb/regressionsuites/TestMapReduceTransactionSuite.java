@@ -37,7 +37,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         super(name);
     }
     
-    @Test
+    //@Test
     public void testMMRquery1 () throws IOException, ProcCallException {
         //int num_partitions = this.getServerConfig().getPartitionCount();
         Client client = this.getClient();
@@ -85,11 +85,21 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
                 rtLists.get(index).set(3, ((Integer)rtLists.get(index).get(3) ).intValue()+ 1);
             }
         }
+        int rowct = 0;
+        for (List row: rtLists) {
+            String msg = "[data]row "+ rowct++ + ":";
+            for (Object element: row) {
+                msg += element.toString();
+                msg += ", ";
+            }
+            System.out.println(msg);
+        }
+        
         
         // execute MapReduce Transaction to check the result
         ClientResponse cr = client.callProcedure("MRquery1");
         assertEquals(Status.OK, cr.getStatus());
-        System.out.println("I am starting to compare the results...");
+        System.out.println("I am starting to compare the results...\n" + cr.getResults()[0]);
         int index = -1;
         // 0:ol_number,1:sum(ol_quantity),2:SUM(ol_amount),3:weight(ol_quantity),4:weight(ol_amount),5:sum
         for ( VoltTable v : cr.getResults()) {
@@ -161,6 +171,11 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         ClientResponse cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
         assertEquals(Status.OK, cr.getStatus());
         
+        cr = client.callProcedure("OLAPQuery1");
+        assertEquals(Status.OK, cr.getStatus());
+        
+        System.out.println("Load data into db...\n" + cr.getResults()[0]);
+        
         return (vt);
     }
     
@@ -181,20 +196,20 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #1
         // One site with four partitions running in this JVM
-        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
-        
-        // CLUSTER CONFIG #2
-        // Two sites, each with two partitions running in separate JVMs
-//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setTestNameSuffix("mapBlocking_reduceBlocking");
-//        config.setConfParameter("site.mr_map_blocking", true);
-//        config.setConfParameter("site.mr_reduce_blocking", true);
+//        config = new LocalSingleProcessServer(PREFIX + "-twoPart.jar", 2, BackendTarget.NATIVE_EE_JNI);
 //        success = config.compile(project);
 //        assert(success);
 //        builder.addServerConfig(config);
+        
+        // CLUSTER CONFIG #2
+        // Two sites, each with two partitions running in separate JVMs
+        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", true);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 //        
 //        // CLUSTER CONFIG #3
 //        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
