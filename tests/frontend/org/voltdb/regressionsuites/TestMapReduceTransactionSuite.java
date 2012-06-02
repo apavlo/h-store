@@ -220,13 +220,13 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         builder.addServerConfig(config);
 //                
 //        // CLUSTER CONFIG #4
-        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
-        config.setTestNameSuffix("mapNonBlocking");
-        config.setConfParameter("site.mr_map_blocking", false);
-        config.setConfParameter("site.mr_reduce_blocking", false);
-        success = config.compile(project);
-        assert(success);
-        builder.addServerConfig(config);
+//        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+//        config.setTestNameSuffix("mapNonBlocking");
+//        config.setConfParameter("site.mr_map_blocking", false);
+//        config.setConfParameter("site.mr_reduce_blocking", false);
+//        success = config.compile(project);
+//        assert(success);
+//        builder.addServerConfig(config);
         
         return builder;
     }
