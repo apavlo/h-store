@@ -129,6 +129,8 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
         } // FOR
         if (debug.get())
+            LOG.debug(String.format("MR helper thread on site %d", hstore_site.getSiteId()));
+        if (debug.get())
             LOG.debug(String.format("Created %d VoltTables for SHUFFLE phase of %s", partitionedTables.size(), ts));
 
         VoltTable table = null;
@@ -148,17 +150,20 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
                     LOG.fatal("Failed to split input table into partitions", e);
                     throw new RuntimeException(e.getMessage());
                 }
-                if (trace.get())
-                    LOG.trace(Arrays.toString(table.getRowArray()) + " => " + rowPartition);
+                if (debug.get())
+                    LOG.debug(Arrays.toString(table.getRowArray()) + " => " + rowPartition);
                 assert (rowPartition >= 0);
                 // this adds the active row from table
                 partitionedTables.get(rowPartition).add(row);
                 rp = rowPartition;
             } // WHILE
-            if (debug.get())
-                LOG.debug(String.format("<SendTable to Dest Partition>:%d\n %s", rp, partitionedTables.get(rp)));
 
         } // FOR
+        
+        for (int p: hstore_site.getAllPartitionIds()) {
+            if (debug.get())
+                LOG.debug(String.format("<SendTable to Dest Partition>:%d\n %s", p, partitionedTables.get(p)));
+        }
 
         // The SendDataCallback should invoke the TransactionMapCallback to tell
         // it that
