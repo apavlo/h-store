@@ -45,7 +45,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         
         assertEquals(vt.getColumnCount(), 10);
         
-        // Computer Query1 information
+        // Compute Query1 information
         /* MapReduce OLAP Experimental Queries
         addStmtProcedure("OLAPQuery1",
                          "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount), " +
@@ -121,9 +121,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
             }
             v.resetRowPosition();
         }
-        
     }
-    
     
     protected VoltTable loadTable_ORDER_LINE(Client client) throws IOException, ProcCallException {
         int num_partitions = this.getServerConfig().getPartitionCount();
@@ -153,6 +151,7 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         Random rand = new Random(0);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         int col_cnt = vt.getColumnCount();
+        ClientResponse cr = null;
         for (int i = 0; i < num_tuples; i++) {
             Object row[] = new Object[col_cnt];
             int col = 0;
@@ -160,21 +159,21 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
             row[col++] = i;
             row[col++] = i;
             row[col++] = rand.nextInt(10); // OL_NUMBER
-            col+=3; // disregard OL_I_ID,OL_SUPPLY_W_ID,OL_DELIVERY_D
+            //col+=3; // disregard OL_I_ID,OL_SUPPLY_W_ID,OL_DELIVERY_D
+            row[col++] = i;
+            row[col++] = i;
+            row[col++] = new Long(i + 100);
+            
             row[col++] = i * 2;
             row[col++] = 1.2 * i;
             row[col++] = "null message";
             assertEquals(col, 10);
             vt.addRow(row);
+            //cr = client.callProcedure("InsertOrderLine", row);
         } // FOR
         
-        ClientResponse cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
+        cr = client.callProcedure("@LoadMultipartitionTable", catalog_tbl.getName(), vt);
         assertEquals(Status.OK, cr.getStatus());
-        
-        cr = client.callProcedure("OLAPQuery1");
-        assertEquals(Status.OK, cr.getStatus());
-        
-        System.out.println("Load data into db...\n" + cr.getResults()[0]);
         
         return (vt);
     }
@@ -212,22 +211,22 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         builder.addServerConfig(config);
 //        
 //        // CLUSTER CONFIG #3
-//        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
-//        config.setConfParameter("site.mr_map_blocking", true);
-//        config.setConfParameter("site.mr_reduce_blocking", false);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", false);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 //                
 //        // CLUSTER CONFIG #4
-//        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setTestNameSuffix("mapNonBlocking");
-//        config.setConfParameter("site.mr_map_blocking", false);
-//        config.setConfParameter("site.mr_reduce_blocking", false);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapNonBlocking");
+        config.setConfParameter("site.mr_map_blocking", false);
+        config.setConfParameter("site.mr_reduce_blocking", false);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
         
         return builder;
     }
