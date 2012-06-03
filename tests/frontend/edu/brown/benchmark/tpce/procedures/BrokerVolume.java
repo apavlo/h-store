@@ -12,6 +12,10 @@
  *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
  *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
+ *  Modifications by:                                                      *
+ *  Alex Kalinin (akalinin@cs.brown.edu)                                   *
+ *  http://www.cs.brown.edu/~akalinin/                                     *
+ *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -33,42 +37,60 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-
-import edu.brown.benchmark.tpce.util.ProcedureUtil;
+import org.voltdb.VoltType;
 
 /**
  * BrokerVolume Transaction <br/>
  * TPC-E Section 3.3.7
+ * 
+ * H-Store quirks:
+ *    1) SUM(TR_QTY * TR_BID_PRICE) is not supported, which ruins group by and order by clauses as well -- moved to Java.
+ *    2) It seems there is no way to do "B_NAME in (broker_list)". So, we submit one SQL query for each broker separately. 
  */
 @ProcInfo(partitionInfo = "TRADE.T_CA_ID: 1", singlePartition = false)
 public class BrokerVolume extends VoltProcedure {
 
-    // Note: sum(TR_QTY * TR_BID_PRICE) not supported
-    // Compiling this statement results in
-    // "java.lang.OutOfMemoryError: GC overhead limit exceed"
-    public final SQLStmt get = new SQLStmt("select B_NAME "
-    // +" , sum(TR_QTY * TR_BID_PRICE) "
-            + "from TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY " + "where TR_S_SYMB = S_SYMB and " + "S_CO_ID = CO_ID and " + "CO_IN_ID = IN_ID and " + "SC_ID = IN_SC_ID and "
-            // FIXME + "B_NAME in (?) and "
-            + "B_NAME = ? and " + " SC_NAME = ? " + "group by B_NAME "
-    // + "order by 2 DESC"
+    public final SQLStmt getBrokerInfo = new SQLStmt("select B_NAME, TR_QTY * TR_BID_PRICE " +
+            "from TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY, CUSTOMER_ACCOUNT " +
+            "where TR_CA_ID = CA_ID and CA_B_ID = B_ID and TR_S_SYMB = S_SYMB and " +
+            "S_CO_ID = CO_ID and CO_IN_ID = IN_ID and SC_ID = IN_SC_ID and " +
+            "B_NAME = ? and SC_NAME = ?"
     );
 
     public VoltTable[] run(String[] broker_list, String sector_name) throws VoltAbortException {
-
-        Map<String, Object[]> ret = new HashMap<String, Object[]>();
-        int row_count = ProcedureUtil.execute(ret, this, get, new Object[] { broker_list[0], sector_name }, new String[] { "broker_name", "volume" }, new Object[] { "B_NAME", 1 });
-
-        ret.put("list_len", new Integer[] { row_count });
-
-        return ProcedureUtil.mapToTable(ret);
+        // it seems we should return only the volumes
+        VoltTable result = new VoltTable(new VoltTable.ColumnInfo("volume", VoltType.FLOAT));
+        
+        List<Double> volumes = new ArrayList<Double>();
+        for (int i = 0; i < broker_list.length; i++) {
+            voltQueueSQL(getBrokerInfo, broker_list[i], sector_name);
+            VoltTable brok_res = voltExecuteSQL()[0];
+            
+            if (brok_res.getRowCount() > 0) {
+                double vol = 0;
+                for (int j = 0; j < brok_res.getRowCount(); j++) {
+                    vol += brok_res.fetchRow(j).getDouble(1);
+                }
+                volumes.add(vol);
+            }
+        }
+        
+        // sort the values
+        Collections.sort(volumes);
+        
+        // populating the result table in reverse order (since we need order by desc)
+        for (int i = volumes.size() - 1; i >= 0; i--) {
+            result.addRow(volumes.get(i));
+        }
+        
+        return new VoltTable[] {result};
     }
-
 }
