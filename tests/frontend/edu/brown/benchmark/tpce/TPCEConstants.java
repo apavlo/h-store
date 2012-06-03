@@ -102,6 +102,8 @@ public abstract class TPCEConstants {
     public static final int dailyMarketBaseMinute  = 0;
     public static final int dailyMarketBaseSecond  = 0;
     public static final int dailyMarketBaseMsec    = 0;
+    public static final int dailyMarketYears = 5;    //number of years of history in DAILY_MARKET
+
     
     public static final int initialTradePopulationBaseYear      = 2005;
     public static final int initialTradePopulationBaseMonth     = 0; // January, since months are zero-based in Java
@@ -119,6 +121,13 @@ public abstract class TPCEConstants {
      */
     public static final double minSecPrice = 20.00;
     public static final double maxSecPrice = 30.00;
+    
+    /*
+     * Send-To-Market Actions for Trade-Order
+     * 
+     */
+    public static final int eMEEProcessOrder = 0;
+    public static final int eMEESetLimitOrderTrigger = 1;
 
     //
     // Table Names

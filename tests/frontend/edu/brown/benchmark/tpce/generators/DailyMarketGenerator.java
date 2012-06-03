@@ -43,7 +43,6 @@ import edu.brown.benchmark.tpce.util.EGenRandom;
 public class DailyMarketGenerator extends TableGenerator {
     private final int rngSkipOneRowDailyMarket = 2; // for the random generated to skip
     private final int tradeDaysInYear = 261;   //the number of trading days in a year (for DAILY_MARKET)
-    private final int dailyMarketYears = 5;    //number of years of history in DAILY_MARKET
     
     /*
      * Different constants for generating fake market values
@@ -60,7 +59,7 @@ public class DailyMarketGenerator extends TableGenerator {
     
     private final long securitiesNum;
     private final long securitiesStart;
-    private final int rowsToGenerateForSecurity = dailyMarketYears * tradeDaysInYear; // we generate a bunch of tuples for each security
+    private final int rowsToGenerateForSecurity = TPCEConstants.dailyMarketYears * tradeDaysInYear; // we generate a bunch of tuples for each security
     private int rowsGeneratedForSecurity = rowsToGenerateForSecurity; // to force reset at the very first record
     private final int startDayNo; // current day number for the security
     private int dayInc;
