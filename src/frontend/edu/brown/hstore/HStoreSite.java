@@ -1865,7 +1865,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status != Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Collection<Integer> most_touched = touched.getMaxCountValues();
-            assert(most_touched != null);
+            assert(most_touched != null) :
+                "Failed to get most touched partition for " + orig_ts + "\n" + touched;
             
             // HACK: We should probably decrement the base partition by one 
             // so that we only consider where they actually executed queries
