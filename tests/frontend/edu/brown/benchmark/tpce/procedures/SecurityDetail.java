@@ -78,9 +78,9 @@ public class SecurityDetail extends VoltProcedure {
                 "EX_ID = S_EX_ID AND CA.AD_ZC_CODE = ZCA.ZC_CODE and EA.AD_ZC_CODE = ZEA.ZC_CODE");
 */
     public final SQLStmt getInfo1 = new SQLStmt(
-            "select S_NAME " +
-            "from SECURITY " +
-            "where S_SYMB = ?");
+            "select S_NAME, CO_ID " +
+            "from SECURITY, COMPANY " +
+            "where S_SYMB = ? and CO_ID = S_CO_ID");
     
     public final SQLStmt getInfo2 = new SQLStmt("select CO_NAME, IN_NAME from COMPANY_COMPETITOR, COMPANY, INDUSTRY " +
             "where CP_CO_ID = ? and CO_ID = CP_COMP_CO_ID and IN_ID = CP_IN_ID limit 3");
