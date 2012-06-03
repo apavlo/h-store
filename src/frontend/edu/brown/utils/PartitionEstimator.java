@@ -45,7 +45,6 @@ import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
@@ -564,7 +563,7 @@ public class PartitionEstimator {
                             Column col1 = (Column) entry.getSecond();
 
                             if (!entry.getComparisonExp().equals(ExpressionType.COMPARE_EQUAL)) {
-                                LOG.warn("Unsupported non-equality join in " + catalog_stmt + ": " + entry);
+                                LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
                             } else {
                                 if (!column_joins.containsKey(col0))
                                     column_joins.put(col0, new TreeSet<Column>());
