@@ -67,7 +67,7 @@ public class TM1Loader extends Loader {
 
     @Override
     public void load() {
-        if (d) LOG.debug(String.format("Starting TM1Loader [subscriberSize=%d, scaleFactor=%d]",
+        if (d) LOG.debug(String.format("Starting TM1Loader [subscriberSize=%d, scaleFactor=%.2f]",
                                        this.subscriberSize, this.getScaleFactor()));
 
         final Catalog catalog = this.getCatalog();

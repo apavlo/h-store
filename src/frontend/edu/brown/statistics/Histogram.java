@@ -241,6 +241,10 @@ public class Histogram<X> implements JSONSerializable {
      */
     @SuppressWarnings("unchecked")
     private synchronized void calculateInternalValues() {
+        // Do this before we check before we're dirty
+        if (this.min_count_values == null) this.min_count_values = new ArrayList<X>();
+        if (this.max_count_values == null) this.max_count_values = new ArrayList<X>();
+        
         if (this.dirty == false) return;
         
         // New Min/Max Counts
@@ -251,9 +255,6 @@ public class Histogram<X> implements JSONSerializable {
         this.min_count = Long.MAX_VALUE;
         this.min_value = null;
         this.max_value = null;
-        
-        if (this.min_count_values == null) this.min_count_values = new ArrayList<X>();
-        if (this.max_count_values == null) this.max_count_values = new ArrayList<X>();
         
         for (Entry<X, Long> e : this.histogram.entrySet()) {
             X value = e.getKey();
