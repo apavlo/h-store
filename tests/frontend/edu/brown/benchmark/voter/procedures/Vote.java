@@ -47,19 +47,23 @@ public class Vote extends VoltProcedure {
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
-														   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;");
+	   "SELECT contestant_number FROM contestants WHERE contestant_number = ?;"
+    );
 	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt checkVoterStmt = new SQLStmt(
-													  "SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;");
+		"SELECT num_votes FROM v_votes_by_phone_number WHERE phone_number = ?;"
+    );
 	
     // Checks an area code to retrieve the corresponding state
     public final SQLStmt checkStateStmt = new SQLStmt(
-													  "SELECT state FROM area_code_state WHERE area_code = ?;");
+		"SELECT state FROM area_code_state WHERE area_code = ?;"
+    );
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-													  "INSERT INTO votes (phone_number, state, contestant_number) VALUES (?, ?, ?);");
+		"INSERT INTO votes (phone_number, state, contestant_number) VALUES (?, ?, ?);"
+    );
 	
     public long run(long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
