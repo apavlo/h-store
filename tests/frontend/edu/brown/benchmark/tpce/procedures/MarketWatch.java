@@ -124,7 +124,7 @@ public class MarketWatch extends VoltProcedure {
             vt = voltExecuteSQL()[0];
             
             assert vt.getRowCount() == 1; 
-            double old_price = vt.fetchRow(0).getDouble("LT_PRICE");
+            double old_price = vt.fetchRow(0).getDouble("DM_CLOSE");
 
             old_mkt_cap += s_num_out * old_price;
             new_mkt_cap += s_num_out * new_price;
