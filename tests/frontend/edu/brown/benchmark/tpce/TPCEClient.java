@@ -153,9 +153,21 @@ public class TPCEClient extends BenchmarkComponent {
             LOG.error("Unable to start benchmark. Missing '" + "TPCE_LOADER_FILES" + "' parameter");
             System.exit(1);
         }
+        
         int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
+        if (m_extraParams.containsKey("TPCE_TOTAL_CUSTOMERS")) {
+            total_customers = Integer.valueOf(m_extraParams.get("TPCE_TOTAL_CUSTOMERS"));
+        }
+        
         int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
+        if (m_extraParams.containsKey("TPCE_SCALE_FACTOR")) {
+            scale_factor = Integer.valueOf(m_extraParams.get("TPCE_SCALE_FACTOR"));
+        }
+        
         int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
+        if (m_extraParams.containsKey("TPCE_INITIAL_DAYS")) {
+            initial_days = Integer.valueOf(m_extraParams.get("TPCE_INITIAL_DAYS"));
+        }
 
         this.egen_clientDriver = new EGenClientDriver(m_extraParams.get("TPCE_LOADER_FILES"), total_customers, scale_factor, initial_days);
     }
