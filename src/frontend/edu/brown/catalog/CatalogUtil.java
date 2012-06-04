@@ -172,7 +172,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         private final Map<Integer, Set<Pair<String, Integer>>> EXECUTION_SITES = new HashMap<Integer, Set<Pair<String, Integer>>>();
 
-        private final Map<Pair<String, Set<String>>, ColumnSet> EXTRACTED_COLUMNSETS = new HashMap<Pair<String, Set<String>>, ColumnSet>();
+        private final Map<Pair<String, Collection<String>>, ColumnSet> EXTRACTED_COLUMNSETS = new HashMap<Pair<String, Collection<String>>, ColumnSet>();
 
         /**
          * Construct the internal PARTITION_XREF cache map
@@ -1779,7 +1779,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static ColumnSet extractStatementColumnSet(final Statement catalog_stmt, final boolean convert_params, final Table... catalog_tables) throws Exception {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         final Set<Table> tables = new HashSet<Table>();
-        final Set<String> table_keys = new HashSet<String>();
+        final Collection<String> table_keys = new HashSet<String>();
         for (Table table : catalog_tables) {
             // For some reason we get a null table when we use itemsArray up
             // above
@@ -1791,7 +1791,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Pair<String, Set<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
+        Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
         ColumnSet cset = cache.EXTRACTED_COLUMNSETS.get(key);
         if (cset == null) {
             cset = new ColumnSet();
@@ -1829,14 +1829,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
 
         final Set<Table> tables = new HashSet<Table>();
-        final Set<String> table_keys = new HashSet<String>();
+        final Collection<String> table_keys = new HashSet<String>();
         for (Table table : catalog_tables) {
             tables.add(table);
             table_keys.add(CatalogKey.createKey(table));
         } // FOR
 
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Pair<String, Set<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
+        Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_stmt), table_keys);
         ColumnSet cset = cache.EXTRACTED_COLUMNSETS.get(key);
         if (cset == null) {
             cset = new ColumnSet();
@@ -1853,7 +1853,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param root_exp
      * @param catalog_tables
      */
-    public static ColumnSet extractFragmentColumnSet(final PlanFragment catalog_frag, final boolean convert_params, final Table... catalog_tables) throws Exception {
+    public static ColumnSet extractFragmentColumnSet(final PlanFragment catalog_frag,
+                                                       final boolean convert_params,
+                                                       final Collection<Table> catalog_tables) throws Exception {
         final Statement catalog_stmt = (Statement) catalog_frag.getParent();
         final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         // if (catalog_frag.guid == 279) LOG.setLevel(Level.DEBUG);
@@ -1862,16 +1864,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         // We always have to examine the fragment (rather than just the entire
         // Statement), because
         // we don't know whehter they want the multi-sited version or not
-        final Set<Table> tables = new HashSet<Table>();
-        final Set<String> table_keys = new HashSet<String>();
-        for (Table table : catalog_tables) {
-            tables.add(table);
-            table_keys.add(CatalogKey.createKey(table));
-        } // FOR
+        final Collection<String> table_keys = CatalogKey.createKeys(catalog_tables);
 
-        LOG.debug("Extracting column set for fragment #" + catalog_frag.getName() + ": " + tables);
+        LOG.debug("Extracting column set for fragment #" + catalog_frag.getName() + ": " + catalog_tables);
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Pair<String, Set<String>> key = Pair.of(CatalogKey.createKey(catalog_frag), table_keys);
+        Pair<String, Collection<String>> key = Pair.of(CatalogKey.createKey(catalog_frag), table_keys);
         ColumnSet cset = cache.EXTRACTED_COLUMNSETS.get(key);
         if (cset == null) {
             AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
@@ -1879,7 +1876,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // PlanNodeUtil.debug(root_node));
 
             cset = new ColumnSet();
-            CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
+            CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, catalog_tables);
             cache.EXTRACTED_COLUMNSETS.put(key, cset);
         }
 

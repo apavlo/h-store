@@ -79,6 +79,9 @@ import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 
 /**
+ * This class is used to calculate what partitions various operations
+ * will need to execute on. It's not actually estimating. These are deterministic
+ * calculations. 
  * @author pavlo
  */
 public class PartitionEstimator {
@@ -182,14 +185,19 @@ public class PartitionEstimator {
          * broadcast (unless it is replicated)
          * @param catalog_tbls
          */
-        public void markAsBroadcast(Table... catalog_tbls) {
+        public void markAsBroadcast(Table...catalog_tbls) {
             for (Table catalog_tbl : catalog_tbls) {
                 String table_key = CatalogKey.createKey(catalog_tbl);
                 this.table_keys.add(table_key);
                 this.broadcast_tables.add(table_key);
             } // FOR
         }
-
+        public void markAsBroadcast(Collection<Table> catalog_tbls) {
+            for (Table catalog_tbl : catalog_tbls) {
+                this.markAsBroadcast(catalog_tbl);
+            }
+        }
+        
         public boolean hasBroadcast() {
             return (this.broadcast_tables.isEmpty() == false);
         }
@@ -235,8 +243,10 @@ public class PartitionEstimator {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("[IsValid=" + this.is_valid + ", ").append("Tables=" + this.table_keys + ", ").append("Broadcast=" + this.broadcast_tables + ", ")
-                    .append("ParameterMappings=" + super.toString() + "]");
+            sb.append("[IsValid=" + this.is_valid + ", ")
+              .append("Tables=" + this.table_keys + ", ")
+              .append("Broadcast=" + this.broadcast_tables + ", ")
+              .append("ParameterMappings=" + super.toString() + "]");
             return (sb.toString());
         }
     }; // END CLASS
@@ -377,6 +387,12 @@ public class PartitionEstimator {
             if (catalog_tbl.getSystable())
                 continue;
             Column catalog_col = catalog_tbl.getPartitioncolumn();
+            
+            // Use the underlying partitioning column for views
+            if (catalog_tbl.getMaterializer() != null) {
+                catalog_col = catalog_tbl.getMaterializer().getPartitioncolumn();
+            }
+            
             if (catalog_col instanceof VerticalPartitionColumn) {
                 catalog_col = ((VerticalPartitionColumn) catalog_col).getHorizontalColumn();
                 assert ((catalog_col instanceof VerticalPartitionColumn) == false) : catalog_col;
@@ -446,20 +462,15 @@ public class PartitionEstimator {
         if (debug.get())
             LOG.debug("Generating partitioning cache for " + catalog_stmt);
 
-        // Important: Work through the fragments in reverse so that we go from
-        // the bottom of the tree up.
-        // We are assuming that we can get the StmtParameter->Column mapping
-        // that we need from either the
-        // multi-partition plan or the single-partition plan and that the
-        // mapping will be the same in both
-        // cases. Therefore, we don't need to differentiate whether we are
-        // picking apart one or the other,
-        // nor do we need to switch to a different cache entry for the Statement
-        // if we realize that we
-        // are going to be single-partition or not.
-        // We have to go through all of the fragments because we don't know
-        // which set the system will
-        // be calling at runtime.
+        // IMPORTANT: Work through the fragments in reverse so that we go from
+        // the bottom of the tree up. 
+        // We are assuming that we can get the StmtParameter->Column mapping that we need 
+        // from either the multi-partition plan or the single-partition plan and that the mapping 
+        // will be the same in both cases. Therefore, we don't need to differentiate whether we
+        // are picking apart one or the other, nor do we need to switch to a different cache entry
+        // for the Statement if we realize that we are going to be single-partition or not. 
+        // We have to go through all of the fragments because we don't know which set 
+        // the system will be calling at runtime.
         CatalogMap<?> fragment_sets[] = new CatalogMap<?>[] { catalog_stmt.getFragments(), catalog_stmt.getMs_fragments(), };
         for (int i = 0; i < fragment_sets.length; i++) {
             if (fragment_sets[i] == null || fragment_sets[i].isEmpty())
@@ -469,8 +480,7 @@ public class PartitionEstimator {
             if (trace.get())
                 LOG.trace("Analyzing " + fragments.size() + " " + (singlesited ? "single" : "multi") + "-sited fragments for " + catalog_stmt.fullName());
 
-            // Examine each fragment and pick apart how the tables are
-            // referenced
+            // Examine each fragment and pick apart how the tables are referenced
             // The order doesn't matter here
             for (PlanFragment catalog_frag : fragments) {
                 // Again, always check whether we already have a CacheEntry for
@@ -486,16 +496,14 @@ public class PartitionEstimator {
 
                 AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
                 Collection<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalog_db, root);
-                Table tables_arr[] = new Table[frag_tables.size()];
-                tables_arr = frag_tables.toArray(tables_arr);
-                assert (tables_arr.length == frag_tables.size());
+                // Table tables_arr[] = new Table[frag_tables.size()];
+                // tables_arr = frag_tables.toArray(tables_arr);
+                // assert (tables_arr.length == frag_tables.size());
                 if (trace.get())
                     LOG.trace("Analyzing fragment #" + catalog_frag);
 
-                // Check whether the predicate expression in this PlanFragment
-                // contains an OR
-                // We need to know this if we get hit with Multi-Column
-                // Partitioning
+                // Check whether the predicate expression in this PlanFragment contains an OR
+                // We need to know this if we get hit with Multi-Column Partitioning
                 // XXX: Why does this matter??
                 Collection<ExpressionType> exp_types = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
                 if (exp_types.contains(ExpressionType.CONJUNCTION_OR)) {
@@ -505,14 +513,10 @@ public class PartitionEstimator {
                     frag_cache.markContainsOR(true);
                 }
 
-                // If there are no tables, then we need to double check that the
-                // "non-transactional" flag
-                // is set for the fragment. This means that this fragment does
-                // not operate directly on
-                // a persistent table in the database.
-                // We'll add an entry in the cache using our special "no tables"
-                // flag. This means that
-                // the fragment needs to be executed locally.
+                // If there are no tables, then we need to double check that the "non-transactional"
+                // flag is set for the fragment. This means that this fragment does not operate directly
+                // on a persistent table in the database. We'll add an entry in the cache using our
+                // special "no tables" flag. This means that the fragment needs to be executed locally.
                 if (frag_tables.isEmpty()) {
                     String msg = catalog_frag + " in " + catalog_stmt.fullName() + " does not reference any tables";
                     if (!catalog_frag.getNontransactional()) {
@@ -529,29 +533,25 @@ public class PartitionEstimator {
                     LOG.trace("Fragment Tables: " + frag_tables);
 
                 // We only need to find where the partition column is referenced
-                // If it's not in there, then this query has to be broadcasted
-                // to all nodes
-                // Note that we pass all the tables that are part of the
-                // fragment, since we need to be able to handle joins
-                ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, tables_arr);
+                // If it's not in there, then this query has to be broadcasted to all nodes
+                // Note that we pass all the tables that are part of the fragment, since 
+                // we need to be able to handle joins
+                ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, frag_tables);
                 assert (cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
                 if (trace.get())
-                    LOG.trace("Extracted Column Set for " + Arrays.toString(tables_arr) + ":\n" + cset.debug());
+                    LOG.trace("Extracted Column Set for " + frag_tables + ":\n" + cset.debug());
 
-                // If there are no columns, then this fragment is doing a full
-                // table scan
-                if (cset.isEmpty() && tables_arr.length > 0) {
+                // If there are no columns, then this fragment is doing a full table scan
+                if (cset.isEmpty() && frag_tables.size() > 0) {
                     if (trace.get())
-                        LOG.trace("No columns accessed in " + catalog_frag + " despite reading " + tables_arr.length + " tables");
-                    stmt_cache.markAsBroadcast(tables_arr);
-                    frag_cache.markAsBroadcast(tables_arr);
+                        LOG.trace("No columns accessed in " + catalog_frag + " despite reading " + frag_tables.size() + " tables");
+                    stmt_cache.markAsBroadcast(frag_tables);
+                    frag_cache.markAsBroadcast(frag_tables);
 
-                // Fragment references the columns for our tables. Pick them
-                // apart!
+                // Fragment references the columns for our tables. Pick them apart!
                 } else {
-                    // First go through all the entries and add any mappings
-                    // from
+                    // First go through all the entries and add any mappings from
                     // Columns to StmtParameters to our stmt_cache
                     for (ColumnSet.Entry entry : cset) {
                         if (trace.get())
@@ -561,6 +561,15 @@ public class PartitionEstimator {
                         if (entry.getFirst() instanceof Column && entry.getSecond() instanceof Column) {
                             Column col0 = (Column) entry.getFirst();
                             Column col1 = (Column) entry.getSecond();
+                            
+                            // If this table is a view, then we need to check whether 
+                            // we have to point the column down to the origin column
+                            if (col0.getMatviewsource() != null) {
+                                col0 = col0.getMatviewsource();
+                            }
+                            if (col1.getMatviewsource() != null) {
+                                col1 = col1.getMatviewsource();
+                            }
 
                             if (!entry.getComparisonExp().equals(ExpressionType.COMPARE_EQUAL)) {
                                 LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
@@ -579,54 +588,56 @@ public class PartitionEstimator {
                         for (Table catalog_tbl : frag_tables) {
                             Column catalog_col = null;
                             StmtParameter catalog_param = null;
-                            // if (trace.get()) {
-                            // LOG.trace("Current Table: " +
-                            // catalog_tbl.hashCode());
-                            //
-                            // if (entry.getFirst() != null) {
-                            // LOG.trace("entry.getFirst().getParent(): " +
-                            // (entry.getFirst().getParent() != null ?
-                            // entry.getFirst().getParent().hashCode() :
-                            // entry.getFirst() + " parent is null?"));
-                            //
-                            // if (entry.getFirst().getParent() instanceof
-                            // Table) {
-                            // Table parent = entry.getFirst().getParent();
-                            // if
-                            // (parent.getName().equals(catalog_tbl.getName()))
-                            // {
-                            // assert(parent.equals(catalog_tbl)) :
-                            // "Mismatch on " + parent.getName() + "???";
-                            // }
-                            // }
-                            //
-                            // } else {
-                            // LOG.trace("entry.getFirst():             " +
-                            // null);
-                            // }
-                            // if (entry.getSecond() != null) {
-                            // LOG.trace("entry.getSecond().getParent(): " +
-                            // (entry.getSecond().getParent() != null ?
-                            // entry.getSecond().getParent().hashCode() :
-                            // entry.getSecond() + " parent is null?"));
-                            // } else {
-                            // LOG.trace("entry.getSecond():             " +
-                            // null);
-                            // }
-                            // }
+//                             if (trace.get()) {
+//                                 LOG.trace("Current Table: " + catalog_tbl.hashCode());
+//                            
+//                                 if (entry.getFirst() != null) {
+//                                         LOG.trace("entry.getFirst().getParent(): " + (entry.getFirst().getParent() != null ?
+//                                                         entry.getFirst().getParent().hashCode() :
+//                                                         entry.getFirst() + " parent is null?"));
+//                            
+//                                         if (entry.getFirst().getParent() instanceof Table) {
+//                                             Table parent = entry.getFirst().getParent();
+//                                             if (parent.getName().equals(catalog_tbl.getName())) {
+//                                                 assert(parent.equals(catalog_tbl)) :
+//                                                     "Mismatch on " + parent.getName() + "???";
+//                                             }
+//                                         }
+//                                 } else {
+//                                     LOG.trace("entry.getFirst():             " + null);
+//                                 }
+//                                 if (entry.getSecond() != null) {
+//                                     LOG.trace("entry.getSecond().getParent(): " + (entry.getSecond().getParent() != null ?
+//                                                 entry.getSecond().getParent().hashCode() :
+//                                                 entry.getSecond() + " parent is null?"));
+//                                 } else {
+//                                     LOG.trace("entry.getSecond():             " + null);
+//                                 }
+//                             }
 
                             // Column = StmtParameter
                             if (entry.getFirst().getParent() != null && entry.getFirst().getParent().equals(catalog_tbl) && entry.getSecond() instanceof StmtParameter) {
                                 catalog_col = (Column) entry.getFirst();
                                 catalog_param = (StmtParameter) entry.getSecond();
-                                // StmtParameter = Column
+                            // StmtParameter = Column
                             } else if (entry.getSecond().getParent() != null && entry.getSecond().getParent().equals(catalog_tbl) && entry.getFirst() instanceof StmtParameter) {
                                 catalog_col = (Column) entry.getSecond();
                                 catalog_param = (StmtParameter) entry.getFirst();
                             }
                             if (catalog_col != null && catalog_param != null) {
+                                // If this table is a view, then we need to check whether 
+                                // we have to point the column down to the origin column
+                                if (catalog_col.getMatviewsource() != null) {
+                                    if (debug.get())
+                                        LOG.debug("Found View Column: " + catalog_col.fullName() + " -> " + catalog_col.getMatviewsource().fullName());
+                                    catalog_col = catalog_col.getMatviewsource();
+                                }
                                 if (trace.get())
-                                    LOG.trace("[" + CatalogUtil.getDisplayName(catalog_tbl) + "] Adding cache entry for " + CatalogUtil.getDisplayName(catalog_frag) + ": " + entry);
+                                    LOG.trace(String.format("[%s] Adding cache entry for %s: %s -> %s",
+                                                            CatalogUtil.getDisplayName(catalog_tbl),
+                                                            CatalogUtil.getDisplayName(catalog_frag),
+                                                            CatalogUtil.getDisplayName(catalog_col),
+                                                            CatalogUtil.getDisplayName(catalog_param)));
                                 stmt_cache.put(catalog_col, catalog_param.getIndex(), catalog_tbl);
                                 frag_cache.put(catalog_col, catalog_param.getIndex(), catalog_tbl);
                             }
@@ -635,11 +646,9 @@ public class PartitionEstimator {
                             LOG.trace("-------------------");
                     } // FOR (entry)
 
-                    // We now have to take a second pass through the column
-                    // mappings
-                    // This will pick-up those columns that are joined together
-                    // where one of them is also referenced
-                    // with an input parameter. So we will map the input
+                    // We now have to take a second pass through the column mappings
+                    // This will pick-up those columns that are joined together where one of them 
+                    // is also referenced with an input parameter. So we will map the input
                     // parameter to the second column as well
                     PartitionEstimator.populateColumnJoins(column_joins);
 
@@ -649,14 +658,10 @@ public class PartitionEstimator {
                         if (trace.get())
                             LOG.trace("Trying to find all references to " + CatalogUtil.getDisplayName(catalog_col));
                         for (Column other_col : column_joins.get(catalog_col)) {
-                            // IMPORTANT: If the other entry is a column from
-                            // another table and we don't
-                            // have a reference in stmt_cache for ourselves,
-                            // then we can look
-                            // to see if this guy was used against a
-                            // StmtParameter some where else in the Statement
-                            // If this is the case, then we can substitute that
-                            // mofo in it's place
+                            // IMPORTANT: If the other entry is a column from another table and we don't
+                            // have a reference in stmt_cache for ourselves, then we can look to see if 
+                            // this guy was used against a StmtParameter some where else in the Statement
+                            // If this is the case, then we can substitute that mofo in it's place
                             if (stmt_cache.containsKey(catalog_col)) {
                                 for (Integer param_idx : stmt_cache.get(catalog_col)) {
                                     if (trace.get())
@@ -671,12 +676,10 @@ public class PartitionEstimator {
                 if (trace.get())
                     LOG.trace(frag_cache);
 
-                // Loop through all of our tables and make sure that there is an
-                // entry in the PlanFragment CacheEntrry
-                // If there isn't, then that means there was no predicate on the
-                // table and therefore the PlanFragment
+                // Loop through all of our tables and make sure that there is an entry in the PlanFragment CacheEntrry
+                // If there isn't, then that means there was no predicate on the table and therefore the PlanFragment
                 // must be broadcast to all partitions (unless it is replicated)
-                for (Table catalog_tbl : tables_arr) {
+                for (Table catalog_tbl : frag_tables) {
                     if (!frag_cache.hasTable(catalog_tbl)) {
                         if (trace.get())
                             LOG.trace("No column predicate for " + CatalogUtil.getDisplayName(catalog_tbl) + ". " + "Marking as broadcast for " + CatalogUtil.getDisplayName(catalog_frag) + ": "
@@ -691,9 +694,8 @@ public class PartitionEstimator {
                 this.addTableCacheXref(frag_cache, frag_tables);
             } // FOR (fragment)
 
-            // Then for updates we need to look to see whether they are updating
-            // an attribute that they
-            // are partitioned on. If so, then it gets dicey because we need to
+            // Then for updates we need to look to see whether they are updating an attribute 
+            // that they are partitioned on. If so, then it gets dicey because we need to
             // know the value...
             if (stmt_type == QueryType.UPDATE) {
                 List<Table> tables = new ArrayList<Table>();
@@ -1155,12 +1157,15 @@ public class PartitionEstimator {
             }
             assert (partitions != null);
 
-            this.calculatePartitionsForFragment(null, partitions, catalog_frag, params, base_partition);
+            this.calculatePartitionsForFragment(null,
+                                                 partitions,
+                                                 catalog_frag,
+                                                 params,
+                                                 base_partition);
 
             // If there were no partitions, then the PlanFragment needs to be
             // execute on the base partition
-            // Because these are the PlanFragments that aggregate the results
-            // together
+            // Because these are the PlanFragments that aggregate the results together
             // XXX: Not sure if this is right, but it's 5:30pm on a snowy night
             // so it's good enough for me...
             if (partitions.isEmpty())
@@ -1203,7 +1208,11 @@ public class PartitionEstimator {
         if (trace.get())
             LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.fullName());
         PartitionEstimator.CacheEntry cache_entry = this.getFragmentCacheEntry(catalog_frag);
-        this.calculatePartitionsForCache(entry_partitions, all_partitions, cache_entry, params, base_partition);
+        this.calculatePartitionsForCache(entry_partitions,
+                                          all_partitions,
+                                          cache_entry,
+                                          params,
+                                          base_partition);
         if (debug.get()) {
             if (entry_partitions != null)
                 LOG.debug(String.format("%s Table Partitions: %s", catalog_frag.fullName(), entry_partitions));
@@ -1270,7 +1279,7 @@ public class PartitionEstimator {
         Table tables[] = cache_entry.getTables();
         if (trace.get()) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
-            m.put("CacheEntry", cache_entry);
+            m.put("CacheEntry", cache_entry.toString());
             m.put("Tables", tables);
             m.put("Params", Arrays.toString(params));
             m.put("Base Partition", base_partition);
@@ -1305,7 +1314,7 @@ public class PartitionEstimator {
                 // Grab the parameter mapping for this column
                 Column catalog_col = cache_tablePartitionColumns.get(catalog_tbl);
                 if (trace.get())
-                    LOG.trace("Partitioning Column: " + catalog_col.fullName());
+                    LOG.trace("Partitioning Column: " + (catalog_col != null ? catalog_col.fullName() : catalog_col));
 
                 // Special Case: Multi-Column Partitioning
                 // Strap on your seatbelts, we're going in!!!
@@ -1374,7 +1383,8 @@ public class PartitionEstimator {
                     // column, then we have to broadcast this mofo
                     if (param_idxs == null || param_idxs.length == 0) {
                         if (debug.get())
-                            LOG.debug(String.format("No parameter mapping for %s. Fragment must be broadcast to all partitions", catalog_col.fullName()));
+                            LOG.debug(String.format("No parameter mapping for %s. Fragment must be broadcast to all partitions",
+                                                    CatalogUtil.getDisplayName(catalog_col)));
                         table_partitions.addAll(this.all_partitions);
 
                         // If there is nothing special, just shove off and have
