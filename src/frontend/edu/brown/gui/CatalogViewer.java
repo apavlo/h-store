@@ -504,6 +504,7 @@ public class CatalogViewer extends AbstractViewer {
         m[idx].put("Tables", tables);
         m[idx].put("Columns", cols);
         m[idx].put("Foreign Keys", fkeys);
+        m[idx].put("Views", views);
         m[idx].put("Vertical Replicas", systables);
         m[idx].put("System Tables", systables);
         
@@ -561,7 +562,7 @@ public class CatalogViewer extends AbstractViewer {
                     "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree", "sqltext");
             
             Collection<String> catalog_fields = CollectionUtil.addAll(new HashSet<String>(),
-                    "partition_column", "partitioncolumn", "foreignkeytable"); 
+                    "partition_column", "partitioncolumn", "foreignkeytable", "matviewsource"); 
             
             if (catalog_obj instanceof Constraint) {
                 catalog_fields.add("index");
