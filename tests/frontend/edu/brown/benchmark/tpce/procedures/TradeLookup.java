@@ -100,7 +100,7 @@ public class TradeLookup extends VoltProcedure {
             for (int i = 0; i < max_trades; i++) {
                 voltQueueSQL(getTrade_frame1, trade_ids[i]);
                 voltQueueSQL(getSettlement, trade_ids[i]);
-                voltQueueSQL(getHoldingHistory, trade_ids[i]);
+                voltQueueSQL(getTradeHistory, trade_ids[i]);
             }
             
             VoltTable[] res = voltExecuteSQL();
