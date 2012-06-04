@@ -370,7 +370,7 @@ public class EGenRandom {
     *  the desired amount of skew at effectively one-minute resolution.
     */
     public long rndNU(long p, long q, int a, int s) {
-        return (((int64Range(p, q) | (int64Range(0, A_MULT) << s)) % (q - p + 1)) + p);
+        return (((int64Range(p, q) | (int64Range(0, a) << s)) % (q - p + 1)) + p);
         
     }
     
