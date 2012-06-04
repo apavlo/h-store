@@ -69,8 +69,7 @@ public class Vote extends VoltProcedure {
 		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
-        voltQueueSQL(checkContestantStmt, contestantNumber);
-        // voltQueueSQL(checkVoterStmt, phoneNumber);
+        voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
         VoltTable validation[] = voltExecuteSQL();
 		
@@ -78,10 +77,10 @@ public class Vote extends VoltProcedure {
             return ERR_INVALID_CONTESTANT;
         }
 		
-//        if ((validation[1].getRowCount() == 1) &&
-//			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
-//            return ERR_VOTER_OVER_VOTE_LIMIT;
-//        }
+        if ((validation[1].getRowCount() == 1) &&
+			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
+            return ERR_VOTER_OVER_VOTE_LIMIT;
+        }
 	
 		 
 		
