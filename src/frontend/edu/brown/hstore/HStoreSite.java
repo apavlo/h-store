@@ -229,7 +229,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * (xin): MapReduceHelperThread
      */
-    //private boolean mr_helper_started = false;
+    private boolean mr_helper_started = false;
     private final MapReduceHelperThread mr_helper;
     
     private final CommandLogWriter commandLogger;
@@ -843,15 +843,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-        // Start the MapReduceHelperThread
-        if (this.mr_helper != null) {
-            t = new Thread(this.mr_helper);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(handler);
-            t.start();
-            if (d) LOG.debug(String.format("<MR helper>Start MR helper thread on hsotre site %d", this.site_id));
-        }
-        
         // Then we need to start all of the PartitionExecutor in threads
         if (d) LOG.debug("Starting PartitionExecutor threads for " + this.local_partitions_arr.length + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions_arr) {
@@ -995,8 +986,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             p.shutdown();
         }
         // Tell the MapReduceHelperThread to shutdown too
-        //if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
-        if (this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
         if (this.commandLogger != null) this.commandLogger.shutdown();
 
         
@@ -1266,8 +1256,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (catalog_proc.getMapreduce()) {
             // Start the MapReduceHelperThread
-            //if (!this.mr_helper_started && this.mr_helper != null) {
-            if (this.mr_helper != null) {
+            if (!this.mr_helper_started && this.mr_helper != null) {
                 EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
                 EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
                     @Override
@@ -1285,7 +1274,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 t.setUncaughtExceptionHandler(handler);
                 t.start();
                 
-                //this.mr_helper_started = true;
+                this.mr_helper_started = true;
             }
             
             ((MapReduceTransaction)ts).init(

@@ -109,6 +109,44 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     }
     
+//    public void map(final MapReduceTransaction mr_ts) {
+//        // Runtime
+//
+//        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+//
+//        if (hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_map_runed()) {
+//            if (debug.get())
+//                LOG.debug(String.format("TXN: %s $$$1 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
+//            volt_proc.setPartitionId(mr_ts.getBasePartition());
+//            if (debug.get())
+//                LOG.debug(String.format("TXN: %s $$$2 non-blocking map, partition:%d", mr_ts, volt_proc.getPartitionId()));
+//            
+//            assert(execState != null);
+//            execState.clear();
+//            mr_ts.setExecutionState(execState);
+//            
+//            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+//
+//        } else {
+//
+//            for (int partition : hstore_site.getLocalPartitionIds()) {
+//                if (debug.get())
+//                    LOG.debug(String.format("TXN: %s $$$3 non-blocking map, partition called on:%d", mr_ts, partition));
+//
+//                if (partition != mr_ts.getBasePartition()) {
+//                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+//                    if (debug.get())
+//                        LOG.debug(String.format("TXN: %s $$$4 non-blocking map, partition called on:%d", mr_ts, partition));
+//                    volt_proc.setPartitionId(partition);
+//                    execState.clear();
+//                    ts.setExecutionState(execState);
+//                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+//                }
+//            }
+//        }
+//
+//    }
+
     protected void shuffle(final MapReduceTransaction ts) {
         /**
          * Loop through all of the MAP output tables from the txn handle For
@@ -129,8 +167,6 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
         } // FOR
         if (debug.get())
-            LOG.debug(String.format("MR helper thread on site %d", hstore_site.getSiteId()));
-        if (debug.get())
             LOG.debug(String.format("Created %d VoltTables for SHUFFLE phase of %s", partitionedTables.size(), ts));
 
         VoltTable table = null;
@@ -150,20 +186,17 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
                     LOG.fatal("Failed to split input table into partitions", e);
                     throw new RuntimeException(e.getMessage());
                 }
-                if (debug.get())
-                    LOG.debug(Arrays.toString(table.getRowArray()) + " => " + rowPartition);
+                if (trace.get())
+                    LOG.trace(Arrays.toString(table.getRowArray()) + " => " + rowPartition);
                 assert (rowPartition >= 0);
                 // this adds the active row from table
                 partitionedTables.get(rowPartition).add(row);
                 rp = rowPartition;
             } // WHILE
+            if (debug.get())
+                LOG.debug(String.format("<SendTable to Dest Partition>:%d\n %s", rp, partitionedTables.get(rp)));
 
         } // FOR
-        
-        for (int p: hstore_site.getAllPartitionIds()) {
-            if (debug.get())
-                LOG.debug(String.format("<SendTable to Dest Partition>:%d\n %s", p, partitionedTables.get(p)));
-        }
 
         // The SendDataCallback should invoke the TransactionMapCallback to tell
         // it that
