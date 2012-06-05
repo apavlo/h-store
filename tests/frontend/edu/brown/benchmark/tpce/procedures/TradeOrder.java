@@ -201,7 +201,6 @@ public class TradeOrder extends VoltProcedure {
         
         assert res[0].getRowCount() == 1;
         assert res[1].getRowCount() == 1;
-        assert res[2].getRowCount() == 1;
         
         double market_price = res[0].fetchRow(0).getDouble("LT_PRICE");
         
@@ -214,7 +213,10 @@ public class TradeOrder extends VoltProcedure {
             requested_price = market_price;
         }
         
-        int hs_qty = (int)res[2].fetchRow(0).getLong("HS_QTY");
+        int hs_qty = 0;
+        if (res[2].getRowCount() == 1) {
+            hs_qty = (int)res[2].fetchRow(0).getLong("HS_QTY");
+        }
         
         double buy_value = 0;
         double sell_value = 0;
