@@ -101,6 +101,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // Path of least resistance?
     public static class StmtProcedure extends VoltProcedure {}
 
+    /**
+     * VoltTable Schema used for scalar return values
+     */
+    private static final VoltTable.ColumnInfo SCALAR_RESULT_SCHEMA[] = { 
+        new VoltTable.ColumnInfo("", VoltType.BIGINT)
+    };
+    
     // ----------------------------------------------------------------------------
     // GLOBAL MEMBERS
     // ----------------------------------------------------------------------------
@@ -747,13 +754,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      */
     final private VoltTable[] getResultsFromRawResults(Object result) {
         if (result == null)
-            return new VoltTable[0];
+            return HStoreConstants.EMPTY_RESULT;
         if (result instanceof VoltTable[])
             return (VoltTable[]) result;
         if (result instanceof VoltTable)
             return new VoltTable[] { (VoltTable) result };
         if (result instanceof Long) {
-            VoltTable t = new VoltTable(new VoltTable.ColumnInfo("", VoltType.BIGINT));
+            VoltTable t = new VoltTable(SCALAR_RESULT_SCHEMA);
             t.addRow(result);
             return new VoltTable[] { t };
         }
