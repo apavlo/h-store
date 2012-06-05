@@ -85,6 +85,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
                                                      ts, ts.getBasePartition(), cr.getStatus()));
             try {
                 hstore_site.sendClientResponse(ts, cr);
+                ts.markAsDeletable();
                 hstore_site.deleteTransaction(ts.getTransactionId(), cr.getStatus());
             } catch (Throwable ex) {
                 LOG.error(String.format("Failed to process %s properly\n%s", ts, cr));
