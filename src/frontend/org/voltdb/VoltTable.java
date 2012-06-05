@@ -287,7 +287,11 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                         m_buffer.position(0);
                         throw new IllegalArgumentException("VoltTable column names can not be null.");
                     }
-                    writeStringToBuffer(columns[i].name, METADATA_ENCODING, m_buffer);
+                    if (columns[i].name.isEmpty()) { // FAST HACK
+                        m_buffer.putInt(0);   
+                    } else {
+                        writeStringToBuffer(columns[i].name, METADATA_ENCODING, m_buffer);
+                    }
                 }
                 // write the header size to the first 4 bytes (length-prefixed non-inclusive)
                 m_rowStart = m_buffer.position();

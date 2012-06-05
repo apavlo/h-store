@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -161,7 +162,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Incoming request deserializer
      */
-    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
+//    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
+    private final IdentityHashMap<Thread, FastDeserializer> incomingDeserializers = new IdentityHashMap<Thread, FastDeserializer>();
     
     /**
      * This is the object that we use to generate unqiue txn ids used by our
@@ -807,6 +809,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.adhoc_helper_started = true;
     }
     
+    /**
+     * Return a thread-safe FastDeserializer
+     * @return
+     */
+    private FastDeserializer getIncomingDeserializer() {
+        Thread t = Thread.currentThread();
+        FastDeserializer fds = this.incomingDeserializers.get(t);
+        if (fds == null) {
+            fds = new FastDeserializer(new byte[0]);
+            this.incomingDeserializers.put(t, fds);
+        }
+        assert(fds != null);
+        return (fds);
+    }
+    
+    
     // ----------------------------------------------------------------------------
     // LOCAL PARTITION OFFSETS
     // ----------------------------------------------------------------------------
@@ -855,6 +873,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
         return (this.startWorkload_observable);
     }
+    
+    private synchronized void notifyStartWorkload(LocalTransaction ts) {
+        if (this.startWorkload == false) {
+            this.startWorkload = true;
+            this.startWorkload_observable.notifyObservers(ts);
+        }
+    }
+    
     /**
      * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
      * @return
@@ -1099,25 +1125,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        EstTimeUpdater.update(System.currentTimeMillis());
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
 
+        // Extract the stuff we need to figure out whether this guy belongs at our site
         StoredProcedureInvocation request = null;
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
-        synchronized (this) {
-            this.incomingDeserializer.setBuffer(buffer);
-            try {
-                request = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        } // SYNCH
-        
-        // Extract the stuff we need to figure out whether this guy belongs at our site
-        request.buildParameterSet();
+        FastDeserializer incomingDeserializer = this.getIncomingDeserializer().setBuffer(buffer);
+        try {
+            request = incomingDeserializer.readObject(StoredProcedureInvocation.class);
+            request.buildParameterSet(incomingDeserializer);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } 
         assert(request.getParams() != null) :
             "The parameters object is null for new txn from client #" + request.getClientHandle();
-        final Object args[] = request.getParams().toArray(); 
         Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
         if (catalog_proc == null) {
             catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
@@ -1162,7 +1183,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
-                Integer p = this.p_estimator.getBasePartition(catalog_proc, args, false);
+                Integer p = this.p_estimator.getBasePartition(catalog_proc, request.getParams().toArray(), false);
                 if (p != null) base_partition = p.intValue(); 
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -1261,7 +1282,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else if (hstore_conf.site.exec_neworder_cheat) {
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
             if (this.fixed_estimator != null)
-                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
+                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, request.getParams().toArray());
             if (predict_touchedPartitions == null)
                 predict_touchedPartitions = this.single_partition_sets[base_partition];
         }    
@@ -1277,7 +1298,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             try {
                 // HACK: Convert the array parameters to object arrays...
-                Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
+                Object cast_args[] = this.param_manglers.get(catalog_proc).convert(request.getParams().toArray());
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
                 if (hstore_conf.site.txn_profiling) ts.profiler.startInitEstimation();
@@ -1361,16 +1382,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we will notify anybody that is waiting for this event. This is used to clear
         // out any counters or profiling information that got recorded when we were loading data
         if (this.startWorkload == false && sysproc == false) {
-            synchronized (this) {
-                if (this.startWorkload == false) {
-                    this.startWorkload = true;
-                    this.startWorkload_observable.notifyObservers(ts);
-                }
-            } // SYNCH
+            this.notifyStartWorkload(ts);
         }
         this.dispatchInvocation(ts);
         if (d) LOG.debug("Finished initial processing of new txn #" + txn_id + ". " +
         		         "Returning back to listen on incoming socket");
+        EstTimeUpdater.update(System.currentTimeMillis());
     }
     
     /**

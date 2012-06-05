@@ -130,25 +130,30 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.partitions.addAll(partitions);
     }
 
-
+    
+    @Deprecated
+    public void buildParameterSet() {
+        this.buildParameterSet(new FastDeserializer(unserializedParams));
+    }
+    
     /**
      * If created from ClientInterface within a single host,
      * will still need to deserialize the parameter set. This
      * optimization is not performed for multi-site transactions
      * (which require concurrent access to the task).
      */
-     public void buildParameterSet() {
-        if (unserializedParams != null) {
-            assert (params == null);
-            try {
-                FastDeserializer fds = new FastDeserializer(unserializedParams);
-                params = fds.readObject(ParameterSet.class);
-                unserializedParams = null;
-            }
-            catch (IOException ex) {
-                throw new RuntimeException("Invalid ParameterSet in Stored Procedure Invocation.");
-            }
-        }
+    public void buildParameterSet(FastDeserializer fds) {
+       if (unserializedParams != null) {
+           assert (params == null);
+           try {
+               fds.setBuffer(unserializedParams);
+               params = fds.readObject(ParameterSet.class);
+               unserializedParams = null;
+           }
+           catch (IOException ex) {
+               throw new RuntimeException("Invalid ParameterSet in Stored Procedure Invocation.");
+           }
+       }
     }
 
     /** Read into an unserialized parameter buffer to extract a single parameter */
