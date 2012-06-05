@@ -3,6 +3,7 @@ package edu.brown.benchmark.tpce.generators;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.voltdb.types.TimestampType;
 
@@ -219,7 +220,7 @@ public class CETxnInputGenerator {
         startFromCompany = companies.generateCompId();
 
         maxActivePrePopulatedTradeID = (int)(( hoursOfInitialTrades * EGenDate.SecondsPerHour * ( activeCustomerCount / scaleFactor )) * TPCEConstants.AbortTrade / 100 );
-
+        currentTradeID = new AtomicLong(maxActivePrePopulatedTradeID + 1);
         startTime = EGenDate.getDateFromTime(
         		TPCEConstants.initialTradePopulationBaseYear,
         		TPCEConstants.initialTradePopulationBaseMonth,
@@ -596,14 +597,14 @@ public class CETxnInputGenerator {
     */
     public void generateTradeOrderInput(TTradeOrderTxnInput inputStructure, int iTradeType, boolean executorIsAccountOwner){
         long          customerID;
-        TierId   		tierID;
-        boolean            bMarket;
+        TierId   	  tierID;
+        boolean       bMarket;
         int           additionalPerms;
-        int             secAcct;
+        int           secAcct;
         long          secFlatFileIndex;
-        String[] flTaxId;
+        String[]      flTaxId;
         TradeType    eTradeType;
-
+        inputStructure.setTradeID(currentTradeID.getAndIncrement());
         Object[] customer = new Object[2];
 
         customer = customerSelection.genRandomCustomer();
@@ -847,6 +848,7 @@ public class CETxnInputGenerator {
 	private int                                       scaleFactor;
 	private int                                       hoursOfInitialTrades;
 	private int                                       maxActivePrePopulatedTradeID;
+	static private AtomicLong						  currentTradeID;
 	private long                                      tradeLookupFrame2MaxTimeInMilliSeconds;
 	private long                                      tradeLookupFrame3MaxTimeInMilliSeconds;
 	private long                                      tradeLookupFrame4MaxTimeInMilliSeconds;

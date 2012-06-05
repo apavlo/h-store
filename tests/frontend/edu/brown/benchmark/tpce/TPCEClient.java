@@ -185,8 +185,8 @@ public class TPCEClient extends BenchmarkComponent {
     protected Transaction selectTransaction() {
         int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
         egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
-        return Transaction.BROKER_VOLUME;
- //       return XTRANS[iTxnType];
+ //       return Transaction.BROKER_VOLUME;
+        return XTRANS[iTxnType];
     }
 
     /**
