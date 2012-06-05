@@ -1111,7 +1111,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         if (this.isLocalPartition(base_partition) == false) {
             assert(request.hasBasePartition() == false) : 
-                "Trying to redirect " + catalog_proc.getName() + " transaction more than once!";
+                String.format("Trying to redirect %s transaction more than once [basePartition=%d]",
+                              catalog_proc.getName(), base_partition);
             this.transactionRedirect(catalog_proc, serializedRequest, base_partition, done);
             return;
         }
