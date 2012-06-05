@@ -142,6 +142,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * The H-Store Configuration Object
      */
     private final HStoreConf hstore_conf;
+
+    /** Catalog Stuff **/
+    private long instanceId;
+    private final Database catalog_db;
+    private final Host catalog_host;
+    private final int host_id;
+    private final Site catalog_site;
+    private final int site_id;
+    private final String site_name;
     
     /**
      * This buffer pool is used to serialize ClientResponses to send back
@@ -162,14 +171,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final TransactionIdManager txnIdManagers[];
 
-    /** Catalog Stuff **/
-    private long instanceId;
-    private final Host catalog_host;
-    private final int host_id;
-    private final Site catalog_site;
-    private final int site_id;
-    private final String site_name;
-    private final Database catalog_db;
+    /**
+     * This class determines what partitions transactions/queries will
+     * need to execute on based on their input parameters.
+     */
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     
@@ -248,6 +253,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * AdHoc: This thread waits for AdHoc queries. 
      */
+    private boolean adhoc_helper_started = false;
     private final AsyncCompilerWorkThread asyncCompilerWork_thread;
     private final PeriodicWorkTimerThread periodicWorkTimer_thread;
     
@@ -329,7 +335,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Estimation Thresholds
      */
-    private EstimationThresholds thresholds;
+    private EstimationThresholds thresholds = new EstimationThresholds(); // default values
     
     /**
      * If we're using the TransactionEstimator, then we need to convert all primitive array ProcParameters
@@ -451,9 +457,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Static Object Pools
         HStoreObjectPools.initialize(this);
         
-        // General Stuff
+        // -------------------------------
+        // THREADS
+        // -------------------------------
         
-        this.thresholds = new EstimationThresholds(); // default values
+        // HStoreSite Thread Manager (this always get invoked first)
+        this.threadManager = new HStoreThreadManager(this);
+        
+        // Distributed Transaction Queue Manager
+        this.txnQueueManager = new TransactionQueueManager(this);
         
         // MapReduce Transaction helper thread
         if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
@@ -462,16 +474,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper = null;
         }
         
-        // Distributed Transaction Queue Manager
-        this.txnQueueManager = new TransactionQueueManager(this);
-        
         // Separate TransactionIdManager per partition
         if (hstore_conf.site.txn_partition_id_managers) {
             this.txnIdManagers = new TransactionIdManager[num_partitions];
             for (int partition : this.local_partitions) {
                 this.txnIdManagers[partition] = new TransactionIdManager(partition);
             } // FOR
-        
         }
         // Single TransactionIdManager for the entire site
         else {
@@ -479,9 +487,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 new TransactionIdManager(this.site_id)
             };
         }
-        
-        // HStoreSite Thread Manager
-        this.threadManager = new HStoreThreadManager(this);
         
         // Command Logger
         if (hstore_conf.site.exec_command_logging) {
@@ -499,32 +504,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // AdHoc Support
         if (hstore_conf.site.exec_adhoc_sql) {
             this.periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
-            // TODO: this isnt right, what is the CatalogContext
             this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
         } else {
             this.periodicWorkTimer_thread = null;
             this.asyncCompilerWork_thread = null;
         }
-
         
         // Incoming Txn Request Listener
         this.voltListener = new VoltProcedureListener(this.host_id,
-                                                      this.procEventLoop,
-                                                      this);
+                                                       this.procEventLoop,
+                                                       this);
         
-        if (hstore_conf.site.status_show_executor_info) {
-            this.idle_time.resetOnEvent(this.startWorkload_observable);
-        }
-        
+
+        // Transaction Post-Processing Threads
         if (hstore_conf.site.exec_postprocessing_thread) {
             assert(hstore_conf.site.exec_postprocessing_thread_count > 0);
             if (d) LOG.debug(String.format("Starting %d transaction post-processing threads",
                                         hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
-                PartitionExecutorPostProcessor processor = new PartitionExecutorPostProcessor(this, this.ready_responses); 
+                PartitionExecutorPostProcessor processor = new PartitionExecutorPostProcessor(this,
+                                                                                              this.ready_responses); 
                 this.processors.add(processor);
             } // FOR
         }
+        
+        // -------------------------------
+        // TRANSACTION ESTIMATION
+        // -------------------------------
         
         // Create all of our parameter manglers
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
@@ -546,6 +552,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         } else {
             this.fixed_estimator = null;
+        }
+        
+        // Profiling
+        if (hstore_conf.site.status_show_executor_info) {
+            this.idle_time.resetOnEvent(this.startWorkload_observable);
         }
         
         // CACHED MESSAGES
@@ -772,6 +783,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.request_counter.getAndIncrement());
     }
     
+    
+    /**
+     * Start the MapReduceHelper Thread
+     */
+    private void startMapReduceHelper() {
+        if (d) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
+        Thread t = new Thread(this.mr_helper);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        this.mr_helper_started = true;
+    }
+    
+    /**
+     * Start threads for processing AdHoc queries 
+     */
+    private void startAdHocHelper() {
+        if (d) LOG.debug("Starting " + this.periodicWorkTimer_thread.getClass().getSimpleName());
+        this.periodicWorkTimer_thread.start();
+        if (d) LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
+        this.asyncCompilerWork_thread.start();
+        this.adhoc_helper_started = true;
+    }
+    
     // ----------------------------------------------------------------------------
     // LOCAL PARTITION OFFSETS
     // ----------------------------------------------------------------------------
@@ -925,25 +960,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.ready = true;
         this.ready_observable.notifyObservers();
         
-        // Start threads for processing AdHoc queries 
-        if (this.periodicWorkTimer_thread != null) {
-            this.periodicWorkTimer_thread.start();
-            this.asyncCompilerWork_thread.start();
-        }
-        
         return (this);
-    }
-    
-    /**
-     * Start the MapReduceHelper Thread
-     */
-    private void startMapReduceHelper() {
-        if (d) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
-        Thread t = new Thread(this.mr_helper);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        this.mr_helper_started = true;
     }
     
     /**
@@ -995,10 +1012,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.mr_helper.prepareShutdown(error);
         if (this.commandLogger != null)
             this.commandLogger.prepareShutdown(error);
-        if (this.asyncCompilerWork_thread != null)
-            this.asyncCompilerWork_thread.prepareShutdown(error);
-        if (this.periodicWorkTimer_thread != null)
-            this.periodicWorkTimer_thread.prepareShutdown(error);
+        
+        if (this.adhoc_helper_started) {
+            if (this.asyncCompilerWork_thread != null)
+                this.asyncCompilerWork_thread.prepareShutdown(error);
+            if (this.periodicWorkTimer_thread != null)
+                this.periodicWorkTimer_thread.prepareShutdown(error);
+        }
         
         for (int p : this.local_partitions_arr) {
             if (this.executors[p] != null) 
@@ -1025,10 +1045,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Stop AdHoc threads
-        if (this.asyncCompilerWork_thread != null)
-            this.asyncCompilerWork_thread.shutdown();
-        if (this.periodicWorkTimer_thread != null)
-            this.periodicWorkTimer_thread.shutdown();
+        if (this.adhoc_helper_started) {
+            if (this.asyncCompilerWork_thread != null)
+                this.asyncCompilerWork_thread.shutdown();
+            if (this.periodicWorkTimer_thread != null)
+                this.periodicWorkTimer_thread.shutdown();
+        }
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
@@ -1314,21 +1336,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        if (mapreduce) {
-            // Start the MapReduceHelperThread
-            if (!this.mr_helper_started && this.mr_helper != null) {
-                this.startMapReduceHelper();
-            }
-            
-            ((MapReduceTransaction)ts).init(
-                    txn_id, request.getClientHandle(), base_partition,
-                    predict_touchedPartitions, predict_readOnly, predict_abortable,
-                    catalog_proc, request, done);
-        } else {
-            ts.init(txn_id, request.getClientHandle(), base_partition,
-                    predict_touchedPartitions, predict_readOnly, predict_abortable,
-                    catalog_proc, request, done);
+        // Make sure that we start the MapReduceHelperThread
+        if (mapreduce && this.mr_helper_started == false) {
+            assert(this.mr_helper != null);
+            this.startMapReduceHelper();
         }
+        
+        // Initialize our LocalTransaction handle
+        ts.init(txn_id, request.getClientHandle(), base_partition,
+                predict_touchedPartitions, predict_readOnly, predict_abortable,
+                catalog_proc, request, done);
+        // Set the EstimatorState if we have one!
         if (t_state != null) ts.setEstimatorState(t_state);
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
@@ -1412,6 +1430,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 done.run(fs.getBytes());
                 return (true);
+            }
+            
+            // Check if we need to start our threads now
+            if (this.adhoc_helper_started == false) {
+                this.startAdHocHelper();
             }
             
             // Create a LocalTransaction handle that will carry into the
