@@ -93,6 +93,8 @@ public class TradeLookup extends VoltProcedure {
     public VoltTable[] run(long[] trade_ids, long acct_id, long max_acct_id, long frame_to_execute, long max_trades, TimestampType end_trade_dts, TimestampType start_trade_dts, String symbol)
             throws VoltAbortException {
             
+    	for (int i = 0; i < trade_ids.length; i ++)
+    		System.out.println(trade_ids[i]);
         VoltTable result = null;
         
         // all frames are mutually exclusive here -- the frame number is a parameter
@@ -111,7 +113,6 @@ public class TradeLookup extends VoltProcedure {
                 VoltTable trade = res[3 * i];
                 VoltTable settle = res[3 * i + 1];
                 VoltTable hist = res[3 * i + 2];
-                
                 assert trade.getRowCount() == 1;
                 assert settle.getRowCount() == 1;
                 assert hist.getRowCount() == 2 || hist.getRowCount() == 3;
