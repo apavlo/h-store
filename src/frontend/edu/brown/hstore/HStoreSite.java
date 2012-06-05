@@ -178,6 +178,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
     /**
+     * This catches any exceptions that are thrown in the various
+     * threads spawned by this HStoreSite
+     */
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    
+    /**
      * 
      */
     private boolean ready = false;
@@ -799,7 +805,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         this.hstore_coordinator = this.initHStoreCoordinator();
         
-        EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
         EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
             @Override
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
@@ -809,7 +814,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 hstore_coordinator.shutdownClusterBlocking(error);
             }
         };
-        handler.addObserver(observer);
+        this.exceptionHandler.addObserver(observer);
         
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
@@ -818,7 +823,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Start TransactionQueueManager
         Thread t = new Thread(this.txnQueueManager);
         t.setDaemon(true);
-        t.setUncaughtExceptionHandler(handler);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
         // Start Status Monitor
@@ -829,7 +834,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t = new Thread(this.status_monitor);
             t.setPriority(Thread.MIN_PRIORITY);
             t.setDaemon(true);
-            t.setUncaughtExceptionHandler(handler);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
             t.start();
         }
         
@@ -838,7 +843,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             for (PartitionExecutorPostProcessor espp : this.processors) {
                 t = new Thread(espp);
                 t.setDaemon(true);
-                t.setUncaughtExceptionHandler(handler);
+                t.setUncaughtExceptionHandler(this.exceptionHandler);
                 t.start();    
             } // FOR
         }
@@ -852,7 +857,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t = new Thread(executor);
             t.setDaemon(true);
             t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
-            t.setUncaughtExceptionHandler(handler);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
             this.executor_threads[partition] = t;
             t.start();
         } // FOR
@@ -892,6 +897,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         return (this);
+    }
+    
+    /**
+     * Start the MapReduceHelper Thread
+     */
+    private void startMapReduceHelper() {
+        if (d) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
+        Thread t = new Thread(this.mr_helper);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        this.mr_helper_started = true;
     }
     
     /**
@@ -1048,8 +1065,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (catalog_proc == null) {
             catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
         }
-        if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
+        if (catalog_proc == null) 
+            throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         final boolean sysproc = request.isSysProc();
+        final boolean mapreduce = catalog_proc.getMapreduce();
         int base_partition = request.getBasePartition();
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]", catalog_proc.getName(), request.getClientHandle()));
 
@@ -1122,7 +1141,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
         LocalTransaction ts = null;
         try {
-            if (catalog_proc.getMapreduce()) {
+            if (mapreduce) {
                 ts = HStoreObjectPools.STATES_TXN_MAPREDUCE.borrowObject();
             } else {
                 ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
@@ -1159,7 +1178,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         // MapReduceTransactions always need all partitions
-        else if (catalog_proc.getMapreduce()) {
+        else if (mapreduce) {
             if (t) LOG.trace(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            request.getProcName(), request.getClientHandle()));
             predict_touchedPartitions = this.all_partitions;
@@ -1211,7 +1230,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned",
-                                                            AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                                                   AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                     predict_touchedPartitions = this.all_partitions;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
@@ -1260,27 +1279,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        if (catalog_proc.getMapreduce()) {
+        if (mapreduce) {
             // Start the MapReduceHelperThread
             if (!this.mr_helper_started && this.mr_helper != null) {
-                EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
-                EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
-                    @Override
-                    public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                        Thread thread = arg.getFirst();
-                        Throwable error = arg.getSecond();
-                        LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
-                        hstore_coordinator.shutdownClusterBlocking(error);
-                    }
-                };
-                handler.addObserver(observer);
-                
-                Thread t = new Thread(this.mr_helper);
-                t.setDaemon(true);
-                t.setUncaughtExceptionHandler(handler);
-                t.start();
-                
-                this.mr_helper_started = true;
+                this.startMapReduceHelper();
             }
             
             ((MapReduceTransaction)ts).init(
