@@ -188,22 +188,22 @@ public class TestMapReduceTransactionSuite extends RegressionSuite {
         
         // CLUSTER CONFIG #2
         // Two sites, each with two partitions running in separate JVMs
-//        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setTestNameSuffix("mapBlocking_reduceBlocking");
-//        config.setConfParameter("site.mr_map_blocking", true);
-//        config.setConfParameter("site.mr_reduce_blocking", true);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-twoSiteTwoPart.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", true);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 //        
 //        // CLUSTER CONFIG #3
-//        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
-//        config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
-//        config.setConfParameter("site.mr_map_blocking", true);
-//        config.setConfParameter("site.mr_reduce_blocking", false);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalCluster(PREFIX + "-twoSiteFourPart_rB.jar", 2, 4, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setTestNameSuffix("mapBlocking_reduceNonBlocking");
+        config.setConfParameter("site.mr_map_blocking", true);
+        config.setConfParameter("site.mr_reduce_blocking", false);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 //                
 //        // CLUSTER CONFIG #4
 //        config = new LocalCluster(PREFIX + "-twoSiteFourPart_mNB.jar",  2, 4, 1, BackendTarget.NATIVE_EE_JNI);
