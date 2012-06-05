@@ -65,6 +65,9 @@ public class HStoreThreadManager {
         boolean affinity[] = null;
         try {
             affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+            
+        // This doesn't seem to work on newer versions of OSX, so we'll
+        // just disable it
         } catch (UnsatisfiedLinkError ex) {
             LOG.warn("Unable to set CPU affinity for " + partition + ". Disabling feature in ExecutionEngine", ex);
             this.disable = true;

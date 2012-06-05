@@ -350,12 +350,6 @@ public final class HStoreConf {
         public boolean exec_prefetch_queries;
         
         @ConfigProperty(
-//                description="If this parameter is enabled, then sites will attempt to execute queries marked as deferred" +
-//                		    "while idle or waiting on a distribute transaction.",
-//                defaultBoolean=false,
-//                experimental=true
-//            )
-//        public boolean exec_deferred_queries;
             description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
             		    "queries for later execution if they are marked as deferrable.",
             defaultBoolean=false,
@@ -418,7 +412,10 @@ public final class HStoreConf {
         public int txn_restart_limit_sysproc;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If set to true, then the HStoreSite will use a separate TransactionIdManager" +
+            		    "per partition. This can reduce some lock contention for workloads where " +
+            		    "transactions are restarted a lot. This actually doesn't work very well, " +
+            		    "so you probably do not want to bother with this parameter.",
             defaultBoolean=false,
             experimental=true
         )
