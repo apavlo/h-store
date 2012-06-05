@@ -134,11 +134,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t = trace.get();
     }
     
-    
     // ----------------------------------------------------------------------------
     // INSTANCE MEMBERS
     // ----------------------------------------------------------------------------
 
+    /**
+     * The H-Store Configuration Object
+     */
+    private final HStoreConf hstore_conf;
+    
     /**
      * This buffer pool is used to serialize ClientResponses to send back
      * to clients.
@@ -150,62 +154,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
-    private final HStoreThreadManager threadManager;
-    
-    private final TransactionQueueManager txnQueueManager;
-    
     /**
-     * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
+     * This is the object that we use to generate unqiue txn ids used by our
+     * H-Store specific code. There can either be a single manager for the entire site,
+     * or we can use one per partition. 
+     * @see HStoreConf.site.txn_partition_id_managers
      */
     private final TransactionIdManager txnIdManagers[];
-    
-    /**
-     * We will bind this variable after construction so that we can inject some
-     * testing code as needed.
-     */
-    private HStoreCoordinator hstore_coordinator;
 
-    /**
-     * Local PartitionExecutor Stuff
-     */
-    private final PartitionExecutor executors[];
-    private final Thread executor_threads[];
-    
-    /**
-     * Procedure Listener Stuff
-     */
-    private VoltProcedureListener voltListener;
-    private final NIOEventLoop procEventLoop = new NIOEventLoop();
-
-    /**
-     * This catches any exceptions that are thrown in the various
-     * threads spawned by this HStoreSite
-     */
-    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
-    
-    /**
-     * 
-     */
-    private boolean ready = false;
-    private CountDownLatch ready_latch;
-    private final EventObservable<Object> ready_observable = new EventObservable<Object>();
-    
-    /**
-     * This flag is set to true when we receive the first non-sysproc stored procedure
-     * Other components of the system can attach to the EventObservable to be told when this occurs 
-     */
-    private boolean startWorkload = false;
-    private final EventObservable<AbstractTransaction> startWorkload_observable = new EventObservable<AbstractTransaction>();
-    
-    /**
-     * 
-     */
-    private Shutdownable.ShutdownState shutdown_state = ShutdownState.INITIALIZED;
-    private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
-    
     /** Catalog Stuff **/
     private long instanceId;
-    private final HStoreConf hstore_conf;
     private final Host catalog_host;
     private final int host_id;
     private final Site catalog_site;
@@ -215,7 +173,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     
-    /** All of the partitions in the cluster */
+    /**
+     * All of the partitions in the cluster
+     */
     private final Collection<Integer> all_partitions;
 
     /** Request counter **/
@@ -227,17 +187,62 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Map<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
     
     /**
+     * This manager is used to pin threads to specific CPU cores
+     */
+    private final HStoreThreadManager threadManager;
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION COORDINATOR/PROCESSING THREADS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * This thread is responsible for listening for incoming txn requests from 
+     * clients. It will then forward the request to HStoreSite.procedureInvocation()
+     */
+    private VoltProcedureListener voltListener;
+    private final NIOEventLoop procEventLoop = new NIOEventLoop();
+
+    /**
+     * PartitionExecutors
+     * These are the single-threaded execution engines that have exclusive
+     * access to a partition. Any transaction that needs to access data at a partition
+     * will have to first get queued up by one of these executors.
+     */
+    private final PartitionExecutor executors[];
+    private final Thread executor_threads[];
+    
+    /**
+     * The queue manager is responsible for deciding what distributed transaction
+     * is allowed to acquire the locks for each partition. It can also requeue
+     * restart transactions. 
+     */
+    private final TransactionQueueManager txnQueueManager;
+    
+    /**
+     * The HStoreCoordinator is responsible for communicating with other HStoreSites
+     * in the cluster to execute distributed transactions.
+     * NOTE: We will bind this variable after construction so that we can inject some
+     * testing code as needed.
+     */
+    private HStoreCoordinator hstore_coordinator;
+
+    /**
      * ClientResponse Processor Thread
+     * These threads allow a PartitionExecutor to send back ClientResponses back to
+     * the clients without blocking
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
     private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
-     * (xin): MapReduceHelperThread
+     * MapReduceHelperThread
      */
     private boolean mr_helper_started = false;
     private final MapReduceHelperThread mr_helper;
     
+    /**
+     * Transaction Command Logger (WAL)
+     */
     private final CommandLogWriter commandLogger;
 
     /**
@@ -245,6 +250,36 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final AsyncCompilerWorkThread asyncCompilerWork_thread;
     private final PeriodicWorkTimerThread periodicWorkTimer_thread;
+    
+    /**
+     * This catches any exceptions that are thrown in the various
+     * threads spawned by this HStoreSite
+     */
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL STATE OBSERVABLES
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * EventObservable for when the HStoreSite is finished initializing
+     * and is now ready to execute transactions.
+     */
+    private boolean ready = false;
+    private final EventObservable<Object> ready_observable = new EventObservable<Object>();
+    
+    /**
+     * EventObservable for when we receive the first non-sysproc stored procedure
+     * Other components of the system can attach to the EventObservable to be told when this occurs 
+     */
+    private boolean startWorkload = false;
+    private final EventObservable<AbstractTransaction> startWorkload_observable = new EventObservable<AbstractTransaction>();
+    
+    /**
+     * EventObservable for when the HStoreSite has been told that it needs to shutdown.
+     */
+    private Shutdownable.ShutdownState shutdown_state = ShutdownState.INITIALIZED;
+    private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     // ----------------------------------------------------------------------------
     // PARTITION SPECIFIC MEMBERS
@@ -2282,9 +2317,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     @Override
     public void run() {
-        List<Runnable> runnables = new ArrayList<Runnable>();
         final HStoreSite hstore_site = this;
         final Site catalog_site = hstore_site.getSite();
+        
+        // There used to be a ton of threads that we would start in here, which
+        // is why we had a CountDownLatch. But now it's only really one...
+        List<Runnable> runnables = new ArrayList<Runnable>();
+        final CountDownLatch ready_latch = new CountDownLatch(1);
         
         // ----------------------------------------------------------------------------
         // (1) Procedure Request Listener Thread (one per Site)
@@ -2301,7 +2340,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 try {
                     hstore_site.voltListener.bind(catalog_site.getProc_port());
                     hstore_site.procEventLoop.setExitOnSigInt(true);
-                    hstore_site.ready_latch.countDown();
+                    ready_latch.countDown();
                     hstore_site.procEventLoop.run();
                 } catch (Throwable ex) {
                     if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
@@ -2320,7 +2359,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // (5) HStoreSite Setup Thread
         // ----------------------------------------------------------------------------
         if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
-        hstore_site.ready_latch = new CountDownLatch(runnables.size());
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
@@ -2334,10 +2372,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 // But then wait for all of the threads to be finished with their initializations
                 // before we tell the world that we're ready!
-                if (hstore_site.ready_latch.getCount() > 0) {
-                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
+                if (ready_latch.getCount() > 0) {
+                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks",
+                                                   ready_latch.getCount()));
                     try {
-                        hstore_site.ready_latch.await();
+                        ready_latch.await();
                     } catch (Exception ex) {
                         LOG.error("Unexpected interuption while waiting for engines to start", ex);
                         hstore_site.hstore_coordinator.shutdownCluster(ex);
