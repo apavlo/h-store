@@ -632,7 +632,7 @@ public class CETxnInputGenerator {
                 executorIsAccountOwner = true;
             }
             else{
-            	accountPerms.generateCids();
+            	accountPerms.generateCids(customerID, additionalPerms, inputStructure.getAcctId());
                 if (additionalPerms == 2){
 
                 	flTaxId = person.getFirstNameLastNameTaxID(accountPerms.permCids[1]);
@@ -659,7 +659,7 @@ public class CETxnInputGenerator {
         else{
         	inputStructure.setCoNmae(companies.generateCompanyName( securities.getCompanyIndex( secFlatFileIndex )));
 
-        	char[] tmp = securities.getSecRecord(secFlatFileIndex)[1].toCharArray();
+        	char[] tmp = securities.getSecRecord(secFlatFileIndex)[3].toCharArray();
         	
         	inputStructure.setIssue(String.copyValueOf(tmp, 0, tmp.length));
 
