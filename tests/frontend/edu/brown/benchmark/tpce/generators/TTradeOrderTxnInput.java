@@ -4,8 +4,6 @@ import java.util.ArrayList;
 
 public class TTradeOrderTxnInput {
 
-	
-    
     public TTradeOrderTxnInput(){
     	co_name = new String();
     	exec_f_name = new String();
@@ -33,8 +31,9 @@ public class TTradeOrderTxnInput {
     	para.add(issue);
     	para.add(st_pending_id);
     	para.add(st_submitted_id);
-    	para.add(trade_type_id);
     	para.add(symbol);
+    	para.add(trade_type_id);
+    	para.add(trade_id);
     	return para;
     }
     
@@ -55,6 +54,9 @@ public class TTradeOrderTxnInput {
     }
     public long getTypeIsMargin(){
     	return type_is_margin;
+    }
+    public long getTradeID(){
+    	return trade_id;
     }
     public String getCoNmae(){
     	return co_name;
@@ -102,6 +104,9 @@ public class TTradeOrderTxnInput {
     public void setTypeIsMargin(long type_is_margin){
     	this.type_is_margin = type_is_margin;
     }
+    public void setTradeID(long trade_id){
+    	this.trade_id = trade_id;
+    }
     public void setCoNmae(String co_name){
     	this.co_name = co_name;
     }
@@ -135,6 +140,7 @@ public class TTradeOrderTxnInput {
     private long            roll_it_back;
 	private long            trade_qty;
 	private long            type_is_margin;
+	private long			trade_id;
 	private String          co_name;
 	private String          exec_f_name;
 	private String          exec_l_name;
