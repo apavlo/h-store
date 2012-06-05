@@ -114,6 +114,30 @@ public class AccountPermsGenerator extends TableGenerator {
         
         rnd.setSeed(oldSeed);
     }
+    public void generateCids(long customerID, int additionalPerms, long acct_id) {
+        if (additionalPerms == 1) { // only the customer himself has permissions
+            return;
+        }
+        
+        long oldSeed = rnd.getSeed();
+
+        rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_CID_FOR_PERMISSION1, acct_id);
+        permCids[1] = rnd.int64RangeExclude(TPCEConstants.DEFAULT_START_CUSTOMER_ID,
+                TPCEConstants.DEFAULT_START_CUSTOMER_ID + accountPermissionIDRange, customerID);
+        
+        // do we need to generate another one?
+        if (additionalPerms == 3) {
+            rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_CID_FOR_PERMISSION2, acct_id);
+            
+            // we do not want to generate the same cid as before -- thus, 'while'
+            do {
+                permCids[2] = rnd.int64RangeExclude(TPCEConstants.DEFAULT_START_CUSTOMER_ID,
+                        TPCEConstants.DEFAULT_START_CUSTOMER_ID + accountPermissionIDRange, customerID);
+            } while (permCids[1] == permCids[2]);
+        }
+        
+        rnd.setSeed(oldSeed);
+    }
 
     @Override
     public boolean hasNext() {
