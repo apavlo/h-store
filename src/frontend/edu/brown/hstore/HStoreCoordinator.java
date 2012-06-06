@@ -861,18 +861,20 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      */
     public void transactionMap(LocalTransaction ts, RpcCallback<TransactionMapResponse> callback) {
-        ByteString invocation = null;
+        ByteString paramBytes = null;
         try {
-            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
-            invocation = ByteString.copyFrom(b.array()); 
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getProcedureParameters()));
+            paramBytes = ByteString.copyFrom(b.array()); 
         } catch (Exception ex) {
             throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
         }
         
         TransactionMapRequest request = TransactionMapRequest.newBuilder()
                                                      .setTransactionId(ts.getTransactionId())
+                                                     .setClientHandle(ts.getClientHandle())
                                                      .setBasePartition(ts.getBasePartition())
-                                                     .setInvocation(invocation)
+                                                     .setProcedureId(ts.getProcedure().getId())
+                                                     .setParams(paramBytes)
                                                      .build();
         
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
@@ -889,18 +891,10 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      */
     public void transactionReduce(LocalTransaction ts, RpcCallback<TransactionReduceResponse> callback) {
-        ByteString invocation = null;
-        try {
-            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
-            invocation = ByteString.copyFrom(b.array()); 
-        } catch (Exception ex) {
-            throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
-        }
-        
+        // We only need to send over the transaction. The remote side should 
+        // already have all the information that it needs about this txn
         TransactionReduceRequest request = TransactionReduceRequest.newBuilder()
                                                      .setTransactionId(ts.getTransactionId())
-                                                     .setBasePartition(ts.getBasePartition())
-                                                     .setInvocation(invocation)
                                                      .build();
         
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();

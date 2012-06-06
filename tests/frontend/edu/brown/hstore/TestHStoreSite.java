@@ -1,48 +1,26 @@
 package edu.brown.hstore;
 
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
+import org.voltdb.VoltProcedure;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.messaging.FastDeserializer;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStoreSite;
-
-import org.junit.Before;
-import org.junit.Test;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
-
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientFactory;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.messaging.*;
-
-import edu.brown.protorpc.StoreResultCallback;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.RpcCallback;
-import com.google.protobuf.RpcController;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ProjectType;
 
 public class TestHStoreSite extends BaseTestCase {
     
@@ -55,15 +33,14 @@ public class TestHStoreSite extends BaseTestCase {
     private HStoreConf hstore_conf;
     
     private LocalTransaction ts;
-    private StoredProcedureInvocation invocation;
     private MockClientCallback callback;
 
-    private static final Object PARAMS[] = {
+    private static final ParameterSet PARAMS = new ParameterSet(
         new Long(0), // S_ID
         new Long(1), // SF_TYPE
         new Long(2), // START_TIME
-        new Long(3), // END_TIME
-    };
+        new Long(3)  // END_TIME
+    );
 
     
     @Before
@@ -76,7 +53,6 @@ public class TestHStoreSite extends BaseTestCase {
         this.hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         
         this.ts = new LocalTransaction(hstore_site);
-        this.invocation = new StoredProcedureInvocation(CLIENT_HANDLE, catalog_proc.getName(), PARAMS);
         this.callback = new MockClientCallback();
         Collection<Integer> predict_touchedPartitions = Collections.singleton(BASE_PARTITION);
         boolean predict_readOnly = true;
@@ -85,7 +61,7 @@ public class TestHStoreSite extends BaseTestCase {
         
         ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                catalog_proc, this.invocation, this.callback);
+                catalog_proc, PARAMS, this.callback);
     }
     
     @Override

@@ -3,8 +3,11 @@ package edu.brown.hstore.estimators;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.HStoreSite;
@@ -68,10 +71,14 @@ public class ExecutionProperties {
         }
     }
     
-    public void populateProperties(LocalTransaction ts) {
-        final Long txn_id = ts.getTransactionId();
-        final Procedure catalog_proc = ts.getProcedure();
-        final int base_partition = ts.getBasePartition();
+    public void populateProperties(LocalTransaction ts,
+                                    Long txn_id,
+                                    long client_handle,
+                                    int base_partition,
+                                    Procedure catalog_proc,
+                                    ParameterSet params,
+                                    RpcCallback<byte[]> client_callback){
+
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         Collection<Integer> predict_touchedPartitions = null;
@@ -199,11 +206,24 @@ public class ExecutionProperties {
         // SET EXECUTION PROPERTIES
         // -------------------------------
         
-        ts.setPredictProperties(predict_touchedPartitions,
-                                  predict_readOnly,
-                                  predict_abortable,
-                                  t_state);
-        
+        ts.init(txn_id,
+                client_handle,
+                base_partition,
+                predict_touchedPartitions,
+                predict_readOnly,
+                predict_abortable,
+                catalog_proc,
+                params,
+                client_callback);
+        if (t_state != null) ts.setEstimatorState(t_state);
+        if (d) {
+            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
+                      ts, base_partition,
+                      client_handle,
+                      ts.getPredictTouchedPartitions(),
+                      ts.isPredictReadOnly(),
+                      ts.isPredictAbortable()));
+        }
     }
 
 }

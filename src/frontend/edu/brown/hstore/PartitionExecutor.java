@@ -1019,8 +1019,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                    false,
                    false,
                    tmp_def_stmt[0].getProcedure(),
-                   null, // We don't need the invocation anymore
-                   null // We don't need the client callback either
+                   def_work.getParams(),
+                   null // We don't need the client callback
                 );
         executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
         if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
@@ -1601,7 +1601,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         ClientResponseImpl cresponse = null;
         try {
-            cresponse = (ClientResponseImpl)volt_proc.call(ts, itask.getParameters()); // Blocking...
+            cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {

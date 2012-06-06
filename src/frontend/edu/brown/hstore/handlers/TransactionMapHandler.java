@@ -3,8 +3,6 @@ package edu.brown.hstore.handlers;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
-import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
@@ -51,37 +49,25 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         this.remoteHandler(controller, request, callback);
     }
     @Override
-    public void remoteHandler(RpcController controller, TransactionMapRequest request,
-            RpcCallback<TransactionMapResponse> callback) {
-        assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+    public void remoteHandler(RpcController controller,
+                               TransactionMapRequest request,
+                               RpcCallback<TransactionMapResponse> callback) {
+        assert(request.hasTransactionId()) :
+            "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = Long.valueOf(request.getTransactionId());
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d",
+            LOG.debug(String.format("Got %s for txn #%d",
                                    request.getClass().getSimpleName(), txn_id));
 
-        // Deserialize the StoredProcedureInvocation object
-        StoredProcedureInvocation invocation = null;
-        try {
-            invocation = FastDeserializer.deserialize(request.getInvocation().asReadOnlyByteBuffer(), StoredProcedureInvocation.class);
-        } catch (Exception ex) {
-            throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
-        }
-        // build parameterSet is important here
-        // This is the new version that should be build here 
-        invocation.buildParameterSet();
-        if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Check invocation: %s, Procedure Name: %s , parameters:%s, Base Partition:%d",
-                    invocation,invocation.getProcName(), invocation.getParams(), request.getBasePartition()));
-        assert(invocation != null);
-        assert(invocation.getParams() != null);
-        
-        MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
-        
         // The mr_ts handle will be null if this HStoreSite is not where the 
         // base partition for the original MRTransaction
+        MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
         if (mr_ts == null) {
-            assert(invocation != null):"invocation== null\n";
-            mr_ts = hstore_site.createMapReduceTransaction(txn_id, invocation, request.getBasePartition());
+            mr_ts = hstore_site.createMapReduceTransaction(txn_id,
+                                                           request.getClientHandle(),
+                                                           request.getBasePartition(),
+                                                           request.getProcedureId(),
+                                                           request.getParams().asReadOnlyByteBuffer());
         }
         assert(mr_ts.isMapPhase());
         mr_ts.initTransactionMapWrapperCallback(callback);

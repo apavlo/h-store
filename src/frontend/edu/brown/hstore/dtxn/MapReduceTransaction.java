@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -128,15 +129,25 @@ public class MapReduceTransaction extends LocalTransaction {
     
     
     @Override
-    public LocalTransaction init(Long txn_id, long clientHandle, int base_partition,
-            Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
-            Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
-        assert (invocation != null) : "invalid StoredProcedureInvocation parameter for MapReduceTransaction.init()";
-        assert (catalog_proc != null) : "invalid Procedure parameter for MapReduceTransaction.init()";
+    public LocalTransaction init(Long txn_id,
+                                  long clientHandle,
+                                  int base_partition,
+                                  Collection<Integer> predict_touchedPartitions,
+                                  boolean predict_readOnly,
+                                  boolean predict_canAbort,
+                                  Procedure catalog_proc, ParameterSet params,
+                                  RpcCallback<byte[]> client_callback) {
+        super.init(txn_id,
+                    clientHandle,
+                    base_partition,
+                    predict_touchedPartitions,
+                    predict_readOnly,
+                    predict_canAbort,
+                    catalog_proc,
+                    params,
+                    client_callback);
         
-        super.init(txn_id, clientHandle, base_partition,
-                   predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                   catalog_proc, invocation, client_callback);
+        // Intialize MapReduce properties
         this.mapEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getMapemittable());
         this.reduceEmit = hstore_site.getDatabase().getTables().get(this.catalog_proc.getReduceemittable());
         LOG.info(" CatalogUtil.getVoltTable(thisMapEmit): -> " + this.catalog_proc.getMapemittable());
@@ -148,12 +159,18 @@ public class MapReduceTransaction extends LocalTransaction {
             int offset = hstore_site.getLocalPartitionOffset(partition);
             //int offset = partition;
             LOG.info(String.format("Partition[%d] -> Offset[%d]", partition, offset));
-            this.local_txns[offset].init(this.txn_id, this.client_handle, partition,
+            this.local_txns[offset].init(this.txn_id,
+                                         this.client_handle,
+                                         partition,
                                          Collections.singleton(partition),
-                                         this.predict_readOnly, this.predict_abortable,
-                                         catalog_proc, invocation, null);
+                                         this.predict_readOnly,
+                                         this.predict_abortable,
+                                         catalog_proc,
+                                         params,
+                                         null);
             
             this.local_txns[offset].setPartOfMapreduce(true);
+            
             // init map/reduce Output for each partition
             assert(this.mapEmit != null): "mapEmit has not been initialized\n ";
             assert(this.reduceEmit != null): "reduceEmit has not been initialized\n ";
@@ -180,10 +197,19 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this);
     }
 
-    public MapReduceTransaction init(Long txn_id, int base_partition, Procedure catalog_proc, StoredProcedureInvocation invocation) {
-        this.init(txn_id, invocation.getClientHandle(), base_partition,
-                  hstore_site.getAllPartitionIds(), false, true,
-                  catalog_proc, invocation, null);
+    public MapReduceTransaction init(Long txn_id,
+                                      long client_handle,
+                                      int base_partition,
+                                      Procedure catalog_proc,
+                                      ParameterSet params) {
+        this.init(txn_id,
+                  client_handle,
+                  base_partition,
+                  hstore_site.getAllPartitionIds(),
+                  false,
+                  true,
+                  catalog_proc,
+                  params, null);
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         assert(this.map_callback.isInitialized()) : "Unexpected error for " + this;
         //assert(this.sendData_callback.isInitialized()) : "Unexpected error for " + this;
