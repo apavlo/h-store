@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -89,6 +89,7 @@ import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
+import edu.brown.hstore.util.TransactionDispatcher;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
@@ -205,6 +206,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private VoltProcedureListener voltListener;
     private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
+    /**
+     * 
+     */
+    private final TransactionDispatcher txnDispatcher;
+    
     /**
      * PartitionExecutors
      * These are the single-threaded execution engines that have exclusive
@@ -403,8 +409,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Get the hasher we will use for this HStoreSite
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
-                                            new Object[]{ this.catalog_db, num_partitions },
-                                            new Class<?>[]{ Database.class, int.class });
+                                             new Object[]{ this.catalog_db, num_partitions },
+                                             new Class<?>[]{ Database.class, int.class });
         this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
         
         // **IMPORTANT**
@@ -465,6 +471,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
+        
+        // Transaction Dispatcher Thread
+        this.txnDispatcher = new TransactionDispatcher(this);
         
         // MapReduce Transaction helper thread
         if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
@@ -926,6 +935,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
+        // Start TransactionDispatcher
+        t = new Thread(this.txnDispatcher);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        
         // Start Status Monitor
         if (hstore_conf.site.status_enable) {
             assert(hstore_conf.site.status_interval >= 0);
@@ -1032,8 +1047,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
+                
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.prepareShutdown(false);
+        
+        this.txnQueueManager.prepareShutdown(error);
+        this.txnDispatcher.prepareShutdown(error);
+        
         for (PartitionExecutorPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
         } // FOR
@@ -1126,6 +1146,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
+    public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+        this.txnDispatcher.queue(serializedRequest, done);
+    }
+    
+    /**
+     * 
+     * @param serializedRequest
+     * @param done
+     */
     public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
 

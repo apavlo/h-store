@@ -18,6 +18,6 @@ public class TransactionRedirectDispatcher extends AbstractDispatcher<Pair<byte[
 
     @Override
     public void runImpl(Pair<byte[], TransactionRedirectResponseCallback> p) {
-        this.hstore_coordinator.getHStoreSite().procedureInvocation(p.getFirst(), p.getSecond());
+        this.hstore_coordinator.getHStoreSite().queueInvocation(p.getFirst(), p.getSecond());
     }
 }
