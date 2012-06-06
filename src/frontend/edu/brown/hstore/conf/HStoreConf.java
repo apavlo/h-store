@@ -270,6 +270,13 @@ public final class HStoreConf {
         public int exec_postprocessing_thread_count;
         
         @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_postprocessing_thread_per_partition;
+        
+        @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
                         "successful transactions that were speculatively executed.",

@@ -84,7 +84,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * We don't need to worry if this is 100% accurate, so we won't block here
      */
     public void checkThrottling(boolean increase) {
-        int size = this.queue.size();
+        int size = this.queue.size(); // TODO: This is a blocking call! Remove this!
         if (this.throttled == false) {
             if (size > this.queue_max) this.throttled = true;
             else if (increase && size == 0) {

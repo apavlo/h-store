@@ -16,7 +16,6 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
