@@ -818,6 +818,10 @@ public class LocalTransaction extends AbstractTransaction {
     	return (this.parameters);
     }
     
+    public void removeProcedureParameters() {
+        this.parameters = null;
+    }
+    
     public int getDependencyCount() { 
         return (this.state.dependency_ctr);
     }

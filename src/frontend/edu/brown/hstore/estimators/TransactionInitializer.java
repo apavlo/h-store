@@ -26,8 +26,8 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.StringUtil;
 
-public class ExecutionProperties {
-    private static final Logger LOG = Logger.getLogger(ExecutionProperties.class);
+public class TransactionInitializer {
+    private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
@@ -48,7 +48,7 @@ public class ExecutionProperties {
      */
     private final AbstractEstimator fixed_estimator;
     
-    public ExecutionProperties(HStoreSite hstore_site) {
+    public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.all_partitions = hstore_site.getAllPartitionIds();
