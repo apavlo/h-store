@@ -1092,7 +1092,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Tell the MapReduceHelperThread to shutdown too
         if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
         if (this.commandLogger != null) this.commandLogger.shutdown();
-
         
         for (int p : this.local_partitions_arr) {
             if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
@@ -1396,7 +1395,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             ts.init(-1l, client_handle, base_partition,
                     this.all_partitions, false, true,
-                    catalog_proc, null, done);
+                    catalog_proc, params, done);
             
             String sql = (String)params.toArray()[0];
             this.asyncCompilerWork_thread.planSQL(ts, sql);
@@ -2450,6 +2449,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
                 // Modify the StoredProcedureInvocation
                 ParameterSet params = result.ts.getProcedureParameters();
+                assert(params != null) : "Unexpected null ParameterSet";
                 params.setParameters(
                     plannedStmt.aggregatorFragment,
                     plannedStmt.collectorFragment,
