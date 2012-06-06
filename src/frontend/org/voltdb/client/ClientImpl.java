@@ -268,7 +268,7 @@ final class ClientImpl implements Client {
                 // OPTIMIZATION: If we have the the catalog, then we'll send just 
                 // the procId. This reduces the number of strings that we need to 
                 // allocate on the server side.
-                invocation.setProcId(catalog_proc.getId());
+                invocation.setProcedureId(catalog_proc.getId());
                 
                 // OPTIMIZATION: If this isn't a sysproc, then we can tell them
                 // what the base partition for this request will be

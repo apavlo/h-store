@@ -87,7 +87,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     }
 
     
-    public void setProcId(int procId) {
+    public void setProcedureId(int procId) {
         this.procId = procId;
     }
     
@@ -190,9 +190,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         base_partition = (int)in.readShort();
         clientHandle = in.readLong();
         procId = in.readInt();
-        if (procId == -1) {
-            procName = in.readString();
-        }
+        procName = in.readString();
         
 //        int num_partitions = in.readShort();
 //        if (num_partitions > 0) {
@@ -215,7 +213,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         out.writeShort(base_partition); // (2 bytes)
         out.writeLong(clientHandle);    // (8 bytes)
         out.writeShort(procId);         // (2 bytes)
-        if (procId != -1) out.writeString(procName);
+        out.writeString(procName);
         
 //        if (this.partitions == null) {
 //            out.writeShort(0);
@@ -234,6 +232,35 @@ public class StoredProcedureInvocation implements FastSerializable {
                       unserializedParams.remaining());
         }
     }
+    
+
+    @Override
+    public String toString() {
+        String retval = "Invocation: " + procName + "(";
+        if (params != null)
+            for (Object o : params.toArray()) {
+                retval += o.toString() + ", ";
+            }
+        else
+            retval += "null";
+        retval += ")";
+        return retval;
+    }
+
+    public void getDumpContents(StringBuilder sb) {
+        sb.append("Invocation: ").append(procName).append("(");
+        if (params != null)
+            for (Object o : params.toArray()) {
+                sb.append(o.toString()).append(", ");
+            }
+        else
+            sb.append("null");
+        sb.append(")");
+    }
+    
+    // ----------------------------------------------------------------------------
+    // QUICK ACCESS METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Returns true if the raw bytes for this invocation indicate that it's a sysproc request
@@ -284,7 +311,7 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static int getProcedureId(ByteBuffer buffer) {
-        return (buffer.getInt(11));
+        return (buffer.getShort(11));
     }
     
     /**
@@ -302,9 +329,8 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static String getProcedureName(FastDeserializer in) {
-        in.buffer().rewind();
+        in.buffer().position(13);
         try {
-            in.skipBytes(13);
             return (in.readString());
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -318,39 +344,10 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static ByteBuffer getParameterSet(ByteBuffer buffer) {
-        // Skip to the procId. If it's -1, then we know
-        // that we need to grab the next int to get the string name
-        // and then move the position past that
-        buffer.position(11);
-        if (buffer.getShort() == -1) {
-            int procNameLen = buffer.getInt();
-            buffer.position(buffer.position() + procNameLen);
-        }
+        // Skip to the procedure name
+        buffer.position(13);
+        int procNameLen = buffer.getInt();
+        buffer.position(buffer.position() + procNameLen);
         return buffer.slice();
-    }
-    
-
-    @Override
-    public String toString() {
-        String retval = "Invocation: " + procName + "(";
-        if (params != null)
-            for (Object o : params.toArray()) {
-                retval += o.toString() + ", ";
-            }
-        else
-            retval += "null";
-        retval += ")";
-        return retval;
-    }
-
-    public void getDumpContents(StringBuilder sb) {
-        sb.append("Invocation: ").append(procName).append("(");
-        if (params != null)
-            for (Object o : params.toArray()) {
-                sb.append(o.toString()).append(", ");
-            }
-        else
-            sb.append("null");
-        sb.append(")");
     }
 }
