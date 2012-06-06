@@ -392,7 +392,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Mapping from ProcIds to Procedures
         // TODO: This should be moved in CatalogContext
-        this.catalog_procs = new Procedure[catalog_db.getProcedures().size()];
+        this.catalog_procs = new Procedure[catalog_db.getProcedures().size()+1];
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             this.catalog_procs[catalog_proc.getId()] = catalog_proc;
         } // FOR
@@ -1121,11 +1121,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // extract out the data that we need in this request
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
-        System.err.println("DIRECT: " + buffer.isDirect());
         final boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
+        if (t) LOG.trace(String.format("Raw Request: [sysproc=%s / clientHandle=%d / procId=%d / basePartition=%d]",
+                                       sysproc, client_handle, procId, base_partition));
         
         // Optimization: We can get the Procedure catalog handle from its procId
         Procedure catalog_proc = null;
@@ -1149,9 +1150,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException("Unknown procedure '" + procName + "'");
             }
         }
-        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]",
-                                       catalog_proc.getName(), client_handle));
-        
+
         // -------------------------------
         // PARAMETERSET INITIALIZATION
         // -------------------------------
@@ -1167,6 +1166,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } 
         assert(procParams != null) :
             "The parameters object is null for new txn from client #" + client_handle;
+        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]\n%s",
+                                       catalog_proc.getName(), client_handle, procParams));
         
         // System Procedure Check
         // If this method returns true, then we want to halt processing the

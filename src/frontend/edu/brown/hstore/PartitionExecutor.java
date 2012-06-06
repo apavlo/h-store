@@ -1583,7 +1583,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.execState.clear();
         ts.setExecutionState(this.execState);
         
-        VoltProcedure volt_proc = this.procedures.get(itask.getStoredProcedureName());
+        VoltProcedure volt_proc = this.procedures.get(ts.getProcedureName());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (d) {
@@ -1594,7 +1594,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         ClientResponseImpl cresponse = null;
         try {
-            cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters()); // Blocking...
+            cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
