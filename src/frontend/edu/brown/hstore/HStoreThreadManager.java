@@ -1,6 +1,7 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +54,9 @@ public class HStoreThreadManager {
             for (int i = 0; i < this.num_partitions; i++) {
                 this.processing_affinity[i] = false;
             } // FOR
+            if ((this.num_cores - this.num_partitions) > 2) {
+                this.processing_affinity[this.processing_affinity.length-1] = false;
+            }
         }
     }
     
@@ -107,11 +111,20 @@ public class HStoreThreadManager {
         if (this.disable) return;
         if (debug.get())
             LOG.debug("Registering Processing Thread to execute on CPUs " + getCPUIds(this.processing_affinity));
+        
+        boolean affinity[] = this.processing_affinity;
+        Thread t = Thread.currentThread();
+        if (t.getName().endsWith("-listen") || t.getName().endsWith("-dispatch")) {
+            affinity = new boolean[this.num_cores];
+            Arrays.fill(affinity, false);
+            affinity[affinity.length-1] = true;
+        }
+        
         // This thread cannot run on the EE's cores
         // If this fails (such as on OS X for some weird reason), we'll
         // just print a warning rather than crash
         try {
-            org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
+            org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
         } catch (UnsatisfiedLinkError ex) {
             LOG.warn("Unable to set thread affinity. Disabling feature", (debug.get() ? ex : null));
             this.disable = true;
