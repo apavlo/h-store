@@ -5,7 +5,6 @@ import java.util.Collections;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.catalog.Procedure;
@@ -168,8 +167,7 @@ public class MapReduceTransaction extends LocalTransaction {
                                          catalog_proc,
                                          params,
                                          null);
-            
-            this.local_txns[offset].setPartOfMapreduce(true);
+            this.local_txns[offset].markMapReduce();
             
             // init map/reduce Output for each partition
             assert(this.mapEmit != null): "mapEmit has not been initialized\n ";

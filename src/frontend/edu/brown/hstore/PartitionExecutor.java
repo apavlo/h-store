@@ -1350,27 +1350,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Unexpected null transaction handle!";
         final InitiateTaskMessage task = ts.getInitiateTaskMessage();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
-        final boolean mapreduce_part = ts.isPartOfMapreduce();
+        final boolean force = (ts.isMapReduce() == true);
         boolean success = true;
         
         if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
                                        ts, this.partitionId, this.currentDtxn, this.currentExecMode, task.hashCode()));
         
-        // If we're a single-partition and speculative execution is enabled, then we can always set it up now
-        if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.currentExecMode != ExecutionMode.DISABLED) {
+        // If we're a single-partition and speculative execution is 
+        // enabled, then we can always set it up now
+        if (hstore_conf.site.exec_speculative_execution &&
+            singlePartitioned &&
+            this.currentExecMode != ExecutionMode.DISABLED) {
             if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            if (d) LOG.debug(String.format("Is part of mapreduce: " + mapreduce_part));
-            
-            if (mapreduce_part) success = this.work_throttler.offer(task, true);
-            else success = this.work_throttler.offer(task, false);
-            
-
-        // Otherwise figure out whether this txn needs to be blocked or not
+            success = this.work_throttler.offer(task, force);
         }
+        // Otherwise figure out whether this txn needs to be blocked or not
         else {
             if (d) LOG.debug(String.format("%s - Attempting to add %s to partition %d queue [currentTxn=%s]",
                                            ts, task.getClass().getSimpleName(), this.partitionId, this.currentTxnId));
-            
             exec_lock.lock();
             try {
                 // No outstanding DTXN
@@ -1379,12 +1376,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    ts, task.getClass().getSimpleName(), this.work_queue.size()));
                     // Only use the throttler for single-partition txns
                     if (singlePartitioned) {
-                        if (d) LOG.debug(String.format("Is part of mapreduce: " + mapreduce_part));
-                        if (mapreduce_part) success = this.work_throttler.offer(task, true);
-                        else success = this.work_throttler.offer(task, false);
-                        
+                        success = this.work_throttler.offer(task, force);
                     } else {
-                        // this.work_queue.addFirst(task);
                         this.work_queue.add(task);
                     }
                 }
@@ -2867,7 +2860,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (timeout && this.isShuttingDown() == false) {
                 LOG.warn(String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
                                                 ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
-                LOG.warn("Procedure Parameters:\n" + ts.getInvocation().getParams());
+                LOG.warn("Procedure Parameters:\n" + ts.getProcedureParameters());
                 hstore_conf.site.exec_profiling = true;
                 LOG.warn(hstore_site.statusSnapshot());
                 
