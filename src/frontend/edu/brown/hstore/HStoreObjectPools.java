@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.pool.impl.StackObjectPool;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
@@ -75,6 +76,12 @@ public abstract class HStoreObjectPools {
      */
     public static TypedStackObjectPool<DistributedState> STATES_DISTRIBUTED;
     
+    // ----------------------------------------------------------------------------
+    // ADDITIONAL OBJECTS
+    // ----------------------------------------------------------------------------
+    
+    public static TypedStackObjectPool<ParameterSet> PARAMETERSETS;
+    
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -88,10 +95,11 @@ public abstract class HStoreObjectPools {
         assert(hstore_site != null);
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         
+        // CALLBACKS
+        
         CALLBACKS_TXN_INITQUEUE = TypedStackObjectPool.factory(TransactionInitQueueCallback.class,
                 (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        
         CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
@@ -99,6 +107,8 @@ public abstract class HStoreObjectPools {
                 (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
 
+        // STATES
+        
         STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                 (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
@@ -111,6 +121,11 @@ public abstract class HStoreObjectPools {
         STATES_DISTRIBUTED = TypedStackObjectPool.factory(DistributedState.class,
                 (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
+        
+        // ADDITIONAL
+        PARAMETERSETS = TypedStackObjectPool.factory(ParameterSet.class,
+                (int)(hstore_conf.site.pool_parametersets_idle * hstore_conf.site.pool_scale_factor),
+                hstore_conf.site.pool_profiling);
         
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools

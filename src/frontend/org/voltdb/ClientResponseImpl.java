@@ -73,11 +73,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
 
     /**
-     * Another constructor for test and error responses
+     * 
+     * @param txn_id
      * @param client_handle
+     * @param basePartition
      * @param status
      * @param results
-     * @param extra
+     * @param statusString
      */
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString) {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);

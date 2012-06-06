@@ -28,17 +28,20 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.TimestampType;
 import org.voltdb.types.VoltDecimalHelper;
 
+import edu.brown.utils.Poolable;
+
 /**
  * The ordered set of parameters of the proper types that is passed into
  * a stored procedure OR a plan fragment.
  */
-public class ParameterSet implements FastSerializable {
+public class ParameterSet implements FastSerializable, Poolable {
 
     static final byte ARRAY = -99;
     public static final ParameterSet EMPTY = new ParameterSet();
     
     private final boolean m_serializingToEE;
-
+    private Object m_params[] = new Object[0];
+    
     public ParameterSet() {
         this(false);
     }
@@ -51,18 +54,20 @@ public class ParameterSet implements FastSerializable {
     public ParameterSet(boolean serializingToEE) {
         m_serializingToEE = serializingToEE;
     }
-
-    static Object limitType(Object o) {
-        Class<?> ctype = o.getClass();
-        if (ctype == Integer.class) {
-            return ((Integer) o).longValue();
-        }
-
-        return o;
+    
+    @Override
+    public boolean isInitialized() {
+        return false;
     }
-    private Object m_params[] = new Object[0];
+    
+    @Override
+    public void finish() {
+        this.m_params = null;
+    }
 
-    /** Sets the internal array to params. Note: this does *not* copy the argument. */
+    /**
+     * Sets the internal array to params. Note: this does *not* copy the argument.
+     */
     public ParameterSet setParameters(Object... params) {
         this.m_params = params;
         return (this);
@@ -315,5 +320,14 @@ public class ParameterSet implements FastSerializable {
                     throw new RuntimeException("ParameterSet doesn't support type" + nextType);
             }
         }
+    }
+    
+    static Object limitType(Object o) {
+        Class<?> ctype = o.getClass();
+        if (ctype == Integer.class) {
+            return ((Integer) o).longValue();
+        }
+
+        return o;
     }
 }

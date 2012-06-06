@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -86,6 +87,7 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.estimators.AbstractEstimator;
+import edu.brown.hstore.estimators.ExecutionProperties;
 import edu.brown.hstore.estimators.SEATSEstimator;
 import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
@@ -152,6 +154,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
+    private Procedure catalog_procs[];
     
     /**
      * This buffer pool is used to serialize ClientResponses to send back
@@ -335,6 +338,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
 
     /**
+     * 
+     */
+    private final ExecutionProperties execPropEstimator;
+    
+    /**
      * Estimation Thresholds
      */
     private EstimationThresholds thresholds = new EstimationThresholds(); // default values
@@ -343,12 +351,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * If we're using the TransactionEstimator, then we need to convert all primitive array ProcParameters
      * into object arrays...
      */
-    private final Map<Procedure, ParameterMangler> param_manglers = new HashMap<Procedure, ParameterMangler>();
-    
-    /**
-     * Fixed Markov Estimator
-     */
-    private final AbstractEstimator fixed_estimator;
+    private final Map<Procedure, ParameterMangler> param_manglers = new IdentityHashMap<Procedure, ParameterMangler>();
+
     
     // ----------------------------------------------------------------------------
     // STATUS + PROFILING MEMBERS
@@ -396,6 +400,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.host_id = this.catalog_host.getId();
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
+        
+        // Mapping from ProcIds to Procedures
+        // TODO: This should be moved in CatalogContext
+        this.catalog_procs = new Procedure[catalog_db.getProcedures().size()];
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            this.catalog_procs[catalog_proc.getId()] = catalog_proc;
+        } // FOR
         
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
@@ -516,7 +527,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.voltListener = new VoltProcedureListener(this.host_id,
                                                        this.procEventLoop,
                                                        this);
-        
 
         // Transaction Post-Processing Threads
         if (hstore_conf.site.exec_postprocessing_thread) {
@@ -534,27 +544,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TRANSACTION ESTIMATION
         // -------------------------------
         
+        this.execPropEstimator = new ExecutionProperties(this);
+        
         // Create all of our parameter manglers
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
-        
-        // HACK
-        if (hstore_conf.site.exec_neworder_cheat) {
-            if (catalog_db.getProcedures().containsKey("neworder")) {
-                this.fixed_estimator = new TPCCEstimator(this);
-            } else if (catalog_db.getProcedures().containsKey("UpdateLocation")) {
-                this.fixed_estimator = new TM1Estimator(this);
-            } else if (catalog_db.getProcedures().containsKey("FindOpenSeats")) {
-                this.fixed_estimator = new SEATSEstimator(this);
-            } else {
-                this.fixed_estimator = null;
-            }
-        } else {
-            this.fixed_estimator = null;
-        }
         
         // Profiling
         if (hstore_conf.site.status_show_executor_info) {
@@ -638,6 +635,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public Map<Procedure, ParameterMangler> getParameterManglers() {
         return (this.param_manglers);
+    }
+    public ParameterMangler getParameterMangler(Procedure catalog_proc) {
+        return (this.param_manglers.get(catalog_proc));
     }
     public ParameterMangler getParameterMangler(String proc_name) {
         Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
@@ -1128,32 +1128,62 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
-        StoredProcedureInvocation request = null;
+        // We don't need to create a StoredProcedureInvocation anymore in order to
+        // extract out the data that we need in this request
+        FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
-        FastDeserializer incomingDeserializer = this.getIncomingDeserializer().setBuffer(buffer);
+        System.err.println("DIRECT: " + buffer.isDirect());
+        final boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+        final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
+        final int procId = StoredProcedureInvocation.getProcedureId(buffer);
+        int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
+        
+        // Optimization: We can get the Procedure catalog handle from its procId
+        Procedure catalog_proc = null;
+        String procName = null;
+        if (procId >= 0 && procId < this.catalog_procs.length) {
+            catalog_proc = this.catalog_procs[procId];
+            procName = catalog_proc.getName();
+        }
+     
+        // Otherwise, we have to get the procedure name and do a look up with that.
+        if (catalog_proc == null) {
+            incomingDeserializer.setBuffer(buffer);
+            procName = StoredProcedureInvocation.getProcedureName(incomingDeserializer);
+            this.catalog_db.getProcedures().get(procName);
+            if (catalog_proc == null) {
+                catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
+            }
+            
+            // TODO: This should be an error message back to the client, not an exception
+            if (catalog_proc == null) {
+                throw new RuntimeException("Unknown procedure '" + procName + "'");
+            }
+        }
+        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]",
+                                       catalog_proc.getName(), client_handle));
+        
+        // -------------------------------
+        // PARAMETERSET INITIALIZATION
+        // -------------------------------
+        
+        // Initialize the ParameterSet
+        ParameterSet params = null;
         try {
-            request = incomingDeserializer.readObject(StoredProcedureInvocation.class);
-            request.buildParameterSet(incomingDeserializer);
+            params = HStoreObjectPools.PARAMETERSETS.borrowObject();
+            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(buffer));
+            params.readExternal(incomingDeserializer);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         } 
-        assert(request.getParams() != null) :
-            "The parameters object is null for new txn from client #" + request.getClientHandle();
-        Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
-        if (catalog_proc == null) {
-            catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
-        }
-        if (catalog_proc == null) 
-            throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        final boolean sysproc = request.isSysProc();
-        final boolean mapreduce = catalog_proc.getMapreduce();
-        int base_partition = request.getBasePartition();
-        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]", catalog_proc.getName(), request.getClientHandle()));
-
-        // Profiling Updates
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(request.getProcName());
-        if (hstore_conf.site.exec_profiling && base_partition != -1) {
-            this.incoming_partitions.put(base_partition);
+        assert(params != null) :
+            "The parameters object is null for new txn from client #" + client_handle;
+        
+        // System Procedure Check
+        // If this method returns true, then we want to halt processing the
+        // request any further and immediately return
+        if (sysproc && this.processSysProc(client_handle, params, catalog_proc, done)) {
+            return;
         }
         
         // -------------------------------
@@ -1165,23 +1195,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             base_partition = -1;
         }
         
+        // Profiling Updates
+        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(procName);
+        if (hstore_conf.site.exec_profiling && base_partition != -1) {
+            this.incoming_partitions.put(base_partition);
+        }
+        
         // DB2-style Transaction Redirection
         if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
             if (d) LOG.debug(String.format("Using embedded base partition from %s request [basePartition=%d]",
-                                           request.getProcName(), request.getBasePartition()));
-            assert(base_partition == request.getBasePartition());    
+                                           procName, base_partition));
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
         else if (sysproc) {
-            // If this method returns true, then we want to halt processing the
-            // request any further and immediately return
-            if (this.processSysProc(request, catalog_proc, done)) {
-                return;
-            }
+            
         }
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         else if (hstore_conf.site.exec_force_localexecution == false) {
-            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
+            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", procName));
             try {
                 Integer p = this.p_estimator.getBasePartition(catalog_proc, request.getParams().toArray(), false);
                 if (p != null) base_partition = p.intValue(); 
@@ -1194,13 +1225,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                           request.getProcName(), hstore_conf.site.exec_force_localexecution));
-            int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
+                                           procName, hstore_conf.site.exec_force_localexecution));
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions_arr.length);
             base_partition = this.local_partitions_arr[idx].intValue();
         }
         
         if (d) LOG.debug(String.format("Incoming %s transaction request [handle=%d, partition=%d]",
-                                       request.getProcName(), request.getClientHandle(), base_partition));
+                                       procName, client_handle, base_partition));
         
         // -------------------------------
         // REDIRECT TXN TO PROPER BASE PARTITION
@@ -1214,22 +1245,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        // Grab a new LocalTransactionState object from the target base partition's PartitionExecutor object pool
-        // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
+        // Initialize our LocalTransaction handle
         Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+        ts.init(txn_id, client_handle, base_partition,
+                ,
+                catalog_proc, request, done);
+
+        
+        // Grab a new LocalTransactionState object from the target base partition's
+        // PartitionExecutor object pool. This will be the handle that is used all
+        // throughout this txn's lifespan to keep track of what it does
+        
         LocalTransaction ts = null;
         try {
-            if (mapreduce) {
+            if (catalog_proc.getMapreduce()) {
                 ts = HStoreObjectPools.STATES_TXN_MAPREDUCE.borrowObject();
             } else {
                 ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
             }
             assert (ts.isInitialized() == false);
         } catch (Throwable ex) {
-            LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn #%s",
-                                    request.getProcName(), txn_id));
+            LOG.fatal("Failed to instantiate new LocalTransactionState for " + procName);
             throw new RuntimeException(ex);
         }
+
         
         // Disable transaction profiling for sysprocs
         if (hstore_conf.site.txn_profiling && sysproc) {
@@ -1240,122 +1279,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TRANSACTION EXECUTION PROPERTIES
         // -------------------------------
         
-        boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
-        boolean predict_readOnly = catalog_proc.getReadonly();
-        Collection<Integer> predict_touchedPartitions = null;
-        TransactionEstimator.State t_state = null; 
         
-        // Sysprocs can be either all partitions or single-partitioned
-        if (sysproc) {
-            // TODO: It would be nice if the client could pass us a hint when loading the tables
-            // It would be just for the loading, and not regular transactions
-            if (catalog_proc.getSinglepartition()) {
-                predict_touchedPartitions = this.single_partition_sets[base_partition];
-            } else {
-                predict_touchedPartitions = this.all_partitions;
-            }
-        }
-        // MapReduceTransactions always need all partitions
-        else if (mapreduce) {
-            if (t) LOG.trace(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
-                                           request.getProcName(), request.getClientHandle()));
-            predict_touchedPartitions = this.all_partitions;
-        }
-        // Force all transactions to be single-partitioned
-        else if (hstore_conf.site.exec_force_singlepartitioned) {
-            if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                             request.getProcName(), base_partition, request.getClientHandle()));
-            predict_touchedPartitions = this.single_partition_sets[base_partition];
-        }
-        // Use the @ProcInfo flags in the catalog
-        else if (hstore_conf.site.exec_voltdb_procinfo) {
-            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
-                                            request.getProcName(), request.getClientHandle(), catalog_proc.getSinglepartition()));
-            if (catalog_proc.getSinglepartition()) {
-                predict_touchedPartitions = this.single_partition_sets[base_partition];
-            } else {
-                predict_touchedPartitions = this.all_partitions;
-            }
-        }
-        // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
-        // out what partitions it's going to need to touch
-        else if (hstore_conf.site.exec_neworder_cheat) {
-            if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
-            if (this.fixed_estimator != null)
-                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, request.getParams().toArray());
-            if (predict_touchedPartitions == null)
-                predict_touchedPartitions = this.single_partition_sets[base_partition];
-        }    
-        // Otherwise, we'll try to estimate what the transaction will do (if we can)
-        else {
-            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
-                                           request.getProcName(), request.getClientHandle()));
-            
-            // Grab the TransactionEstimator for the destination partition and figure out whether
-            // this mofo is likely to be single-partition or not. Anything that we can't estimate
-            // will just have to be multi-partitioned. This includes sysprocs
-            TransactionEstimator t_estimator = this.executors[base_partition].getTransactionEstimator();
-            
-            try {
-                // HACK: Convert the array parameters to object arrays...
-                Object cast_args[] = this.param_manglers.get(catalog_proc).convert(request.getParams().toArray());
-                if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
-                
-                if (hstore_conf.site.txn_profiling) ts.profiler.startInitEstimation();
-                t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
-                
-                // If there is no TransactinEstimator.State, then there is nothing we can do
-                // It has to be executed as multi-partitioned
-                if (t_state == null) {
-                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned",
-                                                   AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    predict_touchedPartitions = this.all_partitions;
-                    
-                // We have a TransactionEstimator.State, so let's see what it says...
-                } else {
-                    if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
-                    MarkovEstimate m_estimate = t_state.getInitialEstimate();
-                    
-                    // Bah! We didn't get back a MarkovEstimate for some reason...
-                    if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                        predict_touchedPartitions = this.all_partitions;
-                        
-                    // Invalid MarkovEstimate. Stick with defaults
-                    } else if (m_estimate.isValid() == false) {
-                        if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
-                                AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        predict_readOnly = catalog_proc.getReadonly();
-                        predict_abortable = true;
-                        predict_touchedPartitions = this.all_partitions;
-                        
-                    // Use MarkovEstimate to determine things
-                    } else {
-                        if (d) {
-                            LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                            LOG.debug(String.format("%s MarkovEstimate:\n%s", AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        }
-                        predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
-                        predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_touchedPartitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
-                        
-                    }
-                }
-            } catch (Throwable ex) {
-                if (t_state != null) {
-                    MarkovGraph markov = t_state.getMarkovGraph();
-                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
-                    gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
-                    LOG.warn("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
-                }
-                LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_touchedPartitions = this.all_partitions;
-                predict_readOnly = false;
-                predict_abortable = true;
-            } finally {
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopInitEstimation();
-            }
-        }
         
         // Make sure that we start the MapReduceHelperThread
         if (mapreduce && this.mr_helper_started == false) {
@@ -1363,18 +1287,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.startMapReduceHelper();
         }
         
-        // Initialize our LocalTransaction handle
-        ts.init(txn_id, request.getClientHandle(), base_partition,
-                predict_touchedPartitions, predict_readOnly, predict_abortable,
-                catalog_proc, request, done);
-        // Set the EstimatorState if we have one!
-        if (t_state != null) ts.setEstimatorState(t_state);
+        
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
         if (d) {
             LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
                       ts, base_partition,
-                      request.getClientHandle(),
+                      client_handle,
                       predict_touchedPartitions, predict_readOnly, predict_abortable));
         }
         
@@ -1397,12 +1316,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param done
      * @return True if this request was handled and the caller does not need to do anything further
      */
-    private boolean processSysProc(StoredProcedureInvocation request, Procedure catalog_proc, RpcCallback<byte[]> done) {
-        // HACK: Check if we should shutdown. This allows us to kill things even if the
-        // DTXN coordinator is stuck.
+    private boolean processSysProc(long client_handle, ParameterSet params, Procedure catalog_proc, RpcCallback<byte[]> done) {
+        // -------------------------------
+        // SHUTDOWN
         // TODO: Execute as a regular transaction
-        if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-            ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
+        // -------------------------------
+        if (catalog_proc.getName().equals("@Shutdown")) {
+            ClientResponseImpl cresponse = new ClientResponseImpl(-1,
+                                                                  client_handle,
+                                                                  -1,
+                                                                  Status.OK,
+                                                                  HStoreConstants.EMPTY_RESULT,
+                                                                  "");
             FastSerializer fs = new FastSerializer();
             try {
                 fs.writeObject(cresponse);
@@ -1417,9 +1342,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return (true);
         }
         
-        // Check for AdHoc 
-        // new for AdHoc start **********************************************************************
-        if (catalog_proc.getName().equalsIgnoreCase("@AdHoc")) {
+        // -------------------------------
+        // ADHOC
+        // -------------------------------
+        else if (catalog_proc.getName().equals("@AdHoc")) {
             String msg = null;
             
             // Is this feature disabled?
@@ -1428,17 +1354,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // Check that variable 'request' in this func. is same as 
             // 'task' in ClientInterface.handleRead()
-            else if (request.getParams().toArray().length != 1) {
+            else if (params.size() != 1) {
                 msg = "AdHoc system procedure requires exactly one parameter, " +
                 	  "the SQL statement to execute.";
             }
             
             if (msg != null) {
-                final ClientResponseImpl errorResponse =
-                    new ClientResponseImpl(-1, request.getClientHandle(), -1,
-                                           Status.ABORT_GRACEFUL,
-                                           HStoreConstants.EMPTY_RESULT,
-                                           msg);
+                ClientResponseImpl errorResponse = new ClientResponseImpl(-1,
+                                                                          client_handle,
+                                                                          -1,
+                                                                          Status.ABORT_GRACEFUL,
+                                                                          HStoreConstants.EMPTY_RESULT,
+                                                                          msg);
                 FastSerializer fs = new FastSerializer();
                 try {
                     fs.writeObject(errorResponse);
@@ -1457,7 +1384,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Create a LocalTransaction handle that will carry into the
             // the adhoc compiler. Since we don't know what this thing will do, we have
             // to assume that it needs to touch all partitions.
-            int idx = (int)(Math.abs(request.getClientHandle()) % this.local_partitions_arr.length);
+            int idx = (int)(Math.abs(client_handle) % this.local_partitions_arr.length);
             int base_partition = this.local_partitions_arr[idx].intValue();
             
             LocalTransaction ts = null;
@@ -1466,14 +1393,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 assert (ts.isInitialized() == false);
             } catch (Throwable ex) {
                 LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn",
-                                        request.getProcName()));
+                                        catalog_proc.getName()));
                 throw new RuntimeException(ex);
             }
-            ts = ts.init(-1l, request.getClientHandle(), base_partition,
-                         this.all_partitions, false, true,
-                         catalog_proc, request, done);
+            ts = ts.init(-1l, client_handle, base_partition,
+                         catalog_proc, null, done);
+            ts.setPredictProperties(this.all_partitions, false, true, null);
             
-            String sql = (String) request.getParams().toArray()[0];
+            String sql = (String)params.toArray()[0];
             this.asyncCompilerWork_thread.planSQL(ts, sql);
             return (true);
         }
