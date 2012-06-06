@@ -84,7 +84,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
-import edu.brown.hstore.estimators.ExecutionProperties;
+import edu.brown.hstore.estimators.TransactionInitializer;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
@@ -329,7 +329,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    private final ExecutionProperties execPropEstimator;
+    private final TransactionInitializer txnInitializer;
     
     /**
      * Estimation Thresholds
@@ -533,7 +533,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TRANSACTION ESTIMATION
         // -------------------------------
         
-        this.execPropEstimator = new ExecutionProperties(this);
+        this.txnInitializer = new TransactionInitializer(this);
         
         // Create all of our parameter manglers
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
@@ -1257,7 +1257,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Initialize our LocalTransaction handle
         Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
-        this.execPropEstimator.populateProperties(ts,
+        this.txnInitializer.populateProperties(ts,
                                                   txn_id,
                                                   client_handle,
                                                   base_partition,
@@ -2010,6 +2010,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     orig_ts.getProcedureParameters(),
                     orig_ts.getClientCallback()
         );
+        // Make sure that we remove the ParameterSet from the original LocalTransaction
+        // so that they don't get returned back to the object pool when it is deleted
+        orig_ts.removeProcedureParameters();
+        
+        // Increase the restart counter in the new transaction
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
          if (d) {
@@ -2266,7 +2271,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
 
         // Return the ParameterSet back to our pool
-        HStoreObjectPools.PARAMETERSETS.returnObject(ts.getProcedureParameters());
+        ParameterSet params = ts.getProcedureParameters();
+        if (params != null) {
+            HStoreObjectPools.PARAMETERSETS.returnObject(params);
+        }
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
