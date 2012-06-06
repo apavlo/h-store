@@ -238,35 +238,43 @@ public class LocalTransaction extends AbstractTransaction {
      * @param txn_id
      * @param clientHandle
      * @param base_partition
-     * @param predict_singlePartition
+     * @param predict_touchedPartitions
      * @param predict_readOnly
-     * @param predict_canAbort
-     * @param estimator_state
+     * @param predict_abortable
      * @param catalog_proc
-     * @param invocation
+     * @param params
      * @param client_callback
      * @return
      */
     public LocalTransaction init(Long txn_id,
                                   long clientHandle,
                                   int base_partition,
+                                  Collection<Integer> predict_touchedPartitions,
+                                  boolean predict_readOnly,
+                                  boolean predict_abortable,
                                   Procedure catalog_proc,
-                                  StoredProcedureInvocation invocation,
+                                  ParameterSet params,
                                   RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
+        assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.initiateTime = EstTime.currentTimeMillis();
         this.catalog_proc = catalog_proc;
         this.client_callback = client_callback;
-        this.invocation = invocation;
+        this.parameters = params;
+        
+        // Initialize the predicted execution properties for this transaction
+        this.predict_touchedPartitions = predict_touchedPartitions;
+        this.predict_readOnly = predict_readOnly;
+        this.predict_abortable = predict_abortable;
         
         super.init(txn_id,
                     clientHandle,
                     base_partition,
                     catalog_proc.getSystemproc(),
                     (this.predict_touchedPartitions.size() == 1),
-                    false,
-                    true,
+                    predict_readOnly,
+                    predict_abortable,
                     true);
         
         // Initialize the InitialTaskMessage
@@ -275,8 +283,18 @@ public class LocalTransaction extends AbstractTransaction {
         this.itask.setTransactionId(txn_id);
         this.itask.setSrcPartition(base_partition);
         this.itask.setDestPartition(base_partition);
-        this.itask.setStoredProcedureInvocation(invocation);
         this.itask.setSysProc(catalog_proc.getSystemproc());
+        
+        // Grab a DistributedState that will have all the goodies that we need
+        // to execute a distributed transaction
+        if (this.predict_singlePartition == false) {
+            try {
+                this.dtxnState = HStoreObjectPools.STATES_DISTRIBUTED.borrowObject(); 
+                this.dtxnState.init(this);
+            } catch (Exception ex) {
+                throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
+            }
+        }
         
         return (this);
     }
@@ -319,36 +337,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.invocation = new StoredProcedureInvocation(0, catalog_proc.getName(), proc_params);
         this.client_callback = new RpcCallback<byte[]>() { public void run(byte[] parameter) {} };
         return testInit(txn_id, base_partition, predict_touchedPartitions, catalog_proc);
-    }
-    
-    
-    /**
-     * Initialize the predicted execution properties for this transaction
-     * This should be called *after* we have called init
-     * @param predict_touchedPartitions
-     * @param predict_readOnly
-     * @param predict_abortable
-     * @param estimator_state
-     */
-    public void setPredictProperties(Collection<Integer> predict_touchedPartitions,
-                                      boolean predict_readOnly,
-                                      boolean predict_abortable,
-                                      TransactionEstimator.State estimator_state) {
-        this.predict_touchedPartitions = predict_touchedPartitions;
-        this.predict_readOnly = predict_readOnly;
-        this.predict_abortable = predict_abortable;
-        this.estimator_state = estimator_state;
-        
-        // Grab a DistributedState that will have all the goodies that we need
-        // to execute a distributed transaction
-        if (this.predict_singlePartition == false) {
-            try {
-                this.dtxnState = HStoreObjectPools.STATES_DISTRIBUTED.borrowObject(); 
-                this.dtxnState.init(this);
-            } catch (Exception ex) {
-                throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
-            }
-        }
     }
     
     @Override
@@ -669,13 +657,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
 
-    /**
-     * Return the transaction input ParameterSet
-     * @return
-     */
-    public final ParameterSet getParameterSet() {
-        return (this.parameters);
-    }
     
     /**
      * Returns true if the control code for this LocalTransaction was actually started
@@ -780,6 +761,7 @@ public class LocalTransaction extends AbstractTransaction {
      * from the client for the original transaction request 
      * @return
      */
+    @Deprecated
     public StoredProcedureInvocation getInvocation() {
         return (this.invocation);
     }
@@ -809,13 +791,17 @@ public class LocalTransaction extends AbstractTransaction {
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
+    
+    @Deprecated
     public boolean isPartOfMapreduce() {
         return part_of_mapreduce;
     }
-
+    @Deprecated
     public void setPartOfMapreduce(boolean part_of_mapreduce) {
         this.part_of_mapreduce = part_of_mapreduce;
     }
+    
+    
     public String getProcedureName() {
         return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
     }
@@ -834,7 +820,7 @@ public class LocalTransaction extends AbstractTransaction {
      * parameters for this transaction
      */
     public ParameterSet getProcedureParameters() {
-    	return (this.invocation.getParams());
+    	return (this.parameters);
     }
     
     public int getDependencyCount() { 

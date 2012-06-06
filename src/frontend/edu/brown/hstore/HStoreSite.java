@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -71,7 +70,6 @@ import org.voltdb.utils.Pair;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -86,11 +84,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
-import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.ExecutionProperties;
-import edu.brown.hstore.estimators.SEATSEstimator;
-import edu.brown.hstore.estimators.TM1Estimator;
-import edu.brown.hstore.estimators.TPCCEstimator;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
@@ -100,11 +94,7 @@ import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.protorpc.NIOEventLoop;
@@ -117,7 +107,6 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 /**
@@ -1168,21 +1157,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         
         // Initialize the ParameterSet
-        ParameterSet params = null;
+        ParameterSet procParams = null;
         try {
-            params = HStoreObjectPools.PARAMETERSETS.borrowObject();
+            procParams = HStoreObjectPools.PARAMETERSETS.borrowObject();
             incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(buffer));
-            params.readExternal(incomingDeserializer);
+            procParams.readExternal(incomingDeserializer);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         } 
-        assert(params != null) :
+        assert(procParams != null) :
             "The parameters object is null for new txn from client #" + client_handle;
         
         // System Procedure Check
         // If this method returns true, then we want to halt processing the
         // request any further and immediately return
-        if (sysproc && this.processSysProc(client_handle, params, catalog_proc, done)) {
+        if (sysproc && this.processSysProc(client_handle, procParams, catalog_proc, done)) {
             return;
         }
         
@@ -1208,13 +1197,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // If it's a sysproc, then it doesn't need to go to a specific partition
         else if (sysproc) {
-            
+            // Nothing to do here...
         }
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", procName));
             try {
-                Integer p = this.p_estimator.getBasePartition(catalog_proc, request.getParams().toArray(), false);
+                Integer p = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
                 if (p != null) base_partition = p.intValue(); 
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -1238,24 +1227,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the base_partition isn't local, then we need to ship it off to the right site
         // -------------------------------
         if (this.isLocalPartition(base_partition) == false) {
-            assert(request.hasBasePartition() == false) : 
-                String.format("Trying to redirect %s transaction more than once [basePartition=%d]",
-                              catalog_proc.getName(), base_partition);
+//            assert(request.hasBasePartition() == false) : 
+//                String.format("Trying to redirect %s transaction more than once [basePartition=%d]",
+//                              catalog_proc.getName(), base_partition);
             this.transactionRedirect(catalog_proc, serializedRequest, base_partition, done);
             return;
         }
         
-        // Initialize our LocalTransaction handle
-        Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
-        ts.init(txn_id, client_handle, base_partition,
-                ,
-                catalog_proc, request, done);
-
+        // -------------------------------
+        // TRANSACTION STATE INITIALIZATION
+        // -------------------------------
         
         // Grab a new LocalTransactionState object from the target base partition's
         // PartitionExecutor object pool. This will be the handle that is used all
         // throughout this txn's lifespan to keep track of what it does
-        
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
@@ -1268,34 +1253,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.fatal("Failed to instantiate new LocalTransactionState for " + procName);
             throw new RuntimeException(ex);
         }
-
+        
+        // Initialize our LocalTransaction handle
+        Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+        this.execPropEstimator.populateProperties(ts,
+                                                  txn_id,
+                                                  client_handle,
+                                                  base_partition,
+                                                  catalog_proc,
+                                                  procParams,
+                                                  done);
         
         // Disable transaction profiling for sysprocs
-        if (hstore_conf.site.txn_profiling && sysproc) {
+        if (hstore_conf.site.txn_profiling && ts.isSysProc()) {
             ts.profiler.disableProfiling();
         }
         
-        // -------------------------------
-        // TRANSACTION EXECUTION PROPERTIES
-        // -------------------------------
-        
-        
-        
         // Make sure that we start the MapReduceHelperThread
-        if (mapreduce && this.mr_helper_started == false) {
+        if (ts.isMapReduce() && this.mr_helper_started == false) {
             assert(this.mr_helper != null);
             this.startMapReduceHelper();
         }
         
-        
-        
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
-        if (d) {
-            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
-                      ts, base_partition,
-                      client_handle,
-                      predict_touchedPartitions, predict_readOnly, predict_abortable));
-        }
+        
         
         // If this is the first non-sysproc transaction that we've seen, then
         // we will notify anybody that is waiting for this event. This is used to clear
@@ -1396,9 +1377,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         catalog_proc.getName()));
                 throw new RuntimeException(ex);
             }
-            ts = ts.init(-1l, client_handle, base_partition,
-                         catalog_proc, null, done);
-            ts.setPredictProperties(this.all_partitions, false, true, null);
+            ts.init(-1l, client_handle, base_partition,
+                    this.all_partitions, false, true,
+                    catalog_proc, null, done);
             
             String sql = (String)params.toArray()[0];
             this.asyncCompilerWork_thread.planSQL(ts, sql);
@@ -1520,10 +1501,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param base_partition
      * @return
      */
-    public MapReduceTransaction createMapReduceTransaction(Long txn_id, StoredProcedureInvocation invocation, int base_partition) {
-        String proc_name = invocation.getProcName();
-        Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
-        if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + proc_name + "'");
+    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
+                                                            long client_handle,
+                                                            int base_partition,
+                                                            int procId,
+                                                            ByteBuffer paramsBuffer) {
+        Procedure catalog_proc = this.catalog_procs[procId];
+        if (catalog_proc == null) {
+            throw new RuntimeException("Unknown procedure id '" + procId + "'");
+        }
+        
+        // Initialize the ParameterSet
+        FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
+        ParameterSet procParams = null;
+        try {
+            procParams = HStoreObjectPools.PARAMETERSETS.borrowObject();
+            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
+            procParams.readExternal(incomingDeserializer);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } 
+        assert(procParams != null) :
+            "The parameters object is null for new txn from client #" + client_handle;
         
         MapReduceTransaction ts = null;
         try {
@@ -1531,14 +1530,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
             LOG.fatal(String.format("Failed to instantiate new MapReduceTransaction state for %s txn #%s",
-                                    proc_name, txn_id));
+                                    catalog_proc.getName(), txn_id));
             throw new RuntimeException(ex);
         }
         // We should never already have a transaction handle for this txnId
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
 
-        ts.init(txn_id, base_partition, catalog_proc, invocation);
+        ts.init(txn_id, client_handle, base_partition, catalog_proc, procParams);
         if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
                                        ts, base_partition));
         return (ts);
@@ -1903,7 +1902,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 spi.setBasePartition(redirect_partition.intValue());
                 
                 // Add all the partitions that the txn touched before it got aborted
-                spi.addPartitions(touched.values());
+                // XXX spi.addPartitions(touched.values());
                 
                 byte serializedRequest[] = null;
                 try {
@@ -2005,7 +2004,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     predict_readOnly,
                     predict_abortable,
                     orig_ts.getProcedure(),
-                    orig_ts.getInvocation(),
+                    orig_ts.getProcedureParameters(),
                     orig_ts.getClientCallback()
         );
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
@@ -2262,6 +2261,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
             } // FOR
         }
+
+        // Return the ParameterSet back to our pool
+        HStoreObjectPools.PARAMETERSETS.returnObject(ts.getProcedureParameters());
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
@@ -2270,6 +2272,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
         }
+        
     }
 
     // ----------------------------------------------------------------------------
