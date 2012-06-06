@@ -191,7 +191,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             
             // Execute store procedure!
             try {
-                handler.procedureInvocation(request, eventLoopCallback);
+                handler.queueInvocation(request, eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -264,7 +264,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public static interface Handler {
         public long getInstanceId();
-        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
+        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
     }
 
     public static void main(String[] vargs) throws Exception {
@@ -275,7 +275,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
             public long getInstanceId() {
                 return 0;
             }
-            public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+            @Override
+            public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
                 StoredProcedureInvocation invocation = null;
                 try {
                     invocation = FastDeserializer.deserialize(serializedRequest, StoredProcedureInvocation.class);
@@ -284,7 +285,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 }
                 LOG.debug("request: " + invocation.getProcName() + " " +
                         invocation.getParams().toArray().length);
-                done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));
+                done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));                
             }
         }
         PrintHandler printer = new PrintHandler();

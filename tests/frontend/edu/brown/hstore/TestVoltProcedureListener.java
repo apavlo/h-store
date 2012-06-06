@@ -57,7 +57,8 @@ public class TestVoltProcedureListener extends TestCase {
         public long getInstanceId() {
             return 0;
         }
-        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+        @Override
+        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
             StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest);
             invocation.buildParameterSet();
             assertEquals(PROC_NAME, invocation.getProcName());
@@ -65,6 +66,9 @@ public class TestVoltProcedureListener extends TestCase {
             assertNotNull(invocation.getParams().toArray());
             this.parameter = (Long)invocation.getParams().toArray()[0];
             done.run(VoltProcedureListener.serializeResponse(new VoltTable[0], invocation.getClientHandle()));
+        }
+        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+            // Nothing!
         }
         public Long getParameter() {
             return this.parameter;
