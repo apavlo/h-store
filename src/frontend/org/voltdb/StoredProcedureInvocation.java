@@ -344,10 +344,15 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static ByteBuffer getParameterSet(ByteBuffer buffer) {
+        seekToParameterSet(buffer);
+        return buffer.slice();
+    }
+    
+    public static void seekToParameterSet(ByteBuffer buffer) {
         // Skip to the procedure name
         buffer.position(13);
         int procNameLen = buffer.getInt();
         buffer.position(buffer.position() + procNameLen);
-        return buffer.slice();
     }
+    
 }

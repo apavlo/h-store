@@ -516,6 +516,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // Transaction Post-Processing Threads
         if (hstore_conf.site.exec_postprocessing_thread) {
+            if (hstore_conf.site.exec_postprocessing_thread_per_partition) {
+                hstore_conf.site.exec_postprocessing_thread_count = num_local_partitions;
+            }
             assert(hstore_conf.site.exec_postprocessing_thread_count > 0);
             if (d) LOG.debug(String.format("Starting %d transaction post-processing threads",
                                         hstore_conf.site.exec_postprocessing_thread_count));
@@ -1171,7 +1174,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         ParameterSet procParams = null;
         try {
             procParams = HStoreObjectPools.PARAMETERSETS.borrowObject();
-            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(buffer));
+            StoredProcedureInvocation.seekToParameterSet(buffer);
+            incomingDeserializer.setBuffer(buffer);
             procParams.readExternal(incomingDeserializer);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -2077,9 +2081,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
             this.sendClientResponse(cresponse,
-                                ts.getClientCallback(),
-                                ts.getInitiateTime(),
-                                ts.getRestartCounter());
+                                    ts.getClientCallback(),
+                                    ts.getInitiateTime(),
+                                    ts.getRestartCounter());
         } else if (d) { 
             LOG.debug(String.format("%s - Holding the ClientResponse until logged to disk", ts));
         }
@@ -2123,7 +2127,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // but we can't get that from here.
         byte bytes[] = null;
         FastSerializer out = this.getOutgoingSerializer(); 
-        out.clear();
         try {
             out.writeObject(cresponse);
         } catch (IOException e) {
@@ -2141,6 +2144,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } catch (CancelledKeyException ex) {
             // IGNORE
         }
+        out.clear();
     }
     
     /**

@@ -65,6 +65,7 @@
 <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
 <arg value="site.exec_postprocessing_thread=${site.exec_postprocessing_thread}" />
 <arg value="site.exec_postprocessing_thread_count=${site.exec_postprocessing_thread_count}" />
+<arg value="site.exec_postprocessing_thread_per_partition=${site.exec_postprocessing_thread_per_partition}" />
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
@@ -138,4 +139,5 @@
 <arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
 <arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
 <arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
+<arg value="site.pool_parametersets_idle=${site.pool_parametersets_idle}" />
 
