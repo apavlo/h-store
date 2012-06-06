@@ -295,37 +295,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
     }
     
-    /**
-     * @param undoToken Token identifying undo quantum for generated undo info
-     * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
-     */
-    @Override
-    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
-            long[] planFragmentIds,
-            int numFragmentIds,
-            int[] input_depIds,
-            int[] output_depIds,
-            ParameterSet[] parameterSets,
-            int numParameterSets,
-            long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
-        
-        assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
-        assert(planFragmentIds.length == parameterSets.length);
-        
-        // serialize the param sets
-        fsForParameterSet.clear();
-        try {
-            for (int i = 0; i < numFragmentIds; ++i) {
-                parameterSets[i].writeExternal(fsForParameterSet);
-                if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
-            }
-        } catch (final IOException exception) {
-            throw new RuntimeException(exception); // can't happen
-        }
-        
-        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
-    }
-    
 //    @Override
 //    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
 //            long[] planFragmentIds,
@@ -354,21 +323,34 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * @param undoToken Token identifying undo quantum for generated undo info
      * Wrapper for {@link #nativeExecuteQueryPlanFragmentsAndGetResults(long, int[], int, long, long, long)}.
      */
-    private DependencySet _executeQueryPlanFragmentsAndGetDependencySet(
+    @Override
+    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
             long[] planFragmentIds,
             int numFragmentIds,
             int[] input_depIds,
             int[] output_depIds,
+            ParameterSet[] parameterSets,
+            int numParameterSets,
             long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
         
-        assert(planFragmentIds != null) : "Null PlanFragments for txn #" + txnId;
+        assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
+        assert(planFragmentIds.length == parameterSets.length);
         
         if (numFragmentIds == 0) {
             LOG.warn("No fragments to execute. Returning empty DependencySet");
             return (new DependencySet(new int[0], new VoltTable[0]));
         }
-
-        // checkMaxFsSize();
+        
+        // serialize the param sets
+        fsForParameterSet.clear();
+        try {
+            for (int i = 0; i < numFragmentIds; ++i) {
+                parameterSets[i].writeExternal(fsForParameterSet);
+                if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+            }
+        } catch (final IOException exception) {
+            throw new RuntimeException(exception); // can't happen
+        }
 
         // Execute the plan, passing a raw pointer to the byte buffers for input and output
         deserializer.clear();

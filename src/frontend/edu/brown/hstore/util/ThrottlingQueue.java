@@ -83,10 +83,6 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * Check whether the size of this queue is greater than our max limit
      * We don't need to worry if this is 100% accurate, so we won't block here
      */
-    public void checkThrottling() {
-        this.checkThrottling(this.allow_increase);
-    }
-    
     public void checkThrottling(boolean increase) {
         int size = this.queue.size();
         if (this.throttled == false) {
@@ -128,25 +124,25 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
         }
         
         boolean ret = this.queue.offer(e);
-        if (ret) this.checkThrottling();
+        if (ret) this.checkThrottling(this.allow_increase);
         return (ret);
     }
     @Override
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
-        if (ret) this.checkThrottling();
+        if (ret) this.checkThrottling(this.allow_increase);
         return (ret);
     }
     @Override
     public E poll() {
         E e = this.queue.poll();
-        if (e != null) this.checkThrottling();
+        if (e != null) this.checkThrottling(this.allow_increase);
         return (e);
     }
     @Override
     public E remove() {
         E e = this.queue.remove();
-        if (e != null) this.checkThrottling();
+        if (e != null) this.checkThrottling(this.allow_increase);
         return (e);
     }
     

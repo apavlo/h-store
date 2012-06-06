@@ -154,8 +154,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Incoming request deserializer
      */
-//    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     private final IdentityHashMap<Thread, FastDeserializer> incomingDeserializers = new IdentityHashMap<Thread, FastDeserializer>();
+    
+    /**
+     * Outgoing response serializers
+     */
+    private final IdentityHashMap<Thread, FastSerializer> outgoingSerializers = new IdentityHashMap<Thread, FastSerializer>();
     
     /**
      * This is the object that we use to generate unqiue txn ids used by our
@@ -317,11 +321,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Collection<Integer> single_partition_sets[];
     
-    /**
-     * PartitionId Offset -> FastSerializer
-     */
-    private final FastSerializer partition_serializers[];
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION ESTIMATION
     // ----------------------------------------------------------------------------
@@ -441,13 +440,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partition_offsets = new int[num_partitions];
         Arrays.fill(this.local_partition_offsets, -1);
         this.local_partition_reverse = new int[num_local_partitions];
-        this.partition_serializers = new FastSerializer[num_local_partitions];
         int offset = 0;
         for (int partition : this.local_partitions) {
             this.local_partition_offsets[partition] = offset;
             this.local_partition_reverse[offset] = partition; 
             this.local_partitions_arr[offset] = partition;
-            this.partition_serializers[offset] = new FastSerializer(this.buffer_pool);
             this.single_partition_sets[partition] = Collections.singleton(partition);
             offset++;
         } // FOR
@@ -811,6 +808,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         assert(fds != null);
         return (fds);
+    }
+    
+    /**
+     * Return a thread-safe FastSerializer
+     * @return
+     */
+    private FastSerializer getOutgoingSerializer() {
+        Thread t = Thread.currentThread();
+        FastSerializer fs = this.outgoingSerializers.get(t);
+        if (fs == null) {
+            fs = new FastSerializer(this.buffer_pool);
+            this.outgoingSerializers.put(t, fs);
+        }
+        assert(fs != null);
+        return (fs);
     }
     
     
@@ -2110,17 +2122,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // The problem is that we need access to the underlying array of the ByteBuffer,
         // but we can't get that from here.
         byte bytes[] = null;
-        int offset = this.getLocalPartitionOffset(cresponse.getBasePartition());
-        FastSerializer out = this.partition_serializers[offset]; 
-        synchronized (out) {
-            out.clear();
-            try {
-                out.writeObject(cresponse);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            bytes = out.getBytes();
-        } // SYNCH
+        FastSerializer out = this.getOutgoingSerializer(); 
+        out.clear();
+        try {
+            out.writeObject(cresponse);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        bytes = out.getBytes();
         if (d) LOG.debug(String.format("%d - Serialized ClientResponse [throttle=%s, requestCtr=%d]",
                                        cresponse.getTransactionId(),
                                        cresponse.getThrottleFlag(),
