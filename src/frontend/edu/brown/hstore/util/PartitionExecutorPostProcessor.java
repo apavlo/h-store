@@ -61,7 +61,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     public void run() {
         int id = THREAD_ID.getAndIncrement();
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, String.format("post-%02d", id)));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "post")); // String.format("post-%02d", id)));
         if (hstore_site.getHStoreConf().site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
