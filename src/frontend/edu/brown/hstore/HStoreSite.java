@@ -1068,8 +1068,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown(false);
         this.shutdown_state = ShutdownState.SHUTDOWN;
-//      if (d)
-        LOG.info("Shutting down everything at " + this.getSiteName());
+        if (d) LOG.debug("Shutting down everything at " + this.getSiteName());
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();

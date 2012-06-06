@@ -62,7 +62,7 @@ public class TestPartitionPlanTM1 extends BaseTestCase {
 
         PartitionPlan pplan = PartitionPlan.createFromMap(m);
         assertNotNull(pplan);
-        pplan.save("/tmp/tm1.manual.pplan");
+//        pplan.save("/tmp/tm1.manual.pplan");
         
         String json = pplan.toJSONString();
         assertFalse(json.isEmpty());
