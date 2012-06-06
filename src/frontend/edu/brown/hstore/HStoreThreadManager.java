@@ -57,6 +57,7 @@ public class HStoreThreadManager {
             if ((this.num_cores - this.num_partitions) > 2) {
                 this.processing_affinity[this.num_cores-1] = false;
                 this.processing_affinity[this.num_cores-2] = false;
+                this.processing_affinity[this.num_cores-3] = false;
             }
         }
     }
@@ -125,6 +126,11 @@ public class HStoreThreadManager {
             Arrays.fill(affinity, false);
             affinity[affinity.length-2] = true;
             LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-2));
+        } else if (t.getName().endsWith("-queue")) {
+            affinity = new boolean[this.num_cores];
+            Arrays.fill(affinity, false);
+            affinity[affinity.length-3] = true;
+            LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-3));
         } else {
             LOG.info("Letting " + t.getName() + " execute on any core");
         }
