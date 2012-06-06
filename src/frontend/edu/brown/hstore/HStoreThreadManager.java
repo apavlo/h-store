@@ -55,7 +55,8 @@ public class HStoreThreadManager {
                 this.processing_affinity[i] = false;
             } // FOR
             if ((this.num_cores - this.num_partitions) > 2) {
-                this.processing_affinity[this.processing_affinity.length-1] = false;
+                this.processing_affinity[this.num_cores-1] = false;
+                this.processing_affinity[this.num_cores-2] = false;
             }
         }
     }
@@ -124,6 +125,8 @@ public class HStoreThreadManager {
             Arrays.fill(affinity, false);
             affinity[affinity.length-2] = true;
             LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-2));
+        } else {
+            LOG.info("Letting " + t.getName() + " execute on any core");
         }
         
         // This thread cannot run on the EE's cores
