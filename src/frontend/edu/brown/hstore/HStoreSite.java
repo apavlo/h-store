@@ -1247,7 +1247,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            assert(request.hasBasePartition() == false) : 
 //                String.format("Trying to redirect %s transaction more than once [basePartition=%d]",
 //                              catalog_proc.getName(), base_partition);
-            this.transactionRedirect(catalog_proc, serializedRequest, base_partition, done);
+            this.transactionRedirect(catalog_proc, buffer, base_partition, done);
             return;
         }
         
@@ -1776,7 +1776,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param base_partition
      * @param done
      */
-    public void transactionRedirect(Procedure catalog_proc, byte serializedRequest[], int base_partition, RpcCallback<byte[]> done) {
+    public void transactionRedirect(Procedure catalog_proc,
+                                     ByteBuffer serializedRequest,
+                                     int base_partition,
+                                     RpcCallback<byte[]> done) {
         if (d) LOG.debug(String.format("Forwarding %s request to partition %d", catalog_proc.getName(), base_partition));
         
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
@@ -1792,7 +1795,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Mark this request as having been redirected
         StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
         
-        this.hstore_coordinator.transactionRedirect(serializedRequest, callback, base_partition);
+        this.hstore_coordinator.transactionRedirect(serializedRequest.array(),
+                                                    callback,
+                                                    base_partition);
         if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
     }
     
