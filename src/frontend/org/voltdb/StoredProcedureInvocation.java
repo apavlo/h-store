@@ -189,7 +189,7 @@ public class StoredProcedureInvocation implements FastSerializable {
         sysproc = in.readBoolean();
         base_partition = (int)in.readShort();
         clientHandle = in.readLong();
-        procId = in.readInt();
+        procId = in.readShort();
         procName = in.readString();
         
 //        int num_partitions = in.readShort();
@@ -277,8 +277,7 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @param partition
      * @param serialized
      */
-    public static void markRawBytesAsRedirected(int partition, byte serialized[]) {
-        ByteBuffer buffer = ByteBuffer.wrap(serialized);
+     public static void markRawBytesAsRedirected(int partition, ByteBuffer buffer) {
         buffer.putShort(1, (short)partition);
     }
     

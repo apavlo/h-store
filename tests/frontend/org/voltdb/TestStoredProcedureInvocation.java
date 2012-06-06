@@ -107,7 +107,6 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE,
                                                                              TARGET_PROCEDURE,
                                                                              PARAMS);
-        assert(invocation.hasBasePartition());
         byte[] invocation_bytes = FastSerializer.serialize(invocation);
         assertNotNull(invocation_bytes);
         
@@ -135,7 +134,7 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertNotNull(invocation_bytes);
         
         for (int partition = 0; partition < 100; partition+=3) {
-            StoredProcedureInvocation.markRawBytesAsRedirected(partition, invocation_bytes);
+            StoredProcedureInvocation.markRawBytesAsRedirected(partition, ByteBuffer.wrap(invocation_bytes));
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
             assertNotNull(clone);
@@ -182,34 +181,34 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertFalse(clone.hasPartitions());
     }
     
-    /**
-     * testDeserializationWithPartitions
-     */
-    public void testDeserializationWithPartitions() throws Exception {
-        // Try with referencing the params directly
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
-        final Set<Integer> partitions = new HashSet<Integer>();
-        partitions.add(19);
-        partitions.add(85);
-        partitions.add(-1);
-        invocation.addPartitions(partitions);
-        
-        byte[] invocation_bytes = FastSerializer.serialize(invocation);
-        assertNotNull(invocation_bytes);
-
-        // Let 'er rip!
-        FastDeserializer fds = new FastDeserializer(invocation_bytes);
-        StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
-        assertNotNull(clone);
-        clone.buildParameterSet();
-        
-        assertEquals(invocation.getClientHandle(), clone.getClientHandle());
-        assertEquals(invocation.getProcName(), clone.getProcName());
-        assertNotNull(clone.getParams());
-        assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
-        assert(clone.hasPartitions());
-        assertEquals(partitions.size(), clone.getPartitions().size());
-        assert(partitions.containsAll(clone.getPartitions()));
-        
-    }
+//    /**
+//     * testDeserializationWithPartitions
+//     */
+//    public void testDeserializationWithPartitions() throws Exception {
+//        // Try with referencing the params directly
+//        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
+//        final Set<Integer> partitions = new HashSet<Integer>();
+//        partitions.add(19);
+//        partitions.add(85);
+//        partitions.add(-1);
+//        invocation.addPartitions(partitions);
+//        
+//        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+//        assertNotNull(invocation_bytes);
+//
+//        // Let 'er rip!
+//        FastDeserializer fds = new FastDeserializer(invocation_bytes);
+//        StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
+//        assertNotNull(clone);
+//        clone.buildParameterSet();
+//        
+//        assertEquals(invocation.getClientHandle(), clone.getClientHandle());
+//        assertEquals(invocation.getProcName(), clone.getProcName());
+//        assertNotNull(clone.getParams());
+//        assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
+//        assert(clone.hasPartitions());
+//        assertEquals(partitions.size(), clone.getPartitions().size());
+//        assert(partitions.containsAll(clone.getPartitions()));
+//        
+//    }
 }
