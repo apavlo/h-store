@@ -37,6 +37,9 @@ import org.voltdb.types.VoltDecimalHelper;
  *
  */
 public class FastDeserializer implements DataInput {
+    
+    private static final int NULL_STRING_INDICATOR = -1;
+    
     /**
      * Interface to monitor metrics and other information about the deserialization process
      *
@@ -62,6 +65,10 @@ public class FastDeserializer implements DataInput {
     public FastDeserializer(final ByteBuffer in) {
         buffer = in;
         assert(buffer.order() == ByteOrder.BIG_ENDIAN);
+    }
+    
+    public FastDeserializer() {
+        
     }
     
     /**
@@ -171,8 +178,6 @@ public class FastDeserializer implements DataInput {
      * @throws IOException Rethrows any IOExceptions.
      */
     public String readString() throws IOException {
-        final int NULL_STRING_INDICATOR = -1;
-
         final int len = readInt();
 
         // check for null string
@@ -190,7 +195,7 @@ public class FastDeserializer implements DataInput {
 
         // now assume not null
         final byte[] strbytes = new byte[len];
-        readFully(strbytes);
+        buffer.get(strbytes);
         String retval = null;
         try {
             retval = new String(strbytes, "UTF-8");
