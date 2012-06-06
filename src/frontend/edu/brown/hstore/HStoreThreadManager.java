@@ -118,6 +118,7 @@ public class HStoreThreadManager {
             affinity = new boolean[this.num_cores];
             Arrays.fill(affinity, false);
             affinity[affinity.length-1] = true;
+            LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-1));
         }
         
         // This thread cannot run on the EE's cores
