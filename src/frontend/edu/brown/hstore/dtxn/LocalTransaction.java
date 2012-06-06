@@ -153,7 +153,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private Collection<Integer> predict_touchedPartitions;
     
-    private boolean part_of_mapreduce = false;
+    private boolean mapreduce = false;
   
     /**
      * TransctionEstimator State Handle
@@ -262,6 +262,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = catalog_proc;
         this.client_callback = client_callback;
         this.parameters = params;
+        this.mapreduce = catalog_proc.getMapreduce();
         
         // Initialize the predicted execution properties for this transaction
         this.predict_touchedPartitions = predict_touchedPartitions;
@@ -734,7 +735,11 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public boolean isMapReduce() {
-        return (this.catalog_proc.getMapreduce());
+        return (this.mapreduce);
+    }
+    
+    public void markMapReduce() {
+        this.mapreduce = true;
     }
     
     /**
@@ -791,16 +796,6 @@ public class LocalTransaction extends AbstractTransaction {
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
-    
-    @Deprecated
-    public boolean isPartOfMapreduce() {
-        return part_of_mapreduce;
-    }
-    @Deprecated
-    public void setPartOfMapreduce(boolean part_of_mapreduce) {
-        this.part_of_mapreduce = part_of_mapreduce;
-    }
-    
     
     public String getProcedureName() {
         return (this.catalog_proc != null ? this.catalog_proc.getName() : null);

@@ -1847,8 +1847,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
                                    orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
-        StoredProcedureInvocation spi = orig_ts.getInvocation();
-        assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
         
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
@@ -1895,10 +1893,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.isLocalPartition(redirect_partition.intValue()) == false && spi.hasBasePartition() == false) {
+            if (this.isLocalPartition(redirect_partition.intValue()) == false) {
                 if (d) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
                                                orig_ts, redirect_partition));
                 
+                Procedure catalog_proc = orig_ts.getProcedure();
+                StoredProcedureInvocation spi = new StoredProcedureInvocation(orig_ts.getClientHandle(),
+                                                                              catalog_proc.getId(),
+                                                                              catalog_proc.getName(),
+                                                                              orig_ts.getProcedureParameters().toArray());
                 spi.setBasePartition(redirect_partition.intValue());
                 
                 // Add all the partitions that the txn touched before it got aborted
@@ -1924,13 +1927,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 return (Status.ABORT_RESTART);
                 
             // Allow local redirect
-            } else if (orig_ts.getRestartCounter() <= 1 || spi.hasBasePartition() == false) {
-                if (redirect_partition.intValue() != base_partition && this.isLocalPartition(redirect_partition.intValue())) {
-                    if (d) LOG.debug(String.format("Redirecting %s to local partition %d. " +
-                                                    "[restartCtr=%d]\n%s",
+            } else if (orig_ts.getRestartCounter() <= 1) {
+                if (redirect_partition.intValue() != base_partition &&
+                    this.isLocalPartition(redirect_partition.intValue())) {
+                    if (d) LOG.debug(String.format("Redirecting %s to local partition %d. restartCtr=%d]\n%s",
                                                     orig_ts, redirect_partition, orig_ts.getRestartCounter(), touched));
                     base_partition = redirect_partition.intValue();
-                    spi.setBasePartition(base_partition);
                 }
             } else {
                 if (d) LOG.debug(String.format("Mispredicted %s has already been aborted once before. " +
@@ -2420,11 +2422,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 AdHocPlannedStmt plannedStmt = (AdHocPlannedStmt) result;
 
                 // Modify the StoredProcedureInvocation
-                StoredProcedureInvocation task = result.ts.getInvocation();
-                task.setParams(plannedStmt.aggregatorFragment,
-                               plannedStmt.collectorFragment,
-                               plannedStmt.sql,
-                               plannedStmt.isReplicatedTableDML ? 1 : 0
+                ParameterSet params = result.ts.getProcedureParameters();
+                params.setParameters(
+                    plannedStmt.aggregatorFragment,
+                    plannedStmt.collectorFragment,
+                    plannedStmt.sql,
+                    plannedStmt.isReplicatedTableDML ? 1 : 0
         		);
 
                 // initiate the transaction
