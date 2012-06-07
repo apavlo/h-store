@@ -14,6 +14,7 @@ import org.voltdb.catalog.Partition;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
@@ -31,7 +32,14 @@ public class HStoreThreadManager {
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean processing_affinity[];
     private final Set<Thread> all_threads = new HashSet<Thread>();
-    private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>(); 
+    private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
+    
+    private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
+    private final String utility_suffixes[] = {
+        HStoreConstants.THREAD_NAME_POSTPROCESSOR,
+        HStoreConstants.THREAD_NAME_DISPATCHER,
+        HStoreConstants.THREAD_NAME_LISTEN,
+    };
     
     public HStoreThreadManager(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
@@ -54,10 +62,17 @@ public class HStoreThreadManager {
             for (int i = 0; i < this.num_partitions; i++) {
                 this.processing_affinity[i] = false;
             } // FOR
-            if ((this.num_cores - this.num_partitions) > 2) {
-                this.processing_affinity[this.num_cores-1] = false;
-                this.processing_affinity[this.num_cores-2] = false;
-                this.processing_affinity[this.num_cores-3] = false;
+            
+            // Reserve the lowest cores for the various utility threads
+            if ((this.num_cores - this.num_partitions) > this.utility_suffixes.length) {
+                for (int i = 0; i < this.utility_suffixes.length; i++) {
+                    boolean affinity[] = new boolean[this.num_cores];
+                    Arrays.fill(affinity, false);
+                    int core = this.num_cores - (i+1); 
+                    affinity[core] = true;
+                    this.processing_affinity[core] = false;
+                    this.utility_affinities.put(this.utility_suffixes[i], affinity);
+                } // FOR
             }
         }
     }
@@ -116,21 +131,10 @@ public class HStoreThreadManager {
         
         boolean affinity[] = this.processing_affinity;
         Thread t = Thread.currentThread();
-        if (t.getName().endsWith("-listen") || t.getName().endsWith("-dispatch")) {
-            affinity = new boolean[this.num_cores];
-            Arrays.fill(affinity, false);
-            affinity[affinity.length-1] = true;
-            LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-1));
-        } else if (t.getName().endsWith("-post")) {
-            affinity = new boolean[this.num_cores];
-            Arrays.fill(affinity, false);
-            affinity[affinity.length-2] = true;
-            LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-2));
-        } else if (t.getName().endsWith("-queue")) {
-            affinity = new boolean[this.num_cores];
-            Arrays.fill(affinity, false);
-            affinity[affinity.length-3] = true;
-            LOG.info("Assigning " + t.getName() + " to core " + (affinity.length-3));
+        String suffix = CollectionUtil.last(t.getName().split("\\-"));
+        if (this.utility_affinities.containsKey(suffix)) {
+            affinity = this.utility_affinities.get(suffix); 
+            LOG.info("Assigning " + t.getName() + " to cores " + Arrays.toString(affinity));
         } else {
             LOG.info("Letting " + t.getName() + " execute on any core");
         }

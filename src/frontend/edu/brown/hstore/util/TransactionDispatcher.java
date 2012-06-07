@@ -6,6 +6,7 @@ import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
@@ -30,7 +31,7 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     @Override
     public void run() {
         Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, "dispatch"));
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DISPATCHER));
         if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }

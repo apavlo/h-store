@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
@@ -188,7 +189,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     @Override
     public void run() {
         Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, "queue"));
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
         if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }

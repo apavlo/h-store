@@ -1,12 +1,12 @@
 package edu.brown.hstore.util;
 
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
@@ -24,8 +24,6 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static final AtomicInteger THREAD_ID = new AtomicInteger(0);
-    
     private final HStoreSite hstore_site;
     
     private final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
@@ -59,9 +57,8 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     
     @Override
     public void run() {
-        int id = THREAD_ID.getAndIncrement();
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "post")); // String.format("post-%02d", id)));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_POSTPROCESSOR));
         if (hstore_site.getHStoreConf().site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }

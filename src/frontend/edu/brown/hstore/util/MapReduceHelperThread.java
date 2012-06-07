@@ -8,13 +8,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltMapReduceProcedure;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTableRow;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
@@ -73,7 +72,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "MR"));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_MAPREDUCE));
         if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
