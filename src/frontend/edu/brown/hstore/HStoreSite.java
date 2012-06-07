@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -196,6 +195,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final HStoreThreadManager threadManager;
     
+    /**
+     * Reusable Object Pools
+     */
     private final HStoreObjectPools objectPools;
     
     // ----------------------------------------------------------------------------
