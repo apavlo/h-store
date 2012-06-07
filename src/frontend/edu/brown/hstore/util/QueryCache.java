@@ -117,6 +117,7 @@ public class QueryCache {
     
     /**
      * List<Integer> pool used by txnCache
+     * TODO: Switch to a better object pool
      */
     private final ObjectPool listPool = new StackObjectPool(new BasePoolableObjectFactory() {
         @Override

@@ -2,6 +2,8 @@ package edu.brown.utils;
 
 import org.apache.commons.pool.impl.StackObjectPool;
 
+import edu.brown.pools.TypedPoolableObjectFactory;
+
 import junit.framework.TestCase;
 
 public class TestCountingPoolableObjectFactory extends TestCase {

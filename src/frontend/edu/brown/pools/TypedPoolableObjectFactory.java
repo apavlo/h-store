@@ -25,12 +25,15 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-package edu.brown.utils;
+package edu.brown.pools;
 
 import java.lang.reflect.Constructor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
+
+import edu.brown.utils.ClassUtil;
+import edu.brown.utils.Poolable;
 
 /**
  * @author pavlo

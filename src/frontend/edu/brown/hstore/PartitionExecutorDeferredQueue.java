@@ -21,8 +21,4 @@ public class PartitionExecutorDeferredQueue extends PriorityQueue<DeferredWork> 
     public DeferredWork poll() {
         return this.poll();
     }
-    
-   
-
-
 }
