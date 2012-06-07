@@ -116,7 +116,7 @@ public class ClientStatusThread extends Thread {
                 continue; // IGNORE
             }
             final String clientName = BenchmarkUtil.getClientName(line.processName, clientId);
-            final BenchmarkComponent.ControlState status = BenchmarkComponent.ControlState.get(parts[2]);
+            final ControlState status = ControlState.get(parts[2]);
             assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
             
             if (trace.get()) 

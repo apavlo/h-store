@@ -89,7 +89,6 @@ import org.voltdb.sysprocs.NoOp;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreThreadManager;
@@ -932,7 +931,7 @@ public class BenchmarkController {
 
         // start up all the clients
         for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, Command.START);
+            m_clientPSM.writeToProcess(clientName, ControlCommand.START);
 
         // Warm-up
         Client local_client = null;
@@ -966,7 +965,7 @@ public class BenchmarkController {
                 
                 // Reset the counters
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.CLEAR);
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.CLEAR);
                 
                 LOG.info("Starting benchmark stats collection");
             }
@@ -982,9 +981,9 @@ public class BenchmarkController {
                 m_pollIndex++;
 
                 // make all the clients poll
-                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.POLL);
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL);
 
                 // get ready for the next interval
                 nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
@@ -1008,7 +1007,7 @@ public class BenchmarkController {
             assert(m_config.dumpDatabaseDir != null);
             
             // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(Command.PAUSE);
+            m_clientPSM.writeToAll(ControlCommand.PAUSE);
             
             if (local_client == null) local_client = this.getClientConnection();
             try {
@@ -1021,7 +1020,7 @@ public class BenchmarkController {
         // Recompute MarkovGraphs
         if (m_config.markovRecomputeAfterEnd && this.stop == false) {
             // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(Command.PAUSE);
+            m_clientPSM.writeToAll(ControlCommand.PAUSE);
             
             if (local_client == null) local_client = this.getClientConnection();
             this.recomputeMarkovs(local_client);
@@ -1035,10 +1034,10 @@ public class BenchmarkController {
         boolean first = true;
         for (String clientName : m_clients) {
             if (first && m_config.noShutdown == false) {
-                m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
+                m_clientPSM.writeToProcess(clientName, ControlCommand.SHUTDOWN);
                 first = false;
             } else {
-                m_clientPSM.writeToProcess(clientName, Command.STOP);
+                m_clientPSM.writeToProcess(clientName, ControlCommand.STOP);
             }
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
