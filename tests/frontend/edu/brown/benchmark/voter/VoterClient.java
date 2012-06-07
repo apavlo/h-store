@@ -80,6 +80,7 @@ public class VoterClient extends BenchmarkComponent {
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
 	
+    final Callback callback = new Callback();
 	
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterClient.class, args, false);
@@ -119,15 +120,12 @@ public class VoterClient extends BenchmarkComponent {
 		// Get the next phone call
 		PhoneCallGenerator.PhoneCall call = switchboard.receive();
 		
-		try 
-		{			
-			Callback callback = new Callback();
+		try {			
 			response = client.callProcedure(callback, 
 											"Vote",
 											call.phoneNumber,
 											call.contestantNumber,
 											VoterConstants.MAX_VOTES);
-			 
 			if(response == false)
 				throw new IOException(); 
 			
