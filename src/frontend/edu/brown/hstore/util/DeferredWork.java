@@ -1,4 +1,4 @@
-package edu.brown.hstore;
+package edu.brown.hstore.util;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
