@@ -32,7 +32,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final Queue<E> queue;
+    private final BlockingQueue<E> queue;
     
     private volatile int size;
     private boolean throttled;
@@ -52,7 +52,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * @param queue_increase
      * @param queue_increase_max
      */
-    public ThrottlingQueue(Queue<E> queue, int queue_max, double queue_release, int queue_increase, int queue_increase_max) {
+    public ThrottlingQueue(BlockingQueue<E> queue, int queue_max, double queue_release, int queue_increase, int queue_increase_max) {
         this.queue = queue;
         this.throttled = false;
         this.queue_max = queue_max;
@@ -70,7 +70,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public ProfileMeasurement getThrottleTime() {
         return (this.throttle_time);
     }
-    public Queue<E> getQueue() {
+    protected final Queue<E> getQueue() {
         return (this.queue);
     }
     public boolean isThrottled() {
@@ -94,8 +94,10 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
         if (this.throttled == false) {
             if (this.size > this.queue_max) this.throttled = true;
             else if (increase && this.size == 0) {
-                this.queue_max = Math.min(this.queue_increase_max, (this.queue_max + this.queue_increase));
-                this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+                synchronized (this) {
+                    this.queue_max = Math.min(this.queue_increase_max, (this.queue_max + this.queue_increase));
+                    this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+                } // SYNCH
             }
         }
         else if (this.throttled && this.size > this.queue_release) {
@@ -107,7 +109,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     
     @Override
     public boolean add(E e) {
-        return (this.offer(e));
+        return (this.offer(e, false));
     }
     @Override
     public boolean offer(E e) {
@@ -131,15 +133,37 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
             ret = this.queue.offer(e);    
         }
         if (ret) {
-            this.size = this.queue.size();
+            this.size++;
             this.checkThrottling(this.allow_increase);
         }
         return (ret);
     }
+    
+    @Override
+    public void put(E e) throws InterruptedException {
+        boolean ret = this.queue.offer(e);
+        if (ret) {
+            this.size++;
+            this.checkThrottling(this.allow_increase);
+        }
+        return;
+    }
+
+    @Override
+    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+        boolean ret = this.queue.offer(e, timeout, unit);
+        if (ret) {
+            this.size++;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (ret);
+    }
+    
     @Override
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
         if (ret) {
+            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (ret);
@@ -148,62 +172,66 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public E poll() {
         E e = this.queue.poll();
         if (e != null) {
+            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
-    }
-    @Override
-    public E remove() {
-        E e = this.queue.remove();
-        if (e != null) {
-            this.checkThrottling(this.allow_increase);
-        }
-        return (e);
-    }
-    
-
-    @Override
-    public void put(E e) throws InterruptedException {
-        // TODO Auto-generated method stub
-        
-    }
-
-    @Override
-    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    @Override
-    public E take() throws InterruptedException {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        // TODO Auto-generated method stub
-        return null;
+        E e = this.queue.poll(timeout, unit);
+        if (e != null) {
+            this.size--;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (e);
+    }
+    
+    @Override
+    public E remove() {
+        E e = this.queue.remove();
+        if (e != null) {
+            this.size--;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (e);
+    }
+
+    @Override
+    public E take() throws InterruptedException {
+        E e = this.queue.take();
+        if (e != null) {
+            this.size--;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (e);
     }
 
     @Override
     public int remainingCapacity() {
-        // TODO Auto-generated method stub
-        return 0;
+        return (this.queue.remainingCapacity());
     }
 
     @Override
     public int drainTo(Collection<? super E> c) {
-        // TODO Auto-generated method stub
-        return 0;
+        int ret = this.queue.drainTo(c);
+        if (ret > 0) {
+            this.size -= ret;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (ret);
     }
 
     @Override
     public int drainTo(Collection<? super E> c, int maxElements) {
-        // TODO Auto-generated method stub
-        return 0;
+        int ret = this.queue.drainTo(c, maxElements);
+        if (ret > 0) {
+            this.size -= ret;
+            this.checkThrottling(this.allow_increase);
+        }
+        return (ret);
     }
-    
     
     @Override
     public void clear() {
@@ -221,13 +249,13 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     @Override
     public boolean retainAll(Collection<?> c) {
         boolean ret = this.queue.retainAll(c);
-//        if (ret) this.size = this.queue.size();
+        if (ret) this.size = this.queue.size();
         return (ret);
     }
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean ret = this.queue.addAll(c);
-//        if (ret) this.size = this.queue.size();
+        if (ret) this.size = this.queue.size();
         return (ret);
     }
     @Override
@@ -256,7 +284,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     }
     @Override
     public int size() {
-        return (this.queue.size());
+        return (this.size);
     }
     @Override
     public Object[] toArray() {

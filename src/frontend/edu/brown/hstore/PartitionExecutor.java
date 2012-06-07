@@ -326,14 +326,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * This is the queue of the list of things that we need to execute.
      * The entries may be either InitiateTaskMessages (i.e., start a stored procedure) or
      * FragmentTaskMessage (i.e., execute some fragments on behalf of another transaction)
-     */
-    private final PartitionExecutorQueue work_queue;
-    
-    /**
      * We will use this special wrapper around the PartitionExecutorQueue that can determine
      * whether this partition is overloaded and therefore new requests should be throttled
      */
-    private final ThrottlingQueue<VoltMessage> work_throttler;
+    private final ThrottlingQueue<VoltMessage> work_queue;
     
     /**
      * 
@@ -518,7 +514,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     protected PartitionExecutor() {
         this.work_queue = null;
-        this.work_throttler = null;
         this.ee = null;
         this.hsql = null;
         this.p_estimator = null;
@@ -554,9 +549,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                               final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
-        this.work_queue = new PartitionExecutorQueue();
-        this.work_throttler = new ThrottlingQueue<VoltMessage>(
-                this.work_queue,
+        // this.work_queue = new PartitionExecutorQueue();
+        this.work_queue = new ThrottlingQueue<VoltMessage>(
+                new PartitionExecutorQueue(),
                 hstore_conf.site.queue_incoming_max_per_partition,
                 hstore_conf.site.queue_incoming_release_factor,
                 hstore_conf.site.queue_incoming_increase,
@@ -628,7 +623,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     final PotentialSnapshotWorkMessage msg = new PotentialSnapshotWorkMessage();
                     @Override
                     public void run() {
-                        PartitionExecutor.this.work_throttler.add(msg);
+                        PartitionExecutor.this.work_queue.add(msg);
                     }
                 });
             }
@@ -759,7 +754,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 // Poll Work Queue
                 // -------------------------------
-                work = this.work_throttler.poll();
+                work = this.work_queue.poll();
                 if (work == null) {
                     if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Checking for utility work...");
                     
@@ -767,7 +762,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     boolean hasDeferredWork;
                     do {
                         hasDeferredWork = this.utilityWork();
-                    } while ((work = this.work_throttler.poll()) == null && hasDeferredWork == true);
+                    } while ((work = this.work_queue.poll()) == null && hasDeferredWork == true);
                     if (work == null) {
                         try {
                             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
@@ -909,7 +904,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 }
 
                 // Is there a better way to do this?
-                this.work_throttler.checkThrottling(false);
+                this.work_queue.checkThrottling(false);
                 
                 if (hstore_conf.site.exec_profiling && this.currentTxnId != null) {
                     this.lastExecutedTxnId = this.currentTxnId;
@@ -1038,7 +1033,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (this.t_estimator);
     }
     public ThrottlingQueue<VoltMessage> getThrottlingQueue() {
-        return (this.work_throttler);
+        return (this.work_queue);
     }
     public final BackendTarget getBackendTarget() {
         return (this.backend_target);
@@ -1332,7 +1327,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             singlePartitioned &&
             this.currentExecMode != ExecutionMode.DISABLED) {
             if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            success = this.work_throttler.offer(task, force);
+            success = this.work_queue.offer(task, force);
         }
         // Otherwise figure out whether this txn needs to be blocked or not
         else {
@@ -1346,7 +1341,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    ts, task.getClass().getSimpleName(), this.work_queue.size()));
                     // Only use the throttler for single-partition txns
                     if (singlePartitioned) {
-                        success = this.work_throttler.offer(task, force);
+                        success = this.work_queue.offer(task, force);
                     } else {
                         this.work_queue.add(task);
                     }
@@ -1376,7 +1371,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
             if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
                                            ts, status, this.partitionId, this.currentTxnId,
-                                           this.work_throttler.isThrottled(), this.work_throttler.size()));
+                                           this.work_queue.isThrottled(), this.work_queue.size()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Status.ABORT_THROTTLED);
                 hstore_coordinator.transactionFinish(ts, status, finish_callback);
