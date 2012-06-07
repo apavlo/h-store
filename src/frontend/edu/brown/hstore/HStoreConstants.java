@@ -29,6 +29,22 @@ public abstract class HStoreConstants {
     public static final int MESSENGER_PORT_OFFSET = 10000;
     
     // ----------------------------------------------------------------------------
+    // THREAD NAMES
+    // ----------------------------------------------------------------------------
+    
+    public static final String THREAD_NAME_LISTEN = "listen";
+    
+    public static final String THREAD_NAME_POSTPROCESSOR = "post";
+    
+    public static final String THREAD_NAME_DISPATCHER = "dispatch";
+    
+    public static final String THREAD_NAME_TXNQUEUE = "queue";
+    
+    public static final String THREAD_NAME_COMMANDLOGGER = "wal";
+    
+    public static final String THREAD_NAME_MAPREDUCE = "mr";
+    
+    // ----------------------------------------------------------------------------
     // EXECUTION STUFF
     // ----------------------------------------------------------------------------
     

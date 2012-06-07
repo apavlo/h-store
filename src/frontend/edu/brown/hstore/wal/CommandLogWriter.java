@@ -47,6 +47,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
@@ -156,7 +157,7 @@ public class CommandLogWriter implements Shutdownable {
         @Override
         public void run() {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, "wal"));
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
             
             while (!stop) {
                 try {

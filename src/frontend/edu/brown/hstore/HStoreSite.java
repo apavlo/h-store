@@ -2357,7 +2357,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         runnables.add(new Runnable() {
             public void run() {
                 final Thread self = Thread.currentThread();
-                self.setName(HStoreThreadManager.getThreadName(hstore_site, "listen"));
+                self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
                 if (hstore_site.getHStoreConf().site.cpu_affinity)
                     hstore_site.getThreadManager().registerProcessingThread();
                 
