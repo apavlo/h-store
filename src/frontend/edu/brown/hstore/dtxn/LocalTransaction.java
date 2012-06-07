@@ -1042,11 +1042,7 @@ public class LocalTransaction extends AbstractTransaction {
                 dinfo.finish();
             }
         } else {
-            try {
-                dinfo = hstore_site.getObjectPools().STATES_DEPENDENCYINFO.borrowObject();
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
+            dinfo = new DependencyInfo();
             stmt_dinfos.put(dep_id, dinfo);
             if (d) LOG.debug(String.format("%s - Created new DependencyInfo for %s [hashCode=%d]",
                                            this, debugStmtDep(stmt_index, dep_id), dinfo.hashCode()));
