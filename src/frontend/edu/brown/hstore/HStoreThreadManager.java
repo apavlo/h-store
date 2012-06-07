@@ -136,7 +136,7 @@ public class HStoreThreadManager {
         String suffix = CollectionUtil.last(t.getName().split("\\-"));
         if (this.utility_affinities.containsKey(suffix)) {
             affinity = this.utility_affinities.get(suffix); 
-            LOG.info("Assigning " + t.getName() + " to cores " + Arrays.toString(affinity));
+            LOG.info("Assigning " + t.getName() + " to cores " + Arrays.toString(this.getCores(affinity)));
         } else {
             LOG.info("Letting " + t.getName() + " execute on any core");
         }
@@ -198,6 +198,19 @@ public class HStoreThreadManager {
     
     public Map<Integer, Set<Thread>> getCPUThreads() {
         return Collections.unmodifiableMap(this.cpu_threads);
+    }
+    
+    protected int[] getCores(boolean affinity[]) {
+        int core_ctr = 0;
+        for (int i = 0; i < affinity.length; i++) {
+            if (affinity[i]) core_ctr++;
+        }
+        int cores[] = new int[core_ctr];
+        core_ctr = 0;
+        for (int i = 0; i < affinity.length; i++) {
+            if (affinity[i]) cores[core_ctr++] = i;
+        }
+        return (cores);
     }
 
     // ----------------------------------------------------------------------------
