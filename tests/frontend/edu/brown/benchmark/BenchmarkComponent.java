@@ -55,7 +55,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -120,65 +119,6 @@ public abstract class BenchmarkComponent {
     
     public static String CONTROL_MESSAGE_PREFIX = "{HSTORE}";
     
-    /**
-     * These are the commands that the BenchmarkController will send to each
-     * BenchmarkComponent in order to coordinate the benchmark's execution
-     */
-    public enum Command {
-        START,
-        POLL,
-        CLEAR,
-        PAUSE,
-        /**
-         * Stop this BenchmarkComponent instance
-         */
-        STOP,
-        /**
-         * This is the same as STOP except that the BenchmarkComponent will
-         * tell the cluster to shutdown first before it exits 
-         */
-        SHUTDOWN,
-        ;
-     
-        protected static final Map<Integer, Command> idx_lookup = new HashMap<Integer, Command>();
-        protected static final Map<String, Command> name_lookup = new HashMap<String, Command>();
-        static {
-            for (Command vt : EnumSet.allOf(Command.class)) {
-                Command.idx_lookup.put(vt.ordinal(), vt);
-                Command.name_lookup.put(vt.name().toUpperCase(), vt);
-            } // FOR
-        }
-        
-        public static Command get(String name) {
-            return (Command.name_lookup.get(name.trim().toUpperCase()));
-        }
-    }
-    
-    /**
-     * These represent the different states that the BenchmarkComponent's ControlPipe
-     * could be in. 
-     */
-    public static enum ControlState {
-        PREPARING,
-        READY,
-        RUNNING,
-        PAUSED,
-        ERROR;
-
-        protected static final Map<Integer, ControlState> idx_lookup = new HashMap<Integer, ControlState>();
-        protected static final Map<String, ControlState> name_lookup = new HashMap<String, ControlState>();
-        static {
-            for (ControlState vt : EnumSet.allOf(ControlState.class)) {
-                ControlState.idx_lookup.put(vt.ordinal(), vt);
-                ControlState.name_lookup.put(vt.name().toUpperCase(), vt);
-            } // FOR
-        }
-        
-        public static ControlState get(String name) {
-            return (ControlState.name_lookup.get(name.trim().toUpperCase()));
-        }
-    };
-
     private static Client globalClient;
     private static Catalog globalCatalog;
     private static PartitionPlan globalPartitionPlan;
@@ -189,16 +129,8 @@ public abstract class BenchmarkComponent {
                                                    boolean heavyWeight,
                                                    StatsUploaderSettings statsSettings,
                                                    boolean shareConnection) {
-//        Client newClient = ClientFactory.createClient(
-//                    messageSize,
-//                    null,
-//                    heavyWeight,
-//                    statsSettings,
-//                    catalog
-//            );
-//        return (newClient);
-        
-        if (globalClient == null || shareConnection == false) {
+        Client client = globalClient;
+        if (client == null || shareConnection == false) {
             globalClient = ClientFactory.createClient(
                     messageSize,
                     null,
@@ -206,9 +138,10 @@ public abstract class BenchmarkComponent {
                     statsSettings,
                     catalog
             );
-            if (debug.get()) LOG.debug("Created global Client handle");
+            client = globalClient;
+            if (debug.get()) LOG.debug("Created new Client handle");
         }
-        return (globalClient);
+        return (client);
     }
     
     public static synchronized Catalog getCatalog(File catalogPath) {
@@ -244,9 +177,14 @@ public abstract class BenchmarkComponent {
     private ControlPipe m_controlPipe;
 
     /**
+     * 
+     */
+    protected final ControlWorker worker = new ControlWorker();
+    
+    /**
      * State of this client
      */
-    private volatile ControlState m_controlState = ControlState.PREPARING;
+    protected volatile ControlState m_controlState = ControlState.PREPARING;
 
     /**
      * Username supplied to the Volt client
@@ -281,7 +219,7 @@ public abstract class BenchmarkComponent {
     /**
      * Storage for error descriptions
      */
-    private String m_reason = "";
+    protected String m_reason = "";
 
     /**
      * Display names for each transaction.
@@ -321,21 +259,21 @@ public abstract class BenchmarkComponent {
     /**
      * Pause Lock
      */
-    private final Semaphore m_pauseLock = new Semaphore(1);
+    protected final Semaphore m_pauseLock = new Semaphore(1);
 
     /**
      * Data verification.
      */
     private final float m_checkTransaction;
-    private final boolean m_checkTables;
+    protected final boolean m_checkTables;
     private final Random m_checkGenerator = new Random();
     private final LinkedHashMap<Pair<String, Integer>, Expression> m_constraints;
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
-    private final int m_tickInterval;
-    private final Thread m_tickThread;
-    private int m_tickCounter = 0;
+    protected final int m_tickInterval;
+    protected final Thread m_tickThread;
+    protected int m_tickCounter = 0;
     
     private final boolean m_noUploading;
     private final ReentrantLock m_loaderBlock = new ReentrantLock();
@@ -349,7 +287,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
-    private final TransactionCounter m_txnStats = new TransactionCounter();
+    protected final TransactionCounter m_txnStats = new TransactionCounter();
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -382,174 +320,26 @@ public abstract class BenchmarkComponent {
         System.out.println(sb);
     }
     
-    /**
-     * Implements the simple state machine for the remote controller protocol.
-     * Hypothetically, you can extend this and override the answerPoll() and
-     * answerStart() methods for other clients.
-     */
-    protected class ControlPipe implements Runnable {
-        final InputStream in;
-        
-        public ControlPipe(InputStream in) {
-            this.in = in;
+    public void answerWithError() {
+        this.printControlMessage(m_controlState, m_reason);
+    }
+
+    public void answerPoll() {
+        JSONStringer stringer = new JSONStringer();
+        TransactionCounter copy = this.m_txnStats; // .copy();
+        try {
+            stringer.object();
+            copy.toJSON(stringer);
+            stringer.endObject();
+            printControlMessage(m_controlState, stringer.toString());
+        } catch (JSONException ex) {
+            throw new RuntimeException(ex);
         }
+        m_txnStats.basePartitions.clear();
+    }
 
-        public void run() {
-            final Thread self = Thread.currentThread();
-            self.setName(String.format("client-%02d", m_id));
-
-            Command command = null;
-            
-            // transition to ready and send ready message
-            if (m_controlState == ControlState.PREPARING) {
-                printControlMessage(ControlState.READY);
-                m_controlState = ControlState.READY;
-            } else {
-                LOG.error("Not starting prepared!");
-                LOG.error(m_controlState + " " + m_reason);
-            }
-            
-            final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
-            while (true) {
-                try {
-                    command = Command.get(in.readLine());
-                    if (debug.get()) 
-                        LOG.debug(String.format("Recieved Message: '%s'", command));
-                } catch (final IOException e) {
-                    // Hm. quit?
-                    LOG.fatal("Error on standard input", e);
-                    System.exit(-1);
-                }
-                if (command == null) continue;
-                if (debug.get()) LOG.debug("ControlPipe Command = " + command);
-
-                final ControlWorker worker = new ControlWorker();
-                final Thread t = new Thread(worker);
-                t.setDaemon(true);
-                
-                // HACK: Convert a SHUTDOWN to a STOP if we're not the first client
-                if (command == Command.SHUTDOWN && getClientId() != 0) {
-                    command = Command.STOP;
-                }
-                
-                switch (command) {
-                    case START: {
-                        if (m_controlState != ControlState.READY) {
-                            setState(ControlState.ERROR, "START when not READY.");
-                            answerWithError();
-                            continue;
-                        }
-                        t.start();
-                        if (m_tickThread != null) m_tickThread.start();
-                        m_controlState = ControlState.RUNNING;
-                        answerOk();
-                        break;
-                    }
-                    case POLL: {
-                        if (m_controlState != ControlState.RUNNING) {
-                            setState(ControlState.ERROR, "POLL when not RUNNING.");
-                            answerWithError();
-                            continue;
-                        }
-                        answerPoll();
-                        
-                        // Call tick on the client if we're not polling ourselves
-                        if (BenchmarkComponent.this.m_tickInterval < 0) {
-                            if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
-                            invokeTickCallback(m_tickCounter++);
-                        }
-                        if (debug.get())
-                            LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
-                                                    m_voltClient.getQueueTime().getTotalThinkTimeMS(),
-                                                    m_voltClient.getQueueTime().getAverageThinkTimeMS()));
-                        break;
-                    }
-                    case CLEAR: {
-                        m_txnStats.clear();
-                        invokeClearCallback();
-                        answerOk();
-                        break;
-                    }
-                    case PAUSE: {
-                        assert(m_controlState == ControlState.RUNNING) : "Unexpected " + m_controlState;
-                        
-                        LOG.info("Pausing client");
-                        
-                        // Enable the lock and then change our state
-                        try {
-                            m_pauseLock.acquire();
-                        } catch (InterruptedException ex) {
-                            LOG.fatal("Unexpected interuption!", ex);
-                            System.exit(1);
-                        }
-                        m_controlState = ControlState.PAUSED;
-                        break;
-                    }
-                    case SHUTDOWN: {
-                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            invokeStopCallback();
-                            try {
-                                m_voltClient.drain();
-                                m_voltClient.callProcedure("@Shutdown");
-                                m_voltClient.close();
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
-                        }
-                        System.exit(0);
-                        break;
-                    }
-                    case STOP: {
-                        if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            invokeStopCallback();
-                            try {
-                                if (m_sampler != null) {
-                                    m_sampler.setShouldStop();
-                                    m_sampler.join();
-                                }
-                                m_voltClient.close();
-                                if (m_checkTables) {
-                                    checkTables();
-                                }
-                            } catch (InterruptedException e) {
-                                System.exit(0);
-                            } finally {
-                                System.exit(0);
-                            }
-                        }
-                        LOG.fatal("STOP when not RUNNING");
-                        System.exit(-1);
-                        break;
-                    }
-                    default: {
-                        LOG.fatal("Error on standard input: unknown command " + command);
-                        System.exit(-1);
-                    }
-                } // SWITCH
-            }
-        }
-
-        public void answerWithError() {
-            printControlMessage(m_controlState, m_reason);
-        }
-
-        public void answerPoll() {
-            JSONStringer stringer = new JSONStringer();
-            TransactionCounter copy = m_txnStats; // .copy();
-            try {
-                stringer.object();
-                copy.toJSON(stringer);
-                stringer.endObject();
-                printControlMessage(m_controlState, stringer.toString());
-            } catch (JSONException ex) {
-                throw new RuntimeException(ex);
-            }
-            m_txnStats.basePartitions.clear();
-        }
-
-        public void answerOk() {
-            printControlMessage(m_controlState, "OK");
-        }
+    public void answerOk() {
+        printControlMessage(m_controlState, "OK");
     }
 
     /**
@@ -1292,7 +1082,7 @@ public abstract class BenchmarkComponent {
         this.startCallback();
     }
     
-    private final void invokeStopCallback() {
+    protected final void invokeStopCallback() {
         // If we were generating stats, then get the final WorkloadStatistics object
         // and write it out to a file for them to use
         if (m_tableStats) {
@@ -1313,7 +1103,7 @@ public abstract class BenchmarkComponent {
         this.stopCallback();
     }
     
-    private final void invokeClearCallback() {
+    protected final void invokeClearCallback() {
         this.clearCallback();
     }
     
@@ -1322,7 +1112,7 @@ public abstract class BenchmarkComponent {
      * This will invoke the tick() method that can be implemented benchmark clients 
      * @param counter
      */
-    private final void invokeTickCallback(int counter) {
+    protected final void invokeTickCallback(int counter) {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tickCallback(counter);
         
@@ -1422,12 +1212,12 @@ public abstract class BenchmarkComponent {
 
     // update the client state and start waiting for a message.
     public void start(InputStream in) {
-        m_controlPipe = new ControlPipe(in);
+        m_controlPipe = new ControlPipe(this, in);
         m_controlPipe.run(); // blocking
     }
     
     public ControlPipe createControlPipe(InputStream in) {
-        m_controlPipe = new ControlPipe(in);
+        m_controlPipe = new ControlPipe(this, in);
         return (m_controlPipe);
     }
 
