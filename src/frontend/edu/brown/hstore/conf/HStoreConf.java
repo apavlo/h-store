@@ -256,7 +256,7 @@ public final class HStoreConf {
                         "all of the PartitionExecutors. This may help with multi-partition transactions but will be the bottleneck " +
                         "for single-partition txn heavy workloads because the thread must acquire the lock on each partition's " +
                         "ExecutionEngine in order to commit or abort a transaction.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean exec_postprocessing_thread;

@@ -15,6 +15,7 @@ import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.util.DeferredWork;
 
 /**
  * @author ambell
