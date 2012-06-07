@@ -19,7 +19,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * at this HStoreSite is finished with the Reduce phase. 
  * @author yujia
  */
-public class TransactionReduceWrapperCallback extends BlockingCallback<TransactionReduceResponse, ReduceResult> {
+public class TransactionReduceWrapperCallback extends BlockingRpcCallback<TransactionReduceResponse, ReduceResult> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

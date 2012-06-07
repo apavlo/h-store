@@ -1,8 +1,7 @@
 package edu.brown.pools;
 
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.BaseObjectPool;
@@ -42,7 +41,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
     /** 
      * My pool.
      */
-    private BlockingQueue<T> _pool = null;
+    private ConcurrentLinkedQueue<T> _pool = null;
 
     /** 
      * My {@link PoolableObjectFactory}.
@@ -74,8 +73,7 @@ public class FastObjectPool<T> extends BaseObjectPool {
     public FastObjectPool(PoolableObjectFactory factory, int maxIdle, int initIdleCapacity) {
         this._factory = factory;
         _maxSleeping = (maxIdle < 0 ? DEFAULT_MAX_SLEEPING : maxIdle);
-        int initcapacity = (initIdleCapacity < 1 ? DEFAULT_INIT_SLEEPING_CAPACITY : initIdleCapacity);
-        _pool = new LinkedBlockingQueue<T>(initcapacity > _maxSleeping ? _maxSleeping : initcapacity);
+        _pool = new ConcurrentLinkedQueue<T>();
     }
     
     @SuppressWarnings("unchecked")
@@ -118,6 +116,11 @@ public class FastObjectPool<T> extends BaseObjectPool {
             }
         }
         _numActive.incrementAndGet();
+        
+        if (debug.get())
+            LOG.debug(String.format("Retrieved %s from ObjectPool [hashCode=%d]",
+                    obj.getClass().getSimpleName(), obj.hashCode()));
+            
         return obj;
     }
     
@@ -125,12 +128,13 @@ public class FastObjectPool<T> extends BaseObjectPool {
     public void returnObject(Object obj) throws Exception {
         @SuppressWarnings("unchecked")
         T t = (T)obj;
-        if (debug.get()) LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
-                                                 t.getClass().getSimpleName(), t.hashCode()));
+        if (debug.get())
+            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
+                                    t.getClass().getSimpleName(), t.hashCode()));
         
         boolean success = !isClosed();
         if (null != _factory) {
-            if(!_factory.validateObject(obj)) {
+            if (!_factory.validateObject(obj)) {
                 success = false;
             } else {
                 try {

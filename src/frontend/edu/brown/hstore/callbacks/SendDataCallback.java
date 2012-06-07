@@ -21,7 +21,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class SendDataCallback extends BlockingCallback<AbstractTransaction, SendDataResponse> {
+public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, SendDataResponse> {
     private static final Logger LOG = Logger.getLogger(SendDataCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

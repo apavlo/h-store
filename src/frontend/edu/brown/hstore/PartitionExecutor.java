@@ -48,6 +48,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -295,7 +296,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * ClientResponses from speculatively executed transactions that are waiting to be committed 
      */
-    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
+    private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = 
+                            new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
 
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -3158,8 +3160,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         boolean ee_commit = true;
         int skip_commit = 0;
         int aborted = 0;
-        while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ? this.queued_responses.pollLast() :
-                                                                        this.queued_responses.pollFirst())) != null) {
+        
+        while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ?
+                                this.queued_responses.pollLast() : this.queued_responses.pollFirst())
+                        ) != null) {
+        
             ts = pair.getFirst();
             cr = pair.getSecond();
             

@@ -18,7 +18,7 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<VoltMessage> {
     private final List<VoltMessage> swap = new ArrayList<VoltMessage>();
     
     public PartitionExecutorQueue() {
-        super(10000, WORK_COMPARATOR); // FIXME
+        super(1000, WORK_COMPARATOR); // FIXME
     }
     
     @Override

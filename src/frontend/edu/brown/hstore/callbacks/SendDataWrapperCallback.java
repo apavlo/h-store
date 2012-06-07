@@ -19,7 +19,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * at this HStoreSite is finished with the Map phase. 
  * @author pavlo
  */
-public class SendDataWrapperCallback extends BlockingCallback<SendDataResponse, Integer> {
+public class SendDataWrapperCallback extends BlockingRpcCallback<SendDataResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(SendDataWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
