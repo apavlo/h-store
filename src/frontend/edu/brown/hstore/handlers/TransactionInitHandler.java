@@ -9,7 +9,6 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
@@ -75,7 +74,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         //       We have to allocate this here because we need to have the original callback
         TransactionInitQueueCallback wrapper = null;
         try {
-            wrapper = HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.borrowObject();
+            wrapper = hstore_site.getObjectPools().CALLBACKS_TXN_INITQUEUE.borrowObject();
             wrapper.init(txn_id, request.getPartitionsList(), callback);
         } catch (Exception ex) {
             throw new RuntimeException(ex);

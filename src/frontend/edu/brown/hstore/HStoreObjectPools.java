@@ -21,7 +21,7 @@ import edu.brown.hstore.dtxn.PrefetchState;
 import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.utils.TypedStackObjectPool;
 
-public abstract class HStoreObjectPools {
+public final class HStoreObjectPools {
 
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -30,17 +30,17 @@ public abstract class HStoreObjectPools {
     /**
      * TransactionInitQueueCallback Pool
      */
-    public static TypedStackObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
+    public TypedStackObjectPool<TransactionInitQueueCallback> CALLBACKS_TXN_INITQUEUE;
     
     /**
      * ForwardTxnRequestCallback Pool
      */
-    public static TypedStackObjectPool<TransactionRedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
+    public TypedStackObjectPool<TransactionRedirectCallback> CALLBACKS_TXN_REDIRECT_REQUEST;
     
     /**
      * ForwardTxnResponseCallback Pool
      */
-    public static TypedStackObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECTRESPONSE;
+    public TypedStackObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECTRESPONSE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBJECTS
@@ -49,96 +49,92 @@ public abstract class HStoreObjectPools {
     /**
      * LocalTransaction State ObjectPool
      */
-    public static TypedStackObjectPool<LocalTransaction> STATES_TXN_LOCAL;
+    public TypedStackObjectPool<LocalTransaction> STATES_TXN_LOCAL;
     
     /**
      * MapReduceTransaction State ObjectPool
      */
-    public static TypedStackObjectPool<MapReduceTransaction> STATES_TXN_MAPREDUCE;
+    public TypedStackObjectPool<MapReduceTransaction> STATES_TXN_MAPREDUCE;
     
     /**
      * RemoteTransaction State ObjectPool
      */
-    public static TypedStackObjectPool<RemoteTransaction> STATES_TXN_REMOTE;
+    public TypedStackObjectPool<RemoteTransaction> STATES_TXN_REMOTE;
     
     /**
      * DependencyInfo ObjectPool
      */
-    public static TypedStackObjectPool<DependencyInfo> STATES_DEPENDENCYINFO;
+    public TypedStackObjectPool<DependencyInfo> STATES_DEPENDENCYINFO;
 
     /**
      * PrefetchState ObjectPool
      */
-    public static TypedStackObjectPool<PrefetchState> STATES_PREFETCH;
+    public TypedStackObjectPool<PrefetchState> STATES_PREFETCH;
     
     /**
      * DistributedState ObjectPool
      */
-    public static TypedStackObjectPool<DistributedState> STATES_DISTRIBUTED;
+    public TypedStackObjectPool<DistributedState> STATES_DISTRIBUTED;
     
     // ----------------------------------------------------------------------------
     // ADDITIONAL OBJECTS
     // ----------------------------------------------------------------------------
     
-    public static TypedStackObjectPool<ParameterSet> PARAMETERSETS;
+    public TypedStackObjectPool<ParameterSet> PARAMETERSETS;
     
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    /**
-     * 
-     * @param hstore_site
-     */
-    public synchronized static void initialize(HStoreSite hstore_site) {
+    public HStoreObjectPools(HStoreSite hstore_site) {
         assert(hstore_site != null);
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         
         // CALLBACKS
         
-        CALLBACKS_TXN_INITQUEUE = TypedStackObjectPool.factory(TransactionInitQueueCallback.class,
+        this.CALLBACKS_TXN_INITQUEUE = TypedStackObjectPool.factory(TransactionInitQueueCallback.class,
                 (int)(hstore_conf.site.pool_txninitqueue_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
+        this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling);
-        CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
+                hstore_conf.site.pool_profiling, hstore_site);
+        this.CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
                 (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling);
+                hstore_conf.site.pool_profiling, hstore_site);
 
         // STATES
         
-        STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
+        this.STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                 (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
+        this.STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
                 (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
+        this.STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
                 (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
-        STATES_DISTRIBUTED = TypedStackObjectPool.factory(DistributedState.class,
+        this.STATES_DISTRIBUTED = TypedStackObjectPool.factory(DistributedState.class,
                 (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
         
         // ADDITIONAL
-        PARAMETERSETS = TypedStackObjectPool.factory(ParameterSet.class,
+        this.PARAMETERSETS = TypedStackObjectPool.factory(ParameterSet.class,
                 (int)(hstore_conf.site.pool_parametersets_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling);
         
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools
-        STATES_PREFETCH = null;
-        STATES_TXN_MAPREDUCE = null;
+        this.STATES_PREFETCH = null;
+        this.STATES_TXN_MAPREDUCE = null;
         for (Procedure catalog_proc : hstore_site.getDatabase().getProcedures()) {
-            if (STATES_PREFETCH == null && catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
-                STATES_PREFETCH = TypedStackObjectPool.factory(PrefetchState.class,
+            if (this.STATES_PREFETCH == null && catalog_proc.getPrefetchable() && hstore_conf.site.exec_prefetch_queries) {
+                this.STATES_PREFETCH = TypedStackObjectPool.factory(PrefetchState.class,
                         (int)(hstore_conf.site.pool_prefetchstates_idle * hstore_conf.site.pool_scale_factor),
                         hstore_conf.site.pool_profiling, hstore_site);
             }
-            if (STATES_TXN_MAPREDUCE == null && catalog_proc.getMapreduce()) {
-                STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
+            if (this.STATES_TXN_MAPREDUCE == null && catalog_proc.getMapreduce()) {
+                this.STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
                         (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
                         hstore_conf.site.pool_profiling, hstore_site);
             }
@@ -146,14 +142,14 @@ public abstract class HStoreObjectPools {
         
         // Sanity Check: Make sure that we allocated an object pool for all of the 
         // fields that we have defined except for STATES_PREFETCH_STATE
-        for (Entry<String, StackObjectPool> e : getAllPools().entrySet()) {
+        for (Entry<String, StackObjectPool> e : this.getAllPools().entrySet()) {
             String poolName = e.getKey();
             if (poolName.equals("STATES_PREFETCH") || poolName.equals("STATES_TXN_MAPREDUCE")) continue;
             assert(e.getValue() != null) : poolName + " is null!";
         } // FOR
     }
-    
-    public static Map<String, StackObjectPool> getAllPools() {
+
+    public Map<String, StackObjectPool> getAllPools() {
         Map<String, StackObjectPool> m = new LinkedHashMap<String, StackObjectPool>();
         Object val = null;
         for (Field f : HStoreObjectPools.class.getFields()) {

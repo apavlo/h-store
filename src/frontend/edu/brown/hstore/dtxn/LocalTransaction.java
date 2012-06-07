@@ -59,7 +59,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -290,7 +289,7 @@ public class LocalTransaction extends AbstractTransaction {
         // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                this.dtxnState = HStoreObjectPools.STATES_DISTRIBUTED.borrowObject(); 
+                this.dtxnState = hstore_site.getObjectPools().STATES_DISTRIBUTED.borrowObject(); 
                 this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
@@ -365,7 +364,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Return our DistributedState
         if (this.dtxnState != null) {
-            HStoreObjectPools.STATES_DISTRIBUTED.returnObject(this.dtxnState);
+            hstore_site.getObjectPools().STATES_DISTRIBUTED.returnObject(this.dtxnState);
             this.dtxnState = null;
         }
         // Return our TransactionEstimator.State handle
@@ -1044,7 +1043,7 @@ public class LocalTransaction extends AbstractTransaction {
             }
         } else {
             try {
-                dinfo = HStoreObjectPools.STATES_DEPENDENCYINFO.borrowObject();
+                dinfo = hstore_site.getObjectPools().STATES_DEPENDENCYINFO.borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
