@@ -59,7 +59,10 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
 
     @Override
     public final void passivateObject(Object obj) throws Exception {
-        ((Poolable) obj).finish();
+        Poolable poolable = (Poolable) obj;
+        if (poolable.isInitialized()) {
+            poolable.finish();
+        }
         if (this.enable_counting)
             this.passivated.getAndIncrement();
     }
