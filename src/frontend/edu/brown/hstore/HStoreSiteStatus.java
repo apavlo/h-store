@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -17,8 +18,6 @@ import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -37,6 +36,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.pools.TypedStackObjectPool;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -44,7 +45,6 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
-import edu.brown.utils.TypedPoolableObjectFactory;
 
 /**
  * 
@@ -104,7 +104,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private TableUtil.Format txn_profile_format;
     private String txn_profiler_header[];
     
-    final Map<String, Object> header = new ListOrderedMap<String, Object>();
+    final Map<String, Object> header = new LinkedHashMap<String, Object>();
     
     final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
         @Override
@@ -225,7 +225,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 //            for (Long txn_id : histogram.values()) {
 //                if (histogram.get(txn_id) == localPartitions.size()) continue;
 //                
-//                Map<String, String> m = new ListOrderedMap<String, String>();
+//                Map<String, String> m = new LinkedHashMap<String, String>();
 //                m.put("TxnId", "#" + txn_id);
 //                for (Integer p : hstore_site.getLocalPartitionIds()) {
 //                    Long cur_id = manager.getCurrentTransaction(p);
@@ -278,7 +278,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @return
      */
     protected Map<String, Object> executorInfo() {
-        ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
+        LinkedHashMap<String, Object> m_exec = new LinkedHashMap<String, Object>();
         m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
         
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
@@ -377,7 +377,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
             // Queue Information
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     es_queue.size(),
@@ -651,7 +651,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         HStoreThreadManager manager = hstore_site.getThreadManager();
         assert(manager != null);
         
-        final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m_thread = new LinkedHashMap<String, Object>();
         final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
         sortedThreads.clear();
         sortedThreads.addAll(threads.keySet());
@@ -828,17 +828,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Map<String, Object> poolInfo() {
         
         // HStoreObjectPools
-        Map<String, StackObjectPool> pools = hstore_site.getObjectPools().getAllPools(); 
+        Map<String, TypedStackObjectPool<?>> pools = hstore_site.getObjectPools().getAllPools(); 
         
         // MarkovPathEstimators
-        pools.put("Estimators", (StackObjectPool)TransactionEstimator.POOL_ESTIMATORS); 
+        pools.put("Estimators", (TypedStackObjectPool<?>)TransactionEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
-        pools.put("EstimationStates", (StackObjectPool)TransactionEstimator.POOL_STATES);
+        pools.put("EstimationStates", (TypedStackObjectPool<?>)TransactionEstimator.POOL_STATES);
         
-        final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
+        final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {
-            StackObjectPool pool = pools.get(key);
+            TypedStackObjectPool<?> pool = pools.get(key);
             TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR
@@ -902,7 +902,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (show_threads) {
             threadInfo = this.threadInfo();
             
-            cpuThreads = new ListOrderedMap<String, Object>();
+            cpuThreads = new LinkedHashMap<String, Object>();
             for (Entry<Integer, Set<Thread>> e : hstore_site.getThreadManager().getCPUThreads().entrySet()) {
                 TreeSet<String> names = new TreeSet<String>();
                 for (Thread t : e.getValue())
@@ -933,7 +933,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (top + bot);
     }
     
-    private String formatPoolCounts(StackObjectPool pool, TypedPoolableObjectFactory<?> factory) {
+    private String formatPoolCounts(TypedStackObjectPool<?> pool, TypedPoolableObjectFactory<?> factory) {
         return (String.format(POOL_FORMAT, pool.getNumActive(),
                                            pool.getNumIdle(),
                                            factory.getCreatedCount(),

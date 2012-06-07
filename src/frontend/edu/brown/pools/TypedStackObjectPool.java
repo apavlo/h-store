@@ -25,15 +25,15 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-package edu.brown.utils;
+package edu.brown.pools;
 
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.Poolable;
 
-public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
+public class TypedStackObjectPool<T extends Poolable> extends FastObjectPool<T> {
     private static final Logger LOG = Logger.getLogger(TypedStackObjectPool.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -49,9 +49,8 @@ public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
         super(factory, idle);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public synchronized T borrowObject() throws Exception {
+    public T borrowObject() throws Exception {
         T t = (T) super.borrowObject();
         assert (t.isInitialized() == false) :
             String.format("Trying to reuse %s<%s> before it is finished!",
@@ -63,10 +62,6 @@ public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
         if (debug.get())
             LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
                                     t.getClass().getSimpleName(), t.hashCode()));
-        
-        // HACK: We'll call finish object here so that we don't
-        // do it while holding the lock in the object pool 
-        t.finish();
         
         // Then throw it back to the pool
         try {

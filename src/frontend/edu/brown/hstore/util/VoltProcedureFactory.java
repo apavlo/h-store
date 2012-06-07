@@ -7,7 +7,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.TypedPoolableObjectFactory;
+import edu.brown.pools.TypedPoolableObjectFactory;
 
 /**
  * Create a new instance of the corresponding VoltProcedure that is tied

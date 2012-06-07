@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
@@ -19,7 +18,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.PrefetchState;
 import edu.brown.hstore.dtxn.RemoteTransaction;
-import edu.brown.utils.TypedStackObjectPool;
+import edu.brown.pools.TypedStackObjectPool;
 
 public final class HStoreObjectPools {
 
@@ -144,21 +143,21 @@ public final class HStoreObjectPools {
         
         // Sanity Check: Make sure that we allocated an object pool for all of the 
         // fields that we have defined except for STATES_PREFETCH_STATE
-        for (Entry<String, StackObjectPool> e : this.getAllPools().entrySet()) {
+        for (Entry<String, TypedStackObjectPool<?>> e : this.getAllPools().entrySet()) {
             String poolName = e.getKey();
             if (poolName.equals("STATES_PREFETCH") || poolName.equals("STATES_TXN_MAPREDUCE")) continue;
             assert(e.getValue() != null) : poolName + " is null!";
         } // FOR
     }
 
-    public Map<String, StackObjectPool> getAllPools() {
-        Map<String, StackObjectPool> m = new LinkedHashMap<String, StackObjectPool>();
+    public Map<String, TypedStackObjectPool<?>> getAllPools() {
+        Map<String, TypedStackObjectPool<?>> m = new LinkedHashMap<String, TypedStackObjectPool<?>>();
         Object val = null;
         for (Field f : HStoreObjectPools.class.getFields()) {
             try {
                 val = f.get(this);
                 if (val instanceof TypedStackObjectPool<?>) {
-                    m.put(f.getName(), (StackObjectPool)val);
+                    m.put(f.getName(), (TypedStackObjectPool<?>)val);
                 }
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
