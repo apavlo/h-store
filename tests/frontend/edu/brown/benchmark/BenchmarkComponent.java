@@ -184,7 +184,11 @@ public abstract class BenchmarkComponent {
     private static PartitionPlan globalPartitionPlan;
     private static boolean globalHasConnections = false;
     
-    public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
+    public static synchronized Client getClient(Catalog catalog,
+                                                   int messageSize,
+                                                   boolean heavyWeight,
+                                                   StatsUploaderSettings statsSettings,
+                                                   boolean shareConnection) {
 //        Client newClient = ClientFactory.createClient(
 //                    messageSize,
 //                    null,
@@ -194,7 +198,7 @@ public abstract class BenchmarkComponent {
 //            );
 //        return (newClient);
         
-        if (globalClient == null) {
+        if (globalClient == null || shareConnection == false) {
             globalClient = ClientFactory.createClient(
                     messageSize,
                     null,
@@ -967,7 +971,8 @@ public abstract class BenchmarkComponent {
                 (m_hstoreConf.client.txn_hints ? this.getCatalog() : null),
                 getExpectedOutgoingMessageSize(),
                 useHeavyweightClient(),
-                statsSettings
+                statsSettings,
+                m_hstoreConf.client.shared_connection
         );
         if (m_blocking) { //  && isLoader == false) {
             if (debug.get()) 
