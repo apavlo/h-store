@@ -16,16 +16,13 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
 
     private final HStoreSite hstore_site;
     private HStoreConf hstore_conf;
-    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue = new LinkedBlockingQueue<Pair<byte[],RpcCallback<byte[]>>>();
+    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue;
     private Shutdownable.ShutdownState state = null;
     
-    public TransactionDispatcher(HStoreSite hstore_site) {
+    public TransactionDispatcher(HStoreSite hstore_site, LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-    }
-    
-    public void queue(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        this.queue.offer(Pair.of(serializedRequest, done));
+        this.queue = queue;
     }
     
     @Override

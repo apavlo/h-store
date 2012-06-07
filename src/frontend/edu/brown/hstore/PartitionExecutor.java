@@ -1670,7 +1670,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         // If this txn threw a user abort, and the current outstanding dtxn is read-only
         // then it's safe for us to rollback
-        else if (status == Status.ABORT_USER && (this.currentDtxn != null && this.currentDtxn.isExecReadOnly(this.partitionId))) {
+        else if (status == Status.ABORT_USER &&
+                  this.currentDtxn != null &&
+                  this.currentDtxn.isExecReadOnly(this.partitionId)) {
             return (true);
         }
         
@@ -1968,7 +1970,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
-        if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false && hstore_conf.site.exec_no_undo_logging) {
+        if (ts.getEstimatorState() != null &&
+            ts.isPredictSinglePartition() &&
+            ts.isSpeculative() == false && hstore_conf.site.exec_no_undo_logging) {
+            
             MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (est.isAbortable(this.thresholds) || est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {

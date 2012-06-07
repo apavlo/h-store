@@ -182,7 +182,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Collection<Integer> all_partitions;
 
-    /** Request counter **/
+    /**
+     * Incoming Request counter
+     */
     private final AtomicInteger request_counter = new AtomicInteger(0); 
     
     /**
@@ -214,7 +216,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    private final TransactionDispatcher txnDispatcher;
+    private final List<TransactionDispatcher> txnDispatchers =
+                        new ArrayList<TransactionDispatcher>();
+    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> initQueue =
+                        new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
     
     /**
      * PartitionExecutors
@@ -245,8 +250,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * These threads allow a PartitionExecutor to send back ClientResponses back to
      * the clients without blocking
      */
-    private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
-    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
+    private final List<PartitionExecutorPostProcessor> processors =
+                        new ArrayList<PartitionExecutorPostProcessor>();
+    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> ready_responses =
+                        new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
      * MapReduceHelperThread
@@ -477,8 +484,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
         
-        // Transaction Dispatcher Thread
-        this.txnDispatcher = new TransactionDispatcher(this);
+        // Transaction Dispatcher Threads
+        // We will dynamically scale these up based on the load
+        for (int i = 0; i < num_local_partitions; i++) {
+            TransactionDispatcher td = new TransactionDispatcher(this, this.initQueue);
+            this.txnDispatchers.add(td);
+        } // FOR
         
         // MapReduce Transaction helper thread
         if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
@@ -496,7 +507,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // Single TransactionIdManager for the entire site
         else {
-            this.txnIdManagers = new TransactionIdManager[]{
+            this.txnIdManagers = new TransactionIdManager[] {
                 new TransactionIdManager(this.site_id)
             };
         }
@@ -944,10 +955,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Start TransactionDispatcher
-        t = new Thread(this.txnDispatcher);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
+        for (TransactionDispatcher td : this.txnDispatchers) {
+            t = new Thread(td);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();
+        } // FOR
         
         // Start Status Monitor
         if (hstore_conf.site.status_enable) {
@@ -1046,7 +1059,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.hstore_coordinator.prepareShutdown(false);
         
         this.txnQueueManager.prepareShutdown(error);
-        this.txnDispatcher.prepareShutdown(error);
+        
+        for (TransactionDispatcher td : this.txnDispatchers) {
+            td.prepareShutdown(error);
+        } // FOR
         
         for (PartitionExecutorPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
@@ -1087,6 +1103,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
+        // Kill the queue manager
+        this.txnQueueManager.shutdown();
+        
+        // Tell our local boys to go down too
+        for (int p : this.local_partitions_arr) {
+            this.executors[p].shutdown();
+        } // FOR
+        for (TransactionDispatcher td : this.txnDispatchers) {
+            td.shutdown();
+        } // FOR
+        for (PartitionExecutorPostProcessor p : this.processors) {
+            p.shutdown();
+        } // FOR
+        
+        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
+        if (this.commandLogger != null) this.commandLogger.shutdown();
+      
         // Stop AdHoc threads
         if (this.adhoc_helper_started) {
             if (this.asyncCompilerWork_thread != null)
@@ -1095,22 +1128,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.periodicWorkTimer_thread.shutdown();
         }
         
-        // Kill the queue manager
-        this.txnQueueManager.shutdown();
-        
-        // Tell our local boys to go down too
-        for (PartitionExecutorPostProcessor p : this.processors) {
-            p.shutdown();
-        }
-        // Tell the MapReduceHelperThread to shutdown too
-        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
-        if (this.commandLogger != null) this.commandLogger.shutdown();
-        
-        for (int p : this.local_partitions_arr) {
-            if (t) LOG.trace("Telling the PartitionExecutor for partition " + p + " to shutdown");
-            this.executors[p].shutdown();
-        } // FOR
-      
         // Tell anybody that wants to know that we're going down
         if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
@@ -1141,7 +1158,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        this.txnDispatcher.queue(serializedRequest, done);
+        this.initQueue.add(Pair.of(serializedRequest, done));
     }
     
     /**
