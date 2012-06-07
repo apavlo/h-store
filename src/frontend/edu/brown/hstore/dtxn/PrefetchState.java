@@ -11,7 +11,7 @@ import com.google.protobuf.ByteString;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.WorkResult;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 public class PrefetchState implements Poolable {
 

@@ -1,4 +1,4 @@
-package edu.brown.utils;
+package edu.brown.pools;
 
 import org.apache.commons.pool.impl.StackObjectPool;
 
@@ -6,7 +6,7 @@ import edu.brown.pools.TypedPoolableObjectFactory;
 
 import junit.framework.TestCase;
 
-public class TestCountingPoolableObjectFactory extends TestCase {
+public class TestTypedPoolableObjectFactory extends TestCase {
 
     public static class MockObject implements Poolable {
         boolean finished = false;

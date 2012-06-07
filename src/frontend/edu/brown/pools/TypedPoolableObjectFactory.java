@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.Poolable;
 
 /**
  * @author pavlo

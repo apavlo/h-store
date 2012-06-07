@@ -5,8 +5,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
-import edu.brown.utils.Poolable;
 
 /**
  * Contrainer class for all of the objects needed by a distributed txn

@@ -37,7 +37,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
-import edu.brown.pools.TypedStackObjectPool;
+import edu.brown.pools.TypedObjectPool;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -828,17 +828,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Map<String, Object> poolInfo() {
         
         // HStoreObjectPools
-        Map<String, TypedStackObjectPool<?>> pools = hstore_site.getObjectPools().getAllPools(); 
+        Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getAllPools(); 
         
         // MarkovPathEstimators
-        pools.put("Estimators", (TypedStackObjectPool<?>)TransactionEstimator.POOL_ESTIMATORS); 
+        pools.put("Estimators", (TypedObjectPool<?>)TransactionEstimator.POOL_ESTIMATORS); 
 
         // TransactionEstimator.States
-        pools.put("EstimationStates", (TypedStackObjectPool<?>)TransactionEstimator.POOL_STATES);
+        pools.put("EstimationStates", (TypedObjectPool<?>)TransactionEstimator.POOL_STATES);
         
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {
-            TypedStackObjectPool<?> pool = pools.get(key);
+            TypedObjectPool<?> pool = pools.get(key);
             TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR
@@ -933,7 +933,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (top + bot);
     }
     
-    private String formatPoolCounts(TypedStackObjectPool<?> pool, TypedPoolableObjectFactory<?> factory) {
+    private String formatPoolCounts(TypedObjectPool<?> pool, TypedPoolableObjectFactory<?> factory) {
         return (String.format(POOL_FORMAT, pool.getNumActive(),
                                            pool.getNumIdle(),
                                            factory.getCreatedCount(),

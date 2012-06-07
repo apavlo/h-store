@@ -51,7 +51,7 @@ import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 /**
  * @author pavlo

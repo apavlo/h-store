@@ -31,21 +31,20 @@ import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.Poolable;
 
-public class TypedStackObjectPool<T extends Poolable> extends FastObjectPool<T> {
-    private static final Logger LOG = Logger.getLogger(TypedStackObjectPool.class);
+public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
+    private static final Logger LOG = Logger.getLogger(TypedObjectPool.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    public TypedStackObjectPool(TypedPoolableObjectFactory<T> factory) {
+    public TypedObjectPool(TypedPoolableObjectFactory<T> factory) {
         super(factory);
     }
 
-    public TypedStackObjectPool(TypedPoolableObjectFactory<T> factory, int idle) {
+    public TypedObjectPool(TypedPoolableObjectFactory<T> factory, int idle) {
         super(factory, idle);
     }
 
@@ -79,8 +78,8 @@ public class TypedStackObjectPool<T extends Poolable> extends FastObjectPool<T> 
      * @param args
      * @return
      */
-    public static <X extends Poolable> TypedStackObjectPool<X> factory(final Class<X> clazz, final int idle, final boolean enable_tracking, final Object... args) {
+    public static <X extends Poolable> TypedObjectPool<X> factory(final Class<X> clazz, final int idle, final boolean enable_tracking, final Object... args) {
         TypedPoolableObjectFactory<X> factory = TypedPoolableObjectFactory.makeFactory(clazz, enable_tracking, args);
-        return new TypedStackObjectPool<X>(factory, idle);
+        return new TypedObjectPool<X>(factory, idle);
     }
 }

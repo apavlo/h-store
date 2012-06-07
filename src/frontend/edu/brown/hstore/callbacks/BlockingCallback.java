@@ -10,7 +10,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 import edu.brown.hstore.HStoreSite;
 
 /**

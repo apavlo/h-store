@@ -43,6 +43,8 @@ import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
+import edu.brown.pools.Poolable;
+
 /**
  * @author pavlo
  * @param <E>
