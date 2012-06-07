@@ -4,8 +4,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.brown.benchmark.BenchmarkComponent.ControlState;
-
 /**
  * These represent the different states that the BenchmarkComponent's ControlPipe
  * could be in. 
