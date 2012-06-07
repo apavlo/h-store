@@ -999,6 +999,13 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean processesperclient_per_partition;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean shared_connection;
 
         @ConfigProperty(
             description="Number of clients hosts to use in the benchmark run.",
