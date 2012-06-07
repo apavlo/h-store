@@ -73,8 +73,13 @@ public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
      * @param args
      * @return
      */
-    public static <X extends Poolable> TypedObjectPool<X> factory(final Class<X> clazz, final int idle, final boolean enable_tracking, final Object... args) {
-        TypedPoolableObjectFactory<X> factory = TypedPoolableObjectFactory.makeFactory(clazz, enable_tracking, args);
+    public static <X extends Poolable> TypedObjectPool<X> factory(final Class<X> clazz,
+                                                                    final int idle,
+                                                                    final boolean enable_tracking,
+                                                                    final Object... args) {
+        TypedPoolableObjectFactory<X> factory = TypedPoolableObjectFactory.makeFactory(clazz,
+                                                                                       enable_tracking,
+                                                                                       args);
         return new TypedObjectPool<X>(factory, idle);
     }
 }

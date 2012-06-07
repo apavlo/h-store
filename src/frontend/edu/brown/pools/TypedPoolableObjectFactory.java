@@ -52,8 +52,8 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
     public abstract T makeObjectImpl() throws Exception;
 
     @Override
-    public final Object makeObject() throws Exception {
-        Object obj = this.makeObjectImpl();
+    public final T makeObject() throws Exception {
+        T obj = this.makeObjectImpl();
         if (this.enable_counting)
             this.created.getAndIncrement();
         return obj;
@@ -62,9 +62,10 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
     @Override
     public final void passivateObject(Object obj) throws Exception {
         Poolable poolable = (Poolable) obj;
-        if (poolable.isInitialized()) {
+        // There might be a race condition here... but maybe not...
+        // if (poolable.isInitialized()) {
             poolable.finish();
-        }
+        // }
         if (this.enable_counting)
             this.passivated.getAndIncrement();
     }
@@ -94,7 +95,9 @@ public abstract class TypedPoolableObjectFactory<T extends Poolable> extends Bas
      * @param args
      * @return
      */
-    public static <X extends Poolable> TypedPoolableObjectFactory<X> makeFactory(final Class<X> clazz, final boolean enable_tracking, final Object... args) {
+    public static <X extends Poolable> TypedPoolableObjectFactory<X> makeFactory(final Class<X> clazz,
+                                                                                   final boolean enable_tracking,
+                                                                                   final Object... args) {
         Class<?> argsClazz[] = new Class[args.length];
         for (int i = 0; i < args.length; i++) {
             assert (args[i] != null) : "[" + i + "]";
