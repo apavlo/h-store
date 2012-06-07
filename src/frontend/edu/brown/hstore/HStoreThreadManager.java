@@ -37,6 +37,7 @@ public class HStoreThreadManager {
     private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
         HStoreConstants.THREAD_NAME_POSTPROCESSOR,
+        HStoreConstants.THREAD_NAME_POSTPROCESSOR,
         HStoreConstants.THREAD_NAME_DISPATCHER,
         HStoreConstants.THREAD_NAME_LISTEN,
     };
@@ -66,7 +67,10 @@ public class HStoreThreadManager {
             // Reserve the lowest cores for the various utility threads
             if ((this.num_cores - this.num_partitions) > this.utility_suffixes.length) {
                 for (int i = 0; i < this.utility_suffixes.length; i++) {
-                    boolean affinity[] = new boolean[this.num_cores];
+                    boolean affinity[] = this.utility_affinities.get(this.utility_suffixes[i]);
+                    if (affinity == null) {
+                        affinity = new boolean[this.num_cores];
+                    }
                     Arrays.fill(affinity, false);
                     int core = this.num_cores - (i+1); 
                     affinity[core] = true;
