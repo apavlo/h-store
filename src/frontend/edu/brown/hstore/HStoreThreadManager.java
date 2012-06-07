@@ -70,8 +70,8 @@ public class HStoreThreadManager {
                     boolean affinity[] = this.utility_affinities.get(this.utility_suffixes[i]);
                     if (affinity == null) {
                         affinity = new boolean[this.num_cores];
+                        Arrays.fill(affinity, false);
                     }
-                    Arrays.fill(affinity, false);
                     int core = this.num_cores - (i+1); 
                     affinity[core] = true;
                     this.processing_affinity[core] = false;
