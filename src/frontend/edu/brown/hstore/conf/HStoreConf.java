@@ -852,14 +852,6 @@ public final class HStoreConf {
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DependencyInfos to keep in the pool. " +
-                        "Should be the same as the number of MarkovPathEstimators. ",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_dependencyinfos_idle;
-        
-        @ConfigProperty(
             description="The max number of DistributedStates to keep in the pool.",
             defaultInt=500,
             experimental=false
@@ -875,7 +867,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
-            defaultInt=10000,
+            defaultInt=1000,
             experimental=false
         )
         public int pool_txnredirect_idle;
@@ -889,7 +881,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionInitCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         @Deprecated
@@ -897,22 +889,23 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false,
             replacedBy="site.pool_txninitqueue_idle"
         )
+        @Deprecated
         public int pool_txninitwrapper_idle;
         
         @ConfigProperty(
             description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         public int pool_txninitqueue_idle;
         
         @ConfigProperty(
             description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         @Deprecated
@@ -920,7 +913,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of ParameterSets to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         public int pool_parametersets_idle;

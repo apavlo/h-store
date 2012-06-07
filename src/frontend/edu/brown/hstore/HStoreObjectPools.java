@@ -12,7 +12,6 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.DependencyInfo;
 import edu.brown.hstore.dtxn.DistributedState;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
@@ -61,11 +60,6 @@ public final class HStoreObjectPools {
     public final TypedObjectPool<RemoteTransaction> STATES_TXN_REMOTE;
     
     /**
-     * DependencyInfo ObjectPool
-     */
-    public final TypedObjectPool<DependencyInfo> STATES_DEPENDENCYINFO;
-
-    /**
      * PrefetchState ObjectPool
      */
     public final TypedObjectPool<PrefetchState> STATES_PREFETCH;
@@ -110,9 +104,6 @@ public final class HStoreObjectPools {
         this.STATES_TXN_REMOTE = TypedObjectPool.factory(RemoteTransaction.class,
                 (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        this.STATES_DEPENDENCYINFO = TypedObjectPool.factory(DependencyInfo.class,
-                (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling);
         this.STATES_DISTRIBUTED = TypedObjectPool.factory(DistributedState.class,
                 (int)(hstore_conf.site.pool_dtxnstates_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
