@@ -320,7 +320,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * This is the queue for work deferred .
      */
-    private final PartitionExecutorDeferredQueue deferred_queue = new PartitionExecutorDeferredQueue();
+    private final PartitionExecutorDeferredQueue deferred_queue;
         
     /**
      * This is the queue of the list of things that we need to execute.
@@ -514,6 +514,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     protected PartitionExecutor() {
         this.work_queue = null;
+        this.deferred_queue = null;
         this.ee = null;
         this.hsql = null;
         this.p_estimator = null;
@@ -653,7 +654,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
         
-        
+        // Defferable Work Queue
+        if (hstore_conf.site.exec_deferrable_queries) {
+            this.deferred_queue = new PartitionExecutorDeferredQueue();
+        } else {
+            this.deferred_queue = null;
+        }
     }
     
     @SuppressWarnings("unchecked")
