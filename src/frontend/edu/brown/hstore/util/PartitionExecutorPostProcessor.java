@@ -1,6 +1,6 @@
 package edu.brown.hstore.util;
 
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -38,7 +38,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queue;
+    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue;
 
     /**
      * Handle to ourselves
@@ -50,7 +50,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
      * @param hstore_site
      */
     public PartitionExecutorPostProcessor(HStoreSite hstore_site,
-                                          LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queue) {
+                                          LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
     }
@@ -70,7 +70,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
         while (this.stop == false) {
             try {
                 if (hstore_conf.site.status_show_executor_info) idleTime.start();
-                pair = this.queue.takeFirst();
+                pair = this.queue.take();
                 if (hstore_conf.site.status_show_executor_info) idleTime.stop();
             } catch (InterruptedException ex) {
                 this.stop = true;
