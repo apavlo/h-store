@@ -26,7 +26,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * this HStoreSite will we invoke the original callback.
  * @author pavlo
  */
-public class TransactionInitQueueCallback extends BlockingCallback<TransactionInitResponse, Integer> {
+public class TransactionInitQueueCallback extends BlockingRpcCallback<TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionInitQueueCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

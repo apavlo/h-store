@@ -58,11 +58,6 @@ public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
     }
 
     public void returnObject(T t) {
-        if (debug.get())
-            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
-                                    t.getClass().getSimpleName(), t.hashCode()));
-        
-        // Then throw it back to the pool
         try {
             super.returnObject(t);
         } catch (Exception ex) {

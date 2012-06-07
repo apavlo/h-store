@@ -18,8 +18,8 @@ import edu.brown.hstore.HStoreSite;
  * @param <T> The message type of the original RpcCallback
  * @param <U> The message type that we will accumulate before invoking the original RpcCallback
  */
-public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable {
-    private static final Logger LOG = Logger.getLogger(BlockingCallback.class);
+public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poolable {
+    private static final Logger LOG = Logger.getLogger(BlockingRpcCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -57,7 +57,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * the unblockCallback() method after all the responses have arrived. 
      * @param invoke_even_if_aborted  
      */
-    protected BlockingCallback(HStoreSite hstore_site, boolean invoke_even_if_aborted) {
+    protected BlockingRpcCallback(HStoreSite hstore_site, boolean invoke_even_if_aborted) {
         this.hstore_site = hstore_site;
         this.invoke_even_if_aborted = invoke_even_if_aborted;
     }
@@ -69,8 +69,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * @param orig_callback
      */
     protected void init(Long txn_id, int counter_val, RpcCallback<T> orig_callback) {
-        if (debug.get()) LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d",
-                                                 txn_id, this.getClass().getSimpleName(), counter_val));
+//        if (debug.get()) 
+            LOG.info(String.format("Txn #%d - Initialized new %s with counter = %d [hashCode=%d]",
+                                                 txn_id, this.getClass().getSimpleName(), counter_val, this.hashCode()));
         this.orig_counter = counter_val;
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
@@ -147,16 +148,16 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * Internal method for calling the unblockCallback()
      */
     private final void unblock() {
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
-                                    this.txn_id, this.getClass().getSimpleName()));
+//        if (debug.get())
+            LOG.info(String.format("Txn #%d - Invoking %s.unblockCallback() [hashCode=%d]",
+                                    this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
         
         if (this.abortInvoked.get() == false || this.invoke_even_if_aborted) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
                 this.unblockCallback();
             } else {
-                throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
-                                                         this.txn_id, this.getClass().getSimpleName()));
+                throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice [hashCode=%d]",
+                                                         this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
             }
         }
     }
@@ -205,8 +206,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public final void finish() {
-        if (debug.get()) LOG.debug(String.format("Txn #%d - Finishing %s",
-                                                 this.txn_id, this.getClass().getSimpleName()));
+//        if (debug.get()) 
+            LOG.info(String.format("Txn #%d - Finishing %s [hashCode=%d]",
+                                                 this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
         
         this.abortInvoked.set(false);
         this.unblockInvoked.set(false);
