@@ -590,7 +590,7 @@ public class HStoreCoordinator implements Shutdownable {
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);

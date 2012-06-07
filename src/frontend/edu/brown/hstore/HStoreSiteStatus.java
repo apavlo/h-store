@@ -828,7 +828,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Map<String, Object> poolInfo() {
         
         // HStoreObjectPools
-        Map<String, StackObjectPool> pools = HStoreObjectPools.getAllPools(); 
+        Map<String, StackObjectPool> pools = hstore_site.getObjectPools().getAllPools(); 
         
         // MarkovPathEstimators
         pools.put("Estimators", (StackObjectPool)TransactionEstimator.POOL_ESTIMATORS); 
@@ -855,7 +855,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 //        int total_destroyed[] = new int[labels.length];
 //        for (int i = 0, cnt = labels.length; i < cnt; i++) {
 //            total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
-//            pool = (StackObjectPool)(i == 0 ? HStoreObjectPools.STATES_TXN_LOCAL : HStoreObjectPools.STATES_TXN_REMOTE);   
+//            pool = (StackObjectPool)(i == 0 ? hstore_site.getObjectPools().STATES_TXN_LOCAL : hstore_site.getObjectPools().STATES_TXN_REMOTE);   
 //            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
 //            
 //            total_active[i] += pool.getNumActive();

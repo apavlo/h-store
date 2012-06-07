@@ -195,6 +195,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final HStoreThreadManager threadManager;
     
+    private final HStoreObjectPools objectPools;
+    
     // ----------------------------------------------------------------------------
     // TRANSACTION COORDINATOR/PROCESSING THREADS
     // ----------------------------------------------------------------------------
@@ -459,8 +461,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.partition_site_xref[catalog_part.getId()] = ((Site)catalog_part.getParent()).getId();
         } // FOR
         
-        // Static Object Pools
-        HStoreObjectPools.initialize(this);
+        // Object Pools
+        this.objectPools = new HStoreObjectPools(this);
         
         // -------------------------------
         // THREADS
@@ -630,6 +632,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
+    }
+    public HStoreObjectPools getObjectPools() {
+        return (this.objectPools);
     }
     public Map<Procedure, ParameterMangler> getParameterManglers() {
         return (this.param_manglers);
@@ -1027,23 +1032,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // ----------------------------------------------------------------------------
-    // HSTORESTITE SHUTDOWN STUFF
+    // SHUTDOWN STUFF
     // ----------------------------------------------------------------------------
     
-    /**
-     * Shutdown Hook Thread
-     */
-//    private final class ShutdownHook implements Runnable {
-//        @Override
-//        public void run() {
-//            // Dump out our status
-//            int num_inflight = inflight_txns.size();
-//            if (num_inflight > 0) {
-//                System.err.println("Shutdown [" + num_inflight + " txns inflight]");
-//            }
-//        }
-//    } // END CLASS
-
     @Override
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
@@ -1200,7 +1191,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Initialize the ParameterSet
         ParameterSet procParams = null;
         try {
-            procParams = HStoreObjectPools.PARAMETERSETS.borrowObject();
+            procParams = objectPools.PARAMETERSETS.borrowObject();
             StoredProcedureInvocation.seekToParameterSet(buffer);
             incomingDeserializer.setBuffer(buffer);
             procParams.readExternal(incomingDeserializer);
@@ -1288,9 +1279,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
-                ts = HStoreObjectPools.STATES_TXN_MAPREDUCE.borrowObject();
+                ts = objectPools.STATES_TXN_MAPREDUCE.borrowObject();
             } else {
-                ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
+                ts = objectPools.STATES_TXN_LOCAL.borrowObject();
             }
             assert (ts.isInitialized() == false);
         } catch (Throwable ex) {
@@ -1414,7 +1405,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             LocalTransaction ts = null;
             try {
-                ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
+                ts = objectPools.STATES_TXN_LOCAL.borrowObject();
                 assert (ts.isInitialized() == false);
             } catch (Throwable ex) {
                 LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn",
@@ -1559,7 +1550,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         ParameterSet procParams = null;
         try {
-            procParams = HStoreObjectPools.PARAMETERSETS.borrowObject();
+            procParams = objectPools.PARAMETERSETS.borrowObject();
             incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
             procParams.readExternal(incomingDeserializer);
         } catch (Exception ex) {
@@ -1570,7 +1561,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         MapReduceTransaction ts = null;
         try {
-            ts = HStoreObjectPools.STATES_TXN_MAPREDUCE.borrowObject();
+            ts = objectPools.STATES_TXN_MAPREDUCE.borrowObject();
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
             LOG.fatal(String.format("Failed to instantiate new MapReduceTransaction state for %s txn #%s",
@@ -1597,7 +1588,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
-            ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
+            ts = objectPools.STATES_TXN_REMOTE.borrowObject();
             ts.init(txn_id, base_partition, sysproc, true);
             if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
                                            ts, base_partition, false, ts.hashCode()));
@@ -1813,7 +1804,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // we will just forward it back to the client. How sweet is that??
         TransactionRedirectCallback callback = null;
         try {
-            callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+            callback = (TransactionRedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
             callback.init(done);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
@@ -1966,7 +1957,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 TransactionRedirectCallback callback;
                 try {
-                    callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
+                    callback = (TransactionRedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
                     callback.init(orig_ts.getClientCallback());
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
@@ -1994,7 +1985,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Long new_txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
         LocalTransaction new_ts = null;
         try {
-            new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
+            new_ts = objectPools.STATES_TXN_LOCAL.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
@@ -2218,7 +2209,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // return the object back into the pool
         if (abstract_ts instanceof RemoteTransaction) {
             if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", abstract_ts, abstract_ts.hashCode()));
-            HStoreObjectPools.STATES_TXN_REMOTE.returnObject((RemoteTransaction)abstract_ts);
+            objectPools.STATES_TXN_REMOTE.returnObject((RemoteTransaction)abstract_ts);
             return;
         }
         
@@ -2318,15 +2309,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Return the ParameterSet back to our pool
         ParameterSet params = ts.getProcedureParameters();
         if (params != null) {
-            HStoreObjectPools.PARAMETERSETS.returnObject(params);
+            objectPools.PARAMETERSETS.returnObject(params);
         }
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         if (ts.isMapReduce()) {
-            HStoreObjectPools.STATES_TXN_MAPREDUCE.returnObject((MapReduceTransaction)ts);
+            objectPools.STATES_TXN_MAPREDUCE.returnObject((MapReduceTransaction)ts);
         } else {
-            HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
+            objectPools.STATES_TXN_LOCAL.returnObject(ts);
         }
         
     }

@@ -44,7 +44,6 @@ import org.voltdb.utils.NotImplementedException;
 import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
@@ -245,7 +244,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
-            HStoreObjectPools.STATES_PREFETCH.returnObject(this.prefetch);
+            hstore_site.getObjectPools().STATES_PREFETCH.returnObject(this.prefetch);
             this.prefetch = null;
         }
         
@@ -647,7 +646,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
-                this.prefetch = HStoreObjectPools.STATES_PREFETCH.borrowObject();
+                this.prefetch = hstore_site.getObjectPools().STATES_PREFETCH.borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
             }

@@ -16,7 +16,6 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -471,7 +470,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (callback != null) {
             if (d) LOG.debug(String.format("Returned %s for txn #%d back to object pool",
                                            callback.getClass().getSimpleName(), txn_id));
-            HStoreObjectPools.CALLBACKS_TXN_INITQUEUE.returnObject(callback);
+            hstore_site.getObjectPools().CALLBACKS_TXN_INITQUEUE.returnObject(callback);
         }
     }
     
