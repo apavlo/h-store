@@ -48,7 +48,9 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
-    public void init(Long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
+    public void init(Long txn_id,
+                      Collection<Integer> partitions,
+                      RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :

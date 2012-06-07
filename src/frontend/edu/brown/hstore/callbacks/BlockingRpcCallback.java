@@ -69,9 +69,9 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * @param orig_callback
      */
     protected void init(Long txn_id, int counter_val, RpcCallback<T> orig_callback) {
-//        if (debug.get()) 
-            LOG.info(String.format("Txn #%d - Initialized new %s with counter = %d [hashCode=%d]",
-                                                 txn_id, this.getClass().getSimpleName(), counter_val, this.hashCode()));
+        if (debug.get()) 
+            LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d [hashCode=%d]",
+                                    txn_id, this.getClass().getSimpleName(), counter_val, this.hashCode()));
         this.orig_counter = counter_val;
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
@@ -148,12 +148,12 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
      * Internal method for calling the unblockCallback()
      */
     private final void unblock() {
-//        if (debug.get())
-            LOG.info(String.format("Txn #%d - Invoking %s.unblockCallback() [hashCode=%d]",
-                                    this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
-        
         if (this.abortInvoked.get() == false || this.invoke_even_if_aborted) {
             if (this.unblockInvoked.compareAndSet(false, true)) {
+                if (debug.get())
+                    LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback() [hashCode=%d]",
+                                           this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
+                
                 this.unblockCallback();
             } else {
                 throw new RuntimeException(String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice [hashCode=%d]",
@@ -206,9 +206,9 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     
     @Override
     public final void finish() {
-//        if (debug.get()) 
-            LOG.info(String.format("Txn #%d - Finishing %s [hashCode=%d]",
-                                                 this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
+        if (debug.get()) 
+            LOG.debug(String.format("Txn #%d - Finishing %s [hashCode=%d]",
+                                   this.txn_id, this.getClass().getSimpleName(), this.hashCode()));
         
         this.abortInvoked.set(false);
         this.unblockInvoked.set(false);

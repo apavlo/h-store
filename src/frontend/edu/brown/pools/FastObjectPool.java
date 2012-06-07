@@ -128,22 +128,21 @@ public class FastObjectPool<T> extends BaseObjectPool {
     public void returnObject(Object obj) throws Exception {
         @SuppressWarnings("unchecked")
         T t = (T)obj;
-        if (debug.get())
-            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
-                                    t.getClass().getSimpleName(), t.hashCode()));
         
-        boolean success = !isClosed();
-        if (null != _factory) {
-            if (!_factory.validateObject(obj)) {
-                success = false;
-            } else {
-                try {
-                    _factory.passivateObject(obj);
-                } catch(Exception e) {
-                    success = false;
-                }
-            }
+        if (isClosed() || _factory == null) return;
+        boolean success = true;
+        
+        try {
+            _factory.passivateObject(obj);
+        } catch(Exception e) {
+            success = false;
         }
+        
+//        if (!_factory.validateObject(obj)) {
+//            success = false;
+//        } else {
+//            
+//        }
 
         boolean shouldDestroy = !success;
         this._numActive.decrementAndGet();
@@ -153,6 +152,9 @@ public class FastObjectPool<T> extends BaseObjectPool {
                 shouldDestroy = true;
                 toBeDestroyed = _pool.poll(); // remove the stalest object
             }
+            if (debug.get())
+                LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
+                                        t.getClass().getSimpleName(), t.hashCode()));
             _pool.offer(t);
             // swap returned obj with the stalest one so it can be destroyed
             if (toBeDestroyed != null) obj = toBeDestroyed; 
