@@ -67,11 +67,11 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.pools.Poolable;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 
 /**

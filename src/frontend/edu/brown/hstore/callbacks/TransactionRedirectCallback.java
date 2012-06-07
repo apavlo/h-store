@@ -11,7 +11,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 /**
  * This callback is used by the original HStoreSite that is sending out a transaction redirect
