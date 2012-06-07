@@ -297,7 +297,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * ClientResponses from speculatively executed transactions that are waiting to be committed 
      */
     private final LinkedList<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = 
-                            new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
+                        new LinkedList<Pair<LocalTransaction, ClientResponseImpl>>();
 
     /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
@@ -1314,7 +1314,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
 
     /**
-     * New work for a local transaction
+     * Queue a new transaction invocation request at this partition
      * @param ts
      * @param task
      * @param callback
@@ -1326,18 +1326,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         final boolean force = (ts.isMapReduce() == true);
         boolean success = true;
         
-        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
-                                       ts, this.partitionId, this.currentDtxn, this.currentExecMode, task.hashCode()));
+        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
+        		                       "[currentDtxn=%s, mode=%s, taskHash=%d]",
+                                       ts, this.partitionId,
+                                       this.currentDtxn, this.currentExecMode, task.hashCode()));
         
+        // -------------------------------
         // If we're a single-partition and speculative execution is 
         // enabled, then we can always set it up now
+        // -------------------------------
         if (hstore_conf.site.exec_speculative_execution &&
-            singlePartitioned &&
-            this.currentExecMode != ExecutionMode.DISABLED) {
-            if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
+            singlePartitioned && this.currentExecMode != ExecutionMode.DISABLED) {
+            if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
+                                           ts, this.partitionId, this.work_queue.size()));
             success = this.work_queue.offer(task, force);
         }
+        // -------------------------------
         // Otherwise figure out whether this txn needs to be blocked or not
+        // -------------------------------
         else {
             if (d) LOG.debug(String.format("%s - Attempting to add %s to partition %d queue [currentTxn=%s]",
                                            ts, task.getClass().getSimpleName(), this.partitionId, this.currentTxnId));
