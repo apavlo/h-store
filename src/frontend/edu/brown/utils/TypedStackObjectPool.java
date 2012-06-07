@@ -53,13 +53,22 @@ public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
     @Override
     public synchronized T borrowObject() throws Exception {
         T t = (T) super.borrowObject();
-        assert (t.isInitialized() == false) : String.format("Trying to reuse %s<%s> before it is finished!", this.getClass().getSimpleName(), t);
+        assert (t.isInitialized() == false) :
+            String.format("Trying to reuse %s<%s> before it is finished!",
+                          this.getClass().getSimpleName(), t);
         return t;
     }
 
     public void returnObject(T t) {
         if (debug.get())
-            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]", t.getClass().getSimpleName(), t.hashCode()));
+            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
+                                    t.getClass().getSimpleName(), t.hashCode()));
+        
+        // HACK: We'll call finish object here so that we don't
+        // do it while holding the lock in the object pool 
+        t.finish();
+        
+        // Then throw it back to the pool
         try {
             super.returnObject(t);
         } catch (Exception ex) {
