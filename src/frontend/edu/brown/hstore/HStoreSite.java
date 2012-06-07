@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -243,7 +244,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * the clients without blocking
      */
     private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
-    private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>>();
+    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> ready_responses = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
     
     /**
      * MapReduceHelperThread
