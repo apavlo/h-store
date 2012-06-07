@@ -153,7 +153,6 @@ public class FastObjectPool<T> extends BaseObjectPool {
             // swap returned obj with the stalest one so it can be destroyed
             if (toBeDestroyed != null) obj = toBeDestroyed; 
         }
-        notifyAll(); // _numActive has changed
 
         if (shouldDestroy) { // by constructor, shouldDestroy is false when _factory is null
             try {
@@ -170,7 +169,6 @@ public class FastObjectPool<T> extends BaseObjectPool {
         if (null != _factory) {
             _factory.destroyObject(obj);
         }
-        notifyAll(); // _numActive has changed
     }
 
     /**

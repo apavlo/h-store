@@ -20,8 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -46,6 +44,7 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
+import edu.brown.pools.FastObjectPool;
 import edu.brown.pools.Poolable;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
@@ -299,7 +298,7 @@ public class FeatureClusterer {
     private final Random rand = new Random(); // FIXME
     private final Collection<Integer> all_partitions;
     private final int total_num_partitions;
-    private final ObjectPool state_pool = new StackObjectPool(new ExecutionStateFactory(this));
+    private final FastObjectPool<ExecutionState> state_pool = new FastObjectPool<ExecutionState>(new ExecutionStateFactory(this));
 
     /** We want to have just one thread pool for calculate threads */
     private final ExecutorService calculate_threadPool;
