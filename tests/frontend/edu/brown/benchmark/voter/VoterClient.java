@@ -94,14 +94,7 @@ public class VoterClient extends BenchmarkComponent {
     @Override
     public void runLoop() {
         try {
-            client = this.getClientHandle();
-            Random rand = new Random();
-			
             while (true) {				
-				
-				// Get the next phone call
-                PhoneCallGenerator.PhoneCall call = switchboard.receive();
-				
                 // synchronously call the "Vote" procedure
                 try {
 					runOnce(); 
