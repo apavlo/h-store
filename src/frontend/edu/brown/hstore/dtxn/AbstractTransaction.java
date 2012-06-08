@@ -260,6 +260,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
 
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
+        
+        this.base_partition = -1;
         this.txn_id = null;
     }
     

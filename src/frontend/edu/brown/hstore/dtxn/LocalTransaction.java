@@ -289,7 +289,7 @@ public class LocalTransaction extends AbstractTransaction {
         // to execute a distributed transaction
         if (this.predict_singlePartition == false) {
             try {
-                this.dtxnState = hstore_site.getObjectPools().STATES_DISTRIBUTED.borrowObject(); 
+                this.dtxnState = hstore_site.getObjectPools().getDistributedStatePool(base_partition).borrowObject(); 
                 this.dtxnState.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize " + this, ex);
@@ -359,12 +359,12 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         if (d) LOG.debug(String.format("%s - Invoking finish() cleanup", this));
-        this.resetExecutionState();
-        super.finish();
         
         // Return our DistributedState
         if (this.dtxnState != null) {
-            hstore_site.getObjectPools().STATES_DISTRIBUTED.returnObject(this.dtxnState);
+            hstore_site.getObjectPools()
+                       .getDistributedStatePool(this.base_partition)
+                       .returnObject(this.dtxnState);
             this.dtxnState = null;
         }
         // Return our TransactionEstimator.State handle
@@ -372,6 +372,9 @@ public class LocalTransaction extends AbstractTransaction {
             TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
             this.estimator_state = null;
         }
+        
+        this.resetExecutionState();
+        super.finish();
         
         this.catalog_proc = null;
         this.invocation = null;
