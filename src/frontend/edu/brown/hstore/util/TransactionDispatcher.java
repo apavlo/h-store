@@ -1,13 +1,39 @@
+/***************************************************************************
+ *   Copyright (C) 2012 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 package edu.brown.hstore.util;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
@@ -22,7 +48,6 @@ import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.SEATSEstimator;
 import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
-import edu.brown.hstore.estimators.TransactionInitializer;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -37,7 +62,7 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.StringUtil;
 
 public class TransactionDispatcher implements Runnable, Shutdownable {
-    private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
+    private static final Logger LOG = Logger.getLogger(TransactionDispatcher.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
@@ -54,11 +79,17 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
 
     private final HStoreSite hstore_site;
     private HStoreConf hstore_conf;
-    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue;
     private Shutdownable.ShutdownState state = null;
     
+    /**
+     * [0] ByteBuffer
+     * [1] Procedure Catalog Object
+     * [2] ParaemterSet
+     * [3] RpcCallback
+     */
+    private final LinkedBlockingQueue<Object[]> queue = new LinkedBlockingQueue<Object[]>();
+    
     private final Collection<Integer> all_partitions;
-    private final Integer local_partitions_arr[];
     private EstimationThresholds thresholds;
     
     /**
@@ -70,15 +101,11 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    public TransactionDispatcher(HStoreSite hstore_site,
-                                  LinkedBlockingQueue<Pair<byte[],
-                                  RpcCallback<byte[]>>> queue) {
+    public TransactionDispatcher(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
-        this.queue = queue;
         
         this.all_partitions = hstore_site.getAllPartitionIds();
-        this.local_partitions_arr = hstore_site.getLocalPartitionIdArray();
         this.thresholds = hstore_site.getThresholds();
         
         // HACK
@@ -98,6 +125,25 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
         }
     }
     
+    public void queue(ByteBuffer serializedRequest, 
+                       long client_handle,
+                       int base_partition,
+                       Procedure catalog_proc,
+                       ParameterSet procParams,
+                       RpcCallback<byte[]> done) {
+        
+        // Store the base_partition in the ByteBuffer
+        StoredProcedureInvocation.setBasePartition(base_partition, serializedRequest);
+        
+        this.queue.offer(new Object[] {
+            serializedRequest,
+            catalog_proc,
+            procParams,
+            done
+        });
+        
+    }
+    
     @Override
     public void run() {
         Thread self = Thread.currentThread();
@@ -106,17 +152,31 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
             hstore_site.getThreadManager().registerProcessingThread();
         }
         
-        Pair<byte[], RpcCallback<byte[]>> pair = null;
+        Object next[] = null;
         while (this.state != ShutdownState.SHUTDOWN) {
             try {
-                pair = this.queue.take();
+                next = this.queue.take();
             } catch (InterruptedException ex) {
                 break;
             }
             if (this.state == ShutdownState.PREPARE_SHUTDOWN) {
                 // TODO: Send back rejection
             } else {
-                this.hstore_site.procedureInvocation(pair.getFirst(), pair.getSecond());
+                ByteBuffer serializedRequest = (ByteBuffer)next[0]; 
+                Procedure catalog_proc = (Procedure)next[1];
+                ParameterSet procParams = (ParameterSet)next[2];
+                @SuppressWarnings("unchecked")
+                RpcCallback<byte[]> done = (RpcCallback<byte[]>)next[3]; 
+                
+                int base_partition = StoredProcedureInvocation.getBasePartition(serializedRequest);
+                long client_handle = StoredProcedureInvocation.getClientHandle(serializedRequest);
+                
+                this.procedureInvocation(serializedRequest,
+                                         client_handle,
+                                         base_partition,
+                                         catalog_proc,
+                                         procParams,
+                                         done);
             }
         } // WHILE
 
@@ -141,12 +201,68 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     // TRANSACTION PROCESSING METHODS
     // ----------------------------------------------------------------------------
 
-
+    /**
+     * 
+     * @param serializedRequest
+     * @param done
+     */
+    public void procedureInvocation(ByteBuffer serializedRequest, 
+                                     long client_handle,
+                                     int base_partition,
+                                     Procedure catalog_proc,
+                                     ParameterSet procParams,
+                                     RpcCallback<byte[]> done) {
         
+        if (d) LOG.debug(String.format("Incoming %s transaction request " +
+        		                       "[handle=%d, partition=%d]",
+                                       catalog_proc.getName(), client_handle, base_partition));
 
+        // -------------------------------
+        // TRANSACTION STATE INITIALIZATION
+        // -------------------------------
+        
+        // Grab a new LocalTransactionState object from the target base partition's
+        // PartitionExecutor object pool. This will be the handle that is used all
+        // throughout this txn's lifespan to keep track of what it does
+        LocalTransaction ts = null;
+        try {
+            if (catalog_proc.getMapreduce()) {
+                ts = hstore_site.getObjectPools()
+                                .getMapReduceTransactionPool(base_partition)
+                                .borrowObject();
+            } else {
+                ts = hstore_site.getObjectPools()
+                                .getLocalTransactionPool(base_partition)
+                                .borrowObject();
+            }
+        } catch (Throwable ex) {
+            LOG.fatal("Failed to instantiate new LocalTransactionState for " + catalog_proc.getName());
+            throw new RuntimeException(ex);
+        }
+        
+        // Initialize our LocalTransaction handle
+        Long txn_id = hstore_site.getTransactionIdManager(base_partition)
+                                 .getNextUniqueTransactionId();
+        
+        this.populateProperties(ts,
+                                txn_id,
+                                client_handle,
+                                base_partition,
+                                catalog_proc,
+                                procParams,
+                                done);
+        
+        // Disable transaction profiling for sysprocs
+        if (hstore_conf.site.txn_profiling && ts.isSysProc()) {
+            ts.profiler.disableProfiling();
+        }
+        
+        // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
+
+        hstore_site.dispatchInvocation(ts);
     }
     
-    
+
     public void populateProperties(LocalTransaction ts,
                                     Long txn_id,
                                     long client_handle,
