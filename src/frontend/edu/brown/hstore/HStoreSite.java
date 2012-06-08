@@ -1623,22 +1623,50 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts, base_partition
      */
     public void transactionStart(LocalTransaction ts, int base_partition) {
-        Long txn_id = ts.getTransactionId();
-        //int base_partition = ts.getBasePartition();
-        Procedure catalog_proc = ts.getProcedure();
+        final Long txn_id = ts.getTransactionId();
+        final Procedure catalog_proc = ts.getProcedure();
+        final boolean singlePartitioned = ts.isPredictSinglePartition();
+        
+        
         if (d) LOG.debug(String.format("Starting %s %s on partition %d",
-                        (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
+                        (singlePartitioned ? "single-partition" : "distributed"), ts, base_partition));
         
         PartitionExecutor executor = this.executors[base_partition];
         assert(executor != null) :
             "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        boolean ret = executor.queueNewTransaction(ts);
-        if (hstore_conf.site.status_show_txn_info && ret) {
+        boolean success = executor.queueNewTransaction(ts);
+        if (hstore_conf.site.status_show_txn_info && success) {
             assert(catalog_proc != null) :
                 String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
             TxnCounter.EXECUTED.inc(catalog_proc);
+        }
+        
+        if (success == false) {
+            // Depending on what we need to do for this type txn, we will send
+            // either an ABORT_THROTTLED or an ABORT_REJECT in our response
+            // An ABORT_THROTTLED means that the client will back-off of a bit
+            // before sending another txn request, where as an ABORT_REJECT means
+            // that it will just try immediately
+            Status status = ((ts.isPredictSinglePartition() ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
+                                        Status.ABORT_THROTTLED :
+                                        Status.ABORT_REJECT);
+            
+            if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [queueSize=%d]",
+                                           ts, status, base_partition,
+                                           executor.getWorkQueueSize()));
+            if (singlePartitioned == false) {
+                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Status.ABORT_THROTTLED);
+                this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
+            }
+            // We will want to delete this transaction after we reject it if it is a single-partition txn
+            // Otherwise we will let the normal distributed transaction process clean things up 
+            this.transactionReject(ts, status);
+            if (singlePartitioned) {
+                ts.markAsDeletable();
+                this.deleteTransaction(txn_id, status);
+            }
         }
     }
     
