@@ -1234,10 +1234,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // BASE PARTITION
         // -------------------------------
         
-        // Simple sanity check to make sure that we're not being told a bad partition
-        if (base_partition < 0 || base_partition >= this.local_partitions_arr.length) {
-            base_partition = -1;
-        }
         
         // Profiling Updates
         if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(procName);
@@ -1245,34 +1241,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.incoming_partitions.put(base_partition);
         }
         
-        // DB2-style Transaction Redirection
-        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request [basePartition=%d]",
-                                           procName, base_partition));
-        }
-        // If it's a sysproc, then it doesn't need to go to a specific partition
-        else if (sysproc) {
-            // Nothing to do here...
-        }
-        // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
-        else if (hstore_conf.site.exec_force_localexecution == false) {
-            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", procName));
-            try {
-                Integer p = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
-                if (p != null) base_partition = p.intValue(); 
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-        // If we don't have a partition to send this transaction to, then we will just pick
-        // one our partitions at random. This can happen if we're forcing txns to execute locally
-        // or if there are no input parameters <-- this should be in the paper!!!
-        if (base_partition == -1) {
-            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
-                                           procName, hstore_conf.site.exec_force_localexecution));
-            int idx = (int)(Math.abs(client_handle) % this.local_partitions_arr.length);
-            base_partition = this.local_partitions_arr[idx].intValue();
-        }
         
         if (d) LOG.debug(String.format("Incoming %s transaction request [handle=%d, partition=%d]",
                                        procName, client_handle, base_partition));
