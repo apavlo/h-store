@@ -98,17 +98,17 @@ public class YCSBClient extends BenchmarkComponent {
     }
 	
 	public static enum Transaction {
-		INSERT_RECORD("insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
+		INSERT_RECORD("Insert Record", YCSBConstants.FREQUENCY_INSERT_RECORD),
 		
-		DELETE_RECORD("delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
+		DELETE_RECORD("Delete Record", YCSBConstants.FREQUENCY_DELETE_RECORD), 
 		
 		//READ_MODIFY_WRITE_RECORD("read Modify Write Record", YCSBConstants.FREQUENCY_READ_MODIFY_WRITE_RECORD), 
 		
-		READ_RECORD("read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
+		READ_RECORD("Read Record", YCSBConstants.FREQUENCY_READ_RECORD), 
 		
-		SCAN_RECORD("scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
+		SCAN_RECORD("Scan Record", YCSBConstants.FREQUENCY_SCAN_RECORD), 
 		
-		UPDATE_RECORD("update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
+		UPDATE_RECORD("Update Record", YCSBConstants.FREQUENCY_UPDATE_RECORD);
 		
         /**
          * Constructor
@@ -151,6 +151,8 @@ public class YCSBClient extends BenchmarkComponent {
 		client = this.getClientHandle();
 		
 		Object procParams[] = new Object[1]; 
+		
+		// pick random transaction to call, weighted by txnWeights
 		final Transaction target = this.txnWeights.nextValue(); 
 		int procIdx = target.ordinal(); 
 		String procName = target.callName; 
@@ -158,41 +160,55 @@ public class YCSBClient extends BenchmarkComponent {
 		int key = 0; 
 		int scan_count = 0; 
 		
-		if (procName.equals("deleteRecord")) {
+		if (procName.equals("DeleteRecord")) {
 			
 			key = readRecord.nextInt(); 
 		} 
-		else if (procName.equals("insertRecord")) {
+		else if (procName.equals("InsertRecord")) {
 			
-			System.out.println("INSERTING RECORD"); 
 			key = insertRecord.nextInt(); 
 			List<String> values = buildValues(10); 
 		} 
-		else if (procName.equals("readModifyWriteRecord")) {
+		else if (procName.equals("ReadModifyWriteRecord")) {
 			
 			key = readRecord.nextInt(); 
 			List<String> values = buildValues(10); 
 		} 
-		else if (procName.equals("readRecord")) {
+		else if (procName.equals("ReadRecord")) {
 			
 			key = readRecord.nextInt(); 
 		} 
-		else if (procName.equals("scanRecord")) {
+		else if (procName.equals("ScanRecord")) {
 			
 			key = readRecord.nextInt(); 
 			scan_count = randScan.nextInt(); 
 		} 
-		else if (procName.equals("updateRecord")) {
+		else if (procName.equals("UpdateRecord")) {
 			
 			key = readRecord.nextInt(); 
 		}
+		else {
+			key = readRecord.nextInt();
+		}
 		
 		procParams[0] = key; 
-
-		Callback callback = new Callback(procIdx);
 		
-		// invoke procedure asynchronously 
-		response = client.callProcedure(callback, procName, procParams);
+		try 
+		{
+
+			Callback callback = new Callback(procIdx);
+			
+			// invoke procedure asynchronously 
+			response = client.callProcedure(callback, procName, procParams);
+		}
+		catch(IOException e) 
+		{
+			throw e; 
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace(); 
+		}
 				
 		return response; 
 	}
