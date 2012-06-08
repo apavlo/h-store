@@ -277,7 +277,7 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @param partition
      * @param serialized
      */
-     public static void markRawBytesAsRedirected(int partition, ByteBuffer buffer) {
+     public static void setBasePartition(int partition, ByteBuffer buffer) {
         buffer.putShort(1, (short)partition);
     }
     

@@ -134,7 +134,7 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertNotNull(invocation_bytes);
         
         for (int partition = 0; partition < 100; partition+=3) {
-            StoredProcedureInvocation.markRawBytesAsRedirected(partition, ByteBuffer.wrap(invocation_bytes));
+            StoredProcedureInvocation.setBasePartition(partition, ByteBuffer.wrap(invocation_bytes));
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
             assertNotNull(clone);
