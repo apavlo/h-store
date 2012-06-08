@@ -73,13 +73,11 @@ public class VoterClient extends BenchmarkComponent {
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
 	
-	
     // voter benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
-	
 	
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterClient.class, args, false);
@@ -102,7 +100,6 @@ public class VoterClient extends BenchmarkComponent {
 				// Get the next phone call
                 PhoneCallGenerator.PhoneCall call = switchboard.receive();
 				
-                // synchronously call the "Vote" procedure
                 try {
 					runOnce(); 
                 }
@@ -129,15 +126,13 @@ public class VoterClient extends BenchmarkComponent {
 		try 
 		{			
 			Callback callback = new Callback();
+			
+			// asynchronously invoke the Vote procedure
 			response = client.callProcedure(callback, 
 											"Vote",
 											call.phoneNumber,
 											call.contestantNumber,
 											VoterConstants.MAX_VOTES);
-			 
-			if(response == false)
-				throw new IOException(); 
-			
 		}
 		catch(IOException e) {
 			throw e; 
