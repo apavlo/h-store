@@ -1388,30 +1388,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // thread sort out the mess of whether the txn should get blocked or not
         if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
                                        ts, this.partitionId, this.work_queue.size()));
-        boolean success = this.work_queue.offer(task, force);
-        
-        if (success == false) {
-            // Depending on what we need to do for this type txn, we will send
-            // either an ABORT_THROTTLED or an ABORT_REJECT in our response
-            // An ABORT_THROTTLED means that the client will back-off of a bit
-            // before sending another txn request, where as an ABORT_REJECT means
-            // that it will just try immediately
-            Status status = ((singlePartitioned ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
-                                        Status.ABORT_THROTTLED :
-                                        Status.ABORT_REJECT);
-            
-            if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
-                                           ts, status, this.partitionId, this.currentTxnId,
-                                           this.work_queue.isThrottled(), this.work_queue.size()));
-            if (singlePartitioned == false) {
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Status.ABORT_THROTTLED);
-                hstore_coordinator.transactionFinish(ts, status, finish_callback);
-            }
-            // We will want to delete this transaction after we reject it if it is a single-partition txn
-            // Otherwise we will let the normal distributed transaction process clean things up 
-            hstore_site.transactionReject(ts, status);
-        }
-        return (success);
+        return (this.work_queue.offer(task, force));
     }
 
     // ---------------------------------------------------------------
