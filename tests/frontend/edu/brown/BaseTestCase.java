@@ -47,6 +47,8 @@ import edu.brown.benchmark.markov.MarkovProjectBuilder;
 import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
+import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
+import edu.brown.benchmark.voter.VoterProjectBuilder; 
 import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
@@ -207,6 +209,8 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     case MARKOV:
                     case LOCALITY:
                     case MAPREDUCE:
+					case YCSB: 
+					case VOTER: 
                     case WIKIPEDIA:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
@@ -261,6 +265,12 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 case MARKOV:
                     projectBuilder = new MarkovProjectBuilder();
                     break;
+				case YCSB: 
+					projectBuilder = new YCSBProjectBuilder(); 
+					break; 
+				case VOTER: 
+					projectBuilder = new VoterProjectBuilder(); 
+					break; 
                 case WIKIPEDIA:
                     projectBuilder = new WikipediaProjectBuilder();
                     break;
