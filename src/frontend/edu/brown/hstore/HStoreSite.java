@@ -1245,7 +1245,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         int offset = this.getLocalPartitionOffset(base_partition);
-        this.txnDispatchers[offset].queue(buffer,
+        this.txnDispatchers[0].queue(buffer,
                                           client_handle,
                                           base_partition,
                                           catalog_proc,
