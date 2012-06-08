@@ -1372,7 +1372,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Unexpected null transaction handle!";
         final InitiateTaskMessage task = ts.getInitiateTaskMessage();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
-        final boolean force = singlePartitioned || ts.isMapReduce();
+        final boolean force = (singlePartitioned == false) || ts.isMapReduce();
         
         if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
         		                       "[currentDtxn=%s, mode=%s, taskHash=%d]",
