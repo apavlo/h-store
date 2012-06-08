@@ -816,22 +816,22 @@ public final class HStoreConf {
         public boolean pool_profiling;
         
         @ConfigProperty(
-            description="The max number of LocalTransactionStates to keep in the pool",
-            defaultInt=5000,
+            description="The max number of LocalTransaction handles to keep in the pool per partition.",
+            defaultInt=150,
             experimental=false
         )
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of MapReduceTransactionStates to keep in the pool",
-            defaultInt=100,
+            description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
+            defaultInt=10,
             experimental=false
         )
         public int pool_mapreducetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool",
-            defaultInt=500,
+            description="The max number of RemoteTransactionStates to keep in the pool per partition.",
+            defaultInt=200,
             experimental=false
         )
         public int pool_remotetxnstate_idle;
@@ -852,8 +852,8 @@ public final class HStoreConf {
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DistributedStates to keep in the pool.",
-            defaultInt=500,
+            description="The max number of DistributedStates to keep in the pool per partition.",
+            defaultInt=200,
             experimental=false
         )
         public int pool_dtxnstates_idle;
