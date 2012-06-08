@@ -52,7 +52,11 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * @param queue_increase
      * @param queue_increase_max
      */
-    public ThrottlingQueue(BlockingQueue<E> queue, int queue_max, double queue_release, int queue_increase, int queue_increase_max) {
+    public ThrottlingQueue(BlockingQueue<E> queue,
+                            int queue_max,
+                            double queue_release,
+                            int queue_increase,
+                            int queue_increase_max) {
         this.queue = queue;
         this.throttled = false;
         this.queue_max = queue_max;
@@ -91,8 +95,16 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * We don't need to worry if this is 100% accurate, so we won't block here
      */
     public void checkThrottling(boolean increase) {
+        // If they're not throttled, then we should check whether
+        // we need to throttle them
         if (this.throttled == false) {
-            if (this.size > this.queue_max) this.throttled = true;
+            // If they've gone above the current queue max size, then
+            // they are throtttled!
+            if (this.size >= this.queue_max)
+                this.throttled = true;
+            
+            // Or if the queue is completely empty and we're allowe to increase
+            // the max limit, then we'll go ahead and do that for them here
             else if (increase && this.size == 0) {
                 synchronized (this) {
                     this.queue_max = Math.min(this.queue_increase_max, (this.queue_max + this.queue_increase));
@@ -100,7 +112,9 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
                 } // SYNCH
             }
         }
-        else if (this.throttled && this.size > this.queue_release) {
+        // If we're throttled and we've gone below our release
+        // threshold, then we can go ahead and unthrottle them
+        else if (this.size <= this.queue_release) {
             if (debug.get()) LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
                                                      this.size, this.queue_release));
             this.throttled = false;
@@ -124,13 +138,9 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
      * @return
      */
     public boolean offer(E e, boolean force) {
-        boolean ret;
-        if (force) {
+        boolean ret = false;
+        if (force || this.throttled == false) {
             ret = this.queue.offer(e);
-        } else if (this.throttled) {
-            return (false);
-        } else {
-            ret = this.queue.offer(e);    
         }
         if (ret) {
             this.size++;
