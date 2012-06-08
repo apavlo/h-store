@@ -25,6 +25,9 @@ public class HStoreThreadManager {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    private static int EE_CORE_OFFSET = 1;
+    
 
     private final HStoreSite hstore_site;
     private boolean disable;
@@ -59,8 +62,8 @@ public class HStoreThreadManager {
                                        this.num_partitions, this.num_cores));
         }
         else {
-            for (int i = 1; i <= this.num_partitions; i++) {
-                this.processing_affinity[i] = false;
+            for (int i = 0; i < this.num_partitions; i++) {
+                this.processing_affinity[i+EE_CORE_OFFSET] = false;
             } // FOR
             
             // Reserve the lowest cores for the various utility threads
@@ -86,6 +89,8 @@ public class HStoreThreadManager {
      */
     public void registerEEThread(Partition partition) {
         if (this.disable) return;
+        
+        Thread t = Thread.currentThread();
         boolean affinity[] = null;
         try {
             affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
@@ -103,16 +108,19 @@ public class HStoreThreadManager {
         // Only allow this EE to execute on a single core
         if (hstore_site.getHStoreConf().site.cpu_affinity_one_partition_per_core) {
             int core = partition.getRelativeIndex()-1 % affinity.length; 
-            affinity[core+1] = true;
+            affinity[core+EE_CORE_OFFSET] = true;
         }
         // Allow this EE to run on any of the lower cores
         else {
             for (int i = 0; i < this.num_partitions; i++) {
-                affinity[i+1] = true;
+                affinity[i+EE_CORE_OFFSET] = true;
             } // FOR
         }
+        
 //        if (debug.get())
-            LOG.info("Registering EE Thread for " + partition + " to execute on CPUs " + getCPUIds(affinity));
+        LOG.info(String.format("Registering EE Thread %s to execute on CPUs %s",
+                               t.getName(), this.getCPUIds(affinity)));
+        
         org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
         this.registerThread(affinity);
         
@@ -128,18 +136,16 @@ public class HStoreThreadManager {
      */
     public void registerProcessingThread() {
         if (this.disable) return;
-        if (debug.get())
-            LOG.debug("Registering Processing Thread to execute on CPUs " + getCPUIds(this.processing_affinity));
         
         boolean affinity[] = this.processing_affinity;
         Thread t = Thread.currentThread();
         String suffix = CollectionUtil.last(t.getName().split("\\-"));
         if (this.utility_affinities.containsKey(suffix)) {
             affinity = this.utility_affinities.get(suffix); 
-            LOG.info("Assigning " + t.getName() + " to cores " + this.getCPUIds(affinity));
-        } else {
-            LOG.info("Letting " + t.getName() + " execute on any core");
         }
+        
+        LOG.info(String.format("Registering Processing Thread %s to execute on CPUs %s",
+                              t.getName(), this.getCPUIds(affinity)));
         
         // This thread cannot run on the EE's cores
         // If this fails (such as on OS X for some weird reason), we'll
