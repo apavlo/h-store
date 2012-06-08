@@ -36,9 +36,9 @@ public class HStoreThreadManager {
     
     private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
-        HStoreConstants.THREAD_NAME_DISPATCHER,
-        HStoreConstants.THREAD_NAME_DISPATCHER,
-        HStoreConstants.THREAD_NAME_LISTEN,
+//        HStoreConstants.THREAD_NAME_DISPATCHER,
+//        HStoreConstants.THREAD_NAME_DISPATCHER,
+//        HStoreConstants.THREAD_NAME_LISTEN,
     };
     
     public HStoreThreadManager(HStoreSite hstore_site) {
