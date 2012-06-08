@@ -59,7 +59,7 @@ public class HStoreThreadManager {
                                        this.num_partitions, this.num_cores));
         }
         else {
-            for (int i = 0; i < this.num_partitions; i++) {
+            for (int i = 1; i <= this.num_partitions; i++) {
                 this.processing_affinity[i] = false;
             } // FOR
             
@@ -98,22 +98,21 @@ public class HStoreThreadManager {
             return;
         }
         assert(affinity != null);
-        for (int ii = 0; ii < affinity.length; ii++) {
-            affinity[ii] = false;
-        } // FOR
-
+        Arrays.fill(affinity, false);
+        
         // Only allow this EE to execute on a single core
         if (hstore_site.getHStoreConf().site.cpu_affinity_one_partition_per_core) {
-            affinity[partition.getRelativeIndex()-1 % affinity.length] = true;
+            int core = partition.getRelativeIndex()-1 % affinity.length; 
+            affinity[core+1] = true;
         }
         // Allow this EE to run on any of the lower cores
         else {
             for (int i = 0; i < this.num_partitions; i++) {
-                affinity[i] = true;
+                affinity[i+1] = true;
             } // FOR
         }
-        if (debug.get())
-            LOG.debug("Registering EE Thread for " + partition + " to execute on CPUs " + getCPUIds(affinity));
+//        if (debug.get())
+            LOG.info("Registering EE Thread for " + partition + " to execute on CPUs " + getCPUIds(affinity));
         org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
         this.registerThread(affinity);
         
@@ -137,7 +136,7 @@ public class HStoreThreadManager {
         String suffix = CollectionUtil.last(t.getName().split("\\-"));
         if (this.utility_affinities.containsKey(suffix)) {
             affinity = this.utility_affinities.get(suffix); 
-            LOG.info("Assigning " + t.getName() + " to cores " + Arrays.toString(this.getCores(affinity)));
+            LOG.info("Assigning " + t.getName() + " to cores " + this.getCPUIds(affinity));
         } else {
             LOG.info("Letting " + t.getName() + " execute on any core");
         }
@@ -199,19 +198,6 @@ public class HStoreThreadManager {
     
     public Map<Integer, Set<Thread>> getCPUThreads() {
         return Collections.unmodifiableMap(this.cpu_threads);
-    }
-    
-    protected int[] getCores(boolean affinity[]) {
-        int core_ctr = 0;
-        for (int i = 0; i < affinity.length; i++) {
-            if (affinity[i]) core_ctr++;
-        }
-        int cores[] = new int[core_ctr];
-        core_ctr = 0;
-        for (int i = 0; i < affinity.length; i++) {
-            if (affinity[i]) cores[core_ctr++] = i;
-        }
-        return (cores);
     }
 
     // ----------------------------------------------------------------------------
