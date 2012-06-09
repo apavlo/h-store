@@ -8,11 +8,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
 
 /**
@@ -24,7 +21,7 @@ import edu.brown.utils.ProfileMeasurement;
  * @author pavlo
  * @param <E>
  */
-public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> implements BlockingQueue<E> {
+public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -322,8 +319,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
                              this.queue_max, this.queue_release, this.queue_increase);
     }
 
-    @Override
-    public void update(EventObservable<AbstractTransaction> o, AbstractTransaction arg) {
-        this.allow_increase = true;
+    public void setAllowIncrease(boolean allow_increase) {
+        this.allow_increase = allow_increase;
     }
 }

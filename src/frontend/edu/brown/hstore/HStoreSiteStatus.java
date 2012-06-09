@@ -138,11 +138,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         } // FOR
 
         // Print a debug message when the first non-sysproc shows up
-        this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<AbstractTransaction>() {
+        this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<HStoreSite>() {
             @Override
-            public void update(EventObservable<AbstractTransaction> arg0, AbstractTransaction arg1) {
+            public void update(EventObservable<HStoreSite> arg0, HStoreSite arg1) {
 //                if (debug.get())
-                    LOG.info(HStoreConstants.SITE_FIRST_TXN + " - " + arg1);
+                LOG.info(arg1.getSiteName() + " - " +HStoreConstants.SITE_FIRST_TXN);
             }
         });
         
