@@ -123,22 +123,24 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         sb.append(TableUtil.table(rows));
         sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         
-        if (output_basepartitions) {
+        if (this.output_basepartitions) {
             sb.append("Transaction Base Partitions:\n");
             Histogram<Integer> h = results.getBasePartitions();
+            h.enablePercentages();
             Map<Integer, String> labels = new HashMap<Integer, String>();
             for (Integer p : h.values()) {
                 labels.put(p, String.format("Partition %02d", p));
             } // FOR
             h.setDebugLabels(labels);
-            sb.append(h.toString((int)(width * 0.5)));
+            sb.append(StringUtil.prefix(h.toString((int)(width * 0.5)), "   "));
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         }
         
-        if (output_responses) {
+        if (this.output_responses) {
             sb.append("Client Response Statuses:\n");
             Histogram<String> h = results.getResponseStatuses();
-            sb.append(h.toString((int)(width * 0.5)));
+            h.enablePercentages();
+            sb.append(StringUtil.prefix(h.toString((int)(width * 0.5)), "   "));
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         }
         
