@@ -4,6 +4,7 @@
 <arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
+<arg value="global.log_refresh=${global.log_refresh}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />

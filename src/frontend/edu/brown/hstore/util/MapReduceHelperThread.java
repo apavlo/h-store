@@ -73,9 +73,8 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_MAPREDUCE));
-        if (hstore_conf.site.cpu_affinity) {
-            hstore_site.getThreadManager().registerProcessingThread();
-        }
+        hstore_site.getThreadManager().registerProcessingThread();
+        
         if (!hstore_conf.site.mr_reduce_blocking) {
             // Initialization
             this.executor = this.initPartitionExecutor();

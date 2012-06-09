@@ -59,9 +59,8 @@ public final class TransactionPostProcessor implements Runnable, Shutdownable {
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_POSTPROCESSOR));
-        if (hstore_site.getHStoreConf().site.cpu_affinity) {
-            hstore_site.getThreadManager().registerProcessingThread();
-        }
+        hstore_site.getThreadManager().registerProcessingThread();
+            
         if (debug.get())
             LOG.debug("Starting transaction post-processing thread");
         
