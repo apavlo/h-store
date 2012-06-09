@@ -12,7 +12,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -33,7 +32,6 @@ import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.MultiPartitionTxnFilter;
-import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcParameterValueFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -82,7 +80,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             // Where is your god now???
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
-                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
+                    .attach(new ProcParameterValueFilter().include(1, new Integer(5))) // D_ID
                     // .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
