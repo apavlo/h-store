@@ -238,7 +238,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected HStoreCoordinator hstore_coordinator;
     protected HStoreConf hstore_conf;
     
-    private TransactionInitializer txnDispatcher;
+    private TransactionInitializer txnInitializer;
     
     // ----------------------------------------------------------------------------
     // Partition Queues
@@ -716,16 +716,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        this.txnDispatcher = new TransactionInitializer(this.hstore_site);
+        this.txnInitializer = hstore_site.getTransactionInitializer();
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
         }
         
         if (hstore_conf.site.exec_profiling) {
-            EventObservable<AbstractTransaction> eo = this.hstore_site.getStartWorkloadObservable();
-            this.work_idle_time.resetOnEvent(eo);
-            this.work_exec_time.resetOnEvent(eo);
+            EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
+            this.work_idle_time.resetOnEventObservable(observable);
+            this.work_exec_time.resetOnEventObservable(observable);
         }
         
         this.initializeVoltProcedures();
@@ -887,18 +887,26 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         RpcCallback<byte[]> done = work.getClientCallback(); 
         long client_handle = work.getClientHandle();
         
-        this.currentTxn = this.txnDispatcher.initInvocation(
+        LocalTransaction ts = this.txnInitializer.initInvocation(
                                                serializedRequest,
                                                client_handle,
                                                this.partitionId,
                                                catalog_proc,
                                                procParams,
                                                done);
-        
-        // FIXME: We should invoke the txn directly here if it's not 
-        //        a distributed transaction.
-        this.hstore_site.dispatchInvocation((LocalTransaction)this.currentTxn);
-
+        // -------------------------------
+        // SINGLE-PARTITION TRANSACTION
+        // -------------------------------
+        if (ts.isPredictSinglePartition()) {
+            this.currentTxn = ts;
+            this.executeTransaction(ts);
+        }
+        // -------------------------------    
+        // DISTRIBUTED TRANSACTION
+        // -------------------------------
+        else {
+            this.hstore_site.transactionQueue(ts);    
+        }
     }
     
     /**

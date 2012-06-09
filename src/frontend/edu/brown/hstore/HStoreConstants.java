@@ -54,9 +54,14 @@ public abstract class HStoreConstants {
     public static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
 
     /**
-     * Represents a null dependency id
+     * Null Dependency Id
      */
     public static final int NULL_DEPENDENCY_ID = -1;
+
+    /**
+     * Null Partition Id
+     */
+    public static final int NULL_PARTITION_ID = -1;
 
     /**
      * Default token used to indicate that a txn is not using undo buffers

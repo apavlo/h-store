@@ -25,6 +25,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.StringUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
@@ -160,9 +162,20 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (this.hstore_site.isLocalPartition(partition)) {
                 this.lockQueues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
                 this.lockQueuesBlocked[partition] = false;
-                hstore_site.getStartWorkloadObservable().addObserver(this.lockQueues[partition]);
             }
         } // FOR
+        
+        // Add a EventObservable that will tell us when the first non-sysproc
+        // request arrives from a client. This will then tell the queues that its ok
+        // to increase their limits if they're empty
+        EventObservable<HStoreSite> observable = hstore_site.getStartWorkloadObservable();
+        observable.addObserver(new EventObserver<HStoreSite>() {
+            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
+                for (TransactionInitPriorityQueue queue : lockQueues) {
+                    if (queue != null) queue.setAllowIncrease(true);
+                } // FOR
+            };
+        });
         
         if (d) LOG.debug(String.format("Created %d TransactionInitQueues for %s",
                                        num_ids, hstore_site.getSiteName()));

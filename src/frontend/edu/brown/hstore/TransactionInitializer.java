@@ -56,6 +56,15 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 
+/**
+ * This class is responsible for figuring out everything about a txn before it 
+ * starts running. It can figure out what partition to execute the txn's control
+ * code (i.e., program logic) on. It can also figure out additional properties, such 
+ * as what partitions the txn will need to access, whether it is read-only at a 
+ * partition, and whether it is likely to abort.
+ * <B>Note:</B> It is thread-safe so it can be used by all of the PartitionExecutors with locking 
+ * @author pavlo
+ */
 public class TransactionInitializer {
     private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -112,14 +121,24 @@ public class TransactionInitializer {
     // TRANSACTION PROCESSING METHODS
     // ----------------------------------------------------------------------------
 
-    protected int calculateBasePartition(long client_handle,
-                                           Procedure catalog_proc,
-                                           ParameterSet procParams,
-                                           int base_partition) {
+    /**
+     * Calculate what partition the txn should be executed on.
+     * The provided base_partition argument is the "suggestion" that
+     * was embedded in the original StoredProcedureInvocation from the client
+     * @param client_handle
+     * @param catalog_proc
+     * @param procParams
+     * @param base_partition
+     * @return
+     */
+    public int calculateBasePartition(long client_handle,
+                                       Procedure catalog_proc,
+                                       ParameterSet procParams,
+                                       int base_partition) {
         
         // Simple sanity check to make sure that we're not being told a bad partition
         if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
-            base_partition = -1;
+            base_partition = HStoreConstants.NULL_PARTITION_ID;
         }
         
         // -------------------------------
@@ -135,8 +154,8 @@ public class TransactionInitializer {
         // -------------------------------
         else if (catalog_proc.getSystemproc()) {
             // If it's a sysproc, then it doesn't need to go to a specific partition
-            // We'll set it to -1 so that we'll pick a random one down below
-            base_partition = -1;
+            // We'll set it to NULL_PARTITION_ID so that we'll pick a random one down below
+            base_partition = HStoreConstants.NULL_PARTITION_ID;
         }
         // -------------------------------
         // PartitionEstimator
@@ -153,7 +172,7 @@ public class TransactionInitializer {
         // If we don't have a partition to send this transaction to, then we will just pick
         // one our partitions at random. This can happen if we're forcing txns to execute locally
         // or if there are no input parameters <-- this should be in the paper!!!
-        if (base_partition == -1) {
+        if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                            catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
             int idx = (int)(Math.abs(client_handle) % hstore_site.local_partitions_arr.length);
