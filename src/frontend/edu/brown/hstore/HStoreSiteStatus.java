@@ -24,11 +24,11 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.TransactionProfile;
-import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.TransactionProfile;
+import edu.brown.hstore.txns.TransactionQueueManager;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TxnCounter;

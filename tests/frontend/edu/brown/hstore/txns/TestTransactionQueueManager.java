@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -17,6 +17,7 @@ import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.TransactionQueueManager;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;

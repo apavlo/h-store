@@ -1,7 +1,7 @@
 package edu.brown.hstore.internal;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 public class WorkFragmentMessage extends InternalTxnMessage {
     

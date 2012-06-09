@@ -23,32 +23,26 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package edu.brown.hstore.util;
+package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.SEATSEstimator;
 import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
-import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -61,8 +55,8 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.StringUtil;
 
-public class TransactionDispatcher implements Runnable, Shutdownable {
-    private static final Logger LOG = Logger.getLogger(TransactionDispatcher.class);
+public class TransactionInitializer {
+    private static final Logger LOG = Logger.getLogger(TransactionInitializer.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
@@ -79,16 +73,6 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
 
     private final HStoreSite hstore_site;
     private HStoreConf hstore_conf;
-    private Shutdownable.ShutdownState state = null;
-    
-    /**
-     * [0] ByteBuffer
-     * [1] Procedure Catalog Object
-     * [2] ParaemterSet
-     * [3] RpcCallback
-     */
-    private final LinkedBlockingQueue<Object[]> queue = new LinkedBlockingQueue<Object[]>();
-    
     private final Collection<Integer> all_partitions;
     private EstimationThresholds thresholds;
     
@@ -101,7 +85,7 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    public TransactionDispatcher(HStoreSite hstore_site) {
+    public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         
@@ -124,79 +108,7 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
             this.fixed_estimator = null;
         }
     }
-    
-    public void queue(ByteBuffer serializedRequest, 
-                       long client_handle,
-                       int base_partition,
-                       Procedure catalog_proc,
-                       ParameterSet procParams,
-                       RpcCallback<byte[]> done) {
-        
-        // Store the base_partition in the ByteBuffer
-        StoredProcedureInvocation.setBasePartition(base_partition, serializedRequest);
-        
-        this.queue.offer(new Object[] {
-            serializedRequest,
-            catalog_proc,
-            procParams,
-            done
-        });
-        
-    }
-    
-    @Override
-    public void run() {
-        Thread self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DISPATCHER));
-        if (hstore_conf.site.cpu_affinity) {
-            hstore_site.getThreadManager().registerProcessingThread();
-        }
-        
-        Object next[] = null;
-        while (this.state != ShutdownState.SHUTDOWN) {
-            try {
-                next = this.queue.take();
-            } catch (InterruptedException ex) {
-                break;
-            }
-            if (this.state == ShutdownState.PREPARE_SHUTDOWN) {
-                // TODO: Send back rejection
-            } else {
-                ByteBuffer serializedRequest = (ByteBuffer)next[0]; 
-                Procedure catalog_proc = (Procedure)next[1];
-                ParameterSet procParams = (ParameterSet)next[2];
-                @SuppressWarnings("unchecked")
-                RpcCallback<byte[]> done = (RpcCallback<byte[]>)next[3]; 
-                
-                int base_partition = StoredProcedureInvocation.getBasePartition(serializedRequest);
-                long client_handle = StoredProcedureInvocation.getClientHandle(serializedRequest);
-                
-                this.procedureInvocation(serializedRequest,
-                                         client_handle,
-                                         base_partition,
-                                         catalog_proc,
-                                         procParams,
-                                         done);
-            }
-        } // WHILE
 
-    }
-    
-    @Override
-    public void prepareShutdown(boolean error) {
-        this.state = ShutdownState.PREPARE_SHUTDOWN;
-    }
-
-    @Override
-    public void shutdown() {
-        this.state = ShutdownState.SHUTDOWN;
-    }
-
-    @Override
-    public boolean isShuttingDown() {
-        return (this.state == ShutdownState.PREPARE_SHUTDOWN);
-    }
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION PROCESSING METHODS
     // ----------------------------------------------------------------------------
@@ -204,9 +116,14 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     /**
      * 
      * @param serializedRequest
+     * @param client_handle
+     * @param base_partition
+     * @param catalog_proc
+     * @param procParams
      * @param done
+     * @return
      */
-    public LocalTransaction procedureInvocation(ByteBuffer serializedRequest, 
+    public LocalTransaction initInvocation(ByteBuffer serializedRequest, 
                                      long client_handle,
                                      int base_partition,
                                      Procedure catalog_proc,
@@ -264,7 +181,17 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
     }
     
 
-    public void populateProperties(LocalTransaction ts,
+    /**
+     * Initialize the execution properties for a new tansaction
+     * @param ts
+     * @param txn_id
+     * @param client_handle
+     * @param base_partition
+     * @param catalog_proc
+     * @param params
+     * @param client_callback
+     */
+    protected void populateProperties(LocalTransaction ts,
                                     Long txn_id,
                                     long client_handle,
                                     int base_partition,

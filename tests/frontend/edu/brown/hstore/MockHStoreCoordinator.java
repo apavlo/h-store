@@ -37,7 +37,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.TransactionQueueManager;
+import edu.brown.hstore.txns.TransactionQueueManager;
 
 public class MockHStoreCoordinator extends HStoreCoordinator {
     private static final Logger LOG = Logger.getLogger(MockHStoreCoordinator.class);

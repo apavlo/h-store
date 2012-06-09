@@ -9,7 +9,7 @@ import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 

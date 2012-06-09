@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -245,7 +245,7 @@ public class MapReduceTransaction extends LocalTransaction {
     /**
      * Store Data from MapOutput table into reduceInput table
      * ReduceInput table is the result of all incoming mapOutput table from other partitions
-     * @see edu.brown.hstore.dtxn.AbstractTransaction#storeData(int, org.voltdb.VoltTable)
+     * @see edu.brown.hstore.txns.AbstractTransaction#storeData(int, org.voltdb.VoltTable)
      */
     @Override
     public synchronized Hstoreservice.Status storeData(int partition, VoltTable vt) {

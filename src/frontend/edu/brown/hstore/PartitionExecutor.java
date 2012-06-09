@@ -114,11 +114,6 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.ExecutionState;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.internal.FinishTxnMessage;
@@ -128,13 +123,17 @@ import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.ExecutionState;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.DeferredWork;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
-import edu.brown.hstore.util.TransactionDispatcher;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -239,7 +238,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected HStoreCoordinator hstore_coordinator;
     protected HStoreConf hstore_conf;
     
-    private TransactionDispatcher txnDispatcher;
+    private TransactionInitializer txnDispatcher;
     
     // ----------------------------------------------------------------------------
     // Partition Queues
@@ -717,7 +716,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        this.txnDispatcher = new TransactionDispatcher(this.hstore_site);
+        this.txnDispatcher = new TransactionInitializer(this.hstore_site);
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
@@ -787,14 +786,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Transaction Initialization
                 // -------------------------------
                 else if (work instanceof InitializeTxnMessage) {
-                    this.processNewTransactionMessage((InitializeTxnMessage)work);
+                    this.processInitializeTxnMessage((InitializeTxnMessage)work);
                 }
                 // -------------------------------
                 // SnapshotWorkMessage
                 // -------------------------------
                 else if (work instanceof PotentialSnapshotWorkMessage) {
                     m_snapshotter.doSnapshotWork(ee);
-                
                 }
                 // -------------------------------
                 // BAD MOJO!
@@ -818,7 +816,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (this.currentTxn != null ? " - " + this.currentTxn : ""), ex), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
-                
             }
             this.hstore_coordinator.shutdownCluster(ex);
         } finally {
@@ -882,7 +879,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * 
      * @param work
      */
-    protected void processNewTransactionMessage(InitializeTxnMessage work) {
+    protected void processInitializeTxnMessage(InitializeTxnMessage work) {
 
         ByteBuffer serializedRequest = work.getSerializedRequest(); 
         Procedure catalog_proc = work.getProcedure();
@@ -890,7 +887,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         RpcCallback<byte[]> done = work.getClientCallback(); 
         long client_handle = work.getClientHandle();
         
-        this.currentTxn = this.txnDispatcher.procedureInvocation(
+        this.currentTxn = this.txnDispatcher.initInvocation(
                                                serializedRequest,
                                                client_handle,
                                                this.partitionId,

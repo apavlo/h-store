@@ -17,7 +17,7 @@
 
 package org.voltdb.compiler;
 
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 
 public class AdHocPlannerWork extends AsyncCompilerWork {
     private static final long serialVersionUID = -6567283432846270119L;

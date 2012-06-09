@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreSite;

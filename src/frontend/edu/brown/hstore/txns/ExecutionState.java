@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Collection;

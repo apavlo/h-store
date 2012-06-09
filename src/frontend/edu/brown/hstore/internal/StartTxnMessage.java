@@ -1,6 +1,6 @@
 package edu.brown.hstore.internal;
 
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 
 public class StartTxnMessage extends InternalTxnMessage {
 

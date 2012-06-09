@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Arrays;

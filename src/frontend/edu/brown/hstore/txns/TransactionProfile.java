@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +29,9 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.DependencyInfo;
+import edu.brown.hstore.txns.ExecutionState;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;

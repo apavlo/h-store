@@ -1,6 +1,6 @@
 package edu.brown.hstore.internal;
 
-import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
 
 public abstract class InternalTxnMessage extends InternalMessage {
 

@@ -13,11 +13,11 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.DistributedState;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.dtxn.PrefetchState;
-import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.txns.DistributedState;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
+import edu.brown.hstore.txns.PrefetchState;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.pools.TypedObjectPool;
 
 public final class HStoreObjectPools {

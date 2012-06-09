@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.Collection;
 import java.util.Random;
@@ -24,6 +24,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.MapReduceTransaction;
 
 public class TestMapReduceTransaction extends BaseTestCase{
     static final int NUM_ROWS = 10;

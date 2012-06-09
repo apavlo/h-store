@@ -1,4 +1,4 @@
-package edu.brown.hstore.dtxn;
+package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +15,8 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.ExecutionState;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.MockPartitionExecutor;
