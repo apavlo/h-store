@@ -894,7 +894,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
-        if (ts.isPredictSinglePartition()) {
+        if (ts.isPredictSinglePartition() && ts.isMapReduce() == false) {
             this.currentTxn = ts;
             this.executeTransaction(ts);
         }
