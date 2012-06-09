@@ -63,6 +63,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
 
@@ -87,7 +88,6 @@ import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
-import edu.brown.hstore.util.TransactionDispatcher;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
@@ -217,7 +217,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    private final TransactionDispatcher txnDispatchers[];
+//    private final TransactionDispatcher txnDispatchers[];
 //    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> initQueue =
 //                        new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
     
@@ -481,11 +481,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // Transaction Dispatcher Threads
-        this.txnDispatchers = new TransactionDispatcher[num_local_partitions];
-        for (int i = 0; i < num_local_partitions; i++) {
-            TransactionDispatcher td = new TransactionDispatcher(this);
-            this.txnDispatchers[i] = td;
-        } // FOR
+//        this.txnDispatchers = new TransactionDispatcher[num_local_partitions];
+//        for (int i = 0; i < num_local_partitions; i++) {
+//            TransactionDispatcher td = new TransactionDispatcher(this);
+//            this.txnDispatchers[i] = td;
+//        } // FOR
         
         // MapReduce Transaction helper thread
         if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
@@ -949,12 +949,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Start TransactionDispatcher
-        for (TransactionDispatcher td : this.txnDispatchers) {
-            t = new Thread(td);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
-        } // FOR
+//        for (TransactionDispatcher td : this.txnDispatchers) {
+//            t = new Thread(td);
+//            t.setDaemon(true);
+//            t.setUncaughtExceptionHandler(this.exceptionHandler);
+//            t.start();
+//        } // FOR
         
         // Start Status Monitor
         if (hstore_conf.site.status_enable) {
@@ -1054,9 +1054,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.txnQueueManager.prepareShutdown(error);
         
-        for (TransactionDispatcher td : this.txnDispatchers) {
-            td.prepareShutdown(error);
-        } // FOR
+//        for (TransactionDispatcher td : this.txnDispatchers) {
+//            td.prepareShutdown(error);
+//        } // FOR
         
         for (PartitionExecutorPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
@@ -1104,9 +1104,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int p : this.local_partitions_arr) {
             this.executors[p].shutdown();
         } // FOR
-        for (TransactionDispatcher td : this.txnDispatchers) {
-            td.shutdown();
-        } // FOR
+//        for (TransactionDispatcher td : this.txnDispatchers) {
+//            td.shutdown();
+//        } // FOR
         for (PartitionExecutorPostProcessor p : this.processors) {
             p.shutdown();
         } // FOR
@@ -1249,13 +1249,43 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // the LocalTransaction handle and figuring out whatever else we need to
         // about this txn...
         
-        int offset = this.getLocalPartitionOffset(base_partition);
-        this.txnDispatchers[0].queue(buffer,
-                                          client_handle,
-                                          base_partition,
-                                          catalog_proc,
-                                          procParams,
-                                          done);
+        
+        PartitionExecutor executor = this.executors[base_partition];
+        boolean success = executor.queueNewTransaction(buffer,
+                                                        catalog_proc,
+                                                        procParams,
+                                                        done);
+        if (success == false) {
+            // Depending on what we need to do for this type txn, we will send
+            // either an ABORT_THROTTLED or an ABORT_REJECT in our response
+            // An ABORT_THROTTLED means that the client will back-off of a bit
+            // before sending another txn request, where as an ABORT_REJECT means
+            // that it will just try immediately
+            Status status = (hstore_conf.site.queue_incoming_throttle ? Status.ABORT_THROTTLED : Status.ABORT_REJECT);
+            if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
+                                           status, base_partition, executor.getWorkQueueSize()));
+            
+
+            ClientResponseImpl cresponse = new ClientResponseImpl(-1,
+                                                                  client_handle,
+                                                                  -1,
+                                                                  Status.OK,
+                                                                  HStoreConstants.EMPTY_RESULT,
+                                                                  this.REJECTION_MESSAGE);
+            this.sendClientResponse(cresponse, done, EstTime.currentTimeMillis(), 0);
+
+            if (hstore_conf.site.status_show_txn_info) {
+                if (status == Status.ABORT_THROTTLED) {
+                    TxnCounter.THROTTLED.inc(catalog_proc);
+                } else if (status == Status.ABORT_REJECT) {
+                    TxnCounter.REJECTED.inc(catalog_proc);
+                }
+            }
+        }
+        else if (hstore_conf.site.status_show_txn_info) {
+            TxnCounter.EXECUTED.inc(catalog_proc);
+        }
+        
         
         if (d) LOG.debug("Finished initial processing of new txn. " +
         		          "Returning back to listen on incoming socket");
@@ -1474,7 +1504,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else {
             if (ts.isMapReduce() && !hstore_conf.site.mr_map_blocking) {
                 if (d) LOG.debug(String.format("%s - Doing MapReduce Transaction asynchronously, start on partition %d [handle=%d]",
-                        ts, base_partition, ts.getClientHandle()));
+                                               ts, base_partition, ts.getClientHandle()));
                 this.transactionStart(ts, base_partition);
             }
             else {
@@ -1526,7 +1556,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.txnQueueManager.initTransaction(ts);
             }
         }
-        
     }
 
     // ----------------------------------------------------------------------------
@@ -1632,7 +1661,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         
-        
         if (d) LOG.debug(String.format("Starting %s %s on partition %d",
                         (singlePartitioned ? "single-partition" : "distributed"), ts, base_partition));
         
@@ -1654,7 +1682,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // An ABORT_THROTTLED means that the client will back-off of a bit
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
-            Status status = ((ts.isPredictSinglePartition() ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
+            Status status = ((ts.isPredictSinglePartition() ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ?
                                         Status.ABORT_THROTTLED :
                                         Status.ABORT_REJECT);
             
@@ -1666,13 +1694,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
-            // Otherwise we will let the normal distributed transaction process clean things up 
+            // Otherwise we will let the normal distributed transaction process clean things up
             this.transactionReject(ts, status);
             if (singlePartitioned) {
                 ts.markAsDeletable();
                 this.deleteTransaction(txn_id, status);
             }
-        }
+        }        
     }
     
     /**

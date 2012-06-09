@@ -206,7 +206,7 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
      * @param serializedRequest
      * @param done
      */
-    public void procedureInvocation(ByteBuffer serializedRequest, 
+    public LocalTransaction procedureInvocation(ByteBuffer serializedRequest, 
                                      long client_handle,
                                      int base_partition,
                                      Procedure catalog_proc,
@@ -259,7 +259,8 @@ public class TransactionDispatcher implements Runnable, Shutdownable {
         
         // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
 
-        hstore_site.dispatchInvocation(ts);
+        return (ts);
+        // hstore_site.dispatchInvocation(ts);
     }
     
 
