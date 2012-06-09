@@ -61,7 +61,6 @@ import org.voltdb.compiler.AsyncCompilerWorkThread;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
@@ -85,9 +84,8 @@ import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
-import edu.brown.hstore.txns.TransactionQueueManager;
 import edu.brown.hstore.util.MapReduceHelperThread;
-import edu.brown.hstore.util.PartitionExecutorPostProcessor;
+import edu.brown.hstore.util.TransactionPostProcessor;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
@@ -171,6 +169,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final TransactionIdManager txnIdManagers[];
 
     /**
+     * The TransactionInitializer is used to figure out what txns will do
+     *  before we start executing them
+     */
+    private final TransactionInitializer txnInitializer;
+    
+    /**
      * This class determines what partitions transactions/queries will
      * need to execute on based on their input parameters.
      */
@@ -215,13 +219,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
     /**
-     * 
-     */
-//    private final TransactionDispatcher txnDispatchers[];
-//    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> initQueue =
-//                        new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
-    
-    /**
      * PartitionExecutors
      * These are the single-threaded execution engines that have exclusive
      * access to a partition. Any transaction that needs to access data at a partition
@@ -250,8 +247,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * These threads allow a PartitionExecutor to send back ClientResponses back to
      * the clients without blocking
      */
-    private final List<PartitionExecutorPostProcessor> processors =
-                        new ArrayList<PartitionExecutorPostProcessor>();
+    private final List<TransactionPostProcessor> processors =
+                        new ArrayList<TransactionPostProcessor>();
     private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> ready_responses =
                         new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
     
@@ -415,21 +412,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
         
-        // Get the hasher we will use for this HStoreSite
-        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
-                                             new Object[]{ this.catalog_db, num_partitions },
-                                             new Class<?>[]{ Database.class, int.class });
-        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
-        
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         this.single_partition_sets = new Collection[num_partitions];
+        
+        // Get the hasher we will use for this HStoreSite
+        this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
+                                             new Object[]{ this.catalog_db, num_partitions },
+                                             new Class<?>[]{ Database.class, int.class });
+        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
 
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
+        // TODO: Move this cache information into CatalogContext
         CatalogUtil.clearCache(this.catalog_db);
         BatchPlanner.clear(this.all_partitions.size());
 
@@ -479,13 +477,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
-        
-        // Transaction Dispatcher Threads
-//        this.txnDispatchers = new TransactionDispatcher[num_local_partitions];
-//        for (int i = 0; i < num_local_partitions; i++) {
-//            TransactionDispatcher td = new TransactionDispatcher(this);
-//            this.txnDispatchers[i] = td;
-//        } // FOR
         
         // MapReduce Transaction helper thread
         if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
@@ -544,7 +535,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug(String.format("Starting %d transaction post-processing threads",
                                         hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
-                PartitionExecutorPostProcessor processor = new PartitionExecutorPostProcessor(this,
+                TransactionPostProcessor processor = new TransactionPostProcessor(this,
                                                                                               this.ready_responses); 
                 this.processors.add(processor);
             } // FOR
@@ -553,6 +544,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // TRANSACTION ESTIMATION
         // -------------------------------
+        
+        // Transaction Properties Initializer
+        this.txnInitializer = new TransactionInitializer(this);
         
         // Create all of our parameter manglers
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
@@ -570,7 +564,152 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
     }
     
-
+    // ----------------------------------------------------------------------------
+    // ADDITIONAL INITIALIZATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    public void addPartitionExecutor(int partition, PartitionExecutor executor) {
+        assert(this.shutdown_state != ShutdownState.STARTED);
+        assert(executor != null);
+        this.executors[partition] = executor;
+    }
+    
+    /**
+     * Return a new HStoreCoordinator for this HStoreSite. Note that this
+     * should only be called by HStoreSite.init(), otherwise the 
+     * internal state for this HStoreSite will be incorrect. If you want
+     * the HStoreCoordinator at runtime, use HStoreSite.getHStoreCoordinator()
+     * @return
+     */
+    protected HStoreCoordinator initHStoreCoordinator() {
+        assert(this.shutdown_state != ShutdownState.STARTED);
+        return new HStoreCoordinator(this);        
+    }
+    
+    protected void setTransactionIdManagerTimeDelta(long delta) {
+        for (TransactionIdManager t : this.txnIdManagers) {
+            if (t != null) t.setTimeDelta(delta);
+        } // FOR
+    }
+    
+    protected void setThresholds(EstimationThresholds thresholds) {
+        this.thresholds = thresholds;
+        if (d) LOG.debug("Set new EstimationThresholds: " + thresholds);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // CATALOG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public Catalog getCatalog() {
+        return (this.catalog_db.getCatalog());
+    }
+    
+    public Database getDatabase() {
+        return (this.catalog_db);
+    }
+    
+    /**
+     * Return the Site catalog object for this HStoreSiteNode
+     */
+    public Site getSite() {
+        return (this.catalog_site);
+    }
+    public int getSiteId() {
+        return (this.site_id);
+    }
+    public String getSiteName() {
+        return (this.site_name);
+    }
+    
+    /**
+     * Return the list of all the partition ids in this H-Store database cluster
+     * TODO: Moved to CatalogContext
+     */
+    public Collection<Integer> getAllPartitionIds() {
+        return (this.all_partitions);
+    }
+    
+    /**
+     * Return the list of partition ids managed by this HStoreSite
+     * TODO: Moved to CatalogContext 
+     */
+    public Collection<Integer> getLocalPartitionIds() {
+        return (this.local_partitions);
+    }
+    /**
+     * Return an immutable array of the local partition ids managed by this HStoreSite
+     * Use this array is prefable to the Collection<Integer> if you must iterate of over them.
+     * This avoids having to create a new Iterator instance each time.
+     * TODO: Moved to CatalogContext
+     */
+    public Integer[] getLocalPartitionIdArray() {
+        return (this.local_partitions_arr);
+    }
+    /**
+     * Returns true if the given partition id is managed by this HStoreSite
+     * @param partition
+     * @return
+     * TODO: Moved to CatalogContext
+     */
+    public boolean isLocalPartition(int partition) {
+        return (this.local_partition_offsets[partition] != -1);
+    }
+    
+    /**
+     * Return the site id for the given partition
+     * @param partition_id
+     * @return
+     * TODO: Moved to CatalogContext
+     */
+    public int getSiteIdForPartitionId(int partition_id) {
+        return (this.partition_site_xref[partition_id]);
+    }
+    
+    /**
+     * Return a Collection that only contains the given partition id
+     * @param partition
+     * TODO: Moved to CatalogContext
+     */
+    public Collection<Integer> getSingletonPartitionList(int partition) {
+        return (this.single_partition_sets[partition]);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // THREAD UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Start the MapReduceHelper Thread
+     */
+    private void startMapReduceHelper() {
+        assert(this.mr_helper_started == false);
+        if (d) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
+        Thread t = new Thread(this.mr_helper);
+        t.setDaemon(true);
+        t.setUncaughtExceptionHandler(this.exceptionHandler);
+        t.start();
+        this.mr_helper_started = true;
+    }
+    
+    /**
+     * Start threads for processing AdHoc queries 
+     */
+    private void startAdHocHelper() {
+        assert(this.adhoc_helper_started == false);
+        if (d) LOG.debug("Starting " + this.periodicWorkTimer_thread.getClass().getSimpleName());
+        this.periodicWorkTimer_thread.start();
+        if (d) LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
+        this.asyncCompilerWork_thread.start();
+        this.adhoc_helper_started = true;
+    }
+    
+    /**
+     * Get the MapReduce Helper thread 
+     */
+    public MapReduceHelperThread getMapReduceHelper() {
+        return (this.mr_helper);
+    }
     
     // ----------------------------------------------------------------------------
     // UTILITY METHODS
@@ -611,29 +750,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public AbstractHasher getHasher() {
         return (this.hasher);
     }
-    
-    public void addPartitionExecutor(int partition, PartitionExecutor executor) {
-        assert(executor != null);
-        this.executors[partition] = executor;
+    public TransactionInitializer getTransactionInitializer() {
+        return (this.txnInitializer);
     }
     public PartitionExecutor getPartitionExecutor(int partition) {
         PartitionExecutor es = this.executors[partition]; 
         assert(es != null) : "Unexpected null PartitionExecutor for partition #" + partition + " on " + this.getSiteName();
         return (es);
     }
-    public Collection<PartitionExecutorPostProcessor> getExecutionSitePostProcessors() {
+    public Collection<TransactionPostProcessor> getTransactionPostProcessors() {
         return (this.processors);
     }
-    /**
-     * Return a new HStoreCoordinator for this HStoreSite. Note that this
-     * should only be called by HStoreSite.init(), otherwise the 
-     * internal state for this HStoreSite will be incorrect. If you want
-     * the HStoreCoordinator at runtime, use HStoreSite.getHStoreCoordinator()
-     * @return
-     */
-    protected HStoreCoordinator initHStoreCoordinator() {
-        return new HStoreCoordinator(this);        
-    }
+
     public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
     }
@@ -673,152 +801,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return (this.txnIdManagers[partition]);
         }
     }
-    public void setTransactionIdManagerTimeDelta(long delta) {
-        for (TransactionIdManager t : this.txnIdManagers) {
-            if (t != null) t.setTimeDelta(delta);
-        } // FOR
-    }
+
     
     public EstimationThresholds getThresholds() {
         return thresholds;
     }
-    protected void setThresholds(EstimationThresholds thresholds) {
-         this.thresholds = thresholds;
-//         if (d) 
-         LOG.info("Set new EstimationThresholds: " + thresholds);
-    }
-    
-    public Catalog getCatalog() {
-        return (this.catalog_db.getCatalog());
-    }
-    
-    public Database getDatabase() {
-        return (this.catalog_db);
-    }
     
     /**
-     * Return the Site catalog object for this HStoreSiteNode
+     * Internal counter of the number of incoming requests that this
+     * HStoreSite has processed 
      */
-    public Site getSite() {
-        return (this.catalog_site);
-    }
-    public int getSiteId() {
-        return (this.site_id);
-    }
-    public String getSiteName() {
-        return (this.site_name);
-    }
-    
-    /**
-     * Return the list of all the partition ids in this H-Store database cluster
-     */
-    public Collection<Integer> getAllPartitionIds() {
-        return (this.all_partitions);
-    }
-    
-    /**
-     * Return the list of partition ids managed by this HStoreSite 
-     */
-    public Collection<Integer> getLocalPartitionIds() {
-        return (this.local_partitions);
-    }
-    /**
-     * Return an immutable array of the local partition ids managed by this HStoreSite
-     * Use this array is prefable to the Collection<Integer> if you must iterate of over them.
-     * This avoids having to create a new Iterator instance each time.
-     */
-    public Integer[] getLocalPartitionIdArray() {
-        return (this.local_partitions_arr);
-    }
-    /**
-     * Returns true if the given partition id is managed by this HStoreSite
-     * @param partition
-     * @return
-     */
-    public boolean isLocalPartition(int partition) {
-        return (this.local_partition_offsets[partition] != -1);
-    }
-    
-    public int getSiteIdForPartitionId(int partition_id) {
-        return (this.partition_site_xref[partition_id]);
-    }
-    
-    /**
-     * Return a Collection that only contains the given partition id
-     * @param partition
-     */
-    public Collection<Integer> getSingletonPartitionList(int partition) {
-        return (this.single_partition_sets[partition]);
+    private int getNextRequestCounter() {
+        return (this.request_counter.getAndIncrement());
     }
     
     @SuppressWarnings("unchecked")
     public <T extends AbstractTransaction> T getTransaction(Long txn_id) {
         return ((T)this.inflight_txns.get(txn_id));
     }
-    /**
-     * Get the MapReduce Helper thread 
-     */
-    public MapReduceHelperThread getMapReduceHelper() {
-        return mr_helper;
-    }
-    
-    /**
-     * Get the total number of transactions inflight for all partitions 
-     */
-    protected int getInflightTxnCount() {
-        return (this.inflight_txns.size());
-    }
-    /**
-     * Get the collection of inflight Transaction state handles
-     * THIS SHOULD ONLY BE USED FOR TESTING!
-     * @return
-     */
-    protected Collection<AbstractTransaction> getInflightTransactions() {
-        return (this.inflight_txns.values());
-    }
-    
-//    /**
-//     * Get the number of transactions inflight for this partition
-//     */
-//    protected int getInflightTxnCount(int partition) {
-////        return (this.inflight_txns_ctr[partition].get());
-//        return (this.txnQueueManager.getQueueSize(partition));
-//    }
-    
-    protected int getQueuedResponseCount() {
-        return (this.ready_responses.size());
-    }
 
-    /**
-     * Relative marker used 
-     */
-    private int getNextRequestCounter() {
-        return (this.request_counter.getAndIncrement());
-    }
-    
-    
-    /**
-     * Start the MapReduceHelper Thread
-     */
-    private void startMapReduceHelper() {
-        if (d) LOG.debug("Starting " + this.mr_helper.getClass().getSimpleName());
-        Thread t = new Thread(this.mr_helper);
-        t.setDaemon(true);
-        t.setUncaughtExceptionHandler(this.exceptionHandler);
-        t.start();
-        this.mr_helper_started = true;
-    }
-    
-    /**
-     * Start threads for processing AdHoc queries 
-     */
-    private void startAdHocHelper() {
-        if (d) LOG.debug("Starting " + this.periodicWorkTimer_thread.getClass().getSimpleName());
-        this.periodicWorkTimer_thread.start();
-        if (d) LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
-        this.asyncCompilerWork_thread.start();
-        this.adhoc_helper_started = true;
-    }
     
     /**
      * Return a thread-safe FastDeserializer
@@ -970,7 +971,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
-            for (PartitionExecutorPostProcessor espp : this.processors) {
+            for (TransactionPostProcessor espp : this.processors) {
                 t = new Thread(espp);
                 t.setDaemon(true);
                 t.setUncaughtExceptionHandler(this.exceptionHandler);
@@ -1058,7 +1059,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            td.prepareShutdown(error);
 //        } // FOR
         
-        for (PartitionExecutorPostProcessor espp : this.processors) {
+        for (TransactionPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
         } // FOR
         
@@ -1107,7 +1108,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //        for (TransactionDispatcher td : this.txnDispatchers) {
 //            td.shutdown();
 //        } // FOR
-        for (PartitionExecutorPostProcessor p : this.processors) {
+        for (TransactionPostProcessor p : this.processors) {
             p.shutdown();
         } // FOR
         
@@ -2556,4 +2557,29 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         } // WHILE
 	}
+	
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+	
+	/**
+     * Get the total number of transactions inflight for all partitions 
+     */
+    protected int getInflightTxnCount() {
+        return (this.inflight_txns.size());
+    }
+    /**
+     * Get the collection of inflight Transaction state handles
+     * THIS SHOULD ONLY BE USED FOR TESTING!
+     * @return
+     */
+    protected Collection<AbstractTransaction> getInflightTransactions() {
+        return (this.inflight_txns.values());
+    }
+    
+    protected int getQueuedResponseCount() {
+        return (this.ready_responses.size());
+    }
+
+
 }

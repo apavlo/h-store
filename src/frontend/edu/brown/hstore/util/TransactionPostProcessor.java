@@ -16,8 +16,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement;
 
-public final class PartitionExecutorPostProcessor implements Runnable, Shutdownable {
-    private static final Logger LOG = Logger.getLogger(PartitionExecutorPostProcessor.class);
+public final class TransactionPostProcessor implements Runnable, Shutdownable {
+    private static final Logger LOG = Logger.getLogger(TransactionPostProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -49,7 +49,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
      * 
      * @param hstore_site
      */
-    public PartitionExecutorPostProcessor(HStoreSite hstore_site,
+    public TransactionPostProcessor(HStoreSite hstore_site,
                                           LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
