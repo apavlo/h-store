@@ -404,7 +404,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeLoadC
     } catch (SerializableEEException &e) {
         engine->resetReusedResultOutputBuffer();
         e.serialize(engine->getExceptionOutputSerializer());
-        VOLT_ERROR("loadCatalog failed: %s", e.message().c_str());
+        VOLT_WARN("loadCatalog failed: %s", e.message().c_str());
     }
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
 }
