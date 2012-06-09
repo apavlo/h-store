@@ -992,14 +992,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.processWorkFragment(this.currentTxn, fragment, parameters);
             
         // -------------------------------
-        // Invoke Stored Procedure
-        // -------------------------------
-        } else if (work instanceof InitiateTaskMessage) {
-            
-
-            
-            
-        // -------------------------------
         // Finish Transaction
         // -------------------------------
         } else if (work instanceof FinishTaskMessage) {

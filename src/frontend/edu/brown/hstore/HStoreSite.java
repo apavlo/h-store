@@ -1215,7 +1215,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // System Procedure Check
         // If this method returns true, then we want to halt processing the
         // request any further and immediately return
-        if (sysproc && this.processSysProc(client_handle, procParams, catalog_proc, done)) {
+        if (sysproc && this.processSysProc(client_handle, catalog_proc, procParams, done)) {
             return;
         }
         
@@ -1230,9 +1230,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         base_partition = this.calculateBasePartition(client_handle,
-                                                     base_partition,
                                                      catalog_proc,
-                                                     procParams);
+                                                     procParams,
+                                                     base_partition);
         
         // -------------------------------
         // REDIRECT TXN TO PROPER BASE PARTITION
@@ -1291,9 +1291,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     protected int calculateBasePartition(long client_handle,
-                                           int base_partition,
                                            Procedure catalog_proc,
-                                           ParameterSet procParams) {
+                                           ParameterSet procParams,
+                                           int base_partition) {
     
         // Simple sanity check to make sure that we're not being told a bad partition
         if (base_partition < 0 || base_partition >= this.local_partitions_arr.length) {
@@ -1344,12 +1344,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Special handling for incoming sysproc requests
-     * @param request
      * @param catalog_proc
      * @param done
+     * @param request
      * @return True if this request was handled and the caller does not need to do anything further
      */
-    private boolean processSysProc(long client_handle, ParameterSet params, Procedure catalog_proc, RpcCallback<byte[]> done) {
+    private boolean processSysProc(long client_handle,
+                                     Procedure catalog_proc,
+                                     ParameterSet params,
+                                     RpcCallback<byte[]> done) {
+        
         // -------------------------------
         // SHUTDOWN
         // TODO: Execute as a regular transaction
