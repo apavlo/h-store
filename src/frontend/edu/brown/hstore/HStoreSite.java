@@ -1244,6 +1244,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
+        // TODO: We should queue the txn at the proper partition
+        // The PartitionExecutor thread will be responsible for creating
+        // the LocalTransaction handle and figuring out whatever else we need to
+        // about this txn...
+        
         int offset = this.getLocalPartitionOffset(base_partition);
         this.txnDispatchers[0].queue(buffer,
                                           client_handle,
