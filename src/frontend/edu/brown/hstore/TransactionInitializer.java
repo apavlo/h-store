@@ -53,6 +53,7 @@ import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 
 public class TransactionInitializer {
@@ -72,14 +73,11 @@ public class TransactionInitializer {
     // ----------------------------------------------------------------------------
 
     private final HStoreSite hstore_site;
-    private HStoreConf hstore_conf;
+    private final HStoreConf hstore_conf;
     private final Collection<Integer> all_partitions;
-    private EstimationThresholds thresholds;
-    
-    /**
-     * Fixed Markov Estimator
-     */
+    private final PartitionEstimator p_estimator;
     private final AbstractEstimator fixed_estimator;
+    private EstimationThresholds thresholds;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -91,6 +89,7 @@ public class TransactionInitializer {
         
         this.all_partitions = hstore_site.getAllPartitionIds();
         this.thresholds = hstore_site.getThresholds();
+        this.p_estimator = hstore_site.getPartitionEstimator();
         
         // HACK
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -113,6 +112,58 @@ public class TransactionInitializer {
     // TRANSACTION PROCESSING METHODS
     // ----------------------------------------------------------------------------
 
+    protected int calculateBasePartition(long client_handle,
+                                           Procedure catalog_proc,
+                                           ParameterSet procParams,
+                                           int base_partition) {
+        
+        // Simple sanity check to make sure that we're not being told a bad partition
+        if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
+            base_partition = -1;
+        }
+        
+        // -------------------------------
+        // DB2-style Transaction Redirection
+        // -------------------------------
+        if (base_partition != -1 && hstore_conf.site.exec_db2_redirects) {
+            if (d) LOG.debug(String.format("Using embedded base partition from %s request " +
+                                           "[basePartition=%d]",
+                                           catalog_proc.getName(), base_partition));
+        }
+        // -------------------------------
+        // System Procedure
+        // -------------------------------
+        else if (catalog_proc.getSystemproc()) {
+            // If it's a sysproc, then it doesn't need to go to a specific partition
+            // We'll set it to -1 so that we'll pick a random one down below
+            base_partition = -1;
+        }
+        // -------------------------------
+        // PartitionEstimator
+        // -------------------------------
+        else if (hstore_conf.site.exec_force_localexecution == false) {
+            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", catalog_proc.getName()));
+            try {
+                Integer p = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
+                if (p != null) base_partition = p.intValue(); 
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        // If we don't have a partition to send this transaction to, then we will just pick
+        // one our partitions at random. This can happen if we're forcing txns to execute locally
+        // or if there are no input parameters <-- this should be in the paper!!!
+        if (base_partition == -1) {
+            if (t) LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                                           catalog_proc.getName(), hstore_conf.site.exec_force_localexecution));
+            int idx = (int)(Math.abs(client_handle) % hstore_site.local_partitions_arr.length);
+            base_partition = hstore_site.local_partitions_arr[idx].intValue();
+        }
+        
+        return (base_partition);
+    }
+    
+    
     /**
      * 
      * @param serializedRequest
