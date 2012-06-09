@@ -28,8 +28,7 @@ import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.TransactionProfile;
-import edu.brown.hstore.txns.TransactionQueueManager;
-import edu.brown.hstore.util.PartitionExecutorPostProcessor;
+import edu.brown.hstore.util.TransactionPostProcessor;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
@@ -350,7 +349,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             String val = String.format("%-5d [min=%d, max=%d]", processing_cur, processing_min, processing_max);
             int i = 0;
-            for (PartitionExecutorPostProcessor espp : hstore_site.getExecutionSitePostProcessors()) {
+            for (TransactionPostProcessor espp : hstore_site.getTransactionPostProcessors()) {
                 pm = espp.getExecTime();
                 val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
                                      i++,

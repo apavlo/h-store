@@ -1,4 +1,4 @@
-package edu.brown.hstore.txns;
+package edu.brown.hstore;
 
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -7,7 +7,6 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

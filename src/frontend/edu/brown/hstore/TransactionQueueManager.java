@@ -1,4 +1,4 @@
-package edu.brown.hstore.txns;
+package edu.brown.hstore;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -14,15 +14,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

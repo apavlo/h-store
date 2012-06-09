@@ -44,6 +44,7 @@ import edu.brown.utils.EventObserver;
  * 
  * @author pavlo
  */
+@Deprecated
 public class PartitionExecutorHelper implements Runnable {
     public static final Logger LOG = Logger.getLogger(PartitionExecutorHelper.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());

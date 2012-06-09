@@ -43,7 +43,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
     private final int NUM_PARTITIONS_PER_SITE = 2;
     private final int NUM_SITES               = (NUM_HOSTS * NUM_SITES_PER_HOST);
     
-    private final HStoreSite sites[] = new HStoreSite[NUM_SITES_PER_HOST];
+    private final MockHStoreSite sites[] = new MockHStoreSite[NUM_SITES_PER_HOST];
 //    private final HStoreCoordinator messengers[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
     @Override
