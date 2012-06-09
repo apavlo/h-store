@@ -99,6 +99,7 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
@@ -329,22 +330,14 @@ public abstract class BenchmarkComponent {
     }
 
     public void answerPoll() {
-        JSONStringer stringer = new JSONStringer();
         TransactionCounter copy = this.m_txnStats; // .copy();
-        try {
-            stringer.object();
-            copy.toJSON(stringer);
-            stringer.endObject();
-            printControlMessage(m_controlState, stringer.toString());
-        } catch (JSONException ex) {
-            throw new RuntimeException(ex);
-        }
+        this.printControlMessage(m_controlState, copy.toJSONString());
         m_txnStats.basePartitions.clear();
         m_txnStats.responseStatuses.clear();
     }
 
     public void answerOk() {
-        printControlMessage(m_controlState, "OK");
+        this.printControlMessage(m_controlState, "OK");
     }
 
     /**
@@ -673,6 +666,8 @@ public abstract class BenchmarkComponent {
                 m_txnStats.transactions.put(txnName, 0);
             } // FOR
         }
+        m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
+        m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread

@@ -271,8 +271,8 @@ public abstract class VoltTypeUtil {
                 //ret = Short.valueOf(value);
                 //break;
             case INTEGER:
-                //ret = Integer.valueOf(value);
-                //break;
+                ret = Integer.valueOf(value);
+                break;
             case BIGINT:
                 try {
                     ret = Long.valueOf(value);
