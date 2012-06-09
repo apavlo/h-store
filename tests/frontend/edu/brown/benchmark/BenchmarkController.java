@@ -918,6 +918,9 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
+        m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
+        m_currentResults.setEnableResponsesStatuses(hstore_conf.client.output_response_status);
+        
         EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
         eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             final EventObservable<String> inner = new EventObservable<String>();
