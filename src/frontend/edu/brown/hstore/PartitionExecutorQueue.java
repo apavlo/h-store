@@ -6,15 +6,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
 
-import org.voltdb.messaging.FinishTaskMessage;
-import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.InitiateTaskMessage;
-import org.voltdb.messaging.TransactionInfoBaseMessage;
-import org.voltdb.messaging.VoltMessage;
-
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
+import edu.brown.hstore.internal.InternalTxnMessage;
+import edu.brown.hstore.internal.WorkFragmentMessage;
 
 public class PartitionExecutorQueue extends PriorityBlockingQueue<InternalMessage> {
     
@@ -58,8 +54,8 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<InternalMessag
             assert(msg1 != null);
 
             // (1) Non-Transactional Messages go first
-            boolean isTxn0 = (msg0 instanceof TransactionInfoBaseMessage);
-            boolean isTxn1 = (msg1 instanceof TransactionInfoBaseMessage);
+            boolean isTxn0 = (msg0 instanceof InternalTxnMessage);
+            boolean isTxn1 = (msg1 instanceof InternalTxnMessage);
             if (!isTxn0 && isTxn1) return (-1);
             else if (isTxn0 && isTxn1) return (1);
 
@@ -67,34 +63,24 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<InternalMessag
             Class<?> class1 = msg1.getClass();
             
             // (2) Otherwise, always let the FinishTaskMessage go first
-            boolean isFinish0 = class0.equals(FinishTaskMessage.class);
-            boolean isFinish1 = class1.equals(FinishTaskMessage.class);
+            boolean isFinish0 = class0.equals(FinishTxnMessage.class);
+            boolean isFinish1 = class1.equals(FinishTxnMessage.class);
             if (isFinish0 && !isFinish1) return (-1);
             else if (!isFinish0 && isFinish1) return (1);
-            
-            // (3) Compare Transaction Ids
-            Long txnId0 = null;
-            if (isTxn0) txnId0 = ((TransactionInfoBaseMessage)msg0).getTxnId();
-            else if (msg0 instanceof LocalTransaction) txnId0 = ((LocalTransaction)msg0).getTransactionId(); 
 
-            Long txnId1 = null;
-            if (isTxn1) txnId1 = ((TransactionInfoBaseMessage)msg1).getTxnId();
-            else if (msg1 instanceof LocalTransaction) txnId0 = ((LocalTransaction)msg1).getTransactionId();
-
-            if (txnId0 != null) {
-                return (txnId1 == null ? -1 : txnId0.compareTo(txnId1));
-            } else if (txnId1 != null) {
-                return (1);
-            }
-            
-            // (3) If they're the same message type, go by their txnIds
-            // if (class0.equals(class1)) return (txn0.getTxnId().compareTo(txn1.getTxnId()));
-            
-            // (4) Then let a FragmentTaskMessage go before anything else
-            boolean isWork0 = class0.equals(FragmentTaskMessage.class);
-            boolean isWork1 = class1.equals(FragmentTaskMessage.class);
+            // (3) Then let a FragmentTaskMessage go before anything else
+            boolean isWork0 = class0.equals(WorkFragmentMessage.class);
+            boolean isWork1 = class1.equals(WorkFragmentMessage.class);
             if (isWork0 && !isWork1) return (-1);
             else if (!isWork0 && isWork1) return (1);
+            
+            // (4) Compare Transaction Ids
+            if (isTxn0) {
+                return (isTxn1 ? ((InternalTxnMessage)msg0).getTransactionId()
+                                    .compareTo(((InternalTxnMessage)msg1).getTransactionId()) : -1); 
+            } else if (isTxn1) {
+                return (1);
+            }
             
             // (5) They must be the same!
             // assert(false) : String.format("%s <-> %s", class0, class1);
