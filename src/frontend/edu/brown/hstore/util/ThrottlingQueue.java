@@ -33,8 +33,9 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     }
     
     private final BlockingQueue<E> queue;
-    
+    // private final AtomicInteger size = new AtomicInteger(0);
     private volatile int size;
+    
     private boolean throttled;
     private int queue_max;
     private int queue_release;
@@ -143,7 +144,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
             ret = this.queue.offer(e);
         }
         if (ret) {
-            this.size++;
+            // this.size++;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return (ret);
@@ -153,7 +155,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public void put(E e) throws InterruptedException {
         boolean ret = this.queue.offer(e);
         if (ret) {
-            this.size++;
+//            this.size++;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return;
@@ -163,7 +166,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
         boolean ret = this.queue.offer(e, timeout, unit);
         if (ret) {
-            this.size++;
+//            this.size++;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return (ret);
@@ -173,7 +177,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
         if (ret) {
-            this.size--;
+//            this.size--;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return (ret);
@@ -182,7 +187,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public E poll() {
         E e = this.queue.poll();
         if (e != null) {
-            this.size--;
+//            this.size--;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -192,7 +198,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         E e = this.queue.poll(timeout, unit);
         if (e != null) {
-            this.size--;
+            this.size = this.queue.size();
+//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -202,7 +209,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public E remove() {
         E e = this.queue.remove();
         if (e != null) {
-            this.size--;
+            this.size = this.queue.size();
+//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -212,7 +220,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public E take() throws InterruptedException {
         E e = this.queue.take();
         if (e != null) {
-            this.size--;
+            this.size = this.queue.size();
+//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -237,7 +246,8 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     public int drainTo(Collection<? super E> c, int maxElements) {
         int ret = this.queue.drainTo(c, maxElements);
         if (ret > 0) {
-            this.size -= ret;
+//            this.size -= ret;
+            this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
         return (ret);

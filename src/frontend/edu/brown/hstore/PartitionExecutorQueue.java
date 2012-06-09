@@ -12,23 +12,23 @@ import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.messaging.VoltMessage;
 
-public class PartitionExecutorQueue extends PriorityBlockingQueue<VoltMessage> {
+public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
     
     private static final long serialVersionUID = 1L;
-    private List<VoltMessage> swap = null;
+    private List<Object> swap = null;
     
     public PartitionExecutorQueue() {
         super(1000, WORK_COMPARATOR); // FIXME
     }
     
     @Override
-    public int drainTo(Collection<? super VoltMessage> c) {
+    public int drainTo(Collection<? super Object> c) {
         assert(c != null);
-        VoltMessage msg = null;
+        Object msg = null;
         int ctr = 0;
         
         if (this.swap == null) {
-            this.swap = new ArrayList<VoltMessage>();
+            this.swap = new ArrayList<Object>();
         } else {
             this.swap.clear();
         }
@@ -47,9 +47,9 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<VoltMessage> {
         return (ctr);
     }
     
-    private static final Comparator<VoltMessage> WORK_COMPARATOR = new Comparator<VoltMessage>() {
+    private static final Comparator<Object> WORK_COMPARATOR = new Comparator<Object>() {
         @Override
-        public int compare(VoltMessage msg0, VoltMessage msg1) {
+        public int compare(Object msg0, Object msg1) {
             assert(msg0 != null);
             assert(msg1 != null);
 
@@ -59,8 +59,8 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<VoltMessage> {
             if (!isTxn0 && isTxn1) return (-1);
             else if (isTxn0 && isTxn1) return (1);
 
-            Class<? extends VoltMessage> class0 = msg0.getClass();
-            Class<? extends VoltMessage> class1 = msg1.getClass();
+            Class<?> class0 = msg0.getClass();
+            Class<?> class1 = msg1.getClass();
             
             // (2) Otherwise, always let the FinishTaskMessage go first
             boolean isFinish0 = class0.equals(FinishTaskMessage.class);
