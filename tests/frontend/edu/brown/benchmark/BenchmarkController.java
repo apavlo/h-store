@@ -96,6 +96,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -145,9 +146,9 @@ public class BenchmarkController {
     final ProcessSetManager m_sitePSM;
     
     BenchmarkResults m_currentResults = null;
-    final Set<String> m_clients = new HashSet<String>();
-    final Set<String> m_clientThreads = new HashSet<String>();
-    final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
+    final List<String> m_clients = new ArrayList<String>();
+    final List<String> m_clientThreads = new ArrayList<String>();
+    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
     final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     
     Thread self = null;
@@ -724,10 +725,31 @@ public class BenchmarkController {
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Client local_client = (m_clientFileUploader.hasFilesToSend() ? getClientConnection(): null);
+        
+        // Add all of the client hostnames in our list first so that we can check
+        // to see whether we have duplicates. If so, then we'll make sure that
+        // their hostnames are unique in our results print outs
+        Histogram<String> clientNames = new Histogram<String>();
+        for (String clientHost : m_config.clients) {
+            clientNames.put(clientHost.trim());
+        } // FOR
+        Histogram<String> clientNamesIdxs = new Histogram<String>();
+        
         for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
-            final String clientHost = m_config.clients[host_idx];
-            m_clients.add(clientHost);
-            final String host_id = clientHost;
+            // The clientHost is the hostname that we actaully need to run on
+            final String clientHost = m_config.clients[host_idx].trim();
+            
+            // The clientHostId is a unique identifier for a single invocation
+            // on the clientHost. This is needed so that we can have multiple 
+            // JVMs running at the same host
+            String _hostId = clientHost;
+            if (clientNames.get(clientHost) > 1) {
+                int ctr = (int)clientNamesIdxs.get(clientHost, 0l);
+                _hostId = String.format("%s-%02d", clientHost, ctr);
+                clientNamesIdxs.put(clientHost);
+            }
+            final String clientHostId = _hostId;
+            m_clients.add(clientHostId);
             
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
             final List<Integer> clientIds = new ArrayList<Integer>();
@@ -768,16 +790,18 @@ public class BenchmarkController {
                     String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
                     String fullCommand = StringUtil.join(" ", args);
     
-                    resultsUploader.setCommandLineForClient(host_id, fullCommand);
+                    resultsUploader.setCommandLineForClient(clientHostId, fullCommand);
                     if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
-                    m_clientPSM.startProcess(host_id, args);
+                    m_clientPSM.startProcess(clientHostId, args);
                 }
             });
         } // FOR
-        ThreadUtil.runGlobalPool(runnables);
         m_clientsNotReady.set(m_clientThreads.size());
         assert(m_clientThreads.size() == totalNumClients) :
             String.format("%d != %d", m_clientThreads.size(), totalNumClients);
+        
+        // Let 'er rip!
+        ThreadUtil.runGlobalPool(runnables);
 
         ResultsPrinter rp = null;
         if (m_config.jsonOutput) {
