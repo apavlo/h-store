@@ -71,7 +71,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new NoAbortFilter())
-                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
+                    .attach(new ProcParameterValueFilter().include(1, new Integer(5))) // D_ID
                     .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
