@@ -68,6 +68,7 @@ import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
@@ -134,6 +135,7 @@ import edu.brown.hstore.util.DeferredWork;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
+import edu.brown.hstore.util.TransactionDispatcher;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -238,6 +240,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected HStoreCoordinator hstore_coordinator;
     protected HStoreConf hstore_conf;
     
+    private TransactionDispatcher txnDispatcher;
+    
     // ----------------------------------------------------------------------------
     // Partition Queues
     // ----------------------------------------------------------------------------
@@ -277,7 +281,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private AbstractTransaction currentDtxn = null;
     
     /**
-     * List of InitiateTaskMessages that are blocked waiting for the outstanding dtxn to commit
+     * List of messages that are blocked waiting for the outstanding dtxn to commit
      */
     private final List<Object> currentBlockedTxns = new ArrayList<Object>();
 
@@ -715,7 +719,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getHStoreCoordinator();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        tmp_def_txn = new LocalTransaction(hstore_site);
+        this.txnDispatcher = new TransactionDispatcher(this.hstore_site);
+        
+        if (hstore_conf.site.exec_deferrable_queries) {
+            tmp_def_txn = new LocalTransaction(hstore_site);
+        }
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<AbstractTransaction> eo = this.hstore_site.getStartWorkloadObservable();
@@ -768,22 +776,38 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 work = this.getNext();
                 
+                if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
+                
                 // -------------------------------
                 // Transactional Work
                 // -------------------------------
                 if (work instanceof TransactionInfoBaseMessage) {
                     this.processTransactionInfoBaseMessage((TransactionInfoBaseMessage)work);
-                
+                }
+                // -------------------------------
+                // Transaction Initialization
+                // -------------------------------
+                else if (work instanceof LocalTransaction) {
+                    this.currentTxn = (LocalTransaction)work;
+                    this.processInitiateTaskMessage((LocalTransaction)this.currentTxn);
+                }
+                // -------------------------------
+                // Transaction Initialization
+                // -------------------------------
+                else if (work instanceof Object[]) {
+                    this.processNewTransactionMessage((Object[])work);
+                }
                 // -------------------------------
                 // SnapshotWorkMessage
                 // -------------------------------
-                } else if (work instanceof PotentialSnapshotWorkMessage) {
+                else if (work instanceof PotentialSnapshotWorkMessage) {
                     m_snapshotter.doSnapshotWork(ee);
-                    
+                
+                }
                 // -------------------------------
                 // BAD MOJO!
                 // -------------------------------
-                } else if (work != null) {
+                else if (work != null) {
                     String msg = "Unexpected work message in queue: " + work;
                     throw new ServerFaultException(msg, this.currentTxnId);
                 }
@@ -791,9 +815,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Is there a better way to do this?
                 // this.work_queue.checkThrottling(false);
                 
-                if (hstore_conf.site.exec_profiling && this.currentTxnId != null) {
-                    this.lastExecutedTxnId = this.currentTxnId;
-                    this.currentTxnId = null;
+                if (hstore_conf.site.exec_profiling) {
+                    if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
+                    if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
                 }
             } // WHILE
         } catch (final Throwable ex) {
@@ -860,6 +884,35 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         }
         return (work);
+    }
+    
+    protected void processNewTransactionMessage(Object work[]) {
+        /**
+         * TODO: This needs to be put in some kind of real object
+         *        instead of just an object array
+         * [0] ByteBuffer
+         * [1] Procedure Catalog Object
+         * [2] ParaemterSet
+         * [3] RpcCallback
+         */
+        Object next[] = (Object[])work;
+        ByteBuffer serializedRequest = (ByteBuffer)next[0]; 
+        Procedure catalog_proc = (Procedure)next[1];
+        ParameterSet procParams = (ParameterSet)next[2];
+        @SuppressWarnings("unchecked")
+        RpcCallback<byte[]> done = (RpcCallback<byte[]>)next[3]; 
+        
+        int base_partition = StoredProcedureInvocation.getBasePartition(serializedRequest);
+        long client_handle = StoredProcedureInvocation.getClientHandle(serializedRequest);
+        
+        this.currentTxn = this.txnDispatcher.procedureInvocation(
+                                               serializedRequest,
+                                               client_handle,
+                                               base_partition,
+                                               catalog_proc,
+                                               procParams,
+                                               done);
+
     }
     
     protected void processTransactionInfoBaseMessage(TransactionInfoBaseMessage work) {
@@ -942,28 +995,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Invoke Stored Procedure
         // -------------------------------
         } else if (work instanceof InitiateTaskMessage) {
-            if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
-            InitiateTaskMessage itask = (InitiateTaskMessage)work;
             
-            // If this is a MapReduceTransaction handle, we actually want to get the 
-            // inner LocalTransaction handle for this partition. The MapReduceTransaction
-            // is just a placeholder
-            if (this.currentTxn instanceof MapReduceTransaction) {
-                MapReduceTransaction orig_ts = (MapReduceTransaction)this.currentTxn; 
-                this.currentTxn = orig_ts.getLocalTransaction(this.partitionId);
-                assert(this.currentTxn != null) : "Unexpected null LocalTransaction handle from " + orig_ts; 
-            }
 
-            try {
-                this.processInitiateTaskMessage((LocalTransaction)this.currentTxn, itask);
-            } catch (Throwable ex) {
-                String msg = "Unexpected error when processing " + work.getClass().getSimpleName();
-                
-                LOG.error(msg + "\n" + this.currentTxn.debug());
-                throw new ServerFaultException(msg, ex, currentTxnId);
-            } finally {
-                if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
-            }
+            
             
         // -------------------------------
         // Finish Transaction
@@ -1379,6 +1413,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                        ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
+    
+    public boolean queueNewTransaction(ByteBuffer serializedRequest, 
+                                         Procedure catalog_proc,
+                                         ParameterSet procParams,
+                                         RpcCallback<byte[]> done) {
+    
+        return (true);
+    }
+    
     /**
      * Queue a new transaction invocation request at this partition
      * @param ts
@@ -1475,14 +1518,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Execute a new transaction based on an InitiateTaskMessage
      * @param itask
      */
-    private void processInitiateTaskMessage(LocalTransaction ts, InitiateTaskMessage itask) throws InterruptedException {
+    private void processInitiateTaskMessage(LocalTransaction ts) throws InterruptedException {
         if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
+        if (t) LOG.trace(String.format("%s - Attempting to begin processing transaction on partition %d",
+                                       ts, this.partitionId));
+        
+        // If this is a MapReduceTransaction handle, we actually want to get the 
+        // inner LocalTransaction handle for this partition. The MapReduceTransaction
+        // is just a placeholder
+        if (ts instanceof MapReduceTransaction) {
+            MapReduceTransaction orig_ts = (MapReduceTransaction)ts; 
+            ts = orig_ts.getLocalTransaction(this.partitionId);
+            assert(ts != null) : 
+                "Unexpected null LocalTransaction handle from " + orig_ts; 
+        }
         
         ExecutionMode before_mode = ExecutionMode.COMMIT_ALL;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
-        
-        if (t) LOG.trace(String.format("%s - Attempting to begin processing %s on partition %d [taskHash=%d]",
-                                       ts, itask.getClass().getSimpleName(), this.partitionId, itask.hashCode()));
 
         exec_lock.lock();
         try {
@@ -1494,7 +1546,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // mofo back into the blocked txn queue
                 if (this.currentDtxn != null) {
                     assert(this.currentDtxn.equals(ts) == false); // Sanity Check
-                    this.currentBlockedTxns.add(itask);
+                    this.currentBlockedTxns.add(ts);
                     return;
                 }
                 this.setCurrentDtxn(ts);
@@ -1524,7 +1576,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (this.currentExecMode == ExecutionMode.DISABLED) {
                         if (d) LOG.debug(String.format("Blocking single-partition %s until dtxn %s finishes [mode=%s]",
                                                        ts, this.currentDtxn, this.currentExecMode));
-                        this.currentBlockedTxns.add(itask);
+                        this.currentBlockedTxns.add(ts);
                         return;
                     }
                     
@@ -1571,6 +1623,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } finally {
             ts.resetExecutionState();
         }
+        
         // If this is a MapReduce job, then we can just ignore the ClientResponse
         // and return immediately
         if (ts.isMapReduce()) {
