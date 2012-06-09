@@ -78,6 +78,15 @@ public final class HStoreConf {
             experimental=true
         )
         public String hasherClass;
+        
+        @ConfigProperty(
+            description="How often in milliseconds the log4j refresh thread will check to see " +
+            		    "whether the log4j.properties file has changed. We have to do this manually " +
+            		    "because Java doesn't have the ability to get a callback when a file changes.",
+            defaultInt=30000,
+            experimental=false
+        )
+        public int log_refresh;
     }
     
     // ============================================================================

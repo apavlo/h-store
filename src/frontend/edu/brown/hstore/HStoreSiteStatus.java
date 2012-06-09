@@ -157,9 +157,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     @Override
     public void run() {
         self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, "mon"));
-        if (hstore_conf.site.cpu_affinity)
-            hstore_site.getThreadManager().registerProcessingThread();
+        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
+        this.hstore_site.getThreadManager().registerProcessingThread();
 
         if (LOG.isDebugEnabled()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {

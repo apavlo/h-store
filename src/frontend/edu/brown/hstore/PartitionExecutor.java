@@ -746,10 +746,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.self == null);
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(this.hstore_site, this.partitionId));
-        
-        if (hstore_conf.site.cpu_affinity) {
-            this.hstore_site.getThreadManager().registerEEThread(partition);
-        }
+        this.hstore_site.getThreadManager().registerEEThread(partition);
         
         // *********************************** DEBUG ***********************************
         if (hstore_conf.site.exec_validate_work) {

@@ -199,9 +199,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     public void run() {
         Thread self = Thread.currentThread();
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_TXNQUEUE));
-        if (hstore_conf.site.cpu_affinity) {
-            hstore_site.getThreadManager().registerProcessingThread();
-        }
+        this.hstore_site.getThreadManager().registerProcessingThread();
         
         if (d) LOG.debug("Starting distributed transaction queue manager thread");
         

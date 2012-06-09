@@ -562,6 +562,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // CACHED MESSAGES
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
+        
+        LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
     
     // ----------------------------------------------------------------------------
@@ -2371,8 +2373,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
-                if (hstore_site.getHStoreConf().site.cpu_affinity)
-                    hstore_site.getThreadManager().registerProcessingThread();
+                hstore_site.getThreadManager().registerProcessingThread();
                 
                 // Then fire off this thread to have it do some work as it comes in 
                 Throwable error = null;
@@ -2402,8 +2403,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             public void run() {
                 final Thread self = Thread.currentThread();
                 self.setName(HStoreThreadManager.getThreadName(hstore_site, "setup"));
-                if (hstore_site.getHStoreConf().site.cpu_affinity)
-                    hstore_site.getThreadManager().registerProcessingThread();
+                hstore_site.getThreadManager().registerProcessingThread();
                 
                 // Always invoke HStoreSite.start() right away, since it doesn't depend on any
                 // of the stuff being setup yet

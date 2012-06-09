@@ -34,15 +34,21 @@ public abstract class HStoreConstants {
     
     public static final String THREAD_NAME_LISTEN = "listen";
     
+    public static final String THREAD_NAME_COORDINATOR = "coord";
+    
     public static final String THREAD_NAME_POSTPROCESSOR = "post";
     
-    public static final String THREAD_NAME_DISPATCHER = "dispatch";
+    public static final String THREAD_NAME_HELPER = "help";
     
     public static final String THREAD_NAME_TXNQUEUE = "queue";
     
     public static final String THREAD_NAME_COMMANDLOGGER = "wal";
     
+    public static final String THREAD_NAME_LOGGING = "logging";
+    
     public static final String THREAD_NAME_MAPREDUCE = "mr";
+    
+    public static final String THREAD_NAME_DEBUGSTATUS = "status";
     
     // ----------------------------------------------------------------------------
     // EXECUTION STUFF

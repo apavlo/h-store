@@ -12,6 +12,7 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Partition;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -27,26 +28,35 @@ public class HStoreThreadManager {
     }
     
     private static int EE_CORE_OFFSET = 1;
-    
+
+    // ----------------------------------------------------------------------------
+    // DATA MEMBERS
+    // ----------------------------------------------------------------------------
 
     private final HStoreSite hstore_site;
-    private boolean disable;
+    private final HStoreConf hstore_conf;
+    
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean processing_affinity[];
     private final Set<Thread> all_threads = new HashSet<Thread>();
     private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
     
+    private boolean disable;
+    
     private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
-        HStoreConstants.THREAD_NAME_DISPATCHER,
 //        HStoreConstants.THREAD_NAME_COMMANDLOGGER,
-        HStoreConstants.THREAD_NAME_LISTEN,
         HStoreConstants.THREAD_NAME_LISTEN,
     };
     
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // ----------------------------------------------------------------------------
+    
     public HStoreThreadManager(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
         this.processing_affinity = new boolean[this.num_cores];
         for (int i = 0; i < this.processing_affinity.length; i++) {
@@ -54,8 +64,8 @@ public class HStoreThreadManager {
         } // FOR
         
         this.disable = (this.num_cores <= this.num_partitions);
-        if (hstore_site.getHStoreConf().site.cpu_affinity == false) {
-            // Ignore
+        if (hstore_conf.site.cpu_affinity == false) {
+            this.disable = true;
         }
         else if (this.disable) {
             if (debug.get())

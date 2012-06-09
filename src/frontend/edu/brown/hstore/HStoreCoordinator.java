@@ -142,8 +142,10 @@ public class HStoreCoordinator implements Shutdownable {
     private class MessengerListener implements Runnable {
         @Override
         public void run() {
-            if (hstore_conf.site.cpu_affinity)
-                hstore_site.getThreadManager().registerProcessingThread();
+            Thread self = Thread.currentThread();
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COORDINATOR));
+            hstore_site.getThreadManager().registerProcessingThread();
+            
             Throwable error = null;
             try {
                 HStoreCoordinator.this.eventLoop.run();
@@ -243,7 +245,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.sendData_handler = new SendDataHandler(hstore_site, this);
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread(new MessengerListener(), HStoreThreadManager.getThreadName(this.hstore_site, "coord"));
+        this.listener_thread = new Thread(new MessengerListener());
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
         
