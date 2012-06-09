@@ -88,10 +88,8 @@ public class Histogram<X> implements JSONSerializable {
     protected int num_samples = 0;
     private transient boolean dirty = false;
     
-    /**
-     * 
-     */
-    protected transient Map<Object, String> debug_names; 
+    protected transient Map<Object, String> debug_names;
+    protected transient boolean debug_percentages = false;
     
     /**
      * The Min/Max values are the smallest/greatest values we have seen based
@@ -146,26 +144,6 @@ public class Histogram<X> implements JSONSerializable {
         }
         return (false);
     }
-    
-    /**
-     * Helper method used for replacing the object's toString() output with labels
-     * @param names_map
-     */
-    public Histogram<X> setDebugLabels(Map<?, String> names_map) {
-        if (this.debug_names == null) {
-            synchronized (this) {
-                if (this.debug_names == null) {
-                    this.debug_names = new HashMap<Object, String>();
-                }
-            } // SYNCH
-        }
-        this.debug_names.putAll(names_map);
-        return (this);
-    }
-    public boolean hasDebugLabels() {
-        return (this.debug_names != null && this.debug_names.isEmpty() == false);
-    }
-    
 
     /**
      * Set whether this histogram is allowed to retain zero count entries
@@ -717,6 +695,33 @@ public class Histogram<X> implements JSONSerializable {
     // ----------------------------------------------------------------------------
 
     /**
+     * Helper method used for replacing the object's toString() output with labels
+     * @param names_map
+     */
+    public Histogram<X> setDebugLabels(Map<?, String> names_map) {
+        if (this.debug_names == null) {
+            synchronized (this) {
+                if (this.debug_names == null) {
+                    this.debug_names = new HashMap<Object, String>();
+                }
+            } // SYNCH
+        }
+        this.debug_names.putAll(names_map);
+        return (this);
+    }
+    public boolean hasDebugLabels() {
+        return (this.debug_names != null && this.debug_names.isEmpty() == false);
+    }
+    
+    /**
+     * Enable percentages in toString() output
+     * @return
+     */
+    public void enablePercentages() {
+        this.debug_percentages = true;
+    }
+    
+    /**
      * Histogram Pretty Print
      */
     public String toString() {
@@ -746,12 +751,19 @@ public class Histogram<X> implements JSONSerializable {
         
         // Figure out the max size of the counts
         int max_ctr_length = 4;
+        long total = 0;
         for (Long ctr : this.histogram.values()) {
+            total += ctr.longValue();
             max_ctr_length = Math.max(max_ctr_length, ctr.toString().length());
         } // FOR
         
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
-        String f = "%-" + max_length + "s [%" + max_ctr_length + "d] ";
+        String f = "%-" + max_length + "s [%" + max_ctr_length + "d";
+        if (this.debug_percentages) {
+            f += " - %4.1f%%";
+        }
+        f += "] ";
+        
         boolean first = true;
         boolean has_labels = this.hasDebugLabels();
         for (Object value : this.histogram.keySet()) {
@@ -762,10 +774,19 @@ public class Histogram<X> implements JSONSerializable {
             int value_str_len = str.length();
             if (value_str_len > max_length) str = str.substring(0, max_length - 3) + "...";
             
+            // Value Label + Count
             long cnt = (value != null ? this.histogram.get(value).longValue() : 0);
-            int chars = (int)((cnt / (double)this.max_count) * max_chars);
-            s.append(String.format(f, str, cnt));
-            for (int i = 0; i < chars; i++) s.append(MARKER);
+            if (this.debug_percentages) {
+                double percent = (cnt / (double)total) * 100;
+                s.append(String.format(f, str, cnt, percent));
+            } else {
+                s.append(String.format(f, str, cnt));
+            }
+            
+            // Histogram Bar
+            int barSize = (int)((cnt / (double)this.max_count) * max_chars);
+            for (int i = 0; i < barSize; i++) s.append(MARKER);
+            
             first = false;
         } // FOR
         if (this.histogram.isEmpty()) s.append("<EMPTY>");

@@ -475,8 +475,9 @@ public abstract class StringUtil {
             return ("");
 
         StringBuilder sb = new StringBuilder();
-        for (String line : lines) {
-            sb.append(prefix).append(line).append("\n");
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) sb.append("\n");
+            sb.append(prefix).append(lines[i]);
         } // FOR
         return (sb.toString());
     }

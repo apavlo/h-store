@@ -1098,7 +1098,9 @@ public class BenchmarkController {
             
             // Print out the final results
 //            if (debug.get())
-                LOG.info("Computing final benchmark results");
+            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_response_status) {
+                LOG.info("Computing final benchmark results...");
+            }
             for (BenchmarkInterest interest : m_interested) {
                 String finalResults = interest.formatFinalResults(m_currentResults);
                 if (finalResults != null) System.out.println(finalResults);
