@@ -30,6 +30,7 @@ import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -238,6 +239,12 @@ public class TransactionInitializer {
                                 catalog_proc,
                                 procParams,
                                 done);
+
+        // Check whether this guy has already been restarted before
+        int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
+        if (restartCounter > 0) {
+            ts.setRestartCounter(restartCounter);
+        }
         
         // Disable transaction profiling for sysprocs
         if (hstore_conf.site.txn_profiling && ts.isSysProc()) {
@@ -247,7 +254,6 @@ public class TransactionInitializer {
         // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
 
         return (ts);
-        // hstore_site.dispatchInvocation(ts);
     }
     
 

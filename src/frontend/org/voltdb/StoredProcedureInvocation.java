@@ -133,7 +133,14 @@ public class StoredProcedureInvocation implements FastSerializable {
         return (this.base_partition);
     }
     public void setBasePartition(int partition) {
-        this.base_partition = (short)partition;
+        this.base_partition = partition;
+    }
+    
+    public int getRestartCounter() {
+        return (this.base_partition);
+    }
+    public void setRestartCounter(int count) {
+        this.restartCounter = count;
     }
     
     @Deprecated
