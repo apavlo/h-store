@@ -197,6 +197,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * TODO: We need to remove the need for this
      */
+    @Deprecated
     private final InitiateTaskMessage itask;
 
     /**
@@ -771,6 +772,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.state.batch_size = batchSize;
     }
     
+    @Deprecated
     public InitiateTaskMessage getInitiateTaskMessage() {
         return (this.itask);
     }
