@@ -52,7 +52,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -68,7 +67,6 @@ import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
@@ -96,7 +94,6 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
@@ -129,9 +126,9 @@ import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
+import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
-import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.DeferredWork;
 import edu.brown.hstore.util.ParameterSetArrayCache;
@@ -285,7 +282,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * List of messages that are blocked waiting for the outstanding dtxn to commit
      */
-    private final List<Object> currentBlockedTxns = new ArrayList<Object>();
+    private final List<InternalMessage> currentBlockedTxns = new ArrayList<InternalMessage>();
 
     /**
      * The current ExecutionMode. This defines when transactions are allowed to execute
@@ -784,15 +781,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Transactional Work
                 // -------------------------------
                 if (work instanceof InternalTxnMessage) {
-                    this.processTransactionInfoBaseMessage((InternalTxnMessage)work);
+                    this.processInternalTxnMessage((InternalTxnMessage)work);
                 }
-                // -------------------------------
-                // Transaction Initialization
-                // -------------------------------
-//                else if (work instanceof LocalTransaction) {
-//                    this.currentTxn = (LocalTransaction)work;
-//                    this.executeTransaction((LocalTransaction)this.currentTxn);
-//                }
                 // -------------------------------
                 // Transaction Initialization
                 // -------------------------------
@@ -888,6 +878,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (work);
     }
     
+    /**
+     * 
+     * @param work
+     */
     protected void processNewTransactionMessage(InitializeTxnMessage work) {
 
         ByteBuffer serializedRequest = work.getSerializedRequest(); 
@@ -910,7 +904,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
     }
     
-    protected void processTransactionInfoBaseMessage(InternalTxnMessage work) {
+    /**
+     * 
+     * @param work
+     */
+    protected void processInternalTxnMessage(InternalTxnMessage work) {
         this.currentTxn = work.getTransaction();
         this.currentTxnId = this.currentTxn.getTransactionId();
 
@@ -923,11 +921,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // -------------------------------
+        // Start Transaction
+        // -------------------------------
+        if (work instanceof StartTxnMessage) {
+            this.executeTransaction((LocalTransaction)this.currentTxn);
+        }
+        // -------------------------------
         // Execute Query Plan Fragments
         // -------------------------------
-        if (work instanceof WorkFragmentMessage) {
-            WorkFragmentMessage ftask = (WorkFragmentMessage)work;
-            WorkFragment fragment = ftask.getFragment();
+        else if (work instanceof WorkFragmentMessage) {
+            WorkFragment fragment = ((WorkFragmentMessage)work).getFragment();
             assert(fragment != null);
 
             // Get the ParameterSet array for this WorkFragment
@@ -968,7 +971,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 else if (this.currentDtxn != this.currentTxn) {
                     if (d) LOG.warn(String.format("%s - Blocking on partition %d until current Dtxn %s finishes",
                                                   this.currentTxn, this.partitionId, this.currentDtxn));
-                    this.currentBlockedTxns.add(ftask);
+                    this.currentBlockedTxns.add(work);
                     return;
                 }
                 assert(this.currentDtxn == this.currentTxn) :
@@ -1451,7 +1454,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // thread sort out the mess of whether the txn should get blocked or not
         if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
                                        ts, this.partitionId, this.work_queue.size()));
-        return (this.work_queue.offer(ts, true));
+        StartTxnMessage work = new StartTxnMessage(ts);
+        return (this.work_queue.offer(work, true));
     }
 
     // ---------------------------------------------------------------
@@ -1517,6 +1521,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
     }
     
+    private void blockTransaction(LocalTransaction ts) {
+        StartTxnMessage work = new StartTxnMessage(ts);
+        this.currentBlockedTxns.add(work);
+    }
+    
     /**
      * Execute a new transaction based on an InitiateTaskMessage
      * @param itask
@@ -1549,7 +1558,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // mofo back into the blocked txn queue
                 if (this.currentDtxn != null) {
                     assert(this.currentDtxn.equals(ts) == false); // Sanity Check
-                    this.currentBlockedTxns.add(ts);
+                    this.blockTransaction(ts);
                     return;
                 }
                 this.setCurrentDtxn(ts);
@@ -1579,7 +1588,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (this.currentExecMode == ExecutionMode.DISABLED) {
                         if (d) LOG.debug(String.format("Blocking single-partition %s until dtxn %s finishes [mode=%s]",
                                                        ts, this.currentDtxn, this.currentExecMode));
-                        this.currentBlockedTxns.add(ts);
+                        this.blockTransaction(ts);
                         return;
                     }
                     

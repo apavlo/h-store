@@ -1716,8 +1716,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        fragment.getPartitionId(), fragment.getPrefetch()));
         assert(this.isLocalPartition(fragment.getPartitionId())) :
             "Trying to queue work for " + ts + " at non-local partition " + fragment.getPartitionId();
-        FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
-        this.executors[fragment.getPartitionId()].queueWork(ts, ftask);
+        
+        this.executors[fragment.getPartitionId()].queueWork(ts, fragment);
     }
 
 

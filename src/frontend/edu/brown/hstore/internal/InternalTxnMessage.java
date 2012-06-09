@@ -16,4 +16,8 @@ public abstract class InternalTxnMessage extends InternalMessage {
         return ((T)this.ts);
     }
     
+    public Long getTransactionId() {
+        return (this.ts.getTransactionId());
+    }
+    
 }
