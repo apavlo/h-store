@@ -1204,7 +1204,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Initialize the ParameterSet
         ParameterSet procParams = null;
         try {
-            procParams = objectPools.PARAMETERSETS.borrowObject();
+//            procParams = objectPools.PARAMETERSETS.borrowObject();
+            procParams = new ParameterSet();
             StoredProcedureInvocation.seekToParameterSet(buffer);
             incomingDeserializer.setBuffer(buffer);
             procParams.readExternal(incomingDeserializer);
@@ -1432,7 +1433,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         ParameterSet procParams = null;
         try {
-            procParams = objectPools.PARAMETERSETS.borrowObject();
+//            procParams = objectPools.PARAMETERSETS.borrowObject();
+            procParams = new ParameterSet();
             incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
             procParams.readExternal(incomingDeserializer);
         } catch (Exception ex) {
@@ -2342,10 +2344,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
 
         // Return the ParameterSet back to our pool
-        ParameterSet params = ts.getProcedureParameters();
-        if (params != null) {
-            objectPools.PARAMETERSETS.returnObject(params);
-        }
+//        ParameterSet params = ts.getProcedureParameters();
+//        if (params != null) {
+//            objectPools.PARAMETERSETS.returnObject(params);
+//        }
         
         // HACK: Make sure the txn_id is removed from our internal map
         // This is unnecessary for single-partition txns
