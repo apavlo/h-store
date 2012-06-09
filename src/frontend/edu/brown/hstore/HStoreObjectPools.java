@@ -74,7 +74,7 @@ public final class HStoreObjectPools {
     // ADDITIONAL OBJECTS
     // ----------------------------------------------------------------------------
     
-    public final TypedObjectPool<ParameterSet> PARAMETERSETS;
+//    public final TypedObjectPool<ParameterSet> PARAMETERSETS;
     
     
     // ----------------------------------------------------------------------------
@@ -153,9 +153,9 @@ public final class HStoreObjectPools {
         
         
         // ADDITIONAL
-        this.PARAMETERSETS = TypedObjectPool.factory(ParameterSet.class,
-                (int)(hstore_conf.site.pool_parametersets_idle * hstore_conf.site.pool_scale_factor),
-                hstore_conf.site.pool_profiling);
+//        this.PARAMETERSETS = TypedObjectPool.factory(ParameterSet.class,
+//                (int)(hstore_conf.site.pool_parametersets_idle * hstore_conf.site.pool_scale_factor),
+//                hstore_conf.site.pool_profiling);
         
         // If there are no prefetchable queries or MapReduce procedures in the catalog, then we will not
         // create these special object pools
