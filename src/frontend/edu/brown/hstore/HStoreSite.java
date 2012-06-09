@@ -1708,7 +1708,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Execute a WorkFragment on a particular PartitionExecutor
      * @param request
-     * @param done
+     * @param clientCallback
      */
     public void transactionWork(AbstractTransaction ts, WorkFragment fragment) {
         if (d) LOG.debug(String.format("%s - Queuing %s on partition %d [prefetch=%s]",

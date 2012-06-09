@@ -861,9 +861,6 @@ public class LocalTransaction extends AbstractTransaction {
     protected Collection<WorkFragment> getBlockedWorkFragments() {
         return (this.state.blocked_tasks);
     }
-    public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
-        return (this.state.unblocked_tasks);
-    }
     
     public TransactionEstimator.State getEstimatorState() {
         return (this.estimator_state);

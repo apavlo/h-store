@@ -37,8 +37,6 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.FinishTaskMessage;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
@@ -49,6 +47,8 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.hstore.internal.FinishTxnMessage;
+import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -114,8 +114,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // VoltMessage Wrappers
     // ----------------------------------------------------------------------------
     
-    private final FinishTaskMessage finish_task;
-    private final FragmentTaskMessage work_task[];
+    private final FinishTxnMessage finish_task;
+    
+    private final WorkFragmentMessage work_task[];
     
     // ----------------------------------------------------------------------------
     // GLOBAL PREDICTIONS FLAGS
@@ -182,8 +183,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.exec_eeWork = new boolean[cnt];
         this.exec_noUndoBuffer = new boolean[cnt];
         
-        this.finish_task = new FinishTaskMessage(this, Status.OK);
-        this.work_task = new FragmentTaskMessage[cnt];
+        this.finish_task = new FinishTxnMessage(this, Status.OK);
+        this.work_task = new WorkFragmentMessage[cnt];
         
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
@@ -518,18 +519,19 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
     }
     
-    public FinishTaskMessage getFinishTaskMessage(Status status) {
-        this.finish_task.setTxnId(this.getTransactionId().longValue());
+    public FinishTxnMessage getFinishTxnMessage(Status status) {
         this.finish_task.setStatus(status);
         return (this.finish_task);
     }
     
-    public FragmentTaskMessage getFragmentTaskMessage(WorkFragment fragment) {
+    public WorkFragmentMessage getWorkFragmentMessage(WorkFragment fragment) {
         int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
         if (this.work_task[offset] == null) {
-            this.work_task[offset] = new FragmentTaskMessage();
+            this.work_task[offset] = new WorkFragmentMessage(this, fragment);
+        } else {
+            this.work_task[offset].setFragment(fragment);
         }
-        return (this.work_task[offset].setWorkFragment(this.txn_id, fragment));
+        return (this.work_task[offset]);
     }
     
     /**
