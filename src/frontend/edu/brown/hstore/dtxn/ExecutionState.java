@@ -170,6 +170,14 @@ public class ExecutionState {
     }
     
     // ----------------------------------------------------------------------------
+    // ACCESS METHODS
+    // ----------------------------------------------------------------------------
+    
+    public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
+        return (this.unblocked_tasks);
+    }
+    
+    // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
     

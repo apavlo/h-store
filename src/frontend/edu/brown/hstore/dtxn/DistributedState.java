@@ -9,7 +9,7 @@ import edu.brown.pools.Poolable;
 import edu.brown.protorpc.ProtoRpcController;
 
 /**
- * Contrainer class for all of the objects needed by a distributed txn
+ * Container class for all of the objects needed by a distributed txn
  * @author pavlo
  */
 public class DistributedState implements Poolable {

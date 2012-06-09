@@ -13,31 +13,33 @@ import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.messaging.VoltMessage;
 
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.internal.InitializeTxnMessage;
+import edu.brown.hstore.internal.InternalMessage;
 
-public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
+public class PartitionExecutorQueue extends PriorityBlockingQueue<InternalMessage> {
     
     private static final long serialVersionUID = 1L;
-    private List<Object> swap = null;
+    private List<InternalMessage> swap = null;
     
     public PartitionExecutorQueue() {
         super(1000, WORK_COMPARATOR); // FIXME
     }
     
     @Override
-    public int drainTo(Collection<? super Object> c) {
+    public int drainTo(Collection<? super InternalMessage> c) {
         assert(c != null);
-        Object msg = null;
+        InternalMessage msg = null;
         int ctr = 0;
         
         if (this.swap == null) {
-            this.swap = new ArrayList<Object>();
+            this.swap = new ArrayList<InternalMessage>();
         } else {
             this.swap.clear();
         }
         
         while ((msg = this.poll()) != null) {
             // All new transaction requests must be put in the new collection
-            if (msg instanceof InitiateTaskMessage) {
+            if (msg instanceof InitializeTxnMessage) {
                 c.add(msg);
                 ctr++;
             // Everything else will get added back in afterwards 
@@ -49,9 +51,9 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
         return (ctr);
     }
     
-    private static final Comparator<Object> WORK_COMPARATOR = new Comparator<Object>() {
+    private static final Comparator<InternalMessage> WORK_COMPARATOR = new Comparator<InternalMessage>() {
         @Override
-        public int compare(Object msg0, Object msg1) {
+        public int compare(InternalMessage msg0, InternalMessage msg1) {
             assert(msg0 != null);
             assert(msg1 != null);
 
