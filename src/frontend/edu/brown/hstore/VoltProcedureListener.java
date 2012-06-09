@@ -35,9 +35,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final AtomicInteger connectionId = new AtomicInteger(0);
     private ServerSocketChannel serverSocket;
     
-    
-//    private final HStoreSite hstore_site;
-
     public VoltProcedureListener(int hostId, EventLoop eventLoop, Handler handler) {
         this.hostId = hostId;
         this.eventLoop = eventLoop;
@@ -61,7 +58,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         NIOMessageConnection connection = new NIOMessageConnection(client);
         connection.setBigEndian();
 
-        eventLoop.registerRead(client, new ClientConnectionHandler(connection));
+        this.eventLoop.registerRead(client, new ClientConnectionHandler(connection));
     }
 
     // Not private so it can be used in a JUnit test. Gross, but it makes the test a bit easier
@@ -90,9 +87,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
             return connectionBlocked;
         }
 
-//        public void registerWrite() {
-//            eventLoop.registerWrite(connection.getChannel(), this);
-//        }
 
         public void hackWritePasswordOk() {
             // Write the "connection ok" message
@@ -190,6 +184,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
             
             // Execute store procedure!
+//            LOG.info("Queuing new transaction request from client");
             try {
                 handler.queueInvocation(request, eventLoopCallback);
             } catch (Exception ex) {

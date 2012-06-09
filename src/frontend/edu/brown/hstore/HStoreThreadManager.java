@@ -42,6 +42,7 @@ public class HStoreThreadManager {
         HStoreConstants.THREAD_NAME_DISPATCHER,
 //        HStoreConstants.THREAD_NAME_COMMANDLOGGER,
         HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
     };
     
     public HStoreThreadManager(HStoreSite hstore_site) {
