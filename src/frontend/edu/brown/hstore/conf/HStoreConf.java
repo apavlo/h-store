@@ -1241,6 +1241,13 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
+        public boolean output_response_status;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
         public boolean output_json;
     }
     

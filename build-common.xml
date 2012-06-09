@@ -43,6 +43,7 @@
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 <arg value="client.output_clients=${client.output_clients}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
+<arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
 
 <!-- SITE -->
@@ -131,7 +132,6 @@
 <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
-<arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
 <arg value="site.pool_dtxnstates_idle=${site.pool_dtxnstates_idle}" />
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />

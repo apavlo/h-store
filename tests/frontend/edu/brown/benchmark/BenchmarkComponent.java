@@ -55,7 +55,6 @@ import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -341,6 +340,7 @@ public abstract class BenchmarkComponent {
             throw new RuntimeException(ex);
         }
         m_txnStats.basePartitions.clear();
+        m_txnStats.responseStatuses.clear();
     }
 
     public void answerOk() {
@@ -377,6 +377,7 @@ public abstract class BenchmarkComponent {
             m_txnStats.basePartitions.put(cresponse.getBasePartition());
             m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
         }
+        m_txnStats.responseStatuses.put(status.name());
     }
 
     public BenchmarkComponent(final Client client) {

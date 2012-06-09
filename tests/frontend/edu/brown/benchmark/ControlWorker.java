@@ -57,7 +57,7 @@ class ControlWorker extends Thread {
             System.exit(0);
         } finally {
             if (cmp.m_exitOnCompletion) {
-                LOG.info("Stopping BenchmarkComponent thread");
+                LOG.debug("Stopping BenchmarkComponent thread");
                 System.exit(0);
             }
         }

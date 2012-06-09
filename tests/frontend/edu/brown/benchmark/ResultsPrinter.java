@@ -50,10 +50,12 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
     
     protected final boolean output_clients;
     protected final boolean output_basepartitions;
+    protected final boolean output_responses;
     
-    public ResultsPrinter(boolean output_clients, boolean output_basepartitions) {
+    public ResultsPrinter(boolean output_clients, boolean output_basepartitions, boolean output_responses) {
         this.output_clients = output_clients;
         this.output_basepartitions = output_basepartitions;
+        this.output_responses = output_responses;
     }
     
     @Override
@@ -129,7 +131,14 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 labels.put(p, String.format("Partition %02d", p));
             } // FOR
             h.setDebugLabels(labels);
-            sb.append(h.toString((int)(width * 0.75)));
+            sb.append(h.toString((int)(width * 0.5)));
+            sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
+        }
+        
+        if (output_responses) {
+            sb.append("Client Response Statuses:\n");
+            Histogram<String> h = results.getResponseStatuses();
+            sb.append(h.toString((int)(width * 0.5)));
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         }
         

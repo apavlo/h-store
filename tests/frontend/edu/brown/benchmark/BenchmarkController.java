@@ -779,10 +779,16 @@ public class BenchmarkController {
         assert(m_clientThreads.size() == totalNumClients) :
             String.format("%d != %d", m_clientThreads.size(), totalNumClients);
 
-        boolean output_clients = hstore_conf.client.output_clients;
-        boolean output_basepartitions = hstore_conf.client.output_basepartitions;
-        ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
-                                                   new ResultsPrinter(output_clients, output_basepartitions));
+        ResultsPrinter rp = null;
+        if (m_config.jsonOutput) {
+            rp = new JSONResultsPrinter(hstore_conf.client.output_clients,
+                                        hstore_conf.client.output_basepartitions,
+                                        hstore_conf.client.output_response_status);
+        } else {
+            rp = new ResultsPrinter(hstore_conf.client.output_clients,
+                                    hstore_conf.client.output_basepartitions,
+                                    hstore_conf.client.output_response_status);
+        }
         this.registerInterest(rp);
         
         if (m_config.killOnZeroResults) {
