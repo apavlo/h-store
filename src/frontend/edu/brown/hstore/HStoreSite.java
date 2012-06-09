@@ -1959,7 +1959,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.isLocalPartition(redirect_partition.intValue()) == false) {
+            if (this.isLocalPartition(redirect_partition.intValue()) == false && orig_ts.getRestartCounter() == 0) {
                 if (d) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
                                                orig_ts, redirect_partition));
                 
@@ -1969,17 +1969,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                               catalog_proc.getName(),
                                                                               orig_ts.getProcedureParameters().toArray());
                 spi.setBasePartition(redirect_partition.intValue());
+                spi.setRestartCounter(orig_ts.getRestartCounter()+1);
                 
-                // Add all the partitions that the txn touched before it got aborted
-                // XXX spi.addPartitions(touched.values());
-                
-                byte serializedRequest[] = null;
+                FastSerializer out = this.getOutgoingSerializer();
                 try {
-                    serializedRequest = FastSerializer.serialize(spi);
+                    out.writeObject(spi);
                 } catch (IOException ex) {
                     throw new RuntimeException("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts, ex);
                 }
-                assert(serializedRequest != null);
                 
                 TransactionRedirectCallback callback;
                 try {
@@ -1988,7 +1985,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
                 }
-                this.hstore_coordinator.transactionRedirect(serializedRequest, callback, redirect_partition);
+                this.hstore_coordinator.transactionRedirect(out.getBytes(),
+                                                            callback,
+                                                            redirect_partition);
+                out.clear();
                 if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return (Status.ABORT_RESTART);
                 
