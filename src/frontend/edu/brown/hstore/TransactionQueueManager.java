@@ -645,7 +645,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
                 ts.setNeedsRestart(false);
                 if (ts.isDeletable()) {
-                    this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+                    this.hstore_site.deleteTransaction(ts, Status.ABORT_REJECT);
                 }
             // For now we can break, but I think that we may need separate
             // queues for the different partitions...
@@ -670,7 +670,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
             ts.markAsDeletable();
-            this.hstore_site.deleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+            this.hstore_site.deleteTransaction(ts, Status.ABORT_REJECT);
         }
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();

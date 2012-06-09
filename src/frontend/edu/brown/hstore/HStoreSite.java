@@ -1662,7 +1662,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.transactionReject(ts, status);
             if (singlePartitioned) {
                 ts.markAsDeletable();
-                this.deleteTransaction(txn_id, status);
+                this.deleteTransaction(ts, status);
             }
         }        
     }
@@ -1844,7 +1844,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * A non-blocking method for requeuing an aborted transaction using the
+     * A non-blocking method to requeue an aborted transaction using the
      * TransactionQueueManager. This allows a PartitionExecutor to tell us that
      * they can't execute some transaction and we'll let the queue manager's 
      * thread take care of it for us.
@@ -2206,7 +2206,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        ts, ts.getBasePartition(), cr.getStatus(), this.ready_responses.size()));
         this.ready_responses.add(Pair.of(ts,cr));
     }
-
+    
+    
     /**
      * Perform final cleanup and book keeping for a completed txn
      * If you call this, you can never access anything in this txn's AbstractTransaction again
@@ -2238,7 +2239,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        final LocalTransaction ts = (LocalTransaction)abstract_ts; 
+        this.deleteTransaction((LocalTransaction)abstract_ts, status);
+    }
+
+    /**
+     * Clean-up all of the state information about a LocalTransaction that is finished
+     * <B>Note:</B> This should only be invoked for single-partition txns
+     * @param ts
+     * @param status
+     */
+    public void deleteTransaction(LocalTransaction ts, final Status status) {
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
@@ -2267,7 +2277,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case OK:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to COMMIT " + ts);
-                        t_estimator.commit(txn_id);
+                        t_estimator.commit(ts.getTransactionId());
                     }
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
@@ -2277,7 +2287,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_USER:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
-                        t_estimator.abort(txn_id);
+                        t_estimator.abort(ts.getTransactionId());
                     }
                     if (hstore_conf.site.status_show_txn_info)
                         TxnCounter.ABORTED.inc(catalog_proc);
@@ -2286,7 +2296,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_RESTART:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
-                        t_estimator.mispredict(txn_id);
+                        t_estimator.mispredict(ts.getTransactionId());
                     }
                     if (hstore_conf.site.status_show_txn_info) {
                         (ts.isSpeculative() ? TxnCounter.RESTARTED : TxnCounter.MISPREDICTED).inc(catalog_proc);
@@ -2337,7 +2347,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             objectPools.PARAMETERSETS.returnObject(params);
         }
         
-        assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
+        // HACK: Make sure the txn_id is removed from our internal map
+        // This is unnecessary for single-partition txns
+        this.inflight_txns.remove(ts.getTransactionId());
+        
+        assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         if (ts.isMapReduce()) {
             objectPools.getMapReduceTransactionPool(base_partition).returnObject((MapReduceTransaction)ts);
@@ -2474,13 +2488,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                result.errorMsg);
                 this.sendClientResponse(result.ts, errorResponse);
                 
-                // HACK: Create a txnId for this LocalTransaction just so that we can
-                // store it and delete it. This is necessary so that we can return
-                // the txn back into the object pool
-                int base_partition = result.ts.getBasePartition();
-                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
-                this.inflight_txns.put(txn_id, result.ts);
-                this.deleteTransaction(txn_id, Status.ABORT_UNEXPECTED);
+                // We can just delete the LocalTransaction handle directly
+                this.deleteTransaction(result.ts, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------
             // AdHocPlannedStmt
