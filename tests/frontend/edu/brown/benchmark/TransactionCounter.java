@@ -15,6 +15,7 @@ public class TransactionCounter implements JSONSerializable {
     
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
     public Histogram<String> transactions = new Histogram<String>(true);
+    public Histogram<String> responseStatuses = new Histogram<String>(true);
 
     public TransactionCounter copy() {
         TransactionCounter copy = new TransactionCounter();

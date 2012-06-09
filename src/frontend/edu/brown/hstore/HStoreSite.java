@@ -1268,7 +1268,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ClientResponseImpl cresponse = new ClientResponseImpl(-1,
                                                                   client_handle,
                                                                   -1,
-                                                                  Status.OK,
+                                                                  status,
                                                                   HStoreConstants.EMPTY_RESULT,
                                                                   this.REJECTION_MESSAGE);
             this.sendClientResponse(cresponse, done, EstTime.currentTimeMillis(), 0);
@@ -2425,7 +2425,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (error != null && hstore_site.isShuttingDown() == false) {
                     LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
                                            (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                    hstore_site.hstore_coordinator.shutdownCluster(error);
+                    if (hstore_site.hstore_coordinator != null) hstore_site.hstore_coordinator.shutdownCluster(error);
                 }
             };
         });

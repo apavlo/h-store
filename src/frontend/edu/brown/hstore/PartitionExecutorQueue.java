@@ -12,6 +12,8 @@ import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
 import org.voltdb.messaging.VoltMessage;
 
+import edu.brown.hstore.dtxn.LocalTransaction;
+
 public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
     
     private static final long serialVersionUID = 1L;
@@ -68,11 +70,23 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
             if (isFinish0 && !isFinish1) return (-1);
             else if (!isFinish0 && isFinish1) return (1);
             
-            TransactionInfoBaseMessage txn0 = (TransactionInfoBaseMessage)msg0;
-            TransactionInfoBaseMessage txn1 = (TransactionInfoBaseMessage)msg1;
+            // (3) Compare Transaction Ids
+            Long txnId0 = null;
+            if (isTxn0) txnId0 = ((TransactionInfoBaseMessage)msg0).getTxnId();
+            else if (msg0 instanceof LocalTransaction) txnId0 = ((LocalTransaction)msg0).getTransactionId(); 
+
+            Long txnId1 = null;
+            if (isTxn1) txnId1 = ((TransactionInfoBaseMessage)msg1).getTxnId();
+            else if (msg1 instanceof LocalTransaction) txnId0 = ((LocalTransaction)msg1).getTransactionId();
+
+            if (txnId0 != null) {
+                return (txnId1 == null ? -1 : txnId0.compareTo(txnId1));
+            } else if (txnId1 != null) {
+                return (1);
+            }
             
             // (3) If they're the same message type, go by their txnIds
-            if (class0.equals(class1)) return (txn0.getTxnId().compareTo(txn1.getTxnId()));
+            // if (class0.equals(class1)) return (txn0.getTxnId().compareTo(txn1.getTxnId()));
             
             // (4) Then let a FragmentTaskMessage go before anything else
             boolean isWork0 = class0.equals(FragmentTaskMessage.class);
@@ -81,7 +95,7 @@ public class PartitionExecutorQueue extends PriorityBlockingQueue<Object> {
             else if (!isWork0 && isWork1) return (1);
             
             // (5) They must be the same!
-            assert(false) : String.format("%s <-> %s", class0, class1);
+            // assert(false) : String.format("%s <-> %s", class0, class1);
             return 0;
         }
     };
