@@ -1152,13 +1152,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
+        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
+        if (hstore_conf.site.txn_profiling) {
+            // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
+//            long timestamp = ProfileMeasurement.getTime();
+        }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
-        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
+        
         final boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
@@ -1189,10 +1193,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        if (hstore_conf.site.txn_profiling) {
-            // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
-        }
-
         // -------------------------------
         // PARAMETERSET INITIALIZATION
         // -------------------------------
@@ -1249,7 +1249,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // the LocalTransaction handle and figuring out whatever else we need to
         // about this txn...
         
-        
         PartitionExecutor executor = this.executors[base_partition];
         boolean success = executor.queueNewTransaction(buffer,
                                                         catalog_proc,
@@ -1287,8 +1286,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         
-        if (d) LOG.debug("Finished initial processing of new txn. " +
-        		          "Returning back to listen on incoming socket");
+        if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
     }
     

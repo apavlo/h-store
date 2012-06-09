@@ -775,6 +775,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
+                if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
                 
@@ -789,7 +790,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 else if (work instanceof LocalTransaction) {
                     this.currentTxn = (LocalTransaction)work;
-                    this.processInitiateTaskMessage((LocalTransaction)this.currentTxn);
+                    this.executeTransaction((LocalTransaction)this.currentTxn);
                 }
                 // -------------------------------
                 // Transaction Initialization
@@ -869,7 +870,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // There is no more deferred work, so we'll have to wait
             // until something shows up in our queue
             if (work == null) {
-                if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
+                if (d) LOG.debug("Partition " + this.partitionId + " queue is empty. Waiting...");
                 if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                 try {
                     work = this.work_queue.take();
@@ -901,17 +902,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ParameterSet procParams = (ParameterSet)next[2];
         @SuppressWarnings("unchecked")
         RpcCallback<byte[]> done = (RpcCallback<byte[]>)next[3]; 
-        
-        int base_partition = StoredProcedureInvocation.getBasePartition(serializedRequest);
         long client_handle = StoredProcedureInvocation.getClientHandle(serializedRequest);
         
         this.currentTxn = this.txnDispatcher.procedureInvocation(
                                                serializedRequest,
                                                client_handle,
-                                               base_partition,
+                                               this.partitionId,
                                                catalog_proc,
                                                procParams,
                                                done);
+        this.hstore_site.dispatchInvocation((LocalTransaction)this.currentTxn);
 
     }
     
@@ -1413,13 +1413,40 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                        ts, task.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
-    
+    /**
+     * Queue a new transaction invocation request at this partition
+     * @param serializedRequest
+     * @param catalog_proc
+     * @param procParams
+     * @param done
+     * @return
+     */
     public boolean queueNewTransaction(ByteBuffer serializedRequest, 
                                          Procedure catalog_proc,
                                          ParameterSet procParams,
                                          RpcCallback<byte[]> done) {
-    
-        return (true);
+        assert(serializedRequest != null);
+        assert(catalog_proc != null);
+        assert(procParams != null);
+        assert(done != null);
+        
+        // Store the base_partition in the ByteBuffer
+        // StoredProcedureInvocation.setBasePartition(this.partitionId, serializedRequest);
+        
+        if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
+                                       "[currentDtxn=%s, mode=%s]",
+                                       catalog_proc.getName(), this.partitionId,
+                                       this.currentDtxn, this.currentExecMode));
+        
+        // FIXME: We need a better way to store the new request than an object array
+        boolean ret = this.work_queue.offer(new Object[] {
+                serializedRequest,
+                catalog_proc,
+                procParams,
+                done
+        });
+        
+        return (ret);
     }
     
     /**
@@ -1430,14 +1457,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     public boolean queueNewTransaction(LocalTransaction ts) {
         assert(ts != null) : "Unexpected null transaction handle!";
-        final InitiateTaskMessage task = ts.getInitiateTaskMessage();
-        final boolean singlePartitioned = ts.isPredictSinglePartition();
-        final boolean force = (singlePartitioned == false) || ts.isMapReduce();
+        // final InitiateTaskMessage task = ts.getInitiateTaskMessage();
+        // final boolean singlePartitioned = ts.isPredictSinglePartition();
+        // final boolean force = (singlePartitioned == false) || ts.isMapReduce();
         
         if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
-        		                       "[currentDtxn=%s, mode=%s, taskHash=%d]",
+        		                       "[currentDtxn=%s, mode=%s]",
                                        ts, this.partitionId,
-                                       this.currentDtxn, this.currentExecMode, task.hashCode()));
+                                       this.currentDtxn, this.currentExecMode));
         
         // UPDATED 2012-07-12
         // We used to have a bunch of checks to determine whether we needed
@@ -1448,7 +1475,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // thread sort out the mess of whether the txn should get blocked or not
         if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
                                        ts, this.partitionId, this.work_queue.size()));
-        return (this.work_queue.offer(task, force));
+        return (this.work_queue.offer(ts, true));
     }
 
     // ---------------------------------------------------------------
@@ -1518,7 +1545,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Execute a new transaction based on an InitiateTaskMessage
      * @param itask
      */
-    private void processInitiateTaskMessage(LocalTransaction ts) throws InterruptedException {
+    private void executeTransaction(LocalTransaction ts) {
         if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
         if (t) LOG.trace(String.format("%s - Attempting to begin processing transaction on partition %d",
                                        ts, this.partitionId));
