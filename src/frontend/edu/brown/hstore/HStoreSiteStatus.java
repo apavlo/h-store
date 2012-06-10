@@ -97,6 +97,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Thread self;
     
     private final Map<PartitionExecutor, ProfileMeasurement> lastIdleTime = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+    private final Map<PartitionExecutor, ProfileMeasurement> lastNetworkTime = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
+    private final Map<PartitionExecutor, ProfileMeasurement> lastUtilityTime = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
 
     /**
      * Maintain a set of tuples for the transaction profile times
@@ -441,6 +443,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 txn_id = es.getLastCommittedTxnId();
                 m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
                 
+                // Execution Time
                 pm = es.getWorkExecTime();
                 m.put("Txn Execution", String.format("%d total / %.2fms total / %.2fms avg",
                                                 pm.getInvocations(),
@@ -448,23 +451,24 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getAverageThinkTimeMS()));
                 invokedTxns.put(partition, (int)es.getTransactionCounter());
                 
+                // Idle Time
                 last = lastIdleTime.get(es);
                 pm = es.getWorkIdleTime();
-                String value = String.format("%.2fms total / %.2fms avg",
-                                                pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS());
-                if (last != null) {
-                    double delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
-                    value += String.format("  [+%.2fms]", delta);
-                }
-                m.put("Idle Time", value); 
-                this.lastIdleTime.put(es, pm);
-                                                
+                m.put("Idle Time", this.formatProfileMeasurement(pm, last)); 
+                this.lastIdleTime.put(es, new ProfileMeasurement(pm));
                 
+                // Network Time
+                last = lastNetworkTime.get(es);
+                pm = es.getWorkNetworkTime();
+                m.put("Network Time", this.formatProfileMeasurement(pm, last)); 
+                this.lastNetworkTime.put(es, new ProfileMeasurement(pm));
+                
+                // Utility Time
+                last = lastUtilityTime.get(es);
                 pm = es.getWorkUtilityTime();
-                m.put("Utility Time", String.format("%.2fms total / %.2fms avg",
-                                                pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS()));
+                m.put("Utility Time", this.formatProfileMeasurement(pm, last)); 
+                this.lastUtilityTime.put(es, new ProfileMeasurement(pm));
+                                                
             }
             
             String label = "    Partition[" + partitionLabel + "]";
@@ -492,6 +496,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         
         return (m_exec);
+    }
+    
+    private String formatProfileMeasurement(ProfileMeasurement pm, ProfileMeasurement last) {
+        String value = String.format("%.2fms total / %.2fms avg",
+                pm.getTotalThinkTimeMS(),
+                pm.getAverageThinkTimeMS());
+        if (last != null) {
+            double delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
+            value += String.format("  [+%.2fms]", delta);
+        }
+        return (value);
     }
     
     // ----------------------------------------------------------------------------

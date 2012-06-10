@@ -322,7 +322,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * The last undoToken that we handed out
      */
     private long lastUndoToken = 0l;
-
     
     /**
      * 
@@ -424,13 +423,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * How much time the PartitionExecutor was idle waiting for work to do in its queue
+     * How much time the PartitionExecutor was idle waiting for
+     * work to do in its queue
      */
     private final ProfileMeasurement work_idle_time = new ProfileMeasurement("EE_IDLE");
     /**
-     * How much time it takes for this PartitionExecutor to execute a transaction
+     * How much time it takes for this PartitionExecutor to 
+     * execute a transaction
      */
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
+    /**
+     * How much time it takes for this PartitionExecutor spends sending
+     * back ClientResponses over the network
+     */
+    private final ProfileMeasurement work_network_time = new ProfileMeasurement("EE_NETWORK");
     /**
      * How much time did this PartitionExecutor spend on utility work
      */
@@ -1240,6 +1246,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public ProfileMeasurement getWorkIdleTime() {
         return (this.work_idle_time);
+    }
+    public ProfileMeasurement getWorkNetworkTime() {
+        return (this.work_network_time);
     }
     public ProfileMeasurement getWorkExecTime() {
         return (this.work_exec_time);
@@ -3000,8 +3009,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // Send back the result right now!
             else {
+                // We have to mark it as loggable to prevent the response
+                // from getting sent back to the client
                 if (hstore_conf.site.exec_command_logging) ts.markLogEnabled();
+                
+                if (hstore_conf.site.exec_profiling) this.work_network_time.start();
                 this.hstore_site.sendClientResponse(ts, cresponse);
+                if (hstore_conf.site.exec_profiling) this.work_network_time.stop();
+                
                 ts.markAsDeletable();
                 this.hstore_site.deleteTransaction(ts, status);
             }
