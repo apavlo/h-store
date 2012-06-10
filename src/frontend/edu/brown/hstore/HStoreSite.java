@@ -370,7 +370,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * How long the HStoreSite had no inflight txns
      */
-    protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
+    private final ProfileMeasurement idle_time;
+    
+    private final ProfileMeasurement processing_time;
     
     // ----------------------------------------------------------------------------
     // CACHED STRINGS
@@ -555,13 +557,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
         
-        // Profiling
-        if (hstore_conf.site.status_show_executor_info) {
-            this.idle_time.resetOnEventObservable(this.startWorkload_observable);
-        }
-        
         // CACHED MESSAGES
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
+        
+        // Profiling
+        if (hstore_conf.site.exec_profiling) {
+            this.idle_time = new ProfileMeasurement("IDLE");
+            this.processing_time = new ProfileMeasurement("PROCESSING");
+            
+            if (hstore_conf.site.status_show_executor_info) {
+                this.idle_time.resetOnEventObservable(this.startWorkload_observable);
+            }
+        } else {
+            this.idle_time = null;
+            this.processing_time = null;
+        }
         
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
     }
@@ -787,6 +797,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
+    }
+    public VoltProcedureListener getVoltProcedureListener() {
+        return (this.voltListener);
     }
     
     /**
@@ -1042,6 +1055,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
+    
+    public ProfileMeasurement getIncomingProcessorTime() {
+        return (this.processing_time);
+    }
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
     }
@@ -1158,10 +1175,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
-        if (hstore_conf.site.txn_profiling) {
+        
+        if (hstore_conf.site.exec_profiling || hstore_conf.site.txn_profiling) {
+            long timestamp = ProfileMeasurement.getTime();
+            if (hstore_conf.site.exec_profiling) {
+                this.processing_time.start(timestamp);
+            }
             // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
-//            long timestamp = ProfileMeasurement.getTime();
         }
+        
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
@@ -1299,6 +1321,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
+        if (hstore_conf.site.exec_profiling) {
+            this.processing_time.stop();
+        }
     }
     
     

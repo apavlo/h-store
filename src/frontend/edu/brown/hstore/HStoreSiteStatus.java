@@ -346,6 +346,16 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                         pm.getAverageThinkTimeMS()
         ));
         
+        if (hstore_conf.site.exec_profiling) {
+            pm = this.hstore_site.getIncomingProcessorTime();
+            m_exec.put("Incoming Processing",
+                    String.format("%d txns / %.2fms total / %.2fms avg",
+                            pm.getInvocations(),
+                            pm.getTotalThinkTimeMS(),
+                            pm.getAverageThinkTimeMS()
+            ));
+        }
+        
         if (hstore_conf.site.exec_postprocessing_thread) {
             int processing_cur = hstore_site.getQueuedResponseCount();
             if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
