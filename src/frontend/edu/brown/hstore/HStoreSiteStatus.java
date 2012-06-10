@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +95,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Integer processing_max = null;
     
     private Thread self;
+    
+    private final Map<PartitionExecutor, ProfileMeasurement> lastIdleTime = new IdentityHashMap<PartitionExecutor, ProfileMeasurement>();
 
     /**
      * Maintain a set of tuples for the transaction profile times
@@ -348,8 +351,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             String val = String.format("%-5d [min=%d, max=%d]", processing_cur, processing_min, processing_max);
             int i = 0;
-            for (TransactionPostProcessor espp : hstore_site.getTransactionPostProcessors()) {
-                pm = espp.getExecTime();
+            for (TransactionPostProcessor tpp : hstore_site.getTransactionPostProcessors()) {
+                pm = tpp.getExecTime();
                 val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
                                      i++,
                                      pm.getInvocations(),
@@ -426,6 +429,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             
             if (hstore_conf.site.exec_profiling) {
+                ProfileMeasurement last = null;
                 txn_id = es.getCurrentTxnId();
                 m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), es.getExecutionMode()));
                 
@@ -444,17 +448,24 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getAverageThinkTimeMS()));
                 invokedTxns.put(partition, (int)es.getTransactionCounter());
                 
+                last = lastIdleTime.get(es);
                 pm = es.getWorkIdleTime();
-                m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
+                String value = String.format("%.2fms total / %.2fms avg",
                                                 pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS()));
+                                                pm.getAverageThinkTimeMS());
+                if (last != null) {
+                    double delta = pm.getTotalThinkTimeMS() - last.getTotalThinkTimeMS();
+                    value += String.format("  [+%.2fms]", delta);
+                }
+                m.put("Idle Time", value); 
+                this.lastIdleTime.put(es, pm);
+                                                
                 
                 pm = es.getWorkUtilityTime();
                 m.put("Utility Time", String.format("%.2fms total / %.2fms avg",
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
             }
-            
             
             String label = "    Partition[" + partitionLabel + "]";
             
