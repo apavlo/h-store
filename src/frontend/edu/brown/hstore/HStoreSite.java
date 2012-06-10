@@ -528,7 +528,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Incoming Txn Request Listener
-        this.voltListeners = new VoltProcedureListener[6];
+        this.voltListeners = new VoltProcedureListener[1];
         this.procEventLoops = new NIOEventLoop[this.voltListeners.length];
         for (int i = 0; i < this.voltListeners.length; i++) {
             this.procEventLoops[i] = new NIOEventLoop();

@@ -796,23 +796,21 @@ public abstract class BenchmarkComponent {
         for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
             final int site_id = catalog_site.getId();
             final String host = catalog_site.getHost().getIpaddr();
-            for (int i = 0; i < 6; i++) { // XXX
-                int port = catalog_site.getProc_port() + i;
-                if (debug.get())
-                    LOG.debug(String.format("Creating connection to %s at %s:%d",
-                                            HStoreThreadManager.formatSiteName(site_id),
-                                            host, port));
-                try {
-                    this.createConnection(site_id, host, port);
-                } catch (IOException ex) {
-                    String msg = String.format("Failed to connect to %s on %s:%d",
-                                               HStoreThreadManager.formatSiteName(site_id), host, port);
-                    LOG.error(msg, ex);
-                    setState(ControlState.ERROR, msg + ": " + ex.getMessage());
-                    continue;
-                }
-                atLeastOneConnection = true;
-            } // FOR
+            int port = catalog_site.getProc_port();
+            if (debug.get())
+                LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                        HStoreThreadManager.formatSiteName(site_id),
+                                        host, port));
+            try {
+                this.createConnection(site_id, host, port);
+            } catch (IOException ex) {
+                String msg = String.format("Failed to connect to %s on %s:%d",
+                                           HStoreThreadManager.formatSiteName(site_id), host, port);
+                LOG.error(msg, ex);
+                setState(ControlState.ERROR, msg + ": " + ex.getMessage());
+                continue;
+            }
+            atLeastOneConnection = true;
         } // FOR
         if (!atLeastOneConnection) {
             setState(ControlState.ERROR, "No HOSTS specified on command line.");
