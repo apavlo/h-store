@@ -202,22 +202,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     case TPCE:
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
-                    case TPCC:
-                    case TM1:
-                    case SEATS:
-                    case AUCTIONMARK:
-                    case MARKOV:
-                    case LOCALITY:
-                    case MAPREDUCE:
-					case YCSB: 
-					case VOTER: 
-                    case WIKIPEDIA:
+                    default:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
                             LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
                         break;
-                    default:
-                        assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
             //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
