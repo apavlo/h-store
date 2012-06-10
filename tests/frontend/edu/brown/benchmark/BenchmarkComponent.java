@@ -67,8 +67,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.json.JSONException;
-import org.json.JSONStringer;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -99,7 +97,6 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
@@ -797,23 +794,25 @@ public abstract class BenchmarkComponent {
     private void setupConnections() {
         boolean atLeastOneConnection = false;
         for (Site catalog_site : CatalogUtil.getAllSites(this.getCatalog())) {
-            int site_id = catalog_site.getId();
-            String host = catalog_site.getHost().getIpaddr();
-            int port = catalog_site.getProc_port();
-            if (debug.get())
-                LOG.debug(String.format("Creating connection to %s at %s:%d",
-                                        HStoreThreadManager.formatSiteName(site_id),
-                                        host, port));
-            try {
-                this.createConnection(site_id, host, port);
-            } catch (IOException ex) {
-                String msg = String.format("Failed to connect to %s on %s:%d",
-                                           HStoreThreadManager.formatSiteName(site_id), host, port);
-                LOG.error(msg, ex);
-                setState(ControlState.ERROR, msg + ": " + ex.getMessage());
-                break;
-            }
-            atLeastOneConnection = true;
+            final int site_id = catalog_site.getId();
+            final String host = catalog_site.getHost().getIpaddr();
+            for (int i = 0; i < 6; i++) { // XXX
+                int port = catalog_site.getProc_port() + i;
+                if (debug.get())
+                    LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                            HStoreThreadManager.formatSiteName(site_id),
+                                            host, port));
+                try {
+                    this.createConnection(site_id, host, port);
+                } catch (IOException ex) {
+                    String msg = String.format("Failed to connect to %s on %s:%d",
+                                               HStoreThreadManager.formatSiteName(site_id), host, port);
+                    LOG.error(msg, ex);
+                    setState(ControlState.ERROR, msg + ": " + ex.getMessage());
+                    continue;
+                }
+                atLeastOneConnection = true;
+            } // FOR
         } // FOR
         if (!atLeastOneConnection) {
             setState(ControlState.ERROR, "No HOSTS specified on command line.");

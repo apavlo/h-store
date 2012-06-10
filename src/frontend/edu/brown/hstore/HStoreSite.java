@@ -215,8 +215,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This thread is responsible for listening for incoming txn requests from 
      * clients. It will then forward the request to HStoreSite.procedureInvocation()
      */
-    private VoltProcedureListener voltListener;
-    private final NIOEventLoop procEventLoop = new NIOEventLoop();
+    private VoltProcedureListener voltListeners[];
+    private final NIOEventLoop procEventLoops[];
 
     /**
      * PartitionExecutors
@@ -528,9 +528,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Incoming Txn Request Listener
-        this.voltListener = new VoltProcedureListener(this.host_id,
-                                                       this.procEventLoop,
-                                                       this);
+        this.voltListeners = new VoltProcedureListener[6];
+        this.procEventLoops = new NIOEventLoop[this.voltListeners.length];
+        for (int i = 0; i < this.voltListeners.length; i++) {
+            this.procEventLoops[i] = new NIOEventLoop();
+            this.voltListeners[i] = new VoltProcedureListener(this.host_id,
+                                                               this.procEventLoops[i],
+                                                               this);
+        } // FOR
 
         // Transaction Post-Processing Threads
         if (hstore_conf.site.exec_postprocessing_thread) {
@@ -801,9 +806,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
-    }
-    public VoltProcedureListener getVoltProcedureListener() {
-        return (this.voltListener);
     }
     
     /**
@@ -1156,13 +1158,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Tell all of our event loops to stop
         if (t) LOG.trace("Telling Procedure Listener event loops to exit");
-        this.procEventLoop.exitLoop();
-        if (this.voltListener != null) this.voltListener.close();
+        for (int i = 0; i < this.voltListeners.length; i++) {
+            this.procEventLoops[i].exitLoop();
+            if (this.voltListeners[i] != null) this.voltListeners[i].close();
+        } // FOR
         
         if (this.hstore_coordinator != null)
             this.hstore_coordinator.shutdown();
         
-        LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]", this.getSiteName(), this.hashCode()));
+        LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
+                               this.getSiteName(), this.hashCode()));
     }
     
     /**
@@ -2409,36 +2414,39 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // There used to be a ton of threads that we would start in here, which
         // is why we had a CountDownLatch. But now it's only really one...
         List<Runnable> runnables = new ArrayList<Runnable>();
-        final CountDownLatch ready_latch = new CountDownLatch(1);
+        final CountDownLatch ready_latch = new CountDownLatch(hstore_site.voltListeners.length);
         
         // ----------------------------------------------------------------------------
         // (1) Procedure Request Listener Thread (one per Site)
         // ----------------------------------------------------------------------------
-        runnables.add(new Runnable() {
-            public void run() {
-                final Thread self = Thread.currentThread();
-                self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
-                hstore_site.getThreadManager().registerProcessingThread();
-                
-                // Then fire off this thread to have it do some work as it comes in 
-                Throwable error = null;
-                try {
-                    hstore_site.voltListener.bind(catalog_site.getProc_port());
-                    hstore_site.procEventLoop.setExitOnSigInt(true);
-                    ready_latch.countDown();
-                    hstore_site.procEventLoop.run();
-                } catch (Throwable ex) {
-                    if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
-                        error = ex;
+        for (int i = 0, cnt = (int)ready_latch.getCount(); i < cnt; i++) {
+            final int listenerId = i;
+            runnables.add(new Runnable() {
+                public void run() {
+                    final Thread self = Thread.currentThread();
+                    self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
+                    hstore_site.getThreadManager().registerProcessingThread();
+                    
+                    // Then fire off this thread to have it do some work as it comes in 
+                    Throwable error = null;
+                    try {
+                        hstore_site.voltListeners[listenerId].bind(catalog_site.getProc_port() + listenerId);
+                        hstore_site.procEventLoops[listenerId].setExitOnSigInt(true);
+                        ready_latch.countDown();
+                        hstore_site.procEventLoops[listenerId].run();
+                    } catch (Throwable ex) {
+                        if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
+                            error = ex;
+                        }
                     }
-                }
-                if (error != null && hstore_site.isShuttingDown() == false) {
-                    LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                    if (hstore_site.hstore_coordinator != null) hstore_site.hstore_coordinator.shutdownCluster(error);
-                }
-            };
-        });
+                    if (error != null && hstore_site.isShuttingDown() == false) {
+                        LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
+                                               (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
+                        if (hstore_site.hstore_coordinator != null) hstore_site.hstore_coordinator.shutdownCluster(error);
+                    }
+                };
+            });
+        } // FOR
         
         // ----------------------------------------------------------------------------
         // (5) HStoreSite Setup Thread

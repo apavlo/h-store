@@ -48,6 +48,11 @@ public class HStoreThreadManager {
     private final String utility_suffixes[] = {
 //        HStoreConstants.THREAD_NAME_COMMANDLOGGER,
         HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
+        HStoreConstants.THREAD_NAME_LISTEN,
     };
     
     // ----------------------------------------------------------------------------
