@@ -44,7 +44,8 @@ public enum ProjectType {
     LOCALITY("Locality", "edu.brown.benchmark.locality"),
     MAPREDUCE("MapReduce", "edu.brown.benchmark.mapreduce"),
     WIKIPEDIA("Wikipedia", "edu.brown.benchmark.wikipedia"),
-    VOTER("Voter", "edu.brown.benchmark.voter"),
+	YCSB("YCSB", "edu.brown.benchmark.ycsb"), 
+	VOTER("Voter", "edu.brown.benchmark.voter"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     TEST("Test", null),
     ;
