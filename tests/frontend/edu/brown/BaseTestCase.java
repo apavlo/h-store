@@ -212,7 +212,6 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
 					case YCSB: 
 					case VOTER: 
                     case WIKIPEDIA:
-                    case VOTER:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
                             LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
