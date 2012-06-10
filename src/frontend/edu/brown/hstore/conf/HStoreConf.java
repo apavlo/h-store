@@ -156,9 +156,9 @@ public final class HStoreConf {
         public int exec_ee_log_level;
         
         @ConfigProperty(
-            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor thread" +
-                        "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
-                        "waiting for work to be added to its queue).",
+            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor " +
+            		    "thread is during execution (i.e., the percentage of time that it spends executing a " +
+            		    "transaction versus waiting for work to be added to its queue).",
             defaultBoolean=false,
             experimental=false
         )
@@ -391,6 +391,18 @@ public final class HStoreConf {
         )
         public boolean mr_reduce_blocking;
 
+        // ----------------------------------------------------------------------------
+        // Networking Options
+        // ----------------------------------------------------------------------------
+
+        @ConfigProperty(
+            description="Enable profiling for the thread that listens for incoming client requests " +
+                        "over the network.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean network_profiling;
+        
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------

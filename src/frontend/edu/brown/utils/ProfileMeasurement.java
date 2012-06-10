@@ -291,7 +291,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public ProfileMeasurement appendTime(ProfileMeasurement other) {
-        return (this.appendTime(other, true));
+        return (this.appendTime(other, false));
     }
 
     public void addThinkTime(long start, long stop, int invocations) {

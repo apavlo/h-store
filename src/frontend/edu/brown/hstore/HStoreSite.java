@@ -365,14 +365,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * The number of incoming transaction requests per partition 
      */
-    private final Histogram<Integer> incoming_partitions = new Histogram<Integer>();
+    private final Histogram<Integer> network_incoming_partitions = new Histogram<Integer>();
     
     /**
-     * How long the HStoreSite had no inflight txns
+     * How much time the VoltProcedureListener spent not processing
+     * new incoming requests from clients. 
      */
-    private final ProfileMeasurement idle_time;
+    private final ProfileMeasurement network_idle_time;
     
-    private final ProfileMeasurement processing_time;
+    /**
+     * How long it takes for the VoltProcedureListener to process each request
+     */
+    private final ProfileMeasurement network_processing_time;
     
     // ----------------------------------------------------------------------------
     // CACHED STRINGS
@@ -561,16 +565,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.REJECTION_MESSAGE = "Transaction was rejected by " + this.getSiteName();
         
         // Profiling
-        if (hstore_conf.site.exec_profiling) {
-            this.idle_time = new ProfileMeasurement("IDLE");
-            this.processing_time = new ProfileMeasurement("PROCESSING");
+        if (hstore_conf.site.network_profiling) {
+            this.network_idle_time = new ProfileMeasurement("IDLE");
+            this.network_processing_time = new ProfileMeasurement("PROCESSING");
             
             if (hstore_conf.site.status_show_executor_info) {
-                this.idle_time.resetOnEventObservable(this.startWorkload_observable);
+                this.network_idle_time.resetOnEventObservable(this.startWorkload_observable);
             }
         } else {
-            this.idle_time = null;
-            this.processing_time = null;
+            this.network_idle_time = null;
+            this.network_processing_time = null;
         }
         
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
@@ -1023,18 +1027,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return (this);
         }
         this.shutdown_state = ShutdownState.STARTED;
-        
-        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s",
-                                   HStoreConstants.SITE_READY_MSG,
-                                   this.getSiteName(),
-                                   this.catalog_site.getHost().getIpaddr(),
-                                   CollectionUtil.first(CatalogUtil.getExecutionSitePorts(this.catalog_site)),
-                                   Arrays.toString(this.local_partitions_arr));
+        if (hstore_conf.site.network_profiling) {
+            this.network_idle_time.start();
+        }
         this.ready = true;
         this.ready_observable.notifyObservers(this);
 
         // IMPORTANT: This message must always be printed in order for the BenchmarkController
         //            to know that we're ready! That's why we have to use System.out instead of LOG
+        String msg = String.format("%s / Site=%s / Address=%s:%d / Partitions=%s",
+                HStoreConstants.SITE_READY_MSG,
+                this.getSiteName(),
+                this.catalog_site.getHost().getIpaddr(),
+                CollectionUtil.first(CatalogUtil.getExecutionSitePorts(this.catalog_site)),
+                Arrays.toString(this.local_partitions_arr));
         System.out.println(msg);
         System.out.flush();
         
@@ -1053,14 +1059,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Returns true if this HStoreSite is throttling incoming transactions
      */
     protected Histogram<Integer> getIncomingPartitionHistogram() {
-        return (this.incoming_partitions);
+        return (this.network_incoming_partitions);
     }
     
-    public ProfileMeasurement getIncomingProcessorTime() {
-        return (this.processing_time);
+    public ProfileMeasurement getNetworkProcessorTime() {
+        return (this.network_processing_time);
     }
-    public ProfileMeasurement getEmptyQueueTime() {
-        return (this.idle_time);
+    public ProfileMeasurement getNetworkIdleTime() {
+        return (this.network_idle_time);
     }
     
     // ----------------------------------------------------------------------------
@@ -1174,20 +1180,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
-        
-        if (hstore_conf.site.exec_profiling || hstore_conf.site.txn_profiling) {
+        if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
-            if (hstore_conf.site.exec_profiling) {
-                this.processing_time.start(timestamp);
+            if (hstore_conf.site.network_profiling) {
+                ProfileMeasurement.swap(timestamp, this.network_idle_time, this.network_processing_time);
             }
             // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
         }
-        
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request
+        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
@@ -1259,8 +1263,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Profiling Updates
         if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(procName);
-        if (hstore_conf.site.exec_profiling && base_partition != -1) {
-            this.incoming_partitions.put(base_partition);
+        if (hstore_conf.site.network_profiling && base_partition != -1) {
+            this.network_incoming_partitions.put(base_partition);
         }
         
         base_partition = this.txnInitializer.calculateBasePartition(client_handle,
@@ -1321,8 +1325,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
-        if (hstore_conf.site.exec_profiling) {
-            this.processing_time.stop();
+        if (hstore_conf.site.network_profiling) {
+            ProfileMeasurement.swap(this.network_processing_time, this.network_idle_time);
         }
     }
     
