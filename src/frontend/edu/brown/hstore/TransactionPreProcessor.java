@@ -1,5 +1,6 @@
 package edu.brown.hstore;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
@@ -20,12 +21,12 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
     }
     
     private final HStoreSite hstore_site;
-    private final BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue;
+    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> queue;
     private boolean stop = false;
     private Thread self;
     
     public TransactionPreProcessor(HStoreSite hstore_site,
-                                    BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue) {
+                                    BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> queue) {
         assert(queue != null);
         this.hstore_site = hstore_site;
         this.queue = queue;
@@ -37,7 +38,7 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PREPROCESSOR));
         hstore_site.getThreadManager().registerProcessingThread();
 
-        Pair<byte[], RpcCallback<byte[]>> p = null;
+        Pair<ByteBuffer, RpcCallback<byte[]>> p = null;
         while (this.stop == false) {
             try {
                 p = this.queue.take();

@@ -55,6 +55,8 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
@@ -154,6 +156,31 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      * Wait until they receive data or have been booted.
      */
     private boolean m_hasGlobalClientBackPressure = false;
+    
+    /**
+     * Task to run when a backpressure condition starts
+     */
+    private final EventObservable<HStoreSite> onBackPressure = new EventObservable<HStoreSite>();
+
+    /**
+     * Task to run when a backpressure condition stops
+     */
+    private final EventObservable<HStoreSite> offBackPressure = new EventObservable<HStoreSite>();
+
+    /**
+     * Indicates if backpressure has been seen and reported
+     */
+    private boolean m_hadBackPressure = false;
+    
+    // If an initiator handles a full node, it processes approximately 50,000 txns/sec.
+    // That's about 50 txns/ms. Try not to keep more than 5 ms of work? Seems like a really
+    // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
+    // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
+    // on average if clients present constant uninterrupted load.
+    private final static int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private final static int MAX_DESIRED_PENDING_TXNS = 15000;
+    private long m_pendingTxnBytes = 0;
+    private int m_pendingTxnCount = 0;
 
     /** A port that accepts client connections */
     public class ClientAcceptor implements Runnable {
@@ -433,7 +460,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             responseBuffer.put(buildString).flip();
             socket.write(responseBuffer);
             
-            LOG.info("Accepted new connection from " + socket);
+            LOG.info("Established new client connection to " + socket);
             
             return handler;
         }
@@ -536,39 +563,33 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
     /**
      * Invoked when DTXN backpressure starts
-     *
      */
-    private static class OnDTXNBackPressure implements Runnable {
-        private ClientInterface m_ci;
-
+    private final EventObserver<HStoreSite> onBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
-        final public void run() {
+        public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             LOG.trace("Had back pressure disabling read selection");
-            synchronized (m_ci.m_connections) {
-                m_ci.m_hasDTXNBackPressure = true;
-                for (final Connection c : m_ci.m_connections) {
+            synchronized (m_connections) {
+                m_hasDTXNBackPressure = true;
+                for (final Connection c : m_connections) {
                     c.disableReadSelection();
                 }
             }
         }
-    }
+    };
 
     /**
      * Invoked when DTXN backpressure stops
-     *
      */
-    private static class OffDTXNBackPressure implements Runnable {
-        private ClientInterface m_ci;
-
+    private final EventObserver<HStoreSite> offBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
-        final public void run() {
+        public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             LOG.trace("No more back pressure attempting to enable read selection");
-            synchronized (m_ci.m_connections) {
-                m_ci.m_hasDTXNBackPressure = false;
-                if (m_ci.m_hasGlobalClientBackPressure) {
+            synchronized (m_connections) {
+                m_hasDTXNBackPressure = false;
+                if (m_hasGlobalClientBackPressure) {
                     return;
                 }
-                for (final Connection c : m_ci.m_connections) {
+                for (final Connection c : m_connections) {
                     if (!c.writeStream().hadBackPressure()) {
                         /*
                          * Also synchronize on the individual connection
@@ -582,12 +603,12 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
                             if (!c.writeStream().hadBackPressure()) {
                                 c.enableReadSelection();
                             }
-                        }
+                        } // SYNCH
                     }
-                }
-            }
+                } // FOR
+            } // SYNCH
         }
-    }
+    };
 
     /**
      * Static factory method to easily create a ClientInterface with the default
@@ -604,11 +625,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
 
         // create the dtxn initiator
-        /*
-         * Construct the runnables so they have access to the list of connections
-         */
-        final OnDTXNBackPressure onBackPressure = new OnDTXNBackPressure() ;
-        final OffDTXNBackPressure offBackPressure = new OffDTXNBackPressure();
+
 
 //        SimpleDtxnInitiator initiator =
 //            new SimpleDtxnInitiator(
@@ -620,8 +637,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         // create the adhoc planner thread
         final ClientInterface ci = new ClientInterface(
                 hstore_site, port, context, network, siteId, schedule);
-        onBackPressure.m_ci = ci;
-        offBackPressure.m_ci = ci;
 
         return ci;
     }
@@ -639,8 +654,40 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_dumpId = "Initiator." + String.valueOf(siteId);
         DumpManager.register(m_dumpId, this);
 
+        // Backpressure EventObservers
+        this.onBackPressure.addObserver(this.onBackPressureObserver);
+        this.offBackPressure.addObserver(this.offBackPressureObserver);
+        
         m_acceptor = new ClientAcceptor(port, network);
+    }
+    
+    public void increaseBackpressure(int messageSize)
+    {
+        m_pendingTxnBytes += messageSize;
+        m_pendingTxnCount++;
+        if (m_pendingTxnBytes > MAX_DESIRED_PENDING_BYTES || m_pendingTxnCount > MAX_DESIRED_PENDING_TXNS) {
+            if (!m_hadBackPressure) {
+                LOG.trace("DTXN back pressure began");
+                m_hadBackPressure = true;
+                onBackPressure.notifyObservers(hstore_site);
+            }
+        }
+    }
 
+    public void reduceBackpressure(int messageSize)
+    {
+        m_pendingTxnBytes -= messageSize;
+        m_pendingTxnCount--;
+        if (m_pendingTxnBytes < (MAX_DESIRED_PENDING_BYTES * .8) &&
+            m_pendingTxnCount < (MAX_DESIRED_PENDING_TXNS * .8))
+        {
+            if (m_hadBackPressure)
+            {
+                LOG.trace("DTXN backpressure ended");
+                m_hadBackPressure = false;
+                offBackPressure.notifyObservers(hstore_site);
+            }
+        }
     }
 
 //    /**
@@ -815,7 +862,11 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      * queued for sending.
      * @param now Current time in milliseconds
      */
-    private final void checkForDeadConnections(final long now) {
+    protected final void checkForDeadConnections(final long now) {
+        if (++m_tickCounter % 20 != 0) {
+            return;
+        }
+        
         Connection connectionsToCheck[];
         synchronized (m_connections) {
             connectionsToCheck = m_connections.toArray(new Connection[m_connections.size()]);

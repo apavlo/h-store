@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import static org.junit.Assert.assertArrayEquals;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Random;
@@ -58,8 +59,8 @@ public class TestVoltProcedureListener extends TestCase {
             return 0;
         }
         @Override
-        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-            StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest);
+        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> done) {
+            StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest.array());
             invocation.buildParameterSet();
             assertEquals(PROC_NAME, invocation.getProcName());
             assertNotNull(invocation.getParams());
