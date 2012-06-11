@@ -1,6 +1,6 @@
 package edu.brown.hstore;
 
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -35,7 +35,7 @@ public final class TransactionPostProcessor implements Runnable, Shutdownable {
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue;
+    private final BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue;
 
     /**
      * Handle to ourselves
@@ -47,7 +47,8 @@ public final class TransactionPostProcessor implements Runnable, Shutdownable {
      * @param hstore_site
      */
     public TransactionPostProcessor(HStoreSite hstore_site,
-                                          LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue) {
+                                     BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> queue) {
+        assert(queue != null);
         this.hstore_site = hstore_site;
         this.queue = queue;
     }

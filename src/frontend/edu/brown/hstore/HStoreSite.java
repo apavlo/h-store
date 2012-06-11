@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -245,7 +246,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TransactionPreProcessor Threads
      */
     private final List<TransactionPreProcessor> preProcessors;
-    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> preProcessorQueue;
+    private final BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> preProcessorQueue;
     
     /**
      * TransactionPostProcessor Thread
@@ -253,7 +254,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * the clients without blocking
      */
     private final List<TransactionPostProcessor> postProcessors;
-    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> postProcessorQueue;
+    private final BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> postProcessorQueue;
     
     /**
      * MapReduceHelperThread
@@ -546,6 +547,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         List<TransactionPreProcessor> _preProcessors = null;
         List<TransactionPostProcessor> _postProcessors = null;
+        BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> _preQueue = null;
+        BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> _postQueue = null;
+        
         if (hstore_conf.site.exec_preprocessing_thread || hstore_conf.site.exec_postprocessing_thread) {
             // Transaction Pre/Post Processing Threads
             // We need at least one core per partition and one core for the VoltProcedureListener
@@ -558,8 +562,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          "Disabling transaction pre/post processing threads");
                 hstore_conf.site.exec_preprocessing_thread = false;
                 hstore_conf.site.exec_postprocessing_thread = false;
-                this.preProcessorQueue = null;
-                this.postProcessorQueue = null;
             } else {
                 int num_preProcessors = 0;
                 int num_postProcessors = 0;
@@ -586,13 +588,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_preProcessors,
                                                    TransactionPreProcessor.class.getSimpleName()));
                     _preProcessors = new ArrayList<TransactionPreProcessor>();
-                    this.preProcessorQueue = new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
+                    _preQueue = new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
                     for (int i = 0; i < num_preProcessors; i++) {
-                        TransactionPreProcessor t = new TransactionPreProcessor(this, this.preProcessorQueue);
+                        TransactionPreProcessor t = new TransactionPreProcessor(this, _preQueue);
                         _preProcessors.add(t);
                     } // FOR
-                } else {
-                    this.preProcessorQueue = null;
                 }
                 // Initialize TransactionPostProcessors
                 if (num_postProcessors > 0) {
@@ -601,21 +601,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_postProcessors,
                                                    TransactionPostProcessor.class.getSimpleName()));
                     _postProcessors = new ArrayList<TransactionPostProcessor>();
-                    this.postProcessorQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
+                    _postQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
                     for (int i = 0; i < num_postProcessors; i++) {
-                        TransactionPostProcessor t = new TransactionPostProcessor(this, this.postProcessorQueue);
+                        TransactionPostProcessor t = new TransactionPostProcessor(this, _postQueue);
                         _postProcessors.add(t);
                     } // FOR
-                } else {
-                    this.postProcessorQueue = null;
                 }
             }
-        } else {
-            this.preProcessorQueue = null;
-            this.postProcessorQueue = null;
         }
         this.preProcessors = _preProcessors;
+        this.preProcessorQueue = _preQueue;
         this.postProcessors = _postProcessors;
+        this.postProcessorQueue = _postQueue;
         
         // -------------------------------
         // TRANSACTION ESTIMATION
