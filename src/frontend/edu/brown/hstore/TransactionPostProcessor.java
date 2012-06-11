@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -6,9 +6,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.LocalTransaction;

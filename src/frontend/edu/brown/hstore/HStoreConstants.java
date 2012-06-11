@@ -38,6 +38,8 @@ public abstract class HStoreConstants {
     
     public static final String THREAD_NAME_POSTPROCESSOR = "post";
     
+    public static final String THREAD_NAME_INCOMING = "incoming";
+    
     public static final String THREAD_NAME_HELPER = "help";
     
     public static final String THREAD_NAME_TXNQUEUE = "queue";

@@ -29,7 +29,6 @@ import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.TransactionProfile;
-import edu.brown.hstore.util.TransactionPostProcessor;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
