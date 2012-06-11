@@ -371,7 +371,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
         }
         
-        if (hstore_conf.site.exec_postprocessing_thread) {
+        if (hstore_conf.site.exec_postprocessing_threads) {
             int processing_cur = hstore_site.getQueuedResponseCount();
             if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
             if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;

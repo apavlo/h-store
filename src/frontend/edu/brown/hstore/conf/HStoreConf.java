@@ -266,7 +266,17 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public boolean exec_preprocessing_thread;
+        public boolean exec_preprocessing_threads;
+        
+        @ConfigProperty(
+            description="The number of TransactionPreProcessor threads to use per HStoreSite. " +
+                        "If this parameter is set to -1, then the system will automatically use all " +
+                        "of the non-PartitionExecutor cores for these processing threads. " +
+                        "The ${site.exec_preprocessing_threads} parameter must be set to true. ",
+            defaultInt=-1,
+            experimental=true
+        )
+        public int exec_preprocessing_threads_count;
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound " +
@@ -277,22 +287,17 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=true
         )
-        public boolean exec_postprocessing_thread;
+        public boolean exec_postprocessing_threads;
         
         @ConfigProperty(
-            description="The number of post-processing threads to use per HStoreSite. " +
-                        "The ${site.exec_postprocessing_thread} parameter must be set to true.",
-            defaultInt=1,
+            description="The number of TransactionPostProcessor threads to use per HStoreSite. " +
+                        "If this parameter is set to -1, then the system will automatically use all " +
+                        "of the non-PartitionExecutor cores for these processing threads. " +
+                        "The ${site.exec_postprocessing_threads} parameter must be set to true. ",
+            defaultInt=-1,
             experimental=true
         )
-        public int exec_postprocessing_thread_count;
-        
-        @ConfigProperty(
-            description="",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean exec_postprocessing_thread_per_partition;
+        public int exec_postprocessing_threads_count;
         
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation " +

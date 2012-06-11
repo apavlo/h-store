@@ -139,9 +139,9 @@ public class HStoreThreadManager {
             } // FOR
         }
         
-//        if (debug.get())
-        LOG.info(String.format("Registering EE Thread %s to execute on CPUs %s",
-                               t.getName(), this.getCPUIds(affinity)));
+        if (debug.get())
+            LOG.debug(String.format("Registering EE Thread %s to execute on CPUs %s",
+                                    t.getName(), this.getCPUIds(affinity)));
         
         org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
         this.registerThread(affinity);
@@ -166,8 +166,9 @@ public class HStoreThreadManager {
             affinity = this.utility_affinities.get(suffix); 
         }
         
-        LOG.info(String.format("Registering Processing Thread %s to execute on CPUs %s",
-                              t.getName(), this.getCPUIds(affinity)));
+        if (debug.get())
+            LOG.debug(String.format("Registering Processing Thread %s to execute on CPUs %s",
+                                    t.getName(), this.getCPUIds(affinity)));
         
         // This thread cannot run on the EE's cores
         // If this fails (such as on OS X for some weird reason), we'll
