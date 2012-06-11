@@ -25,7 +25,8 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
     private Thread self;
     
     public TransactionPreProcessor(HStoreSite hstore_site,
-                              BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue) {
+                                    BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> queue) {
+        assert(queue != null);
         this.hstore_site = hstore_site;
         this.queue = queue;
     }
