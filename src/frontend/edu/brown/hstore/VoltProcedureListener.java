@@ -35,6 +35,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final AtomicInteger connectionId = new AtomicInteger(0);
     private ServerSocketChannel serverSocket;
     
+    private final AtomicInteger numConnections = new AtomicInteger(0);
+    
     public VoltProcedureListener(int hostId, EventLoop eventLoop, Handler handler) {
         this.hostId = hostId;
         this.eventLoop = eventLoop;
@@ -59,6 +61,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         connection.setBigEndian();
 
         this.eventLoop.registerRead(client, new ClientConnectionHandler(connection));
+        this.numConnections.incrementAndGet();
     }
 
     // Not private so it can be used in a JUnit test. Gross, but it makes the test a bit easier
