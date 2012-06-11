@@ -1351,7 +1351,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
             @Override
             public void run(ClientResponseImpl parameter) {
-                FastSerializer fs = getOutgoingSerializer();
+                FastSerializer fs = new FastSerializer();
                 try {
                     BBContainer bb = fs.writeObjectForMessaging(parameter);
                     clientCallback.run(bb.b.array());
