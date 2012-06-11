@@ -198,6 +198,9 @@ final class ClientImpl implements Client {
         m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
 
         try {
+            if (trace.get())
+                LOG.trace(String.format("Waiting for response for %s txn [clientHandle=%d]",
+                                        procName, invocation.getClientHandle()));
             cb.waitForResponse();
         } catch (final InterruptedException e) {
             throw new java.io.InterruptedIOException("Interrupted while waiting for response");

@@ -1,6 +1,6 @@
 package edu.brown.hstore.callbacks;
 
-import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -22,7 +22,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
     
     private HStoreSite hstore_site;
-    protected RpcCallback<byte[]> orig_callback;
+    protected RpcCallback<ClientResponseImpl> orig_callback;
 
     /**
      * Default Constructor
@@ -31,7 +31,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
         this.hstore_site = hstore_site;
     }
     
-    public void init(RpcCallback<byte[]> orig_callback) {
+    public void init(RpcCallback<ClientResponseImpl> orig_callback) {
         this.orig_callback = orig_callback;
     }
 
@@ -49,21 +49,17 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     public void run(TransactionRedirectResponse parameter) {
         if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
                                                           HStoreThreadManager.formatSiteName(parameter.getSenderSite()), parameter.getOutput().size()));
-        byte data[] = parameter.getOutput().toByteArray();
+        
+        // HACK: we h
+        ByteBuffer data = parameter.getOutput().asReadOnlyByteBuffer();
+        FastDeserializer fds = new FastDeserializer(data);
+        ClientResponseImpl cresponse = null;
         try {
-            this.orig_callback.run(data);
+            cresponse = fds.readObject(ClientResponseImpl.class);
+            this.orig_callback.run(cresponse);
         } catch (Throwable ex) {
-            FastDeserializer fds = new FastDeserializer(data);
-            ClientResponseImpl cresponse = null;
-            long txn_id = -1;
-            try {
-                cresponse = fds.readObject(ClientResponseImpl.class);
-                txn_id = cresponse.getTransactionId();
-            } catch (IOException e) {
-                LOG.fatal("We're really falling apart here!", e);
-            }
-            LOG.fatal("Failed to forward ClientResponse data back for txn #" + txn_id, ex);
-            // throw ex;
+            LOG.fatal("Failed to forward ClientResponse data back!", ex);
+            throw new RuntimeException(ex);
         } finally {
             try {
                 this.finish();

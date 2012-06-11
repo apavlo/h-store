@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Database;
@@ -199,7 +200,7 @@ public class TransactionInitializer {
                                      int base_partition,
                                      Procedure catalog_proc,
                                      ParameterSet procParams,
-                                     RpcCallback<byte[]> done) {
+                                     RpcCallback<ClientResponseImpl> done) {
         
         if (d) LOG.debug(String.format("Incoming %s transaction request " +
         		                       "[handle=%d, partition=%d]",
@@ -273,7 +274,7 @@ public class TransactionInitializer {
                                     int base_partition,
                                     Procedure catalog_proc,
                                     ParameterSet params,
-                                    RpcCallback<byte[]> client_callback) {
+                                    RpcCallback<ClientResponseImpl> client_callback) {
         
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();

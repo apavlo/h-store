@@ -38,7 +38,6 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -209,7 +208,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Final RpcCallback to the client
      */
-    private RpcCallback<byte[]> client_callback;
+    private RpcCallback<ClientResponseImpl> client_callback;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -254,7 +253,7 @@ public class LocalTransaction extends AbstractTransaction {
                                   boolean predict_abortable,
                                   Procedure catalog_proc,
                                   ParameterSet params,
-                                  RpcCallback<byte[]> client_callback) {
+                                  RpcCallback<ClientResponseImpl> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
@@ -343,8 +342,8 @@ public class LocalTransaction extends AbstractTransaction {
                                       Procedure catalog_proc,
                                       Object... proc_params) {
         this.parameters = new ParameterSet(proc_params);
-        this.client_callback = new RpcCallback<byte[]>() {
-            public void run(byte[] parameter) {}
+        this.client_callback = new RpcCallback<ClientResponseImpl>() {
+            public void run(ClientResponseImpl parameter) {}
         };
         return this.testInit(txn_id,
                               base_partition,
@@ -665,7 +664,7 @@ public class LocalTransaction extends AbstractTransaction {
      * Return the original callback that will send the final results back to the client
      * @return
      */
-    public RpcCallback<byte[]> getClientCallback() {
+    public RpcCallback<ClientResponseImpl> getClientCallback() {
         return (this.client_callback);
     }
     

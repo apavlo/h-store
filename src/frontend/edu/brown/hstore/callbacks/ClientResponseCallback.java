@@ -3,9 +3,8 @@
  */
 package edu.brown.hstore.callbacks;
 
-import java.nio.ByteBuffer;
-
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.network.Connection;
 
 import com.google.protobuf.RpcCallback;
@@ -17,7 +16,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 /**
  * @author pavlo
  */
-public class ClientResponseCallback implements RpcCallback<byte[]> {
+public class ClientResponseCallback implements RpcCallback<ClientResponseImpl> {
     private static final Logger LOG = Logger.getLogger(ClientResponseCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -37,11 +36,12 @@ public class ClientResponseCallback implements RpcCallback<byte[]> {
     
     
     @Override
-    public void run(byte[] parameter) {
-        LOG.info("Sending back ClientResponse to " + this.conn.getHostname());
-        
-        // TODO: Switch to direct ByteBuffer input
-        this.conn.writeStream().enqueue(ByteBuffer.wrap(parameter));
+    public void run(ClientResponseImpl parameter) {
+        LOG.info("Sending back ClientResponse to " + this.conn.getHostname() + "\n" + parameter);
+        boolean ret = this.conn.writeStream().enqueue(parameter);
+        if (ret == false) {
+            throw new RuntimeException("Unable to write ClientResponse on output stream?");
+        }
         this.clientInterface.reduceBackpressure(this.messageSize);
     }
 

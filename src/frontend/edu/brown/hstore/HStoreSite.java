@@ -257,7 +257,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TransactionPreProcessor Threads
      */
     private final List<TransactionPreProcessor> preProcessors;
-    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> preProcessorQueue;
+    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> preProcessorQueue;
     
     /**
      * TransactionPostProcessor Thread
@@ -573,7 +573,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         List<TransactionPreProcessor> _preProcessors = null;
         List<TransactionPostProcessor> _postProcessors = null;
-        BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> _preQueue = null;
+        BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> _preQueue = null;
         BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> _postQueue = null;
         
         if (hstore_conf.site.exec_preprocessing_threads || hstore_conf.site.exec_postprocessing_threads) {
@@ -622,7 +622,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_preProcessors,
                                                    TransactionPreProcessor.class.getSimpleName()));
                     _preProcessors = new ArrayList<TransactionPreProcessor>();
-                    _preQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>>();
+                    _preQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>>();
                     for (int i = 0; i < num_preProcessors; i++) {
                         TransactionPreProcessor t = new TransactionPreProcessor(this, _preQueue);
                         _preProcessors.add(t);
@@ -1075,6 +1075,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Start VoltNetwork
         t = new Thread(this.voltNetwork);
+        t.setName(HStoreThreadManager.getThreadName(this, "voltnetwork"));
         t.setDaemon(true);
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
@@ -1340,7 +1341,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     @Override
-    public void queueInvocation(ByteBuffer buffer, RpcCallback<byte[]> clientCallback) {
+    public void queueInvocation(ByteBuffer buffer, RpcCallback<ClientResponseImpl> clientCallback) {
         if (this.preProcessorQueue != null) {
             this.preProcessorQueue.add(Pair.of(buffer, clientCallback));
         } else {
@@ -1348,7 +1349,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
-    public void processInvocation(ByteBuffer buffer, RpcCallback<byte[]> clientCallback) {
+    public void processInvocation(ByteBuffer buffer, RpcCallback<ClientResponseImpl> clientCallback) {
         if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
             if (hstore_conf.site.network_profiling) {
@@ -1509,7 +1510,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private boolean processSysProc(long client_handle,
                                      Procedure catalog_proc,
                                      ParameterSet params,
-                                     RpcCallback<byte[]> done) {
+                                     RpcCallback<ClientResponseImpl> done) {
         
         // -------------------------------
         // SHUTDOWN
@@ -1522,13 +1523,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                   Status.OK,
                                                                   HStoreConstants.EMPTY_RESULT,
                                                                   "");
-            FastSerializer fs = new FastSerializer();
-            try {
-                fs.writeObject(cresponse);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            done.run(fs.getBytes());
+            done.run(cresponse);
 
             // Non-blocking....
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
@@ -1560,13 +1555,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                           Status.ABORT_GRACEFUL,
                                                                           HStoreConstants.EMPTY_RESULT,
                                                                           msg);
-                FastSerializer fs = new FastSerializer();
-                try {
-                    fs.writeObject(errorResponse);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                done.run(fs.getBytes());
+                done.run(errorResponse);
                 return (true);
             }
             
@@ -2020,7 +2009,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionRedirect(Procedure catalog_proc,
                                      ByteBuffer serializedRequest,
                                      int base_partition,
-                                     RpcCallback<byte[]> done) {
+                                     RpcCallback<ClientResponseImpl> done) {
         if (d) LOG.debug(String.format("Forwarding %s request to partition %d", catalog_proc.getName(), base_partition));
         
         // Make a wrapper for the original callback so that when the result comes back frm the remote partition
@@ -2344,7 +2333,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param logTxn
      */
     public void sendClientResponse(ClientResponseImpl cresponse,
-                                    RpcCallback<byte[]> clientCallback,
+                                    RpcCallback<ClientResponseImpl> clientCallback,
                                     long initiateTime,
                                     int restartCounter) {
         Status status = cresponse.getStatus();
@@ -2363,34 +2352,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         EstTimeUpdater.update(now);
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
-        
-        // So we have a bit of a problem here.
-        // It would be nice if we could use the BufferPool to get a block of memory so
-        // that we can serialize the ClientResponse out to a byte array
-        // Since we know what we're doing here, we can just free the memory back to the
-        // buffer pool once we call deleteTransaction()
-        // The problem is that we need access to the underlying array of the ByteBuffer,
-        // but we can't get that from here.
-        byte bytes[] = null;
-        FastSerializer out = this.getOutgoingSerializer(); 
-        try {
-            out.writeObject(cresponse);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        bytes = out.getBytes();
-        if (d) LOG.debug(String.format("%d - Serialized ClientResponse [throttle=%s, requestCtr=%d]",
-                                       cresponse.getTransactionId(),
-                                       cresponse.getThrottleFlag(),
-                                       cresponse.getRequestCounter()));
-        
-        // Send result back to client!
-        try {
-            clientCallback.run(bytes);
-        } catch (CancelledKeyException ex) {
-            // IGNORE
-        }
-        out.clear();
+        clientCallback.run(cresponse);
     }
     
     /**

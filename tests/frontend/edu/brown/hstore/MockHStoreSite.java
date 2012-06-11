@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -42,7 +43,7 @@ public class MockHStoreSite extends HStoreSite {
         boolean predict_canAbort = true;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");
         ParameterSet params = new ParameterSet();
-        RpcCallback<byte[]> client_callback = null;
+        RpcCallback<ClientResponseImpl> client_callback = null;
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
         ts.init(txnId, clientHandle, base_partition,
