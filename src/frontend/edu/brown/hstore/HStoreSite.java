@@ -558,6 +558,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                          "Disabling transaction pre/post processing threads");
                 hstore_conf.site.exec_preprocessing_thread = false;
                 hstore_conf.site.exec_postprocessing_thread = false;
+                this.preProcessorQueue = null;
+                this.postProcessorQueue = null;
             } else {
                 int num_preProcessors = 0;
                 int num_postProcessors = 0;
@@ -584,10 +586,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_preProcessors,
                                                    TransactionPreProcessor.class.getSimpleName()));
                     _preProcessors = new ArrayList<TransactionPreProcessor>();
+                    this.preProcessorQueue = new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
                     for (int i = 0; i < num_preProcessors; i++) {
                         TransactionPreProcessor t = new TransactionPreProcessor(this, this.preProcessorQueue);
                         _preProcessors.add(t);
                     } // FOR
+                } else {
+                    this.preProcessorQueue = null;
                 }
                 // Initialize TransactionPostProcessors
                 if (num_postProcessors > 0) {
@@ -596,25 +601,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_postProcessors,
                                                    TransactionPostProcessor.class.getSimpleName()));
                     _postProcessors = new ArrayList<TransactionPostProcessor>();
+                    this.postProcessorQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
                     for (int i = 0; i < num_postProcessors; i++) {
                         TransactionPostProcessor t = new TransactionPostProcessor(this, this.postProcessorQueue);
                         _postProcessors.add(t);
                     } // FOR
+                } else {
+                    this.postProcessorQueue = null;
                 }
             }
-        }
-        this.preProcessors = _preProcessors;
-        if (this.preProcessors != null) {
-            this.preProcessorQueue = new LinkedBlockingQueue<Pair<byte[],RpcCallback<byte[]>>>();    
         } else {
             this.preProcessorQueue = null;
-        }
-        this.postProcessors = _postProcessors;
-        if (this.postProcessors != null) {
-            this.postProcessorQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
-        } else {
             this.postProcessorQueue = null;
         }
+        this.preProcessors = _preProcessors;
+        this.postProcessors = _postProcessors;
         
         // -------------------------------
         // TRANSACTION ESTIMATION
