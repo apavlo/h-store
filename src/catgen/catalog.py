@@ -64,7 +64,7 @@ def genjava( classes, prepath, postpath, package ):
     # SETUP
     ##########
     pkgdir = package.replace('.', '/')
-    os.system( interp( "rm -drf $postpath/*", locals() ) )
+    os.system( interp( "rm -rf $postpath/*", locals() ) )
     os.system( interp( "mkdir -p $postpath/", locals() ) )
     os.system( interp( "cp $prepath/Catalog.java $postpath", locals() ) )
     os.system( interp( "cp $prepath/CatalogType.java $postpath", locals() ) )
@@ -198,7 +198,7 @@ def gencpp( classes, prepath, postpath ):
     ##########
     # SETUP
     ##########
-    os.system( interp( "rm -drf $postpath/*", locals() ) )
+    os.system( interp( "rm -rf $postpath/*", locals() ) )
     os.system( interp( "mkdir -p $postpath/", locals() ) )
     os.system( interp( "cp $prepath/catalog.h $postpath", locals() ) )
     os.system( interp( "cp $prepath/catalogtype.h $postpath", locals() ) )
