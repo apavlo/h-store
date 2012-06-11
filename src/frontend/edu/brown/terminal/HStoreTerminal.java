@@ -19,6 +19,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -228,16 +229,30 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
                     
                     // Check if the first token is one of our special keywords
                     String tokens[] = SPLITTER.split(query);
-                    if (tokens[0].equalsIgnoreCase("EXEC")) {
-                        // The second position should be the name of the procedure
-                        // that they want to execute
-                        cresponse = this.execProcedure(client, tokens[1], query);
-                        
-                    // Otherwise we'll send it to the server to deal with as
-                    // an ad-hoc query
-                    } else {
-                        cresponse = this.execQuery(client, query);
-                    }
+                    
+                    int retries = 3;
+                    while (retries-- > 0) {
+                        try {
+                            if (tokens[0].equalsIgnoreCase("EXEC")) {
+                                // The second position should be the name of the procedure
+                                // that they want to execute
+                                cresponse = this.execProcedure(client, tokens[1], query);
+                                
+                            // Otherwise we'll send it to the server to deal with as
+                            // an ad-hoc query
+                            } else {
+                                cresponse = this.execQuery(client, query);
+                            }
+                            break;
+                        } catch (NoConnectionsException ex) {
+                            LOG.warn("Connection lost. Going to try to connect again...");
+                            Thread.sleep(2000);
+                            p = this.getClientConnection();
+                            client = p.getFirst();
+                            catalog_site = p.getSecond(); 
+                            continue;
+                        }
+                    } // WHILE
                     
                     // Just print out the result
                     if (cresponse != null) {
