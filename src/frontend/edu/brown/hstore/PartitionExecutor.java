@@ -2227,7 +2227,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             throw ex;
         } catch (Throwable ex) {
             error = ex;
-            new ServerFaultException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
+            throw new ServerFaultException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
         } finally {
             if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
             if (error == null && result == null) {
@@ -2917,7 +2917,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 }
                 timeout = true;
             } catch (Throwable ex) {
-                new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
+                throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
                 if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
