@@ -12,8 +12,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
@@ -58,22 +58,13 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
         assert (request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d",
+            LOG.debug(String.format("Got %s for txn #%d",
                       request.getClass().getSimpleName(), txn_id));
         
-        // Deserialize the StoredProcedureInvocation object
-//        StoredProcedureInvocation invocation = null;
-//        try {
-//            invocation = FastDeserializer.deserialize(request.getInvocation().toByteArray(), StoredProcedureInvocation.class);
-//        } catch (Exception ex) {
-//            throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
-//        }
-        
         MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
-        
         assert(mr_ts != null);
-        if(debug.get()) 
-            LOG.debug("__FILE__:__LINE__ " + String.format("TXN: %s, [Stage], [Site] %d",mr_ts,hstore_site.getSiteId())); 
+        if (debug.get()) 
+            LOG.debug(String.format("TXN: %s, [Stage], [Site] %d",mr_ts,hstore_site.getSiteId())); 
        
         
         mr_ts.initTransactionReduceWrapperCallback(callback);
@@ -83,13 +74,14 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
         
         assert(mr_ts.isReducePhase());
         
-        LOG.info("After init initTransactionReduceWrapperCallback.......");
+        if (debug.get())
+            LOG.debug("After init initTransactionReduceWrapperCallback.......");
         
         /*
          * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
          * This is to avoid the double invoke for remote task. 
          * */
-        if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
+        if(hstore_site.getHStoreConf().site.mr_reduce_blocking) {
             for (int partition : hstore_site.getLocalPartitionIds()) {
                 if (partition != mr_ts.getBasePartition()) { 
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
@@ -98,7 +90,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
             } // FOR
         } else {
             // non-blocking way of execution for Reduce
-            mr_ts.setBasePartition_Runed(true);
+            mr_ts.setBasePartition_reduce_runed(true);
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
         

@@ -27,51 +27,65 @@ package edu.brown.hstore.wal;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 /**
  * @author mkirsch
+ * @author pavlo
  */
 public class TestCommandLogger extends BaseTestCase {
     
     static final AtomicLong TXN_ID = new AtomicLong(1000);
     static final int BASE_PARTITION = 0;
-    static final Class<? extends VoltProcedure> TARGET_PROC = UpdateLocation.class;
-    static final Object TARGET_PARAMS[] = new Object[]{ 12345l, "ABCDEF" };
+    
+    @SuppressWarnings("unchecked")
+    static final Class<? extends VoltProcedure>[] TARGET_PROC = (Class<? extends VoltProcedure>[])new Class<?>[]{
+        UpdateLocation.class,
+        UpdateSubscriberData.class
+    };
+    static final Object TARGET_PARAMS[][] = new Object[][]{{ 12345l, "ABCDEF"},{ 666l, 777l, 888l, 999l}};
     
     HStoreSite hstore_site; 
     CommandLogWriter logger;
-    Procedure catalog_proc;
+    Procedure catalog_proc[];
     File outputFile;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        
-        this.catalog_proc = this.getProcedure(TARGET_PROC);
+        this.catalog_proc = new Procedure[2];
+        this.catalog_proc[0] = this.getProcedure(TARGET_PROC[0]);
+        this.catalog_proc[1] = this.getProcedure(TARGET_PROC[1]);
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         HStoreConf hstore_conf = HStoreConf.singleton();
+        hstore_conf.site.exec_command_logging_group_commit = 2;
+        hstore_conf.site.exec_command_logging_group_commit_timeout = 5000000;
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
+        assert(hstore_site.isLocalPartition(0));
         
-        outputFile = new File("/tmp/mkisrsch.txt");
-        logger = new CommandLogWriter(hstore_site, outputFile.getAbsolutePath());
+        outputFile = FileUtil.getTempFile("log");
+        logger = new CommandLogWriter(hstore_site, outputFile);
     }
 
     @Override
@@ -81,32 +95,46 @@ public class TestCommandLogger extends BaseTestCase {
     }
     
     @Test
-    public void testSimpleTest() {
-//        // Write out a new txn invocation to the log
-//        LocalTransaction ts = new LocalTransaction(hstore_site);
-//        long txnId = TXN_ID.incrementAndGet(); 
-//        ts.testInit(txnId,
-//                    BASE_PARTITION,
-//                    Collections.singleton(BASE_PARTITION),
-//                    catalog_proc);
-//        boolean ret = logger.write(ts);
-//        assertTrue(ret);
-//        logger.shutdown(); // This closes the file
-//        
-//        // Now read in the file back in and check to see that we have one
-//        // entry that has our expected information
-//        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
-//        int ctr = 0;
-//        for (LogEntry entry : reader) {
-//            assertNotNull(entry);
-//            assertEquals(txnId, entry.txnId.longValue());
-//            // TODO: Do this check for all the others
-//            
-//            ctr++;
-//        }
-//        assertEquals(1, ctr);
+    public void testWithGroupCommit() {
+        // Write out a new txn invocation to the log
+        long txnId[] = new long[2];
+        for (int i = 0; i < 2; i++) {
+            LocalTransaction ts = new LocalTransaction(hstore_site);
+            txnId[i] = TXN_ID.incrementAndGet(); 
+            ts.testInit(new Long(txnId[i]),
+                        BASE_PARTITION,
+                        Collections.singleton(BASE_PARTITION),
+                        catalog_proc[i],
+                        TARGET_PARAMS[i]);
+            
+            ClientResponseImpl cresponse = new ClientResponseImpl(txnId[i],
+                                                                  0l,
+                                                                  BASE_PARTITION,
+                                                                  Status.OK,
+                                                                  HStoreConstants.EMPTY_RESULT,
+                                                                  "");
+            boolean ret = logger.appendToLog(ts, cresponse);
+            assertFalse(ret);
+        }
+        logger.finishAndPrepareShutdown(); //This makes sure everything is written to the file
+        logger.shutdown(); // This closes the file
         
-        
-        
+        // Now read in the file back in and check to see that we have two
+        // entries that have our expected information
+        CommandLogReader reader = new CommandLogReader(outputFile.getAbsolutePath());
+        int ctr = 0;
+        for (LogEntry entry : reader) {
+            assertNotNull(entry);
+            assertEquals(txnId[ctr], entry.txnId.longValue());
+            assertEquals(catalog_proc[ctr].getId(), entry.procId);
+            
+            Object[] entryParams = entry.procParams.toArray();
+            assertEquals(TARGET_PARAMS[ctr].length, entryParams.length);
+            for (int i = 0; i < TARGET_PARAMS[ctr].length; i++)
+                assertEquals(TARGET_PARAMS[ctr][i], entryParams[i]);
+            
+            ctr++;
+        }
+        assertEquals(txnId.length, ctr);
     }
 }

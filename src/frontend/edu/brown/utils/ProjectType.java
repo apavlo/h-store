@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum ProjectType {
+
     TPCC("TPC-C", "org.voltdb.benchmark.tpcc"),
     TPCE("TPC-E", "edu.brown.benchmark.tpce"),
     TM1("TM1", "edu.brown.benchmark.tm1"),
@@ -41,10 +42,14 @@ public enum ProjectType {
     BINGO("Bingo", "org.voltdb.benchmark.bingo"),
     AUCTIONMARK("AuctionMark", "edu.brown.benchmark.auctionmark"),
     LOCALITY("Locality", "edu.brown.benchmark.locality"),
-    MAPREDUCE("MapReduce", "edu.brown.benchmark.mapreduce"), 
+    MAPREDUCE("MapReduce", "edu.brown.benchmark.mapreduce"),
+    WIKIPEDIA("Wikipedia", "edu.brown.benchmark.wikipedia"),
+    YCSB("YCSB", "edu.brown.benchmark.ycsb"), 
+    VOTER("Voter", "edu.brown.benchmark.voter"),
     EXAMPLE("Example", "edu.brown.benchmark.example"),
     TEST("Test", null),
     ;
+
 
     private final String package_name;
     private final String benchmark_name;

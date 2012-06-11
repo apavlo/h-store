@@ -89,11 +89,14 @@ import org.voltdb.sysprocs.NoOp;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -103,9 +106,6 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.conf.HStoreConf;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
@@ -146,9 +146,9 @@ public class BenchmarkController {
     final ProcessSetManager m_sitePSM;
     
     BenchmarkResults m_currentResults = null;
-    final Set<String> m_clients = new HashSet<String>();
-    final Set<String> m_clientThreads = new HashSet<String>();
-    final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
+    final List<String> m_clients = new ArrayList<String>();
+    final List<String> m_clientThreads = new ArrayList<String>();
+    final List<ClientStatusThread> m_statusThreads = new ArrayList<ClientStatusThread>();
     final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     
     Thread self = null;
@@ -335,6 +335,24 @@ public class BenchmarkController {
     public boolean compileBenchmark() {
         if (m_config.hosts.length == 0) {
             m_config.hosts = new String[] { hstore_conf.global.defaulthost };
+        }
+        
+        if (m_config.deferrable != null) {
+            for (String entry : m_config.deferrable) {
+                String parts[] = entry.split("\\.");
+                assert(parts.length == 2) :
+                    "Invalid deferrable entry '" + entry + "'";
+                
+                String procName = parts[0];
+                String stmtName = parts[1];
+                assert(procName.isEmpty() == false) :
+                    "Invalid procedure name in deferrable entry '" + entry + "'";
+                assert(stmtName.isEmpty() == false) :
+                    "Invalid statement name in deferrable entry '" + entry + "'";
+                m_projectBuilder.markStatementDeferrable(procName, stmtName);
+                if (debug.get()) LOG.debug(String.format("Marking %s.%s as deferrable in %s",
+                                                         procName, stmtName, this.getProjectName())); 
+            } // FOR
         }
         
         boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
@@ -707,10 +725,31 @@ public class BenchmarkController {
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Client local_client = (m_clientFileUploader.hasFilesToSend() ? getClientConnection(): null);
+        
+        // Add all of the client hostnames in our list first so that we can check
+        // to see whether we have duplicates. If so, then we'll make sure that
+        // their hostnames are unique in our results print outs
+        Histogram<String> clientNames = new Histogram<String>();
+        for (String clientHost : m_config.clients) {
+            clientNames.put(clientHost.trim());
+        } // FOR
+        Histogram<String> clientNamesIdxs = new Histogram<String>();
+        
         for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
-            final String clientHost = m_config.clients[host_idx];
-            m_clients.add(clientHost);
-            final String host_id = clientHost;
+            // The clientHost is the hostname that we actaully need to run on
+            final String clientHost = m_config.clients[host_idx].trim();
+            
+            // The clientHostId is a unique identifier for a single invocation
+            // on the clientHost. This is needed so that we can have multiple 
+            // JVMs running at the same host
+            String _hostId = clientHost;
+            if (clientNames.get(clientHost) > 1) {
+                int ctr = (int)clientNamesIdxs.get(clientHost, 0l);
+                _hostId = String.format("%s-%02d", clientHost, ctr);
+                clientNamesIdxs.put(clientHost);
+            }
+            final String clientHostId = _hostId;
+            m_clients.add(clientHostId);
             
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
             final List<Integer> clientIds = new ArrayList<Integer>();
@@ -751,21 +790,29 @@ public class BenchmarkController {
                     String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
                     String fullCommand = StringUtil.join(" ", args);
     
-                    resultsUploader.setCommandLineForClient(host_id, fullCommand);
+                    resultsUploader.setCommandLineForClient(clientHostId, fullCommand);
                     if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
-                    m_clientPSM.startProcess(host_id, args);
+                    m_clientPSM.startProcess(clientHostId, args);
                 }
             });
         } // FOR
-        ThreadUtil.runGlobalPool(runnables);
         m_clientsNotReady.set(m_clientThreads.size());
         assert(m_clientThreads.size() == totalNumClients) :
             String.format("%d != %d", m_clientThreads.size(), totalNumClients);
+        
+        // Let 'er rip!
+        ThreadUtil.runGlobalPool(runnables);
 
-        boolean output_clients = hstore_conf.client.output_clients;
-        boolean output_basepartitions = hstore_conf.client.output_basepartitions;
-        ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
-                                                   new ResultsPrinter(output_clients, output_basepartitions));
+        ResultsPrinter rp = null;
+        if (m_config.jsonOutput) {
+            rp = new JSONResultsPrinter(hstore_conf.client.output_clients,
+                                        hstore_conf.client.output_basepartitions,
+                                        hstore_conf.client.output_response_status);
+        } else {
+            rp = new ResultsPrinter(hstore_conf.client.output_clients,
+                                    hstore_conf.client.output_basepartitions,
+                                    hstore_conf.client.output_response_status);
+        }
         this.registerInterest(rp);
         
         if (m_config.killOnZeroResults) {
@@ -871,6 +918,9 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
+        m_currentResults.setEnableBasePartitions(hstore_conf.client.output_basepartitions);
+        m_currentResults.setEnableResponsesStatuses(hstore_conf.client.output_response_status);
+        
         EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
         eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             final EventObservable<String> inner = new EventObservable<String>();
@@ -914,7 +964,7 @@ public class BenchmarkController {
 
         // start up all the clients
         for (String clientName : m_clients)
-            m_clientPSM.writeToProcess(clientName, Command.START);
+            m_clientPSM.writeToProcess(clientName, ControlCommand.START);
 
         // Warm-up
         Client local_client = null;
@@ -948,7 +998,7 @@ public class BenchmarkController {
                 
                 // Reset the counters
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.CLEAR);
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.CLEAR);
                 
                 LOG.info("Starting benchmark stats collection");
             }
@@ -964,9 +1014,9 @@ public class BenchmarkController {
                 m_pollIndex++;
 
                 // make all the clients poll
-                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
+                if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", ControlCommand.POLL, m_clients.size()));
                 for (String clientName : m_clients)
-                    m_clientPSM.writeToProcess(clientName, Command.POLL);
+                    m_clientPSM.writeToProcess(clientName, ControlCommand.POLL);
 
                 // get ready for the next interval
                 nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
@@ -990,7 +1040,7 @@ public class BenchmarkController {
             assert(m_config.dumpDatabaseDir != null);
             
             // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(Command.PAUSE);
+            m_clientPSM.writeToAll(ControlCommand.PAUSE);
             
             if (local_client == null) local_client = this.getClientConnection();
             try {
@@ -1003,7 +1053,7 @@ public class BenchmarkController {
         // Recompute MarkovGraphs
         if (m_config.markovRecomputeAfterEnd && this.stop == false) {
             // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(Command.PAUSE);
+            m_clientPSM.writeToAll(ControlCommand.PAUSE);
             
             if (local_client == null) local_client = this.getClientConnection();
             this.recomputeMarkovs(local_client);
@@ -1017,10 +1067,10 @@ public class BenchmarkController {
         boolean first = true;
         for (String clientName : m_clients) {
             if (first && m_config.noShutdown == false) {
-                m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
+                m_clientPSM.writeToProcess(clientName, ControlCommand.SHUTDOWN);
                 first = false;
             } else {
-                m_clientPSM.writeToProcess(clientName, Command.STOP);
+                m_clientPSM.writeToProcess(clientName, ControlCommand.STOP);
             }
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
@@ -1048,7 +1098,9 @@ public class BenchmarkController {
             
             // Print out the final results
 //            if (debug.get())
-                LOG.info("Computing final benchmark results");
+            if (hstore_conf.client.output_basepartitions || hstore_conf.client.output_response_status) {
+                LOG.info("Computing final benchmark results...");
+            }
             for (BenchmarkInterest interest : m_interested) {
                 String finalResults = interest.formatFinalResults(m_currentResults);
                 if (finalResults != null) System.out.println(finalResults);
@@ -1277,6 +1329,9 @@ public class BenchmarkController {
         boolean markov_recomputeAfterEnd = false;
         boolean markov_recomputeAfterWarmup = false;
         
+        // Deferrable Queries
+        String deferrable[] = null;
+        
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
         
@@ -1457,6 +1512,14 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
+                
+            /*
+             * List of deferrable queries
+             * Format: <ProcedureName>.<StatementName>
+             */
+            } else if (parts[0].equalsIgnoreCase("DEFERRABLE")) {
+                if (debug.get()) LOG.debug("DEFERRABLE: " + parts[1]);
+                deferrable = parts[1].split(",");
             
             /* Disable starting the database cluster  */
             } else if (parts[0].equalsIgnoreCase("NOSITES")) {
@@ -1645,6 +1708,7 @@ public class BenchmarkController {
                 markov_thresholdsValue,
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
+                deferrable,
                 dumpDatabase,
                 dumpDatabaseDir,
                 jsonOutput

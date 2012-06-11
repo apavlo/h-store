@@ -78,6 +78,15 @@ public final class HStoreConf {
             experimental=true
         )
         public String hasherClass;
+        
+        @ConfigProperty(
+            description="How often in milliseconds the log4j refresh thread will check to see " +
+            		    "whether the log4j.properties file has changed. We have to do this manually " +
+            		    "because Java doesn't have the ability to get a callback when a file changes.",
+            defaultInt=30000,
+            experimental=false
+        )
+        public int log_refresh;
     }
     
     // ============================================================================
@@ -147,9 +156,9 @@ public final class HStoreConf {
         public int exec_ee_log_level;
         
         @ConfigProperty(
-            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor thread" +
-                        "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
-                        "waiting for work to be added to its queue).",
+            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor " +
+            		    "thread is during execution (i.e., the percentage of time that it spends executing a " +
+            		    "transaction versus waiting for work to be added to its queue).",
             defaultBoolean=false,
             experimental=false
         )
@@ -270,6 +279,13 @@ public final class HStoreConf {
         public int exec_postprocessing_thread_count;
         
         @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_postprocessing_thread_per_partition;
+        
+        @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
                         "successful transactions that were speculatively executed.",
@@ -296,23 +312,48 @@ public final class HStoreConf {
         public boolean exec_validate_work;
 
         @ConfigProperty(
-            description="If enabled, log all transaction requests to a file",
+            description="If enabled, log all transaction requests to disk",
             defaultBoolean=false,
             experimental=true
         )
         public boolean exec_command_logging;
         
         @ConfigProperty(
-            description="",
-            defaultString="/tmp/hstore.wal",
+            description="Directory for storage of command logging files",
+            defaultString="${global.temp_dir}/wal",
             experimental=true
         )
-        public String exec_command_logging_file;
+        public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
         
         @ConfigProperty(
-            description="If enabled, support ad hoc queries",
+            description="Transactions to queue before flush for group commit command logging optimization (0 = no group commit)",
+            defaultInt=0,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit;
+        
+        @ConfigProperty(
+            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
+            defaultInt=500,
+            experimental=true
+        )
+        public int exec_command_logging_group_commit_timeout;
+        
+        @ConfigProperty(
+            description="If enabled, then the CommandLogWriter will keep track of various internal " +
+            		    "profile statistics.",
             defaultBoolean=false,
             experimental=true
+        )
+        public boolean exec_command_logging_profile;
+        
+        @ConfigProperty(
+            description="Setting this configuration parameter to true allows clients to " +
+                        "issue ad hoc query requests use the @AdHoc sysproc. This should be " +
+                        "set to false if you are running benchmarking experiments because it " +
+                        "will reduce the number of threads that are started per HStoreSite.",
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean exec_adhoc_sql;
         
@@ -324,6 +365,14 @@ public final class HStoreConf {
         )
         public boolean exec_prefetch_queries;
         
+        @ConfigProperty(
+            description="If this parameter is enabled, then the DBMS will queue up any single-partitioned " +
+            		    "queries for later execution if they are marked as deferrable.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_deferrable_queries;
+        
         // ----------------------------------------------------------------------------
         // MapReduce Options
         // ----------------------------------------------------------------------------
@@ -333,8 +382,27 @@ public final class HStoreConf {
                 defaultBoolean=true,
                 experimental=true
         )
-        public boolean mapreduce_reduce_blocking;
-       
+        public boolean mr_map_blocking;
+        
+        @ConfigProperty(
+                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean mr_reduce_blocking;
+
+        // ----------------------------------------------------------------------------
+        // Networking Options
+        // ----------------------------------------------------------------------------
+
+        @ConfigProperty(
+            description="Enable profiling for the thread that listens for incoming client requests " +
+                        "over the network.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean network_profiling;
+        
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------
@@ -372,7 +440,10 @@ public final class HStoreConf {
         public int txn_restart_limit_sysproc;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If set to true, then the HStoreSite will use a separate TransactionIdManager" +
+            		    "per partition. This can reduce some lock contention for workloads where " +
+            		    "transactions are restarted a lot. This actually doesn't work very well, " +
+            		    "so you probably do not want to bother with this parameter.",
             defaultBoolean=false,
             experimental=true
         )
@@ -766,22 +837,22 @@ public final class HStoreConf {
         public boolean pool_profiling;
         
         @ConfigProperty(
-            description="The max number of LocalTransactionStates to keep in the pool",
-            defaultInt=5000,
+            description="The max number of LocalTransaction handles to keep in the pool per partition.",
+            defaultInt=150,
             experimental=false
         )
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of MapReduceTransactionStates to keep in the pool",
-            defaultInt=100,
+            description="The max number of MapReduceTransactionStates to keep in the pool per partition.",
+            defaultInt=10,
             experimental=false
         )
         public int pool_mapreducetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool",
-            defaultInt=500,
+            description="The max number of RemoteTransactionStates to keep in the pool per partition.",
+            defaultInt=200,
             experimental=false
         )
         public int pool_remotetxnstate_idle;
@@ -802,16 +873,8 @@ public final class HStoreConf {
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DependencyInfos to keep in the pool. " +
-                        "Should be the same as the number of MarkovPathEstimators. ",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_dependencyinfos_idle;
-        
-        @ConfigProperty(
-            description="The max number of DistributedStates to keep in the pool.",
-            defaultInt=500,
+            description="The max number of DistributedStates to keep in the pool per partition.",
+            defaultInt=200,
             experimental=false
         )
         public int pool_dtxnstates_idle;
@@ -825,7 +888,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
-            defaultInt=10000,
+            defaultInt=1000,
             experimental=false
         )
         public int pool_txnredirect_idle;
@@ -839,7 +902,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionInitCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         @Deprecated
@@ -847,26 +910,34 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false,
             replacedBy="site.pool_txninitqueue_idle"
         )
+        @Deprecated
         public int pool_txninitwrapper_idle;
         
         @ConfigProperty(
             description="The max number of TransactionInitQueueCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         public int pool_txninitqueue_idle;
         
         @ConfigProperty(
             description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
-            defaultInt=2500,
+            defaultInt=1000,
             experimental=false
         )
         @Deprecated
         public int pool_txnprepare_idle;
+        
+        @ConfigProperty(
+            description="The max number of ParameterSets to keep idle in the pool.",
+            defaultInt=1000,
+            experimental=false
+        )
+        public int pool_parametersets_idle;
     }
     
     // ============================================================================
@@ -942,6 +1013,13 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean processesperclient_per_partition;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean shared_connection;
 
         @ConfigProperty(
             description="Number of clients hosts to use in the benchmark run.",
@@ -1178,6 +1256,13 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean output_basepartitions;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_response_status;
         
         @ConfigProperty(
             description="",

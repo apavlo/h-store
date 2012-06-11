@@ -29,7 +29,6 @@ import org.voltdb.messaging.FastSerializer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -37,7 +36,7 @@ import edu.brown.utils.StringUtil;
  * procedure response in one FastSerialziable object.
  *
  */
-public class ClientResponseImpl implements FastSerializable, ClientResponse, Poolable {
+public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean setProperly = false;
     private Status status;
     private String statusString = null;
@@ -74,11 +73,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse, Poo
     }
 
     /**
-     * Another constructor for test and error responses
+     * 
+     * @param txn_id
      * @param client_handle
+     * @param basePartition
      * @param status
      * @param results
-     * @param extra
+     * @param statusString
      */
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString) {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);

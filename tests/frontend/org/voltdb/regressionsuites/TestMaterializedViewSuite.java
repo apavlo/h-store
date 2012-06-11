@@ -251,44 +251,45 @@ public class TestMaterializedViewSuite extends RegressionSuite {
         assert(results != null);
     }
 
-    public void testInsertAndOverflowSum() throws IOException, ProcCallException {
-        if (isHSQL()) {
-            return;
-        }
-        Client client = getClient();
-        int invocationIndex = 0;
-        VoltTable[] results = client.callProcedure("OverflowTest", 0, 0, invocationIndex++).getResults();
-        results = client.callProcedure("OverflowTest", 2, 0, invocationIndex++).getResults();
-        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
-        results[0].advanceRow();
-        long preRollbackValue = results[0].getLong(3);
-        boolean threwException = false;
-        try {
-            results = client.callProcedure("OverflowTest", 0, 0, invocationIndex++).getResults();
-        } catch (Exception e) {
-           threwException = true;
-        }
-        assertTrue(threwException);
-        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
-        results[0].advanceRow();
-        assertEquals(preRollbackValue, results[0].getLong(3));
-        preRollbackValue = 0;
-        threwException = false;
-        while (!threwException) {
-            try {
-                results = client.callProcedure("OverflowTest", 2, 0, invocationIndex++).getResults();
-                results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
-                results[0].advanceRow();
-                preRollbackValue = results[0].getLong(2);
-            } catch (Exception e) {
-                threwException = true;
-                break;
-            }
-        }
-        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
-        results[0].advanceRow();
-        assertEquals(preRollbackValue, results[0].getLong(2));
-    }
+// FIXME
+//    public void testInsertAndOverflowSum() throws IOException, ProcCallException {
+//        if (isHSQL()) {
+//            return;
+//        }
+//        Client client = getClient();
+//        int invocationIndex = 0;
+//        VoltTable[] results = client.callProcedure("OverflowTest", 0, 0, invocationIndex++).getResults();
+//        results = client.callProcedure("OverflowTest", 2, 0, invocationIndex++).getResults();
+//        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
+//        results[0].advanceRow();
+//        long preRollbackValue = results[0].getLong(3);
+//        boolean threwException = false;
+//        try {
+//            results = client.callProcedure("OverflowTest", 0, 0, invocationIndex++).getResults();
+//        } catch (Exception e) {
+//           threwException = true;
+//        }
+//        assertTrue(threwException);
+//        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
+//        results[0].advanceRow();
+//        assertEquals(preRollbackValue, results[0].getLong(3));
+//        preRollbackValue = 0;
+//        threwException = false;
+//        while (!threwException) {
+//            try {
+//                results = client.callProcedure("OverflowTest", 2, 0, invocationIndex++).getResults();
+//                results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
+//                results[0].advanceRow();
+//                preRollbackValue = results[0].getLong(2);
+//            } catch (Exception e) {
+//                threwException = true;
+//                break;
+//            }
+//        }
+//        results = client.callProcedure("OverflowTest", 1, 0, 0).getResults();
+//        results[0].advanceRow();
+//        assertEquals(preRollbackValue, results[0].getLong(2));
+//    }
 
     /**
      * Build a list of the tests that will be run when TestTPCCSuite gets run by JUnit.
@@ -345,9 +346,9 @@ public class TestMaterializedViewSuite extends RegressionSuite {
         // CONFIG #3: 1 Local Site/Partition running on HSQL backend
         /////////////////////////////////////////////////////////////
 
-        config = new LocalSingleProcessServer("matview-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-        config.compile(project);
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer("matview-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+//        config.compile(project);
+//        builder.addServerConfig(config);
 
         // Cluster
         config = new LocalCluster("matview-cluster.jar", 2, 2,

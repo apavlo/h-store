@@ -114,7 +114,12 @@ public class ProfileMeasurement implements JSONSerializable {
         this.total_time = 0;
     }
 
-    public <T> void resetOnEvent(EventObservable<T> e) {
+    /**
+     * Reset this ProfileMeasurements internal data when an update arrives
+     * for the given EventObservable
+     * @param e
+     */
+    public <T> void resetOnEventObservable(EventObservable<T> e) {
         e.addObserver(new EventObserver<T>() {
             @Override
             public void update(EventObservable<T> o, T arg) {
@@ -286,7 +291,7 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public ProfileMeasurement appendTime(ProfileMeasurement other) {
-        return (this.appendTime(other, true));
+        return (this.appendTime(other, false));
     }
 
     public void addThinkTime(long start, long stop, int invocations) {

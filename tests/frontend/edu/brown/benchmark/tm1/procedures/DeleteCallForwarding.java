@@ -44,9 +44,16 @@ import edu.brown.benchmark.tm1.TM1Constants;
 @ProcInfo(singlePartition = false)
 public class DeleteCallForwarding extends VoltProcedure {
 
-    public final SQLStmt query = new SQLStmt("SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?");
+    public final SQLStmt query = new SQLStmt(
+        "SELECT s_id " +
+        "  FROM " + TM1Constants.TABLENAME_SUBSCRIBER + 
+        " WHERE sub_nbr = ?"
+    );
 
-    public final SQLStmt update = new SQLStmt("DELETE FROM " + TM1Constants.TABLENAME_CALL_FORWARDING + " WHERE s_id = ? AND sf_type = ? AND start_time = ?");
+    public final SQLStmt update = new SQLStmt(
+        "DELETE FROM " + TM1Constants.TABLENAME_CALL_FORWARDING + 
+        " WHERE s_id = ? AND sf_type = ? AND start_time = ?"
+    );
 
     public long run(String sub_nbr, long sf_type, long start_time) {
         voltQueueSQL(query, sub_nbr);

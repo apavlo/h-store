@@ -336,7 +336,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen
         }
-        
+
         // Execute the plan, passing a raw pointer to the byte buffers for input and output
         deserializer.clear();
         final int errorCode = nativeExecuteQueryPlanFragmentsAndGetResults(pointer,

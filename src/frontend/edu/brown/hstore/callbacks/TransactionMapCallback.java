@@ -7,7 +7,7 @@ import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 
 /**
  * This callback waits until all of the TransactionMapResponses have come
@@ -53,7 +53,7 @@ public class TransactionMapCallback extends AbstractTransactionCallback<Transact
         mr_ts.setReducePhase();
         assert(mr_ts.isReducePhase());
         
-        if (hstore_site.getHStoreConf().site.mapreduce_reduce_blocking){
+        if (hstore_site.getHStoreConf().site.mr_reduce_blocking){
             if (debug.get())
                 LOG.debug(ts + ": $$$ normal reduce blocking execution way");
             // calling this hstore_site.transactionStart function will block the executing engine on each partition
