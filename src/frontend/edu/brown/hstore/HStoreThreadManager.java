@@ -47,12 +47,7 @@ public class HStoreThreadManager {
     private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
 //        HStoreConstants.THREAD_NAME_COMMANDLOGGER,
-        HStoreConstants.THREAD_NAME_LISTEN,
-        HStoreConstants.THREAD_NAME_LISTEN,
-        HStoreConstants.THREAD_NAME_LISTEN,
-        HStoreConstants.THREAD_NAME_LISTEN,
-        HStoreConstants.THREAD_NAME_LISTEN,
-        HStoreConstants.THREAD_NAME_LISTEN,
+//        HStoreConstants.THREAD_NAME_LISTEN,
     };
     
     // ----------------------------------------------------------------------------
@@ -98,6 +93,17 @@ public class HStoreThreadManager {
             }
         }
     }
+    
+    /**
+     * Return the total number of cores at this host
+     * Note that this does not take into consideration other sites that may 
+     * be running at the same host
+     * @return
+     */
+    public int getNumCores() {
+        return (this.num_cores);
+    }
+    
     
     /**
      * Set the CPU affinity for the EE thread executing for the given partition

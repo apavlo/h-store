@@ -259,7 +259,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public static interface Handler {
         public long getInstanceId();
-        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
+        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> clientCallback);
     }
 
     public static void main(String[] vargs) throws Exception {
