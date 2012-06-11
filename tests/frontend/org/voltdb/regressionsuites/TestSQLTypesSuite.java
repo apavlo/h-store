@@ -1088,11 +1088,13 @@ public class TestSQLTypesSuite extends RegressionSuite {
 */
         // JNI
         config = new LocalSingleProcessServer("sqltypes-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 
         // CLUSTER?
         config = new LocalCluster("sqltypes-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

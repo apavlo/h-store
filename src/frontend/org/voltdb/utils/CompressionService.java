@@ -126,6 +126,22 @@ public final class CompressionService {
         output.get(result);
         return result;
     }
+    public static ByteBuffer compressBufferForMessaging(ByteBuffer buffer) throws IOException {
+        assert(buffer.isDirect());
+        int lim = buffer.limit();
+        int pos = buffer.position();
+        int rem = buffer.remaining();
+        IOBuffers buffers = getBuffersForCompression(buffer.remaining(), true);
+        ByteBuffer output = buffers.output;
+
+        final int compressedSize = Snappy.compress(buffer, output);
+        ByteBuffer result = ByteBuffer.wrap(new byte[compressedSize + 4]);
+        result.putInt(compressedSize);
+        result.put(output);
+        result.flip();
+        
+        return result;
+    }
 
     public static byte[] compressBytes(byte bytes[], int offset, int length) throws IOException {
         IOBuffers buffers = getBuffersForCompression(bytes.length, false);

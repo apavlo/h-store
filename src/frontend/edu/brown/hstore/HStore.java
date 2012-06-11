@@ -67,7 +67,7 @@ public abstract class HStore {
     /**
      * Initialize the HStore server.
      */
-    public synchronized static HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
+    public synchronized static final HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
         singleton = new HStoreSite(catalog_site, hstore_conf);
         
         // For every partition in our local site, we want to setup a new ExecutionSite
@@ -148,13 +148,13 @@ public abstract class HStore {
     }
     
     /**
-     * Retrieve a reference to the object implementing VoltDBInterface.  When
-     * running a real server (and not a test harness), this instance will only
-     * be useful after calling VoltDB.initialize().
+     * Retrieve a reference to the main HStoreSite running in this JVM. 
+     * When running a real server (and not a test harness), this instance will only
+     * be useful after calling HStore.initialize().
      *
-     * @return A reference to the underlying VoltDBInterface object.
+     * @return A reference to the underlying HStoreSite object.
      */
-    public static HStoreSite instance() {
+    public static final HStoreSite instance() {
         return singleton;
     }
     

@@ -290,10 +290,14 @@ public class LocalCluster extends VoltServerConfig {
         for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
             final int site_id = catalog_site.getId(); 
             
+            // If this is the first site, then start the HStoreSite in this JVM
             if (site_id == 0) {
                 m_localServer = new ServerThread(hstore_conf, catalog_site);
                 m_localServer.start();
-            } else {
+            }
+            // Otherwise, fork a new JVM that will run our other HStoreSites.
+            // Remember that it is one JVM per HStoreSite
+            else {
                 try {
                     m_procBuilder.command().set(offset, "-Dsite.id=" + site_id);
                     Process proc = m_procBuilder.start();

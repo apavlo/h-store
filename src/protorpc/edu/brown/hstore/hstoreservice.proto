@@ -213,8 +213,18 @@ message TransactionPrefetchAcknowledgement {
 message TransactionMapRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
-    required int32 base_partition = 2;
-    required bytes invocation = 3;
+    
+    // Client Handle
+    required int64 client_handle = 2;
+    
+    // Base Partition
+    required int32 base_partition = 3;
+
+    // Procedure Id
+    required int32 procedure_id = 4;
+
+    // Serialized Procedure ParameterSet
+    required bytes params = 5;
 }
 
 message TransactionMapResponse {
@@ -230,8 +240,6 @@ message TransactionMapResponse {
 message TransactionReduceRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
-    required int32 base_partition = 2;
-    required bytes invocation = 3;
 }
 
 message TransactionReduceResponse {

@@ -32,11 +32,11 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.workload.TransactionTrace;
 
 /**

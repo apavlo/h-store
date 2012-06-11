@@ -287,7 +287,11 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                         m_buffer.position(0);
                         throw new IllegalArgumentException("VoltTable column names can not be null.");
                     }
-                    writeStringToBuffer(columns[i].name, METADATA_ENCODING, m_buffer);
+                    if (columns[i].name.isEmpty()) { // FAST HACK
+                        m_buffer.putInt(0);   
+                    } else {
+                        writeStringToBuffer(columns[i].name, METADATA_ENCODING, m_buffer);
+                    }
                 }
                 // write the header size to the first 4 bytes (length-prefixed non-inclusive)
                 m_rowStart = m_buffer.position();
@@ -1069,7 +1073,8 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     public int hashCode() {
         // TODO(evanj): When overriding equals, we should also override hashCode. I don't want to
         // implement this right now, since VoltTables should never be used as hash keys anyway.
-        throw new UnsupportedOperationException("unimplemented");
+        // throw new UnsupportedOperationException("unimplemented");
+        return (0);
     }
 
     /**

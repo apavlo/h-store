@@ -135,4 +135,7 @@ public class SysProcFragmentId
     // @ExecutorStatus
     public static final int PF_execStatus = 190;
     
+    // @GetCatalog
+    public static final int PF_getCatalog = 195;
+    
 }

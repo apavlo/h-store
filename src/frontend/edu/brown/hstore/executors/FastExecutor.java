@@ -4,7 +4,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.PlanFragment;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 
 public abstract class FastExecutor {
 
