@@ -3002,7 +3002,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 this.hstore_site.transactionRequeue(ts, status);
             }
             // Use the separate post-processor thread to send back the result
-            else if (hstore_conf.site.exec_postprocessing_thread) {
+            else if (hstore_conf.site.exec_postprocessing_threads) {
                 if (t) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
                                                ts, cresponse.getStatus()));
                 this.hstore_site.queueClientResponse(ts, cresponse);
@@ -3273,7 +3273,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             
             try {
-                if (hstore_conf.site.exec_postprocessing_thread) {
+                if (hstore_conf.site.exec_postprocessing_threads) {
                     if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
                     hstore_site.queueClientResponse(ts, cr);
                 } else {

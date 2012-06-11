@@ -550,7 +550,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> _preQueue = null;
         BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> _postQueue = null;
         
-        if (hstore_conf.site.exec_preprocessing_thread || hstore_conf.site.exec_postprocessing_thread) {
+        if (hstore_conf.site.exec_preprocessing_threads || hstore_conf.site.exec_postprocessing_threads) {
             // Transaction Pre/Post Processing Threads
             // We need at least one core per partition and one core for the VoltProcedureListener
             // Everything else we can give to the pre/post processing guys
@@ -560,25 +560,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (num_available_cores <= 0) {
                 LOG.warn("Insufficient number of cores on " + catalog_host.getIpaddr() + ". " +
                          "Disabling transaction pre/post processing threads");
-                hstore_conf.site.exec_preprocessing_thread = false;
-                hstore_conf.site.exec_postprocessing_thread = false;
+                hstore_conf.site.exec_preprocessing_threads = false;
+                hstore_conf.site.exec_postprocessing_threads = false;
             } else {
                 int num_preProcessors = 0;
                 int num_postProcessors = 0;
                 
                 // Both Types of Processors
-                if (hstore_conf.site.exec_preprocessing_thread && hstore_conf.site.exec_postprocessing_thread) {
+                if (hstore_conf.site.exec_preprocessing_threads && hstore_conf.site.exec_postprocessing_threads) {
                     int split = (int)Math.ceil(num_available_cores / 2d);
                     num_preProcessors = split;
                     num_postProcessors = split;
                 }
                 // TransactionPreProcessor Only
-                else if (hstore_conf.site.exec_preprocessing_thread) {
+                else if (hstore_conf.site.exec_preprocessing_threads) {
                     num_preProcessors = num_available_cores;
                 }
                 // TransactionPostProcessor Only
                 else {
                     num_postProcessors = num_available_cores;
+                }
+                
+                // Overrides
+                if (hstore_conf.site.exec_preprocessing_threads_count >= 0) {
+                    num_preProcessors = hstore_conf.site.exec_preprocessing_threads_count;
+                }
+                if (hstore_conf.site.exec_postprocessing_threads_count >= 0) {
+                    num_postProcessors = hstore_conf.site.exec_postprocessing_threads_count;
                 }
                 
                 // Initialize TransactionPreProcessors
@@ -2330,7 +2338,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cr
      */
     public void queueClientResponse(LocalTransaction ts, ClientResponseImpl cr) {
-        assert(hstore_conf.site.exec_postprocessing_thread);
+        assert(hstore_conf.site.exec_postprocessing_threads);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
         this.postProcessorQueue.add(Pair.of(ts,cr));
