@@ -2,7 +2,7 @@ package edu.brown.hstore;
 
 import java.util.PriorityQueue;
 
-import edu.brown.hstore.util.DeferredWork;
+import edu.brown.hstore.internal.DeferredWork;
 
 /**
  * There's probably no reason this needs to be its own class with overrides, except

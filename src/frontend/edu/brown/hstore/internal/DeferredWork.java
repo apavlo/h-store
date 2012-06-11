@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore.internal;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -10,7 +10,7 @@ import org.voltdb.SQLStmt;
  * @param params The parameters the SQLStmt was called with
  *
  */
-public class DeferredWork {
+public class DeferredWork extends InternalMessage {
     private Long _txnid;
     private SQLStmt _stmt;
     private ParameterSet _params;

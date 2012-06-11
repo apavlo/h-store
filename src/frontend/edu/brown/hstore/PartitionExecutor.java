@@ -52,6 +52,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -116,6 +117,7 @@ import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.internal.DeferredWork;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
@@ -130,7 +132,6 @@ import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
-import edu.brown.hstore.util.DeferredWork;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
@@ -241,7 +242,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private TransactionInitializer txnInitializer;
     
     // ----------------------------------------------------------------------------
-    // Partition Queues
+    // Partition-Specific Queues
     // ----------------------------------------------------------------------------
     
     /**
@@ -258,6 +259,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private final PartitionExecutorDeferredQueue deferred_queue;
 
+    /**
+     * 
+     */
+    private final ConcurrentLinkedQueue<InternalMessage> new_queue = new ConcurrentLinkedQueue<InternalMessage>();
+    
     
     // ----------------------------------------------------------------------------
     // Internal Execution State
@@ -1016,6 +1022,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Always invoke tick()
         this.tick();
         
+        // Check whether we have anything in our non-blocking queue
+        InternalMessage new_work = null;
+        boolean stopNow = false;
+        while ((new_work = this.new_queue.poll()) != null) {
+            this.work_queue.offer(new_work, true);
+
+            // Stop as soon as it's anything but a InitializeTxnMessage
+            if ((new_work instanceof InitializeTxnMessage) == false) {
+                stopNow = true;
+                break;
+            }
+        } // WHILE
+        if (stopNow) {
+            if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
+            return (false);
+        }
+        
+        
         // Try to free some memory
         // TODO(pavlo): Is this really safe to do?
         // this.tmp_fragmentParams.reset();
@@ -1024,7 +1048,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         if (hstore_conf.site.exec_deferrable_queries == false) {
             if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
-            return false; // for now, unless andy wants to free up meomory in utilityWork
+            return (false);
         }
 
         boolean ret = false;
@@ -1064,7 +1088,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // do other periodic work
-        m_snapshotter.doSnapshotWork(ee);
+        if (m_snapshotter != null) m_snapshotter.doSnapshotWork(ee);
     }
 
     @Override
@@ -1393,7 +1417,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
-        this.work_queue.add(work);
+        this.work_queue.offer(work, true);
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
@@ -1434,9 +1458,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        boolean ret = this.work_queue.offer(work);
+        this.new_queue.offer(work);
+        return (true);
         
-        return (ret);
+        // return (this.work_queue.offer(work));
     }
     
     /**
