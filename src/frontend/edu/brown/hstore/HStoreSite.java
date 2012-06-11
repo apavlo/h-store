@@ -45,6 +45,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.PeriodicWorkTimerThread;
@@ -62,6 +63,8 @@ import org.voltdb.compiler.AsyncCompilerWorkThread;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.network.Connection;
+import org.voltdb.network.VoltNetwork;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
@@ -71,6 +74,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
@@ -134,6 +138,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /** Catalog Stuff **/
     private long instanceId;
+    private final CatalogContext catalogContext;
     private final Database catalog_db;
     private final Host catalog_host;
     private final int host_id;
@@ -208,7 +213,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final HStoreObjectPools objectPools;
     
     // ----------------------------------------------------------------------------
-    // TRANSACTION COORDINATOR/PROCESSING THREADS
+    // NETWORKING STUFF
     // ----------------------------------------------------------------------------
     
     /**
@@ -217,6 +222,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private VoltProcedureListener voltListeners[];
     private final NIOEventLoop procEventLoops[];
+    
+    private VoltNetwork voltNetwork;
+    private ClientInterface clientInterface;
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION COORDINATOR/PROCESSING THREADS
+    // ----------------------------------------------------------------------------
 
     /**
      * PartitionExecutors
@@ -403,6 +415,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
+        this.catalogContext = new CatalogContext(catalog_site.getCatalog(), CatalogContext.NO_PATH);
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.catalog_host = this.catalog_site.getHost(); 
@@ -531,6 +544,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.asyncCompilerWork_thread = null;
         }
         
+        // -------------------------------
+        // NETWORK SETUP
+        // -------------------------------
+        
         // Incoming Txn Request Listener
         this.voltListeners = new VoltProcedureListener[1];
         this.procEventLoops = new NIOEventLoop[this.voltListeners.length];
@@ -540,6 +557,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                this.procEventLoops[i],
                                                                this);
         } // FOR
+        
+        this.voltNetwork = new VoltNetwork();
+        this.clientInterface = ClientInterface.create(this,
+                                                       this.voltNetwork,
+                                                       this.catalogContext,
+                                                       this.getSiteId(),
+                                                       this.getSiteId(),
+                                                       catalog_site.getProc_port(),
+                                                       null);
+        
         
         // -------------------------------
         // TRANSACTION PROCESSING THREADS
@@ -1106,6 +1133,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.warn("Already told that we were ready... Ignoring");
             return (this);
         }
+        
+        try {
+            this.clientInterface.startAcceptingConnections();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+        
         this.shutdown_state = ShutdownState.STARTED;
         if (hstore_conf.site.network_profiling) {
             this.network_idle_time.start();
@@ -1123,6 +1157,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Arrays.toString(this.local_partitions_arr));
         System.out.println(msg);
         System.out.flush();
+        
+        // XXX: We have to join on all of our PartitionExecutor threads
+        try {
+            for (Thread t : this.executor_threads) {
+                t.join();
+            }
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
         
         return (this);
     }
@@ -1275,6 +1318,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // EXECUTION METHODS
     // ----------------------------------------------------------------------------
+    
+    public void queueInvocation(ByteBuffer buf, ClientInputHandler handler, Connection c) {
+        
+    }
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> clientCallback) {
@@ -2512,75 +2559,94 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final HStoreSite hstore_site = this;
         final Site catalog_site = hstore_site.getSite();
         
-        // There used to be a ton of threads that we would start in here, which
-        // is why we had a CountDownLatch. But now it's only really one...
-        List<Runnable> runnables = new ArrayList<Runnable>();
-        final CountDownLatch ready_latch = new CountDownLatch(hstore_site.voltListeners.length);
+     // Always invoke HStoreSite.start() right away, since it doesn't depend on any
+        // of the stuff being setup yet
+        hstore_site.init();
         
-        // ----------------------------------------------------------------------------
-        // (1) Procedure Request Listener Thread (one per Site)
-        // ----------------------------------------------------------------------------
-        for (int i = 0, cnt = (int)ready_latch.getCount(); i < cnt; i++) {
-            final int listenerId = i;
-            runnables.add(new Runnable() {
-                public void run() {
-                    final Thread self = Thread.currentThread();
-                    self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
-                    hstore_site.getThreadManager().registerProcessingThread();
-                    
-                    // Then fire off this thread to have it do some work as it comes in 
-                    Throwable error = null;
-                    try {
-                        hstore_site.voltListeners[listenerId].bind(catalog_site.getProc_port() + listenerId);
-                        hstore_site.procEventLoops[listenerId].setExitOnSigInt(true);
-                        ready_latch.countDown();
-                        hstore_site.procEventLoops[listenerId].run();
-                    } catch (Throwable ex) {
-                        if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
-                            error = ex;
-                        }
-                    }
-                    if (error != null && hstore_site.isShuttingDown() == false) {
-                        LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
-                                               (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                        if (hstore_site.hstore_coordinator != null) hstore_site.hstore_coordinator.shutdownCluster(error);
-                    }
-                };
-            });
-        } // FOR
-        
-        // ----------------------------------------------------------------------------
-        // (5) HStoreSite Setup Thread
-        // ----------------------------------------------------------------------------
-        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
-        runnables.add(new Runnable() {
-            public void run() {
-                final Thread self = Thread.currentThread();
-                self.setName(HStoreThreadManager.getThreadName(hstore_site, "setup"));
-                hstore_site.getThreadManager().registerProcessingThread();
-                
-                // Always invoke HStoreSite.start() right away, since it doesn't depend on any
-                // of the stuff being setup yet
-                hstore_site.init();
-                
-                // But then wait for all of the threads to be finished with their initializations
-                // before we tell the world that we're ready!
-                if (ready_latch.getCount() > 0) {
-                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks",
-                                                   ready_latch.getCount()));
-                    try {
-                        ready_latch.await();
-                    } catch (Exception ex) {
-                        LOG.error("Unexpected interuption while waiting for engines to start", ex);
-                        hstore_site.hstore_coordinator.shutdownCluster(ex);
-                    }
-                }
-                hstore_site.start();
-            }
-        });
-        
-        // This will block the MAIN thread!
-        ThreadUtil.runNewPool(runnables);
+//        // But then wait for all of the threads to be finished with their initializations
+//        // before we tell the world that we're ready!
+//        if (ready_latch.getCount() > 0) {
+//            if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks",
+//                                           ready_latch.getCount()));
+//            try {
+//                ready_latch.await();
+//            } catch (Exception ex) {
+//                LOG.error("Unexpected interuption while waiting for engines to start", ex);
+//                hstore_site.hstore_coordinator.shutdownCluster(ex);
+//            }
+//        }
+        hstore_site.start();
+//        
+//        // There used to be a ton of threads that we would start in here, which
+//        // is why we had a CountDownLatch. But now it's only really one...
+//        List<Runnable> runnables = new ArrayList<Runnable>();
+//        final CountDownLatch ready_latch = new CountDownLatch(hstore_site.voltListeners.length);
+//        
+//        // ----------------------------------------------------------------------------
+//        // (1) Procedure Request Listener Thread (one per Site)
+//        // ----------------------------------------------------------------------------
+////        for (int i = 0, cnt = (int)ready_latch.getCount(); i < cnt; i++) {
+////            final int listenerId = i;
+//            runnables.add(new Runnable() {
+//                public void run() {
+//                    final Thread self = Thread.currentThread();
+//                    self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LISTEN));
+//                    hstore_site.getThreadManager().registerProcessingThread();
+//                    
+//                    // Then fire off this thread to have it do some work as it comes in 
+//                    Throwable error = null;
+//                    try {
+////                        hstore_site.voltListeners[listenerId].bind(catalog_site.getProc_port() + listenerId);
+////                        hstore_site.procEventLoops[listenerId].setExitOnSigInt(true);
+//                        ready_latch.countDown();
+//                        hstore_site.clientInterface.startAcceptingConnections();
+////                        hstore_site.procEventLoops[listenerId].run();
+//                    } catch (Throwable ex) {
+//                        if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
+//                            error = ex;
+//                        }
+//                    }
+//                    if (error != null && hstore_site.isShuttingDown() == false) {
+//                        LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
+//                                               (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
+//                        if (hstore_site.hstore_coordinator != null) hstore_site.hstore_coordinator.shutdownCluster(error);
+//                    }
+//                };
+//            });
+////        } // FOR
+//        
+//        // ----------------------------------------------------------------------------
+//        // (5) HStoreSite Setup Thread
+//        // ----------------------------------------------------------------------------
+//        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
+//        runnables.add(new Runnable() {
+//            public void run() {
+//                final Thread self = Thread.currentThread();
+//                self.setName(HStoreThreadManager.getThreadName(hstore_site, "setup"));
+//                hstore_site.getThreadManager().registerProcessingThread();
+//                
+//                // Always invoke HStoreSite.start() right away, since it doesn't depend on any
+//                // of the stuff being setup yet
+//                hstore_site.init();
+//                
+//                // But then wait for all of the threads to be finished with their initializations
+//                // before we tell the world that we're ready!
+//                if (ready_latch.getCount() > 0) {
+//                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks",
+//                                                   ready_latch.getCount()));
+//                    try {
+//                        ready_latch.await();
+//                    } catch (Exception ex) {
+//                        LOG.error("Unexpected interuption while waiting for engines to start", ex);
+//                        hstore_site.hstore_coordinator.shutdownCluster(ex);
+//                    }
+//                }
+//                hstore_site.start();
+//            }
+//        });
+//        
+//        // This will block the MAIN thread!
+//        ThreadUtil.runNewPool(runnables);
     }
 
 

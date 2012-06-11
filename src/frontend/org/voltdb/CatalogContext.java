@@ -69,7 +69,7 @@ public class CatalogContext {
         procedures = database.getProcedures();
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
         sites = cluster.getSites();
-        siteTracker = new SiteTracker(cluster.getSites());
+        siteTracker = null; // new SiteTracker(cluster.getSites());
 
         // count nodes
         numberOfNodes = cluster.getHosts().size();
