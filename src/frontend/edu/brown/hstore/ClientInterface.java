@@ -36,12 +36,9 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.SnapshotSchedule;
 import org.voltdb.debugstate.InitiatorContext;
-import org.voltdb.dtxn.SimpleDtxnInitiator;
-import org.voltdb.dtxn.TransactionInitiator;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.Messenger;
 import org.voltdb.network.Connection;
 import org.voltdb.network.InputHandler;
 import org.voltdb.network.NIOReadStream;
@@ -445,7 +442,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
              * Create an input handler.
              */
             InputHandler handler = new ClientInputHandler(socket.socket().getInetAddress().getHostName());
-            byte buildString[] = HStore.getBuildString().getBytes("UTF-8");
+            byte buildString[] = HStore.getVersionString().getBytes("UTF-8");
             responseBuffer = ByteBuffer.allocate(34 + buildString.length);
             responseBuffer.putInt(30 + buildString.length);//message length
             responseBuffer.put((byte)0);//version
@@ -474,17 +471,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         private final String m_hostname;
 
         /**
-         * Set of user permissions associated with this connection. Authentication is performed when
-         * the connection is opened and used to selected this permission set.
-         */
-        // private final AuthSystem.AuthUser m_user;
-
-        /**
          *
          * @param user Set of permissions associated with requests coming from this connection
          */
         public ClientInputHandler(String hostname) {
-            // m_user = null;
             m_hostname = hostname;
         }
 
@@ -623,18 +613,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             int port,
             SnapshotSchedule schedule) {
 
-
-        // create the dtxn initiator
-
-
-//        SimpleDtxnInitiator initiator =
-//            new SimpleDtxnInitiator(
-//                    context,
-//                    null, hstore_site.getSiteId(),
-//                    siteId, initiatorId,
-//                    onBackPressure, offBackPressure);
-
-        // create the adhoc planner thread
         final ClientInterface ci = new ClientInterface(
                 hstore_site, port, context, network, siteId, schedule);
 
@@ -663,6 +641,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     
     public void increaseBackpressure(int messageSize)
     {
+        LOG.info("Increasing Backpressure: " + messageSize);
+        
         m_pendingTxnBytes += messageSize;
         m_pendingTxnCount++;
         if (m_pendingTxnBytes > MAX_DESIRED_PENDING_BYTES || m_pendingTxnCount > MAX_DESIRED_PENDING_TXNS) {
@@ -676,6 +656,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
     public void reduceBackpressure(int messageSize)
     {
+        LOG.info("Reducing Backpressure: " + messageSize);
+        
         m_pendingTxnBytes -= messageSize;
         m_pendingTxnCount--;
         if (m_pendingTxnBytes < (MAX_DESIRED_PENDING_BYTES * .8) &&

@@ -24,7 +24,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
     
     protected final boolean txn_profiling;
     protected LocalTransaction ts;

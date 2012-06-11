@@ -210,7 +210,7 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
         Pair<Client, Site> p = this.getClientConnection();
         Client client = p.getFirst();
         Site catalog_site = p.getSecond();
-        System.out.printf("Connected to %s:%d / Version: %s - %s\n",
+        System.out.printf("Connected to %s:%d / Server Version: %s\n",
                           catalog_site.getHost().getIpaddr(),
                           catalog_site.getProc_port(),
                           client.getBuildString());
