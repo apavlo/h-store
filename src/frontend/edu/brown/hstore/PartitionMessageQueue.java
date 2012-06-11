@@ -12,12 +12,12 @@ import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 
-public class PartitionExecutorQueue extends PriorityBlockingQueue<InternalMessage> {
+public class PartitionMessageQueue extends PriorityBlockingQueue<InternalMessage> {
     
     private static final long serialVersionUID = 1L;
     private List<InternalMessage> swap = null;
     
-    public PartitionExecutorQueue() {
+    public PartitionMessageQueue() {
         super(1000, WORK_COMPARATOR); // FIXME
     }
     

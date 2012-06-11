@@ -27,8 +27,6 @@ public class HStoreThreadManager {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static int EE_CORE_OFFSET = 1;
-
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -38,13 +36,13 @@ public class HStoreThreadManager {
     
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
-    private final boolean processing_affinity[];
+    private final boolean defaultAffinity[];
     private final Set<Thread> all_threads = new HashSet<Thread>();
     private final Map<Integer, Set<Thread>> cpu_threads = new HashMap<Integer, Set<Thread>>();
-    
+    private final int ee_core_offset;
     private boolean disable;
     
-    private final Map<String, boolean[]> utility_affinities = new HashMap<String, boolean[]>();
+    private final Map<String, boolean[]> utilityAffinities = new HashMap<String, boolean[]>();
     private final String utility_suffixes[] = {
 //        HStoreConstants.THREAD_NAME_COMMANDLOGGER,
         HStoreConstants.THREAD_NAME_LISTEN,
@@ -58,10 +56,18 @@ public class HStoreThreadManager {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
-        this.processing_affinity = new boolean[this.num_cores];
-        for (int i = 0; i < this.processing_affinity.length; i++) {
-            this.processing_affinity[i] = true;
-        } // FOR
+        this.defaultAffinity = new boolean[this.num_cores];
+        Arrays.fill(this.defaultAffinity, true);
+        
+        // IMPORTANT: There is a funkiness with the JVM on linux where the first core
+        // is always used for internal system threads. So if we put anything
+        // import on the first core, then it will always run slower.
+        if (this.num_cores > 4 && this.num_partitions < this.num_cores) {
+            this.defaultAffinity[0] = false;
+            this.ee_core_offset = 1;
+        } else {
+            this.ee_core_offset = 0;
+        }
         
         this.disable = (this.num_cores <= this.num_partitions);
         if (hstore_conf.site.cpu_affinity == false) {
@@ -74,21 +80,21 @@ public class HStoreThreadManager {
         }
         else {
             for (int i = 0; i < this.num_partitions; i++) {
-                this.processing_affinity[i+EE_CORE_OFFSET] = false;
+                this.defaultAffinity[i+this.ee_core_offset] = false;
             } // FOR
             
             // Reserve the lowest cores for the various utility threads
             if ((this.num_cores - this.num_partitions) > this.utility_suffixes.length) {
                 for (int i = 0; i < this.utility_suffixes.length; i++) {
-                    boolean affinity[] = this.utility_affinities.get(this.utility_suffixes[i]);
+                    boolean affinity[] = this.utilityAffinities.get(this.utility_suffixes[i]);
                     if (affinity == null) {
                         affinity = new boolean[this.num_cores];
                         Arrays.fill(affinity, false);
                     }
                     int core = this.num_cores - (i+1); 
                     affinity[core] = true;
-                    this.processing_affinity[core] = false;
-                    this.utility_affinities.put(this.utility_suffixes[i], affinity);
+                    this.defaultAffinity[core] = false;
+                    this.utilityAffinities.put(this.utility_suffixes[i], affinity);
                 } // FOR
             }
         }
@@ -130,12 +136,12 @@ public class HStoreThreadManager {
         // Only allow this EE to execute on a single core
         if (hstore_site.getHStoreConf().site.cpu_affinity_one_partition_per_core) {
             int core = partition.getRelativeIndex()-1 % affinity.length; 
-            affinity[core+EE_CORE_OFFSET] = true;
+            affinity[core+this.ee_core_offset] = true;
         }
         // Allow this EE to run on any of the lower cores
         else {
             for (int i = 0; i < this.num_partitions; i++) {
-                affinity[i+EE_CORE_OFFSET] = true;
+                affinity[i+this.ee_core_offset] = true;
             } // FOR
         }
         
@@ -159,11 +165,11 @@ public class HStoreThreadManager {
     public void registerProcessingThread() {
         if (this.disable) return;
         
-        boolean affinity[] = this.processing_affinity;
+        boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
         String suffix = CollectionUtil.last(t.getName().split("\\-"));
-        if (this.utility_affinities.containsKey(suffix)) {
-            affinity = this.utility_affinities.get(suffix); 
+        if (this.utilityAffinities.containsKey(suffix)) {
+            affinity = this.utilityAffinities.get(suffix); 
         }
         
         if (debug.get())
@@ -180,7 +186,7 @@ public class HStoreThreadManager {
             this.disable = true;
             return;
         }
-        this.registerThread(this.processing_affinity);
+        this.registerThread(this.defaultAffinity);
     }
     
     private synchronized void registerThread(boolean affinity[]) {

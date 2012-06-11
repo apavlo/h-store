@@ -257,7 +257,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * This is the queue for work deferred .
      */
-    private final PartitionExecutorDeferredQueue deferred_queue;
+    private final ConcurrentLinkedQueue<DeferredWork> deferred_queue;
 
     /**
      * 
@@ -578,7 +578,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.hstore_conf = HStoreConf.singleton();
         
         this.work_queue = new ThrottlingQueue<InternalMessage>(
-                new PartitionExecutorQueue(),
+                new PartitionMessageQueue(),
                 hstore_conf.site.queue_incoming_max_per_partition,
                 hstore_conf.site.queue_incoming_release_factor,
                 hstore_conf.site.queue_incoming_increase,
@@ -682,7 +682,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Defferable Work Queue
         if (hstore_conf.site.exec_deferrable_queries) {
-            this.deferred_queue = new PartitionExecutorDeferredQueue();
+            this.deferred_queue = new ConcurrentLinkedQueue<DeferredWork>();
         } else {
             this.deferred_queue = null;
         }
@@ -1448,7 +1448,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                          ParameterSet procParams,
                                          RpcCallback<byte[]> clientCallback) {
         
-        
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
                                        catalog_proc.getName(), this.partitionId,
@@ -1458,10 +1457,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        this.new_queue.offer(work);
-        return (true);
-        
-        // return (this.work_queue.offer(work));
+        return (this.work_queue.offer(work));
+//        this.new_queue.offer(work);
+//        return (true);
     }
     
     /**
