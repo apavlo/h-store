@@ -28,7 +28,6 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.CancelledKeyException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,6 +67,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.RpcCallback;
 
@@ -1169,7 +1169,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // XXX: We have to join on all of our PartitionExecutor threads
         try {
             for (Thread t : this.executor_threads) {
-                t.join();
+                if (t != null) t.join();
             }
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
@@ -1335,17 +1335,38 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     protected void queueInvocation(ByteBuffer buffer, ClientInputHandler handler, Connection c) {
         int messageSize = buffer.capacity();
-        ClientResponseCallback callback = new ClientResponseCallback(clientInterface, c, messageSize);
+        RpcCallback<ClientResponseImpl> callback = new ClientResponseCallback(this.clientInterface, c, messageSize);
         this.clientInterface.increaseBackpressure(messageSize);
-        this.queueInvocation(buffer, callback);
+        
+        if (this.preProcessorQueue != null) {
+            this.preProcessorQueue.add(Pair.of(buffer, callback));
+        } else {
+            this.processInvocation(buffer, callback);
+        }
     }
     
     @Override
-    public void queueInvocation(ByteBuffer buffer, RpcCallback<ClientResponseImpl> clientCallback) {
+    public void queueInvocation(ByteBuffer buffer, final RpcCallback<byte[]> clientCallback) {
+        // HACK
+        RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
+            @Override
+            public void run(ClientResponseImpl parameter) {
+                FastSerializer fs = getOutgoingSerializer();
+                try {
+                    BBContainer bb = fs.writeObjectForMessaging(parameter);
+                    clientCallback.run(bb.b.array());
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                } finally {
+                    fs.clear();
+                }
+            }
+        };
+        
         if (this.preProcessorQueue != null) {
-            this.preProcessorQueue.add(Pair.of(buffer, clientCallback));
+            this.preProcessorQueue.add(Pair.of(buffer, wrapperCallback));
         } else {
-            this.processInvocation(buffer, clientCallback);
+            this.processInvocation(buffer, wrapperCallback);
         }
     }
     

@@ -460,7 +460,6 @@ import org.voltdb.utils.VoltLoggerFactory;
         return new Runnable() {
             @Override
             public void run() {
-                m_logger.info("Invoking call() on " + port);
                 try {
                     port.call();
                 } catch (Exception e) {

@@ -37,6 +37,12 @@ public class VoltProcedureListener extends AbstractEventHandler {
     
     private final AtomicInteger numConnections = new AtomicInteger(0);
     
+
+    public static interface Handler {
+        public long getInstanceId();
+        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> clientCallback);
+    }
+    
     public VoltProcedureListener(int hostId, EventLoop eventLoop, Handler handler) {
         this.hostId = hostId;
         this.eventLoop = eventLoop;
@@ -258,11 +264,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public void setServerSocketForTest(ServerSocketChannel serverSocket) {
         this.serverSocket = serverSocket;
-    }
-
-    public static interface Handler {
-        public long getInstanceId();
-        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> clientCallback);
     }
 
     public static void main(String[] vargs) throws Exception {

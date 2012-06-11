@@ -52,6 +52,8 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 
@@ -63,6 +65,11 @@ import edu.brown.utils.EventObserver;
  */
 public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(ClientInterface.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     private final HStoreSite hstore_site;
     
@@ -641,7 +648,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     
     public void increaseBackpressure(int messageSize)
     {
-        LOG.info("Increasing Backpressure: " + messageSize);
+        if (debug.get()) LOG.debug("Increasing Backpressure: " + messageSize);
         
         m_pendingTxnBytes += messageSize;
         m_pendingTxnCount++;
@@ -656,7 +663,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
     public void reduceBackpressure(int messageSize)
     {
-        LOG.info("Reducing Backpressure: " + messageSize);
+        if (debug.get()) LOG.debug("Reducing Backpressure: " + messageSize);
         
         m_pendingTxnBytes -= messageSize;
         m_pendingTxnCount--;
