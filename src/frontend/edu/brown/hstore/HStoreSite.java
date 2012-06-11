@@ -1217,7 +1217,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-        
+        this.preProcessorQueue.add(Pair.of(serializedRequest, done));
     }
     
     public void processInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {

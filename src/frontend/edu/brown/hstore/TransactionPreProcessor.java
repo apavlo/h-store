@@ -33,7 +33,7 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_INCOMING));
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PREPROCESSOR));
         hstore_site.getThreadManager().registerProcessingThread();
 
         Pair<byte[], RpcCallback<byte[]>> p = null;
