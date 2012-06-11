@@ -117,7 +117,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.status_enable = false;
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
-        hstore_site.init().start(); // Blocks until all connections are established
+        hstore_site.init().run(); // Blocks until all connections are established
         final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
         assert(hstore_coordinator.isStarted());
         

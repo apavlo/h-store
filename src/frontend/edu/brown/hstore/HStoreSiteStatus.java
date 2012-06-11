@@ -195,7 +195,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (this.hstore_site.isRunning() == false) continue;
 
             // Out we go!
-            this.printSnapshot();
+            this.printStatus();
             
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();
@@ -209,8 +209,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         } // WHILE
     }
     
-    private void printSnapshot() {
-        LOG.info("STATUS SNAPSHOT #" + this.snapshot_ctr.incrementAndGet() + "\n" +
+    private void printStatus() {
+        LOG.info("STATUS #" + this.snapshot_ctr.incrementAndGet() + "\n" +
                  StringUtil.box(this.snapshot(hstore_conf.site.status_show_txn_info,
                                               hstore_conf.site.status_show_executor_info,
                                               hstore_conf.site.status_show_thread_info,
@@ -1006,7 +1006,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         } // FOR
         
 //        hstore_conf.site.status_show_thread_info = true;
-        this.printSnapshot();
+        this.printStatus();
         
         // Quick Sanity Check!
 //        for (int i = 0; i < 2; i++) {
