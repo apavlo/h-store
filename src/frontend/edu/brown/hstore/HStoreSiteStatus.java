@@ -301,7 +301,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         String value = null;
         
         LinkedHashMap<String, Object> m_exec = new LinkedHashMap<String, Object>();
-        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
+        if (TxnCounter.COMPLETED.get() > 0) {
+            m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
+        }
         
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
