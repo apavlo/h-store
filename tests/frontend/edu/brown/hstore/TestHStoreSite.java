@@ -83,12 +83,9 @@ public class TestHStoreSite extends BaseTestCase {
         hstore_site.sendClientResponse(ts, cresponse);
         
         // Check to make sure our callback got the ClientResponse
-        assertEquals(this.callback, ts.getClientCallback());
-        byte serialized[] = this.callback.getResponse();
-        assertNotNull(serialized);
-        
         // And just make sure that they're the same
-        ClientResponseImpl clone = FastDeserializer.deserialize(serialized, ClientResponseImpl.class);
+        assertEquals(this.callback, ts.getClientCallback());
+        ClientResponseImpl clone = this.callback.getResponse();
         assertNotNull(clone);
         assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
         assertEquals(cresponse.getClientHandle(), clone.getClientHandle());

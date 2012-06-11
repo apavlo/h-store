@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -21,12 +22,12 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
     }
     
     private final HStoreSite hstore_site;
-    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> queue;
+    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> queue;
     private boolean stop = false;
     private Thread self;
     
     public TransactionPreProcessor(HStoreSite hstore_site,
-                                    BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> queue) {
+                                    BlockingQueue<Pair<ByteBuffer, RpcCallback<ClientResponseImpl>>> queue) {
         assert(queue != null);
         this.hstore_site = hstore_site;
         this.queue = queue;
@@ -38,7 +39,7 @@ public class TransactionPreProcessor implements Runnable, Shutdownable {
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PREPROCESSOR));
         hstore_site.getThreadManager().registerProcessingThread();
 
-        Pair<ByteBuffer, RpcCallback<byte[]>> p = null;
+        Pair<ByteBuffer, RpcCallback<ClientResponseImpl>> p = null;
         while (this.stop == false) {
             try {
                 p = this.queue.take();

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -135,7 +136,7 @@ public class MapReduceTransaction extends LocalTransaction {
                                   boolean predict_readOnly,
                                   boolean predict_canAbort,
                                   Procedure catalog_proc, ParameterSet params,
-                                  RpcCallback<byte[]> client_callback) {
+                                  RpcCallback<ClientResponseImpl> client_callback) {
         super.init(txn_id,
                     clientHandle,
                     base_partition,
@@ -207,7 +208,8 @@ public class MapReduceTransaction extends LocalTransaction {
                   false,
                   true,
                   catalog_proc,
-                  params, null);
+                  params,
+                  null);
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         assert(this.map_callback.isInitialized()) : "Unexpected error for " + this;
         //assert(this.sendData_callback.isInitialized()) : "Unexpected error for " + this;

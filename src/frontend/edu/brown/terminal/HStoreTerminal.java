@@ -35,7 +35,7 @@ import edu.brown.utils.StringUtil;
  * @author gen
  * @author pavlo
  */
-public class HStoreTerminal implements Runnable { //extends AbstractEventHandler??
+public class HStoreTerminal implements Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
@@ -246,7 +246,6 @@ public class HStoreTerminal implements Runnable { //extends AbstractEventHandler
                             break;
                         } catch (NoConnectionsException ex) {
                             LOG.warn("Connection lost. Going to try to connect again...");
-                            Thread.sleep(2000);
                             p = this.getClientConnection();
                             client = p.getFirst();
                             catalog_site = p.getSecond(); 

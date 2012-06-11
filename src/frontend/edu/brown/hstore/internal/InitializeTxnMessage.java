@@ -2,6 +2,7 @@ package edu.brown.hstore.internal;
 
 import java.nio.ByteBuffer;
 
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Procedure;
@@ -13,13 +14,13 @@ public class InitializeTxnMessage extends InternalMessage {
     final ByteBuffer serializedRequest; 
     final Procedure catalog_proc;
     final ParameterSet procParams;
-    final RpcCallback<byte[]> clientCallback;
+    final RpcCallback<ClientResponseImpl> clientCallback;
     
     
     public InitializeTxnMessage(ByteBuffer serializedRequest, 
                                  Procedure catalog_proc,
                                  ParameterSet procParams,
-                                 RpcCallback<byte[]> clientCallback) {
+                                 RpcCallback<ClientResponseImpl> clientCallback) {
         
         assert(serializedRequest != null);
         assert(catalog_proc != null);
@@ -45,7 +46,7 @@ public class InitializeTxnMessage extends InternalMessage {
         return (this.procParams);
     }
 
-    public RpcCallback<byte[]> getClientCallback() {
+    public RpcCallback<ClientResponseImpl> getClientCallback() {
         return (this.clientCallback);
     }
     

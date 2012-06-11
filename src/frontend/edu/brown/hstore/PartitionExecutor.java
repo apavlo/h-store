@@ -893,7 +893,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ByteBuffer serializedRequest = work.getSerializedRequest(); 
         Procedure catalog_proc = work.getProcedure();
         ParameterSet procParams = work.getProcParams();
-        RpcCallback<byte[]> done = work.getClientCallback(); 
+        RpcCallback<ClientResponseImpl> done = work.getClientCallback(); 
         long client_handle = work.getClientHandle();
         
         LocalTransaction ts = this.txnInitializer.initInvocation(
@@ -1446,7 +1446,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public boolean queueNewTransaction(ByteBuffer serializedRequest, 
                                          Procedure catalog_proc,
                                          ParameterSet procParams,
-                                         RpcCallback<byte[]> clientCallback) {
+                                         RpcCallback<ClientResponseImpl> clientCallback) {
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",

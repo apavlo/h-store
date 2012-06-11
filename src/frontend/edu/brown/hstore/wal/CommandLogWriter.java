@@ -77,7 +77,7 @@ public class CommandLogWriter implements Shutdownable {
      */
     protected class WriterLogEntry extends LogEntry {
         protected ClientResponseImpl cresponse;
-        protected RpcCallback<byte[]> clientCallback;
+        protected RpcCallback<ClientResponseImpl> clientCallback;
         protected long initiateTime;
         protected int restartCounter;
         
