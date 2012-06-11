@@ -589,7 +589,7 @@ public class HStoreCoordinator implements Shutdownable {
             // it back to whomever told us about this txn
             if (debug.get()) 
                 LOG.debug(String.format("Received redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
+            ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
                 callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();

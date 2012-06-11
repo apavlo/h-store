@@ -77,6 +77,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.ClientInterface.ClientInputHandler;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.callbacks.ClientResponseCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
@@ -258,7 +259,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TransactionPreProcessor Threads
      */
     private final List<TransactionPreProcessor> preProcessors;
-    private final BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> preProcessorQueue;
+    private final BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> preProcessorQueue;
     
     /**
      * TransactionPostProcessor Thread
@@ -574,7 +575,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         List<TransactionPreProcessor> _preProcessors = null;
         List<TransactionPostProcessor> _postProcessors = null;
-        BlockingQueue<Pair<byte[], RpcCallback<byte[]>>> _preQueue = null;
+        BlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>> _preQueue = null;
         BlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> _postQueue = null;
         
         if (hstore_conf.site.exec_preprocessing_threads || hstore_conf.site.exec_postprocessing_threads) {
@@ -623,7 +624,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    num_preProcessors,
                                                    TransactionPreProcessor.class.getSimpleName()));
                     _preProcessors = new ArrayList<TransactionPreProcessor>();
-                    _preQueue = new LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>>();
+                    _preQueue = new LinkedBlockingQueue<Pair<ByteBuffer, RpcCallback<byte[]>>>();
                     for (int i = 0; i < num_preProcessors; i++) {
                         TransactionPreProcessor t = new TransactionPreProcessor(this, _preQueue);
                         _preProcessors.add(t);
@@ -1009,7 +1010,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // EVENT OBSERVABLES
     // ----------------------------------------------------------------------------
-    
+
     /**
      * Get the Observable handle for this HStoreSite that can alert others when the party is
      * getting started
@@ -1319,20 +1320,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // EXECUTION METHODS
     // ----------------------------------------------------------------------------
     
-    public void queueInvocation(ByteBuffer buf, ClientInputHandler handler, Connection c) {
-        
+    protected void queueInvocation(ByteBuffer buffer, ClientInputHandler handler, Connection c) {
+        int messageSize = buffer.capacity();
+        ClientResponseCallback callback = new ClientResponseCallback(clientInterface, c, messageSize);
+        this.clientInterface.increaseBackpressure(messageSize);
+        this.queueInvocation(buffer, callback);
     }
     
     @Override
-    public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> clientCallback) {
+    public void queueInvocation(ByteBuffer buffer, RpcCallback<byte[]> clientCallback) {
         if (this.preProcessorQueue != null) {
-            this.preProcessorQueue.add(Pair.of(serializedRequest, clientCallback));
+            this.preProcessorQueue.add(Pair.of(buffer, clientCallback));
         } else {
-            this.processInvocation(serializedRequest, clientCallback);
+            this.processInvocation(buffer, clientCallback);
         }
     }
     
-    public void processInvocation(byte[] serializedRequest, RpcCallback<byte[]> clientCallback) {
+    public void processInvocation(ByteBuffer buffer, RpcCallback<byte[]> clientCallback) {
         if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
             if (hstore_conf.site.network_profiling) {
@@ -1344,7 +1348,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request
-        ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
@@ -2659,6 +2662,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    if (t)
 		    LOG.trace("Checking for PeriodicWork...");
 
+	    if (this.clientInterface != null) {
+	        this.clientInterface.checkForDeadConnections(EstTime.currentTimeMillis());
+	    }
+	    
 	    // poll planner queue
 	    if (asyncCompilerWork_thread != null) {
 	        checkForFinishedCompilerWork();

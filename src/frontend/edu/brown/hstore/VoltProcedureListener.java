@@ -189,7 +189,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
             // Execute store procedure!
 //            LOG.info("Queuing new transaction request from client");
             try {
-                handler.queueInvocation(request, eventLoopCallback);
+                handler.queueInvocation(ByteBuffer.wrap(request), eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -262,7 +262,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public static interface Handler {
         public long getInstanceId();
-        public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> clientCallback);
+        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> clientCallback);
     }
 
     public static void main(String[] vargs) throws Exception {
@@ -274,7 +274,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 return 0;
             }
             @Override
-            public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+            public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> done) {
                 StoredProcedureInvocation invocation = null;
                 try {
                     invocation = FastDeserializer.deserialize(serializedRequest, StoredProcedureInvocation.class);
