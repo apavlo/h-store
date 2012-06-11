@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.BenchmarkComponent.Command;
+import edu.brown.benchmark.ControlCommand;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -414,14 +414,14 @@ public class ProcessSetManager implements Shutdownable {
         return m_output.poll();
     }
 
-    public void writeToAll(Command cmd) {
+    public void writeToAll(ControlCommand cmd) {
         LOG.debug(String.format("Sending %s to all processes", cmd));
         for (String processName : m_processes.keySet()) {
             this.writeToProcess(processName, cmd + "\n");
         }
     }
     
-    public void writeToProcess(String processName, Command cmd) {
+    public void writeToProcess(String processName, ControlCommand cmd) {
         this.writeToProcess(processName, cmd + "\n");
     }
     

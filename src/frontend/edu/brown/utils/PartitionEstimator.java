@@ -41,8 +41,6 @@ import java.util.TreeSet;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTableRow;
@@ -73,6 +71,7 @@ import edu.brown.hashing.DefaultHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.pools.FastObjectPool;
 import edu.brown.statistics.Histogram;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -254,7 +253,7 @@ public class PartitionEstimator {
     /**
      * Set<Integer> pool used by calculatePartitionsForCache
      */
-    private final ObjectPool partitionSetPool = new StackObjectPool(new BasePoolableObjectFactory() {
+    private final FastObjectPool<Set<Integer>> partitionSetPool = new FastObjectPool<Set<Integer>>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             return (new HashSet<Integer>());
@@ -265,15 +264,21 @@ public class PartitionEstimator {
             Set<Integer> set = (Set<Integer>) obj;
             set.clear();
         };
-    }, 1000);
+    }, 100);
 
     /**
      * Set<Integer>[4] pool used by calculatePartitionsForCache
      */
-    private final ObjectPool mcPartitionSetPool = new StackObjectPool(new BasePoolableObjectFactory() {
+    private final FastObjectPool<HashSet<Integer>[]> mcPartitionSetPool = new FastObjectPool<HashSet<Integer>[]>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
-            return (new HashSet[] { new HashSet<Integer>(), new HashSet<Integer>(), new HashSet<Integer>(), new HashSet<Integer>() });
+            // XXX: Why is this hardcoded?
+            return (new HashSet[] {
+                    new HashSet<Integer>(),
+                    new HashSet<Integer>(),
+                    new HashSet<Integer>(),
+                    new HashSet<Integer>()
+             });
         }
 
         public void passivateObject(Object obj) throws Exception {
@@ -1266,8 +1271,7 @@ public class PartitionEstimator {
             } // FOR
         }
 
-        @SuppressWarnings("unchecked")
-        final Set<Integer> table_partitions = (Set<Integer>) this.partitionSetPool.borrowObject();
+        final Set<Integer> table_partitions = this.partitionSetPool.borrowObject();
         assert (table_partitions != null);
         table_partitions.clear();
 
@@ -1327,8 +1331,7 @@ public class PartitionEstimator {
                         table_partitions.addAll(this.all_partitions);
                     } else {
                         MultiColumn mc = (MultiColumn) catalog_col;
-                        @SuppressWarnings("unchecked")
-                        HashSet<Integer> mc_partitions[] = (HashSet<Integer>[]) this.mcPartitionSetPool.borrowObject();
+                        HashSet<Integer> mc_partitions[] = this.mcPartitionSetPool.borrowObject();
 
                         if (trace.get())
                             LOG.trace("Calculating columns for multi-partition colunmn: " + mc);

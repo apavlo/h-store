@@ -47,6 +47,8 @@ import edu.brown.benchmark.markov.MarkovProjectBuilder;
 import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
+import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
+import edu.brown.benchmark.voter.VoterProjectBuilder; 
 import edu.brown.benchmark.wikipedia.WikipediaProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
@@ -200,21 +202,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                     case TPCE:
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
-                    case TPCC:
-                    case TM1:
-                    case SEATS:
-                    case AUCTIONMARK:
-                    case MARKOV:
-                    case LOCALITY:
-                    case MAPREDUCE:
-                    case WIKIPEDIA:
-                    case VOTER:
+                    default:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
                             LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
                         break;
-                    default:
-                        assert(false) : "Invalid project type - " + type;
                 } // SWITCH
             }
             //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
@@ -262,6 +254,12 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 case MARKOV:
                     projectBuilder = new MarkovProjectBuilder();
                     break;
+				case YCSB: 
+					projectBuilder = new YCSBProjectBuilder(); 
+					break; 
+				case VOTER: 
+					projectBuilder = new VoterProjectBuilder(); 
+					break; 
                 case WIKIPEDIA:
                     projectBuilder = new WikipediaProjectBuilder();
                     break;

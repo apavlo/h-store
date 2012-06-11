@@ -35,6 +35,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -279,7 +280,12 @@ public class BenchmarkResults {
     private final long m_durationInMillis;
     private final long m_pollIntervalInMillis;
     private final int m_clientCount;
+    
+    private boolean enableBasePartitions = false;
     private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
+    
+    private boolean enableResponseStatuses = false;
+    private final Histogram<String> m_responseStatuses = new Histogram<String>();
     
     private int completedIntervals = 0;
     private final Histogram<String> clientResultCount = new Histogram<String>();
@@ -295,6 +301,14 @@ public class BenchmarkResults {
         m_durationInMillis = durationInMillis;
         m_pollIntervalInMillis = pollIntervalInMillis;
         m_clientCount = clientCount;
+    }
+    
+    public void setEnableBasePartitions(boolean val) {
+        this.enableBasePartitions = val;
+    }
+    
+    public void setEnableResponsesStatuses(boolean val) {
+        this.enableResponseStatuses = val;
     }
 
     public Set<Error> getAnyErrors() {
@@ -344,6 +358,9 @@ public class BenchmarkResults {
     }
     public Histogram<Integer> getBasePartitions() {
         return (m_basePartitions);
+    }
+    public Histogram<String> getResponseStatuses() {
+        return (m_responseStatuses);
     }
 
     public Result[] getResultsForClientAndTransaction(String clientName, String transactionName) {
@@ -427,7 +444,12 @@ public class BenchmarkResults {
         
         // Update Touched Histograms
         // This doesn't need to be synchronized
-        this.m_basePartitions.putHistogram(tc.basePartitions);
+        if (this.enableBasePartitions) {
+            this.m_basePartitions.putHistogram(tc.basePartitions);
+        }
+        if (this.enableResponseStatuses) {
+            this.m_responseStatuses.putHistogram(tc.responseStatuses);
+        }
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
@@ -470,7 +492,12 @@ public class BenchmarkResults {
     BenchmarkResults copy() {
         BenchmarkResults clone = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
-        clone.m_basePartitions.putHistogram(m_basePartitions);
+        if (this.enableBasePartitions) {
+            clone.m_basePartitions.putHistogram(m_basePartitions);
+        }
+        if (this.enableResponseStatuses) {
+            clone.m_responseStatuses.putHistogram(m_responseStatuses);
+        }
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.addAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
@@ -496,7 +523,13 @@ public class BenchmarkResults {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction Names", StringUtil.join("\n", m_transactionNames));
         m.put("Transaction Data", m_data);
-        m.put("Base Partitions", m_basePartitions);
+        
+        if (this.enableBasePartitions) {
+            m.put("Base Partitions", m_basePartitions);
+        }
+        if (this.enableResponseStatuses) {
+            m.put("Responses Statuses", m_basePartitions);
+        }
         
         return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }

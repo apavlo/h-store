@@ -1,6 +1,7 @@
 package edu.brown.benchmark;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,20 +13,40 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public class TransactionCounter implements JSONSerializable {
-    
-    public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+
     public Histogram<String> transactions = new Histogram<String>(true);
+    
+    private boolean enableBasePartitions = false;
+    public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+    
+    private boolean enableResponseStatuses = false;
+    public Histogram<String> responseStatuses = new Histogram<String>(true);
 
     public TransactionCounter copy() {
         TransactionCounter copy = new TransactionCounter();
+        copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.putHistogram(this.basePartitions);
+        copy.enableResponseStatuses = this.enableResponseStatuses;
         copy.transactions.putHistogram(this.transactions);
         return (copy);
     }
     
+    public void setEnableBasePartitions(boolean val) {
+        this.enableBasePartitions = val;
+    }
+    
+    public void setEnableResponsesStatuses(boolean val) {
+        this.enableResponseStatuses = val;
+    }
+    
     public void clear() {
-        this.basePartitions.clearValues();
         this.transactions.clearValues();
+        if (this.enableBasePartitions) {
+            this.basePartitions.clearValues();
+        }
+        if (this.enableResponseStatuses) {
+            this.responseStatuses.clearValues();
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -45,7 +66,13 @@ public class TransactionCounter implements JSONSerializable {
     }
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, JSONUtil.getSerializableFields(this.getClass()));
+        String exclude[] = {
+            (this.enableBasePartitions == false ? "basePartitions" : ""),
+            (this.enableResponseStatuses == false ? "responseStatuses" : ""),
+            
+        };
+        Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
+        JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, fields);
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {

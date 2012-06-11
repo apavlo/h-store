@@ -1073,7 +1073,8 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     public int hashCode() {
         // TODO(evanj): When overriding equals, we should also override hashCode. I don't want to
         // implement this right now, since VoltTables should never be used as hash keys anyway.
-        throw new UnsupportedOperationException("unimplemented");
+        // throw new UnsupportedOperationException("unimplemented");
+        return (0);
     }
 
     /**

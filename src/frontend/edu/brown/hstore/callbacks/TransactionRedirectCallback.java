@@ -8,10 +8,10 @@ import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.HStoreObjectPools;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 /**
  * This callback is used by the original HStoreSite that is sending out a transaction redirect
@@ -21,13 +21,14 @@ import edu.brown.utils.Poolable;
 public class TransactionRedirectCallback implements RpcCallback<TransactionRedirectResponse>, Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
     
+    private HStoreSite hstore_site;
     protected RpcCallback<byte[]> orig_callback;
 
     /**
      * Default Constructor
      */
-    public TransactionRedirectCallback() {
-        // Nothing to do...
+    public TransactionRedirectCallback(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
     }
     
     public void init(RpcCallback<byte[]> orig_callback) {
@@ -66,7 +67,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
         } finally {
             try {
                 this.finish();
-                HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
+                hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Funky failure", ex);
             }

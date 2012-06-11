@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -17,7 +17,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * If we have, then we know it is safe to go ahead and call HStoreSite.deleteTransaction()
  * @author pavlo
  */
-public class TransactionCleanupCallback extends BlockingCallback<Integer, Integer> {
+public class TransactionCleanupCallback extends BlockingRpcCallback<Integer, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionCleanupCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
