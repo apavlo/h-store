@@ -113,8 +113,6 @@ public class HStoreTerminal implements Runnable {
      * @throws Exception
      */
     private ClientResponse execProcedure(Client client, String procName, String query) throws Exception {
-        ClientResponse cresponse = null;
-        
         Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
         if (catalog_proc == null) {
             throw new Exception("Invalid stored procedure name '" + procName + "'");
@@ -144,7 +142,7 @@ public class HStoreTerminal implements Runnable {
         
         LOG.info(String.format("Executing %s(%s)", 
                  catalog_proc.getName(), StringUtil.join(", ", procParams)));
-        client.callProcedure(catalog_proc.getName(), procParams.toArray());
+        ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
     }
     
@@ -255,8 +253,11 @@ public class HStoreTerminal implements Runnable {
                     
                     // Just print out the result
                     if (cresponse != null) {
+                        System.out.println("Server Response: " + cresponse.getStatus());
                         VoltTable[] results = cresponse.getResults();
                         System.out.println(StringUtil.join("\n", results));
+                    } else {
+                        LOG.warn("Return result is null");
                     }
                     
                 // Fatal Error
