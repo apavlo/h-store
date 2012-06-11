@@ -85,7 +85,6 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
-import edu.brown.hstore.util.TransactionPostProcessor;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.logging.LoggerUtil;
@@ -243,14 +242,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private HStoreCoordinator hstore_coordinator;
 
     /**
-     * ClientResponse Processor Thread
+     * TransactionPreProcessor Threads
+     */
+    private final List<TransactionPreProcessor> preProcessors;
+    private final LinkedBlockingQueue<Pair<byte[], RpcCallback<byte[]>>> preProcessorQueue;
+    
+    /**
+     * TransactionPostProcessor Thread
      * These threads allow a PartitionExecutor to send back ClientResponses back to
      * the clients without blocking
      */
-    private final List<TransactionPostProcessor> processors =
-                        new ArrayList<TransactionPostProcessor>();
-    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> ready_responses =
-                        new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
+    private final List<TransactionPostProcessor> postProcessors;
+    private final LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>> postProcessorQueue;
     
     /**
      * MapReduceHelperThread
@@ -537,8 +540,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                this);
         } // FOR
 
+        // Transaction Pre-Processing Threads
+        // TODO: We should probably tie this to the number of available cores
+        this.preProcessors = new ArrayList<TransactionPreProcessor>();
+        this.preProcessorQueue = new LinkedBlockingQueue<Pair<byte[],RpcCallback<byte[]>>>();
+        for (int i = 0; i < 4; i++) {
+            TransactionPreProcessor t = new TransactionPreProcessor(this, this.preProcessorQueue);
+            this.preProcessors.add(t);
+        } // FOR
+        
         // Transaction Post-Processing Threads
         if (hstore_conf.site.exec_postprocessing_thread) {
+            this.postProcessors = new ArrayList<TransactionPostProcessor>();
+            this.postProcessorQueue = new LinkedBlockingQueue<Pair<LocalTransaction, ClientResponseImpl>>();
             if (hstore_conf.site.exec_postprocessing_thread_per_partition) {
                 hstore_conf.site.exec_postprocessing_thread_count = num_local_partitions;
             }
@@ -546,10 +560,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug(String.format("Starting %d transaction post-processing threads",
                                         hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
-                TransactionPostProcessor processor = new TransactionPostProcessor(this,
-                                                                                              this.ready_responses); 
-                this.processors.add(processor);
+                TransactionPostProcessor t = new TransactionPostProcessor(this,
+                                                                          this.postProcessorQueue); 
+                this.postProcessors.add(t);
             } // FOR
+        } else {
+            this.postProcessors = null;
+            this.postProcessorQueue = null;
         }
         
         // -------------------------------
@@ -780,7 +797,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (es);
     }
     public Collection<TransactionPostProcessor> getTransactionPostProcessors() {
-        return (this.processors);
+        return (this.postProcessors);
     }
 
     public HStoreCoordinator getHStoreCoordinator() {
@@ -990,10 +1007,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.start();
         }
         
-        // Start the ExecutionSitePostProcessor
+        // TransactionPreProcessors
+        for (TransactionPreProcessor tpp : this.preProcessors) {
+            t = new Thread(tpp);
+            t.setDaemon(true);
+            t.setUncaughtExceptionHandler(this.exceptionHandler);
+            t.start();    
+        } // FOR
+        
+        // TransactionPostProcessors
         if (hstore_conf.site.exec_postprocessing_thread) {
-            for (TransactionPostProcessor espp : this.processors) {
-                t = new Thread(espp);
+            for (TransactionPostProcessor tpp : this.postProcessors) {
+                t = new Thread(tpp);
                 t.setDaemon(true);
                 t.setUncaughtExceptionHandler(this.exceptionHandler);
                 t.start();    
@@ -1084,18 +1109,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.txnQueueManager.prepareShutdown(error);
         
-//        for (TransactionDispatcher td : this.txnDispatchers) {
-//            td.prepareShutdown(error);
-//        } // FOR
-        
-        for (TransactionPostProcessor espp : this.processors) {
-            espp.prepareShutdown(false);
+        for (TransactionPreProcessor tpp : this.preProcessors) {
+            tpp.prepareShutdown(false);
+        } // FOR
+        for (TransactionPostProcessor tpp : this.postProcessors) {
+            tpp.prepareShutdown(false);
         } // FOR
         
-        if (this.mr_helper != null)
+        if (this.mr_helper != null) {
             this.mr_helper.prepareShutdown(error);
-        if (this.commandLogger != null)
+        }
+        if (this.commandLogger != null) {
             this.commandLogger.prepareShutdown(error);
+        }
         
         if (this.adhoc_helper_started) {
             if (this.asyncCompilerWork_thread != null)
@@ -1134,15 +1160,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int p : this.local_partitions_arr) {
             this.executors[p].shutdown();
         } // FOR
-//        for (TransactionDispatcher td : this.txnDispatchers) {
-//            td.shutdown();
-//        } // FOR
-        for (TransactionPostProcessor p : this.processors) {
-            p.shutdown();
+
+        for (TransactionPostProcessor tpp : this.postProcessors) {
+            tpp.shutdown();
+        } // FOR
+        for (TransactionPostProcessor tpp : this.postProcessors) {
+            tpp.shutdown();
         } // FOR
         
-        if (this.mr_helper_started && this.mr_helper != null) this.mr_helper.shutdown();
-        if (this.commandLogger != null) this.commandLogger.shutdown();
+        if (this.mr_helper_started && this.mr_helper != null) {
+            this.mr_helper.shutdown();
+        }
+        if (this.commandLogger != null) {
+            this.commandLogger.shutdown();
+        }
       
         // Stop AdHoc threads
         if (this.adhoc_helper_started) {
@@ -1163,8 +1194,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.voltListeners[i] != null) this.voltListeners[i].close();
         } // FOR
         
-        if (this.hstore_coordinator != null)
+        if (this.hstore_coordinator != null) {
             this.hstore_coordinator.shutdown();
+        }
         
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
@@ -1185,6 +1217,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+        
+    }
+    
+    public void processInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
         if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
             if (hstore_conf.site.network_profiling) {
@@ -2239,8 +2275,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void queueClientResponse(LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                                       ts, ts.getBasePartition(), cr.getStatus(), this.ready_responses.size()));
-        this.ready_responses.add(Pair.of(ts,cr));
+                                       ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
+        this.postProcessorQueue.add(Pair.of(ts,cr));
     }
     
     
@@ -2585,7 +2621,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     protected int getQueuedResponseCount() {
-        return (this.ready_responses.size());
+        return (this.postProcessorQueue.size());
     }
 
 
