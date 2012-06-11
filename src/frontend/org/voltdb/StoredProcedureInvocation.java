@@ -26,6 +26,8 @@ import java.util.Set;
 
 import org.voltdb.messaging.*;
 
+import edu.brown.hstore.HStoreConstants;
+
 /**
  * Represents a serializeable bundle of procedure name and parameters. This
  * is the object that is sent by the client library to call a stored procedure.
@@ -35,16 +37,21 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     int procId = -1;
     String procName = null;
-    boolean sysproc = false;
     ParameterSet params = null;
     ByteBuffer unserializedParams = null;
 
+    /**
+     * The number of times the txn for this request has been
+     * restarted
+     */
+    int restartCounter = 0;
+    
     /** A descriptor provided by the client, opaque to the server,
         returned to the client in the ClientResponse */
     long clientHandle = -1;
     
     /** Whether this invocation should be specifically executed at a particular partition **/
-    int base_partition = -1;
+    int base_partition = HStoreConstants.NULL_PARTITION_ID;
     
     /** What partitions this invocation will touch **/
     @Deprecated
@@ -63,17 +70,16 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.clientHandle = handle;
         this.procId = procId;
         this.procName = procName;
-        this.sysproc = (procName.startsWith("@"));
         this.params = new ParameterSet();
         this.params.setParameters(parameters);
     }
     
-    public StoredProcedureInvocation getShallowCopy()
-    {
+    public StoredProcedureInvocation getShallowCopy() {
         StoredProcedureInvocation copy = new StoredProcedureInvocation();
-        copy.clientHandle = clientHandle;
-        copy.params = params;
-        copy.procName = procName;
+        copy.clientHandle = this.clientHandle;
+        copy.restartCounter = this.restartCounter;
+        copy.params = this.params;
+        copy.procName = this.procName;
         if (unserializedParams != null)
         {
             copy.unserializedParams = unserializedParams.duplicate();
@@ -85,7 +91,6 @@ public class StoredProcedureInvocation implements FastSerializable {
 
         return copy;
     }
-
     
     public void setProcedureId(int procId) {
         this.procId = procId;
@@ -102,10 +107,6 @@ public class StoredProcedureInvocation implements FastSerializable {
         unserializedParams = null;
     }
 
-    public boolean isSysProc() {
-        return sysproc;
-    }
-    
     public int getProcId() {
         return procId;
     }
@@ -126,19 +127,22 @@ public class StoredProcedureInvocation implements FastSerializable {
     }
     
     public boolean hasBasePartition() {
-        return (this.base_partition != -1);
+        return (this.base_partition != HStoreConstants.NULL_PARTITION_ID);
     }
     public int getBasePartition() {
         return (this.base_partition);
     }
     public void setBasePartition(int partition) {
-        this.base_partition = (short)partition;
+        this.base_partition = partition;
     }
     
-    @Deprecated
-    public boolean hasPartitions() {
-        return (this.partitions != null);
+    public int getRestartCounter() {
+        return (this.base_partition);
     }
+    public void setRestartCounter(int count) {
+        this.restartCounter = count;
+    }
+    
     @Deprecated
     public Set<Integer> getPartitions() {
         return (this.partitions);
@@ -149,7 +153,11 @@ public class StoredProcedureInvocation implements FastSerializable {
         this.partitions.addAll(partitions);
     }
 
-    @Deprecated
+    /**
+     * Build the ParameterSet embedded in this StoredProcedureInvocation
+     * <B>Note:</B> This is the slow version because it will create a new
+     * FastDeserializer every time.
+     */
     public void buildParameterSet() {
         this.buildParameterSet(new FastDeserializer());
     }
@@ -186,50 +194,33 @@ public class StoredProcedureInvocation implements FastSerializable {
 
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        sysproc = in.readBoolean();
-        base_partition = (int)in.readShort();
-        clientHandle = in.readLong();
-        procId = in.readShort();
-        procName = in.readString();
-        
-//        int num_partitions = in.readShort();
-//        if (num_partitions > 0) {
-//            this.partitions = new HashSet<Integer>();
-//            for (int i = 0; i < num_partitions; i++) {
-//                this.partitions.add((int)in.readShort());
-//            } // FOR
-//        }
+        this.restartCounter = (int)in.readShort();
+        this.base_partition = (int)in.readShort();
+        this.clientHandle = in.readLong();
+        this.procId = in.readShort();
+        this.procName = in.readString();
         
         // do not deserialize parameters in ClientInterface context
-        unserializedParams = in.remainder();
-        params = null;
+        this.unserializedParams = in.remainder();
+        this.params = null;
     }
 
     @Override
     public void writeExternal(FastSerializer out) throws IOException {
         assert(!((params == null) && (unserializedParams == null)));
         assert((params != null) || (unserializedParams != null));
-        out.writeBoolean(sysproc);      // (1 byte)
-        out.writeShort(base_partition); // (2 bytes)
-        out.writeLong(clientHandle);    // (8 bytes)
-        out.writeShort(procId);         // (2 bytes)
-        out.writeString(procName);
+        out.writeShort(this.restartCounter); // (2 bytes)
+        out.writeShort(this.base_partition); // (2 bytes)
+        out.writeLong(this.clientHandle);    // (8 bytes)
+        out.writeShort(this.procId);         // (2 bytes)
+        out.writeString(this.procName);
         
-//        if (this.partitions == null) {
-//            out.writeShort(0);
-//        } else {
-//            out.writeShort(this.partitions.size());
-//            for (Integer p : this.partitions) {
-//                out.writeShort(p.intValue());
-//            } // FOR
-//        }
-        
-        if (params != null) {
-            out.writeObject(params);
-        } else if (unserializedParams != null) {
-            out.write(unserializedParams.array(),
-                      unserializedParams.position() + unserializedParams.arrayOffset(),
-                      unserializedParams.remaining());
+        if (this.params != null) {
+            out.writeObject(this.params);
+        } else if (this.unserializedParams != null) {
+            out.write(this.unserializedParams.array(),
+                      this.unserializedParams.position() + this.unserializedParams.arrayOffset(),
+                      this.unserializedParams.remaining());
         }
     }
     
@@ -263,44 +254,43 @@ public class StoredProcedureInvocation implements FastSerializable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Returns true if the raw bytes for this invocation indicate that it's a sysproc request
-     * @param buffer
-     * @return
-     */
-    public static boolean isSysProc(ByteBuffer buffer) {
-        return (buffer.get(0) == 1);
-    }
-    
-    /**
      * Mark a serialized byte array of a StoredProcedureInvocation as being redirected to
      * the given partition id without having to serialize it first.
      * @param partition
-     * @param serialized
+     * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
      */
-     public static void markRawBytesAsRedirected(int partition, ByteBuffer buffer) {
-        buffer.putShort(1, (short)partition);
-    }
+     public static void setBasePartition(int partition, ByteBuffer buffer) {
+        buffer.putShort(2, (short)partition);
+     }
+     
+     /**
+      * Returns the restart counter embedded in this invocation
+      * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
+      * @return
+      */
+     public static int getRestartCounter(ByteBuffer buffer) {
+         return (buffer.getShort(0));
+     }
     
     /**
      * Returns the base partition of this invocation
-     * If the base partition is not set, the return value will be -1
-     * @param serialized
+     * If the base partition is not set, the return value will be NULL_PARTITION_ID
+     * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
      * @return
      */
     public static int getBasePartition(ByteBuffer buffer) {
-        return (buffer.getShort(1));
+        return (buffer.getShort(2));
     }
 
-    
     /**
      * Return the client handle from the serialized StoredProcedureInvocation without having to 
      * deserialize it first
-     * @param serialized
+     * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
      * @return
      */
     public static long getClientHandle(ByteBuffer buffer) {
         buffer.rewind();
-        return (buffer.getLong(3));
+        return (buffer.getLong(4));
     }
     
     /**
@@ -310,12 +300,12 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static int getProcedureId(ByteBuffer buffer) {
-        return (buffer.getShort(11));
+        return (buffer.getShort(12));
     }
     
     /**
      * 
-     * @param buffer
+     * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
      * @return
      */
     public static String getProcedureName(ByteBuffer buffer) {
@@ -328,7 +318,7 @@ public class StoredProcedureInvocation implements FastSerializable {
      * @return
      */
     public static String getProcedureName(FastDeserializer in) {
-        in.buffer().position(13);
+        in.buffer().position(14);
         try {
             return (in.readString());
         } catch (IOException ex) {
@@ -339,7 +329,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     /**
      * Get a ByteBuffer that contains the serialized ParameterSet
      * for the ByteBuffer that contains a StoredProcedureInvocation 
-     * @param buffer
+     * @param buffer ByteBuffer wrapper around a serialized StoredProcedureInvocation
      * @return
      */
     public static ByteBuffer getParameterSet(ByteBuffer buffer) {
@@ -349,7 +339,7 @@ public class StoredProcedureInvocation implements FastSerializable {
     
     public static void seekToParameterSet(ByteBuffer buffer) {
         // Skip to the procedure name
-        buffer.position(13);
+        buffer.position(14);
         int procNameLen = buffer.getInt();
         buffer.position(buffer.position() + procNameLen);
     }

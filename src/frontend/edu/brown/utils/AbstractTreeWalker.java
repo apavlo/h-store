@@ -40,18 +40,21 @@ import java.util.Stack;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
+import edu.brown.pools.FastObjectPool;
+import edu.brown.pools.Poolable;
+
 /**
+ * Generic abstract class that can be used to build different traversal programs
+ * for various types of tree/graph structures
  * @author pavlo
- * @param <E>
- *            element type
+ * @param <E> element type
  */
 public abstract class AbstractTreeWalker<E> implements Poolable {
     private static final Logger LOG = Logger.getLogger(AbstractTreeWalker.class);
 
-    private static final Map<Class<?>, StackObjectPool> CHILDREN_POOLS = new HashMap<Class<?>, StackObjectPool>();
+    private static final Map<Class<?>, FastObjectPool<?>> CHILDREN_POOLS = new HashMap<Class<?>, FastObjectPool<?>>();
 
     /**
      * Children Object Pool Factory
@@ -195,7 +198,7 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     /**
      * Cache handle to the object pool we use for the children
      */
-    private StackObjectPool children_pool;
+    private FastObjectPool<E> children_pool;
     /**
      * If we reach one of these elements, we will halt the traversal
      */
@@ -247,13 +250,14 @@ public abstract class AbstractTreeWalker<E> implements Poolable {
     /**
      * Initialize the children object pool needed by this object
      */
+    @SuppressWarnings("unchecked")
     private void initChildrenPool(E element) {
         // Grab the handle to the children object pool we'll need
         Class<?> elementClass = element.getClass();
         synchronized (CHILDREN_POOLS) {
-            this.children_pool = CHILDREN_POOLS.get(elementClass);
+            this.children_pool = (FastObjectPool<E>)CHILDREN_POOLS.get(elementClass);
             if (this.children_pool == null) {
-                this.children_pool = new StackObjectPool(new ChildrenFactory<E>());
+                this.children_pool = new FastObjectPool<E>(new ChildrenFactory<E>());
                 CHILDREN_POOLS.put(elementClass, this.children_pool);
             }
         } // SYNCH

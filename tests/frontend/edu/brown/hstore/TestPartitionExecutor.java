@@ -34,7 +34,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 
 /**
  * @author pavlo

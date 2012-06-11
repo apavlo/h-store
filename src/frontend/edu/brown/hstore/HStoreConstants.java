@@ -29,6 +29,28 @@ public abstract class HStoreConstants {
     public static final int MESSENGER_PORT_OFFSET = 10000;
     
     // ----------------------------------------------------------------------------
+    // THREAD NAMES
+    // ----------------------------------------------------------------------------
+    
+    public static final String THREAD_NAME_LISTEN = "listen";
+    
+    public static final String THREAD_NAME_COORDINATOR = "coord";
+    
+    public static final String THREAD_NAME_POSTPROCESSOR = "post";
+    
+    public static final String THREAD_NAME_HELPER = "help";
+    
+    public static final String THREAD_NAME_TXNQUEUE = "queue";
+    
+    public static final String THREAD_NAME_COMMANDLOGGER = "wal";
+    
+    public static final String THREAD_NAME_LOGGING = "logging";
+    
+    public static final String THREAD_NAME_MAPREDUCE = "mr";
+    
+    public static final String THREAD_NAME_DEBUGSTATUS = "status";
+    
+    // ----------------------------------------------------------------------------
     // EXECUTION STUFF
     // ----------------------------------------------------------------------------
     
@@ -38,9 +60,14 @@ public abstract class HStoreConstants {
     public static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
 
     /**
-     * Represents a null dependency id
+     * Null Dependency Id
      */
     public static final int NULL_DEPENDENCY_ID = -1;
+
+    /**
+     * Null Partition Id
+     */
+    public static final int NULL_PARTITION_ID = -1;
 
     /**
      * Default token used to indicate that a txn is not using undo buffers

@@ -14,7 +14,7 @@ import org.voltdb.catalog.Catalog;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 
 /**
  * 

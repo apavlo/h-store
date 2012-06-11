@@ -18,8 +18,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
-
 
 public class BenchmarkComponentSet implements Runnable {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponentSet.class);

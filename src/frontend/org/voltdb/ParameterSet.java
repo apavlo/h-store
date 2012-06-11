@@ -28,7 +28,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.TimestampType;
 import org.voltdb.types.VoltDecimalHelper;
 
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 /**
  * The ordered set of parameters of the proper types that is passed into

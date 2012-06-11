@@ -166,7 +166,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                 } else {
                     deque.clear();
                 }
-                deque.addAll(e.getValue());
+                for (VoltTable vt : e.getValue()) {
+                    if (vt != null) deque.add(vt);
+                } // FOR
             }
             if (d) LOG.debug("Current InputDepencies:\n" + StringUtil.formatMaps(m_depsById));
         }

@@ -22,6 +22,7 @@ plannerlog.txt
 keepalive
 obj
 conf-*.html
+.DS_Store
 
 ## -------------------------------
 ## JNI Compiler Artifacts

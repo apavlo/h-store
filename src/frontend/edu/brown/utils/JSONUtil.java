@@ -262,7 +262,6 @@ public abstract class JSONUtil {
      * @param fields
      * @throws JSONException
      */
-    @SuppressWarnings("unchecked")
     public static <T> void fieldsToJSON(JSONStringer stringer, T object, Class<? extends T> base_class, Field fields[]) throws JSONException {
         if (debug.get())
             LOG.debug("Serializing out " + fields.length + " elements for " + base_class.getSimpleName());
@@ -297,7 +296,6 @@ public abstract class JSONUtil {
      * @param field_value
      * @throws JSONException
      */
-    @SuppressWarnings("unchecked")
     public static void writeFieldValue(JSONStringer stringer, Class<?> field_class, Object field_value) throws JSONException {
         // Null
         if (field_value == null) {

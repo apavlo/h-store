@@ -84,6 +84,32 @@ public abstract class StringUtil {
         }
         return "" + (int) bytes + " bytes";
     }
+    
+    /**
+     * 
+     * @param f
+     * @param nanoseconds
+     * @return
+     */
+    public static String formatTime(String f, double nanoseconds) {
+        double time = nanoseconds;
+        String unit = "ns";
+        
+        // Seconds
+        if (nanoseconds > 1000000000) {
+            time /= 1000000000d;
+            unit = "s";
+        // Milliseconds
+        } else if (nanoseconds > 1000000) {
+            time /= 1000000d;
+            unit = "ms";
+        // Microseconds
+        } else if (nanoseconds > 1000) {
+            time /= 1000d;
+            unit = "µs";
+        }
+        return String.format(f, time) + unit;
+    }
 
     /**
      * @param str
@@ -475,8 +501,9 @@ public abstract class StringUtil {
             return ("");
 
         StringBuilder sb = new StringBuilder();
-        for (String line : lines) {
-            sb.append(prefix).append(line).append("\n");
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) sb.append("\n");
+            sb.append(prefix).append(lines[i]);
         } // FOR
         return (sb.toString());
     }

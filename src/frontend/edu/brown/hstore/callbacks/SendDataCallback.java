@@ -9,8 +9,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -21,7 +21,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class SendDataCallback extends BlockingCallback<AbstractTransaction, SendDataResponse> {
+public class SendDataCallback extends BlockingRpcCallback<AbstractTransaction, SendDataResponse> {
     private static final Logger LOG = Logger.getLogger(SendDataCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

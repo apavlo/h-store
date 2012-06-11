@@ -4,6 +4,7 @@
 <arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
+<arg value="global.log_refresh=${global.log_refresh}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
@@ -15,6 +16,7 @@
 <arg value="client.weights=${client.weights}" />
 <arg value="client.processesperclient=${client.processesperclient}" />
 <arg value="client.processesperclient_per_partition=${client.processesperclient_per_partition}" />
+<arg value="client.shared_connection=${client.shared_connection}" />
 <arg value="client.count=${client.count}" />
 <arg value="client.duration=${client.duration}" />
 <arg value="client.warmup=${client.warmup}" />
@@ -42,6 +44,7 @@
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 <arg value="client.output_clients=${client.output_clients}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
+<arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
 
 <!-- SITE -->
@@ -79,6 +82,7 @@
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.network_profiling=${site.network_profiling}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
@@ -130,7 +134,6 @@
 <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
-<arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
 <arg value="site.pool_dtxnstates_idle=${site.pool_dtxnstates_idle}" />
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />

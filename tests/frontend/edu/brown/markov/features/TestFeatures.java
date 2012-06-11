@@ -26,9 +26,9 @@ public class TestFeatures extends BaseTestCase {
     private TransactionTrace txn_trace;
     
     private final Object params[] = {
-        new Long(1),        // (0) W_ID
-        new Long(2),        // (1) D_ID
-        new Long(3),        // (2) C_ID
+        new Integer(1),     // (0) W_ID
+        new Integer(2),     // (1) D_ID
+        new Integer(3),     // (2) C_ID
         new TimestampType(),// (3) TIMESTAMP
         null,               // (4) ITEM_ID
         null,               // (5) SUPPY_WAREHOUSE
@@ -57,7 +57,9 @@ public class TestFeatures extends BaseTestCase {
     
     private void validate(AbstractFeature f, TransactionTrace txn, FeatureSet fset) throws Exception {
         List<String> features = fset.getFeatures();
+        assertNotNull(features);
         List<Object> values = fset.getFeatureValues(txn);
+        assertNotNull(values);
         assertEquals(features.size(), values.size());
         
         for (int i = 0, cnt = features.size(); i < cnt; i++) {

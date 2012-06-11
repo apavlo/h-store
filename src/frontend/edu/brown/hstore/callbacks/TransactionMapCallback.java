@@ -7,7 +7,7 @@ import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 
 /**
  * This callback waits until all of the TransactionMapResponses have come

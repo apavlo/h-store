@@ -33,8 +33,8 @@ import org.voltdb.utils.DumpManager;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 

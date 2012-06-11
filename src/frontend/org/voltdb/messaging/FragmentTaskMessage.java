@@ -571,13 +571,17 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     // HACK: PROTOCOL BUFFER WRAPPER MODE!
     // ----------------------------------------------------------------------------
 
+    @Deprecated
     private WorkFragment inner_work;
     
+    @Deprecated
     public FragmentTaskMessage setWorkFragment(long txn_id, WorkFragment work) {
         this.setTransactionId(txn_id);
         this.inner_work = work;
         return (this);
     }
+    
+    @Deprecated
     public WorkFragment getWorkFragment() {
         return (this.inner_work);
     }

@@ -24,18 +24,18 @@ import org.voltdb.utils.Pair;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.pools.Poolable;
+import edu.brown.pools.TypedPoolableObjectFactory;
+import edu.brown.pools.TypedObjectPool;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.TypedPoolableObjectFactory;
-import edu.brown.utils.TypedStackObjectPool;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -63,9 +63,9 @@ public class TransactionEstimator implements Loggable {
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
 
-    public static TypedStackObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
+    public static TypedObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
     
-    public static TypedStackObjectPool<TransactionEstimator.State> POOL_STATES;
+    public static TypedObjectPool<TransactionEstimator.State> POOL_STATES;
     
     
     // ----------------------------------------------------------------------------
@@ -343,12 +343,12 @@ public class TransactionEstimator implements Loggable {
             if (POOL_STATES == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
                 TypedPoolableObjectFactory<TransactionEstimator.State> s_factory = new State.Factory(this.num_partitions); 
-                POOL_STATES = new TypedStackObjectPool<TransactionEstimator.State>(s_factory,
+                POOL_STATES = new TypedObjectPool<TransactionEstimator.State>(s_factory,
                         HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
                 TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.num_partitions);
-                POOL_ESTIMATORS = new TypedStackObjectPool<MarkovPathEstimator>(m_factory,
+                POOL_ESTIMATORS = new TypedObjectPool<MarkovPathEstimator>(m_factory,
                         HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC

@@ -44,19 +44,19 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
         assertEquals(catalog_proc.getId(), StoredProcedureInvocation.getProcedureId(buffer));
     }
-    
-    /**
-     * testIsSysProc
-     */
-    public void testIsSysProc() throws Exception {
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, "@DatabaseDump", PARAMS);
-        byte[] invocation_bytes = FastSerializer.serialize(invocation);
-        assertNotNull(invocation_bytes);
-        
-        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
-        boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
-        assertEquals(true, sysproc);
-    }
+//    
+//    /**
+//     * testIsSysProc
+//     */
+//    public void testIsSysProc() throws Exception {
+//        StoredProcedureInvocation invocation = new StoredProcedureInvocation(CLIENT_HANDLE, "@DatabaseDump", PARAMS);
+//        byte[] invocation_bytes = FastSerializer.serialize(invocation);
+//        assertNotNull(invocation_bytes);
+//        
+//        ByteBuffer buffer = ByteBuffer.wrap(invocation_bytes);
+//        boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
+//        assertEquals(true, sysproc);
+//    }
 
     /**
      * testGetProcedureName
@@ -134,7 +134,7 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertNotNull(invocation_bytes);
         
         for (int partition = 0; partition < 100; partition+=3) {
-            StoredProcedureInvocation.markRawBytesAsRedirected(partition, ByteBuffer.wrap(invocation_bytes));
+            StoredProcedureInvocation.setBasePartition(partition, ByteBuffer.wrap(invocation_bytes));
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             StoredProcedureInvocation clone = fds.readObject(StoredProcedureInvocation.class);
             assertNotNull(clone);
@@ -178,7 +178,6 @@ public class TestStoredProcedureInvocation extends BaseTestCase {
         assertEquals(invocation.getProcName(), clone.getProcName());
         assertNotNull(clone.getParams());
         assertArrayEquals(invocation.getParams().toArray(), clone.getParams().toArray());
-        assertFalse(clone.hasPartitions());
     }
     
 //    /**
