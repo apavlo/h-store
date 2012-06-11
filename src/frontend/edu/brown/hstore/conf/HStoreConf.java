@@ -251,20 +251,29 @@ public final class HStoreConf {
         public boolean exec_force_localexecution;
     
         @ConfigProperty(
-            description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. A " +
-                        "mispredicted transaction is one that was originally identified as single-partitioned but then " +
-                        "executed a query that attempted to access multiple partitions. This is primarily used for debugging " +
-                        "the TransactionEstimator.",
+            description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. " +
+            		    "A mispredicted transaction is one that was originally identified as single-partitioned " +
+            		    "but then executed a query that attempted to access multiple partitions. This is primarily " +
+            		    "used for debugging the TransactionEstimator.",
             defaultBoolean=false,
             experimental=false
         )
         public boolean exec_mispredict_crash;
         
         @ConfigProperty(
-            description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
-                        "all of the PartitionExecutors. This may help with multi-partition transactions but will be the bottleneck " +
-                        "for single-partition txn heavy workloads because the thread must acquire the lock on each partition's " +
-                        "ExecutionEngine in order to commit or abort a transaction.",
+            description="If this enabled, HStoreSite will use a separate thread to process inbound requests " +
+            		    "from the clients.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean exec_preprocessing_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreSite will use a separate thread to process every outbound " +
+            		    "ClientResponse for all of the PartitionExecutors. This may help with multi-partition " +
+            		    "transactions but will be the bottleneck for single-partition txn heavy workloads " +
+            		    "because the thread must acquire the lock on each partition in order to commit " +
+            		    "or abort a transaction.",
             defaultBoolean=false,
             experimental=true
         )
@@ -286,18 +295,18 @@ public final class HStoreConf {
         public boolean exec_postprocessing_thread_per_partition;
         
         @ConfigProperty(
-            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
-                        "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
-                        "successful transactions that were speculatively executed.",
+            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation " +
+            		    "in the EE for the last transaction in the queued responses. This will cascade to all other " +
+            		    "queued responses successful transactions that were speculatively executed.",
             defaultBoolean=true,
             experimental=true
         )
         public boolean exec_queued_response_ee_bypass;
         
         @ConfigProperty(
-            description="The maximum amount of time that the PartitionExecutor will wait for the results of a distributed  " +
-                        "query to return to the transaction's base partition. Usually if this limit is reached, then there " +
-                        "is something very wrong with the distributed transaction protocol.",
+            description="The maximum amount of time that the PartitionExecutor will wait for the results of a " +
+            		    "distributed query to return to the transaction's base partition. Usually if this limit " +
+            		    "is reached, then there is something very wrong with the distributed transaction protocol.",
             defaultInt=10000,
             experimental=true
         )
