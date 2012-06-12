@@ -18,9 +18,9 @@
 package org.voltdb;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
@@ -399,14 +399,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 
     @Override
     public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Status", this.status +
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("RequestCounter", this.requestCounter);
+        m.put("Request Counter", this.requestCounter);
+        m.put("Restart Counter", this.restartCounter);
         m.put("Throttle", this.throttle);
-        m.put("SinglePartition", this.singlepartition);
-        m.put("BasePartition", this.basePartition);
+        m.put("Single-Partition", this.singlepartition);
+        m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
         
         if (this.clientRoundTripTime > 0) {
@@ -416,7 +417,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             m.put("Cluster RoundTrip Time", this.clusterRoundTripTime + " ms");
         }
         
-        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int i = 0; i < results.length; i++) {
             inner.put(String.format("[%d]", i), results[i].toString());
         }

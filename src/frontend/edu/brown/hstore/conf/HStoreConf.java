@@ -263,7 +263,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process inbound requests " +
             		    "from the clients.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean exec_preprocessing_threads;

@@ -67,7 +67,6 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.RpcCallback;
 
@@ -98,7 +97,6 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.protorpc.NIOEventLoop;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -140,7 +138,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final CatalogContext catalogContext;
     private final Database catalog_db;
     private final Host catalog_host;
-    private final int host_id;
+//    private final int host_id;
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
@@ -219,8 +217,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * This thread is responsible for listening for incoming txn requests from 
      * clients. It will then forward the request to HStoreSite.procedureInvocation()
      */
-    private VoltProcedureListener voltListeners[];
-    private final NIOEventLoop procEventLoops[];
+//    private VoltProcedureListener voltListeners[];
+//    private final NIOEventLoop procEventLoops[];
     
     private VoltNetwork voltNetwork;
     private ClientInterface clientInterface;
@@ -418,7 +416,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.catalog_host = this.catalog_site.getHost(); 
-        this.host_id = this.catalog_host.getId();
+//        this.host_id = this.catalog_host.getId();
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
@@ -546,16 +544,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // NETWORK SETUP
         // -------------------------------
-        
-        // Incoming Txn Request Listener
-        this.voltListeners = new VoltProcedureListener[1];
-        this.procEventLoops = new NIOEventLoop[this.voltListeners.length];
-        for (int i = 0; i < this.voltListeners.length; i++) {
-            this.procEventLoops[i] = new NIOEventLoop();
-            this.voltListeners[i] = new VoltProcedureListener(this.host_id,
-                                                               this.procEventLoops[i],
-                                                               this);
-        } // FOR
         
         this.voltNetwork = new VoltNetwork();
         this.clientInterface = ClientInterface.create(this,
@@ -1268,6 +1256,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } catch (InterruptedException ex) {
                 throw new RuntimeException(ex);
             }
+            this.clientInterface.shutdown();
         }
         
         // Tell our local boys to go down too
@@ -1306,11 +1295,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.shutdown_observable.notifyObservers();
         
         // Tell all of our event loops to stop
-        if (t) LOG.trace("Telling Procedure Listener event loops to exit");
-        for (int i = 0; i < this.voltListeners.length; i++) {
-            this.procEventLoops[i].exitLoop();
-            if (this.voltListeners[i] != null) this.voltListeners[i].close();
-        } // FOR
+//        if (t) LOG.trace("Telling Procedure Listener event loops to exit");
+//        for (int i = 0; i < this.voltListeners.length; i++) {
+//            this.procEventLoops[i].exitLoop();
+//            if (this.voltListeners[i] != null) this.voltListeners[i].close();
+//        } // FOR
         
         if (this.hstore_coordinator != null) {
             this.hstore_coordinator.shutdown();
@@ -1351,10 +1340,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
             @Override
             public void run(ClientResponseImpl parameter) {
+                LOG.info("Serializing ClientResponse to byte array:\n" + parameter);
+                
                 FastSerializer fs = new FastSerializer();
                 try {
-                    BBContainer bb = fs.writeObjectForMessaging(parameter);
-                    clientCallback.run(bb.b.array());
+                    parameter.writeExternal(fs);
+                    clientCallback.run(fs.getBBContainer().b.array());
+                    
+//                    LOG.info("AFTER:\n" + FastDeserializer.deserialize(bb.b.array(), ClientResponseImpl.class).toString());
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 } finally {
