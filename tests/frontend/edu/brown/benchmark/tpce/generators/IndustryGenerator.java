@@ -45,7 +45,7 @@ public class IndustryGenerator extends TableGenerator {
         ind_file = generator.getInputFile(InputFile.INDUSTRY);
         table_size = ind_file.getRecordsNum();
     }
-    
+        
     public int getTableSize(){
     	return table_size;
     }

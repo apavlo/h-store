@@ -77,7 +77,7 @@ public class TPCEClient extends BenchmarkComponent {
             incrementTransactionCounter(clientResponse, t.ordinal());
         }
     }
-
+ 
     /**
      * @author pavlo
      */

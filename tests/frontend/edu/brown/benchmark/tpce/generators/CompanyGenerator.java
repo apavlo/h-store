@@ -49,7 +49,7 @@ public class CompanyGenerator extends TableGenerator {
     private final long startingCompany;
     private long companyAddrId;
     private final long companyCount;
-    
+         
     private long counter;
     
     private static final int dayJan1_1800 = EGenDate.getDayNo(1800, 0, 1);

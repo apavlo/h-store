@@ -2,7 +2,7 @@ package edu.brown.benchmark.tpce.generators;
 
 public abstract class BaseLogFormatter {
 
-	public abstract String getLogOutput(BrokerVolumeSettings parms );
+    public abstract String getLogOutput(BrokerVolumeSettings parms );
     public abstract String getLogOutput(CustomerPositionSettings parms );
     public abstract String getLogOutput(MarketWatchSettings parms );
     public abstract String getLogOutput(SecurityDetailSettings parms );

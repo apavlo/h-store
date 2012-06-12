@@ -188,7 +188,7 @@ public class TPCEGenerator {
         this.scaling_factor = scaling_factor;
         this.initial_days = initial_days;
     }
-    
+     
     /**
      * This function changes customer parameters for every subsequent table generator created afterwards.
      * Each generator that depends on the number of customers will use these to generate its tuple. The number

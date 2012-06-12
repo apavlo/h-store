@@ -62,7 +62,7 @@ public class SecurityGenerator extends TableGenerator {
     private final long startSecurity;
     private final long numSecurity;
     private long counter;
-    
+     
     private final SecurityHandler secHandle;
     private final CompanyGenerator compGenerator;
     

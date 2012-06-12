@@ -62,21 +62,11 @@ import edu.brown.benchmark.tpce.util.EGenRandom;
  */
 public class TradeGenerator implements Iterator<Object[]> {
     public enum TradeType {
-        eMarketBuy(0),
-        eMarketSell(1),
-        eStopLoss(2),
-        eLimitSell(3),
-        eLimitBuy(4);
-        
-        private final int id;
-        
-        private TradeType(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
+        eMarketBuy,
+        eMarketSell,
+        eStopLoss,
+        eLimitSell,
+        eLimitBuy;
     }
     
     private class TradeInfo {
@@ -647,10 +637,10 @@ public class TradeGenerator implements Iterator<Object[]> {
             String[] chargeRow = chargeFile.getTupleByIndex(i);
 
             // [1] is the tier number
-            if (Integer.valueOf(chargeRow[1]) == newTrade.customerTier.getValue()) {
+            if (Integer.valueOf(chargeRow[1]) == newTrade.customerTier.ordinal() + 1) {
                 // pick the trade type row (we assume it is indexed on the enum
                 // int values)
-                String[] ttRow = tradeTypeFile.getTupleByIndex(newTrade.tradeType.getValue());
+                String[] ttRow = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal());
 
                 // compare trade type symbols
                 if (chargeRow[0].equals(ttRow[0])) {
@@ -665,9 +655,9 @@ public class TradeGenerator implements Iterator<Object[]> {
     }
 
     private void generateTradeCommission() {
-        int tier = newTrade.customerTier.getValue();
+        int tier = newTrade.customerTier.ordinal() + 1;
         int tradeQty = newTrade.tradeQty;
-        int tradeType = newTrade.tradeType.getValue();
+        int tradeType = newTrade.tradeType.ordinal();
 
        /*
         * Some extra logic to reduce looping in the CommissionRate file.
@@ -731,7 +721,7 @@ public class TradeGenerator implements Iterator<Object[]> {
     }
 
     private void generateSettlementAmount() {
-        String[] ttRow = tradeTypeFile.getTupleByIndex(newTrade.tradeType.getValue());
+        String[] ttRow = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal());
         
         if (Integer.valueOf(ttRow[2]) == 1) { // is sell?
             addTrade.settlement = EGenMoney.mulMoneyByInt(newTrade.tradePrice, newTrade.tradeQty);
@@ -820,8 +810,8 @@ public class TradeGenerator implements Iterator<Object[]> {
         
         tuple[0] = newTrade.tradeId; // t_id
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // t_dts
-        tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.getValue())[0]; // t_st_id
-        tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.getValue())[0]; // t_tt_id
+        tuple[2] = statusTypeFile.getTupleByIndex(newTrade.tradeStatus.ordinal())[0]; // t_st_id
+        tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[0]; // t_tt_id
         
         // is it a cash trade?
         addTrade.isCash = true;
@@ -877,7 +867,7 @@ public class TradeGenerator implements Iterator<Object[]> {
         tuple[0] = newTrade.tradeId; // ct_t_id
         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // ct_dts
         tuple[2] = addTrade.settlement.getDollars(); // ct_amt
-        tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.getValue())[1] + " " +
+        tuple[3] = tradeTypeFile.getTupleByIndex(newTrade.tradeType.ordinal())[1] + " " +
                 Integer.toString(newTrade.tradeQty) + " shares of " + secGenerator.createName(newTrade.secFileIndex); // ct_name
         
         return tuple;        
@@ -898,17 +888,17 @@ public class TradeGenerator implements Iterator<Object[]> {
                 switch (i) {
                     case 0:
                         tuple[1] = new TimestampType(getCurrentTradePendingTime()); // th_dts
-                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_PENDING.getValue())[0]; // th_st_id
+                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_PENDING.ordinal())[0]; // th_st_id
                         break;
                         
                     case 1:
                         tuple[1] = new TimestampType(getCurrentTradeSubmissionTime()); // th_dts
-                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue())[0]; // th_st_id
+                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_SUBMITTED.ordinal())[0]; // th_st_id
                         break;
                         
                     case 2:
                         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // th_dts
-                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_COMPLETED.getValue())[0]; // th_st_id
+                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_COMPLETED.ordinal())[0]; // th_st_id
                         break;
                         
                     default:
@@ -927,12 +917,12 @@ public class TradeGenerator implements Iterator<Object[]> {
                 switch (i) {
                     case 0:
                         tuple[1] = new TimestampType(getCurrentTradeSubmissionTime()); // th_dts
-                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue())[0]; // th_st_id
+                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_SUBMITTED.ordinal())[0]; // th_st_id
                         break;
                         
                     case 1:
                         tuple[1] = new TimestampType(getCurrentTradeCompletionTime()); // th_dts
-                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_COMPLETED.getValue())[0]; // th_st_id
+                        tuple[2] = statusTypeFile.getTupleByIndex(StatusTypeId.E_COMPLETED.ordinal())[0]; // th_st_id
                         break;
                         
                     default:

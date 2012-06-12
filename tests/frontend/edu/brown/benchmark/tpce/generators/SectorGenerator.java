@@ -54,7 +54,7 @@ public class SectorGenerator extends TableGenerator {
     public boolean hasNext() {
         return counter < table_size;
     }
-    
+      
     @Override
     public Object[] next() {
         Object tuple[] = new Object[columnsNum];

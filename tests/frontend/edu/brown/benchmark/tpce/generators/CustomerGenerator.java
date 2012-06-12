@@ -228,12 +228,12 @@ public class CustomerGenerator extends TableGenerator {
         
         tuple[0] = cid;                     // c_id
         tuple[1] = namesAndtaxId[2];    // c_tax_id
-        tuple[2] = statusType.getTupleByIndex(StatusTypeId.E_ACTIVE.getValue())[0]; // c_st_id
+        tuple[2] = statusType.getTupleByIndex(StatusTypeId.E_ACTIVE.ordinal())[0]; // c_st_id
         tuple[3] = namesAndtaxId[1]; // c_l_name
         tuple[4] = namesAndtaxId[0]; // c_f_name
         tuple[5] = person.getMiddleName(cid); // c_m_name
         tuple[6] = person.getGender(cid); // c_gndr
-        tuple[7] = (short)CustomerSelection.getTier(cid).getValue(); // c_tier
+        tuple[7] = (short)CustomerSelection.getTier(cid).ordinal() + 1; // c_tier
         tuple[8] = new TimestampType(getDOB()); // c_dob
         tuple[9] = getAddrID(cid); // c_ad_id
         

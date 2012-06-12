@@ -4,42 +4,42 @@ import edu.brown.benchmark.tpce.*;
 
 public class TDriverCETxnSettings {
 
-	BrokerVolumeSettings       BV_settings;
-    CustomerPositionSettings   CP_settings;
-    MarketWatchSettings        MW_settings;
-    SecurityDetailSettings     SD_settings;
-    TradeLookupSettings        TL_settings;
-    TradeOrderSettings         TO_settings;
-    TradeUpdateSettings        TU_settings;
+    public BrokerVolumeSettings       BV_settings;
+    public CustomerPositionSettings   CP_settings;
+    public MarketWatchSettings        MW_settings;
+    public SecurityDetailSettings     SD_settings;
+    public TradeLookupSettings        TL_settings;
+    public TradeOrderSettings         TO_settings;
+    public TradeUpdateSettings        TU_settings;
 
     TxnMixGeneratorSettings    TxnMixGenerator_settings;
 
     public TDriverCETxnSettings(){
-    	BV_settings = new BrokerVolumeSettings();
-    	CP_settings = new CustomerPositionSettings();
-    	MW_settings = new MarketWatchSettings();
-    	SD_settings = new SecurityDetailSettings();
-    	TL_settings = new TradeLookupSettings();
-    	TO_settings = new TradeOrderSettings();
-    	TU_settings = new TradeUpdateSettings();
-    	TxnMixGenerator_settings = new TxnMixGeneratorSettings();
+        BV_settings = new BrokerVolumeSettings();
+        CP_settings = new CustomerPositionSettings();
+        MW_settings = new MarketWatchSettings();
+        SD_settings = new SecurityDetailSettings();
+        TL_settings = new TradeLookupSettings();
+        TO_settings = new TradeOrderSettings();
+        TU_settings = new TradeUpdateSettings();
+        TxnMixGenerator_settings = new TxnMixGeneratorSettings();
     }
     public boolean isValid(){
-    	boolean isValid = true;
-    	isValid &= BV_settings.checkValid();
-    	isValid &= CP_settings.checkValid();
-    	isValid &= MW_settings.checkValid();
-    	isValid &= SD_settings.checkValid();
-    	isValid &= TL_settings.checkValid();
-    	isValid &= TO_settings.checkValid();
-    	isValid &= TU_settings.checkValid();
-    	isValid &= TxnMixGenerator_settings.checkValid();
-    	return isValid;
+        boolean isValid = true;
+        isValid &= BV_settings.checkValid();
+        isValid &= CP_settings.checkValid();
+        isValid &= MW_settings.checkValid();
+        isValid &= SD_settings.checkValid();
+        isValid &= TL_settings.checkValid();
+        isValid &= TO_settings.checkValid();
+        isValid &= TU_settings.checkValid();
+        isValid &= TxnMixGenerator_settings.checkValid();
+        return isValid;
       
     }
 
     public void checkCompliant(){
-    	
+        
         BV_settings.checkCompliant();
         CP_settings.checkCompliant();
         MW_settings.checkCompliant();
@@ -56,7 +56,7 @@ public class TDriverCETxnSettings {
 ******************************************************************************/
 
 class BrokerVolumeSettings extends ParametersWithDefaults{
-	
+    
     public BrokerVolumeSettings(){
         initialize();
     }
@@ -68,47 +68,47 @@ class BrokerVolumeSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid(){
-    	return true;
+        return true;
     }
 
     public boolean checkCompliant(){
-    	return true;
+        return true;
     }
     
     public boolean isValid(){
-    	return true;
+        return true;
     }
     public boolean isCompliant(){
-    	return true;
+        return true;
     }
 }
 
 class CustomerPositionSettings extends ParametersWithDefaults{
 
-	public int dft_by_cust_id;
-	public int dft_by_tax_id;
-	public int dft_get_history;
-	public int cur_by_cust_id;
-	public int cur_by_tax_id;
-	public int cur_get_history;
-	public boolean state_by_cust_id;
-	public boolean state_by_tax_id;
-	public boolean state_get_history;
-	
-	public CustomerPositionSettings(){
+    public int dft_by_cust_id;
+    public int dft_by_tax_id;
+    public int dft_get_history;
+    public int cur_by_cust_id;
+    public int cur_by_tax_id;
+    public int cur_get_history;
+    public boolean state_by_cust_id;
+    public boolean state_by_tax_id;
+    public boolean state_get_history;
+    
+    public CustomerPositionSettings(){
         initialize();
     }
 
     public void initializeDefaults(){
-    	dft_by_cust_id = 50;
-    	dft_by_tax_id = 50;
-    	dft_get_history = 50;
+        dft_by_cust_id = 50;
+        dft_by_tax_id = 50;
+        dft_get_history = 50;
     }
 
     public void setToDefaults(){ 
-    	cur_by_cust_id = dft_by_cust_id;
-    	cur_by_tax_id = dft_by_tax_id;
-    	cur_get_history = dft_get_history;
+        cur_by_cust_id = dft_by_cust_id;
+        cur_by_tax_id = dft_by_tax_id;
+        cur_get_history = dft_get_history;
         checkDefaults();
     }
     
@@ -119,20 +119,20 @@ class CustomerPositionSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid() {
-    	try{
-    		driverParamCheckBetween( "by_cust_id",    cur_by_cust_id,                 0, 100);
-	    	driverParamCheckBetween( "by_tax_id",     cur_by_tax_id,                  0, 100);
-	        driverParamCheckEqual(   "by_*_id total", cur_by_cust_id + cur_by_tax_id,    100);
-	        driverParamCheckBetween( "get_history",   cur_get_history,                0, 100);
-	        return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        try{
+            driverParamCheckBetween( "by_cust_id",    cur_by_cust_id,                 0, 100);
+            driverParamCheckBetween( "by_tax_id",     cur_by_tax_id,                  0, 100);
+            driverParamCheckEqual(   "by_*_id total", cur_by_cust_id + cur_by_tax_id,    100);
+            driverParamCheckBetween( "get_history",   cur_get_history,                0, 100);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 
     public boolean checkCompliant() {
-    	checkValid();
-    	try{
+        checkValid();
+        try{
             driverParamCheckDefault(dft_by_cust_id, cur_by_cust_id, "by_cust_id");
             driverParamCheckDefault(dft_by_tax_id, cur_by_tax_id, "by_tax_id");
             driverParamCheckDefault(dft_get_history, cur_get_history, "get_history");
@@ -145,7 +145,7 @@ class CustomerPositionSettings extends ParametersWithDefaults{
 
 class MarketWatchSettings extends ParametersWithDefaults{
  
-	public int   dft_by_acct_id;     
+    public int   dft_by_acct_id;     
     public int   dft_by_industry;    
     public int   dft_by_watch_list;  
     public int    cur_by_acct_id;     
@@ -167,9 +167,9 @@ class MarketWatchSettings extends ParametersWithDefaults{
     }
 
     public void setToDefaults(){ 
-    	cur_by_acct_id = dft_by_acct_id;
-    	cur_by_industry = dft_by_industry;
-    	cur_by_watch_list = dft_by_watch_list;
+        cur_by_acct_id = dft_by_acct_id;
+        cur_by_industry = dft_by_industry;
+        cur_by_watch_list = dft_by_watch_list;
         checkDefaults();
     }
     
@@ -180,15 +180,15 @@ class MarketWatchSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid(){
-    	try{
-	    	driverParamCheckBetween( "by_acct_id",    cur_by_acct_id,    0, 100);
-	    	driverParamCheckBetween( "by_industry",   cur_by_industry,   0, 100);
-	    	driverParamCheckBetween( "by_watch_list", cur_by_watch_list, 0, 100);
-	    	driverParamCheckEqual(   "by_* total",    cur_by_acct_id + cur_by_industry + cur_by_watch_list, 100);
-	    	return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        try{
+            driverParamCheckBetween( "by_acct_id",    cur_by_acct_id,    0, 100);
+            driverParamCheckBetween( "by_industry",   cur_by_industry,   0, 100);
+            driverParamCheckBetween( "by_watch_list", cur_by_watch_list, 0, 100);
+            driverParamCheckEqual(   "by_* total",    cur_by_acct_id + cur_by_industry + cur_by_watch_list, 100);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 
     public boolean checkCompliant(){
@@ -206,10 +206,10 @@ class MarketWatchSettings extends ParametersWithDefaults{
 
 class SecurityDetailSettings extends ParametersWithDefaults{
  
-	public int dft_LOBAccessPercentage;
-	public int cur_LOBAccessPercentage;
-	public boolean state_LOBAccessPercentage;
-	
+    public int dft_LOBAccessPercentage;
+    public int cur_LOBAccessPercentage;
+    public boolean state_LOBAccessPercentage;
+    
     SecurityDetailSettings(){
         initialize();
     }
@@ -219,7 +219,7 @@ class SecurityDetailSettings extends ParametersWithDefaults{
     }
 
     public void setToDefaults(){ 
-    	cur_LOBAccessPercentage = dft_LOBAccessPercentage;
+        cur_LOBAccessPercentage = dft_LOBAccessPercentage;
         checkDefaults();
     }
     
@@ -228,29 +228,29 @@ class SecurityDetailSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid(){
-    	try{
-    		driverParamCheckBetween( "LOBAccessPercentage", cur_LOBAccessPercentage, 0, 100);
-    		return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        try{
+            driverParamCheckBetween( "LOBAccessPercentage", cur_LOBAccessPercentage, 0, 100);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
         
     }
 
     public boolean checkCompliant(){
         checkValid();
         try{
-        	driverParamCheckDefault( dft_LOBAccessPercentage, cur_LOBAccessPercentage, "LOBAccessPercentage" );
-        	return true;
+            driverParamCheckDefault( dft_LOBAccessPercentage, cur_LOBAccessPercentage, "LOBAccessPercentage" );
+            return true;
         }catch(CheckException e){
-        		return false;
+                return false;
         }
     }
 }
 
 class TradeLookupSettings extends ParametersWithDefaults{
  
-	public int dft_do_frame1;                       
+    public int dft_do_frame1;                       
     public int dft_do_frame2;                       
     public int dft_do_frame3;                       
     public int dft_do_frame4;                       
@@ -319,7 +319,7 @@ class TradeLookupSettings extends ParametersWithDefaults{
     }
 
     public void setToDefaults(){ 
-    	cur_do_frame1 = dft_do_frame1; 
+        cur_do_frame1 = dft_do_frame1; 
         cur_do_frame2 = dft_do_frame2;
         cur_do_frame3 = dft_do_frame3;
         cur_do_frame4 = dft_do_frame4;
@@ -334,26 +334,26 @@ class TradeLookupSettings extends ParametersWithDefaults{
     }
     
     public boolean checkValid() {
-    	try{
-    		driverParamCheckBetween( "do_frame1",       cur_do_frame1,    0, 100);
-	        driverParamCheckBetween( "do_frame2",       cur_do_frame2,    0, 100);
-	        driverParamCheckBetween( "do_frame3",       cur_do_frame3,    0, 100);
-	        driverParamCheckBetween( "do_frame4",       cur_do_frame4,    0, 100);
-	        driverParamCheckEqual(   "do_frame* total", cur_do_frame1 + cur_do_frame2 + cur_do_frame3 + cur_do_frame4, 100);
-	        driverParamCheckLE(      "MaxRowsFrame1", cur_MaxRowsFrame1, TPCEConstants.TradeLookupFrame1MaxRows);
-	        driverParamCheckLE(      "MaxRowsFrame2", cur_MaxRowsFrame2, TPCEConstants.TradeLookupFrame2MaxRows);
-	        driverParamCheckLE(      "MaxRowsFrame3", cur_MaxRowsFrame3, TPCEConstants.TradeLookupFrame3MaxRows);
-	        driverParamCheckLE(      "MaxRowsFrame4", cur_MaxRowsFrame4, TPCEConstants.TradeLookupFrame4MaxRows);
-	        return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        try{
+            driverParamCheckBetween( "do_frame1",       cur_do_frame1,    0, 100);
+            driverParamCheckBetween( "do_frame2",       cur_do_frame2,    0, 100);
+            driverParamCheckBetween( "do_frame3",       cur_do_frame3,    0, 100);
+            driverParamCheckBetween( "do_frame4",       cur_do_frame4,    0, 100);
+            driverParamCheckEqual(   "do_frame* total", cur_do_frame1 + cur_do_frame2 + cur_do_frame3 + cur_do_frame4, 100);
+            driverParamCheckLE(      "MaxRowsFrame1", cur_MaxRowsFrame1, TPCEConstants.TradeLookupFrame1MaxRows);
+            driverParamCheckLE(      "MaxRowsFrame2", cur_MaxRowsFrame2, TPCEConstants.TradeLookupFrame2MaxRows);
+            driverParamCheckLE(      "MaxRowsFrame3", cur_MaxRowsFrame3, TPCEConstants.TradeLookupFrame3MaxRows);
+            driverParamCheckLE(      "MaxRowsFrame4", cur_MaxRowsFrame4, TPCEConstants.TradeLookupFrame4MaxRows);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 
     public boolean checkCompliant(){
         checkValid();
         try{
-        	driverParamCheckDefault( dft_do_frame1, cur_do_frame1, "do_frame1" );
+            driverParamCheckDefault( dft_do_frame1, cur_do_frame1, "do_frame1" );
             driverParamCheckDefault( dft_do_frame2, cur_do_frame2, "do_frame2" );
             driverParamCheckDefault( dft_do_frame3, cur_do_frame3, "do_frame3" );
             driverParamCheckDefault( dft_do_frame4, cur_do_frame4, "do_frame4" );
@@ -366,14 +366,14 @@ class TradeLookupSettings extends ParametersWithDefaults{
             driverParamCheckDefault( dft_MaxRowsFrame4, cur_MaxRowsFrame4, "MaxRowsFrame4" );
             return true;
         }catch(CheckException e){
-        		return false;
+                return false;
         }
     }
 }
 
 class TradeOrderSettings extends ParametersWithDefaults{
  
-	public int dft_market;
+    public int dft_market;
     public int dft_limit;
     public int dft_stop_loss;
     public int dft_security_by_name;
@@ -409,11 +409,11 @@ class TradeOrderSettings extends ParametersWithDefaults{
     public boolean    state_rollback;
     public boolean    state_type_is_margin;
     
-	public TradeOrderSettings(){
+    public TradeOrderSettings(){
         initialize();
     }
 
-	public void initializeDefaults(){
+    public void initializeDefaults(){
         dft_market = 60;
         dft_limit = 40;
         dft_stop_loss = 50;
@@ -427,22 +427,22 @@ class TradeOrderSettings extends ParametersWithDefaults{
         dft_type_is_margin = 8;
     }
 
-	public void setToDefaults(){ 
-		cur_market = dft_market; 
-		cur_limit = dft_limit;
-		cur_stop_loss = dft_stop_loss;
-		cur_security_by_name = dft_security_by_name;
-		cur_security_by_symbol = dft_security_by_symbol;
-		cur_buy_orders = dft_buy_orders;
-		cur_sell_orders = dft_sell_orders;
-		cur_lifo = dft_lifo;
-		cur_exec_is_owner = dft_exec_is_owner;
-		cur_rollback = dft_rollback;
-		cur_type_is_margin = dft_type_is_margin;
+    public void setToDefaults(){ 
+        cur_market = dft_market; 
+        cur_limit = dft_limit;
+        cur_stop_loss = dft_stop_loss;
+        cur_security_by_name = dft_security_by_name;
+        cur_security_by_symbol = dft_security_by_symbol;
+        cur_buy_orders = dft_buy_orders;
+        cur_sell_orders = dft_sell_orders;
+        cur_lifo = dft_lifo;
+        cur_exec_is_owner = dft_exec_is_owner;
+        cur_rollback = dft_rollback;
+        cur_type_is_margin = dft_type_is_margin;
         checkDefaults();
     }
-	
-	public void checkDefaults(){
+    
+    public void checkDefaults(){
         state_market = (cur_market == dft_market);
         state_limit = (cur_limit == dft_limit);
         state_stop_loss = (cur_stop_loss == dft_stop_loss);
@@ -456,32 +456,32 @@ class TradeOrderSettings extends ParametersWithDefaults{
         state_type_is_margin = (cur_type_is_margin == dft_type_is_margin);
     }
 
-	public boolean checkValid() {
-		try{
-			driverParamCheckBetween( "market",                cur_market,                                      0, 100);
-	        driverParamCheckBetween( "limit",                 cur_limit,                                       0, 100);
-	        driverParamCheckEqual(   "market or limit total", cur_market + cur_limit,                             100);
-	        driverParamCheckBetween( "stop_loss",             cur_stop_loss,                                   0, 100);
-	        driverParamCheckBetween( "security_by_name",      cur_security_by_name,                            0, 100);
-	        driverParamCheckBetween( "security_by_symbol",    cur_security_by_symbol,                          0, 100);
-	        driverParamCheckEqual(   "security_by_* total",   cur_security_by_name + cur_security_by_symbol,      100);
-	        driverParamCheckBetween( "buy_orders",            cur_buy_orders,                                  0, 100);
-	        driverParamCheckBetween( "sell_orders",           cur_sell_orders,                                 0, 100);
-	        driverParamCheckEqual(   "*_orders total",        cur_buy_orders + cur_sell_orders,                   100);
-	        driverParamCheckBetween( "lifo",                  cur_lifo,                                        0, 100);
-	        driverParamCheckBetween( "exec_is_owner",         cur_exec_is_owner,                               0, 100);
-	        driverParamCheckBetween( "rollback",              cur_rollback,                                    0, 100);
-	        driverParamCheckBetween( "type_is_margin",        cur_type_is_margin,                              0, 100);
-	        return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+    public boolean checkValid() {
+        try{
+            driverParamCheckBetween( "market",                cur_market,                                      0, 100);
+            driverParamCheckBetween( "limit",                 cur_limit,                                       0, 100);
+            driverParamCheckEqual(   "market or limit total", cur_market + cur_limit,                             100);
+            driverParamCheckBetween( "stop_loss",             cur_stop_loss,                                   0, 100);
+            driverParamCheckBetween( "security_by_name",      cur_security_by_name,                            0, 100);
+            driverParamCheckBetween( "security_by_symbol",    cur_security_by_symbol,                          0, 100);
+            driverParamCheckEqual(   "security_by_* total",   cur_security_by_name + cur_security_by_symbol,      100);
+            driverParamCheckBetween( "buy_orders",            cur_buy_orders,                                  0, 100);
+            driverParamCheckBetween( "sell_orders",           cur_sell_orders,                                 0, 100);
+            driverParamCheckEqual(   "*_orders total",        cur_buy_orders + cur_sell_orders,                   100);
+            driverParamCheckBetween( "lifo",                  cur_lifo,                                        0, 100);
+            driverParamCheckBetween( "exec_is_owner",         cur_exec_is_owner,                               0, 100);
+            driverParamCheckBetween( "rollback",              cur_rollback,                                    0, 100);
+            driverParamCheckBetween( "type_is_margin",        cur_type_is_margin,                              0, 100);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 
-	public boolean checkCompliant() {
-		checkValid();
-		try{
-        	driverParamCheckBetween( "exec_is_owner",         cur_exec_is_owner,                              60, 100);
+    public boolean checkCompliant() {
+        checkValid();
+        try{
+            driverParamCheckBetween( "exec_is_owner",         cur_exec_is_owner,                              60, 100);
             driverParamCheckDefault( dft_market, cur_market, "market" );
             driverParamCheckDefault( dft_limit, cur_limit, "limit" );
             driverParamCheckDefault( dft_stop_loss, cur_stop_loss, "stop_loss" );
@@ -495,14 +495,14 @@ class TradeOrderSettings extends ParametersWithDefaults{
             driverParamCheckDefault( dft_type_is_margin, cur_type_is_margin, "type_is_margin" );
             return true;
         }catch(CheckException e){
-        	return false; 
+            return false; 
         }      
     }
 }
 
 class TradeUpdateSettings extends ParametersWithDefaults{
  
-	public int dft_do_frame1;  
+    public int dft_do_frame1;  
     public int dft_do_frame2;  
     public int dft_do_frame3;  
 
@@ -566,17 +566,17 @@ class TradeUpdateSettings extends ParametersWithDefaults{
     }
 
     public void setToDefaults(){ 
-    	cur_do_frame1 = dft_do_frame1; 
-    	cur_do_frame2 = dft_do_frame2;
-    	cur_do_frame3 = dft_do_frame3;
-    	cur_MaxRowsFrame1 = dft_MaxRowsFrame1;
-    	cur_MaxRowsToUpdateFrame1 = dft_MaxRowsToUpdateFrame1;
-    	cur_MaxRowsFrame2 = dft_MaxRowsFrame2;
-    	cur_MaxRowsToUpdateFrame2 = dft_MaxRowsToUpdateFrame2;
-    	cur_BackOffFromEndTimeFrame2 = dft_BackOffFromEndTimeFrame2;
-    	cur_MaxRowsFrame3 = dft_MaxRowsFrame3;
-		cur_MaxRowsToUpdateFrame3 = dft_MaxRowsToUpdateFrame3;
-		cur_BackOffFromEndTimeFrame3 = dft_BackOffFromEndTimeFrame3;
+        cur_do_frame1 = dft_do_frame1; 
+        cur_do_frame2 = dft_do_frame2;
+        cur_do_frame3 = dft_do_frame3;
+        cur_MaxRowsFrame1 = dft_MaxRowsFrame1;
+        cur_MaxRowsToUpdateFrame1 = dft_MaxRowsToUpdateFrame1;
+        cur_MaxRowsFrame2 = dft_MaxRowsFrame2;
+        cur_MaxRowsToUpdateFrame2 = dft_MaxRowsToUpdateFrame2;
+        cur_BackOffFromEndTimeFrame2 = dft_BackOffFromEndTimeFrame2;
+        cur_MaxRowsFrame3 = dft_MaxRowsFrame3;
+        cur_MaxRowsToUpdateFrame3 = dft_MaxRowsToUpdateFrame3;
+        cur_BackOffFromEndTimeFrame3 = dft_BackOffFromEndTimeFrame3;
         checkDefaults();
     }
     
@@ -595,8 +595,8 @@ class TradeUpdateSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid() {
-    	try{
-    		driverParamCheckBetween( "do_frame1",             cur_do_frame1,                                 0, 100);
+        try{
+            driverParamCheckBetween( "do_frame1",             cur_do_frame1,                                 0, 100);
             driverParamCheckBetween( "do_frame2",             cur_do_frame2,                                 0, 100);
             driverParamCheckBetween( "do_frame3",             cur_do_frame3,                                 0, 100);
             driverParamCheckEqual(   "do_frame* total",       cur_do_frame1 + cur_do_frame2 + cur_do_frame3,    100);
@@ -607,36 +607,36 @@ class TradeUpdateSettings extends ParametersWithDefaults{
             driverParamCheckLE(      "MaxRowsToUpdateFrame2", cur_MaxRowsToUpdateFrame2, TPCEConstants.TradeUpdateFrame2MaxRows);
             driverParamCheckLE(      "MaxRowsToUpdateFrame3", cur_MaxRowsToUpdateFrame3, TPCEConstants.TradeUpdateFrame3MaxRows);
             return true;
-    	}catch(CheckException e){
-    		return false;
-    	}   
+        }catch(CheckException e){
+            return false;
+        }   
     }
 
     public boolean checkCompliant() {
-    	
-    	checkValid();
-    	try{
-	        driverParamCheckDefault( dft_do_frame1, cur_do_frame1, "do_frame1" );
-	        driverParamCheckDefault( dft_do_frame2, cur_do_frame2, "do_frame2" );
-	        driverParamCheckDefault( dft_do_frame3, cur_do_frame3, "do_frame3" );
-	        driverParamCheckDefault( dft_MaxRowsFrame1, cur_MaxRowsFrame1, "MaxRowsFrame1" );
-	        driverParamCheckDefault( dft_MaxRowsToUpdateFrame1, cur_MaxRowsToUpdateFrame1, "MaxRowsToUpdateFrame1" );
-	        driverParamCheckDefault( dft_MaxRowsFrame2, cur_MaxRowsFrame2, "MaxRowsFrame2" );
-	        driverParamCheckDefault( dft_MaxRowsToUpdateFrame2, cur_MaxRowsToUpdateFrame2, "MaxRowsToUpdateFrame2" );
-	        driverParamCheckDefault( dft_BackOffFromEndTimeFrame2, cur_BackOffFromEndTimeFrame2, "BackOffFromEndTimeFrame2" );
-	        driverParamCheckDefault( dft_MaxRowsFrame3,cur_MaxRowsFrame3, "MaxRowsFrame3" );
-	        driverParamCheckDefault( dft_MaxRowsToUpdateFrame3, cur_MaxRowsToUpdateFrame3, "MaxRowsToUpdateFrame3" );
-	        driverParamCheckDefault( dft_BackOffFromEndTimeFrame3, cur_BackOffFromEndTimeFrame3, "BackOffFromEndTimeFrame3" );
-	        return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        
+        checkValid();
+        try{
+            driverParamCheckDefault( dft_do_frame1, cur_do_frame1, "do_frame1" );
+            driverParamCheckDefault( dft_do_frame2, cur_do_frame2, "do_frame2" );
+            driverParamCheckDefault( dft_do_frame3, cur_do_frame3, "do_frame3" );
+            driverParamCheckDefault( dft_MaxRowsFrame1, cur_MaxRowsFrame1, "MaxRowsFrame1" );
+            driverParamCheckDefault( dft_MaxRowsToUpdateFrame1, cur_MaxRowsToUpdateFrame1, "MaxRowsToUpdateFrame1" );
+            driverParamCheckDefault( dft_MaxRowsFrame2, cur_MaxRowsFrame2, "MaxRowsFrame2" );
+            driverParamCheckDefault( dft_MaxRowsToUpdateFrame2, cur_MaxRowsToUpdateFrame2, "MaxRowsToUpdateFrame2" );
+            driverParamCheckDefault( dft_BackOffFromEndTimeFrame2, cur_BackOffFromEndTimeFrame2, "BackOffFromEndTimeFrame2" );
+            driverParamCheckDefault( dft_MaxRowsFrame3,cur_MaxRowsFrame3, "MaxRowsFrame3" );
+            driverParamCheckDefault( dft_MaxRowsToUpdateFrame3, cur_MaxRowsToUpdateFrame3, "MaxRowsToUpdateFrame3" );
+            driverParamCheckDefault( dft_BackOffFromEndTimeFrame3, cur_BackOffFromEndTimeFrame3, "BackOffFromEndTimeFrame3" );
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 }
 
 class TxnMixGeneratorSettings extends ParametersWithDefaults{
  
-	public int dft_BrokerVolumeMixLevel;
+    public int dft_BrokerVolumeMixLevel;
     public int dft_CustomerPositionMixLevel;
     public int dft_MarketFeedMixLevel;
     public int dft_MarketWatchMixLevel;
@@ -670,7 +670,7 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
     public boolean    state_TradeUpdateMixLevel;
 
     
-	public TxnMixGeneratorSettings(){
+    public TxnMixGeneratorSettings(){
         initialize();
     }
 
@@ -686,19 +686,19 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
     }
 
     public void setToDefaults(){ 
-    	cur_BrokerVolumeMixLevel = dft_BrokerVolumeMixLevel; 
-    	cur_CustomerPositionMixLevel = dft_CustomerPositionMixLevel;
-    	cur_MarketFeedMixLevel = dft_MarketFeedMixLevel;
-    	cur_MarketWatchMixLevel = dft_MarketWatchMixLevel;
-    	cur_SecurityDetailMixLevel = dft_SecurityDetailMixLevel;
-    	cur_TradeLookupMixLevel = dft_TradeLookupMixLevel;
-    	cur_TradeOrderMixLevel = dft_TradeOrderMixLevel;
-    	cur_TradeStatusMixLevel = dft_TradeStatusMixLevel;
-    	cur_TradeResultMixLevel = dft_TradeResultMixLevel;
-    	cur_TradeStatusMixLevel = dft_TradeStatusMixLevel;
-    	cur_TradeUpdateMixLevel = dft_TradeUpdateMixLevel;
-    	cur_TransactionMixTotal = dft_TransactionMixTotal;
-    	
+        cur_BrokerVolumeMixLevel = dft_BrokerVolumeMixLevel; 
+        cur_CustomerPositionMixLevel = dft_CustomerPositionMixLevel;
+        cur_MarketFeedMixLevel = dft_MarketFeedMixLevel;
+        cur_MarketWatchMixLevel = dft_MarketWatchMixLevel;
+        cur_SecurityDetailMixLevel = dft_SecurityDetailMixLevel;
+        cur_TradeLookupMixLevel = dft_TradeLookupMixLevel;
+        cur_TradeOrderMixLevel = dft_TradeOrderMixLevel;
+        cur_TradeStatusMixLevel = dft_TradeStatusMixLevel;
+        cur_TradeResultMixLevel = dft_TradeResultMixLevel;
+        cur_TradeStatusMixLevel = dft_TradeStatusMixLevel;
+        cur_TradeUpdateMixLevel = dft_TradeUpdateMixLevel;
+        cur_TransactionMixTotal = dft_TransactionMixTotal;
+        
         checkDefaults();
     }
     
@@ -714,8 +714,8 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
     }
 
     public boolean checkValid(){
-    	try{
-    		driverParamCheckGE( "BrokerVolumeMixLevel",     cur_BrokerVolumeMixLevel,     0 );
+        try{
+            driverParamCheckGE( "BrokerVolumeMixLevel",     cur_BrokerVolumeMixLevel,     0 );
             driverParamCheckGE( "CustomerPositionMixLevel", cur_CustomerPositionMixLevel, 0 );
             driverParamCheckGE( "MarketWatchMixLevel",      cur_MarketWatchMixLevel,      0 );
             driverParamCheckGE( "SecurityDetailMixLevel",   cur_SecurityDetailMixLevel,   0 );
@@ -724,16 +724,16 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
             driverParamCheckGE( "TradeStatusMixLevel",      cur_TradeStatusMixLevel,      0 );
             driverParamCheckGE( "TradeUpdateMixLevel",      cur_TradeUpdateMixLevel,      0 );
             return true;
-    	}catch(CheckException e){
-    		return false;
-    	}
+        }catch(CheckException e){
+            return false;
+        }
         
     }
 
     public boolean checkCompliant(){
         checkValid();
         try{
-        	driverParamCheckDefault( dft_BrokerVolumeMixLevel, cur_BrokerVolumeMixLevel, "BrokerVolumeMixLevel" );
+            driverParamCheckDefault( dft_BrokerVolumeMixLevel, cur_BrokerVolumeMixLevel, "BrokerVolumeMixLevel" );
             driverParamCheckDefault( dft_CustomerPositionMixLevel, cur_CustomerPositionMixLevel, "CustomerPositionMixLevel" );
             driverParamCheckDefault( dft_MarketWatchMixLevel, cur_MarketWatchMixLevel, "MarketWatchMixLevel" );
             driverParamCheckDefault( dft_SecurityDetailMixLevel, cur_SecurityDetailMixLevel, "SecurityDetailMixLevel" );
@@ -743,16 +743,16 @@ class TxnMixGeneratorSettings extends ParametersWithDefaults{
             driverParamCheckDefault( dft_TradeUpdateMixLevel, cur_TradeUpdateMixLevel, "TradeUpdateMixLevel" );
             return true;
         }catch(CheckException e){
-        	return false;
+            return false;
         }
     }
 }
 
 class LoaderSettings extends ParametersWithDefaults{
  
-	public long   dft_iConfiguredCustomerCount;
+    public long   dft_iConfiguredCustomerCount;
     public long   dft_iActiveCustomerCount;
-    public int 	  dft_iScaleFactor;
+    public int       dft_iScaleFactor;
     public int    dft_iDaysOfInitialTrades;
     public long   dft_iStartingCustomer;
     public long   dft_iCustomerCount;
@@ -771,7 +771,7 @@ class LoaderSettings extends ParametersWithDefaults{
     public boolean    state_iStartingCustomer;
     public boolean    state_iCustomerCount;
     
-	public LoaderSettings( long  iConfiguredCustomerCount, long  iActiveCustomerCount,
+    public LoaderSettings( long  iConfiguredCustomerCount, long  iActiveCustomerCount,
                      long  iStartingCustomer, long  iCustomerCount,
                      int iScaleFactor, int iDaysOfInitialTrades ){
         initialize();
@@ -785,12 +785,12 @@ class LoaderSettings extends ParametersWithDefaults{
 
         checkDefaults();
     }
-	
-	public LoaderSettings(){
+    
+    public LoaderSettings(){
         initialize();
     }
 
-	public void initializeDefaults(){
+    public void initializeDefaults(){
         dft_iConfiguredCustomerCount = 5000;     
         dft_iActiveCustomerCount = 5000;         
         dft_iStartingCustomer = 1;              
@@ -799,18 +799,18 @@ class LoaderSettings extends ParametersWithDefaults{
         dft_iDaysOfInitialTrades = 300;         
     }
 
-	public void setToDefaults(){ 
-		cur_iConfiguredCustomerCount = dft_iConfiguredCustomerCount; 
-		cur_iActiveCustomerCount = dft_iActiveCustomerCount;
-		cur_iScaleFactor = dft_iScaleFactor;
-		cur_iDaysOfInitialTrades = dft_iDaysOfInitialTrades;
-		cur_iStartingCustomer = dft_iStartingCustomer;
-		cur_iCustomerCount = dft_iCustomerCount;
-    	
+    public void setToDefaults(){ 
+        cur_iConfiguredCustomerCount = dft_iConfiguredCustomerCount; 
+        cur_iActiveCustomerCount = dft_iActiveCustomerCount;
+        cur_iScaleFactor = dft_iScaleFactor;
+        cur_iDaysOfInitialTrades = dft_iDaysOfInitialTrades;
+        cur_iStartingCustomer = dft_iStartingCustomer;
+        cur_iCustomerCount = dft_iCustomerCount;
+        
         checkDefaults();
     }
-	
-	public void checkDefaults(){
+    
+    public void checkDefaults(){
         state_iConfiguredCustomerCount = true;
         state_iActiveCustomerCount = true;
         state_iStartingCustomer = true;
@@ -819,34 +819,34 @@ class LoaderSettings extends ParametersWithDefaults{
         state_iDaysOfInitialTrades = (cur_iDaysOfInitialTrades == dft_iDaysOfInitialTrades);
     }
 
-	public boolean checkValid(){
-		try{
-			driverParamCheckGE(    "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount,                     1000);
-	        driverParamCheckGE(    "iActiveCustomerCount",     (int)cur_iActiveCustomerCount,                         1000);
-	        driverParamCheckLE(    "iActiveCustomerCount",     (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
-	        driverParamCheckEqual( "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount % 1000,                 0);
-	        driverParamCheckGE(    "iStartingCustomer",        (int)cur_iStartingCustomer,                               1);
-	        driverParamCheckEqual( "iStartingCustomer",        (int)cur_iStartingCustomer % 1000,                        1);
-	        driverParamCheckEqual( "iCustomerCount",           (int)cur_iCustomerCount % 1000,                           0);
-	        driverParamCheckLE(    "iCustomerCount",           (int)(cur_iCustomerCount + cur_iStartingCustomer - 1), (int)cur_iConfiguredCustomerCount);
-	        return true;
-		}catch(CheckException e){
-			return false;
-		}
+    public boolean checkValid(){
+        try{
+            driverParamCheckGE(    "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount,                     1000);
+            driverParamCheckGE(    "iActiveCustomerCount",     (int)cur_iActiveCustomerCount,                         1000);
+            driverParamCheckLE(    "iActiveCustomerCount",     (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
+            driverParamCheckEqual( "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount % 1000,                 0);
+            driverParamCheckGE(    "iStartingCustomer",        (int)cur_iStartingCustomer,                               1);
+            driverParamCheckEqual( "iStartingCustomer",        (int)cur_iStartingCustomer % 1000,                        1);
+            driverParamCheckEqual( "iCustomerCount",           (int)cur_iCustomerCount % 1000,                           0);
+            driverParamCheckLE(    "iCustomerCount",           (int)(cur_iCustomerCount + cur_iStartingCustomer - 1), (int)cur_iConfiguredCustomerCount);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
         
     }
 
-	public boolean checkCompliant(){
+    public boolean checkCompliant(){
         checkValid();
         try{
-        	driverParamCheckGE(      "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount, 5000);
+            driverParamCheckGE(      "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount, 5000);
             driverParamCheckGE(      "iActiveCustomerCount",     (int)cur_iActiveCustomerCount,     5000);
             driverParamCheckEqual(   "iActiveCustomerCount",     (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
             driverParamCheckDefault( dft_iScaleFactor, cur_iScaleFactor, "iScaleFactor" );
             driverParamCheckDefault( dft_iDaysOfInitialTrades, cur_iDaysOfInitialTrades, "iDaysOfInitialTrades" );
             return true;
         }catch(CheckException e){
-        	return false;
+            return false;
         }
         
     }
@@ -854,7 +854,7 @@ class LoaderSettings extends ParametersWithDefaults{
 
 class DriverGlobalSettings extends ParametersWithDefaults{
  
-	public long   dft_iConfiguredCustomerCount;
+    public long   dft_iConfiguredCustomerCount;
     public long   dft_iActiveCustomerCount;
     public int    dft_iScaleFactor;
     public int    dft_iDaysOfInitialTrades;
@@ -868,7 +868,7 @@ class DriverGlobalSettings extends ParametersWithDefaults{
     public boolean    state_iScaleFactor;
     public boolean    state_iDaysOfInitialTrades;
     
-	public DriverGlobalSettings( long  iConfiguredCustomerCount, long  iActiveCustomerCount, int iScaleFactor, int iDaysOfInitialTrades ){
+    public DriverGlobalSettings( long  iConfiguredCustomerCount, long  iActiveCustomerCount, int iScaleFactor, int iDaysOfInitialTrades ){
         initialize();
 
         cur_iConfiguredCustomerCount = iConfiguredCustomerCount;
@@ -879,20 +879,20 @@ class DriverGlobalSettings extends ParametersWithDefaults{
         checkDefaults();
     }
 
-	public DriverGlobalSettings(){
+    public DriverGlobalSettings(){
         initialize();
     }
 
-	public void setToDefaults(){ 
-		cur_iConfiguredCustomerCount = dft_iConfiguredCustomerCount; 
-		cur_iActiveCustomerCount = dft_iActiveCustomerCount;
-		cur_iScaleFactor = dft_iScaleFactor;
-		cur_iDaysOfInitialTrades = dft_iDaysOfInitialTrades;
-    	
+    public void setToDefaults(){ 
+        cur_iConfiguredCustomerCount = dft_iConfiguredCustomerCount; 
+        cur_iActiveCustomerCount = dft_iActiveCustomerCount;
+        cur_iScaleFactor = dft_iScaleFactor;
+        cur_iDaysOfInitialTrades = dft_iDaysOfInitialTrades;
+        
         checkDefaults();
     }
-	
-	public void initializeDefaults(){
+    
+    public void initializeDefaults(){
         
         dft_iConfiguredCustomerCount = 5000;    
         dft_iActiveCustomerCount = 5000;        
@@ -900,7 +900,7 @@ class DriverGlobalSettings extends ParametersWithDefaults{
         dft_iDaysOfInitialTrades = 300;        
     }
 
-	public void checkDefaults(){
+    public void checkDefaults(){
         state_iConfiguredCustomerCount = true;
         state_iActiveCustomerCount = true;
         state_iScaleFactor = (cur_iScaleFactor == dft_iScaleFactor);
@@ -908,29 +908,29 @@ class DriverGlobalSettings extends ParametersWithDefaults{
 
     }
 
-	public boolean checkValid(){
-		try{
-			driverParamCheckGE(    "iConfiguredCustomerCount",  (int)cur_iConfiguredCustomerCount,                     1000);
-	        driverParamCheckGE(    "iActiveCustomerCount",      (int)cur_iActiveCustomerCount,                         1000);
-	        driverParamCheckLE(    "iActiveCustomerCount",      (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
-	        driverParamCheckEqual( "iConfiguredCustomerCount",  (int)cur_iConfiguredCustomerCount % 1000,                 0);
-	        return true;
-		}catch(CheckException e){
-			return false;
-		}
+    public boolean checkValid(){
+        try{
+            driverParamCheckGE(    "iConfiguredCustomerCount",  (int)cur_iConfiguredCustomerCount,                     1000);
+            driverParamCheckGE(    "iActiveCustomerCount",      (int)cur_iActiveCustomerCount,                         1000);
+            driverParamCheckLE(    "iActiveCustomerCount",      (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
+            driverParamCheckEqual( "iConfiguredCustomerCount",  (int)cur_iConfiguredCustomerCount % 1000,                 0);
+            return true;
+        }catch(CheckException e){
+            return false;
+        }
     }
 
-	public boolean checkCompliant() {
+    public boolean checkCompliant() {
         checkValid();
         try{
-        	driverParamCheckGE(      "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount, 5000);
+            driverParamCheckGE(      "iConfiguredCustomerCount", (int)cur_iConfiguredCustomerCount, 5000);
             driverParamCheckGE(      "iActiveCustomerCount",     (int)cur_iActiveCustomerCount,     5000);
             driverParamCheckEqual(   "iActiveCustomerCount",     (int)cur_iActiveCustomerCount, (int)cur_iConfiguredCustomerCount);
             driverParamCheckDefault( dft_iScaleFactor, cur_iScaleFactor, "iScaleFactor" );
             driverParamCheckDefault( dft_iDaysOfInitialTrades, cur_iDaysOfInitialTrades, "iDaysOfInitialTrades" );
             return true;
         }catch(CheckException e){
-        	return false;
+            return false;
         }
     }
 }
@@ -941,30 +941,30 @@ class DriverCESettings extends ParametersWithoutDefaults{
     public long cur_TxnMixRNGSeed;
     public long cur_TxnInputRNGSeed;
     
-	public DriverCESettings(long  uniqueID, long TxnMixRNGSeed, long TxnInputRNGSeed ){
+    public DriverCESettings(long  uniqueID, long TxnMixRNGSeed, long TxnInputRNGSeed ){
         cur_UniqueId = uniqueID;
         cur_TxnMixRNGSeed = TxnMixRNGSeed;
         cur_TxnInputRNGSeed = TxnInputRNGSeed;
     }
 
-	public DriverCESettings() {}
+    public DriverCESettings() {}
 
-	public void checkValid(){}
+    public void checkValid(){}
 
-	public void checkCompliant(){}
-	
-	public boolean isValid(){
-		return true;
-	}
-	
-	public boolean isCompliant(){
-		return true;
-	}
+    public void checkCompliant(){}
+    
+    public boolean isValid(){
+        return true;
+    }
+    
+    public boolean isCompliant(){
+        return true;
+    }
 }
 
 class DriverCEPartitionSettings extends ParametersWithDefaults{
  
-	public long   dft_iMyStartingCustomerId;
+    public long   dft_iMyStartingCustomerId;
     public long   dft_iMyCustomerCount;
     public int    dft_iPartitionPercent;
     
@@ -974,7 +974,7 @@ class DriverCEPartitionSettings extends ParametersWithDefaults{
     
     public boolean    state_iPartitionPercent;
     
-	public DriverCEPartitionSettings(long  iMyStartingCustomerId, long  iMyCustomerCount, int iPartitionPercent ){
+    public DriverCEPartitionSettings(long  iMyStartingCustomerId, long  iMyCustomerCount, int iPartitionPercent ){
         initialize();
 
         cur_iMyStartingCustomerId = iMyStartingCustomerId;
@@ -984,7 +984,7 @@ class DriverCEPartitionSettings extends ParametersWithDefaults{
         checkDefaults();
     }
 
-	public DriverCEPartitionSettings(){
+    public DriverCEPartitionSettings(){
         initialize();
 
         cur_iMyStartingCustomerId = 0;
@@ -994,64 +994,64 @@ class DriverCEPartitionSettings extends ParametersWithDefaults{
         checkDefaults();
     }
 
-	public void initializeDefaults(){
+    public void initializeDefaults(){
         dft_iMyStartingCustomerId = 1;   
         dft_iMyCustomerCount = 5000;     
         dft_iPartitionPercent = 50;     
     }
 
-	public void setToDefaults(){ 
-		dft_iMyStartingCustomerId = cur_iMyStartingCustomerId; 
-		dft_iMyCustomerCount = cur_iMyCustomerCount;
-		dft_iPartitionPercent = cur_iPartitionPercent;
-    	
+    public void setToDefaults(){ 
+        dft_iMyStartingCustomerId = cur_iMyStartingCustomerId; 
+        dft_iMyCustomerCount = cur_iMyCustomerCount;
+        dft_iPartitionPercent = cur_iPartitionPercent;
+        
         checkDefaults();
     }
-	
-	public void checkDefaults(){
+    
+    public void checkDefaults(){
         state_iPartitionPercent = (cur_iPartitionPercent == dft_iPartitionPercent);
     }
-	
+    
 
-	public boolean checkValid() {
-		try{
-			driverParamCheckBetween( "iPartitionPercent", cur_iPartitionPercent, 0, 100);
-		}catch(CheckException e){
-			return false;
-		}
+    public boolean checkValid() {
+        try{
+            driverParamCheckBetween( "iPartitionPercent", cur_iPartitionPercent, 0, 100);
+        }catch(CheckException e){
+            return false;
+        }
         
         if ( cur_iMyStartingCustomerId == 0 && cur_iMyCustomerCount == 0 && cur_iPartitionPercent == 0 ) {
-        	/* Partitioning Disabled:
+            /* Partitioning Disabled:
              * - in this case, the default constructor would have been used and all values
              * are set to 0.  This must be considered valid.
              */
-        	return true;
+            return true;
         } else {
             
-        	try{
-        		driverParamCheckEqual( "iMyStartingCustomerId", (int)cur_iMyStartingCustomerId  % 1000,    1 );
+            try{
+                driverParamCheckEqual( "iMyStartingCustomerId", (int)cur_iMyStartingCustomerId  % 1000,    1 );
                 driverParamCheckGE(    "iMyCustomerCount",      (int)cur_iMyCustomerCount,              1000 );
                 driverParamCheckEqual( "iMyCustomerCount",      (int)cur_iMyCustomerCount % 1000,          0 );
                 return true;
-        	}catch(CheckException e){
-        		return false;
-        	}
+            }catch(CheckException e){
+                return false;
+            }
             
         }
     }
 
-	public boolean checkCompliant(){
+    public boolean checkCompliant(){
         checkValid();
 
         if ( cur_iMyStartingCustomerId == 0 && cur_iMyCustomerCount == 0 && cur_iPartitionPercent == 0 ) {
-        	return true;
+            return true;
         } else {
-        	try{
-        		driverParamCheckDefault( dft_iPartitionPercent, cur_iPartitionPercent, "iPartitionPercent" );
-        		return true;
-        	}catch(CheckException e){
-        		return false;
-        	}
+            try{
+                driverParamCheckDefault( dft_iPartitionPercent, cur_iPartitionPercent, "iPartitionPercent" );
+                return true;
+            }catch(CheckException e){
+                return false;
+            }
             
         }
     }
@@ -1059,55 +1059,55 @@ class DriverCEPartitionSettings extends ParametersWithDefaults{
 
 class DriverMEESettings extends ParametersWithoutDefaults{
  
-	public long   cur_UniqueId;
+    public long   cur_UniqueId;
     public long   cur_RNGSeed;
     public long   cur_TickerTapeRNGSeed;
     public long   cur_TradingFloorRNGSeed;
     
-	public DriverMEESettings( long  uniqueID, long RNGSeed, long TickerTapeRNGSeed, long TradingFloorRNGSeed ){
-		cur_UniqueId = uniqueID;
-		cur_RNGSeed =  RNGSeed;
-		cur_TickerTapeRNGSeed = TickerTapeRNGSeed;
-		cur_TradingFloorRNGSeed = TradingFloorRNGSeed;
+    public DriverMEESettings( long  uniqueID, long RNGSeed, long TickerTapeRNGSeed, long TradingFloorRNGSeed ){
+        cur_UniqueId = uniqueID;
+        cur_RNGSeed =  RNGSeed;
+        cur_TickerTapeRNGSeed = TickerTapeRNGSeed;
+        cur_TradingFloorRNGSeed = TradingFloorRNGSeed;
     }
 
-	public DriverMEESettings() {}
+    public DriverMEESettings() {}
 
-	public void checkValid(){}
+    public void checkValid(){}
 
-	public void checkCompliant(){}
-	
-	public boolean isValid(){
-		return true;
-	}
-	
-	public boolean isCompliant(){
-		return true;
-	}
+    public void checkCompliant(){}
+    
+    public boolean isValid(){
+        return true;
+    }
+    
+    public boolean isCompliant(){
+        return true;
+    }
 }
 
 class DriverDMSettings extends ParametersWithoutDefaults{
  
-	public long   cur_UniqueId;
+    public long   cur_UniqueId;
     public long   cur_RNGSeed;
     
-	public DriverDMSettings( long  uniqueID, long RNGSeed ){
-		cur_UniqueId = uniqueID;
-		cur_RNGSeed =  RNGSeed;
+    public DriverDMSettings( long  uniqueID, long RNGSeed ){
+        cur_UniqueId = uniqueID;
+        cur_RNGSeed =  RNGSeed;
     }
 
-	public DriverDMSettings() {}
+    public DriverDMSettings() {}
 
-	public void checkValid(){}
+    public void checkValid(){}
 
-	public void checkCompliant(){}
-	
-	public boolean isValid(){
-		return true;
-	}
-	
-	public boolean isCompliant(){
-		return true;
-	}
+    public void checkCompliant(){}
+    
+    public boolean isValid(){
+        return true;
+    }
+    
+    public boolean isCompliant(){
+        return true;
+    }
 }
 

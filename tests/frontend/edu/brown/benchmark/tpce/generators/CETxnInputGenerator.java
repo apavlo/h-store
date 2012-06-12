@@ -18,23 +18,9 @@ import edu.brown.benchmark.tpce.generators.TradeGenerator.TradeType;
 
 public class CETxnInputGenerator {
 	
-    /*
-    *  Constructor - no partitioning by C_ID.
-    *
-    *  PARAMETERS:
-    *           IN  inputFiles                  - in-memory input flat files
-    *           IN  iConfiguredCustomerCount    - number of configured customers in the database
-    *           IN  iActiveCustomerCount        - number of active customers in the database
-    *           IN  iScaleFactor                - scale factor (number of customers per 1 tpsE) of the database
-    *           IN  iHoursOfInitialTrades       - number of hours of the initial trades portion of the database
-    *           IN  pLogger                     - reference to parameter logging object
-    *           IN  pDriverCETxnSettings        - initial transaction parameter settings
-    *
-    *  RETURNS:
-    *           not applicable.
-    */
+    
     public CETxnInputGenerator( TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
-                                int scaleFactor, int hoursOfInitialTrades, BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
+                    int scaleFactor, int hoursOfInitialTrades, BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
     	inputFiles.parseInputFiles();
         rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);
         person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -62,28 +48,10 @@ public class CETxnInputGenerator {
         initialize();
     }
 
-    /*
-    *  Constructor - no partitioning by C_ID, RNG seed provided.
-    *
-    *  RNG seed is for testing/engineering work allowing repeatable transaction
-    *  parameter stream. This constructor is NOT legal for a benchmark publication.
-    *
-    *  PARAMETERS:
-    *           IN  inputFiles                  - in-memory input flat files
-    *           IN  iConfiguredCustomerCount    - number of configured customers in the database
-    *           IN  iActiveCustomerCount        - number of active customers in the database
-    *           IN  iScaleFactor                - scale factor (number of customers per 1 tpsE) of the database
-    *           IN  iHoursOfInitialTrades       - number of hours of the initial trades portion of the database
-    *           IN  RNGSeed                     - initial seed for random number generator
-    *           IN  pLogger                     - reference to parameter logging object
-    *           IN  pDriverCETxnSettings        - initial transaction parameter settings
-    *
-    *  RETURNS:
-    *           not applicable.
-    */
+    
       public CETxnInputGenerator( TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
-    		  					  int scaleFactor, int hoursOfInitialTrades, long RNGSeed, BaseLogger logger,
-    		  					  TDriverCETxnSettings driverCETxnSettings){
+                        int scaleFactor, int hoursOfInitialTrades, long RNGSeed, BaseLogger logger,
+                        TDriverCETxnSettings driverCETxnSettings){
     	inputFiles.parseInputFiles();
     	rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
         person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -111,27 +79,10 @@ public class CETxnInputGenerator {
         initialize();
     }
         
-    /*
-    *  Constructor - partitioning by C_ID.
-    *
-    *  PARAMETERS:
-    *           IN  inputFiles                  - in-memory input flat files
-    *           IN  iConfiguredCustomerCount    - number of configured customers in the database
-    *           IN  iActiveCustomerCount        - number of active customers in the database
-    *           IN  iScaleFactor                - scale factor (number of customers per 1 tpsE) of the database
-    *           IN  iHoursOfInitialTrades       - number of hours of the initial trades portion of the database
-    *           IN  iMyStartingCustomerId       - first customer id (1-based) of the partition for this instance
-    *           IN  iMyCustomerCount            - number of customers in the partition for this instance
-    *           IN  iPartitionPercent           - the percentage of C_IDs generated within this instance's partition
-    *           IN  pLogger                     - reference to parameter logging object
-    *           IN  pDriverCETxnSettings        - initial transaction parameter settings
-    *
-    *  RETURNS:
-    *           not applicable.
-    */
+   
       public CETxnInputGenerator( TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
-              					  int scaleFactor, int hoursOfInitialTrades,  long startingCustomerID, long myCustomerCount, int partitionPercent,
-              					  BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
+                        int scaleFactor, int hoursOfInitialTrades,  long startingCustomerID, long myCustomerCount, int partitionPercent,
+                        BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
     	  inputFiles.parseInputFiles();
     	  rnd = new EGenRandom(EGenRandom.RNG_SEED_BASE_TXN_MIX_GENERATOR);   //initialize with a default seed
           person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -141,7 +92,7 @@ public class CETxnInputGenerator {
           accountPerms = (AccountPermsGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION, null);
           holdings = new HoldingsAndTrades(inputFiles);
           
-          brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	//iDefaultStartFromCustomer = 1; iActiveCustomerCount <- ClienDriver.cpp.m_TxnInputGenerator;
+          brokers = (BrokerGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_BROKER, null);	
           companies = (CompanyGenerator)inputFiles.getTableGen(TPCEConstants.TABLENAME_COMPANY, null);
           securities = new SecurityHandler(inputFiles);
           industries = inputFiles.getInputFile(InputFile.INDUSTRY);
@@ -160,30 +111,10 @@ public class CETxnInputGenerator {
           initialize();
       }
 
-    /*
-    *  Constructor - partitioning by C_ID, RNG seed provided.
-    *
-    *  RNG seed is for testing/engineering work allowing repeatable transaction
-    *  parameter stream. This constructor is NOT legal for a benchmark publication.
-    *
-    *  PARAMETERS:
-    *           IN  inputFiles                  - in-memory input flat files
-    *           IN  iConfiguredCustomerCount    - number of configured customers in the database
-    *           IN  iActiveCustomerCount        - number of active customers in the database
-    *           IN  iScaleFactor                - scale factor (number of customers per 1 tpsE) of the database
-    *           IN  iHoursOfInitialTrades       - number of hours of the initial trades portion of the database
-    *           IN  iMyStartingCustomerId       - first customer id (1-based) of the partition for this instance
-    *           IN  iMyCustomerCount            - number of customers in the partition for this instance
-    *           IN  iPartitionPercent           - the percentage of C_IDs generated within this instance's partition
-    *           IN  pLogger                     - reference to parameter logging object
-    *           IN  pDriverCETxnSettings        - initial transaction parameter settings
-    *
-    *  RETURNS:
-    *           not applicable.
-    */
+    
       public CETxnInputGenerator( TPCEGenerator inputFiles, long configuredCustomerCount, long activeCustomerCount,
-              					  int scaleFactor, int hoursOfInitialTrades, long startingCustomerID, long myCustomerCount, int partitionPercent,
-              					  long RNGSeed, BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
+                        int scaleFactor, int hoursOfInitialTrades, long startingCustomerID, long myCustomerCount, int partitionPercent,
+                        long RNGSeed, BaseLogger logger, TDriverCETxnSettings driverCETxnSettings){
     	  inputFiles.parseInputFiles();
     	  rnd = new EGenRandom(RNGSeed);   //initialize with a default seed
           person = new PersonHandler(inputFiles.getInputFile(InputFile.LNAME), inputFiles.getInputFile(InputFile.FEMFNAME), inputFiles.getInputFile(InputFile.MALEFNAME));
@@ -293,11 +224,11 @@ public class CETxnInputGenerator {
 
     public TimestampType generateNonUniformTradeDTS( long maxTimeInMS, int aValue, int sValue ){
     	GregorianCalendar tradeTime = new GregorianCalendar(TPCEConstants.initialTradePopulationBaseYear,
-    														TPCEConstants.initialTradePopulationBaseMonth,
-    														TPCEConstants.initialTradePopulationBaseDay,
-    														TPCEConstants.initialTradePopulationBaseHour,
-    														TPCEConstants.initialTradePopulationBaseMinute,
-    														TPCEConstants.initialTradePopulationBaseSecond );   
+                    							TPCEConstants.initialTradePopulationBaseMonth,
+                    							TPCEConstants.initialTradePopulationBaseDay,
+                    							TPCEConstants.initialTradePopulationBaseHour,
+                    							TPCEConstants.initialTradePopulationBaseMinute,
+                    							TPCEConstants.initialTradePopulationBaseSecond );   
         long tradeTimeOffset;
 
         tradeTimeOffset = rnd.rndNU( 1, maxTimeInMS, aValue, sValue );
@@ -398,8 +329,8 @@ public class CETxnInputGenerator {
         int           dailyMarketDay;
         Object[] customer = new Object[2];
         Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
-        							TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
-        							TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
+                        TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
+                        TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
         threshold = rnd.rndPercentage();
         if (threshold <= driverCETxnSettings.MW_settings.cur_by_industry){
             
@@ -477,7 +408,7 @@ public class CETxnInputGenerator {
     */
     public void generateSecurityDetailInput(TSecurityDetailTxnInput inputStructure){
     	Date date = EGenDate.getDateFromTime(TPCEConstants.dailyMarketBaseYear, TPCEConstants.dailyMarketBaseMonth,
-				TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
+    			TPCEConstants.dailyMarketBaseDay, TPCEConstants.dailyMarketBaseHour,
 				TPCEConstants.dailyMarketBaseMinute, TPCEConstants.dailyMarketBaseSecond, TPCEConstants.dailyMarketBaseMsec);
         int startDay;
 
@@ -703,19 +634,19 @@ public class CETxnInputGenerator {
 
             inputStructure.setTypeIsMargin(0);
         }
-        iTradeType = eTradeType.getValue();
+        iTradeType = eTradeType.ordinal();
         
         if (rnd.rndPercent(driverCETxnSettings.TO_settings.cur_lifo)){
         	inputStructure.setIsLifo(1);
         }
         else inputStructure.setIsLifo(0);
 
-        char[] tmp = (tradeType.getTupleByIndex(eTradeType.getValue()))[0].toCharArray();
+        char[] tmp = (tradeType.getTupleByIndex(eTradeType.ordinal()))[0].toCharArray();
         inputStructure.setTradeTypeId(String.copyValueOf(tmp, 0, tmp.length));
 
-        tmp = (statusType.getTupleByIndex(StatusTypeId.E_PENDING.getValue()))[0].toCharArray();
+        tmp = (statusType.getTupleByIndex(StatusTypeId.E_PENDING.ordinal()))[0].toCharArray();
         inputStructure.setStPendingId(String.copyValueOf(tmp, 0, tmp.length));
-        tmp = (statusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.getValue()))[0].toCharArray();
+        tmp = (statusType.getTupleByIndex(StatusTypeId.E_SUBMITTED.ordinal()))[0].toCharArray();
         inputStructure.setStSubmittedId(String.copyValueOf(tmp, 0, tmp.length));
         
         if ( tradeOrderRollbackLevel >= rnd.intRange( 1, tradeOrderRollbackLimit )){
