@@ -37,10 +37,9 @@ public class ClientDriver {
 	
 	public ClientDriver(String dataPath, int configuredCustomerCount, int totalCustomerCount, int scaleFactor, int initialDays){
 		
-		String filename = new String("/tmp/EGenClientDriver.log");
+//		String filename = new String("/tmp/EGenClientDriver.log");
 		logFormat = new EGenLogFormatterTab();
-		logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, filename, logFormat);
-		
+		logger = new EGenLogger(DriverType.eDriverEGenLoader, 0, logFormat);
 	    brokerVolumeTxnInput = new TBrokerVolumeTxnInput();
 		customerPositionTxnInput = new TCustomerPositionTxnInput();
 		dataMaintenanceTxnInput = new TDataMaintenanceTxnInput();
@@ -80,72 +79,72 @@ public class ClientDriver {
 		return marketExchangeGenerator;
 	}
 	public TBrokerVolumeTxnInput generateBrokerVolumeInput() {
-		System.out.println("Executing generateBrokerVolumeInput ... \n");
+//		System.out.println("Executing generateBrokerVolumeInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateBrokerVolumeInput( brokerVolumeTxnInput );
 	    return (brokerVolumeTxnInput);
 	}
 	
 	public TCustomerPositionTxnInput generateCustomerPositionInput() {
-		System.out.println("Executing generateCustomerPositionInput ... \n");
+//		System.out.println("Executing generateCustomerPositionInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateCustomerPositionInput( customerPositionTxnInput );
 	    return (customerPositionTxnInput);
 	}
 
 	public TDataMaintenanceTxnInput generateDataMaintenanceInput() {
-	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+//	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
 	    dataMaintenanceGenerator.DoTxn();
 	    return (dataMaintenanceTxnInput);
 	}
 
 	public TMarketFeedTxnInput generateMarketFeedInput() {
-	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+//	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
 	    return (marketFeedTxnInput);
 	}
 
 	public TMarketWatchTxnInput generateMarketWatchInput() {
-		System.out.println("Executing generateMarketWatchInput ... \n");
+//		System.out.println("Executing generateMarketWatchInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateMarketWatchInput( marketWatchTxnInput );
 	    return (marketWatchTxnInput);
 	}
 
 	public TSecurityDetailTxnInput generateSecurityDetailInput() {
-		System.out.println("Executing generateSecurityDetailInput ... \n");
+//		System.out.println("Executing generateSecurityDetailInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateSecurityDetailInput( securityDetailTxnInput );
 	    return (securityDetailTxnInput);
 	}
 
 	public TTradeCleanupTxnInput generateTradeCleanupInput() {
-	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
+//	    System.out.println("Executing %s...\n" + "generateBrokerVolumeInput");
 	    dataMaintenanceGenerator.DoCleanupTxn();
 	    return (tradeCleanupTxnInput);
 	}
 
 	public TTradeLookupTxnInput generateTradeLookupInput() {
-		System.out.println("Executing generateTradeLookupInput ... \n");
+//		System.out.println("Executing generateTradeLookupInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateTradeLookupInput( tradeLookupTxnInput );
 	    return (tradeLookupTxnInput);
 	}
 
 	public TTradeOrderTxnInput generateTradeOrderInput(int tradeType, boolean bExecutorIsAccountOwner) {
-		System.out.println("Executing generateTradeOrderInput ... \n");
+//		System.out.println("Executing generateTradeOrderInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateTradeOrderInput( tradeOrderTxnInput, tradeType, bExecutorIsAccountOwner );
 	    return (tradeOrderTxnInput);
 	}
 
 	public TTradeResultTxnInput generateTradeResultInput() {
-	    System.out.println("Executing %s...\n" + "generateTradeResultInput");
+//	    System.out.println("Executing %s...\n" + "generateTradeResultInput");
 	    marketExchangeGenerator.generateTradeResult();
 	    return (tradeResultTxnInput);
 	}
 
 	public TTradeStatusTxnInput generateTradeStatusInput() {
-		System.out.println("Executing generateTradeStatusInput ... \n");
+//		System.out.println("Executing generateTradeStatusInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateTradeStatusInput( tradeStatusTxnInput );
 	    return (tradeStatusTxnInput);
 	}
 
 	public TTradeUpdateTxnInput generateTradeUpdateInput() {
-		System.out.println("Executing generateTradeUpdateInput ... \n");
+//		System.out.println("Executing generateTradeUpdateInput ... \n");
 		cutomerEmulator.getCETxnInputGenerator().generateTradeUpdateInput( tradeUpdateTxnInput );
 	    return (tradeUpdateTxnInput);
 	}

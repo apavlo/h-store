@@ -90,7 +90,7 @@ public class AccountPermsGenerator extends TableGenerator {
         }
     }
     
-    public void generateCids() {
+    private void generateCids() {
         if (permsToGenerate == 1) { // only the customer himself has permissions
             return;
         }

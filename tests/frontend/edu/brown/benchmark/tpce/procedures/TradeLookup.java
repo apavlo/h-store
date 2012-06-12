@@ -44,7 +44,7 @@ import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-/**
+/** 
  * Trade-Lookup transaction <br/>
  * TPC-E section 3.3.3
  * 

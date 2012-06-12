@@ -57,7 +57,7 @@ public class SecurityHandler {
         secRecords = secFile.getRecordsNum();
         compRecords = generator.getInputFile(InputFile.COMPANY).getRecordsNum();
     }
-    
+     
     /**
      * @param maxLen The maximum length for the suffix 
      * @see #createSymbol(long, int)

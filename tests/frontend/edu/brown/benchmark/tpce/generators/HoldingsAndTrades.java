@@ -125,8 +125,8 @@ public class HoldingsAndTrades {
     }
     
     private int getNumberOfSecurities(long accId, TierId tier, int accCount) {
-        int minRange = MIN_SECURITIES_PER_ACCOUNT_RANGE[tier.getValue() - TierId.eCustomerTierOne.getValue()][accCount - 1];
-        int maxRange = MAX_SECURITIES_PER_ACCOUNT_RANGE[tier.getValue() - TierId.eCustomerTierOne.getValue()][accCount - 1];
+        int minRange = MIN_SECURITIES_PER_ACCOUNT_RANGE[tier.ordinal() - TierId.eCustomerTierOne.ordinal()][accCount - 1];
+        int maxRange = MAX_SECURITIES_PER_ACCOUNT_RANGE[tier.ordinal() - TierId.eCustomerTierOne.ordinal()][accCount - 1];
 
         long oldSeed = rnd.getSeed();
         rnd.setSeedNth(EGenRandom.RNG_SEED_BASE_NUMBER_OF_SECURITIES, accId);

@@ -13,3 +13,4 @@ public class TStatusAndTradeType {
     	type_stop_loss = new String();
     }
 }
+ 

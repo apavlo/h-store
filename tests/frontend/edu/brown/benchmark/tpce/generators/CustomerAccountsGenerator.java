@@ -38,19 +38,10 @@ import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class CustomerAccountsGenerator extends TableGenerator {
     public enum TaxStatus {
-        eNonTaxable(0),
-        eTaxableAndWithhold(1),
-        eTaxableAndDontWithhold(2);
+        eNonTaxable,
+        eTaxableAndWithhold,
+        eTaxableAndDontWithhold;
         
-        private final int id;
-        
-        private TaxStatus(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
     }
 
     private static final int percentAccountTaxStatusNonTaxable = 20;
@@ -114,7 +105,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
     public long[] genRandomAccId(EGenRandom rnd, long custId, TierId tier) {
         long custAcc, accCount, startAcc;
         
-        accCount = getNumberofAccounts(custId, tier.getValue());
+        accCount = getNumberofAccounts(custId, tier.ordinal() + 1);
         startAcc = getStartingAccId(custId);
         
         custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
@@ -131,7 +122,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
         int accCount;
         long[] res = new long[2];
         
-        accCount = getNumberofAccounts(custId, tier.getValue());
+        accCount = getNumberofAccounts(custId, tier.ordinal() + 1);
         startAcc = getStartingAccId(custId);
         
         custAcc = rnd.int64Range(startAcc, startAcc + accCount - 1); // using the external generator here
@@ -181,7 +172,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
             long cid = customerGenerator.generateCustomerId();
             
             accsGenerated = 0;
-            accsToGenerate = getNumberofAccounts(cid, CustomerSelection.getTier(cid).getValue());
+            accsToGenerate = getNumberofAccounts(cid, CustomerSelection.getTier(cid).ordinal() + 1);
             
             startingAccId = getStartingAccId(cid);
         }
@@ -272,7 +263,7 @@ public class CustomerAccountsGenerator extends TableGenerator {
         tuple[1] = generateBrokerId(accId); // ca_b_id
         tuple[2] = cid; // ca_c_id
         tuple[3] = generateAccName(tax, accId, cid); // ca_name
-        tuple[4] = (short)tax.getValue(); // ca_tax_st
+        tuple[4] = (short)tax.ordinal(); // ca_tax_st
         tuple[5] = generateBalance(); // ca_bal
         
         return tuple;       

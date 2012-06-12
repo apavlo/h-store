@@ -32,7 +32,7 @@ public class TSecurityDetailTxnInput {
     public String getSymbol(){
     	return symbol;
     }
-    
+     
     public void setMaxRowsToReturn(int max_rows_to_return){
     	this.max_rows_to_return = max_rows_to_return;
     }

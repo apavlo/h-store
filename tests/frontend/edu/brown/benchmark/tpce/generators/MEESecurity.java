@@ -62,7 +62,6 @@ public class MEESecurity {
     private final EGenMoney rangeHigh;
     private final EGenMoney range;
     private final int period;      // time to get to the same price (in seconds)
-
     
     private int tradingTimeSoFar;
     private Date baseTime, currTime;

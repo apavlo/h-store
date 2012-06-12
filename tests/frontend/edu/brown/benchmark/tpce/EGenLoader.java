@@ -54,7 +54,7 @@ public class EGenLoader {
     private final Integer total_customers;
     private final Integer scale_factor;
     private final Integer initial_workdays;
-
+ 
     /**
      * Constructor
      * 

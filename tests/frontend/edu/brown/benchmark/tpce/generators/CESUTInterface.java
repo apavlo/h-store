@@ -1,7 +1,7 @@
 package edu.brown.benchmark.tpce.generators;
 
 public abstract class CESUTInterface {
-	public abstract boolean BrokerVolume( TBrokerVolumeTxnInput pTxnInput ) ;                                               
+    public abstract boolean BrokerVolume( TBrokerVolumeTxnInput pTxnInput ) ;                                               
     public abstract boolean CustomerPosition( TCustomerPositionTxnInput pTxnInput ) ;                                       
     public abstract boolean MarketWatch( TMarketWatchTxnInput pTxnInput ) ;                                                 
     public abstract boolean SecurityDetail( TSecurityDetailTxnInput pTxnInput ) ;                                           

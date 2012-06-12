@@ -45,19 +45,10 @@ import edu.brown.benchmark.tpce.util.EGenRandom;
 
 public class CustomerSelection {
     public enum TierId {
-        eCustomerTierOne(1),
-        eCustomerTierTwo(2),
-        eCustomerTierThree(3);
+        eCustomerTierOne,
+        eCustomerTierTwo,
+        eCustomerTierThree;
         
-        private final int id;
-        
-        private TierId(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
     }
     
     private final EGenRandom rnd;

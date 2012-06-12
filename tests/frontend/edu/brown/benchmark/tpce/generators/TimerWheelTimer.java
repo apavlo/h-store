@@ -3,9 +3,9 @@ package edu.brown.benchmark.tpce.generators;
 import java.lang.reflect.Method;
 
 public class TimerWheelTimer {
-	private Object expiryData;                      
-	private Object expiryObject;                    
-	private Method expiryFunction;  
+    private Object expiryData;                      
+    private Object expiryObject;                    
+    private Method expiryFunction;  
 
     public TimerWheelTimer( Object expiryObject, Method expiryFunction, Object expiryData){
         this.expiryData = expiryData;
@@ -14,12 +14,12 @@ public class TimerWheelTimer {
     }
     
     public Object getExpiryData(){
-    	return expiryData;
+        return expiryData;
     }
     public Object getExpiryObject(){
-    	return expiryObject;
+        return expiryObject;
     }
     public Method getExpiryFunction(){
-    	return expiryFunction;
+        return expiryFunction;
     }
 }

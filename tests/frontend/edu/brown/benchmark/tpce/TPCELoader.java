@@ -57,7 +57,7 @@ import edu.brown.benchmark.tpce.generators.TradeGenerator;
 public class TPCELoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TPCELoader.class);
     protected final TPCEGenerator generator;
-
+ 
     /**
      * Constructor
      * 

@@ -35,21 +35,12 @@ import edu.brown.benchmark.tpce.generators.TPCEGenerator.InputFile;
 
 public class StatusTypeGenerator extends TableGenerator {
     public enum StatusTypeId {
-        E_COMPLETED(0),
-        E_ACTIVE(1),
-        E_SUBMITTED(2),
-        E_PENDING(3),
-        E_CANCELED(4);
+        E_COMPLETED,
+        E_ACTIVE,
+        E_SUBMITTED,
+        E_PENDING,
+        E_CANCELED;
         
-        private final int id;
-        
-        private StatusTypeId(int id) {
-            this.id = id;
-        }
-        
-        public int getValue() {
-            return id;
-        }
     }
 
     private final InputFileHandler st_file;
