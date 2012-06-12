@@ -526,6 +526,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return new Runnable() {
                 @Override
                 public void run() {
+                    LOG.info("Off-backpressure for " + this);
                     /**
                      * Must synchronize to prevent a race between the DTXN backpressure starting
                      * and this attempt to reenable read selection (which should not occur
@@ -545,6 +546,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return new Runnable() {
                 @Override
                 public void run() {
+                    LOG.info("On-backpressure for " + this);
                     synchronized (m_connection) {
                         m_connection.disableReadSelection();
                     }
@@ -564,7 +566,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private final EventObserver<HStoreSite> onBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            LOG.trace("Had back pressure disabling read selection");
+            LOG.info("Had back pressure disabling read selection");
             synchronized (m_connections) {
                 m_hasDTXNBackPressure = true;
                 for (final Connection c : m_connections) {
@@ -580,7 +582,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private final EventObserver<HStoreSite> offBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            LOG.trace("No more back pressure attempting to enable read selection");
+            LOG.info("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
                 m_hasDTXNBackPressure = false;
                 if (m_hasGlobalClientBackPressure) {

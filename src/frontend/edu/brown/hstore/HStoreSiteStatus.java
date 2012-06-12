@@ -418,7 +418,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             partitionLabels.put(partition, partitionLabel);
             
             PartitionExecutor es = e.getValue();
-            ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
+            PartitionMessageQueue es_queue = es.getThrottlingQueue();
             ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
@@ -432,9 +432,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getWaitingQueueSize()), null);
             
             // Execution Info
-            String status = String.format("%-5s [limit=%d, release=%d]%s",
-                                          es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
-                                          (es_queue.isThrottled() ? " *THROTTLED*" : ""));
+            String status = String.format("%-5s", es_queue.size());
             m.put("Exec Queue", status);
             
             // TransactionQueueManager Info
