@@ -56,6 +56,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
         ClientResponseImpl cresponse = null;
         try {
             cresponse = fds.readObject(ClientResponseImpl.class);
+            LOG.info("Returning redirected ClientResponse to client:\n" + cresponse);
             this.orig_callback.run(cresponse);
         } catch (Throwable ex) {
             LOG.fatal("Failed to forward ClientResponse data back!", ex);

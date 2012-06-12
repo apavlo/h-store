@@ -684,7 +684,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             ts.markAsNotDeletable();
             this.hstore_site.transactionRestart(ts, status);
             ts.markAsDeletable();
-            this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
+            this.hstore_site.deleteTransaction(ts, status);
         } // WHILE
 
     }
