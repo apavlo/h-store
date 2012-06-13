@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,16 @@ HardwareCore::HardwareCore(Catalog *catalog, CatalogType *parent, const string &
     m_childCollections["threads"] = &m_threads;
 }
 
+HardwareCore::~HardwareCore() {
+    std::map<std::string, HardwareThread*>::const_iterator hardwarethread_iter = m_threads.begin();
+    while (hardwarethread_iter != m_threads.end()) {
+        delete hardwarethread_iter->second;
+        hardwarethread_iter++;
+    }
+    m_threads.clear();
+
+}
+
 void HardwareCore::update() {
 }
 
@@ -54,10 +64,12 @@ CatalogType * HardwareCore::getChild(const std::string &collectionName, const st
     return NULL;
 }
 
-void HardwareCore::removeChild(const std::string &collectionName, const std::string &childName) {
+bool HardwareCore::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("threads") == 0)
+    if (collectionName.compare("threads") == 0) {
         return m_threads.remove(childName);
+    }
+    return false;
 }
 
 const CatalogMap<HardwareThread> & HardwareCore::threads() const {

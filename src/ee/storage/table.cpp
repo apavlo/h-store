@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -76,11 +76,15 @@ Table::Table(int tableAllocationTargetSize) :
     m_name(""),
     m_ownsTupleSchema(true),
     m_tableAllocationTargetSize(tableAllocationTargetSize),
-    m_tempTableMemoryInBytes(NULL)
+    m_tempTableMemoryInBytes(NULL),
+    m_refcount(0)
 {
 }
 
 Table::~Table() {
+    // not all tables are reference counted but this should be invariant
+    assert(m_refcount == 0);
+
     // clear the schema
     if (m_ownsTupleSchema) {
         TupleSchema::freeTupleSchema(m_schema);
@@ -125,10 +129,12 @@ Table::~Table() {
 }
 
 void Table::initializeWithColumns(TupleSchema *schema, const std::string* columnNames, bool ownsTupleSchema) {
-    m_ownsTupleSchema = ownsTupleSchema;
 
     // copy the tuple schema
-    TupleSchema::freeTupleSchema(m_schema);
+    if (m_ownsTupleSchema) {
+        TupleSchema::freeTupleSchema(m_schema);
+    }
+    m_ownsTupleSchema = ownsTupleSchema;
     m_schema  = schema;
 
     m_columnCount = schema->columnCount();
@@ -225,7 +231,7 @@ int Table::columnIndex(const std::string &name) const {
 // ------------------------------------------------------------------
 
 std::string Table::debug() {
-    VOLT_TRACE("tabledebug start");
+    VOLT_DEBUG("tabledebug start");
     std::ostringstream buffer;
 
     buffer << tableType() << "(" << name() << "):\n";
@@ -266,7 +272,7 @@ std::string Table::debug() {
     buffer << "===========================================================\n";
 
     std::string ret(buffer.str());
-    VOLT_TRACE("tabledebug end");
+    VOLT_DEBUG("tabledebug end");
 
     return ret;
 }
@@ -346,10 +352,6 @@ bool Table::serializeColumnHeaderTo(SerializeOutput &serialize_io) {
 }
 
 bool Table::serializeTo(SerializeOutput &serialize_io) {
-    return this->serializeTo(-1, -1, serialize_io);
-}
-
-bool Table::serializeTo(int32_t offset, int32_t limit, SerializeOutput &serialize_io) {
     // The table is serialized as:
     // [(int) total size]
     // [(int) header size] [num columns] [column types] [column names]
@@ -369,32 +371,15 @@ bool Table::serializeTo(int32_t offset, int32_t limit, SerializeOutput &serializ
         return false;
 
     // active tuple counts
-    uint32_t output_size = m_tupleCount;
-    if (limit != -1 || offset != -1) {
-        if (offset == -1) {
-            output_size = (limit < m_tupleCount ? limit : m_tupleCount);
-        } else if (offset > m_tupleCount) {
-            output_size = 0;
-        } else {
-            output_size = m_tupleCount - offset;
-            if (limit != -1 && limit < output_size) output_size = limit;
-        }
-    }
-    serialize_io.writeInt(static_cast<int32_t>(output_size));
-//     fprintf(stderr, "SERIALIZE(output=%d, offset=%d, limit=%d, total=%d)\n", output_size, offset, limit, m_tupleCount);
-    
+    serialize_io.writeInt(static_cast<int32_t>(m_tupleCount));
     int64_t written_count = 0;
-    int64_t read_count = 0;
     TableIterator titer(this);
     TableTuple tuple(m_schema);
     while (titer.next(tuple)) {
-        if (offset == -1 || read_count >= offset) {
-            tuple.serializeTo(serialize_io);
-            if (limit != -1 && ++written_count == limit) break;
-        }
-        read_count++;
+        tuple.serializeTo(serialize_io);
+        ++written_count;
     }
-    // assert(written_count == m_tupleCount);
+    assert(written_count == m_tupleCount);
 
     // length prefix is non-inclusive
     int32_t sz = static_cast<int32_t>(serialize_io.position() - pos - sizeof(int32_t));
@@ -434,7 +419,6 @@ bool Table::equals(const voltdb::Table *other) const {
     if (!(indexCount() == other->indexCount())) return false;
     if (!(activeTupleCount() == other->activeTupleCount())) return false;
     if (!(databaseId() == other->databaseId())) return false;
-    if (!(tableId() == other->tableId())) return false;
     if (!(name() == other->name())) return false;
     if (!(tableType() == other->tableType())) return false;
 
@@ -471,13 +455,39 @@ std::vector<std::string> Table::getColumnNames() {
     return columnNames;
 }
 
-void Table::loadTuplesFrom(bool allowELT,
+void Table::loadTuplesFromNoHeader(bool allowExport,
+                            SerializeInput &serialize_io,
+                            Pool *stringPool) {
+    int tupleCount = serialize_io.readInt();
+    assert(tupleCount >= 0);
+
+    // allocate required data blocks first to make them alligned well
+    while (tupleCount + m_usedTuples > m_allocatedTuples) {
+        allocateNextBlock();
+    }
+
+    for (int i = 0; i < tupleCount; ++i) {
+        m_tmpTarget1.move(dataPtrForTuple((int) m_usedTuples + i));
+        m_tmpTarget1.setDeletedFalse();
+        m_tmpTarget1.setDirtyFalse();
+        m_tmpTarget1.deserializeFrom(serialize_io, stringPool);
+
+        processLoadedTuple( allowExport, m_tmpTarget1);
+    }
+
+    populateIndexes(tupleCount);
+
+    m_tupleCount += tupleCount;
+    m_usedTuples += tupleCount;
+}
+
+void Table::loadTuplesFrom(bool allowExport,
                             SerializeInput &serialize_io,
                             Pool *stringPool) {
     /*
      * directly receives a VoltTable buffer.
      * [00 01]   [02 03]   [04 .. 0x]
-     * headersize  colcount  colcount * 1 byte (column types)
+     * rowstart  colcount  colcount * 1 byte (column types)
      *
      * [0x+1 .. 0y]
      * colcount * strings (column names)
@@ -491,7 +501,8 @@ void Table::loadTuplesFrom(bool allowELT,
 
     // todo: just skip ahead to this position
     serialize_io.readInt(); // rowstart
-    serialize_io.readByte(); // status
+
+    serialize_io.readByte();
 
     int16_t colcount = serialize_io.readShort();
     assert(colcount >= 0);
@@ -529,26 +540,6 @@ void Table::loadTuplesFrom(bool allowELT,
                                       message.str().c_str());
     }
 
-    int tupleCount = serialize_io.readInt();
-    assert(tupleCount >= 0);
-
-    // allocate required data blocks first to make them alligned well
-    while (tupleCount + m_usedTuples > m_allocatedTuples) {
-        allocateNextBlock();
-    }
-
-    for (int i = 0; i < tupleCount; ++i) {
-        m_tmpTarget1.move(dataPtrForTuple((int) m_usedTuples + i));
-        m_tmpTarget1.setDeletedFalse();
-        m_tmpTarget1.setDirtyFalse();
-        m_tmpTarget1.deserializeFrom(serialize_io, stringPool);
-
-        processLoadedTuple( allowELT, m_tmpTarget1);
-    }
-
-    populateIndexes(tupleCount);
-
-    m_tupleCount += tupleCount;
-    m_usedTuples += tupleCount;
+    loadTuplesFromNoHeader( allowExport, serialize_io, stringPool);
 }
 }

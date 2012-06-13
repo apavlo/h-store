@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -169,11 +169,10 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
      */
     public T add(String name) {
         try {
-            T x = m_items.get(name); 
-            if (x != null)
-                throw new CatalogException(x + " already exists for " + m_parent);
+            if (m_items.containsKey(name))
+                throw new CatalogException("Catalog item '" + name + "' already exists for " + m_parent);
 
-            x = m_cls.newInstance();
+            T x = m_cls.newInstance();
             String childPath = m_path + "[" + name + "]";
             x.setBaseValues(m_catalog, m_parent, childPath, name);
             x.m_parentMap = this;
@@ -182,7 +181,6 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
 
             // update versioning if needed
             updateVersioning();
-            m_catalog.m_changesMadePerUpdateCount++;
 
             // assign a relative index to every child item
             int index = 1;
@@ -222,7 +220,6 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
 
         // update versioning if needed
         updateVersioning();
-        m_catalog.m_changesMadePerUpdateCount++;
 
         // assign a relative index to every child item
         int index = 1;
@@ -247,7 +244,6 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
 
             // update versioning if needed
             updateVersioning();
-            m_catalog.m_changesMadePerUpdateCount++;
 
             // assign a relative index to every child item
             int index = 1;

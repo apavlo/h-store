@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -34,7 +34,7 @@
 #include "indexes/tableindex.h"
 #include "storage/tableiterator.h"
 #include "storage/CopyOnWriteIterator.h"
-#include "storage/DefaultTupleSerializer.h"
+#include "common/DefaultTupleSerializer.h"
 #include <vector>
 #include <string>
 #include <stdint.h>
@@ -113,7 +113,7 @@ public:
         std::vector<voltdb::TableIndexScheme> indexes;
 
         m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable
-                                                         (0, 1, m_engine->getExecutorContext(), "Foo",
+                                                         (0, m_engine->getExecutorContext(), "Foo",
                                                           m_tableSchema, &m_columnNames[0], indexScheme, indexes, 0,
                                                           false, false));
     }

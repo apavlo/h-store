@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +46,16 @@ Column::Column(Catalog *catalog, CatalogType *parent, const string &path, const 
     m_fields["matviewsource"] = value;
 }
 
+Column::~Column() {
+    std::map<std::string, ConstraintRef*>::const_iterator constraintref_iter = m_constraints.begin();
+    while (constraintref_iter != m_constraints.end()) {
+        delete constraintref_iter->second;
+        constraintref_iter++;
+    }
+    m_constraints.clear();
+
+}
+
 void Column::update() {
     m_index = m_fields["index"].intValue;
     m_type = m_fields["type"].intValue;
@@ -74,10 +84,12 @@ CatalogType * Column::getChild(const std::string &collectionName, const std::str
     return NULL;
 }
 
-void Column::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Column::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("constraints") == 0)
+    if (collectionName.compare("constraints") == 0) {
         return m_constraints.remove(childName);
+    }
+    return false;
 }
 
 int32_t Column::index() const {

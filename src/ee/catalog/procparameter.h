@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@ class ProcParameter : public CatalogType {
 
 protected:
     ProcParameter(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     int32_t m_type;
     bool m_isarray;
     int32_t m_index;
@@ -46,9 +45,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~ProcParameter();
+
     /** GETTER: The data type for the parameter (int/float/date/etc) */
     int32_t type() const;
     /** GETTER: Is the parameter an array of value */

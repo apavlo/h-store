@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@ class Host : public CatalogType {
 
 protected:
     Host(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     int32_t m_id;
     std::string m_ipaddr;
     int32_t m_num_cpus;
@@ -51,9 +50,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~Host();
+
     /** GETTER: Unique host id */
     int32_t id() const;
     /** GETTER: The ip address or hostname of the host */

@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -384,7 +384,6 @@ public:
         TableTuple keyTuple(keySchema);
         keyTuple.moveNoHeader(reinterpret_cast<void*>(data));
         for (int i = 0; i < keySchema->columnCount(); i++) {
-            assert(indices[i] < 20);
             keyTuple.setNValue(i, tuple->getNValue(indices[i]));
         }
     }
@@ -448,6 +447,149 @@ struct GenericHasher : std::unary_function<GenericKey<keySize>, std::size_t>
     {
         TableTuple pTuple(m_schema); pTuple.moveToReadOnlyTuple(reinterpret_cast<const void*>(&p));
         return pTuple.hashCode();
+    }
+
+    TupleSchema *m_schema;
+};
+
+
+/*
+ * TupleKey is the all-purpose fallback key for indexes that can't be
+ * better specialized. Each TupleKey wraps a pointer to a *persistent
+ * table tuple*. TableIndex knows the column indices from the
+ * persistent table that form the index key. TupleKey uses this data
+ * to evaluate and compare keys by extracting and comparing
+ * the appropriate columns' values.
+ *
+ * Note that the index code will create keys in the schema of the
+ * the index key. While all TupleKeys resident in the index itself
+ * will point to persistent tuples, there are ephemeral TupleKey
+ * instances that point to tuples in the index key schema.
+ *
+ * Pros: supports any combination of columns in a key. Each index
+ * key is 24 bytes (a pointer to a tuple and a pointer to the column
+ * indices (which map index columns to table columns).
+ *
+ * Cons: requires an indirection to evaluate a key (must follow the
+ * the pointer to read the underlying tabletuple). Compares what are
+ * probably very wide keys one column at a time by initializing and
+ * comparing nvalues.
+ */
+class TupleKey {
+  public:
+    inline TupleKey() {
+        m_columnIndices = NULL;
+        m_keyTuple = NULL;
+        m_keyTupleSchema = NULL;
+    }
+
+    // Set a key from a key-schema tuple.
+    inline void setFromKey(const TableTuple *tuple) {
+        assert(tuple);
+        m_columnIndices = NULL;
+        m_keyTuple = tuple->address();
+        m_keyTupleSchema = tuple->getSchema();
+    }
+
+    // Set a key from a table-schema tuple.
+    inline void setFromTuple(const TableTuple *tuple, const int *indices, const TupleSchema *keySchema) {
+        assert(tuple);
+        assert(indices);
+        m_columnIndices = indices;
+        m_keyTuple = tuple->address();
+        m_keyTupleSchema = tuple->getSchema();
+    }
+
+    // Return true if the TupleKey references an ephemeral index key.
+    bool isKeySchema() const {
+        return m_columnIndices == NULL;
+    }
+
+    // Return a table tuple that is valid for comparison
+    TableTuple getTupleForComparison() const {
+        return TableTuple(m_keyTuple, m_keyTupleSchema);
+    }
+
+    // Return the indexColumn'th key-schema column.
+    int columnForIndexColumn(int indexColumn) const {
+        if (isKeySchema())
+            return indexColumn;
+        else
+            return m_columnIndices[indexColumn];
+    }
+
+  private:
+    // TableIndex owns this array - NULL if an ephemeral key
+    const int* m_columnIndices;
+
+    // Pointer a persistent tuple in non-ephemeral case.
+    char *m_keyTuple;
+    const TupleSchema *m_keyTupleSchema;
+};
+
+class TupleKeyComparator {
+  public:
+    TupleKeyComparator(TupleSchema *keySchema) : m_schema(keySchema) {
+    }
+
+    // return true if lhs < rhs
+    inline bool operator()(const TupleKey &lhs, const TupleKey &rhs) const {
+        TableTuple lhTuple = lhs.getTupleForComparison();
+        TableTuple rhTuple = rhs.getTupleForComparison();
+        NValue lhValue, rhValue;
+
+        //std::cout << std::endl << "TupleKeyComparator: " <<
+        //    std::endl << lhTuple.debugNoHeader() <<
+        //    std::endl << rhTuple.debugNoHeader() <<
+        //    std::endl;
+
+        for (int ii=0; ii < m_schema->columnCount(); ++ii) {
+            lhValue = lhTuple.getNValue(lhs.columnForIndexColumn(ii));
+            rhValue = rhTuple.getNValue(rhs.columnForIndexColumn(ii));
+
+            int comparison = lhValue.compare(rhValue);
+
+            if (comparison == VALUE_COMPARE_LESSTHAN) {
+                // std::cout << " LHS " << lhValue.debug() << " < RHS. " << rhValue.debug() << std::endl;
+                return true;
+            }
+            else if (comparison == VALUE_COMPARE_GREATERTHAN) {
+                // std::cout << " LHS " << lhValue.debug() << " > RHS. " << rhValue.debug() << std::endl;
+                return false;
+            }
+        }
+        // std::cout << " LHS == RHS. " << std::endl;
+        return false;
+    }
+
+    TupleSchema *m_schema;
+};
+
+class TupleKeyEqualityChecker {
+public:
+    TupleKeyEqualityChecker(TupleSchema *keySchema) : m_schema(keySchema) {
+    }
+
+    // return true if lhs == rhs
+    inline bool operator()(const TupleKey &lhs, const TupleKey &rhs) const {
+        TableTuple lhTuple = lhs.getTupleForComparison();
+        TableTuple rhTuple = rhs.getTupleForComparison();
+        NValue lhValue, rhValue;
+
+//         std::cout << std::endl << "TupleKeyEqualityChecker: " <<
+//         std::endl << lhTuple.debugNoHeader() <<
+//         std::endl << rhTuple.debugNoHeader() <<
+//         std::endl;
+
+        for (int ii=0; ii < m_schema->columnCount(); ++ii) {
+            lhValue = lhTuple.getNValue(lhs.columnForIndexColumn(ii));
+            rhValue = rhTuple.getNValue(rhs.columnForIndexColumn(ii));
+
+            if (lhValue.compare(rhValue) != VALUE_COMPARE_EQUAL) {
+                return false;
+            }
+        }
+        return true;
     }
 
     TupleSchema *m_schema;

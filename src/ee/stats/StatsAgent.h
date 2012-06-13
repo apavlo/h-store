@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +46,11 @@ public:
      * @param statsSource statsSource containing statistics for the resource
      */
     void registerStatsSource(voltdb::StatisticsSelectorType sst, voltdb::CatalogId catalogId, voltdb::StatsSource* statsSource);
+
+    /**
+     * Unassociate all instances of this selector type
+     */
+    void unregisterStatsSource(voltdb::StatisticsSelectorType sst);
 
     /**
      * Get statistics for the specified resources

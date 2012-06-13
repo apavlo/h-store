@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ public class Catalog extends CatalogType {
 
     // package private version number
     int m_currentCatalogVersion = 1;
-    int m_changesMadePerUpdateCount = 0;
 
     /**
      * Create a new Catalog hierarchy.
@@ -48,6 +47,10 @@ public class Catalog extends CatalogType {
         m_relativeIndex = 1;
     }
 
+    public int getCatalogVersion() {
+        return m_currentCatalogVersion;
+    }
+
     /**
      * Run one or more single-line catalog commands separated by newlines.
      * See the docs for more info on catalog statements.
@@ -55,7 +58,7 @@ public class Catalog extends CatalogType {
      * newlines
      */
     public void execute(final String commands) {
-        m_changesMadePerUpdateCount = 0;
+        m_currentCatalogVersion++;
 
         int ctr = 0;
         for (String line : commands.split("\n")) {
@@ -71,9 +74,6 @@ public class Catalog extends CatalogType {
             }
             ctr++;
         }
-
-        if (m_changesMadePerUpdateCount > 0)
-            m_currentCatalogVersion++;
     }
 
     void executeOne(String stmt) {
@@ -109,6 +109,11 @@ public class Catalog extends CatalogType {
         }
         else if (cmd.equals("delete")) {
             resolved.delete(arg1, arg2);
+            String toDelete = ref + "/" + arg1 + "[" + arg2 + "]";
+            CatalogType thing = m_pathCache.remove(toDelete);
+            if (thing == null) {
+                throw new CatalogException("Unable to find reference to delete: " + toDelete);
+            }
         }
         else if (cmd.equals("set")) {
             resolved.set(arg1, arg2);
@@ -168,8 +173,14 @@ public class Catalog extends CatalogType {
 
     public Catalog deepCopy() {
         Catalog copy = new Catalog();
-        copy.m_clusters.copyFrom(m_clusters);
+        // Note that CatalogType.deepCopy isn't called on the catalog node.
+        // need to fully compensate for that here.
+        copy.m_currentCatalogVersion = m_currentCatalogVersion;
+        copy.m_nodeVersion = m_nodeVersion;
+        copy.m_subTreeVersion = m_subTreeVersion;
         copy.m_relativeIndex = 1;
+        copy.m_clusters.copyFrom(m_clusters);
+
 
         return copy;
     }

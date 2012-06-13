@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@ ConnectorTableInfo::ConnectorTableInfo(Catalog *catalog, CatalogType *parent, co
     m_fields["appendOnly"] = value;
 }
 
+ConnectorTableInfo::~ConnectorTableInfo() {
+}
+
 void ConnectorTableInfo::update() {
     m_table = m_fields["table"].typeValue;
     m_appendOnly = m_fields["appendOnly"].intValue;
@@ -48,8 +51,9 @@ CatalogType * ConnectorTableInfo::getChild(const std::string &collectionName, co
     return NULL;
 }
 
-void ConnectorTableInfo::removeChild(const std::string &collectionName, const std::string &childName) {
+bool ConnectorTableInfo::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 const Table * ConnectorTableInfo::table() const {
