@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@ CatalogInteger::CatalogInteger(Catalog *catalog, CatalogType *parent, const stri
     m_fields["value"] = value;
 }
 
+CatalogInteger::~CatalogInteger() {
+}
+
 void CatalogInteger::update() {
     m_value = m_fields["value"].intValue;
 }
@@ -45,8 +48,9 @@ CatalogType * CatalogInteger::getChild(const std::string &collectionName, const 
     return NULL;
 }
 
-void CatalogInteger::removeChild(const std::string &collectionName, const std::string &childName) {
+bool CatalogInteger::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 int32_t CatalogInteger::value() const {

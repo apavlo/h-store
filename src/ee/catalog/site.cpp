@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,16 @@ Site::Site(Catalog *catalog, CatalogType *parent, const string &path, const stri
     m_fields["proc_port"] = value;
 }
 
+Site::~Site() {
+    std::map<std::string, Partition*>::const_iterator partition_iter = m_partitions.begin();
+    while (partition_iter != m_partitions.end()) {
+        delete partition_iter->second;
+        partition_iter++;
+    }
+    m_partitions.clear();
+
+}
+
 void Site::update() {
     m_id = m_fields["id"].intValue;
     m_host = m_fields["host"].typeValue;
@@ -65,10 +75,12 @@ CatalogType * Site::getChild(const std::string &collectionName, const std::strin
     return NULL;
 }
 
-void Site::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Site::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("partitions") == 0)
+    if (collectionName.compare("partitions") == 0) {
         return m_partitions.remove(childName);
+    }
+    return false;
 }
 
 int32_t Site::id() const {

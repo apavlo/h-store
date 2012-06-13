@@ -82,7 +82,7 @@ public class DatabaseDump extends VoltSystemProcedure {
                 int total = 0;
                 while (true) {
                     LOG.debug(String.format("%s: offset=%d, limit=%d", catalog_tbl.getName(), total, batch_size));
-                    VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl, total, batch_size);
+                    VoltTable vt = this.executor.getExecutionEngine().serializeTable(catalog_tbl.getRelativeIndex());
                     assert(vt != null) : "Failed to get serialized table for " + catalog_tbl;
                     if (vt.getRowCount() == 0) break;
                     total += vt.getRowCount();

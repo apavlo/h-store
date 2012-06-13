@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ class Statement : public CatalogType {
 
 protected:
     Statement(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     int32_t m_id;
     std::string m_sqltext;
     int32_t m_querytype;
@@ -69,9 +68,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~Statement();
+
     /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
     int32_t id() const;
     /** GETTER: The text of the sql statement */

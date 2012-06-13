@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,16 @@ HardwareThread::HardwareThread(Catalog *catalog, CatalogType *parent, const stri
     m_childCollections["partitions"] = &m_partitions;
 }
 
+HardwareThread::~HardwareThread() {
+    std::map<std::string, Partition*>::const_iterator partition_iter = m_partitions.begin();
+    while (partition_iter != m_partitions.end()) {
+        delete partition_iter->second;
+        partition_iter++;
+    }
+    m_partitions.clear();
+
+}
+
 void HardwareThread::update() {
 }
 
@@ -54,10 +64,12 @@ CatalogType * HardwareThread::getChild(const std::string &collectionName, const 
     return NULL;
 }
 
-void HardwareThread::removeChild(const std::string &collectionName, const std::string &childName) {
+bool HardwareThread::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("partitions") == 0)
+    if (collectionName.compare("partitions") == 0) {
         return m_partitions.remove(childName);
+    }
+    return false;
 }
 
 const CatalogMap<Partition> & HardwareThread::partitions() const {

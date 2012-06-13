@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@ Partition::Partition(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["id"] = value;
 }
 
+Partition::~Partition() {
+}
+
 void Partition::update() {
     m_id = m_fields["id"].intValue;
 }
@@ -45,8 +48,9 @@ CatalogType * Partition::getChild(const std::string &collectionName, const std::
     return NULL;
 }
 
-void Partition::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Partition::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 int32_t Partition::id() const {

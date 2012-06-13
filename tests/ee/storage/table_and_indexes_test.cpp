@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -173,7 +173,7 @@ class TableAndIndexTest : public Test {
 
 
 
-            districtTable = voltdb::TableFactory::getPersistentTable(0, 1, engine, "DISTRICT",
+            districtTable = voltdb::TableFactory::getPersistentTable(0,engine, "DISTRICT",
                                                                      districtTupleSchema,
                                                                      districtColumnNames,
                                                                      districtIndex1Scheme,
@@ -183,7 +183,7 @@ class TableAndIndexTest : public Test {
             districtTempTable = dynamic_cast<TempTable*>(
                 TableFactory::getCopiedTempTable(0, "DISTRICT TEMP", districtTable, &mem));
 
-            warehouseTable = voltdb::TableFactory::getPersistentTable(0, 2, engine, "WAREHOUSE",
+            warehouseTable = voltdb::TableFactory::getPersistentTable(0, engine, "WAREHOUSE",
                                                                       warehouseTupleSchema,
                                                                       warehouseColumnNames,
                                                                       warehouseIndex1Scheme,
@@ -193,7 +193,7 @@ class TableAndIndexTest : public Test {
             warehouseTempTable =  dynamic_cast<TempTable*>(
                 TableFactory::getCopiedTempTable(0, "WAREHOUSE TEMP", warehouseTable, &mem));
 
-            customerTable = voltdb::TableFactory::getPersistentTable(0, 3, engine, "CUSTOMER",
+            customerTable = voltdb::TableFactory::getPersistentTable(0,engine, "CUSTOMER",
                                                                      customerTupleSchema,
                                                                      customerColumnNames,
                                                                      customerIndex1Scheme,

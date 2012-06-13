@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ class Procedure : public CatalogType {
 
 protected:
     Procedure(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     int32_t m_id;
     std::string m_classname;
     CatalogMap<UserRef> m_authUsers;
@@ -72,9 +71,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~Procedure();
+
     /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
     int32_t id() const;
     /** GETTER: The full class name for the Java class for this procedure */

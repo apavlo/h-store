@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -131,6 +131,10 @@ public:
         return retval;
     }
 
+    virtual void ensureCapacity(uint32_t capacity) {
+        m_entries.rehash(capacity * 2);
+    }
+
     size_t getSize() const { return m_entries.size(); }
     std::string getTypeName() const { return "HashTableMultiMapIndex"; };
 
@@ -147,7 +151,7 @@ protected:
         m_eq(m_keySchema)
     {
         m_match = TableTuple(m_tupleSchema);
-        m_entries.max_load_factor(.5f);
+        m_entries.max_load_factor(.75f);
         //m_entries.rehash(300000);
     }
 

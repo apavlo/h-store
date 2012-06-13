@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ class Database : public CatalogType {
 
 protected:
     Database(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     std::string m_schema;
     CatalogMap<User> m_users;
     CatalogMap<Group> m_groups;
@@ -58,9 +57,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~Database();
+
     /** GETTER: Full SQL DDL for the database's schema */
     const std::string & schema() const;
     /** GETTER: The set of users */

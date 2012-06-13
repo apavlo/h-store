@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -62,8 +62,7 @@
 #include "common/DummyUndoQuantum.hpp"
 #include "common/SerializableEEException.h"
 #include "common/Topend.h"
-#include "common/debuglog.h"
-#include "storage/DefaultTupleSerializer.h"
+#include "common/DefaultTupleSerializer.h"
 #include "logging/LogManager.h"
 #include "logging/LogProxy.h"
 #include "logging/StdoutLogProxy.h"
@@ -97,10 +96,12 @@ class AbstractPlanNode;
 class SerializeInput;
 class SerializeOutput;
 class Table;
+class CatalogDelegate;
 class ReferenceSerializeInput;
 class ReferenceSerializeOutput;
 class PlanNodeFragment;
 class ExecutorContext;
+class RecoveryProtoMsg;
 
 /**
  * Represents an Execution Engine which holds catalog objects (i.e. table) and executes
@@ -113,6 +114,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         /** Constructor for test code: this does not enable JNI callbacks. */
         VoltDBEngine() :
           m_currentUndoQuantum(NULL),
+          m_catalogVersion(0),
           m_staticParams(MAX_PARAM_COUNT),
           m_currentOutputDepId(-1),
           m_currentInputDepId(-1),
@@ -143,7 +145,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         Table* getTable(int32_t tableId) const;
         Table* getTable(std::string name) const;
         // Serializes table_id to out. Returns true if successful.
-        bool serializeTable(int32_t tableId, int32_t offset, int32_t limit, SerializeOutput* out) const;
+        bool serializeTable(int32_t tableId, SerializeOutput* out) const;
 
         // -------------------------------------------------
         // Execution Functions
@@ -171,12 +173,18 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // Catalog Functions
         // -------------------------------------------------
         bool loadCatalog(const std::string &catalogPayload);
-        bool updateCatalog(const std::string &catalogPayload);
+        bool updateCatalog(const std::string &catalogPayload, int catalogVersion);
+        bool processCatalogAdditions(bool addAll);
+        bool processCatalogDeletes();
+        bool rebuildPlanFragmentCollections();
+        bool rebuildTableCollections();
+
+
         /**
         * Load table data into a persistent table specified by the tableId parameter.
         * This must be called at most only once before any data is loaded in to the table.
         */
-        bool loadTable(bool allowELT, int32_t tableId,
+        bool loadTable(bool allowExport, int32_t tableId,
                        ReferenceSerializeInput &serializeIn,
                        int64_t txnId, int64_t lastCommittedTxnId);
 
@@ -211,9 +219,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         bool isELEnabled() { return m_isELEnabled; }
 
         /** check if this value hashes to the local partition */
-        bool isLocalSite(int64_t value);
-        bool isLocalSite(char *string, int32_t length);
-
+        bool isLocalSite(const NValue& value);
 
         // -------------------------------------------------
         // Non-transactional work methods
@@ -337,34 +343,48 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         static int64_t uniqueIdForFragment(catalog::PlanFragment *frag);
 
         /**
-         * Activate copy on write mode for the specified table.
+         * Activate a table stream of the specified type for the specified table.
          * Returns true on success and false on failure
          */
-        bool activateCopyOnWrite(const CatalogId tableId);
+        bool activateTableStream(const CatalogId tableId, const TableStreamType streamType);
 
         /**
-         * Serialize more tuples from the specified table that is in COW mode.
+         * Serialize more tuples from the specified table that has an active stream of the specified type
          * Returns the number of bytes worth of tuple data serialized or 0 if there are no more.
-         * Returns -1 if the table is no in COW mode. The table continues to be in COW (although no copies are made)
+         * Returns -1 if the table is not in COW mode. The table continues to be in COW (although no copies are made)
          * after all tuples have been serialize until the last call to cowSerializeMore which returns 0 (and deletes
          * the COW context). Further calls will return -1
          */
-        int cowSerializeMore(ReferenceSerializeOutput *out, const CatalogId tableId);
+        int tableStreamSerializeMore(
+                ReferenceSerializeOutput *out,
+                CatalogId tableId,
+                const TableStreamType streamType);
+
+        /*
+         * Apply the updates in a recovery message.
+         */
+        void processRecoveryMessage(RecoveryProtoMsg *message);
 
         /**
-         * Perform an action on behalf of ELT.
+         * Perform an action on behalf of Export.
          *
          * @param ackAction whether or not this action include a
          * release for stream octets
          * @param pollAction whether or not this action requests the
          * next buffer of unpolled octets
          * @param if ackAction is true, the stream offset being released
-         * @param the ID of the table to which this action applies
+         * @param if syncAction is true, the stream offset being set for a table
+         * @param the catalog version qualified id of the table to which this action applies
          * @return the universal offset for any poll results (results
          * returned separatedly via QueryResults buffer)
          */
-        long eltAction(bool ackAction, bool pollAction, long ackOffset,
-                       int tableId);
+        long exportAction(bool ackAction, bool pollAction, bool resetAction, bool syncAction,
+                          int64_t ackOffset, int64_t seqNo, int64_t tableId);
+
+        /**
+         * Retrieve a hash code for the specified table
+         */
+        size_t tableHashCode(int32_t tableId);
 
     protected:
         /*
@@ -377,12 +397,11 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // -------------------------------------------------
         // Initialization Functions
         // -------------------------------------------------
-        bool clearAndLoadAllPlanFragments();
-        bool initTable(const int32_t databaseId, const catalog::Table *catalogTable);
         bool initPlanFragment(const int64_t fragId, const std::string planNodeTree);
         bool initPlanNode(const int64_t fragId, AbstractPlanNode* node, int* tempTableMemoryInBytes);
-        bool initCluster(const catalog::Cluster *catalogCluster);
-        bool initMaterializedViews();
+        bool initCluster();
+        bool initMaterializedViews(bool addAll);
+        bool updateCatalogDatabaseReference();
 
         void printReport();
 
@@ -406,21 +425,41 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         int32_t m_partitionId;
         int32_t m_clusterIndex;
         int m_totalPartitions;
-
         size_t m_startOfResultBuffer;
 
-        /**
-         * Tables.
-         * We maintain a map of table id's to table objects
-         * This contains both intermediate result tables and persistent tables
-        */
+        /*
+         * Catalog delegates hashed by path.
+         */
+        std::map<std::string, CatalogDelegate*> m_catalogDelegates;
+
+        // map catalog table id to table pointers
         std::map<int32_t, Table*> m_tables;
+
+        // map catalog table name to table pointers
         std::map<std::string, Table*> m_tablesByName;
+
+        /*
+         * Map of catalog table ids to snapshotting tables.
+         * Note that these tableIds are the ids when the snapshot
+         * was initiated. The snapshot processor in Java does not
+         * update tableIds when the catalog changes. The point of
+         * reference, therefore, is consistently the catalog at
+         * the point of snapshot initiation. It is always invalid
+         * to try to map this tableId back to catalog::Table via
+         * the catalog, at least w/o comparing table names.
+         */
+        std::map<int32_t, Table*> m_snapshottingTables;
+
+        /*
+         * Map of catalog ids to exporting tables.
+         */
+        std::map<int64_t, Table*> m_exportingTables;
 
         /**
          * System Catalog.
         */
         boost::shared_ptr<catalog::Catalog> m_catalog;
+        int m_catalogVersion;
         catalog::Database *m_database;
 
         /** reused parameter container. */
