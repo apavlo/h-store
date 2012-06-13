@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -132,10 +132,7 @@ public:
         delete m_tuple;
         if (m_schema)
             TupleSchema::freeTupleSchema(m_schema);
-
-        m_table->cleanupManagedBuffers(m_topend);
         delete m_table;
-
         delete m_context;
         m_quantum->release();
         delete m_pool;
@@ -187,15 +184,15 @@ TEST_F(StreamedTableTest, BaseCase) {
     // poll from the table and make sure we get "stuff", releasing as
     // we go.  This just makes sure we don't fail catastrophically and
     // that things are basically as we expect.
-    StreamBlock* block = m_table->getCommittedEltBytes();
+    StreamBlock* block = m_table->getCommittedExportBytes();
     int64_t uso = block->uso();
     EXPECT_EQ(uso, 0);
     size_t offset = block->offset();
     EXPECT_TRUE(offset != 0);
     while (block->offset() > 0)
     {
-        m_table->releaseEltBytes(uso);
-        block = m_table->getCommittedEltBytes();
+        m_table->releaseExportBytes(uso);
+        block = m_table->getCommittedExportBytes();
         uso = block->uso();
         EXPECT_EQ(uso, offset);
         offset += block->offset();

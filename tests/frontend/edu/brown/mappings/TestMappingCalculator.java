@@ -39,7 +39,7 @@ public class TestMappingCalculator extends BaseTestCase {
             workload = new Workload(catalog);
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
-                    .attach(new ProcParameterValueFilter().include(1, new Long(1))) // D_ID
+                    .attach(new ProcParameterValueFilter().include(1, new Integer(1))) // D_ID
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
         }

@@ -30,6 +30,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
@@ -44,6 +45,7 @@ import edu.brown.utils.EventObserver;
  * 
  * @author pavlo
  */
+@Deprecated
 public class PartitionExecutorHelper implements Runnable {
     public static final Logger LOG = Logger.getLogger(PartitionExecutorHelper.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -133,9 +135,8 @@ public class PartitionExecutorHelper implements Runnable {
         
         if (this.first) {
             Thread self = Thread.currentThread();
-            self.setName(HStoreThreadManager.getThreadName(hstore_site, "help"));
-            if (hstore_site.getHStoreConf().site.cpu_affinity)
-                hstore_site.getThreadManager().registerProcessingThread();
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_HELPER));
+            hstore_site.getThreadManager().registerProcessingThread();
             this.first = false;
         }
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
@@ -143,7 +144,7 @@ public class PartitionExecutorHelper implements Runnable {
         this.hstore_site.updateLogging();
         for (PartitionExecutor es : this.executors) {
 //            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
-            long to_remove = System.currentTimeMillis() - this.txn_expire;
+//            long to_remove = System.currentTimeMillis() - this.txn_expire;
             
             int cleaned = 0;
 //            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {

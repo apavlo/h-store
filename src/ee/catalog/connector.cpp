@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,30 @@ Connector::Connector(Catalog *catalog, CatalogType *parent, const string &path, 
     m_childCollections["tableInfo"] = &m_tableInfo;
 }
 
+Connector::~Connector() {
+    std::map<std::string, UserRef*>::const_iterator userref_iter = m_authUsers.begin();
+    while (userref_iter != m_authUsers.end()) {
+        delete userref_iter->second;
+        userref_iter++;
+    }
+    m_authUsers.clear();
+
+    std::map<std::string, GroupRef*>::const_iterator groupref_iter = m_authGroups.begin();
+    while (groupref_iter != m_authGroups.end()) {
+        delete groupref_iter->second;
+        groupref_iter++;
+    }
+    m_authGroups.clear();
+
+    std::map<std::string, ConnectorTableInfo*>::const_iterator connectortableinfo_iter = m_tableInfo.begin();
+    while (connectortableinfo_iter != m_tableInfo.end()) {
+        delete connectortableinfo_iter->second;
+        connectortableinfo_iter++;
+    }
+    m_tableInfo.clear();
+
+}
+
 void Connector::update() {
     m_loaderclass = m_fields["loaderclass"].strValue.c_str();
     m_enabled = m_fields["enabled"].intValue;
@@ -78,14 +102,18 @@ CatalogType * Connector::getChild(const std::string &collectionName, const std::
     return NULL;
 }
 
-void Connector::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Connector::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("authUsers") == 0)
+    if (collectionName.compare("authUsers") == 0) {
         return m_authUsers.remove(childName);
-    if (collectionName.compare("authGroups") == 0)
+    }
+    if (collectionName.compare("authGroups") == 0) {
         return m_authGroups.remove(childName);
-    if (collectionName.compare("tableInfo") == 0)
+    }
+    if (collectionName.compare("tableInfo") == 0) {
         return m_tableInfo.remove(childName);
+    }
+    return false;
 }
 
 const string & Connector::loaderclass() const {

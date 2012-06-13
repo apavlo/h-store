@@ -8,23 +8,22 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.VoltMapReduceProcedure;
-import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTableRow;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.ExecutionState;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.ExecutionState;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -68,15 +67,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     }
 
     /**
-     * @see PartitionExecutorPostProcessor
+     * @see TransactionPostProcessor
      */
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, "MR"));
-        if (hstore_conf.site.cpu_affinity) {
-            hstore_site.getThreadManager().registerProcessingThread();
-        }
+        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_MAPREDUCE));
+        hstore_site.getThreadManager().registerProcessingThread();
+        
         if (!hstore_conf.site.mr_reduce_blocking) {
             // Initialization
             this.executor = this.initPartitionExecutor();

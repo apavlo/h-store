@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,9 @@ SnapshotSchedule::SnapshotSchedule(Catalog *catalog, CatalogType *parent, const 
     m_fields["prefix"] = value;
 }
 
+SnapshotSchedule::~SnapshotSchedule() {
+}
+
 void SnapshotSchedule::update() {
     m_frequencyUnit = m_fields["frequencyUnit"].strValue.c_str();
     m_frequencyValue = m_fields["frequencyValue"].intValue;
@@ -53,8 +56,9 @@ CatalogType * SnapshotSchedule::getChild(const std::string &collectionName, cons
     return NULL;
 }
 
-void SnapshotSchedule::removeChild(const std::string &collectionName, const std::string &childName) {
+bool SnapshotSchedule::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
+    return false;
 }
 
 const string & SnapshotSchedule::frequencyUnit() const {

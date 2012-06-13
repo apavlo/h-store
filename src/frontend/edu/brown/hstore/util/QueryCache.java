@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
@@ -17,6 +15,7 @@ import org.voltdb.utils.EstTime;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.pools.FastObjectPool;
 import edu.brown.utils.StringUtil;
 
 public class QueryCache {
@@ -117,8 +116,9 @@ public class QueryCache {
     
     /**
      * List<Integer> pool used by txnCache
+     * TODO: Switch to a better object pool
      */
-    private final ObjectPool listPool = new StackObjectPool(new BasePoolableObjectFactory() {
+    private final FastObjectPool<ArrayList<Integer>> listPool = new FastObjectPool<ArrayList<Integer>>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             return (new ArrayList<Integer>(TXNCACHE_POOL_DEFAULT_SIZE));

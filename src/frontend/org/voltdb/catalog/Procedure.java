@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,27 +49,27 @@ public class Procedure extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("id", m_id);
-        this.addField("classname", m_classname);
+        m_fields.put("id", m_id);
+        m_fields.put("classname", m_classname);
         m_authUsers = new CatalogMap<UserRef>(catalog, this, path + "/" + "authUsers", UserRef.class);
         m_childCollections.put("authUsers", m_authUsers);
         m_authGroups = new CatalogMap<GroupRef>(catalog, this, path + "/" + "authGroups", GroupRef.class);
         m_childCollections.put("authGroups", m_authGroups);
-        this.addField("readonly", m_readonly);
-        this.addField("singlepartition", m_singlepartition);
-        this.addField("everysite", m_everysite);
-        this.addField("systemproc", m_systemproc);
-        this.addField("mapreduce", m_mapreduce);
-        this.addField("prefetchable", m_prefetchable);
-        this.addField("deferrable", m_deferrable);
-        this.addField("mapInputQuery", m_mapInputQuery);
-        this.addField("mapEmitTable", m_mapEmitTable);
-        this.addField("reduceInputQuery", m_reduceInputQuery);
-        this.addField("reduceEmitTable", m_reduceEmitTable);
-        this.addField("hasjava", m_hasjava);
-        this.addField("partitiontable", null);
-        this.addField("partitioncolumn", null);
-        this.addField("partitionparameter", m_partitionparameter);
+        m_fields.put("readonly", m_readonly);
+        m_fields.put("singlepartition", m_singlepartition);
+        m_fields.put("everysite", m_everysite);
+        m_fields.put("systemproc", m_systemproc);
+        m_fields.put("mapreduce", m_mapreduce);
+        m_fields.put("prefetchable", m_prefetchable);
+        m_fields.put("deferrable", m_deferrable);
+        m_fields.put("mapInputQuery", m_mapInputQuery);
+        m_fields.put("mapEmitTable", m_mapEmitTable);
+        m_fields.put("reduceInputQuery", m_reduceInputQuery);
+        m_fields.put("reduceEmitTable", m_reduceEmitTable);
+        m_fields.put("hasjava", m_hasjava);
+        m_fields.put("partitiontable", null);
+        m_fields.put("partitioncolumn", null);
+        m_fields.put("partitionparameter", m_partitionparameter);
         m_authPrograms = new CatalogMap<AuthProgram>(catalog, this, path + "/" + "authPrograms", AuthProgram.class);
         m_childCollections.put("authPrograms", m_authPrograms);
         m_statements = new CatalogMap<Statement>(catalog, this, path + "/" + "statements", Statement.class);

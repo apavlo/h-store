@@ -32,7 +32,24 @@ from __future__ import with_statement
 import os
 import sys
 import subprocess
+import logging
 from glob import glob
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "third_party/python")))
+import argparse
+
+logging.basicConfig(level = logging.INFO,
+                    format="%(asctime)s %(levelname)-5s: %(message)s",
+                    datefmt="%m-%d-%Y %H:%M:%S",
+                    stream = sys.stdout)
 
 THIRD_PARTY_DIR = "third_party/java/jars"
 BUILD_DIR = "obj/release/prod"
@@ -46,17 +63,44 @@ JVM_ARGS = [
 JVM_CLASSPATH = [ BUILD_DIR ] + glob("%s/*.jar" % THIRD_PARTY_DIR)
 JVM_TARGET = "edu.brown.terminal.HStoreTerminal"
 
+def getBenchmarks():
+    global basedir
+    benchmarkDir = os.path.join(basedir, "properties/benchmarks")
+    benchmarks = [ ]
+    for file in glob("%s/*.properties" % benchmarkDir):
+        benchmarks.append(os.path.basename(file).split(".")[0])
+    # FOR
+    return benchmarks
+## DEF
+
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
+    aparser = argparse.ArgumentParser(description='H-Store Terminal Client')
+    aparser.add_argument('project', help='Benchmark name or Project Jar')
+    args = vars(aparser.parse_args())
     
-    cmd = "java %s -classpath %s %s %s" % (\
+    # Check whether we have a jar file
+    # Otherwise make sure it's a valid benchmarks
+    if not os.path.exists(args['project']):
+        benchmarks = getBenchmarks()
+        if not args['project'] in benchmarks:
+            logging.error("Invalid benchmark name '%s'" % args['project'])
+            logging.error("Valid benchmarks: %s" % ", ".join(benchmarks))
+            sys.exit(1)
+        args['project'] = "%s.jar" % args['project']
+    if not os.path.exists(args['project']):
+        logging.error("Project jar '%s' does not exist" % (args['project']))
+        sys.exit(1)
+        
+    # Invoke java directly
+    cmd = "java %s -classpath %s %s catalog.jar=%s" % (\
         " ".join(JVM_ARGS), \
         ":".join(JVM_CLASSPATH), \
         JVM_TARGET, \
-        " ".join(sys.argv[1:]))
-    print(cmd)
+        args['project'])
+    logging.debug(cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)
         p.wait()
