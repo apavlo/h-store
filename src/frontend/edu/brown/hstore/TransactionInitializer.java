@@ -289,7 +289,7 @@ public class TransactionInitializer {
         if (ts.isSysProc()) {
             // TODO: It would be nice if the client could pass us a hint when loading the tables
             // It would be just for the loading, and not regular transactions
-            if (catalog_proc.getSinglepartition()) {
+            if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
                 predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
             } else {
                 predict_touchedPartitions = this.all_partitions;
