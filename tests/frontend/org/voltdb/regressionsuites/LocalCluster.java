@@ -30,9 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
@@ -53,6 +52,7 @@ import edu.brown.utils.CollectionUtil;
  * mind if building memory or load intensive tests.)
  */
 public class LocalCluster extends VoltServerConfig {
+    private static final Logger LOG = Logger.getLogger(LocalCluster.class);
 
     // configuration data
     final String m_jarFileName;
@@ -102,7 +102,7 @@ public class LocalCluster extends VoltServerConfig {
                 m_writer = new FileWriter(filename);
             }
             catch (IOException ex) {
-                Logger.getLogger(LocalCluster.class.getName()).log(Level.SEVERE, null, ex);
+                LOG.error(null, ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -325,8 +325,7 @@ public class LocalCluster extends VoltServerConfig {
                     t.start();
                 }
                 catch (IOException ex) {
-                    System.out.println("Failed to start cluster process:" + ex.getMessage());
-                    Logger.getLogger(LocalCluster.class.getName()).log(Level.SEVERE, null, ex);
+                    LOG.fatal("Failed to start cluster process", ex);
                     assert (false);
                 }
             }
@@ -346,7 +345,7 @@ public class LocalCluster extends VoltServerConfig {
                         }
                     }
                     catch (InterruptedException ex) {
-                        Logger.getLogger(LocalCluster.class.getName()).log(Level.SEVERE, null, ex);
+                        LOG.error(null, ex);
                     }
                     allReady = false;
                     break;
@@ -387,6 +386,7 @@ public class LocalCluster extends VoltServerConfig {
     public void shutDownExternal() throws InterruptedException
     {
         if (m_cluster != null) {
+            LOG.info("Shutting down cluster");
             for (Process proc : m_cluster) {
                 proc.destroy();
                 int retval = proc.waitFor();
