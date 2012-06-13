@@ -2,7 +2,7 @@ package edu.brown.hstore.interfaces;
 
 public interface Shutdownable {
 
-    enum ShutdownState {
+    public enum ShutdownState {
         INITIALIZED,
         STARTED,
         PREPARE_SHUTDOWN,

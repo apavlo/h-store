@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 
 #include "common/ids.h"
 #include "table.h"
+#include "storage/StreamedTableStats.h"
+#include "storage/TableStats.h"
 
 namespace voltdb {
 
@@ -31,12 +33,13 @@ class TupleStreamWrapper;
 /**
  * A streamed table does not store data. It may not be read. It may
  * not be updated. Only new appended writes are permitted. All writes
- * are passed through a TupleStreamWrapper to ELT. The table exists
- * only to support ELT.
+ * are passed through a TupleStreamWrapper to Export. The table exists
+ * only to support Export.
  */
 
 class StreamedTable : public Table {
     friend class TableFactory;
+    friend class StreamedTableStats;
 
   public:
     StreamedTable(ExecutorContext *ctx, bool exportEnabled);
@@ -44,17 +47,17 @@ class StreamedTable : public Table {
     static StreamedTable* createForTest(size_t, ExecutorContext*);
 
     virtual ~StreamedTable();
-    virtual void cleanupManagedBuffers(Topend *topend);
 
     // virtual Table functions
     virtual void deleteAllTuples(bool freeAllocatedStrings);
     virtual bool insertTuple(TableTuple &source);
     virtual bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes);
     virtual bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings);
-    virtual void loadTuplesFrom(bool allowELT, SerializeInput &serialize_in, Pool *stringPool = NULL);
+    virtual void loadTuplesFrom(bool allowExport, SerializeInput &serialize_in, Pool *stringPool = NULL);
     virtual void flushOldTuples(int64_t timeInMillis);
-    virtual StreamBlock* getCommittedEltBytes();
-    virtual bool releaseEltBytes(int64_t releaseOffset);
+    virtual StreamBlock* getCommittedExportBytes();
+    virtual bool releaseExportBytes(int64_t releaseOffset);
+    virtual void resetPollMarker();
 
     virtual std::string tableType() const {
         return "StreamedTable";
@@ -63,12 +66,14 @@ class StreamedTable : public Table {
     // undo interface particular to streamed table.
     void undo(size_t mark);
 
+  protected:
+    // Stats
+    voltdb::StreamedTableStats stats_;
+    voltdb::TableStats *getTableStats();
+
   private:
     ExecutorContext *m_executorContext;
     TupleStreamWrapper *m_wrapper;
-
-    // configured by factory
-    CatalogId m_id;
     int64_t m_sequenceNo;
 };
 

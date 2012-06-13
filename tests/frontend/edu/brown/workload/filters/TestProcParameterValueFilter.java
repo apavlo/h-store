@@ -18,7 +18,7 @@ public class TestProcParameterValueFilter extends AbstractTestFilter {
 
     private static final String TARGET_PROCEDURE = neworder.class.getSimpleName();
     private static final int PARAM_IDX = 1; // D_ID
-    private static final Object PARAM_VALUE = new Long(5);
+    private static final Object PARAM_VALUE = new Integer(5);
     
     private Procedure catalog_proc;
     private ProcParameter catalog_param;

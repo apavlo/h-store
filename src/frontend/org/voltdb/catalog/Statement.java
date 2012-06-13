@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,33 +52,33 @@ public class Statement extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("id", m_id);
-        this.addField("sqltext", m_sqltext);
-        this.addField("querytype", m_querytype);
-        this.addField("readonly", m_readonly);
-        this.addField("singlepartition", m_singlepartition);
-        this.addField("replicatedtabledml", m_replicatedtabledml);
-        this.addField("replicatedonly", m_replicatedonly);
-        this.addField("batched", m_batched);
-        this.addField("secondaryindex", m_secondaryindex);
-        this.addField("prefetchable", m_prefetchable);
-        this.addField("deferrable", m_deferrable);
-        this.addField("paramnum", m_paramnum);
+        m_fields.put("id", m_id);
+        m_fields.put("sqltext", m_sqltext);
+        m_fields.put("querytype", m_querytype);
+        m_fields.put("readonly", m_readonly);
+        m_fields.put("singlepartition", m_singlepartition);
+        m_fields.put("replicatedtabledml", m_replicatedtabledml);
+        m_fields.put("replicatedonly", m_replicatedonly);
+        m_fields.put("batched", m_batched);
+        m_fields.put("secondaryindex", m_secondaryindex);
+        m_fields.put("prefetchable", m_prefetchable);
+        m_fields.put("deferrable", m_deferrable);
+        m_fields.put("paramnum", m_paramnum);
         m_parameters = new CatalogMap<StmtParameter>(catalog, this, path + "/" + "parameters", StmtParameter.class);
         m_childCollections.put("parameters", m_parameters);
         m_output_columns = new CatalogMap<Column>(catalog, this, path + "/" + "output_columns", Column.class);
         m_childCollections.put("output_columns", m_output_columns);
-        this.addField("has_singlesited", m_has_singlesited);
+        m_fields.put("has_singlesited", m_has_singlesited);
         m_fragments = new CatalogMap<PlanFragment>(catalog, this, path + "/" + "fragments", PlanFragment.class);
         m_childCollections.put("fragments", m_fragments);
-        this.addField("exptree", m_exptree);
-        this.addField("fullplan", m_fullplan);
-        this.addField("has_multisited", m_has_multisited);
+        m_fields.put("exptree", m_exptree);
+        m_fields.put("fullplan", m_fullplan);
+        m_fields.put("has_multisited", m_has_multisited);
         m_ms_fragments = new CatalogMap<PlanFragment>(catalog, this, path + "/" + "ms_fragments", PlanFragment.class);
         m_childCollections.put("ms_fragments", m_ms_fragments);
-        this.addField("ms_exptree", m_ms_exptree);
-        this.addField("ms_fullplan", m_ms_fullplan);
-        this.addField("cost", m_cost);
+        m_fields.put("ms_exptree", m_ms_exptree);
+        m_fields.put("ms_fullplan", m_ms_fullplan);
+        m_fields.put("cost", m_cost);
     }
 
     public void update() {

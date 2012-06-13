@@ -16,7 +16,6 @@ import edu.brown.benchmark.BenchmarkController.BenchmarkInterest;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
@@ -116,7 +115,7 @@ public class ClientStatusThread extends Thread {
                 continue; // IGNORE
             }
             final String clientName = BenchmarkUtil.getClientName(line.processName, clientId);
-            final BenchmarkComponent.ControlState status = BenchmarkComponent.ControlState.get(parts[2]);
+            final ControlState status = ControlState.get(parts[2]);
             assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
             
             if (trace.get()) 

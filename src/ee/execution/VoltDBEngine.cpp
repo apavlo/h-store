@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -63,8 +63,8 @@
 #include "common/DummyUndoQuantum.hpp"
 #include "common/tabletuple.h"
 #include "common/executorcontext.hpp"
-#include "common/CatalogUtil.h"
 #include "common/FatalException.hpp"
+#include "common/RecoveryProtoMessage.h"
 #include "catalog/catalogmap.h"
 #include "catalog/catalog.h"
 #include "catalog/cluster.h"
@@ -95,20 +95,20 @@
 #include "storage/persistenttable.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/StreamBlock.h"
+#include "storage/TableCatalogDelegate.hpp"
 #include "org_voltdb_jni_ExecutionEngine.h" // to use static values
 #include "stats/StatsAgent.h"
 #include "voltdbipc.h"
 #include "common/FailureInjection.h"
 
-using namespace catalog;
 using namespace std;
-
 namespace voltdb {
 
 const int64_t AD_HOC_FRAG_ID = -1;
 
 VoltDBEngine::VoltDBEngine(Topend *topend, LogProxy *logProxy)
     : m_currentUndoQuantum(NULL),
+      m_catalogVersion(0),
       m_staticParams(MAX_PARAM_COUNT),
       m_currentOutputDepId(-1),
       m_currentInputDepId(-1),
@@ -133,15 +133,12 @@ bool VoltDBEngine::initialize(
         int32_t siteId,
         int32_t partitionId,
         int32_t hostId,
-        std::string hostname) {
+        string hostname) {
     // Be explicit about running in the standard C locale for now.
-    std::locale::global(std::locale("C"));
+    locale::global(locale("C"));
     m_clusterIndex = clusterIndex;
     m_siteId = siteId;
     m_partitionId = partitionId;
-    
-    // Set the local PartitionId for logging
-//     setPartitionIdForLogging(m_partitionId);
 
     // Instantiate our catalog - it will be populated later on by load()
     m_catalog = boost::shared_ptr<catalog::Catalog>(new catalog::Catalog());
@@ -200,9 +197,24 @@ VoltDBEngine::~VoltDBEngine() {
         delete[] m_templateSingleLongTable;
     }
 
-    for (int ii = 0; ii < m_tables.size(); ii++) {
-        delete m_tables[ii];
+    // Delete table delegates and release any table reference counts.
+    typedef pair<int64_t, Table*> TIDPair;
+    typedef pair<string, CatalogDelegate*> CDPair;
+
+    BOOST_FOREACH (CDPair cdPair, m_catalogDelegates) {
+        delete cdPair.second;
     }
+    m_catalogDelegates.clear();
+
+    BOOST_FOREACH (TIDPair tidPair, m_snapshottingTables) {
+        tidPair.second->decrementRefcount();
+    }
+    m_snapshottingTables.clear();
+
+    BOOST_FOREACH (TIDPair tidPair, m_exportingTables) {
+        tidPair.second->decrementRefcount();
+    }
+    m_exportingTables.clear();
 
     delete m_topend;
     delete m_executorContext;
@@ -217,7 +229,7 @@ catalog::Catalog *VoltDBEngine::getCatalog() const {
 
 Table* VoltDBEngine::getTable(int32_t tableId) const {
     // Caller responsible for checking null return value.
-    std::map<int32_t, Table*>::const_iterator lookup =
+    map<int32_t, Table*>::const_iterator lookup =
         m_tables.find(tableId);
     if (lookup != m_tables.end()) {
         return lookup->second;
@@ -225,9 +237,9 @@ Table* VoltDBEngine::getTable(int32_t tableId) const {
     return NULL;
 }
 
-Table* VoltDBEngine::getTable(std::string name) const {
+Table* VoltDBEngine::getTable(string name) const {
     // Caller responsible for checking null return value.
-    std::map<std::string, Table*>::const_iterator lookup =
+    map<string, Table*>::const_iterator lookup =
         m_tablesByName.find(name);
     if (lookup != m_tablesByName.end()) {
         return lookup->second;
@@ -235,13 +247,13 @@ Table* VoltDBEngine::getTable(std::string name) const {
     return NULL;
 }
 
-bool VoltDBEngine::serializeTable(int32_t tableId, int32_t offset, int32_t limit, SerializeOutput* out) const {
+bool VoltDBEngine::serializeTable(int32_t tableId, SerializeOutput* out) const {
     // Just look in our list of tables
-    std::map<int32_t, Table*>::const_iterator lookup =
+    map<int32_t, Table*>::const_iterator lookup =
         m_tables.find(tableId);
     if (lookup != m_tables.end()) {
         Table* table = lookup->second;
-        table->serializeTo(offset, limit, *out);
+        table->serializeTo(*out);
         return true;
     } else {
         throwFatalException( "Unable to find table for TableId '%d'", (int) tableId);
@@ -261,9 +273,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     Table *cleanUpTable = NULL;
     m_currentOutputDepId = outputDependencyId;
     m_currentInputDepId = inputDependencyId;
-    VOLT_DEBUG("Executing PlanFragment on partition %d [fragId=%ld, inputId=%d, outputId=%d]",
-               m_partitionId, planfragmentId, inputDependencyId, outputDependencyId);
-    
+
     /*
      * Reserve space in the result output buffer for the number of
      * result dependencies and for the dirty byte. Necessary for a
@@ -286,7 +296,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
      * number of produced depenencies may not be known in advance.
      */
     m_numResultDependencies = 0;
-    std::size_t numResultDependenciesCountOffset = m_resultOutput.reserveBytes(4);
+    size_t numResultDependenciesCountOffset = m_resultOutput.reserveBytes(4);
 
     // configure the execution context.
     m_executorContext->setupForPlanFragments(getCurrentUndoQuantum(),
@@ -410,7 +420,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
  * catalog with all the necessary tables needs to already have been
  * loaded.
  */
-int VoltDBEngine::executePlanFragment(std::string fragmentString,
+int VoltDBEngine::executePlanFragment(string fragmentString,
                                       int32_t outputDependencyId,
                                       int32_t inputDependencyId,
                                       int64_t txnId,
@@ -426,13 +436,13 @@ int VoltDBEngine::executePlanFragment(std::string fragmentString,
 
     boost::scoped_array<char> buffer(new char[fragmentString.size() * 2 + 1]);
     catalog::Catalog::hexEncodeString(fragmentString.c_str(), buffer.get());
-    std::string hexEncodedFragment(buffer.get());
+    string hexEncodedFragment(buffer.get());
 
     try
     {
         if (initPlanFragment(AD_HOC_FRAG_ID, hexEncodedFragment))
         {
-            voltdb::NValueArray parameterValueArray(0);
+            NValueArray parameterValueArray(0);
             retval = executeQuery(AD_HOC_FRAG_ID, outputDependencyId,
                                   inputDependencyId, parameterValueArray,
                                   txnId, lastCommittedTxnId, true, true);
@@ -440,7 +450,7 @@ int VoltDBEngine::executePlanFragment(std::string fragmentString,
         else
         {
             char message[128];
-            sprintf(message, "Unable to load ad-hoc plan fragment for"
+            snprintf(message, 128, "Unable to load ad-hoc plan fragment for"
                     " transaction %jd.", (intmax_t)txnId);
             throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                           message);
@@ -492,28 +502,33 @@ int VoltDBEngine::loadNextDependency(Table* destination) {
 // -------------------------------------------------
 // Catalog Functions
 // -------------------------------------------------
-bool VoltDBEngine::loadCatalog(const std::string &catalogPayload) {
-    assert(m_catalog != NULL); // the engine must be initialized
-    VOLT_DEBUG("Loading catalog...");
-    //cout << catalogPayload << endl;
-    // TODO : how do we treat an error of catalog loading?
-
-    m_catalog->execute(catalogPayload);
-
-    // get a reference to the database and cluster
+bool VoltDBEngine::updateCatalogDatabaseReference() {
     catalog::Cluster *cluster = m_catalog->clusters().get("cluster");
     if (!cluster) {
         VOLT_ERROR("Unable to find cluster catalog information");
         return false;
     }
+
     m_database = cluster->databases().get("database");
     if (!m_database) {
         VOLT_ERROR("Unable to find database catalog information");
         return false;
     }
 
+    return true;
+}
+
+bool VoltDBEngine::loadCatalog(const string &catalogPayload) {
+    assert(m_catalog != NULL);
+    VOLT_DEBUG("Loading catalog...");
+    m_catalog->execute(catalogPayload);
+
+    if (updateCatalogDatabaseReference() == false) {
+        return false;
+    }
+
      // initialize the list of partition ids
-    bool success = initCluster(cluster);
+    bool success = initCluster();
     if (success == false) {
         VOLT_ERROR("Unable to load partition list for cluster");
         return false;
@@ -524,66 +539,146 @@ bool VoltDBEngine::loadCatalog(const std::string &catalogPayload) {
         m_database->connectors().get("0")->enabled())
     {
         VOLT_DEBUG("EL enabled.");
-        m_executorContext->m_eltEnabled = true;
+        m_executorContext->m_exportEnabled = true;
         m_isELEnabled = true;
     }
 
-    // Loop through all the tables...
-    std::map<std::string, catalog::Table*>::const_iterator table_iterator;
-    for (table_iterator = m_database->tables().begin();
-         table_iterator != m_database->tables().end(); table_iterator++) {
-        if (!initTable(m_database->relativeIndex(), table_iterator->second)) {
-            VOLT_ERROR("Failed to initialize table '%s' from catalogs\n",
-                       table_iterator->second->name().c_str());
-            return false;
-        }
+    // load up all the tables, adding all tables
+    if (processCatalogAdditions(true) == false) {
+        return false;
+    }
+
+    if (rebuildTableCollections() == false) {
+        VOLT_ERROR("Error updating catalog id mappings for tables.");
+        return false;
     }
 
     // load up all the materialized views
-    initMaterializedViews();
+    initMaterializedViews(true);
 
     // load the plan fragments from the catalog
-    if (!clearAndLoadAllPlanFragments())
+    if (!rebuildPlanFragmentCollections())
         return false;
-
-    // deal with the epoch
-    int64_t epoch = cluster->localepoch() * (int64_t)1000;
-    m_executorContext->setEpoch(epoch);
 
     VOLT_DEBUG("Loaded catalog...");
     return true;
 }
 
-bool VoltDBEngine::updateCatalog(const std::string &catalogPayload) {
+/*
+ * Obtain the recent deletion list from the catalog.  For any item in
+ * that list with a corresponding table delegate, process a deletion.
+ *
+ * TODO: This should be extended to find the parent delegate if the
+ * deletion isn't a top-level object .. and delegates should have a
+ * deleteChildCommand() interface.
+ */
+bool
+VoltDBEngine::processCatalogDeletes()
+{
+    vector<string> deletions;
+    m_catalog->getDeletedPaths(deletions);
+    vector<string>::iterator pathIter = deletions.begin();
+    while (pathIter != deletions.end())
+    {
+        map<string, CatalogDelegate*>::iterator pos;
+        if ((pos = m_catalogDelegates.find(*pathIter)) != m_catalogDelegates.end()) {
+            pos->second->deleteCommand();
+            delete pos->second;
+            m_catalogDelegates.erase(pos++);
+        }
+        ++pathIter;
+    }
+    return true;
+}
+
+/*
+ * Create catalog delegates for new catalog items.
+ */
+bool
+VoltDBEngine::processCatalogAdditions(bool addAll)
+{
+    // process new tables.
+    map<string, catalog::Table*>::const_iterator it = m_database->tables().begin();
+    while (it != m_database->tables().end())
+    {
+        catalog::Table *t = it->second;
+        if (addAll || t->wasAdded()) {
+            TableCatalogDelegate *tcd =
+                new TableCatalogDelegate(m_catalogVersion, t->relativeIndex(), t->path());
+            if (tcd->init(m_executorContext, *m_database, *t) != 0) {
+                VOLT_ERROR("Failed to initialize table '%s' from catalog",
+                           it->second->name().c_str());
+                return false;
+            }
+            m_catalogDelegates[tcd->path()] = tcd;
+            if (tcd->exportEnabled()) {
+                tcd->getTable()->incrementRefcount();
+                m_exportingTables[tcd->delegateId()] = tcd->getTable();
+            }
+        }
+        ++it;
+    }
+
+    // new plan fragments are handled differently.
+    return true;
+}
+
+/*
+ * Accept a list of catalog commands expressing a diff between the
+ * current and the desired catalog. Execute those commands and create,
+ * delete or modify the corresponding exectution engine objects.
+ */
+bool
+VoltDBEngine::updateCatalog(const string &catalogPayload, int catalogVersion)
+{
     assert(m_catalog != NULL); // the engine must be initialized
+    assert((m_catalogVersion + 1) == catalogVersion);
+
     VOLT_DEBUG("Updating catalog...");
 
     // apply the diff commands to the existing catalog
+    // throws SerializeEEExceptions on error.
     m_catalog->execute(catalogPayload);
+    m_catalogVersion = catalogVersion;
 
-    // cache the database in m_database
-    catalog::Cluster *cluster = m_catalog->clusters().get("cluster");
-    if (!cluster) {
-        VOLT_ERROR("Unable to find cluster catalog information");
-        return false;
-    }
-    m_database = cluster->databases().get("database");
-    if (!m_database) {
-        VOLT_ERROR("Unable to find database catalog information");
+    if (updateCatalogDatabaseReference() == false) {
+        VOLT_ERROR("Error re-caching catalog references.");
         return false;
     }
 
-    // this does the actual scary bits of reinitializing plan fragments
-    if (!clearAndLoadAllPlanFragments()) {
+    if (processCatalogDeletes() == false) {
+        VOLT_ERROR("Error processing catalog deletions.");
+        return false;
+    }
+
+    if (processCatalogAdditions(false) == false) {
+        VOLT_ERROR("Error processing catalog additions.");
+        return false;
+    }
+
+    if (rebuildTableCollections() == false) {
+        VOLT_ERROR("Error updating catalog id mappings for tables.");
+        return false;
+    }
+
+    if (initMaterializedViews(false) == false) {
+        VOLT_ERROR("Error update materialized view definitions.");
+        return false;
+    }
+
+    // stored procedure catalog changes aren't written using delegates
+    if (!rebuildPlanFragmentCollections()) {
         VOLT_ERROR("Error updating catalog planfragments");
         return false;
     }
 
+    m_catalog->purgeDeletions();
     VOLT_DEBUG("Updated catalog...");
     return true;
 }
 
-bool VoltDBEngine::loadTable(bool allowELT, int32_t tableId,
+bool
+VoltDBEngine::loadTable(bool allowExport, int32_t tableId,
                              ReferenceSerializeInput &serializeIn,
                              int64_t txnId, int64_t lastCommittedTxnId)
 {
@@ -607,30 +702,65 @@ bool VoltDBEngine::loadTable(bool allowELT, int32_t tableId,
     }
 
     try {
-        table->loadTuplesFrom(allowELT, serializeIn);
+        table->loadTuplesFrom(allowExport, serializeIn);
     } catch (SerializableEEException e) {
         throwFatalException("%s", e.message().c_str());
     }
     return true;
 }
 
-bool VoltDBEngine::clearAndLoadAllPlanFragments() {
-    // clear the existing stuff if this is being called as part of a catalog
-    // change
+/*
+ * Delete and rebuild id based table collections. Does not affect
+ * any currently stored tuples.
+ */
+bool VoltDBEngine::rebuildTableCollections() {
+    // 1. See header comments explaining m_snapshottingTables.
+    // 2. Don't clear m_exportTables. They are still exporting, even if deleted.
+    // 3. Clear everything else.
+    m_tables.clear();
+    m_tablesByName.clear();
+
+    // need to re-map all the table ids.
+    getStatsManager().unregisterStatsSource(STATISTICS_SELECTOR_TYPE_TABLE);
+
+    map<string, catalog::Table*>::const_iterator it = m_database->tables().begin();
+    map<string, CatalogDelegate*>::iterator cdIt = m_catalogDelegates.begin();
+
+    // walk the table delegates and update local table collections
+    while (cdIt != m_catalogDelegates.end()) {
+        TableCatalogDelegate *tcd = dynamic_cast<TableCatalogDelegate*>(cdIt->second);
+        if (tcd) {
+            catalog::Table *catTable = m_database->tables().get(tcd->getTable()->name());
+            m_tables[catTable->relativeIndex()] = tcd->getTable();
+            m_tablesByName[tcd->getTable()->name()] = tcd->getTable();
+
+            getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TABLE,
+                                                  catTable->relativeIndex(),
+                                                  tcd->getTable()->getTableStats());
+        }
+        cdIt++;
+    }
+
+    return true;
+}
+
+/*
+ * Delete and rebuild all plan fragments.
+ */
+bool VoltDBEngine::rebuildPlanFragmentCollections() {
     for (int ii = 0; ii < m_planFragments.size(); ii++)
         delete m_planFragments[ii];
     m_planFragments.clear();
     m_executorMap.clear();
 
     // initialize all the planfragments.
-    std::map<std::string, catalog::Procedure*>::const_iterator proc_iterator;
+    map<string, catalog::Procedure*>::const_iterator proc_iterator;
     for (proc_iterator = m_database->procedures().begin();
          proc_iterator != m_database->procedures().end(); proc_iterator++) {
         // Procedure
         const catalog::Procedure *catalog_proc = proc_iterator->second;
-        VOLT_DEBUG("********************************************************************");
-        VOLT_DEBUG("Initialize Procedure: %s", catalog_proc->name().c_str());
-        std::map<std::string, catalog::Statement*>::const_iterator stmt_iterator;
+        VOLT_DEBUG("proc: %s", catalog_proc->name().c_str());
+        map<string, catalog::Statement*>::const_iterator stmt_iterator;
         for (stmt_iterator = catalog_proc->statements().begin();
              stmt_iterator != catalog_proc->statements().end();
              stmt_iterator++) {
@@ -639,12 +769,11 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
             VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
                        catalogStmt->sqltext().c_str());
 
-            std::map<std::string, catalog::PlanFragment*>::const_iterator pf_iterator;
+            map<string, catalog::PlanFragment*>::const_iterator pf_iterator;
             for (pf_iterator = catalogStmt->fragments().begin();
                  pf_iterator!= catalogStmt->fragments().end(); pf_iterator++) {
                 int64_t fragId = uniqueIdForFragment(pf_iterator->second);
-//                 fprintf(stderr, "Initializing Single-Partition: %jd\n", (intmax_t)fragId);
-                std::string planNodeTree = pf_iterator->second->plannodetree();
+                string planNodeTree = pf_iterator->second->plannodetree();
                 if (!initPlanFragment(fragId, planNodeTree)) {
                     VOLT_ERROR("Failed to initialize plan fragment '%s' from"
                                " catalogs\nFailed SQL Statement: %s",
@@ -681,11 +810,11 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
 // Initialization Functions
 // -------------------------------------------------
 bool VoltDBEngine::initPlanFragment(const int64_t fragId,
-                                    const std::string planNodeTree) {
+                                    const string planNodeTree) {
 
     // Deserialize the PlanFragment and stick in our local map
 
-    std::map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter = m_executorMap.find(fragId);
+    map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter = m_executorMap.find(fragId);
     if (iter != m_executorMap.end()) {
         VOLT_ERROR("Duplicate PlanNodeList entry for PlanFragment '%jd' during"
                    " initialization", (intmax_t)fragId);
@@ -746,7 +875,7 @@ bool VoltDBEngine::initPlanNode(const int64_t fragId, AbstractPlanNode* node, in
     // have internal Projections), then we need to make sure that we set that
     // internal node's executor as well
     if (node->getInlinePlanNodes().size() > 0) {
-        std::map<PlanNodeType, AbstractPlanNode*>::iterator internal_it;
+        map<PlanNodeType, AbstractPlanNode*>::iterator internal_it;
         for (internal_it = node->getInlinePlanNodes().begin();
              internal_it != node->getInlinePlanNodes().end(); internal_it++) {
             AbstractPlanNode* inline_node = internal_it->second;
@@ -770,233 +899,23 @@ bool VoltDBEngine::initPlanNode(const int64_t fragId, AbstractPlanNode* node, in
     return true;
 }
 
-bool VoltDBEngine::initTable(const int32_t databaseId,
-                             const catalog::Table *catalogTable) {
-    assert(catalogTable);
-
-    // Create a persistent table for this table in our catalog
-    int32_t table_id = catalogTable->relativeIndex();
-    if (m_tables.find(table_id) != m_tables.end()) {
-        VOLT_ERROR( "Duplicate table '%d' during initialization", table_id);
-        return false;
-    }
-    if (m_tablesByName.find(catalogTable->name()) != m_tablesByName.end()) {
-        VOLT_ERROR( "Duplicate table '%s' during initialization",
-                    catalogTable->name().c_str());
-        return false;
-    }
-
-    // Columns:
-    // Column is stored as map<String, Column*> in Catalog. We have to
-    // sort it by Column index to preserve column order.
-    const int numColumns = static_cast<int>(catalogTable->columns().size());
-    std::vector<voltdb::ValueType> columnTypes(numColumns);
-    std::vector<int32_t> columnLengths(numColumns);
-    std::vector<bool> columnAllowNull(numColumns);
-    std::map<std::string, catalog::Column*>::const_iterator col_iterator;
-    std::string *columnNames = new std::string[numColumns];
-    for (col_iterator = catalogTable->columns().begin();
-         col_iterator != catalogTable->columns().end(); col_iterator++) {
-        const catalog::Column *catalog_column = col_iterator->second;
-        const int columnIndex = catalog_column->index();
-        const voltdb::ValueType type = static_cast<voltdb::ValueType>(catalog_column->type());
-        columnTypes[columnIndex] = type;
-        const int32_t size = static_cast<int32_t>(catalog_column->size());
-        //Strings length is provided, other lengths are derived from type
-        const int32_t length = type == VALUE_TYPE_VARCHAR ? size
-            : static_cast<int32_t>(NValue::getTupleStorageSize(type));
-        columnLengths[columnIndex] = length;
-        columnAllowNull[columnIndex] = catalog_column->nullable();
-        columnNames[catalog_column->index()] = catalog_column->name();
-    }
-
-    TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes,
-                                                         columnLengths,
-                                                         columnAllowNull, true);
-
-    // Indexes
-    std::map<std::string, TableIndexScheme> index_map;
-    std::map<std::string, catalog::Index*>::const_iterator idx_iterator;
-    for (idx_iterator = catalogTable->indexes().begin();
-         idx_iterator != catalogTable->indexes().end(); idx_iterator++) {
-        catalog::Index *catalog_index = idx_iterator->second;
-        std::vector<int> index_columns;
-        std::vector<ValueType> column_types;
-
-        // The catalog::Index object now has a list of columns that are to be
-        // used
-        if (catalog_index->columns().size() == (size_t)0) {
-            VOLT_ERROR("Index '%s' in table '%s' does not declare any columns"
-                       " to use",
-                       catalog_index->name().c_str(),
-                       catalogTable->name().c_str());
-            delete [] columnNames;
-            return false;
-        }
-
-        // Since the columns are not going to come back in the proper order from
-        // the catalogs, we'll use the index attribute to make sure we put them
-        // in the right order
-        index_columns.resize(catalog_index->columns().size());
-        column_types.resize(catalog_index->columns().size());
-        bool isIntsOnly = true;
-        std::map<std::string, catalog::ColumnRef*>::const_iterator colref_iterator;
-        for (colref_iterator = catalog_index->columns().begin();
-             colref_iterator != catalog_index->columns().end();
-             colref_iterator++) {
-            catalog::ColumnRef *catalog_colref = colref_iterator->second;
-            if (catalog_colref->index() < 0) {
-                VOLT_ERROR("Invalid column '%d' for index '%s' in table '%s'",
-                           catalog_colref->index(),
-                           catalog_index->name().c_str(),
-                           catalogTable->name().c_str());
-                delete [] columnNames;
-                return false;
-            }
-            // check if the column does not have an int type
-            if ((catalog_colref->column()->type() != VALUE_TYPE_TINYINT) &&
-                (catalog_colref->column()->type() != VALUE_TYPE_SMALLINT) &&
-                (catalog_colref->column()->type() != VALUE_TYPE_INTEGER) &&
-                (catalog_colref->column()->type() != VALUE_TYPE_BIGINT))
-                isIntsOnly = false;
-            index_columns[catalog_colref->index()] = catalog_colref->column()->index();
-            column_types[catalog_colref->index()] = (ValueType) catalog_colref->column()->type();
-        }
-
-        TableIndexScheme index_scheme(catalog_index->name(),
-                                      (TableIndexType)catalog_index->type(),
-                                      index_columns, column_types,
-                                      catalog_index->unique(), isIntsOnly,
-                                      schema);
-        index_map[catalog_index->name()] = index_scheme;
-    }
-
-    // Constraints
-    std::string pkey_index_id;
-    std::map<std::string, catalog::Constraint*>::const_iterator constraint_iterator;
-    for (constraint_iterator = catalogTable->constraints().begin();
-         constraint_iterator != catalogTable->constraints().end();
-         constraint_iterator++) {
-        catalog::Constraint *catalog_constraint = constraint_iterator->second;
-
-        // Constraint Type
-        ConstraintType type = (ConstraintType)catalog_constraint->type();
-        switch (type) {
-            case CONSTRAINT_TYPE_PRIMARY_KEY:
-                // Make sure we have an index to use
-                if (catalog_constraint->index() == NULL) {
-                    VOLT_ERROR("The '%s' constraint '%s' on table '%s' does"
-                               " not specify an index",
-                               constraintutil::getTypeName(type).c_str(),
-                               catalog_constraint->name().c_str(),
-                               catalogTable->name().c_str());
-                    delete [] columnNames;
-                    return false;
-                }
-                // Make sure they didn't declare more than one primary key index
-                else if (pkey_index_id.size() > 0) {
-                    VOLT_ERROR("Trying to declare a primary key on table '%s'"
-                               "using index '%s' but '%s' was already set as"
-                               " the primary key",
-                               catalogTable->name().c_str(),
-                               catalog_constraint->index()->name().c_str(),
-                               pkey_index_id.c_str());
-                    delete [] columnNames;
-                    return false;
-                }
-                pkey_index_id = catalog_constraint->index()->name();
-                break;
-            case CONSTRAINT_TYPE_UNIQUE:
-                // Make sure we have an index to use
-                // TODO: In the future I would like bring back my Constraint
-                //       object so that we can keep track of everything that a
-                //       table has...
-                if (catalog_constraint->index() == NULL) {
-                    VOLT_ERROR("The '%s' constraint '%s' on table '%s' does"
-                               " not specify an index",
-                               constraintutil::getTypeName(type).c_str(),
-                               catalog_constraint->name().c_str(),
-                               catalogTable->name().c_str());
-                    delete [] columnNames;
-                    return false;
-                }
-                break;
-            // Unsupported
-            case CONSTRAINT_TYPE_CHECK:
-            case CONSTRAINT_TYPE_FOREIGN_KEY:
-            case CONSTRAINT_TYPE_MAIN:
-                VOLT_WARN("Unsupported type '%s' for constraint '%s'",
-                          constraintutil::getTypeName(type).c_str(),
-                          catalog_constraint->name().c_str());
-                break;
-            // Unknown
-            default:
-                VOLT_ERROR("Invalid constraint type '%s' for '%s'",
-                           constraintutil::getTypeName(type).c_str(),
-                           catalog_constraint->name().c_str());
-                delete [] columnNames;
-                return false;
-        }
-    }
-
-    // Build the index array
-    std::vector<TableIndexScheme> indexes;
-    TableIndexScheme pkey_index;
-    std::map<std::string, TableIndexScheme>::const_iterator index_iterator;
-    for (index_iterator = index_map.begin(); index_iterator != index_map.end();
-         index_iterator++) {
-        // Exclude the primary key
-        if (index_iterator->first.compare(pkey_index_id) == 0) {
-            pkey_index = index_iterator->second;
-        // Just add it to the list
-        } else {
-            indexes.push_back(index_iterator->second);
-        }
-    }
-
-    // partition column:
-    const catalog::Column* partitionColumn = catalogTable->partitioncolumn();
-    int partitionColumnIndex = -1;
-    if (partitionColumn != NULL)
-        partitionColumnIndex = partitionColumn->index();
-
-    voltdb::Table* table;
-    if (pkey_index_id.size() == 0) {
-        table = voltdb::TableFactory::getPersistentTable(databaseId, table_id, m_executorContext,
-                                                         catalogTable->name(), schema, columnNames,
-                                                         indexes, partitionColumnIndex,
-                                                         isExportEnabledForTable(m_database, table_id),
-                                                         isTableExportOnly(m_database, table_id));
-    } else {
-        table = voltdb::TableFactory::getPersistentTable(databaseId, table_id, m_executorContext,
-                                                         catalogTable->name(), schema, columnNames,
-                                                         pkey_index, indexes, partitionColumnIndex,
-                                                         isExportEnabledForTable(m_database, table_id),
-                                                         isTableExportOnly(m_database, table_id));
-    }
-    assert(table != NULL);
-    getStatsManager().registerStatsSource(STATISTICS_SELECTOR_TYPE_TABLE,
-                                          table_id, table->getTableStats());
-    m_tables[table_id] = table;
-    m_tablesByName[table->name()] = table;
-
-    delete[] columnNames;
-    return true;
-}
-
-bool VoltDBEngine::initMaterializedViews() {
-
-    std::map<PersistentTable*, std::vector<MaterializedViewMetadata*> > allViews;
-
-    // build all the materialized view metadata structure
-    // start by iterating over all the tables in the catalog
-    std::map<std::string, catalog::Table*>::const_iterator tableIterator;
+/*
+ * Iterate catalog tables looking for tables that are materialized
+ * view sources.  When found, construct a materialized view metadata
+ * object that connects the source and destination tables, and assign
+ * that object to the source table.
+ *
+ * Assumes all tables (sources and destinations) have been constructed.
+ * @param addAll Pass true to add all views. Pass false to only add new views.
+ */
+bool VoltDBEngine::initMaterializedViews(bool addAll) {
+    map<string, catalog::Table*>::const_iterator tableIterator;
+    // walk tables
     for (tableIterator = m_database->tables().begin(); tableIterator != m_database->tables().end(); tableIterator++) {
         catalog::Table *srcCatalogTable = tableIterator->second;
         PersistentTable *srcTable = dynamic_cast<PersistentTable*>(m_tables[srcCatalogTable->relativeIndex()]);
-
-        // for each table look for any materialized views and iterate over them
-        std::map<std::string, catalog::MaterializedViewInfo*>::const_iterator matviewIterator;
+        // walk views
+        map<string, catalog::MaterializedViewInfo*>::const_iterator matviewIterator;
         for (matviewIterator = srcCatalogTable->views().begin(); matviewIterator != srcCatalogTable->views().end(); matviewIterator++) {
             catalog::MaterializedViewInfo *catalogView = matviewIterator->second;
             
@@ -1005,27 +924,24 @@ bool VoltDBEngine::initMaterializedViews() {
                 VOLT_DEBUG("Skipping MaterializedViewInfo %s because it is a vertical partition", catalogView->name().c_str());
                 continue;
             }
-
-            const catalog::Table *destCatalogTable = catalogView->dest();
-            PersistentTable *destTable = dynamic_cast<PersistentTable*>(m_tables[destCatalogTable->relativeIndex()]);
-
-            MaterializedViewMetadata *mvmd = new MaterializedViewMetadata(srcTable, destTable, catalogView);
-
-            allViews[srcTable].push_back(mvmd);
+            
+            // connect source and destination tables
+            if (addAll || catalogView->wasAdded()) {
+                const catalog::Table *destCatalogTable = catalogView->dest();
+                PersistentTable *destTable = dynamic_cast<PersistentTable*>(m_tables[destCatalogTable->relativeIndex()]);
+                MaterializedViewMetadata *mvmd = new MaterializedViewMetadata(srcTable, destTable, catalogView);
+                srcTable->addMaterializedView(mvmd);
+            }
         }
-    }
-
-    // get the lists of views for each table and stick them in there
-    std::map<PersistentTable*, std::vector<MaterializedViewMetadata*> >::const_iterator viewListIterator;
-    for (viewListIterator = allViews.begin(); viewListIterator != allViews.end(); viewListIterator++) {
-        PersistentTable *srcTable = viewListIterator->first;
-        srcTable->setMaterializedViews(viewListIterator->second);
     }
 
     return true;
 }
 
-bool VoltDBEngine::initCluster(const catalog::Cluster *catalogCluster) {
+bool VoltDBEngine::initCluster() {
+
+    catalog::Cluster* catalogCluster =
+      m_catalog->clusters().get("cluster");
 
     // Find the partition id for this execution site.
 //     std::map<std::string, catalog::Site*>::const_iterator site_it;
@@ -1085,40 +1001,34 @@ void VoltDBEngine::printReport() {
     std::cout << "==========" << std::endl << std::endl;
 }
 
-bool VoltDBEngine::isLocalSite(int64_t value) {
+bool VoltDBEngine::isLocalSite(const NValue& value)
+{
     int index = TheHashinator::hashinate(value, m_totalPartitions);
-    return index == m_partitionId;
-}
-
-bool VoltDBEngine::isLocalSite(char *string, int32_t length) {
-    int index = TheHashinator::hashinate(string, length, m_totalPartitions);
     return index == m_partitionId;
 }
 
 /** Perform once per second, non-transactional work. */
 void VoltDBEngine::tick(int64_t timeInMillis, int64_t lastCommittedTxnId) {
     m_executorContext->setupForTick(lastCommittedTxnId, timeInMillis);
-
-    // pass the tick to any tables that are interested
-    typedef std::pair<int32_t, voltdb::Table*> TablePair;
-    BOOST_FOREACH (TablePair table, m_tables) {
+    typedef pair<int64_t, Table*> TablePair;
+    BOOST_FOREACH (TablePair table, m_exportingTables) {
         table.second->flushOldTuples(timeInMillis);
     }
 }
 
-/** For now, bring the ELT system to a steady state with no buffers with content */
+/** For now, bring the Export system to a steady state with no buffers with content */
 void VoltDBEngine::quiesce(int64_t lastCommittedTxnId) {
     m_executorContext->setupForQuiesce(lastCommittedTxnId);
-    typedef std::pair<int32_t, voltdb::Table*> TablePair;
-    BOOST_FOREACH (TablePair table, m_tables) {
+    typedef pair<int64_t, Table*> TablePair;
+    BOOST_FOREACH (TablePair table, m_exportingTables) {
         table.second->flushOldTuples(-1L);
     }
 }
 
-std::string VoltDBEngine::debug(void) const {
-    std::stringstream output(std::stringstream::in | std::stringstream::out);
-    std::map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter;
-    std::vector<AbstractExecutor*>::const_iterator executorIter;
+string VoltDBEngine::debug(void) const {
+    stringstream output(stringstream::in | stringstream::out);
+    map<int64_t, boost::shared_ptr<ExecutorVector> >::const_iterator iter;
+    vector<AbstractExecutor*>::const_iterator executorIter;
 
     for (iter = m_executorMap.begin(); iter != m_executorMap.end(); iter++) {
         output << "Fragment ID: " << iter->first << ", "
@@ -1136,7 +1046,7 @@ std::string VoltDBEngine::debug(void) const {
     return output.str();
 }
 
-voltdb::StatsAgent& VoltDBEngine::getStatsManager() {
+StatsAgent& VoltDBEngine::getStatsManager() {
     return m_statsManager;
 }
 
@@ -1157,24 +1067,25 @@ voltdb::StatsAgent& VoltDBEngine::getStatsManager() {
  * @return Number of result tables, 0 on no results, -1 on failure.
  */
 int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
-                           bool interval, int64_t now) {
-    voltdb::Table *resultTable = NULL;
-    std::vector<voltdb::CatalogId> locatorIds;
+                           bool interval, int64_t now)
+{
+    Table *resultTable = NULL;
+    vector<CatalogId> locatorIds;
 
     for (int ii = 0; ii < numLocators; ii++) {
-        voltdb::CatalogId locator = static_cast<voltdb::CatalogId>(locators[ii]);
+        CatalogId locator = static_cast<CatalogId>(locators[ii]);
         locatorIds.push_back(locator);
     }
-    std::size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
+    size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
 
     try {
         switch (selector) {
         case STATISTICS_SELECTOR_TYPE_TABLE:
             for (int ii = 0; ii < numLocators; ii++) {
-                voltdb::CatalogId locator = static_cast<voltdb::CatalogId>(locators[ii]);
-                if (m_tables[locator] == NULL) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
                     char message[256];
-                    sprintf(message, "getStats() called with selector %d, and"
+                    snprintf(message, 256,  "getStats() called with selector %d, and"
                             " an invalid locator %d that does not correspond to"
                             " a table", selector, locator);
                     throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
@@ -1183,13 +1094,12 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
             }
 
             resultTable = m_statsManager.getStats(
-                (voltdb::StatisticsSelectorType) selector,
+                (StatisticsSelectorType) selector,
                 locatorIds, interval, now);
-
             break;
         default:
             char message[256];
-            sprintf(message, "getStats() called with an unrecognized selector"
+            snprintf(message, 256, "getStats() called with an unrecognized selector"
                     " %d", selector);
             throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                           message);
@@ -1234,75 +1144,208 @@ int64_t VoltDBEngine::uniqueIdForFragment(catalog::PlanFragment *frag) {
 }
 
 /**
- * Activate copy on write mode for the specified table
+ * Activate a table stream for the specified table
  */
-bool VoltDBEngine::activateCopyOnWrite(const CatalogId tableId) {
-    PersistentTable *table = dynamic_cast<PersistentTable*>(m_tables[tableId]);
-    assert(table != NULL);
+bool VoltDBEngine::activateTableStream(const CatalogId tableId, TableStreamType streamType) {
+    map<int32_t, Table*>::iterator it = m_tables.find(tableId);
+    if (it == m_tables.end()) {
+        return false;
+    }
+
+    PersistentTable *table = dynamic_cast<PersistentTable*>(it->second);
     if (table == NULL) {
+        assert(table != NULL);
         return false;
     }
 
-    if (table->activateCopyOnWrite(&m_tupleSerializer, m_partitionId)) {
+    switch (streamType) {
+    case TABLE_STREAM_SNAPSHOT:
+        if (table->activateCopyOnWrite(&m_tupleSerializer, m_partitionId)) {
+            return false;
+        }
+
+        // keep track of snapshotting tables. a table already in cow mode
+        // can not be re-activated for cow mode.
+        if (m_snapshottingTables.find(tableId) != m_snapshottingTables.end()) {
+            assert(false);
+            return false;
+        }
+
+        table->incrementRefcount();
+        m_snapshottingTables[tableId] = table;
+        break;
+
+    case TABLE_STREAM_RECOVERY:
+        if (table->activateRecoveryStream(it->first)) {
+            return false;
+        }
+        break;
+    default:
         return false;
     }
-
     return true;
 }
 
 /**
  * Serialize more tuples from the specified table that is in COW mode.
- * Returns the number of bytes worth of tuple data serialized or 0 if there are no more.
- * Returns -1 if the table is no in COW mode. The table continues to be in COW (although no copies are made)
- * after all tuples have been serialize until the last call to cowSerializeMore which returns 0 (and deletes
- * the COW context). Further calls will return -1
+ * Returns the number of bytes worth of tuple data serialized or 0 if
+ * there are no more.  Returns -1 if the table is no in COW mode. The
+ * table continues to be in COW (although no copies are made) after
+ * all tuples have been serialize until the last call to
+ * cowSerializeMore which returns 0 (and deletes the COW
+ * context). Further calls will return -1
  */
-int VoltDBEngine::cowSerializeMore(ReferenceSerializeOutput *out, const CatalogId tableId) {
-    PersistentTable *table = dynamic_cast<PersistentTable*>(m_tables[tableId]);
-    assert(table != NULL);
-    if (table == NULL) {
+int VoltDBEngine::tableStreamSerializeMore(
+        ReferenceSerializeOutput *out,
+        const CatalogId tableId,
+        const TableStreamType streamType)
+{
+
+    switch (streamType) {
+    case TABLE_STREAM_SNAPSHOT: {
+        // If a completed table is polled, return 0 bytes serialized. The
+        // Java engine will always poll a fully serialized table one more
+        // time (it doesn't see the hasMore return code).  Note that the
+        // dynamic cast was already verified in activateCopyOnWrite.
+        map<int32_t, Table*>::iterator pos = m_snapshottingTables.find(tableId);
+        if (pos == m_snapshottingTables.end()) {
+            return 0;
+        }
+
+        PersistentTable *table = dynamic_cast<PersistentTable*>(pos->second);
+        bool hasMore = table->serializeMore(out);
+        if (!hasMore) {
+            m_snapshottingTables.erase(tableId);
+            table->decrementRefcount();
+        }
+        break;
+    }
+
+    case TABLE_STREAM_RECOVERY: {
+        /*
+         * Table ids don't change during recovery because
+         * catalog changes are not allowed.
+         */
+        map<int32_t, Table*>::iterator pos = m_tables.find(tableId);
+        if (pos == m_tables.end()) {
+            return 0;
+        }
+        PersistentTable *table = dynamic_cast<PersistentTable*>(pos->second);
+        table->nextRecoveryMessage(out);
+        break;
+    }
+    default:
         return -1;
     }
-    table->serializeMore(out);
+
 
     return static_cast<int>(out->position());
 }
 
+/*
+ * Apply the updates in a recovery message.
+ */
+void VoltDBEngine::processRecoveryMessage(RecoveryProtoMsg *message) {
+    CatalogId tableId = message->tableId();
+    map<int32_t, Table*>::iterator pos = m_tables.find(tableId);
+    if (pos == m_tables.end()) {
+        throwFatalException(
+                "Attempted to process recovery message for tableId %d but the table could not be found", tableId);
+    }
+    PersistentTable *table = dynamic_cast<PersistentTable*>(pos->second);
+    table->processRecoveryMessage( message, NULL, false);
+}
+
 long
-VoltDBEngine::eltAction(bool ackAction, bool pollAction, long ackOffset,
-                        int tableId)
+VoltDBEngine::exportAction(bool ackAction, bool pollAction, bool resetAction,
+                           bool syncAction, int64_t ackOffset, int64_t seqNo, int64_t tableId)
 {
-    Table* table_for_el = m_tables[tableId];
-    if (table_for_el == NULL)
-    {
-        return -1;
+    map<int64_t, Table*>::iterator pos = m_exportingTables.find(tableId);
+
+    // return no data and polled offset for unavailable tables.
+    if (pos == m_exportingTables.end()) {
+        // ignore trying to sync a non-exported table
+        if (syncAction) {
+            assert(ackOffset == 0);
+            return 0;
+        }
+
+        m_resultOutput.writeInt(0);
+        if (ackOffset < 0) {
+            return 0;
+        }
+        else {
+            return ackOffset;
+        }
+    }
+
+    Table *table_for_el = pos->second;
+
+    if (syncAction) {
+        table_for_el->setExportStreamPositions(seqNo, (size_t) ackOffset);
+        // done after the sync
+        return 0;
     }
 
     // perform any releases before polls.
     if (ackOffset > 0) {
-        if (!table_for_el->releaseEltBytes(ackOffset))
-        {
+        if (!table_for_el->releaseExportBytes(ackOffset)) {
             return -1;
         }
     }
 
-    // ack was successful.  Get the next buffer of committed ELT bytes
-    StreamBlock* block = table_for_el->getCommittedEltBytes();
-    if (block == NULL)
-    {
+    // perform resets after acks
+    if (resetAction) {
+        table_for_el->resetPollMarker();
+    }
+
+    // ack was successful.  Get the next buffer of committed Export bytes
+    StreamBlock* block = table_for_el->getCommittedExportBytes();
+    if (block == NULL) {
         return -1;
     }
-    // compute the stream offset for the end of the returned block
-    long retval = block->uso() + block->offset();
+
     // prepend the length of the block to the results buffer
     m_resultOutput.writeInt((int)(block->unreleasedSize()));
+
     // if the block isn't empty, copy it into the query results buffer
-    if (block->unreleasedSize() != 0)
-    {
+    // if the block is empty, check if it is a dropped table finishing
+    // export. These tables appear in the export list but not in the
+    // current tables list.
+    if (block->unreleasedSize() != 0) {
         m_resultOutput.writeBytes(block->dataPtr(), block->unreleasedSize());
     }
+    else {
+        map<string, CatalogDelegate*>::iterator dels = m_catalogDelegates.begin();
+        while (dels != m_catalogDelegates.end()) {
+            CatalogDelegate *tcd = dels->second;
+            if (tcd->delegateId() == tableId) {
+                break;
+            }
+            ++dels;
+        }
+        if (dels == m_catalogDelegates.end()) {
+            table_for_el->decrementRefcount();
+            m_exportingTables.erase(pos);
+        }
+    }
 
-    return retval;
+    // return the stream offset for the end of the returned block
+    return (block->uso() + block->offset());
 }
 
+size_t VoltDBEngine::tableHashCode(int32_t tableId) {
+    map<int32_t, Table*>::iterator it = m_tables.find(tableId);
+    if (it == m_tables.end()) {
+        throwFatalException("Tried to calculate a hash code for a table that doesn't exist with id %d\n", tableId);
+    }
+
+    PersistentTable *table = dynamic_cast<PersistentTable*>(it->second);
+    if (table == NULL) {
+        throwFatalException(
+                "Tried to calculate a hash code for a table that is not a persistent table id %d\n",
+                tableId);
+    }
+    return table->hashCode();
+}
 }

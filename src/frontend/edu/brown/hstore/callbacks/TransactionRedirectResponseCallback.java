@@ -5,10 +5,10 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.HStoreObjectPools;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
-import edu.brown.utils.Poolable;
+import edu.brown.pools.Poolable;
 
 /**
  * This callback is used by the receiving HStoreSite during a transaction redirect.
@@ -20,6 +20,7 @@ import edu.brown.utils.Poolable;
 public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>, Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionRedirectResponseCallback.class);
     
+    private HStoreSite hstore_site;
     private RpcCallback<TransactionRedirectResponse> orig_callback;
     private int source_id = -1;
     private int dest_id = -1;
@@ -27,8 +28,8 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
     /**
      * Default Constructor
      */
-    public TransactionRedirectResponseCallback() {
-        // Nothing to do...
+    public TransactionRedirectResponseCallback(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
     }
     
     public void init(int source_id, int dest_id, RpcCallback<TransactionRedirectResponse> orig_callback) {
@@ -63,7 +64,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
         if (trace) LOG.trace("Sent our ClientResponse back. Returning to regularly scheduled program...");
         try {
             this.finish();
-            HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.returnObject(this);
+            hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECTRESPONSE.returnObject(this);
         } catch (Exception ex) {
             throw new RuntimeException("Funky failure", ex);
         }

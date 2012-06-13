@@ -18,7 +18,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;

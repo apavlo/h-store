@@ -10,8 +10,8 @@ import edu.brown.utils.StringUtil;
 
 public class JSONResultsPrinter extends ResultsPrinter {
    
-    public JSONResultsPrinter(boolean output_clients, boolean output_basepartitions) {
-        super(output_clients, output_basepartitions);
+    public JSONResultsPrinter(boolean output_clients, boolean output_basepartitions, boolean output_responses) {
+        super(output_clients, output_basepartitions, output_responses);
     }
     
     @Override
@@ -19,6 +19,11 @@ public class JSONResultsPrinter extends ResultsPrinter {
         if (output_basepartitions) {
             System.out.print(StringUtil.SINGLE_LINE);
             System.out.println("Base Partition Distribution:\n" + results.getBasePartitions());
+            System.out.print(StringUtil.SINGLE_LINE);
+        }
+        if (output_responses) {
+            System.out.print(StringUtil.SINGLE_LINE);
+            System.out.println("Client Response Statuses:\n" + results.getResponseStatuses());
             System.out.print(StringUtil.SINGLE_LINE);
         }
         

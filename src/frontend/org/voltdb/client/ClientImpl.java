@@ -26,6 +26,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
@@ -69,6 +71,7 @@ final class ClientImpl implements Client {
      * If we have a catalog, then we'll enable client-side hints
      */
     private Catalog m_catalog;
+    private Database m_catalogDb;
     private PartitionEstimator m_pEstimator;
     private int m_partitionSiteXref[];
     private final HStoreConf m_hstoreConf;
@@ -120,7 +123,8 @@ final class ClientImpl implements Client {
         
         if (catalog != null && m_hstoreConf.client.txn_hints) {
             m_catalog = catalog;
-            m_pEstimator = new PartitionEstimator(CatalogUtil.getDatabase(m_catalog));
+            m_catalogDb = CatalogUtil.getDatabase(m_catalog);
+            m_pEstimator = new PartitionEstimator(m_catalogDb);
             m_partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(m_catalog);
         }
         
@@ -256,15 +260,29 @@ final class ClientImpl implements Client {
             new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
 
         Integer site_id = null;
-        if (m_catalog != null && procName.startsWith("@") == false) {
-            try {
-                Integer partition = m_pEstimator.getBasePartition(invocation);
-                if (partition != null) {
-                    site_id = m_partitionSiteXref[partition.intValue()];
-                    invocation.setBasePartition(partition.intValue());
+        if (m_catalog != null) {
+
+            Procedure catalog_proc = m_catalogDb.getProcedures().getIgnoreCase(procName);
+            
+            if (catalog_proc != null) {
+                // OPTIMIZATION: If we have the the catalog, then we'll send just 
+                // the procId. This reduces the number of strings that we need to 
+                // allocate on the server side.
+                invocation.setProcedureId(catalog_proc.getId());
+                
+                // OPTIMIZATION: If this isn't a sysproc, then we can tell them
+                // what the base partition for this request will be
+                if (catalog_proc.getSystemproc() == false) {
+                    try {
+                        Integer partition = m_pEstimator.getBasePartition(invocation);
+                        if (partition != null) {
+                            site_id = m_partitionSiteXref[partition.intValue()];
+                            invocation.setBasePartition(partition.intValue());
+                        }
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
+                    }
                 }
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }
         }
         

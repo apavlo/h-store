@@ -25,7 +25,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -661,7 +660,7 @@ class Distributer {
             synchronized (m_connectionSiteXref) {
                 Collection<NodeConnection> nc = m_connectionSiteXref.get(site_id);
                 if (nc == null) {
-                    nc = new HashSet<NodeConnection>();
+                    nc = new ArrayList<NodeConnection>();
                     m_connectionSiteXref.put(site_id, nc);
                 }
                 nc.add(cxn);    
@@ -676,7 +675,6 @@ class Distributer {
             LOG.debug("From what I can tell, we have a connection: " + cxn);
     }
 
-//    private HashMap<String, Long> reportedSizes = new HashMap<String, Long>();
 
     /**
      * Queue invocation on first node connection without backpressure. If there is none with without backpressure
@@ -706,7 +704,6 @@ class Distributer {
         throws NoConnectionsException {
         NodeConnection cxn = null;
         boolean backpressure = true;
-        int queuedInvocations = 0;
         long now = System.currentTimeMillis();
         
         final int totalConnections = m_connections.size();
@@ -714,32 +711,37 @@ class Distributer {
         if (totalConnections == 0) {
             throw new NoConnectionsException("No connections.");
         }
+        
+        // If we were given a site_id, then we will want to grab a 
+        // random Connection to that site. This is so that we can send the
+        // txn request directly to the site that presumably has all of the
+        // data that the txn will need
         if (site_id != null && m_connectionSiteXref.containsKey(site_id)) {
-             cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
-//            cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
+            cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
             if (cxn == null) {
                 LOG.warn("No direct connection to " + HStoreThreadManager.formatSiteName(site_id));
-            } else backpressure = false; // XXX
-//            else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
-//                backpressure = false;
-//            }
-//            else {
-//                cxn = null;
-//            }
+            }
+            else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+                backpressure = false;
+            }
+            else {
+                cxn = null;
+            }
         }
         
-        /*
-         * Synchronization is necessary to ensure that m_connections is not modified
-         * as well as to ensure that backpressure is reported correctly
-         */
+        // If we didn't get a direct site connection then we'll grab the next 
+        // connection in our round-robin look up
+        // Synchronization is necessary to ensure that m_connections is not modified
+        // as well as to ensure that backpressure is reported correctly
         if (cxn == null) {
+            // int queuedInvocations = 0;
             synchronized (this) {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
                     cxn = m_connections.get(idx);
                     if (trace.get())
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
-                    queuedInvocations += cxn.m_callbacks.size();
+                    // queuedInvocations += cxn.m_callbacks.size();
                     if (cxn.hadBackPressure(now) == false || ignoreBackpressure) {
                         // serialize and queue the invocation
                         backpressure = false;
@@ -755,15 +757,15 @@ class Distributer {
             }
         }
         
-        if (debug.get()) 
-            LOG.debug(String.format("Queuing new %s Request [clientHandle=%d, siteId=%s]",
-                                    invocation.getProcName(), invocation.getClientHandle(), site_id));
-
         /*
          * Do the heavy weight serialization outside the synchronized block.
          * createWork synchronizes on an individual connection which allows for more concurrency
          */
         if (cxn != null) {
+            if (debug.get()) 
+                LOG.debug(String.format("Queuing new %s Request at %s [clientHandle=%d, siteId=%s]",
+                                        invocation.getProcName(), cxn, invocation.getClientHandle(), site_id));
+            
             if (m_useMultipleThreads) {
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
@@ -777,18 +779,6 @@ class Distributer {
                 }
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), c, cb);
             }
-//            final String invocationName = invocation.getProcName();
-//            if (reportedSizes.containsKey(invocationName)) {
-//                if (reportedSizes.get(invocationName) < c.b.remaining()) {
-//                    System.err.println("Queued invocation for " + invocationName + " is " + c.b.remaining() + " which is greater then last value of " + reportedSizes.get(invocationName));
-//                    reportedSizes.put(invocationName, (long)c.b.remaining());
-//                }
-//            } else {
-//                reportedSizes.put(invocationName, (long)c.b.remaining());
-//                System.err.println("Queued invocation for " + invocationName + " is " + c.b.remaining());
-//            }
-
-
         }
 
         return !backpressure;

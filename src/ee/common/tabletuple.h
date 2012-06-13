@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -51,6 +51,7 @@
 #include "common/Pool.hpp"
 #include "common/ValuePeeker.hpp"
 #include "common/FatalException.hpp"
+#include "common/ExportSerializeIo.h"
 #include <ostream>
 
 #include <iostream>
@@ -132,11 +133,11 @@ public:
     }
 
     /**
-        Determine the maximum number of bytes when serialized for ELT.
+        Determine the maximum number of bytes when serialized for Export.
         Excludes the bytes required by the row header (which includes
         the null bit indicators) and ignores the width of metadata cols.
     */
-    size_t maxELTSerializationSize() const {
+    size_t maxExportSerializationSize() const {
         size_t bytes = 0;
         int cols = sizeInValues();
         for (int i = 0; i < cols; ++i) {
@@ -157,14 +158,17 @@ public:
                 break;
 
               case VALUE_TYPE_VARCHAR:
-                // 32 bit length preceding value and
-                // actual character data without null string terminator.
-                bytes += (sizeof (int32_t) +
-                          ValuePeeker::peekObjectLength(getNValue(i)));
+                  // 32 bit length preceding value and
+                  // actual character data without null string terminator.
+                  if (!getNValue(i).isNull())
+                  {
+                      bytes += (sizeof (int32_t) +
+                                ValuePeeker::peekObjectLength(getNValue(i)));
+                  }
                 break;
               default:
                 // let caller handle this error
-                throwFatalException("Unknown ValueType found during ELT serialization.");
+                throwFatalException("Unknown ValueType found during Export serialization.");
                 return (size_t)0;
             }
         }
@@ -253,9 +257,11 @@ public:
 
     void deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *stringPool);
     void serializeTo(voltdb::SerializeOutput &output);
-    size_t serializeToELT(int colOffset, uint8_t *nullArray, char *dataPtr);
+    void serializeToExport(voltdb::ExportSerializeOutput &io,
+                          int colOffset, uint8_t *nullArray);
 
     void freeObjectColumns();
+    size_t hashCode(size_t seed) const;
     size_t hashCode() const;
 protected:
     inline void setDeletedTrue() {
@@ -542,14 +548,14 @@ inline void TableTuple::serializeTo(voltdb::SerializeOutput &output) {
 }
 
 inline
-size_t
-TableTuple::serializeToELT(int colOffset, uint8_t *nullArray, char *dataPtr)
+void
+TableTuple::serializeToExport(ExportSerializeOutput &io,
+                              int colOffset, uint8_t *nullArray)
 {
-    char *currDataPtr = dataPtr;
     int columnCount = sizeInValues();
     for (int i = 0; i < columnCount; i++) {
         // NULL doesn't produce any bytes for the NValue
-        // handle it here to consolidate manipulation of
+        // Handle it here to consolidate manipulation of
         // the nullarray.
         if (isNull(i)) {
             // turn on i'th bit of nullArray
@@ -559,9 +565,8 @@ TableTuple::serializeToELT(int colOffset, uint8_t *nullArray, char *dataPtr)
             nullArray[byte] = (uint8_t)(nullArray[byte] | mask);
             continue;
         }
-        currDataPtr += getNValue(i).serializeToELT(currDataPtr);
+        getNValue(i).serializeToExport(io);
     }
-    return currDataPtr - dataPtr;
 }
 
 inline bool TableTuple::equals(const TableTuple &other) const {
@@ -606,15 +611,18 @@ inline int TableTuple::compare(const TableTuple &other) const {
     return 0;
 }
 
-inline size_t TableTuple::hashCode() const {
-    size_t seed = 0;
-    std::string s;
+inline size_t TableTuple::hashCode(size_t seed) const {
     const int columnCount = m_schema->columnCount();
     for (int i = 0; i < columnCount; i++) {
         const NValue value = getNValue(i);
         value.hashCombine(seed);
     }
     return seed;
+}
+
+inline size_t TableTuple::hashCode() const {
+    size_t seed = 0;
+    return hashCode(seed);
 }
 
 /**

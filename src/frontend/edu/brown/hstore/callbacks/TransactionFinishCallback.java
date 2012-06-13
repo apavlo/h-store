@@ -5,7 +5,7 @@ import org.apache.log4j.Logger;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 

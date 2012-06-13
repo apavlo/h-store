@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,44 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_childCollections["authPrograms"] = &m_authPrograms;
     m_childCollections["statements"] = &m_statements;
     m_childCollections["parameters"] = &m_parameters;
+}
+
+Procedure::~Procedure() {
+    std::map<std::string, UserRef*>::const_iterator userref_iter = m_authUsers.begin();
+    while (userref_iter != m_authUsers.end()) {
+        delete userref_iter->second;
+        userref_iter++;
+    }
+    m_authUsers.clear();
+
+    std::map<std::string, GroupRef*>::const_iterator groupref_iter = m_authGroups.begin();
+    while (groupref_iter != m_authGroups.end()) {
+        delete groupref_iter->second;
+        groupref_iter++;
+    }
+    m_authGroups.clear();
+
+    std::map<std::string, AuthProgram*>::const_iterator authprogram_iter = m_authPrograms.begin();
+    while (authprogram_iter != m_authPrograms.end()) {
+        delete authprogram_iter->second;
+        authprogram_iter++;
+    }
+    m_authPrograms.clear();
+
+    std::map<std::string, Statement*>::const_iterator statement_iter = m_statements.begin();
+    while (statement_iter != m_statements.end()) {
+        delete statement_iter->second;
+        statement_iter++;
+    }
+    m_statements.clear();
+
+    std::map<std::string, ProcParameter*>::const_iterator procparameter_iter = m_parameters.begin();
+    while (procparameter_iter != m_parameters.end()) {
+        delete procparameter_iter->second;
+        procparameter_iter++;
+    }
+    m_parameters.clear();
+
 }
 
 void Procedure::update() {
@@ -130,18 +168,24 @@ CatalogType * Procedure::getChild(const std::string &collectionName, const std::
     return NULL;
 }
 
-void Procedure::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Procedure::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("authUsers") == 0)
+    if (collectionName.compare("authUsers") == 0) {
         return m_authUsers.remove(childName);
-    if (collectionName.compare("authGroups") == 0)
+    }
+    if (collectionName.compare("authGroups") == 0) {
         return m_authGroups.remove(childName);
-    if (collectionName.compare("authPrograms") == 0)
+    }
+    if (collectionName.compare("authPrograms") == 0) {
         return m_authPrograms.remove(childName);
-    if (collectionName.compare("statements") == 0)
+    }
+    if (collectionName.compare("statements") == 0) {
         return m_statements.remove(childName);
-    if (collectionName.compare("parameters") == 0)
+    }
+    if (collectionName.compare("parameters") == 0) {
         return m_parameters.remove(childName);
+    }
+    return false;
 }
 
 int32_t Procedure::id() const {

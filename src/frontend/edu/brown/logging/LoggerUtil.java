@@ -7,6 +7,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -20,6 +23,7 @@ public abstract class LoggerUtil {
 
     private static final String LOG4J_FILENAME = "log4j.properties";
     private static File PROPERTIES_FILE = null;
+    private static LoggerCheck REFRESH_CHECKER = null;
     private static Thread REFRESH_THREAD = null;
     private static long LAST_TIMESTAMP = 0;
     private static final EventObservable<Object> OBSERVABLE = new EventObservable<Object>();
@@ -82,7 +86,7 @@ public abstract class LoggerUtil {
     }
     
     private static class LoggerCheck implements Runnable {
-        final long interval;
+        private long interval;
         
         public LoggerCheck(long interval) {
             this.interval = interval;
@@ -91,18 +95,28 @@ public abstract class LoggerUtil {
         public void run() {
             if (PROPERTIES_FILE == null) setupLogging();
             Thread self = Thread.currentThread();
-            self.setName("LogCheck");
+            self.setName(HStoreConstants.THREAD_NAME_LOGGING);
             
             while (!self.isInterrupted()) {
                 try {
-                    Thread.sleep(interval);
+                    Thread.sleep(this.interval);
                 } catch (InterruptedException ex) {
                     break;
                 }
-                if (THREAD_MANAGER != null) {
+                
+                // HACK: Look for an HStoreSite so that we can set our name properly
+                // This probably doesn't need to be synchronized
+                if (THREAD_MANAGER == null) {
                     synchronized (LoggerUtil.class) {
-                        THREAD_MANAGER.registerProcessingThread();
-                        THREAD_MANAGER = null;
+                        if (THREAD_MANAGER == null) {
+                            HStoreSite hstore_site = HStore.instance();
+                            if (hstore_site != null) {
+                                String name = HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_LOGGING);
+                                self.setName(name);
+                                THREAD_MANAGER = hstore_site.getThreadManager();
+                                THREAD_MANAGER.registerProcessingThread();
+                            }
+                        }
                     } // SYNCH
                 }
                 
@@ -117,11 +131,7 @@ public abstract class LoggerUtil {
         }
     }
     
-    public static synchronized void registerThread(HStoreThreadManager manager) {
-        THREAD_MANAGER = manager; 
-    }
-    
-    public static void setupLogging() {
+    public static synchronized void setupLogging() {
         if (PROPERTIES_FILE != null) return;
         
         // Hack for testing...
@@ -146,11 +156,7 @@ public abstract class LoggerUtil {
             ex.printStackTrace();
         }
 
-        LoggerUtil.refreshLogging(10000); // 180000l); // 3 min
-    }
-    
-    public static Thread getRefreshThread() {
-        return (REFRESH_THREAD);
+        LoggerUtil.refreshLogging(30000); // 180000l); // 3 min
     }
     
     protected static synchronized void loadConfiguration(File file) {
@@ -160,16 +166,19 @@ public abstract class LoggerUtil {
         LAST_TIMESTAMP = file.lastModified();
     }
     
-    public static void refreshLogging(final long interval) {
+    public static synchronized void refreshLogging(final long interval) {
         if (REFRESH_THREAD == null) {
             Logger.getRootLogger().debug("Starting log4j refresh thread [update interval = " + interval + "]");
-            REFRESH_THREAD = new Thread(new LoggerCheck(interval));
+            REFRESH_CHECKER = new LoggerCheck(interval);
+            REFRESH_THREAD = new Thread(REFRESH_CHECKER);
             REFRESH_THREAD.setPriority(Thread.MIN_PRIORITY);
             REFRESH_THREAD.setDaemon(true);
             REFRESH_THREAD.start();
             
             // We need to update all of our observers the first time
             LoggerUtil.OBSERVABLE.notifyObservers();
+        } else if (interval != REFRESH_CHECKER.interval) {
+            REFRESH_CHECKER.interval = interval;
         }
     }
     

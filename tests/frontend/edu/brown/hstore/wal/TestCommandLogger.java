@@ -44,7 +44,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;

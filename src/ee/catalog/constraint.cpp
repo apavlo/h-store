@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,16 @@ Constraint::Constraint(Catalog *catalog, CatalogType *parent, const string &path
     m_childCollections["foreignkeycols"] = &m_foreignkeycols;
 }
 
+Constraint::~Constraint() {
+    std::map<std::string, ColumnRef*>::const_iterator columnref_iter = m_foreignkeycols.begin();
+    while (columnref_iter != m_foreignkeycols.end()) {
+        delete columnref_iter->second;
+        columnref_iter++;
+    }
+    m_foreignkeycols.clear();
+
+}
+
 void Constraint::update() {
     m_type = m_fields["type"].intValue;
     m_oncommit = m_fields["oncommit"].strValue.c_str();
@@ -64,10 +74,12 @@ CatalogType * Constraint::getChild(const std::string &collectionName, const std:
     return NULL;
 }
 
-void Constraint::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Constraint::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("foreignkeycols") == 0)
+    if (collectionName.compare("foreignkeycols") == 0) {
         return m_foreignkeycols.remove(childName);
+    }
+    return false;
 }
 
 int32_t Constraint::type() const {
