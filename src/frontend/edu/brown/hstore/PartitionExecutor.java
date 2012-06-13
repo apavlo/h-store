@@ -901,7 +901,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
-        if (ts.isPredictSinglePartition() && ts.isMapReduce() == false) {
+        if (ts.isPredictSinglePartition() && ts.isMapReduce() == false && ts.isSysProc() == false) {
             this.currentTxn = ts;
             this.executeTransaction(ts);
         }
@@ -909,6 +909,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
+            if (d) LOG.debug(ts + " - Queuing up txn at local HStoreSite for further processing");
             this.hstore_site.transactionQueue(ts);    
         }
     }

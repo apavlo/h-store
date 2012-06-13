@@ -231,7 +231,7 @@ public class TransactionInitializer {
         // Initialize our LocalTransaction handle
         Long txn_id = hstore_site.getTransactionIdManager(base_partition)
                                  .getNextUniqueTransactionId();
-        
+
         this.populateProperties(ts,
                                 txn_id,
                                 client_handle,
@@ -282,11 +282,10 @@ public class TransactionInitializer {
         Object args[] = null; // FIXME
         
         // -------------------------------
-        // CALCULATE EXECUTION PROPERTIES
+        // SYSTEM PROCEDURES
         // -------------------------------
-        
-        // Sysprocs can be either all partitions or single-partitioned
-        if (ts.isSysProc()) {
+        if (catalog_proc.getSystemproc()) {
+            // Sysprocs can be either all partitions or single-partitioned
             // TODO: It would be nice if the client could pass us a hint when loading the tables
             // It would be just for the loading, and not regular transactions
             if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
@@ -295,21 +294,31 @@ public class TransactionInitializer {
                 predict_touchedPartitions = this.all_partitions;
             }
         }
-        // MapReduceTransactions always need all partitions
-        else if (ts.isMapReduce()) {
-            if (t) LOG.trace(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
+        
+        // -------------------------------
+        // MAPREDUCE TRANSACTIONS
+        // -------------------------------
+        else if (catalog_proc.getMapreduce()) {
+            // MapReduceTransactions always need all partitions
+            if (d) LOG.debug(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
             predict_touchedPartitions = this.all_partitions;
         }
-        // Force all transactions to be single-partitioned
+        
+        // -------------------------------
+        // FORCE SINGLE-PARTITIONED
+        // -------------------------------
         else if (hstore_conf.site.exec_force_singlepartitioned) {
-            if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
+            if (d) LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                                            catalog_proc.getName(), base_partition, ts.getClientHandle()));
             predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
         }
-        // Use the @ProcInfo flags in the catalog
+        
+        // -------------------------------
+        // VOLTDB @PROCINFO
+        // -------------------------------
         else if (hstore_conf.site.exec_voltdb_procinfo) {
-            if (t) LOG.trace(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
+            if (d) LOG.debug(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
                                             catalog_proc.getName(), ts.getClientHandle(), catalog_proc.getSinglepartition()));
             if (catalog_proc.getSinglepartition()) {
                 predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
@@ -317,16 +326,23 @@ public class TransactionInitializer {
                 predict_touchedPartitions = this.all_partitions;
             }
         }
-        // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
-        // out what partitions it's going to need to touch
+        
+        // -------------------------------
+        // FIXED ESTIMATORS
+        // -------------------------------
         else if (hstore_conf.site.exec_neworder_cheat) {
+            // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
+            // out what partitions it's going to need to touch
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));
             if (this.fixed_estimator != null)
                 predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
             if (predict_touchedPartitions == null)
                 predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
         }    
-        // Otherwise, we'll try to estimate what the transaction will do (if we can)
+        
+        // -------------------------------
+        // MARKOV ESTIMATORS
+        // -------------------------------
         else {
             if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
@@ -413,10 +429,12 @@ public class TransactionInitializer {
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
         if (d) {
-            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
+            LOG.debug(String.format("Initializing %s on partition %d " +
+            		                "[clientHandle=%d, partitions=%s, singlePartitioned=%s, readOnly=%s, abortable=%s]",
                       ts, base_partition,
                       client_handle,
                       ts.getPredictTouchedPartitions(),
+                      ts.isPredictSinglePartition(),
                       ts.isPredictReadOnly(),
                       ts.isPredictAbortable()));
         }
