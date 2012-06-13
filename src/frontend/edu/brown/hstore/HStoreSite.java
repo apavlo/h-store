@@ -605,8 +605,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 // Initialize TransactionPreProcessors
                 if (num_preProcessors > 0) {
-//                    if (d) 
-                        LOG.info(String.format("Starting %d %s threads",
+                    if (d) 
+                        LOG.debug(String.format("Starting %d %s threads",
                                                    num_preProcessors,
                                                    TransactionPreProcessor.class.getSimpleName()));
                     _preProcessors = new ArrayList<TransactionPreProcessor>();
@@ -618,8 +618,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 // Initialize TransactionPostProcessors
                 if (num_postProcessors > 0) {
-//                    if (d) 
-                        LOG.info(String.format("Starting %d %s threads",
+                    if (d) 
+                        LOG.debug(String.format("Starting %d %s threads",
                                                    num_postProcessors,
                                                    TransactionPostProcessor.class.getSimpleName()));
                     _postProcessors = new ArrayList<TransactionPostProcessor>();
@@ -1242,38 +1242,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown(false);
         this.shutdown_state = ShutdownState.SHUTDOWN;
-        if (d) LOG.debug("Shutting down everything at " + this.getSiteName());
+        if (d) 
+            LOG.debug("Shutting down everything at " + this.getSiteName());
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Kill the queue manager
         this.txnQueueManager.shutdown();
-        
-        if (this.voltNetwork != null) {
-            try {
-                this.voltNetwork.shutdown();
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-            this.clientInterface.shutdown();
-        }
-        
-        // Tell our local boys to go down too
-        for (int p : this.local_partitions_arr) {
-            this.executors[p].shutdown();
-        } // FOR
-
-        if (this.preProcessors != null) {
-            for (TransactionPreProcessor tpp : this.preProcessors) {
-                tpp.shutdown();
-            } // FOR
-        }
-        if (this.postProcessors != null) {
-            for (TransactionPostProcessor tpp : this.postProcessors) {
-                tpp.shutdown();
-            } // FOR
-        }
         
         if (this.mr_helper_started && this.mr_helper != null) {
             this.mr_helper.shutdown();
@@ -1288,6 +1264,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.asyncCompilerWork_thread.shutdown();
             if (this.periodicWorkTimer_thread != null)
                 this.periodicWorkTimer_thread.shutdown();
+        }
+
+        if (this.preProcessors != null) {
+            for (TransactionPreProcessor tpp : this.preProcessors) {
+                tpp.shutdown();
+            } // FOR
+        }
+        if (this.postProcessors != null) {
+            for (TransactionPostProcessor tpp : this.postProcessors) {
+                tpp.shutdown();
+            } // FOR
         }
         
         // Tell anybody that wants to know that we're going down
@@ -1304,6 +1291,21 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.hstore_coordinator != null) {
             this.hstore_coordinator.shutdown();
         }
+        
+        if (this.voltNetwork != null) {
+            try {
+                this.voltNetwork.shutdown();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+            this.clientInterface.shutdown();
+        }
+        
+        
+        // Tell our local boys to go down too
+        for (int p : this.local_partitions_arr) {
+            this.executors[p].shutdown();
+        } // FOR
         
         LOG.info(String.format("Completed shutdown process at %s [hashCode=%d]",
                                this.getSiteName(), this.hashCode()));
@@ -1336,18 +1338,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     @Override
     public void queueInvocation(ByteBuffer buffer, final RpcCallback<byte[]> clientCallback) {
-        // HACK
+        // XXX: This is a big hack. We should just deal with the ClientResponseImpl directly
         RpcCallback<ClientResponseImpl> wrapperCallback = new RpcCallback<ClientResponseImpl>() {
             @Override
             public void run(ClientResponseImpl parameter) {
-                LOG.info("Serializing ClientResponse to byte array:\n" + parameter);
+                if (trace.get()) LOG.trace("Serializing ClientResponse to byte array:\n" + parameter);
                 
                 FastSerializer fs = new FastSerializer();
                 try {
                     parameter.writeExternal(fs);
                     clientCallback.run(fs.getBBContainer().b.array());
-                    
-//                    LOG.info("AFTER:\n" + FastDeserializer.deserialize(bb.b.array(), ClientResponseImpl.class).toString());
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 } finally {
@@ -1387,7 +1387,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         String procName = null;
         if (procId >= 0 && procId < this.catalog_procs.length) {
             catalog_proc = this.catalog_procs[procId];
-            procName = catalog_proc.getName();
         }
      
         // Otherwise, we have to get the procedure name and do a look up with that.
@@ -1401,8 +1400,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // TODO: This should be an error message back to the client, not an exception
             if (catalog_proc == null) {
-                throw new RuntimeException("Unknown procedure '" + procName + "'");
+                String msg = "Unknown procedure '" + procName + "'";
+                this.sendErrorResponse(client_handle,
+                                        Status.ABORT_UNEXPECTED,
+                                        msg,
+                                        clientCallback,
+                                        EstTime.currentTimeMillis());
+                return;
             }
+        } else {
+            procName = catalog_proc.getName();
         }
         boolean sysproc = catalog_proc.getSystemproc();
         
@@ -1531,13 +1538,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TODO: Execute as a regular transaction
         // -------------------------------
         if (catalog_proc.getName().equals("@Shutdown")) {
-            ClientResponseImpl cresponse = new ClientResponseImpl(-1,
-                                                                  client_handle,
-                                                                  -1,
-                                                                  Status.OK,
-                                                                  HStoreConstants.EMPTY_RESULT,
-                                                                  "");
-            done.run(cresponse);
+            this.sendErrorResponse(client_handle, Status.OK, "", done, EstTime.currentTimeMillis());
 
             // Non-blocking....
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
@@ -1563,13 +1564,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             if (msg != null) {
-                ClientResponseImpl errorResponse = new ClientResponseImpl(-1,
-                                                                          client_handle,
-                                                                          -1,
-                                                                          Status.ABORT_GRACEFUL,
-                                                                          HStoreConstants.EMPTY_RESULT,
-                                                                          msg);
-                done.run(errorResponse);
+                this.sendErrorResponse(client_handle, Status.ABORT_GRACEFUL, msg, done, EstTime.currentTimeMillis());
                 return (true);
             }
             
@@ -2037,9 +2032,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Mark this request as having been redirected
-        StoredProcedureInvocation.setBasePartition(base_partition, serializedRequest);
+        // XXX: This sucks because we have to copy the bytes, which will then
+        // get copied again when we have to serialize it out to a ByteString
+        serializedRequest.rewind();
+        ByteBuffer copy = ByteBuffer.allocate(serializedRequest.capacity());
+        copy.put(serializedRequest);
+        StoredProcedureInvocation.setBasePartition(base_partition, copy);
         
-        this.hstore_coordinator.transactionRedirect(serializedRequest.array(),
+        this.hstore_coordinator.transactionRedirect(copy.array(),
                                                     callback,
                                                     base_partition);
         if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
@@ -2338,6 +2338,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         
+    }
+
+    /**
+     * Convience method for sending an error ClientResponse back to the client
+     * @param client_handle
+     * @param status
+     * @param message
+     * @param clientCallback
+     * @param initiateTime
+     */
+    private void sendErrorResponse(long client_handle,
+                                    Status status,
+                                    String message,
+                                    RpcCallback<ClientResponseImpl> clientCallback,
+                                    long initiateTime) {
+        
+        ClientResponseImpl cresponse = new ClientResponseImpl(
+                                            -1,
+                                            client_handle,
+                                            -1,
+                                            status,
+                                            HStoreConstants.EMPTY_RESULT,
+                                            message);
+        this.sendClientResponse(cresponse, clientCallback, initiateTime, 0);
     }
     
     /**

@@ -661,9 +661,9 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.get())
                 LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                         transactionRedirect_dispatcher.getIdleTime().getTotalThinkTimeMS()));
-            ThreadUtil.sleep(1000); // HACK
-            LogManager.shutdown();
-            System.exit(request.getExitStatus());
+            // ThreadUtil.sleep(1000); // HACK
+            // LogManager.shutdown();
+            // System.exit(request.getExitStatus());
             
         }
 
@@ -845,7 +845,12 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
-        if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreThreadManager.formatSiteName(dest_site_id));
+        if (debug.get()) {
+            LOG.debug(String.format("Redirecting transaction request to partition #%d on %s",
+                                    partition, HStoreThreadManager.formatSiteName(dest_site_id)));
+        }
+        
+        
         ByteString bs = ByteString.copyFrom(serializedRequest);
         TransactionRedirectRequest mr = TransactionRedirectRequest.newBuilder()
                                         .setSenderSite(this.local_site_id)
@@ -1092,6 +1097,8 @@ public class HStoreCoordinator implements Shutdownable {
         Thread shutdownThread = new Thread() {
             @Override
             public void run() {
+                LOG.info("HACK: Sleeping for 5 seconds...");
+                ThreadUtil.sleep(5000);
                 HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
             }
         };
@@ -1177,8 +1184,8 @@ public class HStoreCoordinator implements Shutdownable {
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }
-            LogManager.shutdown();
-            System.exit(exit_status);
+//            LogManager.shutdown();
+//            System.exit(exit_status);
         }
     }
 
