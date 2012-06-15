@@ -54,7 +54,7 @@ public class EGenLoader {
     private final Integer total_customers;
     private final Integer scale_factor;
     private final Integer initial_workdays;
-
+ 
     /**
      * Constructor
      * 
@@ -73,6 +73,7 @@ public class EGenLoader {
             LOG.error("Unable to start benchmark. The executable " + this.loader_bin + " does not exist");
             System.exit(1);
         }
+        //TODO input_path + flat_in?
         this.input_path = new File(this.base_path + File.separator + "flat_in");
         this.output_path = new File(this.base_path + File.separator + "flat_out");
 

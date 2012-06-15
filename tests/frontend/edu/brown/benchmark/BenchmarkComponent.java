@@ -413,6 +413,7 @@ public abstract class BenchmarkComponent {
      * @param args
      */
     public BenchmarkComponent(String args[]) {
+    	LOG.debug("Benchmark Component debugging");
         // Initialize HStoreConf
         String hstore_conf_path = null;
         for (int i = 0; i < args.length; i++) {

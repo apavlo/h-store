@@ -960,6 +960,7 @@ public class BenchmarkController {
             }
         } // WHILE
         if (this.stop) return;
+        
         if (m_clientFilesUploaded.get() > 0) LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
 
         // start up all the clients
@@ -1003,12 +1004,10 @@ public class BenchmarkController {
                 LOG.info("Starting benchmark stats collection");
             }
         }
-        
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
         while (m_pollIndex < m_pollCount && this.stop == false) {
-
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
                 m_pollIndex++;
@@ -1108,6 +1107,7 @@ public class BenchmarkController {
         } else if (debug.get()) {
             LOG.debug("Benchmark failed. Not displaying final results");
         }
+
     }
     
     private void recomputeMarkovs(Client client) {
