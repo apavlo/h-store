@@ -300,11 +300,33 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         ProfileMeasurement pm = null;
         String value = null;
         
-        LinkedHashMap<String, Object> m_exec = new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> siteInfo = new LinkedHashMap<String, Object>();
         if (TxnCounter.COMPLETED.get() > 0) {
-            m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
+            siteInfo.put("Completed Txns", TxnCounter.COMPLETED.get());
         }
         
+        // ClientInterface
+        ClientInterface ci = hstore_site.getClientInterface();
+        if (ci != null) {
+            siteInfo.put("# of Connections", ci.getConnectionCount());
+            
+            value = String.format("%d txns / %d bytes %s",
+                                  ci.getPendingTxnCount(),
+                                  ci.getPendingTxnBytes(),
+                                  (ci.hasBackPressure() ? "*BACKPRESSURE*" : ""));
+            siteInfo.put("Client Interface", value);
+            
+            if (hstore_conf.site.network_profiling) {
+                pm = ci.getBackPressureOn();
+                siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
+                
+                pm = ci.getBackPressureOff();
+                siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
+            }
+        }
+        
+        
+        // TransactionQueueManager
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
         
@@ -336,7 +358,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
            }
         } // FOR
         
-        m_exec.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished [totalMin=%d, totalMax=%d]",
+        siteInfo.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
                         inflight_finished,
@@ -345,7 +367,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         ));
         
         if (this.cur_finishedTxns != null) {
-            m_exec.put("Zombie Txns", inflight_zombies +
+            siteInfo.put("Zombie Txns", inflight_zombies +
                                       (inflight_zombies > 0 ? " - " + CollectionUtil.first(this.cur_finishedTxns) : ""));
 //            for (AbstractTransaction ts : this.cur_finishedTxns) {
 //                // HACK
@@ -362,12 +384,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (hstore_conf.site.network_profiling) {
             pm = this.hstore_site.getNetworkIdleTime();
             value = this.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
-            m_exec.put("Network Idle", value);
+            siteInfo.put("Network Idle", value);
             this.lastNetworkIdle = new ProfileMeasurement(pm);
             
             pm = this.hstore_site.getNetworkProcessorTime();
             value = this.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
-            m_exec.put("Network Processing", value);
+            siteInfo.put("Network Processing", value);
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
         }
         
@@ -387,10 +409,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                      pm.getAverageThinkTimeMS());
             } // FOR
             
-            m_exec.put("Post-Processing Txns", val);
+            siteInfo.put("Post-Processing Txns", val);
         }
 
-        return (m_exec);
+        return (siteInfo);
     }
 
     // ----------------------------------------------------------------------------

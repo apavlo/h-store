@@ -727,6 +727,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.site_name);
     }
     
+    protected ClientInterface getClientInterface() {
+        return (this.clientInterface);
+    }
+    
     /**
      * Return the list of all the partition ids in this H-Store database cluster
      * TODO: Moved to CatalogContext
@@ -2375,16 +2379,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     long initiateTime,
                                     int restartCounter) {
         Status status = cresponse.getStatus();
+        cresponse.setRequestCounter(this.getNextRequestCounter());
  
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
         if (d) LOG.debug(String.format("%d - Sending back ClientResponse [status=%s]",
                                        cresponse.getTransactionId(), status));
-
-        // Check whether we should disable throttling
-        cresponse.setRequestCounter(this.getNextRequestCounter());
-        cresponse.setThrottleFlag(status == Status.ABORT_THROTTLED);
         
         long now = System.currentTimeMillis();
         EstTimeUpdater.update(now);

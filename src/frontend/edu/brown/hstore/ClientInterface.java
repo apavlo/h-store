@@ -56,6 +56,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ProfileMeasurement;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
@@ -71,25 +72,15 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final HStoreSite hstore_site;
-    
-    private final ClientAcceptor m_acceptor;
-    private final ArrayList<Connection> m_connections = new ArrayList<Connection>();
-
-    // Atomically allows the catalog reference to change between access
-    private final AtomicReference<CatalogContext> m_catalogContext = new AtomicReference<CatalogContext>(null);
-
-    /**
-     * Counter of the number of client connections. Used to enforce a limit on the maximum number of connections
-     */
-    private final AtomicInteger m_numConnections = new AtomicInteger(0);
 
     // clock time of last call to the initiator's tick()
     static final int POKE_INTERVAL = 1000;
-
-    final int m_siteId;
-    final String m_dumpId;
-
+    
+    
+    // ----------------------------------------------------------------------------
+    // QUEUE MONITOR RUNNABLE
+    // ----------------------------------------------------------------------------
+    
     private final QueueMonitor m_clientQueueMonitor = new QueueMonitor() {
         private final int MAX_QUEABLE = 33554432;
 
@@ -140,52 +131,11 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return false;
         }
     };
-
-    /**
-     * This boolean allows the DTXN to communicate to the
-     * ClientInputHandler the presence of DTXN backpressure.
-     * The m_connections ArrayList is used as the synchronization
-     * point to ensure that modifications to read interest ops
-     * that are based on the status of this information are atomic.
-     * Additionally each connection must be synchronized on before modification
-     * because the disabling of read selection for an individual connection
-     * due to backpressure (not DTXN backpressure, client backpressure due to a client
-     * that refuses to read responses) occurs inside the SimpleDTXNInitiator which
-     * doesn't have access to m_connections
-     */
-    private boolean m_hasDTXNBackPressure = false;
-
-    /**
-     * Way too much data tied up sending responses to clients.
-     * Wait until they receive data or have been booted.
-     */
-    private boolean m_hasGlobalClientBackPressure = false;
     
-    /**
-     * Task to run when a backpressure condition starts
-     */
-    private final EventObservable<HStoreSite> onBackPressure = new EventObservable<HStoreSite>();
-
-    /**
-     * Task to run when a backpressure condition stops
-     */
-    private final EventObservable<HStoreSite> offBackPressure = new EventObservable<HStoreSite>();
-
-    /**
-     * Indicates if backpressure has been seen and reported
-     */
-    private boolean m_hadBackPressure = false;
+    // ----------------------------------------------------------------------------
+    // CLIENT ACCEPTOR RUNNABLE
+    // ----------------------------------------------------------------------------
     
-    // If an initiator handles a full node, it processes approximately 50,000 txns/sec.
-    // That's about 50 txns/ms. Try not to keep more than 5 ms of work? Seems like a really
-    // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
-    // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
-    // on average if clients present constant uninterrupted load.
-    private final static int MAX_DESIRED_PENDING_BYTES = 67108864;
-    private final static int MAX_DESIRED_PENDING_TXNS = 15000;
-    private long m_pendingTxnBytes = 0;
-    private int m_pendingTxnCount = 0;
-
     /** A port that accepts client connections */
     public class ClientAcceptor implements Runnable {
         private final int m_port;
@@ -469,6 +419,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return handler;
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // CLIENT INPUT HANDLER
+    // ----------------------------------------------------------------------------
 
     /** A port that reads client procedure invocations and writes responses */
     public class ClientInputHandler extends VoltProtocolHandler {
@@ -559,6 +513,96 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return m_clientQueueMonitor;
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // INSTANCE MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    private final HStoreSite hstore_site;
+    
+    private final ClientAcceptor m_acceptor;
+    private final ArrayList<Connection> m_connections = new ArrayList<Connection>();
+
+    // Atomically allows the catalog reference to change between access
+    private final AtomicReference<CatalogContext> m_catalogContext = new AtomicReference<CatalogContext>(null);
+
+    /**
+     * Counter of the number of client connections. Used to enforce a limit on the maximum number of connections
+     */
+    private final AtomicInteger m_numConnections = new AtomicInteger(0);
+
+
+    final int m_siteId;
+    final String m_dumpId;
+
+
+    /**
+     * This boolean allows the DTXN to communicate to the
+     * ClientInputHandler the presence of DTXN backpressure.
+     * The m_connections ArrayList is used as the synchronization
+     * point to ensure that modifications to read interest ops
+     * that are based on the status of this information are atomic.
+     * Additionally each connection must be synchronized on before modification
+     * because the disabling of read selection for an individual connection
+     * due to backpressure (not DTXN backpressure, client backpressure due to a client
+     * that refuses to read responses) occurs inside the SimpleDTXNInitiator which
+     * doesn't have access to m_connections
+     */
+    private boolean m_hasDTXNBackPressure = false;
+
+    /**
+     * Way too much data tied up sending responses to clients.
+     * Wait until they receive data or have been booted.
+     */
+    private boolean m_hasGlobalClientBackPressure = false;
+    
+    /**
+     * Task to run when a backpressure condition starts
+     */
+    private final EventObservable<HStoreSite> onBackPressure = new EventObservable<HStoreSite>();
+
+    /**
+     * Task to run when a backpressure condition stops
+     */
+    private final EventObservable<HStoreSite> offBackPressure = new EventObservable<HStoreSite>();
+
+    /**
+     * Indicates if backpressure has been seen and reported
+     */
+    private boolean m_hadBackPressure = false;
+    
+    // If an initiator handles a full node, it processes approximately 50,000 txns/sec.
+    // That's about 50 txns/ms. Try not to keep more than 5 ms of work? Seems like a really
+    // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
+    // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
+    // on average if clients present constant uninterrupted load.
+    private final static int MAX_DESIRED_PENDING_BYTES = 20; // 67108864;
+    private final static int MAX_DESIRED_PENDING_TXNS = 15000;
+    private long m_pendingTxnBytes = 0;
+    private int m_pendingTxnCount = 0;
+
+    /**
+     * Tick counter used to perform dead client detection every N ticks
+     */
+    private long m_tickCounter = 0;
+    
+    // ----------------------------------------------------------------------------
+    // PROFILING MEMBERS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * How much time the site spends with backup pressure blocking disabled
+     */
+    private final ProfileMeasurement network_backup_off;
+    
+    /**
+     * How much time the site spends with backup pressure blocking enabled
+     */
+    private final ProfileMeasurement network_backup_on;
+    
+    // ----------------------------------------------------------------------------
+    // BACKPRESSURE OBSERVERS
+    // ----------------------------------------------------------------------------
 
     /**
      * Invoked when DTXN backpressure starts
@@ -568,6 +612,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             LOG.info("Had back pressure disabling read selection");
             synchronized (m_connections) {
+                if (network_backup_off != null) {
+                    ProfileMeasurement.swap(network_backup_off, network_backup_on);
+                }
                 m_hasDTXNBackPressure = true;
                 for (final Connection c : m_connections) {
                     c.disableReadSelection();
@@ -584,6 +631,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
             LOG.info("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
+                if (network_backup_off != null) {
+                    ProfileMeasurement.swap(network_backup_on, network_backup_off);
+                }
                 m_hasDTXNBackPressure = false;
                 if (m_hasGlobalClientBackPressure) {
                     return;
@@ -608,7 +658,11 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             } // SYNCH
         }
     };
-
+    
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
+    
     /**
      * Static factory method to easily create a ClientInterface with the default
      * settings.
@@ -646,7 +700,44 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         this.offBackPressure.addObserver(this.offBackPressureObserver);
         
         m_acceptor = new ClientAcceptor(port, network);
+        
+        if (hstore_site.getHStoreConf().site.network_profiling) {
+            network_backup_off = new ProfileMeasurement("BACKUP-OFF");
+            network_backup_on = new ProfileMeasurement("BACKUP-ON");
+        } else {
+            network_backup_off = null;
+            network_backup_on = null;
+        }
     }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
+    public long getPendingTxnBytes() {
+        return m_pendingTxnBytes;
+    }
+    
+    public int getPendingTxnCount() {
+        return m_pendingTxnCount;
+    }
+    
+    public boolean hasBackPressure() {
+        return m_hadBackPressure;
+    }
+    
+    public int getConnectionCount() {
+        return m_numConnections.get();
+    }
+    
+    protected ProfileMeasurement getBackPressureOn() {
+        return network_backup_on;
+    }
+    
+    protected ProfileMeasurement getBackPressureOff() {
+        return network_backup_off;
+    }
+    
     
     public void increaseBackpressure(int messageSize)
     {
@@ -666,6 +757,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     public void reduceBackpressure(int messageSize)
     {
         if (debug.get()) LOG.debug("Reducing Backpressure: " + messageSize);
+        if (messageSize >= 0) return;
         
         m_pendingTxnBytes -= messageSize;
         m_pendingTxnCount--;
@@ -679,6 +771,12 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
                 offBackPressure.notifyObservers(hstore_site);
             }
         }
+    }
+    
+
+    public void startAcceptingConnections() throws IOException {
+        if (this.network_backup_off != null) this.network_backup_off.start(); 
+        m_acceptor.start();
     }
 
 //    /**
@@ -842,10 +940,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
     
 
-    /**
-     * Tick counter used to perform dead client detection every N ticks
-     */
-    private long m_tickCounter = 0;
 
     /**
      * Check for dead connections by providing each connection with the current
@@ -902,9 +996,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         }
     }
 
-    public void startAcceptingConnections() throws IOException {
-        m_acceptor.start();
-    }
 
     @Override
     public void goDumpYourself(long timestamp) {

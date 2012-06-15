@@ -34,13 +34,6 @@ public interface ClientResponse extends Poolable {
     public long getClientHandle();
     
     /**
-     * Returns true if the node that that this executed on wants this client
-     * to throttle itself because it is overloaded. It is up to the client
-     * to decide whether it wants to do that or not, and how long it will be throttled 
-     */
-    public boolean getThrottleFlag();
-
-    /**
      * Return the internal request counter of the node that this transaction
      * executed on. This is used to determine when to unblocked throttled clients.
      */
