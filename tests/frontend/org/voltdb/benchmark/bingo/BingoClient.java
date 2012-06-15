@@ -157,7 +157,8 @@ public class BingoClient extends BenchmarkComponent {
                         (long)t.tid);
             }
             this.getClientHandle().drain();
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
         return true;
