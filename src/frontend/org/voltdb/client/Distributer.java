@@ -27,7 +27,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -833,6 +832,7 @@ class Distributer {
             new ColumnInfo( "TIMES_RESTARTED", VoltType.BIGINT)
     };
 
+    @SuppressWarnings("unused")
     VoltTable getProcedureStats(final boolean interval) {
         final Long now = System.currentTimeMillis();
         final VoltTable retval = new VoltTable(procedureStatsColumns);

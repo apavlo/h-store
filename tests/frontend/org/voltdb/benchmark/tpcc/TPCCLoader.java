@@ -884,6 +884,10 @@ public class TPCCLoader extends BenchmarkComponent {
             }
         }
         LOG.info("Finished loading all warehouses");
-        this.getClientHandle().drain();
+        try {
+            this.getClientHandle().drain();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }

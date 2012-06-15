@@ -178,7 +178,7 @@ public class BlockingClient extends Semaphore implements Client {
      * @see org.voltdb.client.Client#drain()
      */
     @Override
-    public void drain() throws NoConnectionsException {
+    public void drain() throws NoConnectionsException, InterruptedException {
         this.inner.drain();
     }
 

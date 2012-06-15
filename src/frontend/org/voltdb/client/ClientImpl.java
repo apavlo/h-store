@@ -76,7 +76,7 @@ final class ClientImpl implements Client {
     private int m_partitionSiteXref[];
     private final HStoreConf m_hstoreConf;
     private final ProfileMeasurement m_queueTime = new ProfileMeasurement("queue");
-    
+
     /** Create a new client without any initial connections. */
     ClientImpl() {
         this( 128, new int[] {
@@ -117,27 +117,25 @@ final class ClientImpl implements Client {
             StatsUploaderSettings statsSettings,
             Catalog catalog) {
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
-        
+
         m_hstoreConf = HStoreConf.singleton(true);
-        m_backpressureWait = m_hstoreConf.client.throttle_backoff;
-        
+
         if (catalog != null && m_hstoreConf.client.txn_hints) {
             m_catalog = catalog;
             m_catalogDb = CatalogUtil.getDatabase(m_catalog);
             m_pEstimator = new PartitionEstimator(m_catalogDb);
             m_partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(m_catalog);
-        }
-        
+    }
+
         m_distributer = new Distributer(
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
                 heavyweight,
-                statsSettings,
-                m_backpressureWait);
+                statsSettings);
         m_distributer.addClientStatusListener(new CSL());
     }
 
-     /**
+    /**
      * Create a connection to another VoltDB node.
      * @param host
      * @param password
@@ -155,7 +153,7 @@ final class ClientImpl implements Client {
         final String subPassword = (password == null) ? "" : password;
         m_distributer.createConnection(site_id, host, port, subProgram, subPassword);
     }
-    
+
     /**
      * Synchronously invoke a procedure call blocking until a result is available.
      * @param procName class name (not qualified by package) of the procedure to execute.
@@ -187,7 +185,7 @@ final class ClientImpl implements Client {
                 throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }
         }
-        
+
         long start = ProfileMeasurement.getTime();
         m_distributer.queue(
                 invocation,
@@ -276,7 +274,7 @@ final class ClientImpl implements Client {
                 // OPTIMIZATION: If this isn't a sysproc, then we can tell them
                 // what the base partition for this request will be
                 if (catalog_proc.getSystemproc() == false) {
-                    try {
+            try {
                         Integer partition = m_pEstimator.getBasePartition(invocation);
                         if (partition != null) {
                             site_id = m_partitionSiteXref[partition.intValue()];
@@ -285,10 +283,10 @@ final class ClientImpl implements Client {
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
                     }
-                }
             }
         }
-        
+            }
+
         if (m_blockingQueue) {
             long start = ProfileMeasurement.getTime();
             while (!m_distributer.queue(invocation, callback, expectedSerializedSize, true, site_id)) {
@@ -308,7 +306,7 @@ final class ClientImpl implements Client {
         }
     }
 
-    public void drain() throws NoConnectionsException {
+    public void drain() throws NoConnectionsException, InterruptedException {
         if (m_isShutdown) {
             return;
         }
@@ -346,17 +344,17 @@ final class ClientImpl implements Client {
 //                    if (debug.get())
                         LOG.info(String.format("Blocking client due to backup pressure [backPressure=%s, #connections=%d]",
                                                 m_backpressure, m_distributer.getConnectionCount()));
-                    m_backpressureLock.wait(m_backpressureWait);
+                    m_backpressureLock.wait();
                     m_backpressure = false;
                     if (debug.get())
                         LOG.debug(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
                     break;
-                }
+                } // WHILE
             } // SYNCH
         }
     }
 
-    private class CSL implements ClientStatusListener {
+    class CSL implements ClientStatusListener {
 
         @Override
         public void backpressure(boolean status) {
@@ -382,6 +380,10 @@ final class ClientImpl implements Client {
             }
         }
 
+        @Override
+        public void uncaughtException(ProcedureCallback callback, ClientResponse r, Throwable e) {
+        }
+
     }
      /****************************************************
                         Implementation
@@ -392,7 +394,6 @@ final class ClientImpl implements Client {
     // static final Logger LOG = Logger.getLogger(ClientImpl.class.getName());  // Logger shared by client package.
     private final Distributer m_distributer;                             // de/multiplexes connections to a cluster
     private final Object m_backpressureLock = new Object();
-    private final int m_backpressureWait;
     private boolean m_backpressure = false;
 
     private boolean m_blockingQueue = true;

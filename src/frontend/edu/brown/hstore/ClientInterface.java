@@ -57,6 +57,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
@@ -754,10 +755,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         }
     }
 
-    public void reduceBackpressure(int messageSize)
+    public void reduceBackpressure(final int messageSize)
     {
-        if (debug.get()) LOG.debug("Reducing Backpressure: " + messageSize);
-        if (messageSize >= 0) return;
+        if (debug.get()) 
+            LOG.debug("Reducing Backpressure: " + messageSize);
         
         m_pendingTxnBytes -= messageSize;
         m_pendingTxnCount--;
@@ -772,7 +773,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             }
         }
     }
-    
 
     public void startAcceptingConnections() throws IOException {
         if (this.network_backup_off != null) this.network_backup_off.start(); 
