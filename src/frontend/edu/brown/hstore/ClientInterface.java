@@ -577,7 +577,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
     // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
     // on average if clients present constant uninterrupted load.
-    private final static int MAX_DESIRED_PENDING_BYTES = 20; // 67108864;
+    private final static int MAX_DESIRED_PENDING_BYTES = 67108864;
     private final static int MAX_DESIRED_PENDING_TXNS = 15000;
     private long m_pendingTxnBytes = 0;
     private int m_pendingTxnCount = 0;
