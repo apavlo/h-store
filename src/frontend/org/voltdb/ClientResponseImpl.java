@@ -175,7 +175,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 4 = 26 
+        b.put(26, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 4 = 26 
     }
     
     // ----------------------------------------------------------------------------
@@ -272,15 +272,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        in.readByte();//Skip version byte
-        requestCounter = in.readInt();
-        txn_id = in.readLong();
-        clientHandle = in.readLong();
-        singlepartition = in.readBoolean();
-        basePartition = in.readInt();
+        in.readByte();//Skip version byte   // 1 byte
+        requestCounter = in.readInt();      // 4 bytes
+        txn_id = in.readLong();             // 8 bytes
+        clientHandle = in.readLong();       // 8 bytes
+        singlepartition = in.readBoolean(); // 1 byte
+        basePartition = in.readInt();       // 4 bytes
+        status = Status.valueOf(in.readByte()); // 1 byte
         
-        byte presentFields = in.readByte();
-        status = Status.valueOf(in.readByte());
+        byte presentFields = in.readByte(); // 1 byte
         if ((presentFields & (1 << 5)) != 0) {
             statusString = in.readString();
         } else {
@@ -311,6 +311,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeInt(basePartition);
+        out.write((byte)status.ordinal());
         
         byte presentFields = 0;
         if (appStatusString != null) {
@@ -323,7 +324,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             presentFields |= 1 << 5;
         }
         out.writeByte(presentFields);
-        out.write((byte)status.ordinal());
+        
         if (statusString != null) {
             out.writeString(statusString);
         }
