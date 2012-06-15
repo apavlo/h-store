@@ -45,19 +45,36 @@ public class TestClientResponseImpl extends TestCase {
     }
     
     /**
-     * testSetThrottleFlag
+     * testSetBasePartition
      */
-    public void testSetThrottleFlag() throws Exception {
+    public void testSetBasePartition() throws Exception {
         byte[] invocation_bytes = FastSerializer.serialize(cr);
         assertNotNull(invocation_bytes);
         
-        for (boolean throttle : new boolean[] { true, false, true, false, false, true }) {
+        for (int partition : new int[]{ 1, 10, 100}) {
             ByteBuffer b = ByteBuffer.wrap(invocation_bytes);
-            ClientResponseImpl.setThrottleFlag(b, throttle);
+            ClientResponseImpl.setBasePartition(b, partition);
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
             assertNotNull(clone);
-            assertEquals(throttle, clone.getThrottleFlag());
+            assertEquals(partition, clone.getBasePartition());
+        } // FOR
+    }
+    
+    /**
+     * testSetStatus
+     */
+    public void testSetStatus() throws Exception {
+        byte[] invocation_bytes = FastSerializer.serialize(cr);
+        assertNotNull(invocation_bytes);
+        
+        for (Status s : Status.values()) {
+            ByteBuffer b = ByteBuffer.wrap(invocation_bytes);
+            ClientResponseImpl.setStatus(b, s);
+            FastDeserializer fds = new FastDeserializer(invocation_bytes);
+            ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
+            assertNotNull(clone);
+            assertEquals(s, clone.getStatus());
         } // FOR
     }
     
