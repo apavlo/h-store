@@ -12,6 +12,10 @@
  *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
  *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
+ *  Modifications by:                                                      *
+ *  Alex Kalinin (akalinin@cs.brown.edu)                                   *
+ *  http://www.cs.brown.edu/~akalinin/                                     *
+ *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -33,132 +37,153 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.tpce.TPCEConstants;
-import edu.brown.benchmark.tpce.util.ProcedureUtil;
-
-/**
+/** 
  * Trade-Lookup transaction <br/>
  * TPC-E section 3.3.3
+ * 
+ * H-Store exceptions:
+ *   1) There are a lot of output parameters for some frames. Although, since they are not required for the transaction's
+ *      output, we do not retrieve them from tables, but the statements are executed anyway
+ *   2) getTrade_frame2, getTrade_frame3 SQL: LIMIT is set to 20 (the default value for the EGen), however it must be 'max_trade' parameter.
+ *      H-Store does not support variable limits
+ *   3) getHoldingHistory is modified to use a self-join instead of an "IN". H-Store does not support "IN"
+ *   4) getTrade_frame2 and _frame3 are given "CMPT" string as parameter, since we cannot specify it in the SQL query string -- parser error
  */
 public class TradeLookup extends VoltProcedure {
+    private final VoltTable trade_lookup_ret_template_frame1 = new VoltTable(
+            new VoltTable.ColumnInfo("is_cash", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("is_market", VoltType.INTEGER)
+    );
+    private final VoltTable trade_lookup_ret_template_frame23 = new VoltTable(
+            new VoltTable.ColumnInfo("is_cash", VoltType.INTEGER),
+            new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT)
+    );
+    private final VoltTable trade_lookup_ret_template_frame4 = new VoltTable(
+            new VoltTable.ColumnInfo("trade_id", VoltType.BIGINT)
+    );
 
-    public final SQLStmt getTrade_frame1 = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, TT_IS_MRKT, T_TRADE_PRICE " + "from TRADE, TRADE_TYPE " + "where T_ID = ? and T_TT_ID = TT_ID");
+    public final SQLStmt getTrade_frame1 = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, TT_IS_MRKT, T_TRADE_PRICE from TRADE, TRADE_TYPE where T_ID = ? and T_TT_ID = TT_ID");
 
-    public final SQLStmt getSettlement = new SQLStmt("select SE_AMT, SE_CASH_DUE_DATE, SE_CASH_TYPE " + "from SETTLEMENT " + "where SE_T_ID = ?");
+    public final SQLStmt getSettlement = new SQLStmt("select SE_AMT, SE_CASH_DUE_DATE, SE_CASH_TYPE from SETTLEMENT where SE_T_ID = ?");
 
     public final SQLStmt getCash = new SQLStmt("select CT_AMT, CT_DTS, CT_NAME from CASH_TRANSACTION where CT_T_ID = ?");
 
     public final SQLStmt getTradeHistory = new SQLStmt("select TH_DTS, TH_ST_ID from TRADE_HISTORY where TH_T_ID = ? order by TH_DTS");
+    
 
-    // Note: The parameter max_trade should be used for the LIMIT value but
-    // we don't support parameters in the LIMIT clause. Hardcoding to 20 for
-    // now.
-    public final SQLStmt getTrade_frame2 = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE " + "from TRADE " + "where T_CA_ID = ? and T_DTS >= ? and T_DTS <= ? "
-            + "order by T_DTS asc limit 20"); // limit ?
+    public final SQLStmt getTrade_frame2 = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE from TRADE " +
+            "where T_CA_ID = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? order by T_DTS asc limit 20");
 
-    // Note: The parameter max_trade should be used for the LIMIT value but
-    // we don't support parameters in the LIMIT clause. Hardcoding to 20 for
-    // now.
-    // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass
-    // as parameter
-    public final SQLStmt getTrade_frame3 = new SQLStmt("select T_CA_ID, T_EXEC_NAME, T_IS_CASH, T_TRADE_PRICE, T_QTY, T_DTS, T_ID, T_TT_ID " + "from TRADE "
-            + "where T_S_SYMB = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? " // T_ST_ID='CMPT'
-            + "order by T_DTS asc limit 20"); // limit ?
+    
+    public final SQLStmt getTrade_frame3 = new SQLStmt("select T_CA_ID, T_EXEC_NAME, T_IS_CASH, T_TRADE_PRICE, T_QTY, T_DTS, T_ID, T_TT_ID " +
+            "from TRADE where T_S_SYMB = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? order by T_DTS asc limit 20");
 
-    public final SQLStmt getTrade_frame4 = new SQLStmt("select T_ID from TRADE " + "where T_CA_ID = ? and T_DTS >= ? " + "order by T_DTS asc limit 1");
+    public final SQLStmt getTrade_frame4 = new SQLStmt("select T_ID from TRADE where T_CA_ID = ? and T_DTS >= ? order by T_DTS asc limit 1");
 
     // modified to use join
-    public final SQLStmt getHoldingHistory = new SQLStmt("select HH_H_T_ID, HH_T_ID, HH_BEFORE_QTY, HH_AFTER_QTY from " + "HOLDING_HISTORY where HH_H_T_ID = HH_T_ID and HH_T_ID = ?");
+    public final SQLStmt getHoldingHistory = new SQLStmt("select HH_H_T_ID, HH_T_ID, HH_BEFORE_QTY, HH_AFTER_QTY from HOLDING_HISTORY where HH_H_T_ID = HH_T_ID and HH_T_ID = ?");
 
     public VoltTable[] run(long[] trade_ids, long acct_id, long max_acct_id, long frame_to_execute, long max_trades, TimestampType end_trade_dts, TimestampType start_trade_dts, String symbol)
             throws VoltAbortException {
-        Map<String, Object[]> ret = new HashMap<String, Object[]>();
-
-        /** FRAME 1 **/
-        if (1 == frame_to_execute) {
-            ret.put("t_num_found", new Object[] { max_trades });
-
+            
+        VoltTable result = null;
+        
+        // all frames are mutually exclusive here -- the frame number is a parameter
+        if (frame_to_execute == 1) {
             for (int i = 0; i < max_trades; i++) {
-                ProcedureUtil.execute(ret, this, getTrade_frame1, new Object[] { trade_ids[i] }, new String[] { "bid_price", "exec_name", "is_cash", "is_market", "trade_price" }, new Object[] {
-                        "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "TT_IS_MRKT", "T_TRADE_PRICE" });
-
-                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { trade_ids[i] }, new String[] { "settlement_amount", "settlement_cash_due_date", "settlement_cash_type" }, new Object[] {
-                        "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
-
-                if (ret.get("is_cash")[i].equals(TPCEConstants.TRUE)) {
-                    ProcedureUtil.execute(ret, this, getCash, new Object[] { trade_ids[i] }, new String[] { "cash_transaction_amount", "cash_transaction_dts", "cash_transaction_name" }, new Object[] {
-                            "CT_AMT", "CT_DTS", "CT_NAME" });
-                }
-
-                ProcedureUtil.execute(ret, this, getTradeHistory, new Object[] { trade_ids[i] }, new String[] { "trade_history", "trade_history_status_id" }, new Object[] { "TH_DTS", "TH_ST_ID" });
+                voltQueueSQL(getTrade_frame1, trade_ids[i]);
+                voltQueueSQL(getSettlement, trade_ids[i]);
+                voltQueueSQL(getTradeHistory, trade_ids[i]);
             }
-
-            return ProcedureUtil.mapToTable(ret);
-
-            /** FRAME 2 **/
-        } else if (2 == frame_to_execute) {
-
-            int row_count = ProcedureUtil.execute(ret, this, getTrade_frame2, new Object[] { acct_id, "CMPT", start_trade_dts, end_trade_dts, max_trades }, new String[] { "bid_price", "exec_name",
-                    "is_cash", "trade_list", "trade_price" }, new Object[] { "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "T_ID", "T_TRADE_PRICE" });
-
-            ret.put("num_found", new Object[] { row_count });
-
-            for (int i = 0; i < row_count; i++) {
-
-                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { ret.get("trade_list")[i] }, new String[] { "settlement_amount", "settlement_cash_due_date", "settlement_cash_type" },
-                        new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
-
-                if (!ret.get("is_cash")[i].equals(TPCEConstants.TRUE)) {
-                    ProcedureUtil.execute(ret, this, getCash, new Object[] { ret.get("trade_list")[i] }, new String[] { "cash_transaction_amount", "cash_transaction_dts", "cash_transaction_name" },
-                            new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
+            
+            VoltTable[] res = voltExecuteSQL();
+            int[] is_cash = new int[(int)max_trades];
+            int[] is_market = new int[(int)max_trades];
+            
+            for (int i = 0; i < max_trades; i++) {
+                VoltTable trade = res[3 * i];
+                VoltTable settle = res[3 * i + 1];
+                VoltTable hist = res[3 * i + 2];
+                assert trade.getRowCount() == 1;
+                assert settle.getRowCount() == 1;
+                assert hist.getRowCount() == 2 || hist.getRowCount() == 3;
+                
+                /*
+                 * we should "retrieve" some values here, however only is_cash and is_mrkt are required
+                 * other values just serve as frame OUT params
+                 * the values are in memory so it would not be cheating not to retrieve them -- it's cheap anyway
+                 */
+                VoltTableRow trade_row = trade.fetchRow(0);
+                is_cash[i] = (int)trade_row.getLong("T_IS_CASH");
+                is_market[i] = (int)trade_row.getLong("TT_IS_MRKT");
+                
+                if (is_cash[i] == 1) {
+                    voltQueueSQL(getCash, trade_ids[i]);
                 }
-
-                ProcedureUtil.execute(ret, this, getTradeHistory, new Object[] { ret.get("trade_list")[i] }, new String[] { "trade_history_dts", "trade_history_status_id" }, new Object[] { "TH_DTS",
-                        "TH_ST_ID" });
             }
-
-            return ProcedureUtil.mapToTable(ret);
-        } else if (3 == frame_to_execute) {
-
-            int row_count = ProcedureUtil.execute(ret, this, getTrade_frame3, new Object[] { symbol, "CMPT", max_trades }, new String[] { "acct_id", "exec_name", "is_cash", "price", "quantity",
-                    "trade_dts", "trade_list", "trade_type" }, new Object[] { "T_CA_ID", "T_EXEC_NAME", "T_IS_CASH", "T_TRADE_PRIDE", "T_QTY", "T_DTS", "T_ID", "T_TT_ID" });
-
-            ret.put("num_found", new Object[] { row_count });
-
-            for (int i = 0; i < row_count; i++) {
-                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { ret.get("trade_list")[i] }, new String[] { "settlement_amount", "settlement_cash_due_date", "settlement_cash_type" },
-                        new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
-
-                if (ret.get("is_cash")[i].equals(TPCEConstants.TRUE)) {
-                    ProcedureUtil.execute(ret, this, getCash, new Object[] { ret.get("trade_list")[i] }, new String[] { "cash_transaction_amount", "cash_transaction_dts", "cash_transaction_name" },
-                            new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
-                }
-
-                ProcedureUtil.execute(ret, this, getTradeHistory, new Object[] { ret.get("trade_list")[i] }, new String[] { "trade_history_dts", "trade_history_status_id" }, new Object[] { "TH_DTS",
-                        "TH_ST_ID" });
+            
+            voltExecuteSQL(); // for possible cash transactions; the result is not needed for the client
+            
+            // results
+            result = trade_lookup_ret_template_frame1.clone(256);
+            for (int i = 0; i < max_trades; i++) {
+                result.addRow(is_cash[i], is_market[i]);
             }
-
-            return ProcedureUtil.mapToTable(ret);
-        } else {
-            assert (4 == frame_to_execute);
-
-            ProcedureUtil.execute(ret, this, getTrade_frame4, new Object[] { acct_id, start_trade_dts }, new String[] { "trade_id" }, new Object[] { "T_ID" });
-
-            int row_count = ProcedureUtil.execute(ret, this, getHoldingHistory, new Object[] { ret.get("trade_id")[0] }, new String[] { "holding_history_id", "holding_history_trade_id",
-                    "quantity_before", "quantity_after" }, new Object[] { "HH_H_T_ID", "HH_T_ID", "HH_BEFORE_QTY", "HH_AFTER_QTY" });
-
-            ret.put("num_found", new Object[] { row_count });
-
-            return ProcedureUtil.mapToTable(ret);
         }
+        else if (frame_to_execute == 2 || frame_to_execute == 3) {
+            if (frame_to_execute == 2) {
+                voltQueueSQL(getTrade_frame2, acct_id, "CMPT", start_trade_dts, end_trade_dts);
+            }
+            else {
+                voltQueueSQL(getTrade_frame3, symbol, "CMPT", start_trade_dts, end_trade_dts);
+            }
+            
+            VoltTable trades = voltExecuteSQL()[0];
+            
+            result = trade_lookup_ret_template_frame23.clone(256);
+            for (int i = 0; i < trades.getRowCount(); i++) {
+                VoltTableRow trade_row = trades.fetchRow(i);
+                
+                long trade_id = trade_row.getLong("T_ID");
+                int is_cash = (int)trade_row.getLong("T_IS_CASH");
+                
+                voltQueueSQL(getSettlement, trade_id);
+                voltQueueSQL(getTradeHistory, trade_id);
+                if (is_cash == 1) {
+                    voltQueueSQL(getCash, trade_id);
+                }
+                
+                voltExecuteSQL(); // the client does not need the results
+                
+                result.addRow(is_cash, trade_id);               
+            }
+        }
+        else if (frame_to_execute == 4) {
+            voltQueueSQL(getTrade_frame4, acct_id, start_trade_dts);
+            VoltTable trades = voltExecuteSQL()[0];
+            
+            result = trade_lookup_ret_template_frame4.clone(128);
+            
+            // there might be a case of no trades
+            if (trades.getRowCount() > 0) {
+                long trade_id = trades.fetchRow(0).getLong("T_ID");
+                result.addRow(trade_id);
+                
+                voltQueueSQL(getHoldingHistory, trade_id);
+                voltExecuteSQL(); // the client does not need the results
+            }
+        }
+        else {
+            assert false;
+        }
+        
+        return new VoltTable[] {result};
     }
-
 }
