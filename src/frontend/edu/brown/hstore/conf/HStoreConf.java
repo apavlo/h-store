@@ -221,11 +221,11 @@ public final class HStoreConf {
         public boolean exec_db2_redirects;
         
         @ConfigProperty(
-            description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction requests " +
-                        "data on a partition that is different than where it is executing, then it is aborted, rolled back, " +
-                        "and re-executed on the same partition as a multi-partition transaction that touches all partitions. " +
-                        "Note that this is independent of how H-Store decides what partition to execute the transaction's Java " +
-                        "control code on.",
+            description="Always execute transactions as single-partitioned (excluding sysprocs). If a transaction " +
+            		    "requests data on a partition that is different than where it is executing, then it is " +
+            		    "aborted, rolled back, and re-executed on the same partition as a multi-partition transaction " +
+            		    "that touches all partitions. Note that this is independent of how H-Store decides what" +
+            		    "partition to execute the transaction's Java control code on.",
             defaultBoolean=true,
             experimental=false
         )
@@ -242,9 +242,10 @@ public final class HStoreConf {
         public boolean exec_voltdb_procinfo;
         
         @ConfigProperty(
-            description="Always execute each transaction on a random partition on the node where the request originally " +
-                        "arrived on. Note that this is independent of whether the transaction is selected to be " +
-                        "single-partitioned or not. It is likely that you do not want to use this option.",
+            description="Always execute each transaction on a random partition on the node where the request " +
+            		    "originally arrived on. Note that this is independent of whether the transaction is " +
+            		    "selected to be single-partitioned or not. " +
+            		    "It is likely that you do not want to use this option.",
             defaultBoolean=false,
             experimental=false
         )
@@ -279,11 +280,8 @@ public final class HStoreConf {
         public int exec_preprocessing_threads_count;
         
         @ConfigProperty(
-            description="If this enabled, HStoreSite will use a separate thread to process every outbound " +
-            		    "ClientResponse for all of the PartitionExecutors. This may help with multi-partition " +
-            		    "transactions but will be the bottleneck for single-partition txn heavy workloads " +
-            		    "because the thread must acquire the lock on each partition in order to commit " +
-            		    "or abort a transaction.",
+            description="Use a single TransactionPostProcessor thread per partition on the HStoreSite. " +
+                        "The ${site.exec_postprocessing_thread} parameter must be set to true.",
             defaultBoolean=false,
             experimental=true
         )
@@ -300,9 +298,9 @@ public final class HStoreConf {
         public int exec_postprocessing_threads_count;
         
         @ConfigProperty(
-            description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation " +
-            		    "in the EE for the last transaction in the queued responses. This will cascade to all other " +
-            		    "queued responses successful transactions that were speculatively executed.",
+            description="If this enabled with speculative execution, then HStoreSite only invoke the commit " +
+            		    "operation in the EE for the last transaction in the queued responses. This will cascade " +
+            		    "to all other queued responses successful transactions that were speculatively executed.",
             defaultBoolean=true,
             experimental=true
         )
@@ -392,14 +390,17 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                description="If set to true, then the MAP phase of a MapReduceTransaction will be " +
+                		    "executed as a distributed transaction that blocks the entire cluster. This " +
+                		    "ensures that the aggregates computed by the MAP phase reads from consistent " +
+                		    "a consistent state of the database.",
                 defaultBoolean=true,
                 experimental=true
         )
         public boolean mr_map_blocking;
         
         @ConfigProperty(
-                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                description="The way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
                 defaultBoolean=true,
                 experimental=true
         )
@@ -629,13 +630,25 @@ public final class HStoreConf {
         public int markov_batch_caching_min;
         
         @ConfigProperty(
-            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
-                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
-                        "system when used with other benchmarks. See edu.brown.hstore.util.NewOrderInspector",
+            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction" +
+            		    "and figure out what partitions it needs without having to use the TransactionEstimator. " +
+            		    "This will crash the system when used with other benchmarks. ",
+            defaultBoolean=false,
+            replacedBy="site.markov_fixed",
+            experimental=true
+        )
+        @Deprecated
+        public boolean exec_neworder_cheat;
+        
+        @ConfigProperty(
+            description="Use a fixed transaction estimator to predict the initial properties of an incoming " +
+                        "transaction request from the client. This is a quick and dirty approximation. " +
+                        "Not all benchmarks are supported and it does not generate predictions updates after " +
+                        "the transaction starts running",
             defaultBoolean=false,
             experimental=true
         )
-        public boolean exec_neworder_cheat;
+        public boolean markov_fixed;
 
         // ----------------------------------------------------------------------------
         // BatchPlanner
@@ -687,8 +700,9 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming initialization " +
-                        "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming " +
+            		    "initialization requests from other HStoreSites. This is useful when ${client.txn_hints} " +
+            		    "is disabled.",
             defaultBoolean=false,
             experimental=false
         )
@@ -711,61 +725,28 @@ public final class HStoreConf {
         public boolean coordinator_redirect_thread;
         
         @ConfigProperty(
-            description="If this enabled, HStoreCoordinator will use an NTP sytle protocol to find the time difference " +
-                        "between sites.",
+            description="If this enabled, HStoreCoordinator will use an NTP style protocol to find the time " +
+            		    "difference between sites in the cluster.",
             defaultBoolean=true,
             experimental=false
         )
         public boolean coordinator_sync_time;
 
         // ----------------------------------------------------------------------------
-        // PartitionExecutorHelper
-        // ----------------------------------------------------------------------------
-    
-        @ConfigProperty(
-            description="How many ms to wait initially before starting the PartitionExecutorHelper after " +
-                        "the HStoreSite has started.",
-            defaultInt=2000,
-            experimental=true
-        )
-        public int helper_initial_delay;
-        
-        @ConfigProperty(
-            description="How often (in ms) should the PartitionExecutorHelper execute to clean up completed transactions.",
-            defaultInt=100,
-            experimental=false
-        )
-        public int helper_interval;
-        
-        @ConfigProperty(
-            description="How many txns can the PartitionExecutorHelper clean-up per partition per round. Any value less " +
-                        "than zero means that it will clean-up all txns it can per round",
-            defaultInt=-1,
-            experimental=true
-        )
-        public int helper_txn_per_round;
-        
-        @ConfigProperty(
-            description="The amount of time after a transaction completes before its resources can be garbage collected " +
-                        "and returned back to the various object pools in the HStoreSite.",
-            defaultInt=100,
-            experimental=true
-        )
-        public int helper_txn_expire;
-        
-        // ----------------------------------------------------------------------------
         // Output Tracing
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="When this property is set to true, all TransactionTrace records will include the stored procedure output result",
+            description="When this property is set to true, all TransactionTrace records will include the stored " +
+            		    "procedure output result",
             defaultBoolean=false,
             experimental=false
         )
         public boolean trace_txn_output;
 
         @ConfigProperty(
-            description="When this property is set to true, all QueryTrace records will include the query output result",
+            description="When this property is set to true, all QueryTrace records will include the query output " +
+            		    "result",
             defaultBoolean=false,
             experimental=false
         )
@@ -790,8 +771,8 @@ public final class HStoreConf {
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears to be hung. " +
-                        "The site is considered hung if it has executed at least one transaction and has " +
+            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears to be " +
+            		    "hung. The site is considered hung if it has executed at least one transaction and has " +
                         "not completed (either committed or aborted) any new transactions since the last time " +
                         "it took a status snapshot.",
             defaultBoolean=false,
@@ -816,16 +797,17 @@ public final class HStoreConf {
         public boolean status_show_txn_info;
 
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include information about each PartitionExecutor, " +
-                        "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
-                        "returned to the client.",
+            description="When this property is set to true, HStoreSite status will include information about each " +
+            		    "PartitionExecutor, such as the number of transactions currently queued, blocked for " +
+            		    "execution, or waiting to have their results returned to the client.",
             defaultBoolean=false,
             experimental=false
         )
         public boolean status_show_executor_info;
         
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include a snapshot of running threads",
+            description="When this property is set to true, HStoreSite status will include a snapshot of running " +
+            		    "threads",
             defaultBoolean=false,
             experimental=false
         )
@@ -1258,28 +1240,32 @@ public final class HStoreConf {
         public String codespeed_branch;
         
         @ConfigProperty(
-            description="",
+            description="Output a breakdown at the end of a benchmark run of the number of transactions " +
+            		    "that each unique client thread executed successfully.",
             defaultBoolean=false,
             experimental=false
         )
         public boolean output_clients;
         
         @ConfigProperty(
-            description="",
+            description="Output a histogram at the end of a benchmark run of the number of transactions " +
+            		    "that each partition executed.",
             defaultBoolean=false,
             experimental=false
         )
         public boolean output_basepartitions;
         
         @ConfigProperty(
-            description="",
+            description="Output a histogram at the end of a benchmark run of the different transaction " +
+            		    "response status codes that the database returned to the clients.",
             defaultBoolean=false,
             experimental=false
         )
         public boolean output_response_status;
         
         @ConfigProperty(
-            description="",
+            description="Print the benchmark results in a JSON parseable format. This is useful for " +
+            		    "running experiments inside of scripts.",
             defaultBoolean=false,
             experimental=false
         )
@@ -1435,8 +1421,13 @@ public final class HStoreConf {
                 this.loadFromArgs(confParams);
             }
         }
+        
+        // ReplacedBy Updated
+        // XXX: Make automatic!
+        site.markov_fixed = site.exec_neworder_cheat;
+        
         // TODO: Remove
-        if (site.exec_neworder_cheat) {
+        if (site.markov_fixed) {
             site.exec_force_singlepartitioned = false;
             site.exec_force_localexecution = false;
         }

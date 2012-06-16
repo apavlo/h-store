@@ -107,7 +107,7 @@ bool InsertExecutor::p_execute(const NValueArray &params) {
     assert(m_inputTable == dynamic_cast<TempTable*>(m_node->getInputTables()[0]));
     assert(m_inputTable);
     assert(m_targetTable);
-    VOLT_TRACE("INPUT TABLE: %s\n", m_inputTable->debug().c_str());
+    VOLT_DEBUG("INPUT TABLE: %s\n", m_inputTable->debug().c_str());
 #ifdef DEBUG
     //
     // This should probably just be a warning in the future when we are
@@ -134,9 +134,10 @@ bool InsertExecutor::p_execute(const NValueArray &params) {
     assert (m_tuple.sizeInValues() == m_inputTable->columnCount());
     TableIterator iterator(m_inputTable);
     while (iterator.next(m_tuple)) {
-        VOLT_TRACE("Inserting tuple '%s' into target table '%s' with table schema: %s",
-                   m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str(),
-                   m_targetTable->schema()->debug().c_str());
+        VOLT_DEBUG("Inserting tuple '%s' into target table '%s'",
+                   m_tuple.debug(m_targetTable->name()).c_str(), m_targetTable->name().c_str());
+        VOLT_TRACE("Target Table %s: %s",
+                   m_targetTable->name().c_str(), m_targetTable->schema()->debug().c_str());
 
         // if there is a partition column for the target table
         if (m_partitionColumn != -1) {
