@@ -214,6 +214,8 @@ bool PersistentTable::insertTuple(TableTuple &source) {
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
+        VOLT_DEBUG("Inserting tuple from %s into materialized view %s [%d]",
+                   m_name.c_str(), m_views[i]->name().c_str(), i);
         m_views[i]->processTupleInsert(source);
     }
 
