@@ -20,4 +20,10 @@ public abstract class InternalTxnMessage extends InternalMessage {
         return (this.ts.getTransactionId());
     }
     
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "::" + this.ts;
+    }
+    
+    
 }

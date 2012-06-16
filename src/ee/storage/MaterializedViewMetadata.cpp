@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstdio>
 #include "boost/shared_array.hpp"
+#include "common/debuglog.h"
 #include "common/types.h"
 #include "common/FatalException.hpp"
 #include "catalog/catalog.h"
@@ -36,6 +37,8 @@ MaterializedViewMetadata::MaterializedViewMetadata(
         PersistentTable *srcTable, PersistentTable *destTable, catalog::MaterializedViewInfo *metadata)
         : m_target(destTable), m_filterPredicate(NULL) {
 
+    m_name = metadata->name();
+            
     // try to load the predicate from the catalog view
     parsePredicate(metadata);
 
@@ -49,6 +52,10 @@ MaterializedViewMetadata::MaterializedViewMetadata(
     {
         int32_t grouping_order_offset = colRefIterator->second->index();
         m_groupByColumns[grouping_order_offset] = colRefIterator->second->column()->index();
+        VOLT_DEBUG("%s GroupByColumn %02d: %s / %d",
+                   m_name.c_str(), grouping_order_offset, 
+                   colRefIterator->second->column()->name().c_str(),
+                   colRefIterator->second->column()->index());
     }
 
     // set up the mapping from input col to output col
@@ -66,10 +73,12 @@ MaterializedViewMetadata::MaterializedViewMetadata(
         if (srcCol) {
             m_outputColumnSrcTableIndexes[destIndex] = srcCol->index();
             m_outputColumnAggTypes[destIndex] = static_cast<ExpressionType>(destCol->aggregatetype());
+            VOLT_DEBUG("Setting column %d to exp type %d/%d", destIndex, destCol->aggregatetype(), m_outputColumnAggTypes[destIndex]);
         }
         else {
             m_outputColumnSrcTableIndexes[destIndex] = -1;
             m_outputColumnAggTypes[destIndex] = EXPRESSION_TYPE_INVALID;
+            VOLT_DEBUG("Setting column %d to exp type %d", destIndex, EXPRESSION_TYPE_INVALID);
         }
     }
 
@@ -127,6 +136,8 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         && (m_filterPredicate->eval(&newTuple, NULL).isFalse()))
         return;
 
+    VOLT_DEBUG("Attempting to insert a new tuple into materialized view %s", m_name.c_str());
+    
     bool exists = findExistingTuple(newTuple);
     if (!exists) {
         // create a blank tuple
@@ -246,8 +257,18 @@ void MaterializedViewMetadata::processTupleDelete(TableTuple &oldTuple) {
 
 bool MaterializedViewMetadata::findExistingTuple(TableTuple &oldTuple, bool expected) {
     // find the key for this tuple (which is the group by columns)
+    VOLT_DEBUG("Building %s Search Key: %s",
+               m_name.c_str(), m_searchKey.debugNoHeader().c_str());
     for (int i = 0; i < m_groupByColumnCount; i++) {
-        m_searchKey.setNValue(i, oldTuple.getNValue(m_groupByColumns[i]));
+        VOLT_DEBUG("GroupByColumn #%d (%s) -> SearchKey #%d (%s)",
+                   m_groupByColumns[i], getTypeName(oldTuple.getType(m_groupByColumns[i])).c_str(),
+                   i, getTypeName(m_searchKey.getType(i)).c_str());
+        try {
+            m_searchKey.setNValue(i, oldTuple.getNValue(m_groupByColumns[i]));
+        } catch (SerializableEEException &e) {
+            VOLT_ERROR("Failed to set %s search key value at offset %d", m_name.c_str(), i);
+            throw;
+        }
     }
 
     // determine if the row exists (create the empty one if it doesn't)

@@ -30,128 +30,102 @@
 
 package edu.brown.benchmark.voter;
 
+import java.io.IOException;
 import java.util.Timer;
-import java.util.Random; 
-import java.util.TimerTask;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.io.IOException; 
 
-import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.NoConnectionsException;
 
-import edu.brown.benchmark.voter.procedures.Vote;
 import edu.brown.benchmark.BenchmarkComponent;
 
-
 public class VoterClient extends BenchmarkComponent {
-	
-    // handy, rather than typing this out several times
-    static final String HORIZONTAL_RULE =
-			"----------" + "----------" + "----------" + "----------" +
-			"----------" + "----------" + "----------" + "----------" + "\n";
-	
-	
-    // Reference to the database connection we will use
-     Client client;
-	
+
     // Phone number generator
     PhoneCallGenerator switchboard;
-	
+
     // Timer for periodic stats printing
     Timer timer;
-	
+
     // Benchmark start time
     long benchmarkStartTS;
-	
+
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
     AtomicBoolean benchmarkComplete = new AtomicBoolean(false);
-	
-	
+
     // voter benchmark state
     AtomicLong acceptedVotes = new AtomicLong(0);
     AtomicLong badContestantVotes = new AtomicLong(0);
     AtomicLong badVoteCountVotes = new AtomicLong(0);
     AtomicLong failedVotes = new AtomicLong(0);
-	
+
     final Callback callback = new Callback();
-	
+
     public static void main(String args[]) {
         BenchmarkComponent.main(VoterClient.class, args, false);
     }
 
     public VoterClient(String args[]) {
         super(args);
-		
-		switchboard = new PhoneCallGenerator(VoterConstants.NUM_CONTESTANTS); 
+        this.switchboard = new PhoneCallGenerator(VoterConstants.NUM_CONTESTANTS);
     }
 
     @Override
     public void runLoop() {
         try {
-            while (true) {				
+            while (true) {
                 // synchronously call the "Vote" procedure
                 try {
-					runOnce(); 
-                }
-                catch (Exception e) {
+                    runOnce();
+                } catch (Exception e) {
                     failedVotes.incrementAndGet();
                 }
-				
+
             } // WHILE
         } catch (Exception e) {
             // Client has no clean mechanism for terminating with the DB.
             e.printStackTrace();
-        } 
+        }
     }
-	
-	@Override
+
+    @Override
     protected boolean runOnce() throws IOException {
-		
-		boolean response = true; 
-		client = this.getClientHandle();
-		
-		// Get the next phone call
-		PhoneCallGenerator.PhoneCall call = switchboard.receive();
-		
-		try {			
-			response = client.callProcedure(callback, 
-											"Vote",
-											call.phoneNumber,
-											call.contestantNumber,
-											VoterConstants.MAX_VOTES);
-			if(response == false)
-				throw new IOException(); 
-			
-		}
-		catch(IOException e) {
-			throw e; 
-		}
-		catch (Exception e) {
-			e.printStackTrace(); 
-		}
-		
-		return response; 
-	}
-	
-	@Override
+        boolean response = true;
+        Client client = this.getClientHandle();
+
+        // Get the next phone call
+        PhoneCallGenerator.PhoneCall call = switchboard.receive();
+
+        try {
+            response = client.callProcedure(callback,
+                                            "Vote",
+                                            call.phoneNumber,
+                                            call.contestantNumber,
+                                            VoterConstants.MAX_VOTES);
+            if (response == false)
+                throw new IOException();
+
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return response;
+    }
+
+    @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[1];
-		procNames[0] = "Vote"; 
+        procNames[0] = "Vote";
         return (procNames);
     }
 
     private class Callback implements ProcedureCallback {
-
-        public Callback() {
-        }
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {

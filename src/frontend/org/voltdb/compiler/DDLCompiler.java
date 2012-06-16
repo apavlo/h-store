@@ -31,6 +31,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.hsqldb.HSQLInterface.HSQLParseException;
 import org.voltdb.VoltType;
@@ -67,6 +68,7 @@ import org.xml.sax.SAXParseException;
  *
  */
 public class DDLCompiler {
+    private static final Logger LOG = Logger.getLogger(DDLCompiler.class);
 
     static final int MAX_COLUMNS = 1024;
     static final int MAX_ROW_SIZE = 1024 * 1024 * 2;
@@ -178,7 +180,7 @@ public class DDLCompiler {
                 stmt = reader.readLine();
                 if (stmt == null) return null;
                 stmt = stmt.trim();
-            }
+                            }
             // record the line number
             retval.lineNo = reader.getLineNumber();
 
@@ -195,16 +197,16 @@ public class DDLCompiler {
                 if (newline.startsWith("--"))
                     continue;
                 stmt += newline + "\n";
-            }
+                }
 
             retval.statement = stmt;
 
         } catch (IOException e) {
             throw compiler.new VoltCompilerException("Unable to read from file");
-        }
+            }
 
-        return retval;
-    }
+            return retval;
+        }
 
     public void fillCatalogFromXML(Catalog catalog, Database db, String xml)
     throws VoltCompiler.VoltCompilerException {
@@ -432,9 +434,9 @@ public class DDLCompiler {
         if (indexNameNoCase.contains("tree"))
             index.setType(IndexType.BALANCED_TREE.getValue());
         else if (indexNameNoCase.contains("array"))
-            index.setType(IndexType.ARRAY.getValue());
+                index.setType(IndexType.ARRAY.getValue());
         else
-            index.setType(IndexType.HASH_TABLE.getValue());
+                index.setType(IndexType.HASH_TABLE.getValue());
 
         // need to set other index data here (column, etc)
         for (int i = 0; i < columns.length; i++) {
@@ -442,6 +444,11 @@ public class DDLCompiler {
             cref.setColumn(columns[i]);
             cref.setIndex(i);
         }
+
+        String msg = "Created index: " + name + " on table: " +
+                     table.getTypeName() + " of type: " + IndexType.get(index.getType()).name();
+
+        m_compiler.addInfo(msg);
 
         indexMap.put(name, index);
     }
@@ -565,6 +572,7 @@ public class DDLCompiler {
             Table srcTable = stmt.tableList.get(0);
             MaterializedViewInfo matviewinfo = srcTable.getViews().add(destTable.getTypeName());
             matviewinfo.setDest(destTable);
+            matviewinfo.setSqltext(query);
             if (stmt.where == null)
                 matviewinfo.setPredicate("");
             else {
@@ -580,9 +588,13 @@ public class DDLCompiler {
             for (int i = 0; i < stmt.groupByColumns.size(); i++) {
                 ParsedSelectStmt.ParsedColInfo gbcol = stmt.groupByColumns.get(i);
                 Column srcCol = srcColumnArray.get(gbcol.index);
-
                 ColumnRef cref = matviewinfo.getGroupbycols().add(srcCol.getTypeName());
-                cref.setColumn(srcCol);
+                // groupByColumns is iterating in order of groups. Store that grouping order
+                // in the column ref index. When the catalog is serialized, it will, naturally,
+                // scramble this order like a two year playing dominos, presenting the data
+                // in a meaningless sequence.
+                cref.setIndex(i);           // the column offset in the view's grouping order
+                cref.setColumn(srcCol);     // the source column from the base (non-view) table
             }
 
             ParsedSelectStmt.ParsedColInfo countCol = stmt.displayColumns.get(stmt.groupByColumns.size());
@@ -601,6 +613,9 @@ public class DDLCompiler {
                 ColumnRef c = pkIndex.getColumns().add(String.valueOf(i));
                 c.setColumn(destColumnArray.get(i));
                 c.setIndex(i);
+                if (LOG.isDebugEnabled())
+                    LOG.debug(String.format("VIEW:%s Group By Columns %02d: %s",
+                            destTable.getName(), i, c.getColumn().fullName()));
             }
             Constraint pkConstraint = destTable.getConstraints().add("MATVIEW_PK_CONSTRAINT");
             pkConstraint.setType(ConstraintType.PRIMARY_KEY.getValue());
@@ -647,7 +662,8 @@ public class DDLCompiler {
         String msg = "Materialized view \"" + viewName + "\" ";
 
         if (stmt.tableList.size() != 1) {
-            msg += "has " + String.valueOf(stmt.tableList.size()) + " when only 1 is allowed.";
+            msg += "has " + String.valueOf(stmt.tableList.size()) + " sources. " +
+            "Only one source view or source table is allowed.";
             throw m_compiler.new VoltCompilerException(msg);
         }
 

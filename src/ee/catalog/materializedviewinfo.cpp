@@ -37,6 +37,7 @@ MaterializedViewInfo::MaterializedViewInfo(Catalog *catalog, CatalogType *parent
     m_childCollections["groupbycols"] = &m_groupbycols;
     m_fields["predicate"] = value;
     m_fields["verticalpartition"] = value;
+    m_fields["sqltext"] = value;
 }
 
 MaterializedViewInfo::~MaterializedViewInfo() {
@@ -53,6 +54,7 @@ void MaterializedViewInfo::update() {
     m_dest = m_fields["dest"].typeValue;
     m_predicate = m_fields["predicate"].strValue.c_str();
     m_verticalpartition = m_fields["verticalpartition"].intValue;
+    m_sqltext = m_fields["sqltext"].strValue.c_str();
 }
 
 CatalogType * MaterializedViewInfo::addChild(const std::string &collectionName, const std::string &childName) {
@@ -93,5 +95,9 @@ const string & MaterializedViewInfo::predicate() const {
 
 bool MaterializedViewInfo::verticalpartition() const {
     return m_verticalpartition;
+}
+
+const string & MaterializedViewInfo::sqltext() const {
+    return m_sqltext;
 }
 

@@ -36,6 +36,7 @@ import java.awt.event.KeyListener;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -60,13 +61,13 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -477,7 +478,7 @@ public class CatalogViewer extends AbstractViewer {
         // ----------------------
         // TABLE INFO
         // ----------------------
-        m[++idx] = new ListOrderedMap<String, Integer>();
+        m[++idx] = new LinkedHashMap<String, Integer>();
         int cols = 0;
         int fkeys = 0;
         int tables = 0;
@@ -511,7 +512,7 @@ public class CatalogViewer extends AbstractViewer {
         // ----------------------
         // PROCEDURES INFO
         // ----------------------
-        m[++idx] = new ListOrderedMap<String, Integer>();
+        m[++idx] = new LinkedHashMap<String, Integer>();
         int procs = 0;
         int sysprocs = 0;
         int params = 0;
@@ -533,7 +534,7 @@ public class CatalogViewer extends AbstractViewer {
         // ----------------------
         // HOST INFO
         // ----------------------
-        m[++idx] = new ListOrderedMap<String, Integer>();
+        m[++idx] = new LinkedHashMap<String, Integer>();
         m[idx].put("Hosts", catalog_clus.getHosts().size());
         m[idx].put("Sites", catalog_clus.getSites().size());
         m[idx].put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
@@ -549,7 +550,7 @@ public class CatalogViewer extends AbstractViewer {
      * @param catalog_obj
      */
     protected String getAttributesText(CatalogType catalog_obj) {
-        final ListOrderedMap<String, Object> map = new ListOrderedMap<String, Object>();
+        final Map<String, Object> map = new LinkedHashMap<String, Object>();
         
 //      StringBuilder buffer = new StringBuilder();
         // buffer.append("guid: ").append(catalog_obj.getGuid()).append("\n");
@@ -578,7 +579,12 @@ public class CatalogViewer extends AbstractViewer {
             show_type.add(Partition.class);
             
             for (String field : catalog_obj.getFields()) {
-                if (skip_fields.contains(field)) continue;
+                
+                if (skip_fields.contains(field)) {
+                    if (LOG.isDebugEnabled())
+                        LOG.warn(String.format("Skipping %s.%s", catalog_obj.getClass().getSimpleName(), field));
+                    continue;
+                }
                 
                 // Default
                 Object value = catalog_obj.getField(field);
@@ -601,21 +607,21 @@ public class CatalogViewer extends AbstractViewer {
                     } else {
                         map.put(field, catalog_item);
                     }
-                } 
+                }
                 
-                // Constraint
+                // CONSTRAINT
                 else if (catalog_obj instanceof Constraint) {
                     if (field == "type") {
                         map.put(field, ConstraintType.get((Integer)value));
                     }
                 }
-                // Index
+                // INDEX
                 else if (catalog_obj instanceof Index) {
                     if (field == "type") {
                         map.put(field, IndexType.get((Integer)value));
                     }
                 }
-                // Column / StmtParameter / ProcParameter
+                // COLUMN / STMTPARAMETER / PROCPARAMETER
                 else if (catalog_obj instanceof Column || catalog_obj instanceof StmtParameter || catalog_obj instanceof ProcParameter) {
                     String keys[] = { "type", "sqltype", "javatype", "defaultvaluetype" };
                     for (String key : keys) {
@@ -658,39 +664,62 @@ public class CatalogViewer extends AbstractViewer {
             Collection<Constraint> consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
             map.put("constraints", CatalogUtil.getDisplayNames(consts));
         }
+        // MATERIALIZEDVIEWINFO
+        else if (catalog_obj instanceof MaterializedViewInfo) {
+            MaterializedViewInfo catalog_view = (MaterializedViewInfo)catalog_obj;
+            Collection<ColumnRef> cols = catalog_view.getGroupbycols();
+            map.put("groupbycols", CatalogUtil.debug(CatalogUtil.getColumns(cols)));
+        }
         
-        StringBuilder buffer = new StringBuilder(StringUtil.formatMaps(map));
+        StringBuilder sb = new StringBuilder(StringUtil.formatMaps(map));
         
         // DATABASE
         if (catalog_obj instanceof Database) {
-            buffer.append(StringUtil.SINGLE_LINE);
-            buffer.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));
+            sb.append(StringUtil.SINGLE_LINE);
+            sb.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));
         }
         // PLANFRAGMENT
         else if (catalog_obj instanceof PlanFragment) {
             PlanFragment catalog_frgmt = (PlanFragment)catalog_obj;
             try {
                 AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frgmt);
-                buffer.append(StringUtil.SINGLE_LINE);
-                buffer.append(PlanNodeUtil.debug(node));
+                sb.append(StringUtil.SINGLE_LINE);
+                sb.append(PlanNodeUtil.debug(node));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         // TABLE
         else if (catalog_obj instanceof Table) {
-            buffer.append(StringUtil.SINGLE_LINE);
-            buffer.append("\n").append(CatalogUtil.toSchema((Table)catalog_obj)).append("\n");
+            sb.append(StringUtil.SINGLE_LINE);
+            Table catalog_tbl = (Table)catalog_obj;
+            
+            // MATERIALIZED VIEW
+            if (catalog_tbl.getMaterializer() != null) {
+                Table parent = catalog_tbl.getMaterializer();
+                MaterializedViewInfo catalog_view = parent.getViews().get(catalog_tbl.getName());
+                assert(catalog_view != null) :
+                    "Unexpected null MaterializedViewInfo '" + catalog_tbl.getName() + "'";
+                sb.append(MaterializedViewInfo.class.getSimpleName()).append("\n");
+                sb.append(this.getAttributesText(catalog_view));
+                
+                SQLFormatter f = new SQLFormatter(catalog_view.getSqltext());
+                sb.append(StringUtil.SINGLE_LINE);
+                sb.append("\n").append(f.format()).append("\n");
+            } else {
+                String schema = CatalogUtil.toSchema(catalog_tbl);
+                sb.append("\n").append(schema).append("\n");
+            }
         }
         // Statement
         else if (catalog_obj instanceof Statement) {
             Statement catalog_stmt = (Statement)catalog_obj;
             SQLFormatter f = new SQLFormatter(catalog_stmt.getSqltext());
-            buffer.append(StringUtil.SINGLE_LINE);
-            buffer.append("\n").append(f.format()).append("\n");
+            sb.append(StringUtil.SINGLE_LINE);
+            sb.append("\n").append(f.format()).append("\n");
         }
 
-        return (buffer.toString());
+        return (sb.toString());
     }
     
     public class CatalogTreeRenderer extends DefaultTreeCellRenderer {

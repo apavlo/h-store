@@ -1005,7 +1005,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return (batch_results);
         }
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
-
+        
         // Workload Trace - Start Query
         if (this.workloadTraceEnable && workloadTxnHandle != null) {
             workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(workloadTxnHandle);
@@ -1015,7 +1015,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                                                                 batchQueryStmts[i].catStmt,
                                                                                 batchQueryArgs[i],
                                                                                 workloadBatchId);
+                
                 assert(queryHandle != null);
+                
                 workloadQueryHandles.add(queryHandle);
             }
         }

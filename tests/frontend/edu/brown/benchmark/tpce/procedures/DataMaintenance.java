@@ -7,6 +7,10 @@
  *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
  *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
+ *  Modifications by:                                                      *
+ *  Alex Kalinin (akalinin@cs.brown.edu)                                   *
+ *  http://www.cs.brown.edu/~akalinin/                                     *
+ *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -36,9 +40,22 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.tpce.TPCEConstants;
+
 /**
  * DataMaintenance Transaction <br/>
  * TPC-E Section 3.3.11
+ * 
+ * H-Store quirks:
+ *  1) CUSTOMER_TAXRATE part uses the MySQL version instead of the official one.
+ *  2) For DAILY_MARKET it is hard to get the day of the month in the SQL query itself. So, we go through them one-by-one, starting
+ *     from the initial year (specified in TPCEConstants) until the last history year (also in TPCEConstants).
+ *  3) For EXCHANGE, substring is, again, unsupported. So, the table is scanned and updated (it contains 4 rows only).
+ *  4) FINANCIAL has the same problem -- no substring. The row is retrieved and then the decision is made.
+ *  5) For NEWS_ITEM it is impossible to increment the date. So, we retrieve the date via join and update separately.
+ *  6) SECURITY the same as for NEWS_ITEM, except join is not needed.
+ *  7) For WATCH_LIST, selectMaxCommonWatchList selects the maximum id for a "common" watch list. It is done differently in the official
+ *     specification, but this should work too. The problem is that sub-queries and distinct? are not supported. 
  */
 public class DataMaintenance extends VoltProcedure {
 
@@ -81,7 +98,7 @@ public class DataMaintenance extends VoltProcedure {
 
     public final SQLStmt deleteCustomerTaxrate = new SQLStmt("DELETE FROM customer_taxrate WHERE cx_tx_id = ? AND cx_c_id = ?");
 
-    public final SQLStmt updateDailyMarket = new SQLStmt("UPDATE daily_market SET dm_vol = dm_vol + ? WHERE dm_s_symb = ? AND dm_date > ? AND dm_date < ?");
+    public final SQLStmt updateDailyMarket = new SQLStmt("UPDATE daily_market SET dm_vol = dm_vol + ? WHERE dm_s_symb = ? AND dm_date = ?");
 
     public final SQLStmt selectExchange = new SQLStmt("SELECT ex_id, ex_desc FROM EXCHANGE");
 
@@ -91,7 +108,7 @@ public class DataMaintenance extends VoltProcedure {
 
     public final SQLStmt updateFinancial = new SQLStmt("UPDATE FINANCIAL SET FI_QTR_START_DATE = ? WHERE FI_CO_ID = ?");
 
-    public final SQLStmt selectNewsXref = new SQLStmt("SELECT nx_ni_id FROM news_xref WHERE nx_co_id = ?");
+    public final SQLStmt selectNewsXref = new SQLStmt("SELECT nx_ni_id, ni_dts FROM news_xref, news_item WHERE nx_co_id = ? and nx_ni_id = ni_id");
 
     public final SQLStmt updateNewsItem = new SQLStmt("UPDATE news_item SET ni_dts = ? WHERE ni_id = ?");
 
@@ -107,10 +124,23 @@ public class DataMaintenance extends VoltProcedure {
 
     public final SQLStmt selectWatchItemListCount = new SQLStmt("SELECT COUNT(wi_wl_id) FROM watch_item, watch_list WHERE wl_c_id = ? AND wi_wl_id = wl_id");
 
-    public final SQLStmt selectWatchListMax = new SQLStmt("SELECT max(WL_ID) FROM WATCH_LIST WHERE WL_C_ID = ?");
+    public final SQLStmt selectWatchListCustMax = new SQLStmt("SELECT max(WL_ID) FROM WATCH_LIST WHERE WL_C_ID = ?");
 
+    public final SQLStmt selectWatchListMax = new SQLStmt("SELECT max(WL_ID) FROM WATCH_LIST");
+    
     public final SQLStmt selectWatchItemMax = new SQLStmt("SELECT max(WI_S_SYMB) FROM WATCH_ITEM WHERE WI_WL_ID = ? AND WI_S_SYMB != ? AND WI_S_SYMB != ? AND WI_S_SYMB != ?");
 
+    public final SQLStmt insertWatchList = new SQLStmt("insert into WATCH_LIST(WL_ID, WL_C_ID) values (?, ?)");
+    
+    public final SQLStmt insertWatchItem = new SQLStmt("insert into WATCH_ITEM(WI_WL_ID, WI_S_SYMB) values (?, ?)");
+    
+    public final SQLStmt selectMaxCommonWatchList = new SQLStmt("select max(WI_WL_ID) from WATCH_ITEM " +
+            "where WI_S_SYMB != ? and WI_S_SYMB != ? and WI_S_SYMB != ? group by WI_WL_ID");
+    
+    public final SQLStmt deleteWatchListItems = new SQLStmt("delete from WATCH_ITEM where WI_WL_ID > ?");
+    
+    public final SQLStmt deleteWatchList = new SQLStmt("delete from WATCH_LIST where WL_ID > ?");
+    
     /**
      * @param acct_id
      * @param c_id
@@ -273,13 +303,18 @@ public class DataMaintenance extends VoltProcedure {
 
             // DAILY_MARKET
         } else if (table_name.equals("DAILY_MARKET")) {
-            // PAVLO (2010-06-15)
-            // This one is tricky because we can't just do the sub-string trick
-            // on the date
-            // to pluck out the exact day we want. We probably need to construct
-            // an artificial range
-            voltQueueSQL(updateDailyMarket, vol_incr, symbol, day_of_month, day_of_month); // FIXME
-
+            // See the comment in the header for this table
+            Calendar cal = Calendar.getInstance();
+            cal.set(Calendar.DAY_OF_MONTH, (int)day_of_month);
+            
+            for (int year = 0; year < TPCEConstants.dailyMarketYears; year++) {
+                cal.set(Calendar.YEAR, TPCEConstants.dailyMarketBaseYear + year);
+                for (int month = 0; month < 12; month++) {
+                    cal.set(Calendar.MONTH, month); 
+                    TimestampType t = new TimestampType(cal.getTime());
+                    voltQueueSQL(updateDailyMarket, vol_incr, symbol, t);
+                }
+            }
             // EXCHANGE
         } else if (table_name.equals("EXCHANGE")) {
             // Other than the table_name, no additional
@@ -353,11 +388,12 @@ public class DataMaintenance extends VoltProcedure {
 
             voltQueueSQL(selectNewsXref, co_id);
             VoltTable[] results = voltExecuteSQL();
-            // FIXME
-            // while (results[0].advanceRow()) {
-            // long ni_id = results[0].getLong(0);
-            // voltQueueSQL(updateNewsItem, DAY_MICROSECONDS, ni_id);
-            // } // WHILE
+            while (results[0].advanceRow()) {
+                long ni_id = results[0].getLong(0);
+                TimestampType ni_dts = results[0].getTimestampAsTimestamp(1);
+                
+                voltQueueSQL(updateNewsItem, ni_dts.getTime() + DAY_MICROSECONDS, ni_id);
+             } // WHILE
 
             // SECURITY
         } else if (table_name.equals("SECURITY")) {
@@ -404,24 +440,61 @@ public class DataMaintenance extends VoltProcedure {
             // customer already has a watch list with those items,
             // the watch list will be deleted.
 
-            voltQueueSQL(selectWatchListMax, c_id);
+            voltQueueSQL(selectWatchListCustMax, c_id);
             VoltTable[] results = voltExecuteSQL();
-            assert (results[0].advanceRow());
-            long wl_id = results[0].getLong(0);
-
-            // If the CUSTOMER identified by c_id has a watch
-            // list with "AA", "ZAPS", "ZONS", it would have the
-            // highest WL_ID of that customer's watch lists.
+            
             String symbol1 = "AA";
             String symbol2 = "ZAPS";
             String symbol3 = "ZONS";
-
-            voltQueueSQL(selectWatchItemMax, wl_id, symbol1, symbol2, symbol3);
-            results = voltExecuteSQL();
-
-            // TODO: This needs to be finished!!
-            if (!results[0].advanceRow()) {
-
+            
+            if (results[0].getRowCount() > 0) {
+                assert (results[0].advanceRow());
+                long wl_id = results[0].getLong(0);
+    
+                // If the CUSTOMER identified by c_id has a watch
+                // list with "AA", "ZAPS", "ZONS", it would have the
+                // highest WL_ID of that customer's watch lists.
+                voltQueueSQL(selectWatchItemMax, wl_id, symbol1, symbol2, symbol3);
+                results = voltExecuteSQL();
+    
+                if (results[0].getRowCount() > 0) {
+                    // no "AA", "ZAPS", "ZONS" list
+                    voltQueueSQL(selectWatchListMax);
+                    VoltTable wl = voltExecuteSQL()[0];
+                    
+                    assert wl.getRowCount() == 1;
+                    long last_wl_id = wl.fetchRow(0).getLong(0);
+                    
+                    voltQueueSQL(insertWatchList, last_wl_id + 1, c_id);
+                    voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol1);
+                    voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol2);
+                    voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol3);
+                }
+                else {
+                    // the customer has the list -- remove it for this and all other customers
+                    voltQueueSQL(selectMaxCommonWatchList, symbol1, symbol2, symbol3);
+                    VoltTable wl = voltExecuteSQL()[0];
+                    
+                    assert wl.getRowCount() == 1;
+                    long max_wl_id = wl.fetchRow(0).getLong(0);
+                    
+                    // have to remove all lists with ids greater that that one
+                    voltQueueSQL(deleteWatchListItems, max_wl_id);
+                    voltQueueSQL(deleteWatchList, max_wl_id);
+                }
+            }
+            else {
+                // no watch lists for the customer -- insert this as the only one
+                voltQueueSQL(selectWatchListMax);
+                VoltTable wl = voltExecuteSQL()[0];
+                
+                assert wl.getRowCount() == 1;
+                long last_wl_id = wl.fetchRow(0).getLong(0);
+                
+                voltQueueSQL(insertWatchList, last_wl_id + 1, c_id);
+                voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol1);
+                voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol2);
+                voltQueueSQL(insertWatchItem, last_wl_id + 1, symbol3);
             }
         }
         return (voltExecuteSQL());
