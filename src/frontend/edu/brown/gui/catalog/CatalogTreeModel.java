@@ -166,8 +166,20 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 // Tables
                 tables_node = new CatalogMapTreeNode("Tables", database_cat.getTables());
                 database_node.add(tables_node);
-                for (Table catalog_tbl : database_cat.getTables()) {  
-                    DefaultMutableTreeNode table_node = new DefaultMutableTreeNode(new WrapperNode(catalog_tbl));
+
+                // List data tables first, views second
+                List<Table> tables = new ArrayList<Table>();
+                tables.addAll(CatalogUtil.getDataTables(database_cat));
+                tables.addAll(CatalogUtil.getViewTables(database_cat));
+                
+                for (Table catalog_tbl : tables) {  
+                    WrapperNode wrapper = null;
+                    if (catalog_tbl.getMaterializer() != null) {
+                        wrapper = new WrapperNode(catalog_tbl, "VIEW:"+catalog_tbl.getName());
+                    } else {
+                        wrapper = new WrapperNode(catalog_tbl);
+                    }
+                    DefaultMutableTreeNode table_node = new DefaultMutableTreeNode(wrapper);
                     tables_node.add(table_node);
                     buildSearchIndex(catalog_tbl, table_node);
                     

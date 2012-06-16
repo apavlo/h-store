@@ -35,7 +35,7 @@ public abstract class VoterConstants {
 	public static final int NUM_CONTESTANTS = 6; 
 
 	// Initialize some common constants and variables
-    static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
+    public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
 											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
 											   "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
 }

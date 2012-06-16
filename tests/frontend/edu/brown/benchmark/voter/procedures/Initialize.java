@@ -100,17 +100,14 @@ public class Initialize extends VoltProcedure
             return existingContestantCount;
 		
         // initialize the data
-		
-        for (int i=0; i < maxContestants; i++)
-		{
+        for (int i=0; i < maxContestants; i++) {
             voltQueueSQL(insertContestantStmt, contestantArray[i], i+1);
-			voltExecuteSQL();
+            voltExecuteSQL();
 		}
-		
-        for(int i=0;i<areaCodes.length;i++)
-		{
+        
+        for (int i=0; i < areaCodes.length; i++) {
             voltQueueSQL(insertACSStmt, areaCodes[i], states[i]);
-			voltExecuteSQL();
+            voltExecuteSQL();
 		}
 		
         return maxContestants;

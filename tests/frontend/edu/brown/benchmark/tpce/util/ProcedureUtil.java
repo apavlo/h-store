@@ -94,7 +94,7 @@ public abstract class ProcedureUtil {
      */
     public static int execute(Map<String, Object[]> map, VoltProcedure sp, SQLStmt stmt, Object[] args, String[] keys, Object[] value_refs) {
         LOG.info("Executing SQL: " + stmt);
-
+System.out.println("ProcedureUtil line 97: " + args.length);
         String debug = "PARAMS:";
         for (Object arg : args) {
             debug += " " + arg;
@@ -113,7 +113,7 @@ public abstract class ProcedureUtil {
         assert (keys.length == value_refs.length);
 
         int row_count = table.getRowCount();
-
+System.out.println("ProcedureUtil line 116: " + row_count);
         // each key corresponds to a column of length row_count
         for (String key : keys)
             map.put(key, new Object[row_count]);
@@ -174,7 +174,7 @@ public abstract class ProcedureUtil {
 
         for (String key : keys) {
             Object[] vals = map.get(key);
-
+           
             VoltTable table = new VoltTable(new VoltTable.ColumnInfo(key, ProcedureUtil.getVoltType(vals[0])));
 
             for (Object v : vals) {

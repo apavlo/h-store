@@ -43,6 +43,7 @@ protected:
     CatalogMap<ColumnRef> m_groupbycols;
     std::string m_predicate;
     bool m_verticalpartition;
+    std::string m_sqltext;
 
     virtual void update();
 
@@ -61,6 +62,8 @@ public:
     const std::string & predicate() const;
     /** GETTER: Is this materialized view a vertical partition? */
     bool verticalpartition() const;
+    /** GETTER: The text of the sql statement for this view */
+    const std::string & sqltext() const;
 };
 
 } // namespace catalog

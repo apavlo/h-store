@@ -12,6 +12,10 @@
  *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
  *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
+ *  Modifications by:                                                      *
+ *  Alex Kalinin (akalinin@cs.brown.edu)                                   *
+ *  http://www.cs.brown.edu/~akalinin/                                     *
+ *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -35,21 +39,26 @@ package edu.brown.benchmark.tpce.procedures;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-
-import edu.brown.benchmark.tpce.TPCEConstants;
-import edu.brown.benchmark.tpce.util.ProcedureUtil;
+import org.voltdb.VoltTableRow;
+import org.voltdb.VoltType;
+import org.voltdb.types.TimestampType;
 
 /**
  * TradeResult Transaction <br/>
  * TPC-E Section 3.3.2b
+ * 
+ * H-Store exceptions:
+ *   1) getTaxrate is modified from the specification to use a join instead of a "in" (sub-queries are not supported in H-Store)
+ *   2) Some values retrieved from tables are not used, but required to be passed between frames. Those are "unused values" as in Java.
  */
 public class TradeResult extends VoltProcedure {
+    private final VoltTable trade_result_ret_template = new VoltTable(
+            new VoltTable.ColumnInfo("acct_bal", VoltType.FLOAT)
+    );
 
     public final SQLStmt getTrade = new SQLStmt("select T_CA_ID, T_TT_ID, T_S_SYMB, T_QTY, T_CHRG, T_LIFO, T_IS_CASH from TRADE where T_ID = ?");
 
@@ -67,9 +76,9 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt updateHolding = new SQLStmt("UPDATE holding SET h_qty = ? WHERE h_t_id = ?");
 
-    public final SQLStmt getHoldingDesc = new SQLStmt("select H_T_ID, H_QTY, H_PRICE " + "from HOLDING " + "where H_CA_ID = ? and H_S_SYMB = ? order by H_DTS desc");
+    public final SQLStmt getHoldingDesc = new SQLStmt("select H_T_ID, H_QTY, H_PRICE from HOLDING where H_CA_ID = ? and H_S_SYMB = ? order by H_DTS desc");
 
-    public final SQLStmt getHoldingAsc = new SQLStmt("select H_T_ID, H_QTY, H_PRICE " + "from HOLDING " + "where H_CA_ID = ? and H_S_SYMB = ? order by H_DTS asc");
+    public final SQLStmt getHoldingAsc = new SQLStmt("select H_T_ID, H_QTY, H_PRICE from HOLDING where H_CA_ID = ? and H_S_SYMB = ? order by H_DTS asc");
 
     public final SQLStmt insertHoldingHistory = new SQLStmt("insert into HOLDING_HISTORY (HH_H_T_ID, HH_T_ID, HH_BEFORE_QTY, HH_AFTER_QTY) " + "values (?, ?, ?, ?)");
 
@@ -79,7 +88,7 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt deleteHolding = new SQLStmt("DELETE FROM holding WHERE h_t_id = ?");
 
-    public final SQLStmt getTaxrate = new SQLStmt("select sum(TX_RATE) from TAXRATE, CUSTOMER_TAXRATE " + "where TX_ID = CX_TX_ID and CX_TX_ID = ?");
+    public final SQLStmt getTaxrate = new SQLStmt("select sum(TX_RATE) from TAXRATE, CUSTOMER_TAXRATE where TX_ID = CX_TX_ID and CX_TX_ID = ?");
 
     public final SQLStmt updateTrade1 = new SQLStmt("update TRADE set T_TAX = ? where T_ID = ?");
 
@@ -87,8 +96,8 @@ public class TradeResult extends VoltProcedure {
 
     public final SQLStmt getCustomer = new SQLStmt("select C_TIER from CUSTOMER where C_ID = ?");
 
-    public final SQLStmt getCommissionRate = new SQLStmt("select CR_RATE from COMMISSION_RATE " + "where CR_C_TIER = ? and " + "CR_TT_ID = ? and " + "CR_EX_ID = ? and " + "CR_FROM_QTY <= ? and "
-            + "CR_TO_QTY >= ? " + "limit 1");
+    public final SQLStmt getCommissionRate = new SQLStmt("select CR_RATE from COMMISSION_RATE where CR_C_TIER = ? and CR_TT_ID = ? and CR_EX_ID = ? and CR_FROM_QTY <= ? and "
+            + "CR_TO_QTY >= ? limit 1");
 
     public final SQLStmt updateTrade2 = new SQLStmt("update TRADE set T_COMM = ?, T_DTS = ?, T_ST_ID = ?, T_TRADE_PRICE = ? where T_ID = ?");
 
@@ -103,190 +112,268 @@ public class TradeResult extends VoltProcedure {
     public final SQLStmt insertCashTransaction = new SQLStmt("insert into CASH_TRANSACTION (CT_DTS, CT_T_ID, CT_AMT, CT_NAME) values (?, ?, ?, ?)");
 
     public VoltTable[] run(long trade_id, float trade_price, String st_completed_id) throws VoltAbortException {
-        // frame 1
-        Map<String, Object[]> ret = new HashMap<String, Object[]>();
-
-        ProcedureUtil.execute(ret, this, getTrade, new Object[] { trade_id }, new String[] { "acct_id", "type_id", "symbol", "trade_qty", "charge", "is_lifo", "trade_is_cash" }, new Object[] {
-                "T_CA_ID", "T_TT_ID", "T_S_SYMB", "T_QTY", "T_CHRG", "T_LIFO", "T_IS_CASH" });
-
-        Object acct_id = ret.get("acct_id")[0];
-
-        ProcedureUtil.execute(ret, this, getTradeType, new Object[] { ret.get("type_id")[0] }, new String[] { "type_name", "type_is_sell", "type_is_market" }, new Object[] { "TT_NAME", "TT_IS_SELL",
-                "TT_IS_MRKT" });
-
-        Object symbol = ret.get("symbol")[0];
-        Object trade_qty = ret.get("trade_qty")[0];
-
-        ProcedureUtil.execute(ret, this, getHoldingSummary, new Object[] { acct_id, symbol }, new String[] { "hs_qty" }, new Object[] { "HS_QTY" });
-
-        Integer hs_qty = (Integer) ret.get("hs_qty")[0];
-
-        if (hs_qty == null)
-            ret.put("hs_qty", new Object[] { 0 });
-
-        // frame 2
-        long hold_id, hold_qty, needed_qty;
-        double hold_price;
+        
+        // frame 1: collecting info
+        // info about the trade
+        voltQueueSQL(getTrade, trade_id);
+        VoltTable trade = voltExecuteSQL()[0];
+        
+        assert trade.getRowCount() == 1;
+        VoltTableRow trade_row = trade.fetchRow(0);
+        
+        long acct_id = trade_row.getLong("T_CA_ID");
+        String type_id = trade_row.getString("T_TT_ID");
+        String symbol = trade_row.getString("T_S_SYMB");
+        int trade_qty = (int)trade_row.getLong("T_QTY");
+        double charge = trade_row.getDouble("T_CHRG");
+        int is_lifo = (int)(int)trade_row.getLong("T_LIFO");
+        int trade_is_cash = (int)trade_row.getLong("T_IS_CASH");
+        
+        // info about a  type of the trade and customer's holdings for the symbol
+        voltQueueSQL(getTradeType, type_id);
+        voltQueueSQL(getHoldingSummary, acct_id, symbol);
+        VoltTable[] trade_type_hold = voltExecuteSQL();
+        
+        VoltTable trade_type = trade_type_hold[0];
+        assert trade_type.getRowCount() == 1;
+        VoltTableRow trade_type_row = trade_type.fetchRow(0);
+        
+        String type_name = trade_type_row.getString("TT_NAME");
+        int type_is_sell = (int)(int)trade_type_row.getLong("TT_IS_SELL");
+        int type_is_market = (int)trade_type_row.getLong("TT_IS_MRKT");
+        
+        VoltTable hold_sum = trade_type_hold[1];
+        int hs_qty = 0;
+        if (hold_sum.getRowCount() > 0) {
+            assert hold_sum.getRowCount() == 1;
+            hs_qty = (int)hold_sum.fetchRow(0).getLong("HS_QTY");
+        }
+        
+        // frame 2: modifying the customer's holdings
+        
+        // first, some cusomer's account info
+        voltQueueSQL(getCustomerAccount, acct_id);
+        VoltTable account = voltExecuteSQL()[0];
+        
+        assert account.getRowCount() == 1;
+        VoltTableRow account_row = account.fetchRow(0);
+        
+        long broker_id = account_row.getLong("CA_B_ID");
+        long cust_id = account_row.getLong("CA_C_ID");
+        int tax_status = (int)account_row.getLong("CA_TAX_ST");
+        
+        int needed_qty = trade_qty;
+        double buy_value = 0;
+        double sell_value = 0;
         Date trade_dts = Calendar.getInstance().getTime();
-
-        double buy_value = 0, sell_value = 0;
-        needed_qty = (Long) trade_qty;
-
-        ProcedureUtil.execute(ret, this, getCustomerAccount, new Object[] { acct_id }, new String[] { "broker_id", "cust_id", "tax_status" }, new Object[] { "CA_B_ID", "CA_C_ID", "CA_TAX_ST" });
-
-        long cust_id = (Long) ret.get("cust_id")[0];
-
-        Integer is_lifo = (Integer) ret.get("is_lifo")[0];
-
-        if (ret.get("type_is_sell")[0].equals(TPCEConstants.TRUE)) {
-            if (hs_qty.equals(0)) {
-                ProcedureUtil.execute(this, insertHoldingSummary, new Object[] { acct_id, symbol, -(Integer) trade_qty });
-            } else {
-                if (!hs_qty.equals(trade_qty)) {
-                    ProcedureUtil.execute(this, updateHoldingSummary, new Object[] { (Integer) hs_qty - (Integer) trade_qty, acct_id, symbol });
-                }
-
-                if (hs_qty > 0) {
-
-                    VoltTable hold_list = null;
-
-                    if (is_lifo.equals(TPCEConstants.TRUE)) {
-                        voltQueueSQL(getHoldingDesc, acct_id, symbol);
-                        hold_list = voltExecuteSQL()[0];
-                    } else {
-                        voltQueueSQL(getHoldingAsc, acct_id, symbol);
-                        hold_list = voltExecuteSQL()[0];
-                    }
-
-                    for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
-                        hold_id = hold_list.fetchRow(i).getLong("H_T_ID");
-                        hold_qty = hold_list.fetchRow(i).getLong("H_QTY");
-                        hold_price = hold_list.fetchRow(i).getDouble("H_PRICE");
-
-                        if (hold_qty > needed_qty) {
-                            ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { hold_id, trade_id, hold_qty, hold_qty - needed_qty });
-                            buy_value += needed_qty * hold_price;
-                            sell_value += needed_qty * trade_price;
-                            needed_qty = 0;
-                        } else {
-                            ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { hold_id, trade_id, hold_qty, 0 });
-                            buy_value += hold_qty * hold_price;
-                            sell_value += hold_qty * trade_price;
-                            needed_qty = needed_qty - hold_qty;
-                        }
-                    }
-                }
-
-                if (needed_qty > 0) {
-                    ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { trade_id, trade_id, 0, -needed_qty });
-
-                    ProcedureUtil.execute(this, insertHolding, new Object[] { trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty });
-                } else {
-                    if (hs_qty.equals(trade_qty)) {
-                        ProcedureUtil.execute(this, deleteHoldingSummary, new Object[] { acct_id, symbol });
-                    }
-                }
+        
+        if (type_is_sell == 1) {
+            if (hs_qty == 0) {
+                voltQueueSQL(insertHoldingSummary, acct_id, symbol, -trade_qty);
+                voltExecuteSQL();
             }
-        } else {
-            if (hs_qty.equals(0)) {
-                ProcedureUtil.execute(this, insertHoldingSummary, new Object[] { acct_id, symbol, trade_qty });
-            } else if (!trade_qty.equals(-hs_qty)) {
-                ProcedureUtil.execute(this, updateHoldingSummary, new Object[] { hs_qty + (Integer) trade_qty, acct_id, symbol });
+            else if (hs_qty != trade_qty) {
+                voltQueueSQL(updateHoldingSummary, hs_qty - trade_qty, acct_id, symbol);
+                voltExecuteSQL();
             }
-
-            if (hs_qty < 0) {
-                VoltTable hold_list;
-                if (is_lifo.equals(TPCEConstants.TRUE)) {
+            
+            if (hs_qty > 0) {
+                if (is_lifo == 1) {
                     voltQueueSQL(getHoldingDesc, acct_id, symbol);
-                    hold_list = voltExecuteSQL()[0];
-                } else {
-                    voltQueueSQL(getHoldingAsc, acct_id, symbol);
-                    hold_list = voltExecuteSQL()[0];
                 }
-
+                else {
+                    voltQueueSQL(getHoldingAsc, acct_id, symbol);
+                }
+                
+                // modify existing holdings
+                VoltTable hold_list = voltExecuteSQL()[0];
                 for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
-                    hold_id = hold_list.fetchRow(i).getLong("H_T_ID");
-                    hold_qty = hold_list.fetchRow(i).getLong("H_QTY");
-                    hold_price = hold_list.fetchRow(i).getDouble("H_PRICE");
-
+                    VoltTableRow hold = hold_list.fetchRow(i);
+                    
+                    long hold_id = hold.getLong("H_T_ID");
+                    int hold_qty = (int)hold.getLong("H_QTY");
+                    double hold_price = hold.getDouble("H_PRICE");
+                    
+                    if (hold_qty > needed_qty) {
+                        voltQueueSQL(insertHoldingHistory, hold_id, trade_id, hold_qty, hold_qty - needed_qty);
+                        voltQueueSQL(updateHolding, hold_qty - needed_qty, hold_id);
+                        
+                        buy_value += needed_qty * hold_price;
+                        sell_value += needed_qty * trade_price;
+                        needed_qty = 0;
+                    }
+                    else {
+                        voltQueueSQL(insertHoldingHistory, hold_id, trade_id, hold_qty, 0);
+                        voltQueueSQL(deleteHolding, hold_id);
+                        
+                        buy_value += hold_qty * hold_price;
+                        sell_value += hold_qty * trade_price;
+                        needed_qty = needed_qty - hold_qty;
+                    }
+                }
+                // execute all updates from the above loop
+                voltExecuteSQL();
+            }
+                
+            // need to sell more? go short
+            if (needed_qty > 0) {
+                voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, -needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, -needed_qty);
+                voltExecuteSQL();
+            }
+            else if (hs_qty == trade_qty) {
+                voltQueueSQL(deleteHoldingSummary, acct_id, symbol);
+                voltExecuteSQL();
+            }
+        }
+        else { // buy trade
+            if (hs_qty == 0) {
+                voltQueueSQL(insertHoldingSummary, acct_id, symbol, trade_qty);
+                voltExecuteSQL();
+            }
+            else if (-hs_qty != trade_qty) {
+                voltQueueSQL(updateHoldingSummary, hs_qty + trade_qty, acct_id, symbol);
+                voltExecuteSQL();
+            }
+            
+            if (hs_qty < 0) {
+                if (is_lifo == 1) {
+                    voltQueueSQL(getHoldingDesc, acct_id, symbol);
+                }
+                else {
+                    voltQueueSQL(getHoldingAsc, acct_id, symbol);
+                }
+                
+                // modify existing holdings
+                VoltTable hold_list = voltExecuteSQL()[0];
+                for (int i = 0; i < hold_list.getRowCount() && needed_qty != 0; i++) {
+                    VoltTableRow hold = hold_list.fetchRow(i);
+                    
+                    long hold_id = hold.getLong("H_T_ID");
+                    int hold_qty = (int)hold.getLong("H_QTY");
+                    double hold_price = hold.getDouble("H_PRICE");
+                    
                     if (hold_qty + needed_qty < 0) {
-                        ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { hold_id, trade_id, hold_qty, hold_qty + needed_qty });
+                        voltQueueSQL(insertHoldingHistory, hold_id, trade_id, hold_qty, hold_qty + needed_qty);
+                        voltQueueSQL(updateHolding, hold_qty + needed_qty, hold_id);
+                        
                         sell_value += needed_qty * hold_price;
                         buy_value += needed_qty * trade_price;
                         needed_qty = 0;
-                    } else {
-                        ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { hold_id, trade_id, hold_qty, 0 });
+                    }
+                    else {
+                        voltQueueSQL(insertHoldingHistory, hold_id, trade_id, hold_qty, 0);
+                        voltQueueSQL(deleteHolding, hold_id);
+                        
                         hold_qty = -hold_qty;
                         sell_value += hold_qty * hold_price;
                         buy_value += hold_qty * trade_price;
                         needed_qty = needed_qty - hold_qty;
                     }
                 }
-
-                if (needed_qty > 0) {
-                    ProcedureUtil.execute(this, insertHoldingHistory, new Object[] { trade_id, trade_id, 0, needed_qty });
-                    ProcedureUtil.execute(this, insertHolding, new Object[] { trade_id, acct_id, symbol, trade_dts, trade_price, needed_qty });
-                } else if (trade_qty.equals(-hs_qty)) {
-                    ProcedureUtil.execute(this, deleteHoldingSummary, new Object[] { acct_id, symbol });
-                }
+                // execute all updates from the above loop
+                voltExecuteSQL();
+            }
+                
+            // all shorts are covered? a new long is created
+            if (needed_qty > 0) {
+                voltQueueSQL(insertHoldingHistory, trade_id, trade_id, 0, needed_qty);
+                voltQueueSQL(insertHolding, trade_id, acct_id, symbol, trade_dts, trade_price, needed_qty);
+                voltExecuteSQL();
+            }
+            else if (-hs_qty == trade_qty) {
+                voltQueueSQL(deleteHoldingSummary, acct_id, symbol);
+                voltExecuteSQL();
             }
         }
-
-        // frame 3
+        
+        // frame 3: taxes
         double tax_amount = 0;
-        Integer tax_status = (Integer) ret.get("tax_status")[0];
-        if ((tax_status.equals(1) || tax_status.equals(2)) && sell_value > buy_value) {
-            ProcedureUtil.execute(ret, this, getTaxrate, new Object[] { cust_id }, new String[] { "tax_rates" }, new Object[] { 0 });
-            tax_amount = (sell_value - buy_value) * (Double) ret.get("tax_rates")[0];
-            ProcedureUtil.execute(this, updateTrade1, new Object[] { trade_id });
+        if ((tax_status == 1 || tax_status == 2) && sell_value > buy_value) {
+            voltQueueSQL(getTaxrate, cust_id);
+            VoltTable tax_rate = voltExecuteSQL()[0];
+            
+            assert tax_rate.getRowCount() == 1;
+            double tax_rates = tax_rate.fetchRow(0).getDouble(0);
+            tax_amount = (sell_value - buy_value) * tax_rates;
+            
+            voltQueueSQL(updateTrade1, tax_amount, trade_id);
+            voltExecuteSQL();
         }
-
-        // frame 4
-        ProcedureUtil.execute(ret, this, getSecurity, new Object[] { symbol }, new String[] { "s_ex_id", "s_name" }, new Object[] { "S_EX_ID", "S_NAME" });
-        ProcedureUtil.execute(ret, this, getCustomer, new Object[] { cust_id }, new String[] { "c_tier" }, new Object[] { "C_TIER" });
-        ProcedureUtil.execute(ret, this, getCommissionRate, new Object[] { ret.get("c_tier")[0], ret.get("type_id")[0], ret.get("s_ex_id")[0], trade_qty, trade_qty }, new String[] { "comm_rate" },
-                new Object[] { "CR_RATE" });
-
-        // frame 5
-        double comm_amount = (Double) (ret.get("comm_rate")[0]) / 100 * (Integer) trade_qty * (double) trade_price;
-        ProcedureUtil.execute(this, updateTrade2, new Object[] { comm_amount, trade_dts, st_completed_id, trade_price });
-        ProcedureUtil.execute(this, insertTradeHistory, new Object[] { trade_id, trade_dts, st_completed_id });
-        ProcedureUtil.execute(this, updateBroker, new Object[] { comm_amount, ret.get("broker_id")[0] });
-
-        // frame 6
+        
+        // frame 4: calculate the broker's commission
+        voltQueueSQL(getSecurity, symbol);
+        voltQueueSQL(getCustomer, cust_id);
+        VoltTable[] sec_cust = voltExecuteSQL();
+        
+        VoltTable sec = sec_cust[0];
+        VoltTable cust = sec_cust[1];
+        
+        assert sec.getRowCount() == 1;
+        assert cust.getRowCount() == 1;
+        
+        VoltTableRow sec_row = sec.fetchRow(0);
+        String s_ex_id = sec_row.getString("S_EX_ID");
+        String s_name = sec_row.getString("S_NAME");
+        int c_tier = (int)cust.fetchRow(0).getLong("C_TIER");
+        
+        voltQueueSQL(getCommissionRate, c_tier, type_id, s_ex_id, trade_qty, trade_qty); // limit to 1 row
+        VoltTable comm = voltExecuteSQL()[0];
+        
+        assert comm.getRowCount() == 1;
+        double comm_rate = comm.fetchRow(0).getDouble("CR_RATE");
+        
+        // frame 5: recording the results
+        double comm_amount = (comm_rate / 100) * (trade_qty * trade_price);
+        
+        voltQueueSQL(updateTrade2, comm_amount, trade_dts, st_completed_id, trade_price, trade_id);
+        voltQueueSQL(insertTradeHistory, trade_id, trade_dts, st_completed_id);
+        voltQueueSQL(updateBroker, comm_amount, broker_id);
+        voltExecuteSQL();
+        
+        // frame 6: settling the trade
         Calendar cal = Calendar.getInstance();
         cal.setTime(trade_dts);
-        cal.add(Calendar.DAY_OF_YEAR, 2);
-        Date due_date = cal.getTime();
-
+        cal.add(Calendar.DATE, 2); // the settlement is due in two days
+        
+        TimestampType due_date = new TimestampType(cal.getTime());
         double se_amount;
-        double charge = (Double) ret.get("charge")[0];
-        if (ret.get("type_is_sell")[0].equals(TPCEConstants.TRUE)) {
-            se_amount = ((Integer) trade_qty * trade_price) - charge - comm_amount;
-        } else {
-            se_amount = -(((Integer) trade_qty * trade_price) + charge + comm_amount);
+        
+        if (type_is_sell == 1) {
+            se_amount = (trade_qty * trade_price) - charge - comm_amount;
         }
-
-        if (tax_status.equals(1))
+        else {
+            se_amount = -((trade_qty * trade_price) + charge + comm_amount);
+        }
+        
+        if (tax_status == 1) {
             se_amount = se_amount - tax_amount;
-
+        }
+        
         String cash_type;
-        Integer trade_is_cash = (Integer) ret.get("trade_is_cash")[0];
-        if (trade_is_cash.equals(TPCEConstants.TRUE)) {
+        if (trade_is_cash == 1) {
             cash_type = "Cash Account";
-        } else {
+        }
+        else {
             cash_type = "Margin";
         }
-
-        ProcedureUtil.execute(this, insertSettlement, new Object[] { trade_id, cash_type, due_date, se_amount });
-
-        if (trade_is_cash.equals(TPCEConstants.TRUE)) {
-            ProcedureUtil.execute(this, updateCustomerAccount, new Object[] { se_amount, acct_id });
-            ProcedureUtil.execute(this, insertCashTransaction, new Object[] { trade_dts, trade_id, se_amount, ret.get("type_name")[0] + " " + trade_qty + " shares of " + ret.get("s_name")[0] });
+        
+        voltQueueSQL(insertSettlement, trade_id, cash_type, due_date, se_amount);
+        
+        if (trade_is_cash == 1) {
+            voltQueueSQL(updateCustomerAccount, se_amount, acct_id);
+            voltQueueSQL(insertCashTransaction, trade_dts, trade_id, se_amount, type_name +  " " + trade_qty + " shares of " + s_name);
         }
-
-        ProcedureUtil.execute(ret, this, getCustomerAccount, new Object[] { acct_id }, new String[] { "acct_bal" }, new Object[] { "CA_BAL" });
-
-        return ProcedureUtil.mapToTable(ret);
+        
+        voltQueueSQL(getCustomerAccountBalance, acct_id);
+        VoltTable bal = voltExecuteSQL()[0];
+        
+        assert bal.getRowCount() == 1;
+        double acct_bal = bal.fetchRow(0).getDouble("CA_BAL");
+        
+        VoltTable ret_values = trade_result_ret_template.clone(64);
+        ret_values.addRow(acct_bal);
+        
+        return new VoltTable[] {ret_values};
     }
 }

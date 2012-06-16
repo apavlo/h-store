@@ -31,57 +31,36 @@
 package edu.brown.benchmark.voter;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.catalog.CatalogUtil;
 
 public class VoterLoader extends BenchmarkComponent {
-	
-	private static final Logger LOG = Logger.getLogger(VoterLoader.class);
+
+    private static final Logger LOG = Logger.getLogger(VoterLoader.class);
     private static final boolean d = LOG.isDebugEnabled();
-	
-	Client client; 
 
     public static void main(String args[]) throws Exception {
-		
-		if (d)
-            LOG.debug("MAIN: " + VoterLoader.class.getName());
-		
+        if (d) LOG.debug("MAIN: " + VoterLoader.class.getName());
         BenchmarkComponent.main(VoterLoader.class, args, true);
     }
 
     public VoterLoader(String[] args) {
-		
         super(args);
-		
-		client = this.getClientHandle();
-				
-		if (d)
-            LOG.debug("CONSTRUCTOR: " + VoterLoader.class.getName());
-		
-        for (String key : m_extraParams.keySet()) {
-            // TODO: Retrieve extra configuration parameters
-        } // FOR
+        if (d) LOG.debug("CONSTRUCTOR: " + VoterLoader.class.getName());
     }
 
     @Override
     public void runLoop() {
-		
-		if (d)
-            LOG.debug("Starting VoterLoader");
-		
-		try 
-		{
-			client.callProcedure("Initialize", VoterConstants.NUM_CONTESTANTS, VoterConstants.CONTESTANT_NAMES_CSV);
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace(); 
-		}
+        if (d) LOG.debug("Starting VoterLoader");
+
+        Client client = this.getClientHandle();
+        try {
+            client.callProcedure("Initialize", VoterConstants.NUM_CONTESTANTS,
+                                               VoterConstants.CONTESTANT_NAMES_CSV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
