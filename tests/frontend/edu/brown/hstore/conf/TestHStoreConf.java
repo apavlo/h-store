@@ -17,9 +17,9 @@ public class TestHStoreConf extends BaseTestCase {
 
     private static final Map<String, Object> properties = new ListOrderedMap<String, Object>();
     static {
-        properties.put("site.markov_path_caching", false);               // Boolean
-        properties.put("site.markov_path_caching_threshold", 0.91919);   // Double
-        properties.put("site.helper_initial_delay", 19999);              // Long
+        properties.put("site.markov_path_caching", false);              // Boolean
+        properties.put("site.markov_path_caching_threshold", 0.91919);  // Double
+        properties.put("site.memory", 19999);                           // Long
     }
     
     private HStoreConf hstore_conf;
