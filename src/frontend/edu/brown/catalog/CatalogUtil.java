@@ -1014,7 +1014,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return all of the userland data tables for the database
+     * Return all of the user-defined data tables for the database
      */
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
@@ -1022,6 +1022,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             if (catalog_tbl.getSystable() == false &&
                 catalog_tbl.getMapreduce() == false &&
                 catalog_tbl.getMaterializer() == null)
+                tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
+     * Return all of the materialized view tables for the database
+     */
+    public static Collection<Table> getViewTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getMaterializer() != null)
                 tables.add(catalog_tbl);
         }
         return (tables);
