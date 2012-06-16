@@ -144,6 +144,7 @@ begin MaterializedViewInfo "Information used to build and update a materialized 
     ColumnRef* groupbycols   "The columns involved in the group by of the aggregation"
     string predicate         "A filtering predicate"
     bool verticalpartition   "Is this materialized view a vertical partition?"
+    string sqltext           "The text of the sql statement for this view"
 end
 
 begin AuthProgram "The name of a program with access to a specific procedure. This is effectively a weak reference to a 'program'"

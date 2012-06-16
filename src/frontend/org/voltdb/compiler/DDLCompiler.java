@@ -565,6 +565,7 @@ public class DDLCompiler {
             Table srcTable = stmt.tableList.get(0);
             MaterializedViewInfo matviewinfo = srcTable.getViews().add(destTable.getTypeName());
             matviewinfo.setDest(destTable);
+            matviewinfo.setSqltext(query);
             if (stmt.where == null)
                 matviewinfo.setPredicate("");
             else {
