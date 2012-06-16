@@ -81,8 +81,6 @@ public class Vote extends VoltProcedure {
 			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
             return ERR_VOTER_OVER_VOTE_LIMIT;
         }
-	
-		 
 		
         // Some sample client libraries use the legacy random phone generation that mostly
         // created invalid phone numbers. Until refactoring, re-assign all such votes to
