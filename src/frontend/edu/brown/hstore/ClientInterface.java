@@ -415,7 +415,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             responseBuffer.put(buildString).flip();
             socket.write(responseBuffer);
             
-            LOG.info("Established new client connection to " + socket);
+            if (debug.get()) LOG.debug("Established new client connection to " + socket);
             
             return handler;
         }
@@ -481,7 +481,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return new Runnable() {
                 @Override
                 public void run() {
-                    LOG.info("Off-backpressure for " + this);
+                    if (trace.get()) LOG.trace("Off-backpressure for " + this);
                     /**
                      * Must synchronize to prevent a race between the DTXN backpressure starting
                      * and this attempt to reenable read selection (which should not occur
@@ -501,7 +501,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             return new Runnable() {
                 @Override
                 public void run() {
-                    LOG.info("On-backpressure for " + this);
+                    if (trace.get()) LOG.trace("On-backpressure for " + this);
                     synchronized (m_connection) {
                         m_connection.disableReadSelection();
                     }
@@ -532,10 +532,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private final AtomicInteger m_numConnections = new AtomicInteger(0);
 
-
     final int m_siteId;
     final String m_dumpId;
-
 
     /**
      * This boolean allows the DTXN to communicate to the
@@ -611,7 +609,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private final EventObserver<HStoreSite> onBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            LOG.info("Had back pressure disabling read selection");
+            if (debug.get()) LOG.debug("Had back pressure disabling read selection");
             synchronized (m_connections) {
                 if (network_backup_off != null) {
                     ProfileMeasurement.swap(network_backup_off, network_backup_on);
@@ -630,7 +628,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private final EventObserver<HStoreSite> offBackPressureObserver = new EventObserver<HStoreSite>() {
         @Override
         public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
-            LOG.info("No more back pressure attempting to enable read selection");
+            if (debug.get()) LOG.debug("No more back pressure attempting to enable read selection");
             synchronized (m_connections) {
                 if (network_backup_off != null) {
                     ProfileMeasurement.swap(network_backup_on, network_backup_off);
@@ -748,7 +746,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_pendingTxnCount++;
         if (m_pendingTxnBytes > MAX_DESIRED_PENDING_BYTES || m_pendingTxnCount > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
-                LOG.trace("DTXN back pressure began");
+                if (trace.get()) LOG.trace("DTXN back pressure began");
                 m_hadBackPressure = true;
                 onBackPressure.notifyObservers(hstore_site);
             }
@@ -767,7 +765,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         {
             if (m_hadBackPressure)
             {
-                LOG.trace("DTXN backpressure ended");
+                if (trace.get()) LOG.trace("DTXN backpressure ended");
                 m_hadBackPressure = false;
                 offBackPressure.notifyObservers(hstore_site);
             }
