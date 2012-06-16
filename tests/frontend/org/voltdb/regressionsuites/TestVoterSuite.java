@@ -1,26 +1,3 @@
-/* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
-
 package org.voltdb.regressionsuites;
 
 import junit.framework.Test;
@@ -36,6 +13,10 @@ import edu.brown.benchmark.voter.procedures.Initialize;
 import edu.brown.benchmark.voter.procedures.Vote;
 import edu.brown.hstore.Hstoreservice.Status;
 
+/**
+ * Simple test suite for the VOTER benchmark
+ * @author pavlo
+ */
 public class TestVoterSuite extends RegressionSuite {
 
     private static final long phoneNumber = 8675309; // Jenny
@@ -84,8 +65,6 @@ public class TestVoterSuite extends RegressionSuite {
         Client client = this.getClient();
         this.initializeDatabase(client);
         
-
-        
         ClientResponse cresponse = client.callProcedure(Vote.class.getSimpleName(),
                                                         phoneNumber,
                                                         contestantNumber,
@@ -112,7 +91,7 @@ public class TestVoterSuite extends RegressionSuite {
         assertTrue(results[0].advanceRow());
         assertEquals(phoneNumber, results[0].getLong(0));
         assertEquals(1, results[0].getLong(1));
-        // assertEquals(1, results[0].asScalarLong());
+        assertEquals(1, results[0].asScalarLong());
     }
     
     /**
