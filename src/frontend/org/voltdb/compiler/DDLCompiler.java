@@ -613,8 +613,9 @@ public class DDLCompiler {
                 ColumnRef c = pkIndex.getColumns().add(String.valueOf(i));
                 c.setColumn(destColumnArray.get(i));
                 c.setIndex(i);
-                LOG.info(String.format("VIEW:%s Group By Columns %02d: %s",
-                        destTable.getName(), i, c.getColumn().fullName()));
+                if (LOG.isDebugEnabled())
+                    LOG.debug(String.format("VIEW:%s Group By Columns %02d: %s",
+                            destTable.getName(), i, c.getColumn().fullName()));
             }
             Constraint pkConstraint = destTable.getConstraints().add("MATVIEW_PK_CONSTRAINT");
             pkConstraint.setType(ConstraintType.PRIMARY_KEY.getValue());

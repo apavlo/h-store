@@ -104,8 +104,8 @@ public class TestVoterSuite extends RegressionSuite {
         // the limit and not anymore after that
         ClientResponse cresponse = null;
         for (int i = 0, cnt = (int)(maxVotesPerPhoneNumber*2); i < cnt; i++) {
-            long expected = (i <= maxVotesPerPhoneNumber ? Vote.VOTE_SUCCESSFUL :
-                                                           Vote.ERR_VOTER_OVER_VOTE_LIMIT);
+            long expected = (i < maxVotesPerPhoneNumber ? Vote.VOTE_SUCCESSFUL :
+                                                          Vote.ERR_VOTER_OVER_VOTE_LIMIT);
             cresponse = client.callProcedure(Vote.class.getSimpleName(),
                                              phoneNumber,
                                              contestantNumber,
@@ -140,18 +140,18 @@ public class TestVoterSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////
-//        config = new LocalSingleProcessServer("voter-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
-//
-//        ////////////////////////////////////////////////////////////
-//        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
-//        ////////////////////////////////////////////////////////////
-//        config = new LocalCluster("voter-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
-//        success = config.compile(project);
-//        assert(success);
-//        builder.addServerConfig(config);
+        config = new LocalSingleProcessServer("voter-2part.jar", 2, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
+
+        ////////////////////////////////////////////////////////////
+        // CONFIG #3: cluster of 2 nodes running 2 site each, one replica
+        ////////////////////////////////////////////////////////////
+        config = new LocalCluster("voter-cluster.jar", 2, 2, 1, BackendTarget.NATIVE_EE_JNI);
+        success = config.compile(project);
+        assert(success);
+        builder.addServerConfig(config);
 
         return builder;
     }
