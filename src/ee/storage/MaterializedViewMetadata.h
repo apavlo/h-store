@@ -18,6 +18,7 @@
 #ifndef MATERIALIZEDVIEWMETADATA_H_
 #define MATERIALIZEDVIEWMETADATA_H_
 
+#include <string>
 #include "common/types.h"
 #include "common/tabletuple.h"
 #include "catalog/materializedviewinfo.h"
@@ -57,6 +58,11 @@ public:
      */
     void processTupleDelete(TableTuple &oldTuple);
 
+    // ------------------------------------------------------------------
+    // UTILITY
+    // ------------------------------------------------------------------
+    const std::string& name() const;
+    
 private:
 
     /** load a predicate from the catalog structure if it's there */
@@ -101,7 +107,11 @@ private:
     int32_t *m_outputColumnSrcTableIndexes;
     // what are the aggregates for each column in the view table
     ExpressionType *m_outputColumnAggTypes;
+    
+    std::string m_name;
 };
+
+inline const std::string& MaterializedViewMetadata::name() const { return m_name; }
 
 } // namespace voltdb
 

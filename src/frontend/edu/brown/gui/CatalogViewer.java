@@ -581,7 +581,8 @@ public class CatalogViewer extends AbstractViewer {
             for (String field : catalog_obj.getFields()) {
                 
                 if (skip_fields.contains(field)) {
-                    LOG.warn(String.format("Skipping %s.%s", catalog_obj.getClass().getSimpleName(), field));
+                    if (LOG.isDebugEnabled())
+                        LOG.warn(String.format("Skipping %s.%s", catalog_obj.getClass().getSimpleName(), field));
                     continue;
                 }
                 
@@ -665,7 +666,8 @@ public class CatalogViewer extends AbstractViewer {
         }
         // MATERIALIZEDVIEWINFO
         else if (catalog_obj instanceof MaterializedViewInfo) {
-            Collection<ColumnRef> cols = ((MaterializedViewInfo)catalog_obj).getGroupbycols();
+            MaterializedViewInfo catalog_view = (MaterializedViewInfo)catalog_obj;
+            Collection<ColumnRef> cols = catalog_view.getGroupbycols();
             map.put("groupbycols", CatalogUtil.debug(CatalogUtil.getColumns(cols)));
         }
         
@@ -700,11 +702,14 @@ public class CatalogViewer extends AbstractViewer {
                     "Unexpected null MaterializedViewInfo '" + catalog_tbl.getName() + "'";
                 sb.append(MaterializedViewInfo.class.getSimpleName()).append("\n");
                 sb.append(this.getAttributesText(catalog_view));
+                
+                SQLFormatter f = new SQLFormatter(catalog_view.getSqltext());
                 sb.append(StringUtil.SINGLE_LINE);
+                sb.append("\n").append(f.format()).append("\n");
+            } else {
+                String schema = CatalogUtil.toSchema(catalog_tbl);
+                sb.append("\n").append(schema).append("\n");
             }
-            
-            String schema = CatalogUtil.toSchema(catalog_tbl);
-            sb.append("\n").append(schema).append("\n");
         }
         // Statement
         else if (catalog_obj instanceof Statement) {

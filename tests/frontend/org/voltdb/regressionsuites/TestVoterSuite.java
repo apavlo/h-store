@@ -91,7 +91,6 @@ public class TestVoterSuite extends RegressionSuite {
         assertTrue(results[0].advanceRow());
         assertEquals(phoneNumber, results[0].getLong(0));
         assertEquals(1, results[0].getLong(1));
-        assertEquals(1, results[0].asScalarLong());
     }
     
     /**

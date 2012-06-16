@@ -1226,31 +1226,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return the real Constraint objects for the ConstraintRefs
-     * 
-     * @param map
-     * @return
-     */
-    public static Set<Constraint> getConstraints(Iterable<ConstraintRef> map) {
-        Set<Constraint> ret = new ListOrderedSet<Constraint>();
-        if (map != null) {
-            for (ConstraintRef ref : map) {
-                Constraint catalog_item = ref.getConstraint();
-                assert (catalog_item != null);
-                ret.add(catalog_item);
-            }
-        }
-        return (ret);
-    }
-
-    /**
      * Return the real Column objects for the ColumnRefs
-     * 
      * @param map
      * @return
      */
     public static Collection<Column> getColumns(Iterable<ColumnRef> map) {
-        Set<Column> ret = new HashSet<Column>();
+        List<Column> ret = new ArrayList<Column>();
         if (map != null) {
             for (ColumnRef ref : map) {
                 Column catalog_item = ref.getColumn();
