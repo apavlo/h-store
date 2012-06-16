@@ -102,7 +102,7 @@ public class TransactionInitializer {
         this.p_estimator = hstore_site.getPartitionEstimator();
         
         // HACK
-        if (hstore_conf.site.exec_neworder_cheat) {
+        if (hstore_conf.site.markov_fixed) {
             Database catalog_db = hstore_site.getDatabase();
             if (catalog_db.getProcedures().containsKey("neworder")) {
                 this.fixed_estimator = new TPCCEstimator(this.hstore_site);
@@ -330,7 +330,7 @@ public class TransactionInitializer {
         // -------------------------------
         // FIXED ESTIMATORS
         // -------------------------------
-        else if (hstore_conf.site.exec_neworder_cheat) {
+        else if (hstore_conf.site.markov_fixed) {
             // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
             // out what partitions it's going to need to touch
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));

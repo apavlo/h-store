@@ -105,6 +105,7 @@
 <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
 <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
+<arg value="site.markov_fixed=${site.markov_fixed}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
 <arg value="site.planner_caching=${site.planner_caching}" />
 <arg value="site.planner_max_round_size=${site.planner_max_round_size}" />
@@ -114,10 +115,6 @@
 <arg value="site.coordinator_finish_thread=${site.coordinator_finish_thread}" />
 <arg value="site.coordinator_redirect_thread=${site.coordinator_redirect_thread}" />
 <arg value="site.coordinator_sync_time=${site.coordinator_sync_time}" />
-<arg value="site.helper_initial_delay=${site.helper_initial_delay}" />
-<arg value="site.helper_interval=${site.helper_interval}" />
-<arg value="site.helper_txn_per_round=${site.helper_txn_per_round}" />
-<arg value="site.helper_txn_expire=${site.helper_txn_expire}" />
 <arg value="site.trace_txn_output=${site.trace_txn_output}" />
 <arg value="site.trace_query_output=${site.trace_query_output}" />
 <arg value="site.status_enable=${site.status_enable}" />
