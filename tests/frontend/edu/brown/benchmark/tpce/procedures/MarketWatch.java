@@ -12,6 +12,10 @@
  *  Andy Pavlo (pavlo@cs.brown.edu)                                        *
  *  http://www.cs.brown.edu/~pavlo/                                        *
  *                                                                         *
+ *  Modifications by:                                                      *
+ *  Alex Kalinin (akalinin@cs.brown.edu)                                   *
+ *  http://www.cs.brown.edu/~akalinin/                                     *
+ *                                                                         *
  *  Permission is hereby granted, free of charge, to any person obtaining  *
  *  a copy of this software and associated documentation files (the        *
  *  "Software"), to deal in the Software without restriction, including    *
@@ -33,31 +37,30 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce.procedures;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-
-import edu.brown.benchmark.tpce.TPCEClient;
-import edu.brown.benchmark.tpce.util.ProcedureUtil;
+import org.voltdb.VoltType;
 
 /**
  * MarketWatch Transaction <br/>
  * TPC-E Section 3.3.10
+ * 
+ * H-Store quirks:
+ *   1) getStockListCustomer is modified from "IN (sub-query)" to a join between WATCH_LIST and WATCH_ITEM.
+ *   2) getStockListCustomer should contain "distinct" in the SELECT clause. Not supported. We perform it via a Java set.
+ *   3) The original getStockListIndustry uses between for CO_ID. We use '>=' and '<=' instead. Between is not supported.
  */
 public class MarketWatch extends VoltProcedure {
 
-    private static final int BAD_INPUT_DATA = -1;
+    public final SQLStmt getStockListCustomer = new SQLStmt("select WI_S_SYMB from WATCH_ITEM, WATCH_LIST " +
+            "where WL_C_ID = ? and WI_WL_ID = WL_ID");
 
-    // Replacement getStockList1 that uses joins
-    public final SQLStmt getStockListCustomer = new SQLStmt("select WI_S_SYMB from WATCH_ITEM, WATCH_LIST " + " where wl_c_id = ? " + "   AND wi_wl_id = wl_id " + " ORDER BY wi_s_symb ASC LIMIT 1");
-
-    // note: between (?, ?) not supported
-    public final SQLStmt getStockListIndustry = new SQLStmt("select S_SYMB from INDUSTRY, COMPANY, SECURITY " + "where IN_NAME = ? and CO_IN_ID = IN_ID and S_CO_ID = CO_ID "
-            + "and CO_ID >= ? AND CO_ID <= ?");
-    // + "and CO_ID between (?, ?)");
+    public final SQLStmt getStockListIndustry = new SQLStmt("select S_SYMB from INDUSTRY, COMPANY, SECURITY " +
+            "where IN_NAME = ? and CO_IN_ID = IN_ID and S_CO_ID = CO_ID and CO_ID >= ? AND CO_ID <= ?" );
 
     public final SQLStmt getStockListCustomerAccount = new SQLStmt("select HS_S_SYMB from HOLDING_SUMMARY where HS_CA_ID = ?");
 
@@ -68,65 +71,70 @@ public class MarketWatch extends VoltProcedure {
     public final SQLStmt getOldPrice = new SQLStmt("select DM_CLOSE from DAILY_MARKET where DM_S_SYMB = ? order by DM_DATE desc limit 1");
 
     public VoltTable[] run(long acct_id, long cust_id, long ending_co_id, long starting_co_id, String industry_name) throws VoltAbortException {
+        
+        // first, fetch security symbols
         VoltTable stock_list = null;
-        int status = TPCEClient.STATUS_SUCCESS;
-
-        // CUSTOMER ID
         if (cust_id != 0) {
             voltQueueSQL(getStockListCustomer, cust_id);
             stock_list = voltExecuteSQL()[0];
-
-            // INDUSTRY NAME
-        } else if (!industry_name.equals("")) {
-            // note: between (?, ?) not supported now
+        }
+        else if (!industry_name.equals("")) {
             voltQueueSQL(getStockListIndustry, industry_name, starting_co_id, ending_co_id);
             stock_list = voltExecuteSQL()[0];
-
-            // CUSTOMER ACCOUNT ID
-        } else if (acct_id != 0) {
+        }
+        else if (acct_id != 0) {
             voltQueueSQL(getStockListCustomerAccount, acct_id);
             stock_list = voltExecuteSQL()[0];
-
-            // INVALID
-        } else {
-            status = BAD_INPUT_DATA;
+        }
+        else {
+            throw new VoltAbortException("Bad input data (intentional) in the Market-Watch transaction");
         }
 
+        
         double old_mkt_cap = 0.0, new_mkt_cap = 0.0;
-        if (status != BAD_INPUT_DATA) {
-            boolean check = false;
-            for (int i = 0, cnt = stock_list.getRowCount(); i < cnt; i++) {
-                final String symbol = stock_list.fetchRow(i).getString(0);
-                voltQueueSQL(getNewPrice, symbol);
-                VoltTable vt = voltExecuteSQL()[0];
-                check = vt.advanceRow();
-                assert (check);
-                double new_price = vt.getDouble(0);
-
-                voltQueueSQL(getNumOut, symbol);
-                vt = voltExecuteSQL()[0];
-                check = vt.advanceRow();
-                assert (check);
-                long s_num_out = vt.getLong(0);
-
-                voltQueueSQL(getOldPrice, symbol);
-                vt = voltExecuteSQL()[0];
-                check = vt.advanceRow();
-                assert (check);
-                double old_price = vt.getDouble(0);
-
-                old_mkt_cap += s_num_out * old_price;
-                new_mkt_cap += s_num_out * new_price;
+        Set<String> watch_symbols = new HashSet<String>(); // for 'distinct' if symbols are from watch lists
+        
+        for (int i = 0; i < stock_list.getRowCount(); i++) {
+            String symbol = stock_list.fetchRow(i).getString(0);
+            
+            // if we had gotten symbols through watch lists, we have to do manual 'distinct'
+            if (cust_id != 0) {
+                if (watch_symbols.contains(symbol)) {
+                    continue;
+                }
+                else {
+                    watch_symbols.add(symbol);
+                }
             }
-            double pct_change = 100 * (new_mkt_cap / old_mkt_cap - 1);
+            
+            voltQueueSQL(getNewPrice, symbol);
+            VoltTable vt = voltExecuteSQL()[0];
+            
+            assert vt.getRowCount() == 1; 
+            double new_price = vt.fetchRow(0).getDouble("LT_PRICE");
 
-            Map<String, Object[]> ret = new HashMap<String, Object[]>();
-            ret.put("pct_change", new Object[] { pct_change });
-            ret.put("status", new Object[] { status });
+            voltQueueSQL(getNumOut, symbol);
+            vt = voltExecuteSQL()[0];
+            
+            assert vt.getRowCount() == 1; 
+            long s_num_out = vt.fetchRow(0).getLong("S_NUM_OUT");
+            
 
-            return ProcedureUtil.mapToTable(ret);
-        } else {
-            throw new VoltAbortException("rollback MarketWatch");
+            voltQueueSQL(getOldPrice, symbol);
+            vt = voltExecuteSQL()[0];
+            
+            assert vt.getRowCount() == 1; 
+            double old_price = vt.fetchRow(0).getDouble("DM_CLOSE");
+
+            old_mkt_cap += s_num_out * old_price;
+            new_mkt_cap += s_num_out * new_price;
         }
+        
+        double pct_change = 100 * (new_mkt_cap / old_mkt_cap - 1);
+
+        VoltTable res = new VoltTable(new VoltTable.ColumnInfo("pct_change", VoltType.FLOAT));
+        res.addRow(pct_change);
+        
+        return new VoltTable[] {res};
     }
 }

@@ -323,11 +323,12 @@ public class TestMaterializedViewSuite extends RegressionSuite {
         project.addTablePartitionInfo("PEOPLE", "PARTITION");
         project.addTablePartitionInfo("OVERFLOWTEST", "COL_1");
         project.addProcedures(PROCEDURES);
+
         // build the jarfile
-        //config.compile(project);
+        config.compile(project);
 
         // add this config to the set of tests to run
-        //builder.addServerConfig(config);
+        builder.addServerConfig(config);
 
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 2 Local Site/Partitions running on JNI backend

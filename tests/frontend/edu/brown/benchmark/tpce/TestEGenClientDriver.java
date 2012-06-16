@@ -39,7 +39,7 @@ import edu.brown.utils.StringUtil;
 public class TestEGenClientDriver extends BaseTestCase {
 
     // HACK
-    private static final String EGENLOADER_HOME = System.getenv(TPCEConstants.PARAM_EGENLOADER_HOME);
+    private static final String EGENLOADER_HOME = System.getenv("TPCE_LOADER_FILES");
     protected static EGenClientDriver driver;
 
     @Override

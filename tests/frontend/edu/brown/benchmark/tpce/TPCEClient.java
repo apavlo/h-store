@@ -33,6 +33,8 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -45,6 +47,9 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.tm1.TM1Client.Transaction;
+import edu.brown.benchmark.tpce.TPCEConstants.DriverType;
+import edu.brown.benchmark.tpce.generators.*;
 import edu.brown.benchmark.tpce.util.RandUtil;
 import edu.brown.benchmark.tpce.util.TableStatistics;
 
@@ -58,32 +63,21 @@ public class TPCEClient extends BenchmarkComponent {
 
     private static Transaction XTRANS[] = Transaction.values();
 
-    // Storing the ordinals of transaction per tpce probability distribution
-    private static final int[] SAMPLE_TABLE = new int[100];
-
-    // Mapping from thread id to the index value of the xact that thread invoked
-    protected final Map<Long, Integer> thread_xact_xref = new HashMap<Long, Integer>();
-    protected final TPCECallback callback = new TPCECallback();
-
     // EGen Drivers
     protected final EGenClientDriver egen_clientDriver;
 
-    /**
-     * @author pavlo
-     */
     private class TPCECallback implements ProcedureCallback {
-        public CountDownLatch latch; // = new CountDownLatch(1);
+        private final Transaction t;
+        public TPCECallback(Transaction t) {
+            this.t = t;
+        }
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            Integer xact_idx = TPCEClient.this.thread_xact_xref.get(Thread.currentThread().getId());
-            assert (xact_idx != null);
-            incrementTransactionCounter(clientResponse, xact_idx);
-            assert (latch != null);
-            latch.countDown();
+            incrementTransactionCounter(clientResponse, t.ordinal());
         }
     }
-
+ 
     /**
      * @author pavlo
      */
@@ -119,8 +113,8 @@ public class TPCEClient extends BenchmarkComponent {
         BROKER_VOLUME("Broker Volume", "BrokerVolume", TPCEConstants.FREQUENCY_BROKER_VOLUME),
 
         CUSTOMER_POSITION("Customer Position", "CustomerPosition", TPCEConstants.FREQUENCY_CUSTOMER_POSITION),
-
-        MARKET_FEED("Market Feed", "MarketFeed", TPCEConstants.FREQUENCY_MARKET_FEED),
+//TODO not supported transaction
+//        MARKET_FEED("Market Feed", "MarketFeed", TPCEConstants.FREQUENCY_MARKET_FEED),
 
         MARKET_WATCH("Market Watch", "MarketWatch", TPCEConstants.FREQUENCY_MARKET_WATCH),
 
@@ -130,7 +124,7 @@ public class TPCEClient extends BenchmarkComponent {
 
         TRADE_ORDER("Trade Order", "TradeOrder", TPCEConstants.FREQUENCY_TRADE_ORDER),
 
-        TRADE_RESULT("Trade Result", "TradeResult", TPCEConstants.FREQUENCY_TRADE_RESULT),
+ //       TRADE_RESULT("Trade Result", "TradeResult", TPCEConstants.FREQUENCY_TRADE_RESULT),
 
         TRADE_STATUS("Trade Status", "TradeStatus", TPCEConstants.FREQUENCY_TRADE_STATUS),
 
@@ -149,20 +143,33 @@ public class TPCEClient extends BenchmarkComponent {
 
     /**
      * Constructor
-     * 
+     *
      * @param args
      */
     public TPCEClient(String[] args) {
-        super(args);
 
-        if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME)) {
-            LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
+        super(args);
+        if (!m_extraParams.containsKey("TPCE_LOADER_FILES")) {
+            LOG.error("Unable to start benchmark. Missing '" + "TPCE_LOADER_FILES" + "' parameter");
             System.exit(1);
         }
+        
         int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
+        if (m_extraParams.containsKey("TPCE_TOTAL_CUSTOMERS")) {
+            total_customers = Integer.valueOf(m_extraParams.get("TPCE_TOTAL_CUSTOMERS"));
+        }
+        
         int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
+        if (m_extraParams.containsKey("TPCE_SCALE_FACTOR")) {
+            scale_factor = Integer.valueOf(m_extraParams.get("TPCE_SCALE_FACTOR"));
+        }
+        
         int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
-        this.egen_clientDriver = new EGenClientDriver(m_extraParams.get(TPCEConstants.PARAM_EGENLOADER_HOME), total_customers, scale_factor, initial_days);
+        if (m_extraParams.containsKey("TPCE_INITIAL_DAYS")) {
+            initial_days = Integer.valueOf(m_extraParams.get("TPCE_INITIAL_DAYS"));
+        }
+
+        this.egen_clientDriver = new EGenClientDriver(m_extraParams.get("TPCE_LOADER_FILES"), total_customers, scale_factor, initial_days);
     }
 
     @Override
@@ -175,21 +182,11 @@ public class TPCEClient extends BenchmarkComponent {
         return names;
     }
 
-    protected static Transaction selectTransaction() {
-        int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
-        // return XTRANS[ordinal];
-        return Transaction.MARKET_WATCH;
-    }
-
-    private static void initSampleTable() {
-        int i = 0;
-        int sum = 0;
-        for (Transaction t : XTRANS) {
-            for (int j = 0; j < t.weight; j++, i++)
-                SAMPLE_TABLE[i] = t.ordinal();
-            sum += t.weight;
-        }
-        assert (100 == sum);
+    protected Transaction selectTransaction() {
+        int iTxnType = egen_clientDriver.driver_ptr.getCE().getCETxnMixGenerator().generateNextTxnType( );
+        egen_clientDriver.driver_ptr.getCE().zeroInputBuffer(iTxnType);
+        //      return Transaction.TRADE_UPDATE;
+        return XTRANS[iTxnType];
     }
 
     /**
@@ -197,27 +194,15 @@ public class TPCEClient extends BenchmarkComponent {
      */
     @Override
     public void runLoop() {
-        long thread_id = Thread.currentThread().getId();
         int no_connection = 10000;
         try {
-            //
-            // We first need to collect table statistics...
-            //
-            StatsCallback statsCallback = new StatsCallback();
-            this.getClientHandle().callProcedure(statsCallback, "@Statistics", SysProcSelector.TABLE.name());
-            statsCallback.latch.await();
-            assert (!TableStatistics.getTables().isEmpty());
-            // LOG.info(TableStatistics.debug());
+            final Transaction target = selectTransaction();
 
-            while (true) {
-                callback.latch = new CountDownLatch(1);
-                final Transaction target = TPCEClient.selectTransaction();
-                System.err.println("Trying to execute " + target);
-                this.thread_xact_xref.put(thread_id, target.ordinal());
+            LOG.debug("Executing txn " + target);
+
+            while (!this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target))) {
                 this.getClientHandle().backpressureBarrier();
-                this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
-                callback.latch.await();
-            } // WHILE
+            }
         } catch (NoConnectionsException e) {
             if (no_connection % 1000 == 0)
                 System.err.println("No connections...");
@@ -231,10 +216,28 @@ public class TPCEClient extends BenchmarkComponent {
         }
     }
 
+    @Override
+    protected boolean runOnce() throws IOException {
+        boolean ret = false;
+        try {
+            final Transaction target = selectTransaction();
+
+            LOG.debug("Executing txn " + target);
+
+            ret = this.getClientHandle().callProcedure(new TPCECallback(target), target.callName, this.generateClientArgs(target));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+
+        return ret;
+    }
+
+
     /**
      * For a given transaction type, use the EGenClientDriver to generate input
      * parameters for execution
-     * 
+     *
      * @param xact
      * @return
      */
@@ -266,7 +269,6 @@ public class TPCEClient extends BenchmarkComponent {
      * @param args
      */
     public static void main(String[] args) {
-        initSampleTable();
         BenchmarkComponent.main(TPCEClient.class, args, false);
     }
 }

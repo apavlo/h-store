@@ -1014,7 +1014,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return all of the userland data tables for the database
+     * Return all of the user-defined data tables for the database
      */
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
@@ -1022,6 +1022,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             if (catalog_tbl.getSystable() == false &&
                 catalog_tbl.getMapreduce() == false &&
                 catalog_tbl.getMaterializer() == null)
+                tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
+     * Return all of the materialized view tables for the database
+     */
+    public static Collection<Table> getViewTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getMaterializer() != null)
                 tables.add(catalog_tbl);
         }
         return (tables);
@@ -1214,31 +1226,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return the real Constraint objects for the ConstraintRefs
-     * 
-     * @param map
-     * @return
-     */
-    public static Set<Constraint> getConstraints(Iterable<ConstraintRef> map) {
-        Set<Constraint> ret = new ListOrderedSet<Constraint>();
-        if (map != null) {
-            for (ConstraintRef ref : map) {
-                Constraint catalog_item = ref.getConstraint();
-                assert (catalog_item != null);
-                ret.add(catalog_item);
-            }
-        }
-        return (ret);
-    }
-
-    /**
      * Return the real Column objects for the ColumnRefs
-     * 
      * @param map
      * @return
      */
     public static Collection<Column> getColumns(Iterable<ColumnRef> map) {
-        Set<Column> ret = new HashSet<Column>();
+        List<Column> ret = new ArrayList<Column>();
         if (map != null) {
             for (ColumnRef ref : map) {
                 Column catalog_item = ref.getColumn();

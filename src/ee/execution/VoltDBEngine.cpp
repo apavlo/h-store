@@ -345,11 +345,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-            VOLT_DEBUG("[%02d] Forcing tuple count [txn_id=%jd, PlanFragmentId=%jd, output_depId=%d]",
-                       ctr, (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId);
+            VOLT_DEBUG("[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn $%jd [OutputDep=%d]",
+                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+                       (intmax_t)txnId, m_currentOutputDepId);
         } else {
-                VOLT_DEBUG("[%02d] Let's try to actually execute a PlanFragment %jd for txn #%jd [OutputDep=%d]",
-                            ctr, (intmax_t)planfragmentId, (intmax_t)txnId, m_currentOutputDepId);
+            VOLT_DEBUG("[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+                       (intmax_t)planfragmentId, executor->getPlanNode()->getPlanNodeId(),
+                       (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
@@ -759,7 +761,7 @@ bool VoltDBEngine::rebuildPlanFragmentCollections() {
          proc_iterator != m_database->procedures().end(); proc_iterator++) {
         // Procedure
         const catalog::Procedure *catalog_proc = proc_iterator->second;
-        VOLT_DEBUG("proc: %s", catalog_proc->name().c_str());
+        VOLT_TRACE("Building Procedure PlanFragment Collections for %s", catalog_proc->name().c_str());
         map<string, catalog::Statement*>::const_iterator stmt_iterator;
         for (stmt_iterator = catalog_proc->statements().begin();
              stmt_iterator != catalog_proc->statements().end();
@@ -931,6 +933,8 @@ bool VoltDBEngine::initMaterializedViews(bool addAll) {
                 PersistentTable *destTable = dynamic_cast<PersistentTable*>(m_tables[destCatalogTable->relativeIndex()]);
                 MaterializedViewMetadata *mvmd = new MaterializedViewMetadata(srcTable, destTable, catalogView);
                 srcTable->addMaterializedView(mvmd);
+                VOLT_DEBUG("Added MaterializedViewMetadata %s [%s->%s]",
+                           mvmd->name().c_str(), srcTable->name().c_str(), destTable->name().c_str());
             }
         }
     }
