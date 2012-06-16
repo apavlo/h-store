@@ -1060,7 +1060,7 @@ TEST CASES
     />-->
 </target>
 
-   <target name="junit-regression" description="Run only regression testcases for Java classes.">
+<target name="junit-regression" description="Run only regression testcases for Java classes.">
        <!-- Run the unit tests -->
        <condition property="timeoutLength" value="${timeoutLength}" else='600000'>
            <isset property="timeoutLength"/>
@@ -1083,9 +1083,6 @@ TEST CASES
                     <exclude name="**/*$*.class"/>
                     <exclude name="**/TestCatalogUpdateSuite.class" />
                     <exclude name="**/TestFailureDetectSuite.class" />
-                    <exclude name="**/TestIndexesSuite.class" />
-                    <exclude name="**/TestMaterializedViewSuite.class" />
-                    <exclude name="**/TestOrderBySuite.class" />
                     <exclude name="**/TestReplicationSuite.class" />
                     <exclude name="**/TestSneakyExecutionOrderSuite.class" />
                     <exclude name="**/TestSystemProcedureSuite.class" />
