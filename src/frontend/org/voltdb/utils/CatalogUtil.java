@@ -79,10 +79,12 @@ public abstract class CatalogUtil {
      */
     public static Collection<Constraint> getConstraints(Iterable<ConstraintRef> map) {
         List<Constraint> ret = new ArrayList<Constraint>();
-        for (ConstraintRef ref : map) {
-            Constraint catalog_item = ref.getConstraint();
-            assert(catalog_item != null);
-            ret.add(catalog_item);
+        if (map != null) {
+            for (ConstraintRef ref : map) {
+                Constraint catalog_item = ref.getConstraint();
+                assert(catalog_item != null);
+                ret.add(catalog_item);
+            }
         }
         return (ret);
     }
