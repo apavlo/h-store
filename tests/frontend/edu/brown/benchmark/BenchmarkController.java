@@ -116,28 +116,27 @@ public class BenchmarkController {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    // ProcessSetManager Failure Callback
-    final EventObserver<String> failure_observer = new EventObserver<String>() {
-        final ReentrantLock lock = new ReentrantLock();
+    // ============================================================================
+    // STATIC CONFIGURATION
+    // ============================================================================
+    
+    /**
+     * HStoreConf parameters to not forward to sites 
+     */
+    private static final String EXCLUDED_SITE_PARAMS[] = {
         
-        @Override
-        public void update(EventObservable<String> o, String msg) {
-            lock.lock();
-            try {
-                if (BenchmarkController.this.stop == false) {
-                    LOG.fatal(msg);
-                    BenchmarkController.this.stop = true;
-                    BenchmarkController.this.failed = true;
-                    m_clientPSM.prepareShutdown(false);
-                    m_sitePSM.prepareShutdown(false);
-                    
-                    if (self != null) BenchmarkController.this.self.interrupt();
-                }
-            } finally {
-                lock.unlock();
-            } // SYNCH
-        }
     };
+    
+    /**
+     * HStoreConf parameters to not forward to clients 
+     */
+    private static final String EXCLUDED_CLIENT_PARAMS[] = {
+        "client.jvm_args"
+    };
+    
+    // ============================================================================
+    // INSTANCE MEMBERS
+    // ============================================================================
     
     /** Clients **/
     final ProcessSetManager m_clientPSM;
@@ -193,6 +192,31 @@ public class BenchmarkController {
     private final BenchmarkClientFileUploader m_clientFileUploader = new BenchmarkClientFileUploader();
     private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
 
+    
+    
+    // ProcessSetManager Failure Callback
+    final EventObserver<String> failure_observer = new EventObserver<String>() {
+        final ReentrantLock lock = new ReentrantLock();
+        
+        @Override
+        public void update(EventObservable<String> o, String msg) {
+            lock.lock();
+            try {
+                if (BenchmarkController.this.stop == false) {
+                    LOG.fatal(msg);
+                    BenchmarkController.this.stop = true;
+                    BenchmarkController.this.failed = true;
+                    m_clientPSM.prepareShutdown(false);
+                    m_sitePSM.prepareShutdown(false);
+                    
+                    if (self != null) BenchmarkController.this.self.interrupt();
+                }
+            } finally {
+                lock.unlock();
+            } // SYNCH
+        }
+    };
+    
     public static interface BenchmarkInterest {
         public String formatFinalResults(BenchmarkResults results);
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -371,6 +395,13 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
         this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName.getAbsolutePath()));
         
+        // Clear out any HStoreConf parameters that we're not suppose to
+        // forward to the sites and clients
+        for (String key : EXCLUDED_SITE_PARAMS)
+            m_config.siteParameters.remove(key);
+        for (String key : EXCLUDED_CLIENT_PARAMS)
+            m_config.clientParameters.remove(key);
+        
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
@@ -402,7 +433,6 @@ public class BenchmarkController {
         }
 
         // copy the catalog to the servers, but don't bother in local mode
-//        boolean status;
         if (m_config.localmode == false) {
             // HACK
             m_config.hosts = new String[unique_hosts.size()];
@@ -412,7 +442,7 @@ public class BenchmarkController {
             CollectionUtil.addAll(copyto_hosts, unique_hosts);
             CollectionUtil.addAll(copyto_hosts, m_config.clients);
             
-            Set<Thread> threads = new HashSet<Thread>();
+            Collection<Thread> threads = new ArrayList<Thread>();
             
             // HStoreSite
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
@@ -473,6 +503,9 @@ public class BenchmarkController {
         // registerInterest(uploader);
     }
     
+    /**
+     * Deploy the HStoreSites on the remote nodes
+     */
     public void startSites(final Catalog catalog) {
         LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
@@ -553,6 +586,9 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
     }
     
+    /**
+     * Invoke the benchmark loader
+     */
     public void startLoader() {
         LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
         LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
@@ -656,21 +692,10 @@ public class BenchmarkController {
 //            assert(status);
 //        }
     }
-    
-    private void addHostConnections(Collection<String> params) {
-        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
-            for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
-                String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
-                params.add("HOST=" + address);
-                if (trace.get()) 
-                    LOG.trace(String.format("HStoreSite %s: %s", HStoreThreadManager.formatSiteName(catalog_site.getId()), address));
-                break;
-            } // FOR
-        } // FOR
-    }
+
     
     /**
-     * 
+     * Invoke the benchmark clients on the remote nodes
      */
     public void startClients() {
         final ArrayList<String> allClientArgs = new ArrayList<String>();
@@ -839,7 +864,19 @@ public class BenchmarkController {
             this.registerInterest(checker);
         }
     }
-
+    
+    private void addHostConnections(Collection<String> params) {
+        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+            for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
+                String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
+                params.add("HOST=" + address);
+                if (trace.get()) 
+                    LOG.trace(String.format("HStoreSite %s: %s", HStoreThreadManager.formatSiteName(catalog_site.getId()), address));
+                break;
+            } // FOR
+        } // FOR
+    }
+    
     private Client getClientConnection() {
         // Connect to random host and using a random port that it's listening on
         Integer site_id = CollectionUtil.random(m_launchHosts.keySet());
