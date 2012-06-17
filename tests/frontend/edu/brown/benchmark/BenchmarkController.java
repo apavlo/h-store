@@ -744,7 +744,7 @@ public class BenchmarkController {
             if (value.startsWith("\"") == false) {
                 value = '"' + value + '"';
             }
-            String opt = String.format("-D%s=%s", e.getKey(), value);
+            String opt = String.format("%s=%s", e.getKey(), value);
             allClientArgs.add(opt);
             if (trace.get()) 
                 LOG.trace("  " + opt);
