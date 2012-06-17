@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
@@ -88,6 +89,8 @@ class Distributer {
     private final boolean m_useMultipleThreads;
 
     private final String m_hostname;
+    
+    private final ConcurrentHashMap<Thread, FastSerializer> m_serializers = new ConcurrentHashMap<Thread, FastSerializer>();
 
     /**
      * Server's instances id. Unique for the cluster
@@ -726,7 +729,9 @@ class Distributer {
             if (m_useMultipleThreads) {
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
-                final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
+                
+                // final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
+                FastSerializer fs = this.getSerializer();
                 BBContainer c = null;
                 try {
                     c = fs.writeObjectForMessaging(invocation);
@@ -751,6 +756,21 @@ class Distributer {
         }
 
         return !backpressure;
+    }
+    
+    /**
+     * Return a thread-safe FastSerializer
+     * @return
+     */
+    private FastSerializer getSerializer() {
+        Thread t = Thread.currentThread();
+        FastSerializer fs = this.m_serializers.get(t);
+        if (fs == null) {
+            fs = new FastSerializer(m_pool);
+            this.m_serializers.put(t, fs);
+        }
+        assert(fs != null);
+        return (fs);
     }
 
     /**
