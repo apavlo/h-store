@@ -9,6 +9,7 @@
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
 <arg value="client.log_backup=${client.log_backup}" />
+<arg value="client.jvm_args=${client.jvm_args}" />
 <arg value="client.jar_dir=${client.jar_dir}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
