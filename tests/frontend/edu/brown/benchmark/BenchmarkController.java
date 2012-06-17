@@ -580,9 +580,17 @@ public class BenchmarkController {
         loaderCommand.add("java");
         loaderCommand.add("-Dhstore.tag=loader");
         loaderCommand.add("-XX:-ReduceInitialCardMarks");
+        loaderCommand.add("-XX:-ReduceInitialCardMarks");
         loaderCommand.add("-XX:+HeapDumpOnOutOfMemoryError");
         loaderCommand.add("-XX:HeapDumpPath=" + hstore_conf.global.temp_dir);
         loaderCommand.add(String.format("-Xmx%dm", loaderheap));
+
+        if (hstore_conf.client.jvm_args != null) {
+            for (String arg : hstore_conf.client.jvm_args.split(" ")) {
+                loaderCommand.add(arg);        
+            } // FOR
+        }
+        
         if (debugString.isEmpty() == false) loaderCommand.add(debugString); 
         
         String classpath = ""; // Disable this so that we just pull from the build dir -> "hstore.jar" + ":" + m_jarFileName;
@@ -677,6 +685,12 @@ public class BenchmarkController {
         allClientArgs.add("-XX:HeapDumpPath=/tmp");
         allClientArgs.add(String.format("-Xmx%dm", m_config.clientHeapSize));
 
+        if (hstore_conf.client.jvm_args != null) {
+            for (String arg : hstore_conf.client.jvm_args.split(" ")) {
+                allClientArgs.add(arg);        
+            } // FOR
+        }
+        
         /*
          * This is needed to do database verification at the end of the run. In
          * order load the snapshot tables, we need the checksum stuff in the

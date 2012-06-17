@@ -957,11 +957,19 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
+            description="Additional JVM arguments to include when launching each benchmark client process. " +
+            		    "These arguments will be automatically split and escaped based on spaces.",
+            defaultNull=true,
+            experimental=true
+        )
+        public String jvm_args;
+        
+        @ConfigProperty(
             description="The directory that benchmark project jars will be stored in.",
-            defaultString="",
+            defaultString=".",
             experimental=false
         )
-        public String jar_dir = ".";
+        public String jar_dir;
         
         @ConfigProperty(
             description="The amount of memory to allocate for each client process (in MB)",
