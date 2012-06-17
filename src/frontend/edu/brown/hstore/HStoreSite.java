@@ -58,6 +58,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
+import org.voltdb.exceptions.ClientConnectionLostException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
@@ -2391,7 +2392,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         EstTimeUpdater.update(now);
         cresponse.setClusterRoundtrip((int)(now - initiateTime));
         cresponse.setRestartCounter(restartCounter);
-        clientCallback.run(cresponse);
+        try {
+            clientCallback.run(cresponse);
+        } catch (ClientConnectionLostException ex) {
+            if (d) LOG.debug("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
+        }
     }
     
     /**

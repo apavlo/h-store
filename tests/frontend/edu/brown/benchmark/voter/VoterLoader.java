@@ -31,18 +31,17 @@
 package edu.brown.benchmark.voter;
 
 import org.apache.log4j.Logger;
-import org.voltdb.client.Client;
 
-import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.Loader;
 
-public class VoterLoader extends BenchmarkComponent {
+public class VoterLoader extends Loader {
 
     private static final Logger LOG = Logger.getLogger(VoterLoader.class);
     private static final boolean d = LOG.isDebugEnabled();
 
     public static void main(String args[]) throws Exception {
         if (d) LOG.debug("MAIN: " + VoterLoader.class.getName());
-        BenchmarkComponent.main(VoterLoader.class, args, true);
+        Loader.main(VoterLoader.class, args, true);
     }
 
     public VoterLoader(String[] args) {
@@ -51,21 +50,17 @@ public class VoterLoader extends BenchmarkComponent {
     }
 
     @Override
-    public void runLoop() {
-        if (d) LOG.debug("Starting VoterLoader");
+    public void load() {
+        int numContestants = VoterUtil.getScaledNumContestants(this.getScaleFactor());
+//        if (d) 
+            LOG.info("Starting VoterLoader [numContestants=" + numContestants + "]");
 
-        Client client = this.getClientHandle();
         try {
-            client.callProcedure("Initialize", VoterConstants.NUM_CONTESTANTS,
-                                               VoterConstants.CONTESTANT_NAMES_CSV);
+            this.getClientHandle().callProcedure("Initialize",
+                                                 numContestants,
+                                                 VoterConstants.CONTESTANT_NAMES_CSV);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public String[] getTransactionDisplayNames() {
-        // IGNORE: Only needed for Client
-        return new String[] {};
     }
 }

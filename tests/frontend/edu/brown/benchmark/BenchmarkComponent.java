@@ -171,6 +171,7 @@ public abstract class BenchmarkComponent {
      * Manage input and output to the framework
      */
     private ControlPipe m_controlPipe;
+    private boolean m_controlPipeAutoStart = false;
 
     /**
      * 
@@ -345,7 +346,7 @@ public abstract class BenchmarkComponent {
     
     /**
      * Get the display names of the transactions that will be invoked by the
-     * dervied class. As a side effect this also retrieves the number of
+     * derived class. As a side effect this also retrieves the number of
      * transactions that can be invoked.
      *
      * @return
@@ -462,6 +463,7 @@ public abstract class BenchmarkComponent {
         String partitionPlanPath = null;
         boolean partitionPlanIgnoreMissing = false;
         long startupWait = -1;
+        boolean autoStart = false;
         
         String statsDatabaseURL = null;
         String statsDatabaseUser = null;
@@ -532,6 +534,9 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("WAIT")) {
                 startupWait = Long.parseLong(parts[1]);
             }
+            else if (parts[0].equalsIgnoreCase("AUTOSTART")) {
+                autoStart = Boolean.parseBoolean(parts[1]);
+            }
             
             // Procedure Stats Uploading Parameters
             else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
@@ -589,6 +594,7 @@ public abstract class BenchmarkComponent {
         m_noConnections = noConnections || (isLoader && m_noUploading);
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
+        m_controlPipeAutoStart = autoStart;
         
         m_statsDatabaseURL = statsDatabaseURL; 
         m_statsDatabaseUser = statsDatabaseUser;
@@ -667,11 +673,12 @@ public abstract class BenchmarkComponent {
         m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
         m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
         
-        // If we need to call tick more frequently that when POLL is called,
+        // If we need to call tick more frequently than when POLL is called,
         // then we'll want to use a separate thread
         if (m_tickInterval > 0 && isLoader == false) {
             if (debug.get())
-                LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds", (m_tickInterval / 1000.0)));
+                LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds",
+                                        (m_tickInterval / 1000.0)));
             Runnable r = new Runnable() {
                 @Override
                 public void run() {
@@ -1178,14 +1185,8 @@ public abstract class BenchmarkComponent {
         return 128;
     }
 
-    // update the client state and start waiting for a message.
-    public void start(InputStream in) {
-        m_controlPipe = new ControlPipe(this, in);
-        m_controlPipe.run(); // blocking
-    }
-    
     public ControlPipe createControlPipe(InputStream in) {
-        m_controlPipe = new ControlPipe(this, in);
+        m_controlPipe = new ControlPipe(this, in, m_controlPipeAutoStart);
         return (m_controlPipe);
     }
 
