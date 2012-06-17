@@ -32,8 +32,11 @@ public final class HStoreConf {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    
-    static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
+    /**
+     * Regular expression for splitting a parameter into
+     * prefix and suffix components
+     */
+    protected static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
     
     // ============================================================================
     // GLOBAL
@@ -136,9 +139,9 @@ public final class HStoreConf {
         @ConfigProperty(
             description="When used in conjunction with ${site.cpu_affinity}, each PartitionExecutor thread will be " +
                         "assigned to one and only CPU core. No other thread within the HStoreSite (including all " +
-                        "other PartitionExecutors) will be allowed to execute on that core. This configuration option is " +
-                        "mostly used for debugging and is unlikely to provide any speed improvement because the " +
-                        "operating system will automatically maintain CPU affinity.",
+                        "other PartitionExecutors) will be allowed to execute on that core. This configuration " +
+                        "option is mostly used for debugging and is unlikely to provide any speed improvement " +
+                        "because the operating system will automatically maintain CPU affinity.",
             defaultBoolean=false,
             experimental=true
         )
