@@ -487,10 +487,14 @@ public class BenchmarkController {
         siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
-            String opt = String.format("-D%s=%s", e.getKey(), e.getValue());
+            String value = e.getValue();
+            if (value.startsWith("\"") == false) {
+                value = '"' + value + '"';
+            }
+            String opt = String.format("-D%s=%s", e.getKey(), value);
             siteBaseCommand.add(opt);
             if (trace.get()) 
-                LOG.trace("  " + e);
+                LOG.trace("  " + opt);
         } // FOR
 
         for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
