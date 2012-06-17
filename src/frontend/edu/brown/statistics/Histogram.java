@@ -86,8 +86,8 @@ public class Histogram<X> implements JSONSerializable {
     protected VoltType value_type = VoltType.INVALID;
     protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
     protected int num_samples = 0;
-    private transient boolean dirty = false;
     
+    private transient boolean dirty = false;
     protected transient Map<Object, String> debug_names;
     protected transient boolean debug_percentages = false;
     
@@ -712,6 +712,12 @@ public class Histogram<X> implements JSONSerializable {
     public boolean hasDebugLabels() {
         return (this.debug_names != null && this.debug_names.isEmpty() == false);
     }
+    public Map<Object, String> getDebugLabels() {
+        return (this.debug_names);
+    }
+    public String getDebugLabel(Object key) {
+        return (this.debug_names.get(key));
+    }
     
     /**
      * Enable percentages in toString() output
@@ -821,20 +827,30 @@ public class Histogram<X> implements JSONSerializable {
         for (Members element : Histogram.Members.values()) {
             try {
                 Field field = Histogram.class.getDeclaredField(element.toString().toLowerCase());
-                if (element == Members.HISTOGRAM) {
-                    stringer.key(Members.HISTOGRAM.name()).object();
-                    synchronized (this) {
-                        for (Object value : this.histogram.keySet()) {
-                            stringer.key(value.toString()).value(this.histogram.get(value));
-                        } // FOR
-                    } // SYNCH
-                    stringer.endObject();
-                } else if (element == Members.KEEP_ZERO_ENTRIES) {
-                    if (this.keep_zero_entries)
-                        stringer.key(element.name()).value(this.keep_zero_entries);
-                } else {
-                    stringer.key(element.name()).value(field.get(this));
-                }
+                switch (element) {
+                    case HISTOGRAM: {
+                        if (this.histogram.isEmpty() == false) {
+                            stringer.key(element.name()).object();
+                            synchronized (this) {
+                                for (Object value : this.histogram.keySet()) {
+                                    stringer.key(value.toString())
+                                            .value(this.histogram.get(value));
+                                } // FOR
+                            } // SYNCH
+                            stringer.endObject();
+                        }
+                        break;
+                    }
+                    case KEEP_ZERO_ENTRIES: {
+                        if (this.keep_zero_entries)
+                            stringer.key(element.name())
+                                    .value(this.keep_zero_entries);
+                        break;
+                    }
+                    default:
+                        stringer.key(element.name())
+                                .value(field.get(this));
+                } // SWITCH
             } catch (Exception ex) {
                 ex.printStackTrace();
                 System.exit(1);
@@ -860,10 +876,11 @@ public class Histogram<X> implements JSONSerializable {
                 String field_name = element.toString().toLowerCase();
                 Field field = Histogram.class.getDeclaredField(field_name);
                 if (element == Members.HISTOGRAM) {
-                    JSONObject jsonObject = object.getJSONObject(Members.HISTOGRAM.name());
-                    Iterator<String> keys = jsonObject.keys();
-                    while (keys.hasNext()) {
-                        String key_name = keys.next();
+                    if (object.has(element.name()) == false) {
+                        continue;
+                    }
+                    JSONObject jsonObject = object.getJSONObject(element.name());
+                    for (String key_name : CollectionUtil.iterable(jsonObject.keys())) {
                         Object key_value = VoltTypeUtil.getObjectFromString(this.value_type, key_name);
                         Long count = Long.valueOf(jsonObject.getLong(key_name));
                         this.histogram.put((X) key_value, count);

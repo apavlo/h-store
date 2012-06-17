@@ -3,8 +3,17 @@ package edu.brown.statistics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Database;
+
+import edu.brown.utils.CollectionUtil;
 
 /**
  * Fixed-size histogram that only stores integers
@@ -13,12 +22,20 @@ import org.voltdb.VoltType;
  */
 public class FastIntHistogram extends Histogram<Integer> {
 
-    private final long histogram[];
+    private long histogram[];
     private int value_count = 0;
-
+    
+    public FastIntHistogram() {
+        // Deserialization
+    }
+    
     public FastIntHistogram(int size) {
         this.histogram = new long[size];
         this.clearValues();
+    }
+    
+    public int fastSize() {
+        return (this.histogram.length);
     }
 
     public long[] fastValues() {
@@ -274,6 +291,49 @@ public class FastIntHistogram extends Histogram<Integer> {
             }
         } // FOR
         return (max_values);
+    }
+    
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        stringer.key(Members.HISTOGRAM.name()).array();
+        for (int i = 0; i < this.histogram.length; i++) {
+            stringer.value(this.histogram[i]);
+        } // FOR
+        stringer.endArray();
+        
+        stringer.key("VALUE_COUNT").value(this.value_count);
+        
+        if (this.debug_names != null && this.debug_names.isEmpty() == false) {
+            stringer.key("DEBUG_NAMES").object();
+            for (Entry<Object, String> e : this.debug_names.entrySet()) {
+                stringer.key(e.getKey().toString())
+                        .value(e.getValue().toString());
+            } // FOR
+            stringer.endObject();
+        }
+    }
+    
+    @Override
+    public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
+        JSONArray jsonArr = object.getJSONArray(Members.HISTOGRAM.name());
+        this.histogram = new long[jsonArr.length()];
+        for (int i = 0; i < this.histogram.length; i++) {
+            this.histogram[i] = jsonArr.getLong(i);
+        } // FOR
+        this.value_count = object.getInt("VALUE_COUNT");
+        
+        if (object.has("DEBUG_NAMES")) {
+            if (this.debug_names == null) {
+                this.debug_names = new TreeMap<Object, String>();
+            } else {
+                this.debug_names.clear();
+            }
+            JSONObject jsonObj = object.getJSONObject("DEBUG_NAMES");
+            for (String key : CollectionUtil.iterable(jsonObj.keys())) {
+                String label = jsonObj.getString(key);
+                this.debug_names.put(Integer.valueOf(key), label);
+            }
+        }
     }
 
 }

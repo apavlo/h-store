@@ -115,6 +115,10 @@ public abstract class BenchmarkComponent {
     
     public static String CONTROL_MESSAGE_PREFIX = "{HSTORE}";
     
+    // ============================================================================
+    // SHARED STATIC MEMBERS
+    // ============================================================================
+    
     private static Client globalClient;
     private static Catalog globalCatalog;
     private static PartitionPlan globalPartitionPlan;
@@ -161,6 +165,10 @@ public abstract class BenchmarkComponent {
         }
         return;
     }
+    
+    // ============================================================================
+    // INSTANCE MEMBERS
+    // ============================================================================
     
     /**
      * Client initialized here and made available for use in derived classes
@@ -284,7 +292,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
-    protected final TransactionCounter m_txnStats = new TransactionCounter();
+    protected final TransactionCounter m_txnStats;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -366,7 +374,7 @@ public abstract class BenchmarkComponent {
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
             m_txnStats.basePartitions.put(cresponse.getBasePartition());
-            m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
+            m_txnStats.transactions.put(txn_idx);
         }
         m_txnStats.responseStatuses.put(status.name());
     }
@@ -392,6 +400,7 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
         m_tickInterval = -1;
         m_tickThread = null;
+        m_txnStats = null;
         m_tableStats = false;
         m_tableStatsDir = null;
         m_noUploading = false;
@@ -666,12 +675,19 @@ public abstract class BenchmarkComponent {
 
         m_countDisplayNames = getTransactionDisplayNames();
         if (m_countDisplayNames != null) {
-            for (String txnName : m_countDisplayNames) {
-                m_txnStats.transactions.put(txnName, 0);
+            m_txnStats = new TransactionCounter(m_countDisplayNames.length);
+            Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
+            for (int i = 0; i < m_countDisplayNames.length; i++) {
+                m_txnStats.transactions.put(i, 0);
+                debugLabels.put(i, m_countDisplayNames[i]);
             } // FOR
+            m_txnStats.transactions.setDebugLabels(debugLabels);
+            
+            m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
+            m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
+        } else {
+            m_txnStats = null;
         }
-        m_txnStats.setEnableBasePartitions(m_hstoreConf.client.output_basepartitions);
-        m_txnStats.setEnableResponsesStatuses(m_hstoreConf.client.output_response_status);
         
         // If we need to call tick more frequently than when POLL is called,
         // then we'll want to use a separate thread

@@ -35,7 +35,6 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -291,7 +290,8 @@ public class BenchmarkResults {
     private final Histogram<String> clientResultCount = new Histogram<String>();
     
     // cached data for performance and consistency
-    private final SortedSet<String> m_transactionNames = new TreeSet<String>();
+    // TxnName -> FastIntHistogram Offset
+    private final SortedMap<String, Integer> m_transactionNames = new TreeMap<String, Integer>();
     
     private Pair<Long, Long> CACHE_computeTotalAndDelta = null;
 
@@ -346,9 +346,7 @@ public class BenchmarkResults {
 
 
     public Set<String> getTransactionNames() {
-        Set<String> retval = new TreeSet<String>();
-        retval.addAll(m_transactionNames);
-        return retval;
+        return (m_transactionNames.keySet());
     }
 
     public Set<String> getClientNames() {
@@ -455,8 +453,10 @@ public class BenchmarkResults {
         synchronized (this) {
             // put the transactions names:
             if (m_transactionNames.isEmpty()) {
-                for (String txnName : tc.transactions.values())
-                    m_transactionNames.add(txnName);
+                for (Entry<Object, String> e : tc.transactions.getDebugLabels().entrySet()) {
+                    Integer offset = (Integer)e.getKey();
+                    m_transactionNames.put(e.getValue(), offset);
+                }
             }
             
             // ensure there is an entry for the client
@@ -466,14 +466,16 @@ public class BenchmarkResults {
                 m_data.put(clientName, txnResults);
             }
     
-            for (String txnName : m_transactionNames) {
+            for (String txnName : m_transactionNames.keySet()) {
                 List<Result> results = txnResults.get(txnName);
                 if (results == null) {
                     results = new ArrayList<Result>();
                     txnResults.put(txnName, results);
                 }
                 assert(results != null);
-                Result r = new Result(offsetTime, tc.transactions.get(txnName));
+                
+                Integer offset = m_transactionNames.get(txnName);
+                Result r = new Result(offsetTime, tc.transactions.fastGet(offset.intValue()));
                 results.add(r);
             } // FOR
             this.clientResultCount.put(clientName);
@@ -499,7 +501,7 @@ public class BenchmarkResults {
             clone.m_responseStatuses.putHistogram(m_responseStatuses);
         }
         clone.m_errors.addAll(m_errors);
-        clone.m_transactionNames.addAll(m_transactionNames);
+        clone.m_transactionNames.putAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
         clone.clientResultCount.putHistogram(this.clientResultCount);
 
@@ -521,7 +523,7 @@ public class BenchmarkResults {
 
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Transaction Names", StringUtil.join("\n", m_transactionNames));
+        m.put("Transaction Names", StringUtil.join("\n", m_transactionNames.keySet()));
         m.put("Transaction Data", m_data);
         
         if (this.enableBasePartitions) {
