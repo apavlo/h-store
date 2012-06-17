@@ -1550,19 +1550,28 @@ public final class HStoreConf {
         for (int i = 0, cnt = args.length; i < cnt; i++) {
             final String arg = args[i];
             final String[] parts = split_p.split(arg, 2);
+            if (parts.length == 1) {
+                LOG.warn("Unexpected argument format '" + arg + "'");
+                continue;
+            }
+            
             String k = parts[0].toLowerCase();
             String v = parts[1];
             if (k.startsWith("-")) k = k.substring(1);
             
-            if (parts.length == 1) {
+            // 'hstore.tag' is special argument that we use in killstragglers.py 
+            if (k.equalsIgnoreCase("tag")) {
                 continue;
-            } else if (k.equalsIgnoreCase("tag")) {
+            // This command is undefined from the commandline
+            } else if (v.startsWith("${")) {
                 continue;
-            } else if (v.startsWith("${") || k.startsWith("#")) {
+            // Or this parameter is commented out in Eclipse
+            } else if (k.startsWith("#")) {
                 continue;
-            } else {
-                argsMap.put(k, v);
             }
+            
+            // We want it!
+            argsMap.put(k, v);
         } // FOR
         this.loadFromArgs(argsMap);
     }
