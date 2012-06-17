@@ -70,7 +70,8 @@ public class VoterClient extends BenchmarkComponent {
 
     public VoterClient(String args[]) {
         super(args);
-        this.switchboard = new PhoneCallGenerator(VoterConstants.NUM_CONTESTANTS);
+        int numContestants = VoterUtil.getScaledNumContestants(this.getScaleFactor());
+        this.switchboard = new PhoneCallGenerator(numContestants);
     }
 
     @Override

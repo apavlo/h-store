@@ -4,6 +4,7 @@
 package edu.brown.hstore.callbacks;
 
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.exceptions.ClientConnectionLostException;
 import org.voltdb.network.Connection;
 
 import com.google.protobuf.RpcCallback;
@@ -31,7 +32,7 @@ public class ClientResponseCallback implements RpcCallback<ClientResponseImpl> {
     public void run(ClientResponseImpl parameter) {
         boolean ret = this.conn.writeStream().enqueue(parameter);
         if (ret == false) {
-            throw new RuntimeException("Unable to write ClientResponse on output stream?");
+            throw new ClientConnectionLostException(parameter.getTransactionId());
         }
         this.clientInterface.reduceBackpressure(this.messageSize);
     }

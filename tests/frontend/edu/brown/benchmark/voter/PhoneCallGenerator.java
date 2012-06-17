@@ -30,17 +30,7 @@
 
 package edu.brown.benchmark.voter;
 
-import java.io.IOException;
 import java.util.Random;
-import java.util.Map;
-
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcedureCallback;
-
-import edu.brown.benchmark.BenchmarkComponent;
-
 
 public class PhoneCallGenerator {
 	

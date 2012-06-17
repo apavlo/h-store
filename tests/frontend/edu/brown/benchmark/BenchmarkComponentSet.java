@@ -43,7 +43,9 @@ public class BenchmarkComponentSet implements Runnable {
         List<String> clientArgs = (List<String>)CollectionUtil.addAll(new ArrayList<String>(), args);
         for (int i = 0; i < this.clientIds.length; i++) {
             clientArgs.add("ID=" + this.clientIds[i]);
-            BenchmarkComponent comp = BenchmarkComponent.main(componentClass, clientArgs.toArray(new String[0]), false);
+            BenchmarkComponent comp = BenchmarkComponent.main(componentClass,
+                                                              clientArgs.toArray(new String[0]),
+                                                              false);
             PipedInputStream in = new PipedInputStream();
             PipedOutputStream out = new PipedOutputStream(in);
             this.components.put(comp, new PrintWriter(out));
