@@ -101,17 +101,6 @@ public class HStoreThreadManager {
     }
     
     /**
-     * Return the total number of cores at this host
-     * Note that this does not take into consideration other sites that may 
-     * be running at the same host
-     * @return
-     */
-    public int getNumCores() {
-        return (this.num_cores);
-    }
-    
-    
-    /**
      * Set the CPU affinity for the EE thread executing for the given partition
      * @param partition
      */
@@ -162,8 +151,8 @@ public class HStoreThreadManager {
     /**
      * Set the CPU affinity for a non-EE thread
      */
-    public void registerProcessingThread() {
-        if (this.disable) return;
+    public boolean registerProcessingThread() {
+        if (this.disable) return (false);
         
         boolean affinity[] = this.defaultAffinity;
         Thread t = Thread.currentThread();
@@ -182,11 +171,13 @@ public class HStoreThreadManager {
         try {
             org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
         } catch (UnsatisfiedLinkError ex) {
-            LOG.warn("Unable to set thread affinity. Disabling feature", (debug.get() ? ex : null));
+//            LOG.warn("Unable to set thread affinity. Disabling feature", (debug.get() ? ex : null));
+            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
             this.disable = true;
-            return;
+            return (false);
         }
         this.registerThread(this.defaultAffinity);
+        return (true);
     }
     
     private synchronized void registerThread(boolean affinity[]) {
@@ -234,6 +225,24 @@ public class HStoreThreadManager {
     public Map<Integer, Set<Thread>> getCPUThreads() {
         return Collections.unmodifiableMap(this.cpu_threads);
     }
+    
+    /**
+     * Return the total number of cores at this host
+     * Note that this does not take into consideration other sites that may 
+     * be running at the same host
+     * @return
+     */
+    public int getNumCores() {
+        return (this.num_cores);
+    }
+
+    /**
+     * Returns true if cpu affinity pinning is enabled
+     * @return
+     */
+    public boolean isEnabled() {
+        return (this.disable == false);
+    }
 
     // ----------------------------------------------------------------------------
     // THREAD NAME FORMATTERS
@@ -275,4 +284,5 @@ public class HStoreThreadManager {
         }
         return (String.format("H%02d%s", site_id, suffix));
     }
+    
 }

@@ -56,7 +56,6 @@ import java.nio.ByteBuffer;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.messaging.FastDeserializer;
-import org.voltdb.messaging.FastSerializableTestUtil;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.types.TimestampType;
 
