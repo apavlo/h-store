@@ -19,6 +19,11 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
+/**
+ * This thread is started by the BenchmarkController and will process
+ * updates coming from remotely started BenchmarkComponents
+ * @author pavlo
+ */
 public class ClientStatusThread extends Thread {
     private static final Logger LOG = Logger.getLogger(ClientStatusThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -71,14 +76,16 @@ public class ClientStatusThread extends Thread {
             if (line == null) {
                 continue;
             }
-            else if (line.stream == ProcessSetManager.Stream.STDERR) {
-                System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
-//                System.err.printf("%s\n", line.value);
+            // Print stderr back-out to the console
+            else if (line.stream == ProcessSetManager.StreamType.STDERR) {
+                String prefix = String.format("(%s): ", line.processName);
+                System.err.println(StringUtil.prefix(line.value, prefix));
                 continue;
             }
             // General Debug Output
             else if (line.value.startsWith(BenchmarkComponent.CONTROL_MESSAGE_PREFIX) == false) {
-                System.out.println(line.value);
+                String prefix = String.format("(%s): ", line.processName);
+                System.out.println(StringUtil.prefix(line.value, prefix));
                 continue;
             }
             

@@ -31,6 +31,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,29 +70,27 @@ public class ProcessSetManager implements Shutdownable {
     
     private static final SimpleDateFormat BACKUP_FORMAT = new SimpleDateFormat("yyyy.MM.dd-HH:mm:ss");
     
-    final int initial_polling_delay; 
-    final File output_directory;
-    final EventObservable<String> failure_observable = new EventObservable<String>();
-    final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
-    final Map<String, ProcessData> m_processes = new ConcurrentHashMap<String, ProcessData>();
-    final ProcessSetPoller setPoller = new ProcessSetPoller();
-    boolean shutting_down = false;
-    boolean backup_logs = true;
-    
-    
+    /**
+     * Regular expressions of strings that we want to exclude from the remote
+     * process' output. This is just to make the debug logs easier to read.  
+     */
     public static final Pattern OUTPUT_CLEAN[] = {
         Pattern.compile("__(FILE|LINE)__[:]?"),
         Pattern.compile("[A-Z][\\w\\_]+\\.java:[\\d]+ ")
     };
     
-    public enum Stream { STDERR, STDOUT; }
+    public enum StreamType { STDERR, STDOUT; }
+    
 
-    static class ProcessData {
-        Process process;
+    private static class ProcessData {
+        final Process process;
         ProcessPoller poller;
-        int pid;
         StreamWatcher out;
         StreamWatcher err;
+        
+        ProcessData(Process process) {
+            this.process = process;
+        }
     }
 
     /**
@@ -99,7 +98,7 @@ public class ProcessSetManager implements Shutdownable {
      *
      */
     public final class OutputLine {
-        OutputLine(String processName, Stream stream, String value) {
+        OutputLine(String processName, StreamType stream, String value) {
             assert(value != null);
             this.processName = processName;
             this.stream = stream;
@@ -107,27 +106,13 @@ public class ProcessSetManager implements Shutdownable {
         }
 
         public final String processName;
-        public final Stream stream;
+        public final StreamType stream;
         public final String value;
         
         @Override
         public String toString() {
             return String.format("{%s, %s, \"%s\"}", processName, stream, value);
         }
-    }
-
-    static Set<Process> createdProcesses = new HashSet<Process>();
-    static class ShutdownThread extends Thread {
-        @Override
-        public void run() {
-            synchronized(createdProcesses) {
-                for (Process p : createdProcesses)
-                    p.destroy();
-            }
-        }
-    }
-    static {
-        Runtime.getRuntime().addShutdownHook(new ShutdownThread());
     }
 
     class ProcessPoller extends Thread {
@@ -200,14 +185,19 @@ public class ProcessSetManager implements Shutdownable {
         }
     } // END CLASS
     
+    /**
+     * Thread that polls the given BufferedReader and parses its output.
+     * The contents are written to the FileWriter and added to the output queue for
+     * further processing
+     */
     class StreamWatcher extends Thread {
         final BufferedReader m_reader;
         final String m_processName;
-        final Stream m_stream;
+        final StreamType m_stream;
         final AtomicBoolean m_expectDeath = new AtomicBoolean(false);
         final FileWriter m_writer;
 
-        StreamWatcher(BufferedReader reader, FileWriter writer, String processName, Stream stream) {
+        StreamWatcher(BufferedReader reader, FileWriter writer, String processName, StreamType stream) {
             assert(reader != null);
             this.setDaemon(true);
             m_reader = reader;
@@ -231,7 +221,8 @@ public class ProcessSetManager implements Shutdownable {
                         if (!m_expectDeath.get()) {
                             synchronized (ProcessSetManager.this) { 
                                 if (shutting_down == false)
-                                    LOG.error(String.format("Stream monitoring thread for '%s' is exiting", m_processName), (debug.get() ? e : null));
+                                    LOG.error(String.format("Stream monitoring thread for '%s' is exiting",
+                                              m_processName), (debug.get() ? e : null));
                                 failure_observable.notifyObservers(m_processName);
                             } // SYNCH
                         }
@@ -270,11 +261,35 @@ public class ProcessSetManager implements Shutdownable {
         }
     }
     
-    public ProcessSetManager(String log_dir, boolean backup_logs, int initial_polling_delay, EventObserver<String> observer) {
+    // ============================================================================
+    // INSTANCE MEMBERS
+    // ============================================================================
+    
+    final int initial_polling_delay; 
+    final File output_directory;
+    final EventObservable<String> failure_observable = new EventObservable<String>();
+    final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
+    final Map<String, ProcessData> m_processes = new ConcurrentHashMap<String, ProcessData>();
+    final ProcessSetPoller setPoller = new ProcessSetPoller();
+    boolean shutting_down = false;
+    boolean backup_logs = true;
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+
+    /**
+     * Constructor
+     * @param log_dir
+     * @param backup_logs
+     * @param initial_polling_delay
+     * @param failureObserver
+     */
+    public ProcessSetManager(String log_dir, boolean backup_logs, int initial_polling_delay, EventObserver<String> failureObserver) {
         this.output_directory = (log_dir != null && log_dir.isEmpty() == false ? new File(log_dir) : null);
         this.backup_logs = backup_logs;
         this.initial_polling_delay = initial_polling_delay;
-        this.failure_observable.addObserver(observer);
+        this.failure_observable.addObserver(failureObserver);
         
         if (this.output_directory != null)
             FileUtil.makeDirIfNotExists(this.output_directory.getAbsolutePath());
@@ -283,6 +298,30 @@ public class ProcessSetManager implements Shutdownable {
     public ProcessSetManager() {
         this(null, false, 10000, null);
     }
+    
+    // ============================================================================
+    // SHUTDOWN METHODS
+    // ============================================================================
+
+    /**
+     * A list of all the processes that we have ever created
+     * This is just to give us an extract chance to remove anything that we may have
+     * left laying around if we fail to shutdown cleanly.  
+     */
+    private static Collection<Process> ALL_PROCESSES = new HashSet<Process>();
+    private static class ShutdownThread extends Thread {
+        @Override
+        public void run() {
+            synchronized(ProcessSetManager.class) {
+                for (Process p : ALL_PROCESSES)
+                    p.destroy();
+            }
+        }
+    }
+    static {
+        Runtime.getRuntime().addShutdownHook(new ShutdownThread());
+    }
+    
     
     @Override
     public synchronized void prepareShutdown(boolean error) {
@@ -320,12 +359,16 @@ public class ProcessSetManager implements Shutdownable {
                 LOG.debug("Finished shutting down");
         }
     }
-    
+
     @Override
     public synchronized boolean isShuttingDown() {
         return (this.shutting_down);
     }
 
+    // ============================================================================
+    // UTILITY METHODS
+    // ============================================================================
+    
     public String[] getProcessNames() {
         String[] retval = new String[m_processes.size()];
         int i = 0;
@@ -334,73 +377,10 @@ public class ProcessSetManager implements Shutdownable {
         return retval;
     }
 
-    public void startProcess(String processName, String[] cmd) {
-        if (debug.get()) LOG.debug("Starting Process: " + StringUtil.join(" ", cmd));
-        
-        ProcessBuilder pb = new ProcessBuilder(cmd);
-        ProcessData pd = new ProcessData();
-        try {
-            pd.process = pb.start();
-            synchronized (createdProcesses) {
-                createdProcesses.add(pd.process);
-                assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
-                m_processes.put(processName, pd);
-                
-                // Start the individual watching thread for this process
-                pd.poller = new ProcessPoller(pd.process, processName);
-                pd.poller.start();
-                
-                if (this.setPoller.isAlive() == false) this.setPoller.start();
-            } // SYNCH
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        
-//        Pair<Integer, Process> pair = ThreadUtil.exec(cmd);
-//        ProcessData pd = new ProcessData();
-//        pd.pid = pair.getFirst();
-//        pd.process = pair.getSecond();
-//        createdProcesses.add(pd.process);
-//        assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
-//        m_processes.put(processName, pd);
-        
-        BufferedReader out = new BufferedReader(new InputStreamReader(pd.process.getInputStream()));
-        BufferedReader err = new BufferedReader(new InputStreamReader(pd.process.getErrorStream()));
-        
-        // Output File
-        FileWriter fw = null;
-        if (output_directory != null) {
-            String baseName = String.format("%s/%s.log", output_directory.getAbsolutePath(), processName);
-            File path = new File(baseName);
-            
-            // 2012-01-24
-            // If the file already exists, we'll move it out of the way automatically 
-            // if they want us to
-            if (path.exists() && backup_logs) {
-                Date log_date = new Date(path.lastModified());
-                File backup_file = new File(baseName + "-" + BACKUP_FORMAT.format(log_date));
-                path.renameTo(backup_file);
-                if (debug.get())
-                    LOG.debug(String.format("Moved log file '%s' to '%s'", path.getName(), backup_file.getName())); 
-            }
-            
-            try {
-                fw = new FileWriter(path);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to create output writer for " + processName, ex);
-            }
-            if (debug.get()) 
-                LOG.debug(String.format("Logging %s output to '%s'", processName, path));
-        }
-        
-        pd.out = new StreamWatcher(out, fw, processName, Stream.STDOUT);
-        pd.err = new StreamWatcher(err, fw, processName, Stream.STDERR);
-        
-        pd.out.start();
-        pd.err.start();
+    public int size() {
+        return m_processes.size();
     }
-
+    
     public OutputLine nextBlocking() {
         try {
             return m_output.take();
@@ -450,6 +430,85 @@ public class ProcessSetManager implements Shutdownable {
         }
     }
 
+    // ============================================================================
+    // START PROCESS
+    // ============================================================================
+
+    /**
+     * Main method for starting a new process under this manager
+     * The given processName must be a unique handle that we will us to
+     * identify this new process in the future.  
+     * @param processName
+     * @param cmd
+     */
+    public void startProcess(String processName, String[] cmd) {
+        if (debug.get()) LOG.debug("Starting Process: " + StringUtil.join(" ", cmd));
+        
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        ProcessData pd = null;
+        try {
+            synchronized (ProcessSetManager.class) {
+                if (m_processes.containsKey(processName)) {
+                    throw new RuntimeException("Duplicate process name '" + processName + "'");
+                }
+                pd = new ProcessData(pb.start());
+                m_processes.put(processName, pd);
+                ALL_PROCESSES.add(pd.process);
+            } // SYNCH
+
+            // Start the individual watching thread for this process
+            pd.poller = new ProcessPoller(pd.process, processName);
+            pd.poller.start();
+            
+            if (this.setPoller.isAlive() == false) this.setPoller.start();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to start process '" + processName + "'", e);
+        }
+        
+        BufferedReader out = new BufferedReader(new InputStreamReader(pd.process.getInputStream()));
+        BufferedReader err = new BufferedReader(new InputStreamReader(pd.process.getErrorStream()));
+        
+        // Output File
+        // We use a single output file for stdout and stderr
+        FileWriter fw = null;
+        if (this.output_directory != null) {
+            String baseName = String.format("%s/%s.log", this.output_directory.getAbsolutePath(), processName);
+            File path = new File(baseName);
+            
+            // 2012-01-24
+            // If the file already exists, we'll move it out of the way automatically 
+            // if they want us to
+            if (path.exists() && this.backup_logs) {
+                Date log_date = new Date(path.lastModified());
+                File backup_file = new File(baseName + "-" + BACKUP_FORMAT.format(log_date));
+                path.renameTo(backup_file);
+                if (debug.get())
+                    LOG.debug(String.format("Moved log file '%s' to '%s'", path.getName(), backup_file.getName())); 
+            }
+            
+            try {
+                fw = new FileWriter(path);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to create output writer for " + processName, ex);
+            }
+            if (debug.get()) 
+                LOG.debug(String.format("Logging %s output to '%s'", processName, path));
+        }
+        
+        pd.out = new StreamWatcher(out, fw, processName, StreamType.STDOUT);
+        pd.err = new StreamWatcher(err, fw, processName, StreamType.STDERR);
+        
+        pd.out.start();
+        pd.err.start();
+    }
+    
+
+
+
+    // ============================================================================
+    // STOP PROCESSES
+    // ============================================================================
+    
     public synchronized Map<String, Integer> joinAll() {
         Map<String, Integer> retvals = new HashMap<String, Integer>();
         Long wait = 5000l;
@@ -523,18 +582,14 @@ public class ProcessSetManager implements Shutdownable {
             } // SYNCH
         }
 
-        synchronized(createdProcesses) {
-            createdProcesses.remove(pd.process);
+        synchronized(ProcessSetManager.class) {
+            ALL_PROCESSES.remove(pd.process);
             pd.poller.interrupt();
-        }
+        } // SYNCH
 
         return retval;
     }
-
-    public int size() {
-        return m_processes.size();
-    }
-
+    
     public static void main(String[] args) {
         ProcessSetManager psm = new ProcessSetManager();
         psm.startProcess("ping4c", new String[] { "ping", "volt4c" });
