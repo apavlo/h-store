@@ -88,6 +88,7 @@ t library does (ant jars)
 
 #include "org_voltdb_jni_ExecutionEngine.h" // the header file output by javah
 #include "org_voltdb_utils_DBBPool.h" //Utility method for DBBContainer
+#include "org_voltdb_utils_ThreadUtils.h" // the header file output by javah
 
 #include "boost/shared_ptr.hpp"
 #include "boost/scoped_array.hpp"
@@ -1168,12 +1169,12 @@ SHAREDLIB_JNIEXPORT jbooleanArray JNICALL Java_org_voltdb_utils_ThreadUtils_getT
             boolArray[ii] = JNI_TRUE;
         } else {
             boolArray[ii] = JNI_FALSE;
+        }
     }
-}
 
-/*
+    /*
      * Now released and commit the boolArray
- */
+     */
     env->ReleaseBooleanArrayElements(returnArray, boolArray, 0);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
