@@ -8,13 +8,14 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.statistics.FastIntHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public class TransactionCounter implements JSONSerializable {
 
-    public Histogram<String> transactions = new Histogram<String>(true);
+    public FastIntHistogram transactions;
     
     private boolean enableBasePartitions = false;
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
@@ -22,12 +23,26 @@ public class TransactionCounter implements JSONSerializable {
     private boolean enableResponseStatuses = false;
     public Histogram<String> responseStatuses = new Histogram<String>(true);
 
+    public TransactionCounter() {
+        // Needed for deserialization
+    }
+    
+    public TransactionCounter(int numTxns) {
+        this.transactions = new FastIntHistogram(numTxns);
+        this.transactions.setKeepZeroEntries(true);
+    }
+    
     public TransactionCounter copy() {
-        TransactionCounter copy = new TransactionCounter();
+        TransactionCounter copy = null;
+        if (this.transactions != null) {
+            copy = new TransactionCounter(this.transactions.fastSize());
+            copy.transactions.putHistogram(this.transactions);
+        } else {
+            copy = new TransactionCounter();
+        }
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.putHistogram(this.basePartitions);
         copy.enableResponseStatuses = this.enableResponseStatuses;
-        copy.transactions.putHistogram(this.transactions);
         return (copy);
     }
     
@@ -40,7 +55,9 @@ public class TransactionCounter implements JSONSerializable {
     }
     
     public void clear() {
-        this.transactions.clearValues();
+        if (this.transactions != null) {
+            this.transactions.clearValues();
+        }
         if (this.enableBasePartitions) {
             this.basePartitions.clearValues();
         }

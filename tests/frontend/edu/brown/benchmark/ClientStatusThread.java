@@ -50,13 +50,12 @@ public class ClientStatusThread extends Thread {
     private final BenchmarkController controller;
     private final BenchmarkResults m_currentResults;
     
-    TransactionCounter tc = new TransactionCounter();
+    private final TransactionCounter tc = new TransactionCounter();
     
     public ClientStatusThread(BenchmarkController controller, int i) {
         super(String.format("client-status-%02d", i));
         this.controller = controller;
         this.m_currentResults = controller.getBenchmarkResults();
-//        this.thread_id = i;
         this.setDaemon(true);
     }
     
