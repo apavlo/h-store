@@ -595,8 +595,8 @@ public class BenchmarkController {
                                m_projectBuilder.getProjectName().toUpperCase(),
                                m_loaderClass.getSimpleName(),
                                hstore_conf.client.scalefactor)); 
-        final ArrayList<String> allLoaderArgs = new ArrayList<String>();
-        final ArrayList<String> loaderCommand = new ArrayList<String>();
+        final List<String> allLoaderArgs = new ArrayList<String>();
+        final List<String> loaderCommand = new ArrayList<String>();
 
         // set loader max heap to MAX(1M,6M) based on thread count.
         int lthreads = 2;
@@ -739,9 +739,16 @@ public class BenchmarkController {
         allClientArgs.add(BenchmarkComponentSet.class.getCanonicalName());
         allClientArgs.add(m_clientClass.getCanonicalName());
         
-        for (Entry<String,String> userParam : m_config.clientParameters.entrySet()) {
-            allClientArgs.add(userParam.getKey() + "=" + userParam.getValue());
-        }
+        for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
+            String value = e.getValue();
+            if (value.startsWith("\"") == false) {
+                value = '"' + value + '"';
+            }
+            String opt = String.format("-D%s=%s", e.getKey(), value);
+            allClientArgs.add(opt);
+            if (trace.get()) 
+                LOG.trace("  " + opt);
+        } // FOR
 
         this.addHostConnections(allClientArgs);
         allClientArgs.add("CONF=" + m_config.hstore_conf_path);
