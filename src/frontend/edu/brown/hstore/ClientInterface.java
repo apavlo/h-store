@@ -473,10 +473,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
 
         @Override
         public void handleMessage(ByteBuffer message, Connection c) {
+            if (network_processing != null) network_processing.start();
             hstore_site.queueInvocation(message, this, c);
-            if (network_total_requests != null) {
-                network_total_requests.incrementAndGet();
-            }
+            if (network_processing != null) network_processing.stop();
         }
 
         @Override
@@ -602,7 +601,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // PROFILING DATA
     // ----------------------------------------------------------------------------
     
-    private final AtomicInteger network_total_requests;
+    private final ProfileMeasurement network_processing;
     
     /**
      * How much time the site spends with backup pressure blocking disabled
@@ -720,11 +719,11 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_acceptor = new ClientAcceptor(port, network);
         
         if (hstore_site.getHStoreConf().site.network_profiling) {
-            network_total_requests = new AtomicInteger(0);
+            network_processing = new ProfileMeasurement("PROCESSING");
             network_backup_off = new ProfileMeasurement("BACKUP-OFF");
             network_backup_on = new ProfileMeasurement("BACKUP-ON");
         } else {
-            network_total_requests = null;
+            network_processing = null;
             network_backup_off = null;
             network_backup_on = null;
         }
@@ -767,15 +766,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return m_numConnections.get();
     }
     
-    /**
-     * Compute the approximate arrival rate of transaction requests per second from clients
-     * @see HStoreConf$Site.network_profiling
-     * @return
-     */
-    protected double getApproximateArrivalRate() {
-        double totalTime = (network_backup_off.getTotalThinkTime() +
-                            network_backup_on.getTotalThinkTime()) / 1000000000d;
-        return (totalTime > 0 ? (network_total_requests.get() / totalTime) : 0d);
+    protected ProfileMeasurement getNetworkProcessing() {
+        return network_backup_on;
     }
     
     protected ProfileMeasurement getBackPressureOn() {

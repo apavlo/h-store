@@ -64,7 +64,6 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         FinalResult fr = new FinalResult(results);
         
         final int width = 100; 
-        final String sectionLine = StringUtil.repeat("=", width);
         sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
         
         // -------------------------------
