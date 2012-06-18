@@ -768,14 +768,14 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     }
     
     /**
-     * Compute the approximate arrival rate of transaction requests from clients
+     * Compute the approximate arrival rate of transaction requests per second from clients
      * @see HStoreConf$Site.network_profiling
      * @return
      */
     protected double getApproximateArrivalRate() {
-        long totalTime = network_backup_off.getTotalThinkTime() +
-                         network_backup_on.getTotalThinkTime();
-        return (network_total_requests.get() / (double)totalTime);
+        double totalTime = (network_backup_off.getTotalThinkTime() +
+                            network_backup_on.getTotalThinkTime()) / 1000000000d;
+        return (totalTime > 0 ? (network_total_requests.get() / totalTime) : 0d);
     }
     
     protected ProfileMeasurement getBackPressureOn() {
