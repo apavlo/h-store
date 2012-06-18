@@ -344,7 +344,7 @@ public class BenchmarkController {
     private void initializeCatalog(Catalog catalog) {
         assert(catalog != null);
         this.catalog = catalog;
-        int total_num_clients = m_config.clients.length * hstore_conf.client.processesperclient;
+        int total_num_clients = m_config.clients.length * hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
             total_num_clients *= CatalogUtil.getNumberOfPartitions(catalog);
         }
@@ -766,7 +766,7 @@ public class BenchmarkController {
             // allClientArgs.add("STATSTAG=" + m_config.statsTag);
         }
         
-        int threads_per_client = hstore_conf.client.processesperclient;
+        int threads_per_client = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
             threads_per_client *= CatalogUtil.getNumberOfPartitions(catalog);
         }
@@ -960,7 +960,7 @@ public class BenchmarkController {
                                 m_projectBuilder.getProjectName().toUpperCase(),
                                 m_clientThreads.size(),
                                 m_config.clients.length,
-                                hstore_conf.client.processesperclient * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
+                                hstore_conf.client.threads_per_host * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
                                 hstore_conf.client.txnrate,
                                 hstore_conf.client.blocking,
                                 (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
@@ -1333,7 +1333,6 @@ public class BenchmarkController {
         int hostCount = 1;
         int sitesPerHost = 2;
         int k_factor = 0;
-        int clientCount = 1;
         int clientInitialPollingDelay = 10000;
         String sshOptions = "";
         String remotePath = "voltbin/";
@@ -1414,7 +1413,11 @@ public class BenchmarkController {
 //        }
 
         Map<String, String> clientParams = new LinkedHashMap<String, String>();
+        List<String> clientHosts = new ArrayList<String>();
+        
         Map<String, String> siteParams = new LinkedHashMap<String, String>();
+        List<String> siteHosts = new ArrayList<String>();
+        
         
         for (String arg : vargs) {
             String[] parts = arg.split("=",2);
@@ -1471,12 +1474,9 @@ public class BenchmarkController {
                  * The number of partition replicas (k-factor)
                  */
                 k_factor = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("CLIENTCOUNT")) {
-                /*
-                 * The number of client hosts to place client processes on
-                 */
-                clientCount = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("CLIENTHEAP")) {
+            }
+                
+            else if (parts[0].equalsIgnoreCase("CLIENTHEAP")) {
                 /*
                  * The number of client processes per client host
                  */
@@ -1486,29 +1486,28 @@ public class BenchmarkController {
                  * The number of client processes per client host
                  */
                 serverHeapSize = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
-                /*
-                 * Name of the ProjectBuilder class for this benchmark.
-                 */
+            }
+            // Name of the ProjectBuilder class for this benchmark.
+            else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
                 projectBuilderClassname = parts[1];
-            } else if (parts[0].equalsIgnoreCase("SSHOPTIONS")) {
-                /*
-                 * Options used when logging into client/server hosts
-                 */
+            }
+            // Options used when logging into client/server hosts
+            else if (parts[0].equalsIgnoreCase("SSHOPTIONS")) {
                 sshOptions = parts[1];
-
-            } else if (parts[0].equalsIgnoreCase("REMOTEPATH")) {
-                /*
-                 * Directory on the NFS host where the VoltDB files are stored
-                 */
+            }
+            // Directory on the NFS host where the H-Store files are stored
+            else if (parts[0].equalsIgnoreCase("REMOTEPATH")) {
                 remotePath = parts[1];
-            } else if (parts[0].equalsIgnoreCase("REMOTEUSER")) {
-                /*
-                 * User that runs volt on remote client and host machines
-                 */
+            }
+            // User that runs volt on remote client and host machines
+            else if (parts[0].equalsIgnoreCase("REMOTEUSER")) {
                 remoteUser =  parts[1];
-            } else if (parts[0].equalsIgnoreCase("HOST") || parts[0].equalsIgnoreCase("CLIENTHOST")) {
-                //Do nothing, parsed later.
+            }
+            // Name of a host to be used for Volt servers
+            else if (parts[0].equalsIgnoreCase("HOST")) {
+                String hostnport[] = parts[1].split("\\:",2);
+                siteHosts.add(hostnport[0]);
+                
             } else if (parts[0].equalsIgnoreCase("LISTENFORDEBUGGER")) {
                 listenForDebugger = Boolean.parseBoolean(parts[1]);
             } else if (parts[0].equalsIgnoreCase("BACKEND")) {
@@ -1654,54 +1653,36 @@ public class BenchmarkController {
             LOG.error("Duration is specified in milliseconds");
             System.exit(-1);
         }
+        
+        // The number of client hosts to place client processes on
+        int clientCount = hstore_conf.client.count;
+        // Comma or colon separated list of the hostnames to be used for benchmark clients
+        for (String host : hstore_conf.client.hosts.split("[,;]")) {
+            clientHosts.add(host);
+        } // FOR
+        if (clientHosts.size() == 0)
+            clientHosts.add(hstore_conf.global.defaulthost);
+        
+        
+        // If no hosts were given, then use the defaults 
+        if (siteHosts.size() == 0)
+            siteHosts.add(hstore_conf.global.defaulthost);
+        
 
-        ArrayList<String> hosts = new ArrayList<String>();
-        ArrayList<String> clients = new ArrayList<String>();
-
-        for (String arg : vargs) {
-            String[] parts = arg.split("=",2);
-            if (parts.length == 1) {
-                continue;
-            } else if (parts[1].startsWith("${")) {
-                continue;
-            }
-            else if (parts[0].equalsIgnoreCase("HOST")) {
-                /*
-                 * Name of a host to be used for Volt servers
-                 */
-                String hostnport[] = parts[1].split("\\:",2);
-                hosts.add(hostnport[0]);
-            } else if (parts[0].equalsIgnoreCase("CLIENTHOST")) {
-                /*
-                 * Name of a host to be used for Volt clients
-                 */
-//                String hostnport[] = parts[1].split("\\:",2);
-                for (String host : parts[1].split(",")) {
-                    clients.add(host);
-                }
-            }
-        }
-
-        // if no hosts given, use localhost
-        if (hosts.size() == 0)
-            hosts.add("localhost");
-        if (clients.size() == 0)
-            clients.add("localhost");
-
-        if (compileOnly == false && clients.size() < clientCount) {
+        if (compileOnly == false && clientHosts.size() < clientCount) {
             LogKeys logkey = LogKeys.benchmark_BenchmarkController_NotEnoughClients;
             LOG.l7dlog( Level.FATAL, logkey.name(),
-                    new Object[] { clients.size(), clientCount }, null);
+                    new Object[] { clientHosts.size(), clientCount }, null);
             System.exit(-1);
         }
         
         String[] hostNames = null;
         if (! (useCatalogHosts || compileOnly) ) {
-            if (hosts.size() < hostCount) {
+            if (siteHosts.size() < hostCount) {
                 LogKeys logkey = LogKeys.benchmark_BenchmarkController_NotEnoughHosts;
                 LOG.l7dlog( Level.FATAL, logkey.name(),
-                        new Object[] { hosts.size(), hostCount }, null);
-                LOG.fatal("Don't have enough hosts(" + hosts.size()
+                        new Object[] { siteHosts.size(), hostCount }, null);
+                LOG.fatal("Don't have enough hosts(" + siteHosts.size()
                         + ") for host count " + hostCount);
                 System.exit(-1);
             }
@@ -1710,14 +1691,14 @@ public class BenchmarkController {
             // (this truncates the list to the right number)
             hostNames = new String[hostCount];
             for (int i = 0; i < hostCount; i++)
-                hostNames[i] = hosts.get(i);
+                hostNames[i] = siteHosts.get(i);
         } else {
             hostNames = new String[0];
         }
         String[] clientNames = new String[clientCount];
         if (compileOnly == false) {
             for (int i = 0; i < clientCount; i++)
-                clientNames[i] = clients.get(i);
+                clientNames[i] = clientHosts.get(i);
         }
 
         // create a config object, mostly for the results uploader at this point
@@ -1781,7 +1762,7 @@ public class BenchmarkController {
             clientParams.put("CATALOG", catalogPath.getAbsolutePath());
             clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
         }
-        int total_num_clients = clientCount * hstore_conf.client.processesperclient;
+        int total_num_clients = clientCount * hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
             total_num_clients *= num_partitions;
         }

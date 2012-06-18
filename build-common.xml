@@ -13,9 +13,11 @@
 <arg value="client.jar_dir=${client.jar_dir}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
+<arg value="client.hosts=${client.hosts}" />
 <arg value="client.txnrate=${client.txnrate}" />
 <arg value="client.weights=${client.weights}" />
 <arg value="client.processesperclient=${client.processesperclient}" />
+<arg value="client.threads_per_host=${client.threads_per_host}" />
 <arg value="client.processesperclient_per_partition=${client.processesperclient_per_partition}" />
 <arg value="client.shared_connection=${client.shared_connection}" />
 <arg value="client.count=${client.count}" />
@@ -30,7 +32,6 @@
 <arg value="client.temporalwindow=${client.temporalwindow}" />
 <arg value="client.temporaltotal=${client.temporaltotal}" />
 <arg value="client.tick_interval=${client.tick_interval}" />
-<arg value="client.throttle_backoff=${client.throttle_backoff}" />
 <arg value="client.dump_database=${client.dump_database}" />
 <arg value="client.dump_database_dir=${client.dump_database_dir}" />
 <arg value="client.tablestats=${client.tablestats}" />
@@ -94,12 +95,10 @@
 <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
 <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
 <arg value="site.queue_incoming_increase_max=${site.queue_incoming_increase_max}" />
-<arg value="site.queue_incoming_throttle=${site.queue_incoming_throttle}" />
 <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
 <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
 <arg value="site.queue_dtxn_increase_max=${site.queue_dtxn_increase_max}" />
-<arg value="site.queue_dtxn_throttle=${site.queue_dtxn_throttle}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
 <arg value="site.markov_path=${site.markov_path}" />
