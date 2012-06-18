@@ -474,6 +474,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         @Override
         public void handleMessage(ByteBuffer message, Connection c) {
             hstore_site.queueInvocation(message, this, c);
+            if (network_total_requests != null) {
+                network_total_requests.incrementAndGet();
+            }
         }
 
         @Override
@@ -596,8 +599,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     private long m_tickCounter = 0;
     
     // ----------------------------------------------------------------------------
-    // PROFILING MEMBERS
+    // PROFILING DATA
     // ----------------------------------------------------------------------------
+    
+    private final AtomicInteger network_total_requests;
     
     /**
      * How much time the site spends with backup pressure blocking disabled
@@ -715,12 +720,19 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_acceptor = new ClientAcceptor(port, network);
         
         if (hstore_site.getHStoreConf().site.network_profiling) {
+            network_total_requests = new AtomicInteger(0);
             network_backup_off = new ProfileMeasurement("BACKUP-OFF");
             network_backup_on = new ProfileMeasurement("BACKUP-ON");
         } else {
+            network_total_requests = null;
             network_backup_off = null;
             network_backup_on = null;
         }
+    }
+    
+    public void startAcceptingConnections() throws IOException {
+        if (this.network_backup_off != null) this.network_backup_off.start(); 
+        m_acceptor.start();
     }
     
     // ----------------------------------------------------------------------------
@@ -755,6 +767,17 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return m_numConnections.get();
     }
     
+    /**
+     * Compute the approximate arrival rate of transaction requests from clients
+     * @see HStoreConf$Site.network_profiling
+     * @return
+     */
+    protected double getApproximateArrivalRate() {
+        long totalTime = network_backup_off.getTotalThinkTime() +
+                         network_backup_on.getTotalThinkTime();
+        return (network_total_requests.get() / (double)totalTime);
+    }
+    
     protected ProfileMeasurement getBackPressureOn() {
         return network_backup_on;
     }
@@ -764,8 +787,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     }
     
     
-    public void increaseBackpressure(int messageSize)
-    {
+    public void increaseBackpressure(int messageSize) {
         if (debug.get()) LOG.debug("Increasing Backpressure: " + messageSize);
         
         long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
@@ -779,8 +801,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         }
     }
 
-    public void reduceBackpressure(final int messageSize)
-    {
+    public void reduceBackpressure(final int messageSize) {
         if (debug.get()) 
             LOG.debug("Reducing Backpressure: " + messageSize);
         
@@ -796,12 +817,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             }
         }
     }
-
-    public void startAcceptingConnections() throws IOException {
-        if (this.network_backup_off != null) this.network_backup_off.start(); 
-        m_acceptor.start();
-    }
-
 
     /**
      * Check for dead connections by providing each connection with the current
