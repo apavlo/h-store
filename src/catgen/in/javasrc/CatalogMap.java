@@ -85,11 +85,16 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
      * @return The item found in the map, or null if not found
      */
     public T getIgnoreCase(String name) {
-        for (Entry<String, T> e : m_items.entrySet()) {
-            if (e.getKey().equalsIgnoreCase(name))
-                return e.getValue();
+        T t = m_items.get(name);
+        if (t == null) {
+            for (Entry<String, T> e : m_items.entrySet()) {
+                if (e.getKey().equalsIgnoreCase(name)) {
+                    t = e.getValue();
+                    break;
+                }
+            } // FOR
         }
-        return null;
+        return (t);
     }
 
     /**

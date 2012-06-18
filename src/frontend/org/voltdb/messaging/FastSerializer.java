@@ -115,6 +115,16 @@ public class FastSerializer implements DataOutput {
         this.callback = callback;
         assert(buffer.b.order() == ByteOrder.BIG_ENDIAN);
     }
+    
+    public void reset() {
+        if (m_pool != null) {
+            buffer = m_pool.acquire(INITIAL_ALLOCATION);
+        } else if (this.isDirect) {
+            buffer = DBBPool.allocateDirect(INITIAL_ALLOCATION);
+        } else {
+            buffer = DBBPool.wrapBB(ByteBuffer.allocate(INITIAL_ALLOCATION));
+        }
+    }
 
     public int size() {
         return buffer.b.position();

@@ -46,10 +46,16 @@ public class TransactionCounter implements JSONSerializable {
         return (copy);
     }
     
+    public boolean isBasePartitionsEnabled() {
+        return (this.enableBasePartitions);
+    }
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
     }
-    
+
+    public boolean isResponsesStatusesEnabled() {
+        return (this.enableResponseStatuses);
+    }
     public void setEnableResponsesStatuses(boolean val) {
         this.enableResponseStatuses = val;
     }

@@ -732,6 +732,7 @@ class Distributer {
                 
                 // final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
                 FastSerializer fs = this.getSerializer();
+                fs.reset();
                 BBContainer c = null;
                 try {
                     c = fs.writeObjectForMessaging(invocation);

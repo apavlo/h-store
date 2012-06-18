@@ -373,10 +373,13 @@ public abstract class BenchmarkComponent {
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
-            m_txnStats.basePartitions.put(cresponse.getBasePartition());
-            m_txnStats.transactions.put(txn_idx);
+            m_txnStats.transactions.fastPut(txn_idx);
+            
+            if (m_txnStats.isBasePartitionsEnabled())
+                m_txnStats.basePartitions.put(cresponse.getBasePartition());
         }
-        m_txnStats.responseStatuses.put(status.name());
+        if (m_txnStats.isResponsesStatusesEnabled())
+            m_txnStats.responseStatuses.put(status.name());
     }
 
     public BenchmarkComponent(final Client client) {
