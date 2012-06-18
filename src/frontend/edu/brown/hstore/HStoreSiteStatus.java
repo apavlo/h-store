@@ -310,15 +310,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (ci != null) {
             siteInfo.put("# of Connections", ci.getConnectionCount());
             
-            value = String.format("%d txns / %d bytes [txnLimit=%d, release=%d]%s",
+            value = String.format("%d txns [limit=%d, release=%d, bytes=%d]%s",
                                   ci.getPendingTxnCount(),
-                                  ci.getPendingTxnBytes(),
                                   ci.getMaxPendingTxnCount(),
                                   ci.getReleasePendingTxnCount(),
+                                  ci.getPendingTxnBytes(),
                                   (ci.hasBackPressure() ? " / *THROTTLED*" : ""));
-            siteInfo.put("Client Interface", value);
+            siteInfo.put("Client Interface Queue", value);
             
             if (hstore_conf.site.network_profiling) {
+                siteInfo.put("Arrival Rate", ci.getApproximateArrivalRate());
+                
                 pm = ci.getBackPressureOn();
                 siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
                 
@@ -326,7 +328,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
             }
         }
-        
         
         // TransactionQueueManager
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
