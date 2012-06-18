@@ -500,9 +500,6 @@ public class ProcessSetManager implements Shutdownable {
         pd.out.start();
         pd.err.start();
     }
-    
-
-
 
     // ============================================================================
     // STOP PROCESSES
@@ -510,12 +507,12 @@ public class ProcessSetManager implements Shutdownable {
     
     public synchronized Map<String, Integer> joinAll() {
         Map<String, Integer> retvals = new HashMap<String, Integer>();
-        Long wait = 5000l;
+        Long wait = 10000l;
         for (String processName : m_processes.keySet()) {
             Pair<Integer, Boolean> p = this.joinProcess(processName, wait);
             if (p.getSecond() && wait != null) {
-                wait /= 2;
-                if (wait < 1) wait = null; 
+                wait = (long)Math.ceil(wait.longValue() * 0.75);
+                // if (wait < 1) wait = 1l; 
             }
             retvals.put(processName, p.getFirst());
         } // FOR
@@ -526,6 +523,12 @@ public class ProcessSetManager implements Shutdownable {
         return joinProcess(processName, null).getFirst();
     }
     
+    /**
+     * Returns the status code + flag if we timed out
+     * @param processName
+     * @param millis
+     * @return
+     */
     public Pair<Integer, Boolean> joinProcess(String processName, Long millis) {
         final ProcessData pd = m_processes.get(processName);
         assert(pd != null);
@@ -558,7 +561,7 @@ public class ProcessSetManager implements Shutdownable {
             // Ignore...
         }
         
-        int retval = killProcess(processName); 
+        int retval = this.killProcess(processName); 
         return Pair.of(retval, timeout);
     }
 
