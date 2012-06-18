@@ -50,6 +50,16 @@ public class FastIntHistogram extends Histogram<Integer> {
     public long fastGet(int value) {
         return (this.histogram[value]);
     }
+    
+    public synchronized void fastPut(int idx) {
+        if (this.histogram[idx] == -1) {
+            this.histogram[idx] = 1;
+            this.value_count++;
+        } else {
+            this.histogram[idx]++;
+        }
+        this.num_samples++;
+    }
 
     @Override
     public long get(Integer value, long value_if_null) {
@@ -62,17 +72,10 @@ public class FastIntHistogram extends Histogram<Integer> {
     }
 
     @Override
-    public synchronized void put(Integer value) {
-        int idx = value.intValue();
-        if (this.histogram[idx] == -1) {
-            this.histogram[idx] = 1;
-            this.value_count++;
-        } else {
-            this.histogram[idx]++;
-        }
-        this.num_samples++;
+    public void put(Integer value) {
+        this.fastPut(value.intValue());
     }
-
+        
     @Override
     public synchronized void put(Integer value, long i) {
         int idx = value.intValue();

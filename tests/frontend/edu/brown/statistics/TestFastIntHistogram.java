@@ -54,12 +54,12 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(min) + min; 
             h.put(val);
-            fast_h.put(val);
+            fast_h.fastPut(val);
         }
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(RANGE); 
             h.put(val);
-            fast_h.put(val);
+            fast_h.fastPut(val);
         }
     }
     
