@@ -135,6 +135,7 @@ import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
+import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -252,7 +253,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * We will use this special wrapper around the PartitionExecutorQueue that can determine
      * whether this partition is overloaded and therefore new requests should be throttled
      */
-    private final PartitionMessageQueue work_queue;
+    private final ThrottlingQueue<InternalMessage> work_queue;
     
     /**
      * This is the queue for work deferred .
@@ -577,7 +578,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                               final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
-        this.work_queue = new PartitionMessageQueue();
+        this.work_queue = new ThrottlingQueue<InternalMessage>(
+                new PartitionMessageQueue(),
+                hstore_conf.site.queue_incoming_max_per_partition,
+                hstore_conf.site.queue_incoming_release_factor,
+                hstore_conf.site.queue_incoming_increase,
+                hstore_conf.site.queue_incoming_increase_max
+        );
         this.catalog = catalog;
         this.partition = CatalogUtil.getPartitionById(this.catalog, partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
@@ -1164,7 +1171,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public TransactionEstimator getTransactionEstimator() {
         return (this.t_estimator);
     }
-    public PartitionMessageQueue getThrottlingQueue() {
+    public ThrottlingQueue<InternalMessage> getWorkQueue() {
         return (this.work_queue);
     }
     public final BackendTarget getBackendTarget() {
@@ -1411,7 +1418,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         WorkFragmentMessage work = ts.getWorkFragmentMessage(fragment);
-        this.work_queue.offer(work);
+        this.work_queue.offer(work, true);
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
@@ -1424,7 +1431,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public void queueFinish(AbstractTransaction ts, Status status) {
         assert(ts.isInitialized());
         FinishTxnMessage work = ts.getFinishTxnMessage(status);
-        this.work_queue.add(work);
+        this.work_queue.offer(work, true);
         if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
@@ -1452,8 +1459,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                              procParams,
                                                              clientCallback);
         return (this.work_queue.offer(work));
-//        this.new_queue.offer(work);
-//        return (true);
     }
     
     /**
@@ -1483,7 +1488,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
                                        ts, this.partitionId, this.work_queue.size()));
         StartTxnMessage work = new StartTxnMessage(ts);
-        return (this.work_queue.offer(work));
+        return (this.work_queue.offer(work, true));
     }
 
     // ---------------------------------------------------------------

@@ -440,7 +440,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             partitionLabels.put(partition, partitionLabel);
             
             PartitionExecutor es = e.getValue();
-            PartitionMessageQueue es_queue = es.getThrottlingQueue();
+            ThrottlingQueue<?> es_queue = es.getWorkQueue();
             ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
