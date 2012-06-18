@@ -31,8 +31,8 @@ import edu.brown.utils.StringUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -341,7 +341,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (this.lockQueuesLastTxn[partition].compareTo(txn_id) > 0) {
                 if (d) LOG.debug(String.format("The last initQueue txnId for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                                partition, this.lockQueuesLastTxn[partition], txn_id));
-                this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, this.lockQueuesLastTxn[partition]);
+                this.rejectTransaction(txn_id,
+                                       callback,
+                                       Status.ABORT_RESTART,
+                                       partition,
+                                       this.lockQueuesLastTxn[partition]);
                 ret = false;
                 break;
             }
@@ -359,15 +363,23 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             if (next_safe.compareTo(txn_id) > 0) {
                 if (d) LOG.debug(String.format("The next safe initQueue txnId for partition #%d is txn #%d but this is greater than our new txn #%d. Rejecting...",
                                                partition, next_safe, txn_id));
-                this.rejectTransaction(txn_id, callback, Status.ABORT_RESTART, partition, next_safe);
+                this.rejectTransaction(txn_id,
+                                       callback,
+                                       Status.ABORT_RESTART,
+                                       partition,
+                                       next_safe);
                 ret = false;
                 break;
             }
-            // Our queue is overloaded. We have to throttle the txnId!
+            // Our queue is overloaded. We have to reject the txnId!
             else if (queue.offer(txn_id, false) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                                partition, next_safe, txn_id));
-                this.rejectTransaction(txn_id, callback, Status.ABORT_THROTTLED, partition, next_safe);
+                this.rejectTransaction(txn_id,
+                                       callback,
+                                       Status.ABORT_REJECT,
+                                       partition,
+                                       next_safe);
                 ret = false;
                 break;
             }

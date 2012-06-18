@@ -76,7 +76,6 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                 } // SYNCH
                 break;
             }
-            case ABORT_THROTTLED:
             case ABORT_REJECT:
                 this.hstore_site.transactionReject(this.ts, status);
                 break;

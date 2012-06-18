@@ -57,6 +57,11 @@ public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
         return t;
     }
 
+    /**
+     * Return the given object into this pool.
+     * <B>Note:</B> You do not need to call Poolable.finish(). This will be automatically
+     * done in TypedPoolableObjectFactory.passivateObject()
+     */
     public void returnObject(T t) {
         try {
             super.returnObject(t);

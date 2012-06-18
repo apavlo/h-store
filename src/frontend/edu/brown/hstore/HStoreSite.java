@@ -366,7 +366,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Map<Procedure, ParameterMangler> param_manglers = new IdentityHashMap<Procedure, ParameterMangler>();
 
-    
     // ----------------------------------------------------------------------------
     // STATUS + PROFILING MEMBERS
     // ----------------------------------------------------------------------------
@@ -417,7 +416,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.catalog_host = this.catalog_site.getHost(); 
-//        this.host_id = this.catalog_host.getId();
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
@@ -1493,7 +1491,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // An ABORT_THROTTLED means that the client will back-off of a bit
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
-            Status status = (hstore_conf.site.queue_incoming_throttle ? Status.ABORT_THROTTLED : Status.ABORT_REJECT);
+            Status status = Status.ABORT_REJECT;
             if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
                                            status, base_partition, executor.getWorkQueueSize()));
             
@@ -1507,11 +1505,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.sendClientResponse(cresponse, clientCallback, EstTime.currentTimeMillis(), 0);
 
             if (hstore_conf.site.status_show_txn_info) {
-                if (status == Status.ABORT_THROTTLED) {
-                    TxnCounter.THROTTLED.inc(catalog_proc);
-                } else if (status == Status.ABORT_REJECT) {
-                    TxnCounter.REJECTED.inc(catalog_proc);
-                }
+                TxnCounter.REJECTED.inc(catalog_proc);
             }
         }
         else if (hstore_conf.site.status_show_txn_info) {
@@ -1540,7 +1534,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // -------------------------------
         // SHUTDOWN
-        // TODO: Execute as a regular transaction
+        // TODO: Execute as a regular sysproc transaction
         // -------------------------------
         if (catalog_proc.getName().equals("@Shutdown")) {
             this.sendErrorResponse(client_handle, Status.OK, "", done, EstTime.currentTimeMillis());
@@ -1848,15 +1842,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // An ABORT_THROTTLED means that the client will back-off of a bit
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
-            Status status = ((ts.isPredictSinglePartition() ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ?
-                                        Status.ABORT_THROTTLED :
-                                        Status.ABORT_REJECT);
-            
+            Status status = Status.ABORT_REJECT;
             if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [queueSize=%d]",
                                            ts, status, base_partition,
                                            executor.getWorkQueueSize()));
             if (singlePartitioned == false) {
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Status.ABORT_THROTTLED);
+                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
@@ -2088,12 +2079,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.sendClientResponse(ts, cresponse);
 
         if (hstore_conf.site.status_show_txn_info) {
-            if (status == Status.ABORT_THROTTLED) {
-                TxnCounter.THROTTLED.inc(ts.getProcedure());
-            } else if (status == Status.ABORT_REJECT) {
+            if (status == Status.ABORT_REJECT) {
                 TxnCounter.REJECTED.inc(ts.getProcedure());
             } else {
-                assert(false) : "Unexpected " + ts + ": " + status;
+                assert(false) : "Unexpected rejection status for " + ts + ": " + status;
             }
         }
     }
@@ -2508,7 +2497,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     break;
                 case ABORT_REJECT:
-                case ABORT_THROTTLED:
                     if (hstore_conf.site.status_show_txn_info)
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
@@ -2531,9 +2519,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (status != Status.ABORT_MISPREDICT &&
-                       status != Status.ABORT_REJECT && 
-                       status != Status.ABORT_THROTTLED) {
+            } else if (status != Status.ABORT_MISPREDICT && status != Status.ABORT_REJECT) {
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }

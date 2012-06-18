@@ -51,6 +51,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -76,6 +77,13 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // clock time of last call to the initiator's tick()
     static final int POKE_INTERVAL = 1000;
     
+    // If an initiator handles a full node, it processes approximately 50,000 txns/sec.
+    // That's about 50 txns/ms. Try not to keep more than 5 ms of work? Seems like a really
+    // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
+    // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
+    // on average if clients present constant uninterrupted load.
+    private final int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private final int MAX_DESIRED_PENDING_TXNS; //  = 15000;
     
     // ----------------------------------------------------------------------------
     // QUEUE MONITOR RUNNABLE
@@ -569,13 +577,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      */
     private boolean m_hadBackPressure = false;
     
-    // If an initiator handles a full node, it processes approximately 50,000 txns/sec.
-    // That's about 50 txns/ms. Try not to keep more than 5 ms of work? Seems like a really
-    // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
-    // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
-    // on average if clients present constant uninterrupted load.
-    private final static int MAX_DESIRED_PENDING_BYTES = 67108864;
-    private final static int MAX_DESIRED_PENDING_TXNS = 15000;
     private final AtomicLong m_pendingTxnBytes = new AtomicLong(0);
     private final AtomicInteger m_pendingTxnCount = new AtomicInteger(0);
 
@@ -693,6 +694,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         m_dumpId = "Initiator." + String.valueOf(siteId);
         DumpManager.register(m_dumpId, this);
 
+        HStoreConf hstore_conf = hstore_site.getHStoreConf();
+        this.MAX_DESIRED_PENDING_TXNS = hstore_site.getLocalPartitionIds().size() *
+                (hstore_conf.site.queue_dtxn_increase_max + hstore_conf.site.queue_incoming_increase_max);
+        
         // Backpressure EventObservers
         this.onBackPressure.addObserver(this.onBackPressureObserver);
         this.offBackPressure.addObserver(this.offBackPressureObserver);

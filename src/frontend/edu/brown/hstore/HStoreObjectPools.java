@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
@@ -69,13 +68,6 @@ public final class HStoreObjectPools {
      * DistributedState ObjectPool
      */
     private final TypedObjectPool<DistributedState> STATES_DISTRIBUTED[];
-    
-    // ----------------------------------------------------------------------------
-    // ADDITIONAL OBJECTS
-    // ----------------------------------------------------------------------------
-    
-//    public final TypedObjectPool<ParameterSet> PARAMETERSETS;
-    
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
