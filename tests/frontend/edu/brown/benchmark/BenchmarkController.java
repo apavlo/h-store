@@ -1660,10 +1660,8 @@ public class BenchmarkController {
         for (String host : hstore_conf.client.hosts.split("[,;]")) {
             clientHosts.add(host);
         } // FOR
-        System.err.println("1 CLIENTHOSTS: " + clientHosts);
         if (clientHosts.isEmpty())
             clientHosts.add(hstore_conf.global.defaulthost);
-        System.err.println("2 CLIENTHOSTS: " + clientHosts);
         
         // If no hosts were given, then use the defaults 
         if (siteHosts.size() == 0)
