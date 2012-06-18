@@ -31,6 +31,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.ControlCommand;
@@ -228,30 +230,28 @@ public class ProcessSetManager implements Shutdownable {
                         return;
                     }
                     
-                    // HACK: Remove stuff that we don't want printed
-                    if (line != null && line.isEmpty() == false) {
-                        for (Pattern p : OUTPUT_CLEAN) {
-                            Matcher m = p.matcher(line);
-                            if (m != null) line = m.replaceAll("");
-                        }
-                    }
-
-                    if (line != null) {
-                        OutputLine ol = new OutputLine(m_processName, m_stream, line);
-                        // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
-                        // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
-                        if (m_writer != null) {
-                            synchronized (m_writer) {
-                                m_writer.write(line + "\n");
-                                m_writer.flush();
-                            } // SYNCH
-                        }
-                        m_output.add(ol);
-                    }
-                    else {
+                    // Skip empty input
+                    if (line == null || line.isEmpty()) {
                         Thread.yield();
                         if (m_writer != null) m_writer.flush();
+                        continue;
                     }
+                        
+                    // Remove stuff that we don't want printed
+                    for (Pattern p : OUTPUT_CLEAN) {
+                        Matcher m = p.matcher(line);
+                        if (m != null) line = m.replaceAll("");
+                    } // FOR
+
+                    // Otherwise parse it so that somebody else can process it 
+                    OutputLine ol = new OutputLine(m_processName, m_stream, line);
+                    if (m_writer != null) {
+                        synchronized (m_writer) {
+                            m_writer.write(line + "\n");
+                            m_writer.flush();
+                        } // SYNCH
+                    }
+                    m_output.add(ol);
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -487,6 +487,7 @@ public class ProcessSetManager implements Shutdownable {
             
             try {
                 fw = new FileWriter(path);
+                fw.write("# " + new TimestampType().toString() + "\n");
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to create output writer for " + processName, ex);
             }
