@@ -21,6 +21,7 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
 /**
+ * This is a more useful extension of VoltDB's ClusterConfig
  * @author pavlo
  */
 public class ClusterConfiguration extends ClusterConfig {

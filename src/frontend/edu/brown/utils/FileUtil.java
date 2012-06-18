@@ -49,6 +49,7 @@ public abstract class FileUtil {
     private static final Pattern EXT_SPLIT = Pattern.compile("\\.");
 
     public static boolean exists(String path) {
+        if (path == null) return (false);
         return (new File(path).exists());
     }
 

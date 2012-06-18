@@ -30,6 +30,24 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     /**
+     * testPopulateDependencies
+     */
+    public void testPopulateDependencies() throws Exception {
+        // Just check to see whether any parameter that references
+        // another parameter in its defaultString has that other parameter's
+        // value to set to its value 
+        String origParam = "global.defaulthost";
+        Object origValue = hstore_conf.get(origParam);
+        System.err.println(origParam + " => " + origValue);
+        assertNotNull(origValue);
+        
+        String newParam = "client.hosts";
+        Object newValue = hstore_conf.get(newParam);
+        System.err.println(newParam + " => " + newValue);
+        assertEquals(origValue, newValue);
+    }
+    
+    /**
      * testSetReplacedParameters
      */
     public void testSetReplacedParameters() throws Exception {

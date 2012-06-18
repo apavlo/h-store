@@ -36,7 +36,8 @@ public final class HStoreConf {
      * Regular expression for splitting a parameter into
      * prefix and suffix components
      */
-    protected static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
+    protected static final String REGEX_STR = "(site|client|global)\\.([\\w\\_]+)";
+    protected static final Pattern REGEX_PARSE = Pattern.compile(REGEX_STR);
     
     // ============================================================================
     // GLOBAL
@@ -1397,7 +1398,7 @@ public final class HStoreConf {
     // ----------------------------------------------------------------------------
 
     private HStoreConf() {
-        // Empty configuration...
+        this.populateDependencies();
     }
     
     /**
@@ -1432,6 +1433,8 @@ public final class HStoreConf {
             site.exec_force_singlepartitioned = false;
             site.exec_force_localexecution = false;
         }
+        
+        this.populateDependencies();
     }
     
     protected void set(Conf handle, String f_name, Object value) {
@@ -1446,22 +1449,22 @@ public final class HStoreConf {
                                       handle.prefix, f_name));
             return;
         }
-        this.set(f, handle, value);
+        this.set(handle, f, value);
     }
     
     /**
      * Set value for the given Conf handle's field 
      * This method should always be used because it knows how to map values from 
      * deprecated parameters to their new replacements. 
-     * @param f
      * @param handle
+     * @param f
      * @param value
      */
-    protected void set(Field f, Conf handle, Object value) {
+    protected void set(Conf handle, Field f, Object value) {
         try {
             f.set(handle, value);
-//            if (debug.get())
-                LOG.info(String.format("SET %s.%s = %s",
+            if (debug.get())
+                LOG.debug(String.format("SET %s.%s = %s",
                                         handle.prefix, f.getName(), value));
         } catch (Exception ex) {
             String msg = String.format("Failed to set value '%s' for '%s.%s'",
@@ -1474,9 +1477,36 @@ public final class HStoreConf {
         ConfigProperty cp = handle.getConfigProperties().get(f);
         assert(cp != null) : "Missing ConfigProperty for " + f;
         if (cp.replacedBy() != null && cp.replacedBy().isEmpty() == false) {
-            LOG.info(f.getName() + " => " + cp.replacedBy());    
+            if (debug.get())
+                LOG.debug(String.format("Automatically updating replaceBy parameter: %s.%s => %s",
+                                        handle.prefix, f.getName(), cp.replacedBy()));    
             this.set(cp.replacedBy(), value);
         }
+    }
+    
+    /**
+     * This will set the values of any parameter that references another
+     * This can only be invoked after all of the Conf handles are initialized
+     */
+    protected void populateDependencies() {
+        Pattern p = Pattern.compile("^\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
+        for (Conf handle : confHandles.values()) {
+            for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                
+                // FIXME: This only works with strings
+                String defaultString = cp.defaultString();
+                if (defaultString == null) continue;
+                
+                Matcher m = p.matcher(defaultString.trim());
+                boolean found = m.matches();
+                if (m == null || found == false) continue;
+                
+                Object value = this.get(m.group(1) + "." + m.group(2));
+                this.set(handle, f, value);
+            } // FOR
+        } // FOR
     }
     
     // ----------------------------------------------------------------------------
@@ -1577,7 +1607,7 @@ public final class HStoreConf {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
             }
             
-            this.set(f, handle, value);
+            this.set(handle, f, value);
 
         } // FOR
     }
@@ -1660,7 +1690,7 @@ public final class HStoreConf {
                 continue;
             }
            
-            this.set(f, confHandle, value);
+            this.set(confHandle, f, value);
             
             // Keep track of what parameters we loaded from these arguments
             // This is needed so that we know what parameters to forward to
