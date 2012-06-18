@@ -730,9 +730,9 @@ class Distributer {
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
                 
-                // final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
-                FastSerializer fs = this.getSerializer();
-                fs.reset();
+                final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
+//                FastSerializer fs = this.getSerializer();
+//                fs.reset();
                 BBContainer c = null;
                 try {
                     c = fs.writeObjectForMessaging(invocation);
@@ -763,6 +763,7 @@ class Distributer {
      * Return a thread-safe FastSerializer
      * @return
      */
+    @SuppressWarnings("unused")
     private FastSerializer getSerializer() {
         Thread t = Thread.currentThread();
         FastSerializer fs = this.m_serializers.get(t);
