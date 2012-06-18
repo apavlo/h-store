@@ -222,9 +222,10 @@ public abstract class FixCatalog {
                 new_catalog = FixCatalog.addHostInfo(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);
             }
 
-            // Use host list
+        // Use host list
         } else {
-            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            String hostsInfo = args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS);
+            ClusterConfiguration cc = new ClusterConfiguration(hostsInfo);
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
 
