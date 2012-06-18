@@ -784,7 +784,11 @@ class Distributer {
         }
         m_network.shutdown();
         synchronized (this) {
-            m_pool.clear();
+            try {
+                m_pool.clear();
+            } catch (Throwable ex) {
+                // HACK: Ignore!
+            }
         }
     }
 
