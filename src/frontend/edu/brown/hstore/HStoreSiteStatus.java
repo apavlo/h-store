@@ -454,7 +454,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getWaitingQueueSize()), null);
             
             // Execution Info
-            String status = String.format("%-5s", es_queue.size());
+            String status = null;
+            status = String.format("%-5s [limit=%d, release=%d]%s / ",
+                                   es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
+                                   (es_queue.isThrottled() ? " *THROTTLED*" : ""));
             m.put("Exec Queue", status);
             
             // TransactionQueueManager Info

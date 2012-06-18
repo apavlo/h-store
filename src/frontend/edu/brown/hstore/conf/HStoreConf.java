@@ -475,7 +475,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=1000,
+            defaultInt=250,
             experimental=false
         )
         public int queue_incoming_max_per_partition;
@@ -507,7 +507,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
                         "can be increased by per partition.",
-            defaultInt=4000,
+            defaultInt=500,
             experimental=false
         )
         public int queue_incoming_increase_max;
@@ -547,7 +547,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The maximum amount that the ${site.queue_dtxn_max_per_partition} parameter " +
                         "can be increased by per partition.",
-            defaultInt=1000,
+            defaultInt=500,
             experimental=false
         )
         public int queue_dtxn_increase_max;
