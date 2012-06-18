@@ -52,8 +52,8 @@ public class VoterLoader extends Loader {
     @Override
     public void load() {
         int numContestants = VoterUtil.getScaledNumContestants(this.getScaleFactor());
-//        if (d) 
-            LOG.info("Starting VoterLoader [numContestants=" + numContestants + "]");
+        if (d) 
+            LOG.debug("Starting VoterLoader [numContestants=" + numContestants + "]");
 
         try {
             this.getClientHandle().callProcedure("Initialize",
