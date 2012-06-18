@@ -426,7 +426,21 @@ public class BenchmarkResults {
         return (CACHE_computeTotalAndDelta); 
     }
 
-    public BenchmarkResults addPollResponseInfo(String clientName, int pollIndex, long time, TransactionCounter tc, String errMsg) {
+    /**
+     * Store new TransactionCounter from a client thread
+     * @param clientName
+     * @param pollIndex
+     * @param time
+     * @param tc
+     * @param errMsg
+     * @return
+     */
+    public BenchmarkResults addPollResponseInfo(String clientName,
+                                                 int pollIndex,
+                                                 long time,
+                                                 TransactionCounter tc,
+                                                 String errMsg) {
+        
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
 

@@ -1,6 +1,7 @@
 package edu.brown.statistics;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -44,11 +45,11 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public Long get(Integer value) {
-        return (this.histogram[value.intValue()]);
+        return Long.valueOf(this.fastGet(value.intValue()));
     }
 
     public long fastGet(int value) {
-        return (this.histogram[value]);
+        return (this.histogram[value] != -1 ? this.histogram[value] : 0);
     }
     
     public synchronized void fastPut(int idx) {
@@ -208,9 +209,7 @@ public class FastIntHistogram extends Histogram<Integer> {
 
     @Override
     public synchronized void clearValues() {
-        for (int i = 0; i < this.histogram.length; i++) {
-            this.histogram[i] = -1;
-        } // FOR
+        Arrays.fill(this.histogram, -1);
         this.value_count = 0;
         this.num_samples = 0;
     }
