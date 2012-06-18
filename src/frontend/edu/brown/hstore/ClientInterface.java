@@ -82,8 +82,14 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // small number. On the other hand, backPressure() is just a hint to the ClientInterface.
     // CI will submit ClientPort.MAX_READ * clients / bytesPerStoredProcInvocation txns
     // on average if clients present constant uninterrupted load.
+    
+    
+    // TODO: Move this into HStoreConf
     private final int MAX_DESIRED_PENDING_BYTES = 67108864;
+    private final double MAX_DESIRED_PENDING_BYTES_RELEASE = 0.8;
+    
     private final int MAX_DESIRED_PENDING_TXNS; //  = 15000;
+    private final double MAX_DESIRED_PENDING_TXNS_RELEASE = 0.8;
     
     // ----------------------------------------------------------------------------
     // QUEUE MONITOR RUNNABLE
@@ -447,6 +453,10 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
             m_hostname = hostname;
         }
 
+        public String getHostname() {
+            return (m_hostname);
+        }
+        
         @Override
         public int getMaxRead() {
             if (m_hasDTXNBackPressure) {
@@ -717,12 +727,24 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    public long getMaxPendingTxnBytes() {
+        return MAX_DESIRED_PENDING_BYTES;
+    }
     public long getPendingTxnBytes() {
         return m_pendingTxnBytes.get();
     }
+    public long getReleasePendingTxnBytes() {
+        return Math.round(MAX_DESIRED_PENDING_BYTES * MAX_DESIRED_PENDING_BYTES_RELEASE);
+    }
     
+    public int getMaxPendingTxnCount() {
+        return MAX_DESIRED_PENDING_TXNS;
+    }
     public int getPendingTxnCount() {
         return m_pendingTxnCount.get();
+    }
+    public int getReleasePendingTxnCount() {
+      return (int)Math.round(MAX_DESIRED_PENDING_TXNS * MAX_DESIRED_PENDING_TXNS_RELEASE);
     }
     
     public boolean hasBackPressure() {
@@ -764,8 +786,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         
         long pendingBytes = m_pendingTxnBytes.addAndGet(-1 * messageSize);
         int pendingTxns = m_pendingTxnCount.decrementAndGet();
-        if (pendingBytes < (MAX_DESIRED_PENDING_BYTES * .8) &&
-            pendingTxns < (MAX_DESIRED_PENDING_TXNS * .8))
+        if (pendingBytes < (MAX_DESIRED_PENDING_BYTES * MAX_DESIRED_PENDING_BYTES_RELEASE) &&
+            pendingTxns < (MAX_DESIRED_PENDING_TXNS * MAX_DESIRED_PENDING_TXNS_RELEASE))
         {
             if (m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN backpressure ended");
@@ -779,167 +801,6 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         if (this.network_backup_off != null) this.network_backup_off.start(); 
         m_acceptor.start();
     }
-
-//    /**
-//     *
-//     * @param port
-//     * * return True if an error was generated and needs to be returned to the client
-//     */
-//    private final void handleRead(ByteBuffer buf, ClientInputHandler handler, Connection c) throws IOException {
-//        
-//        
-//        
-//        
-//        final long now = EstTime.currentTimeMillis();
-//        final FastDeserializer fds = new FastDeserializer(buf);
-//
-//        // Deserialize the client's request and map to a catalog stored procedure
-//        final StoredProcedureInvocation task = fds.readObject(StoredProcedureInvocation.class);
-//        final Procedure catProc = m_catalogContext.get().procedures.get(task.procName);
-//
-//        /*
-//         * @TODO This ladder stinks. An SPI when deserialized here should be
-//         * able to determine if the task is permitted by calling a method that
-//         * provides an AuthUser object.
-//         */
-//        if (task.procName.startsWith("@")) {
-//
-//            // AdHoc requires unique permission. Then has to plan in a separate thread.
-//            if (task.procName.equals("@AdHoc")) {
-//                if (!handler.m_user.hasAdhocPermission()) {
-//                    final ClientResponseImpl errorResponse =
-//                        new ClientResponseImpl(-1, task.clientHandle, -1,
-//                                               Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], "User does not have @AdHoc permission");
-//                    authLog.l7dlog(Level.INFO,
-//                                   LogKeys.auth_ClientInterface_LackingPermissionForAdhoc.name(),
-//                                   new String[] {handler.m_user.m_name}, null);
-//                    c.writeStream().enqueue(errorResponse);
-//                    return;
-//                }
-//                task.buildParameterSet();
-//                if (task.params.toArray().length != 1) {
-//                    final ClientResponseImpl errorResponse =
-//                        new ClientResponseImpl(-1, task.clientHandle, -1,
-//                                               Hstoreservice.Status.ABORT_UNEXPECTED,
-//                                               new VoltTable[0],
-//                                               "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
-//                    c.writeStream().enqueue(errorResponse);
-//                    return;
-//                }
-//                String sql = (String) task.params.toArray()[0];
-////                m_asyncCompilerWorkThread.planSQL(
-////                                                  sql,
-////                                                  task.clientHandle,
-////                                                  handler.connectionId(),
-////                                                  handler.m_hostname,
-////                                                  handler.sequenceId(),
-////                                                  c);
-//                return;
-//            }
-//
-//            // All other sysprocs require the sysproc permission
-//            if (!handler.m_user.hasSystemProcPermission()) {
-//                authLog.l7dlog(Level.INFO,
-//                               LogKeys.auth_ClientInterface_LackingPermissionForSysproc.name(),
-//                               new String[] { handler.m_user.m_name, task.procName },
-//                               null);
-//                final ClientResponseImpl errorResponse =
-//                    new ClientResponseImpl(-1, task.clientHandle, -1,
-//                                           Hstoreservice.Status.ABORT_UNEXPECTED,
-//                                           new VoltTable[0],
-//                                           "User " + handler.m_user.m_name + " does not have sysproc permission");
-//                c.writeStream().enqueue(errorResponse);
-//                return;
-//            }
-//
-//            // Updating a catalog needs to divert to the catalog processing thread
-//            if (task.procName.equals("@UpdateApplicationCatalog")) {
-//                task.buildParameterSet();
-//                // user only provides catalog URL.
-//                if (task.params.size() != 1) {
-//                    final ClientResponseImpl errorResponse =
-//                        new ClientResponseImpl(-1,task.clientHandle, -1,
-//                                               Hstoreservice.Status.ABORT_UNEXPECTED,
-//                                               new VoltTable[0],
-//                                               "UpdateApplicationCatalog system procedure requires exactly " +
-//                                               "one parameter, the URL of the catalog to load");
-//                    c.writeStream().enqueue(errorResponse);
-//                    return;
-//                }
-//                String catalogURL = (String) task.params.toArray()[0];
-//                m_asyncCompilerWorkThread.prepareCatalogUpdate(catalogURL,
-//                                                               task.clientHandle,
-//                                                               handler.connectionId(),
-//                                                               handler.m_hostname,
-//                                                               handler.sequenceId(),
-//                                                               c);
-//                return;
-//            }
-//        } else if (!handler.m_user.hasPermission(catProc)) {
-//            authLog.l7dlog(Level.INFO,
-//                           LogKeys.auth_ClientInterface_LackingPermissionForProcedure.name(),
-//                           new String[] { handler.m_user.m_name, task.procName }, null);
-//            final ClientResponseImpl errorResponse =
-//                new ClientResponseImpl(-1, task.clientHandle, -1,
-//                                       Hstoreservice.Status.ABORT_UNEXPECTED,
-//                                       new VoltTable[0],
-//                                       "User does not have permission to invoke " + catProc.getTypeName());
-//            c.writeStream().enqueue(errorResponse);
-//            return;
-//        }
-//
-//        if (catProc != null) {
-//            int[] involvedPartitions = null;
-//            if (catProc.getEverysite() == true) {
-//                involvedPartitions = m_allPartitions;
-//                task.buildParameterSet();
-//            }
-//            else if (catProc.getSinglepartition() == false) {
-//                involvedPartitions = m_allPartitions;
-//                task.buildParameterSet();
-//            }
-//            else {
-//                // break out the Hashinator and calculate the appropriate partition
-//                try {
-//                    involvedPartitions = new int[] { getPartitionForProcedure(catProc.getPartitionparameter(), task) };
-//                }
-//                catch (RuntimeException e) {
-//                    // unable to hash to a site, return an error
-//                    String errorMessage = "Error sending procedure "
-//                        + task.procName + " to the correct partition. Make sure parameter values are correct.";
-//                    authLog.l7dlog( Level.WARN,
-//                            LogKeys.host_ClientInterface_unableToRouteSinglePartitionInvocation.name(),
-//                            new Object[] { task.procName }, null);
-//                    final ClientResponseImpl errorResponse =
-//                        new ClientResponseImpl(-1, task.clientHandle, -1,
-//                                             Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
-//                    c.writeStream().enqueue(errorResponse);
-//                }
-//            }
-//
-//            if (involvedPartitions != null) {
-//                // initiate the transaction
-//                m_initiator.createTransaction(handler.connectionId(), handler.m_hostname, task,
-//                                              catProc.getReadonly(),
-//                                              catProc.getSinglepartition(),
-//                                              catProc.getEverysite(),
-//                                              involvedPartitions, involvedPartitions.length,
-//                                              c, buf.capacity(),
-//                                              now);
-//            }
-//        }
-//        else {
-//            // No such procedure: log and tell the client
-//            String errorMessage = "Procedure " + task.procName + " was not found";
-//            authLog.l7dlog( Level.WARN, LogKeys.auth_ClientInterface_ProcedureNotFound.name(), new Object[] { task.procName }, null);
-//            final ClientResponseImpl errorResponse =
-//                new ClientResponseImpl(-1, task.clientHandle, -1,
-//                        Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
-//            c.writeStream().enqueue(errorResponse);
-//        }
-//    }
-
-    
 
 
     /**
@@ -1019,6 +880,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
      * ClientResponses back to the daemon
      *
      */
+    @SuppressWarnings("unused")
     private class SnapshotDaemonAdapter implements Connection, WriteStream {
 
         @Override
