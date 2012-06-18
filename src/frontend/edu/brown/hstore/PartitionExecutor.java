@@ -135,7 +135,6 @@ import edu.brown.hstore.util.ArrayCache.IntArrayCache;
 import edu.brown.hstore.util.ArrayCache.LongArrayCache;
 import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
-import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

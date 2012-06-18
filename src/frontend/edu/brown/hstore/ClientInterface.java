@@ -57,7 +57,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
@@ -577,8 +576,8 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // on average if clients present constant uninterrupted load.
     private final static int MAX_DESIRED_PENDING_BYTES = 67108864;
     private final static int MAX_DESIRED_PENDING_TXNS = 15000;
-    private long m_pendingTxnBytes = 0;
-    private int m_pendingTxnCount = 0;
+    private final AtomicLong m_pendingTxnBytes = new AtomicLong(0);
+    private final AtomicInteger m_pendingTxnCount = new AtomicInteger(0);
 
     /**
      * Tick counter used to perform dead client detection every N ticks
@@ -714,11 +713,11 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     // ----------------------------------------------------------------------------
     
     public long getPendingTxnBytes() {
-        return m_pendingTxnBytes;
+        return m_pendingTxnBytes.get();
     }
     
     public int getPendingTxnCount() {
-        return m_pendingTxnCount;
+        return m_pendingTxnCount.get();
     }
     
     public boolean hasBackPressure() {
@@ -742,9 +741,9 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     {
         if (debug.get()) LOG.debug("Increasing Backpressure: " + messageSize);
         
-        m_pendingTxnBytes += messageSize;
-        m_pendingTxnCount++;
-        if (m_pendingTxnBytes > MAX_DESIRED_PENDING_BYTES || m_pendingTxnCount > MAX_DESIRED_PENDING_TXNS) {
+        long pendingBytes = m_pendingTxnBytes.addAndGet(messageSize);
+        int pendingTxns = m_pendingTxnCount.incrementAndGet();
+        if (pendingBytes > MAX_DESIRED_PENDING_BYTES || pendingTxns > MAX_DESIRED_PENDING_TXNS) {
             if (!m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN back pressure began");
                 m_hadBackPressure = true;
@@ -758,13 +757,12 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         if (debug.get()) 
             LOG.debug("Reducing Backpressure: " + messageSize);
         
-        m_pendingTxnBytes -= messageSize;
-        m_pendingTxnCount--;
-        if (m_pendingTxnBytes < (MAX_DESIRED_PENDING_BYTES * .8) &&
-            m_pendingTxnCount < (MAX_DESIRED_PENDING_TXNS * .8))
+        long pendingBytes = m_pendingTxnBytes.addAndGet(-1 * messageSize);
+        int pendingTxns = m_pendingTxnCount.decrementAndGet();
+        if (pendingBytes < (MAX_DESIRED_PENDING_BYTES * .8) &&
+            pendingTxns < (MAX_DESIRED_PENDING_TXNS * .8))
         {
-            if (m_hadBackPressure)
-            {
+            if (m_hadBackPressure) {
                 if (trace.get()) LOG.trace("DTXN backpressure ended");
                 m_hadBackPressure = false;
                 offBackPressure.notifyObservers(hstore_site);
