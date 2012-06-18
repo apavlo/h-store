@@ -1391,7 +1391,7 @@ public final class HStoreConf {
      */
     private static HStoreConf conf;
     
-    private final Map<Conf, Set<String>> loaded_params = new HashMap<Conf, Set<String>>();
+    private final Map<Conf, Set<String>> externalParams = new HashMap<Conf, Set<String>>();
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
@@ -1463,7 +1463,7 @@ public final class HStoreConf {
     protected void set(Conf handle, Field f, Object value) {
         try {
             f.set(handle, value);
-            if (debug.get())
+             if (debug.get())
                 LOG.debug(String.format("SET %s.%s = %s",
                                         handle.prefix, f.getName(), value));
         } catch (Exception ex) {
@@ -1471,6 +1471,17 @@ public final class HStoreConf {
                                        value, handle.prefix, f.getName()); 
             throw new RuntimeException(msg, ex);
         }
+        
+        // Keep track of what parameters we set manually (either from
+        // a file or from input arguments).
+        // This is needed so that we know what parameters to forward to
+        // remote clients and sites in the BenchmarkController
+        Set<String> s = this.externalParams.get(handle);
+        if (s == null) {
+            s = new HashSet<String>();
+            this.externalParams.put(handle, s);
+        }
+        s.add(f.getName());
         
         // If this option has been deprecated and replaced, then we 
         // need to also set the new configuration parameter
@@ -1491,11 +1502,15 @@ public final class HStoreConf {
     protected void populateDependencies() {
         Pattern p = Pattern.compile("^\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
         for (Conf handle : confHandles.values()) {
+            Set<String> ext = this.externalParams.get(handle);
+            
             for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
+                // Skip anything that we set externally
                 Field f = e.getKey();
-                ConfigProperty cp = e.getValue();
+                if (ext != null && ext.contains(f.getName())) continue;
                 
                 // FIXME: This only works with strings
+                ConfigProperty cp = e.getValue();
                 String defaultString = cp.defaultString();
                 if (defaultString == null) continue;
                 
@@ -1505,6 +1520,9 @@ public final class HStoreConf {
                 
                 Object value = this.get(m.group(1) + "." + m.group(2));
                 this.set(handle, f, value);
+                if (debug.get())
+                    LOG.debug(String.format("%s.%s [%s] ==> %s",
+                              handle.prefix, f.getName(), defaultString, value));
             } // FOR
         } // FOR
     }
@@ -1691,23 +1709,13 @@ public final class HStoreConf {
             }
            
             this.set(confHandle, f, value);
-            
-            // Keep track of what parameters we loaded from these arguments
-            // This is needed so that we know what parameters to forward to
-            // remote clients and sites in the BenchmarkController
-            Set<String> s = this.loaded_params.get(confHandle);
-            if (s == null) {
-                s = new HashSet<String>();
-                this.loaded_params.put(confHandle, s);
-            }
-            s.add(f_name);
         } // FOR
     }
     
     public Map<String, String> getParametersLoadedFromArgs() {
         Map<String, String> m = new HashMap<String, String>();
-        for (Conf confHandle : this.loaded_params.keySet()) {
-            for (String f_name : this.loaded_params.get(confHandle)) {
+        for (Conf confHandle : this.externalParams.keySet()) {
+            for (String f_name : this.externalParams.get(confHandle)) {
                 Object val = confHandle.getValue(f_name);
                 if (val != null) m.put(String.format("%s.%s", confHandle.prefix, f_name), val.toString());
             } // FOR
@@ -1744,7 +1752,7 @@ public final class HStoreConf {
      * @return
      */
     private boolean isLoadedFromArgs(Conf confHandle, String name) {
-        Set<String> params = this.loaded_params.get(confHandle);
+        Set<String> params = this.externalParams.get(confHandle);
         if (params != null) {
             return (params.contains(name));
         }
@@ -1787,8 +1795,18 @@ public final class HStoreConf {
     public synchronized static HStoreConf init(File f, String args[]) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
         conf = new HStoreConf();
-        if (f != null && f.exists()) conf.loadFromFile(f);
-        if (args != null) conf.loadFromArgs(args);
+        
+        boolean changed = false;
+        if (f != null && f.exists()) {
+            conf.loadFromFile(f);
+            changed = true;
+        }
+        if (args != null) {
+            conf.loadFromArgs(args);
+            changed = true;
+        }
+        if (changed) conf.populateDependencies();
+        
         return (conf);
     }
     
