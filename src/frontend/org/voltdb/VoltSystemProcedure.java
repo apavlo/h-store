@@ -232,4 +232,13 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         // Bombs away!
         return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));
     }
+    
+    /**
+     * Helper method that will return true if the invoking partition
+     * is the first partition at this HStoreSite
+     * @return
+     */
+    protected final boolean isFirstLocalPartition() { 
+        return (CollectionUtil.first(hstore_site.getLocalPartitionIds()) == this.partitionId);
+    }
 }
