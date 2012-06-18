@@ -319,7 +319,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             siteInfo.put("Client Interface Queue", value);
             
             if (hstore_conf.site.network_profiling) {
-                siteInfo.put("Arrival Rate", ci.getApproximateArrivalRate());
+                value = String.format("%.02f txn/sec", ci.getApproximateArrivalRate());
+                siteInfo.put("Arrival Rate", value);
                 
                 pm = ci.getBackPressureOn();
                 siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
