@@ -64,8 +64,12 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         FinalResult fr = new FinalResult(results);
         
         final int width = 100; 
+        final String sectionLine = StringUtil.repeat("=", width);
         sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
         
+        // -------------------------------
+        // GLOBAL TOTALS
+        // -------------------------------
         StringBuilder inner = new StringBuilder();
         inner.append(String.format(RESULT_FORMAT + " txn/s", fr.getTotalTxnPerSecond()))
              .append(" [")
@@ -80,9 +84,11 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
         m.put("Total Transactions", fr.getTotalTxnCount());
         m.put("Throughput", inner.toString()); 
-        
         sb.append(StringUtil.formatMaps(m));
-        
+
+        // -------------------------------
+        // TRANSACTION TOTALS
+        // -------------------------------
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
         int num_rows = txnNames.size() + (this.output_clients ? clientNames.size() + 1 : 0);
@@ -101,7 +107,10 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             row_idx++;
         } // FOR
 
-        if (output_clients) {
+        // -------------------------------
+        // CLIENT TOTALS
+        // -------------------------------
+        if (this.output_clients) {
             rows[row_idx][0] = "\nBreakdown by client:";
             for (int i = 1; i < COL_FORMATS.length; i++) {
                 rows[row_idx][i] = "";
@@ -120,9 +129,14 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 row_idx++;
             } // FOR
         }
+        
+        sb.append(StringUtil.repeat("-", width)).append("\n");
         sb.append(TableUtil.table(rows));
         sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         
+        // -------------------------------
+        // TXNS PER PARTITION
+        // -------------------------------
         if (this.output_basepartitions) {
             sb.append("Transaction Base Partitions:\n");
             Histogram<Integer> h = results.getBasePartitions();
@@ -136,6 +150,9 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
         }
         
+        // -------------------------------
+        // CLIENT RESPONSES
+        // -------------------------------
         if (this.output_responses) {
             sb.append("Client Response Statuses:\n");
             Histogram<String> h = results.getResponseStatuses();

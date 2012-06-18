@@ -310,10 +310,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (ci != null) {
             siteInfo.put("# of Connections", ci.getConnectionCount());
             
-            value = String.format("%d txns / %d bytes %s",
+            value = String.format("%d txns / %d bytes [txnLimit=%d, release=%d]%s / %s",
                                   ci.getPendingTxnCount(),
                                   ci.getPendingTxnBytes(),
-                                  (ci.hasBackPressure() ? "*BACKPRESSURE*" : ""));
+                                  ci.getMaxPendingTxnCount(),
+                                  ci.getReleasePendingTxnCount(),
+                                  (ci.hasBackPressure() ? "*THROTTLED*" : ""));
             siteInfo.put("Client Interface", value);
             
             if (hstore_conf.site.network_profiling) {
