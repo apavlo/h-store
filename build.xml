@@ -1589,7 +1589,6 @@ BENCHMARKS
         <arg value="markov.recompute_warmup=${markov.recompute_warmup}" />
 
         <!-- Execution Options -->
-        <arg value="CLIENTCOUNT=${client.count}" />
         <arg value="TRACE=${trace}" />
         <arg value="JSONOUTPUT=${jsonoutput}" />
 
@@ -1613,7 +1612,6 @@ BENCHMARKS
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
-        <arg value="CLIENTHOST=${client.host}" />
         <arg value="LISTENFORDEBUGGER=${debug}" />
         <arg value="USEPROFILE=${site.useprofile}" />
         <arg value="CHECKTRANSACTION=${checktransaction}" />

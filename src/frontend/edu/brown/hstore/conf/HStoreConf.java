@@ -474,7 +474,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=150,
+            defaultInt=1000,
             experimental=false
         )
         public int queue_incoming_max_per_partition;
@@ -498,7 +498,7 @@ public final class HStoreConf {
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
                         "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=10,
+            defaultInt=100,
             experimental=false
         )
         public int queue_incoming_increase;
@@ -506,22 +506,10 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
                         "can be increased by per partition.",
-            defaultInt=300,
+            defaultInt=4000,
             experimental=false
         )
         public int queue_incoming_increase_max;
-        
-        @ConfigProperty(
-            description="If a transaction is rejected by an PartitionExecutor because its queue is full, then " +
-                        "this parameter determines what kind of response will be sent back to the client. " +
-                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
-                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
-                        "sending another transaction request. Otherwise, the client will recieve an " +
-                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
-            defaultBoolean=false,
-            experimental=false
-        )
-        public boolean queue_incoming_throttle;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
@@ -550,7 +538,7 @@ public final class HStoreConf {
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
                         "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=10,
+            defaultInt=100,
             experimental=false
         )
         public int queue_dtxn_increase;
@@ -558,22 +546,10 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The maximum amount that the ${site.queue_dtxn_max_per_partition} parameter " +
                         "can be increased by per partition.",
-            defaultInt=300,
+            defaultInt=1000,
             experimental=false
         )
         public int queue_dtxn_increase_max;
-        
-        @ConfigProperty(
-            description="If a transaction is rejected by the HStoreSite's distributed txn queue manager, then " +
-                        "this parameter determines what kind of response will be sent back to the client. " +
-                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
-                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
-                        "sending another transaction request. Otherwise, the client will recieve an " +
-                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
-            defaultBoolean=false,
-            experimental=false
-        )
-        public boolean queue_dtxn_throttle;
         
         // ----------------------------------------------------------------------------
         // Parameter Mapping Options
@@ -984,17 +960,32 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Default client host name",
             defaultString="${global.defaulthost}",
+            replacedBy="client.hosts",
             experimental=false
         )
-        public String host = HStoreConf.this.global.defaulthost;
+        @Deprecated
+        public String host;
+        
+        @ConfigProperty(
+            description="A semi-colon separated list of hostnames that the BenchmarkController will " +
+            		    "invoke benchmark clients on. Like the HStoreSite hosts, these machines must " +
+            		    "have passwordless SSH enabled and have the H-Store distribution installed in" +
+            		    "the same directory heirarchy as where the BenchmarkController was invoked from. " +
+            		    "Each client host represents a unique JVM that will spawn the number of client " +
+            		    "threads defined by the ${client.threads_per_host} parameter.", 
+            defaultString="${global.defaulthost}",
+            experimental=false
+        )
+        public String hosts;
 
         @ConfigProperty(
             description="The number of txns that client process submits (per ms). The underlying " +
                         "BenchmarkComponent will continue invoke the client driver's runOnce() method " +
                         "until it has submitted enough transactions to satisfy ${client.txnrate}. " +
-                        "If ${client.blocking} is disabled, then the total transaction rate for a benchmark run is " +
+                        "If ${client.blocking} is disabled, then the total transaction rate for a " +
+                        "benchmark invocation is " +
                         "${client.txnrate} * ${client.processesperclient} * ${client.count}.",
-            defaultInt=10000,
+            defaultInt=1000,
             experimental=false
         )
         public int txnrate;
@@ -1007,11 +998,22 @@ public final class HStoreConf {
         public String weights;
 
         @ConfigProperty(
-            description="Number of processes to use per client host.",
+            description="Number of benchmark client threads to use per client host.",
+            defaultInt=10,
+            replacedBy="client.threads_per_host",
+            experimental=false
+        )
+        @Deprecated
+        public int processesperclient;
+        
+        @ConfigProperty(
+            description="Number of benchmark client threads to invoke per client host. " +
+            		    "If ${client.shared_connection} is set to true, then all of these threads " +
+            		    "will share the same Client handle to the HStoreSite cluster.",
             defaultInt=10,
             experimental=false
         )
-        public int processesperclient;
+        public int threads_per_host;
         
         @ConfigProperty(
             description="Multiply the ${client.processesperclient} parameter by " +
@@ -1022,7 +1024,7 @@ public final class HStoreConf {
         public boolean processesperclient_per_partition;
         
         @ConfigProperty(
-            description="",
+            description="", // TODO
             defaultBoolean=false,
             experimental=false
         )
@@ -1090,7 +1092,7 @@ public final class HStoreConf {
             description="The scaling factor determines how large to make the target benchmark's data set. " +
                         "A scalefactor greater than one makes the data set larger, while less than one " +
                         "makes it smaller. Implementation depends on benchmark specification.",
-            defaultDouble=0.1,
+            defaultDouble=1,
             experimental=false
         )
         public double scalefactor;
@@ -1130,14 +1132,6 @@ public final class HStoreConf {
             experimental=false
         )
         public int tick_interval;
-
-        @ConfigProperty(
-            description="The amount of time (in ms) that the client will back-off from sending requests " +
-                        "to an HStoreSite when told that the site is throttled.",
-            defaultInt=500,
-            experimental=false
-        )
-        public int throttle_backoff;
         
         @ConfigProperty(
             description="If this enabled, then each DBMS will dump their entire database contents into " +
@@ -1433,10 +1427,6 @@ public final class HStoreConf {
             }
         }
         
-        // ReplacedBy Updated
-        // XXX: Make automatic!
-        site.markov_fixed = site.exec_neworder_cheat;
-        
         // TODO: Remove
         if (site.markov_fixed) {
             site.exec_force_singlepartitioned = false;
@@ -1444,23 +1434,7 @@ public final class HStoreConf {
         }
     }
     
-    // ----------------------------------------------------------------------------
-    // LOADING METHODS
-    // ----------------------------------------------------------------------------
-    
-    public void set(String k, Object value) {
-        Matcher m = REGEX_PARSE.matcher(k);
-        boolean found = m.matches();
-        if (m == null || found == false) {
-            LOG.warn("Invalid key '" + k + "'");
-            return;
-        }
-        assert(m != null);
-        Conf handle = confHandles.get(m.group(1));
-        this.set(handle, m.group(2), value);
-    }
-    
-    private void set(Conf handle, String f_name, Object value) {
+    protected void set(Conf handle, String f_name, Object value) {
         Class<?> confClass = handle.getClass();
         assert(confClass != null);
         Field f = null;
@@ -1472,17 +1446,84 @@ public final class HStoreConf {
                                       handle.prefix, f_name));
             return;
         }
-        ConfigProperty cp = handle.getConfigProperties().get(f);
-        assert(cp != null) : "Missing ConfigProperty for " + f;
-        
+        this.set(f, handle, value);
+    }
+    
+    /**
+     * Set value for the given Conf handle's field 
+     * This method should always be used because it knows how to map values from 
+     * deprecated parameters to their new replacements. 
+     * @param f
+     * @param handle
+     * @param value
+     */
+    protected void set(Field f, Conf handle, Object value) {
         try {
             f.set(handle, value);
-            if (debug.get()) LOG.debug(String.format("SET %s.%s = %s",
-                                       handle.prefix, f_name, value));
+//            if (debug.get())
+                LOG.info(String.format("SET %s.%s = %s",
+                                        handle.prefix, f.getName(), value));
         } catch (Exception ex) {
-            throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            String msg = String.format("Failed to set value '%s' for '%s.%s'",
+                                       value, handle.prefix, f.getName()); 
+            throw new RuntimeException(msg, ex);
+        }
+        
+        // If this option has been deprecated and replaced, then we 
+        // need to also set the new configuration parameter
+        ConfigProperty cp = handle.getConfigProperties().get(f);
+        assert(cp != null) : "Missing ConfigProperty for " + f;
+        if (cp.replacedBy() != null && cp.replacedBy().isEmpty() == false) {
+            LOG.info(f.getName() + " => " + cp.replacedBy());    
+            this.set(cp.replacedBy(), value);
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // REFLECTIVE ACCESS METHODS
+    // ----------------------------------------------------------------------------
+    
+    public Object get(String k) {
+        Matcher m = REGEX_PARSE.matcher(k);
+        boolean found = m.matches();
+        if (m == null || found == false) {
+            String msg = "Invalid configuration property '" + k + "'";
+            throw new RuntimeException(msg);
+        }
+        
+        Conf handle = confHandles.get(m.group(1));
+        Class<?> confClass = handle.getClass();
+        assert(confClass != null);
+        
+        String f_name = m.group(2);
+        Field f = null;
+        Object value = null;
+        try {
+            f = confClass.getField(f_name);
+            value = f.get(handle);
+        } catch (Exception ex) {
+            String msg = "Invalid configuration property '" + k + "'";
+            throw new RuntimeException(msg, ex);
+        }
+        return (value);
+    }
+    
+    public boolean set(String k, Object value) {
+        Matcher m = REGEX_PARSE.matcher(k);
+        boolean found = m.matches();
+        if (m == null || found == false) {
+            String msg = "Invalid configuration property '" + k + "'";
+            throw new RuntimeException(msg);
+        }
+        assert(m != null);
+        Conf handle = confHandles.get(m.group(1));
+        this.set(handle, m.group(2), value);
+        return (true);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // LOADING METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -1536,13 +1577,8 @@ public final class HStoreConf {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
             }
             
-            try {
-                f.set(handle, value);
-//                if (defaultValue != null && defaultValue.equals(value) == false) LOG.info(String.format("SET %s = %s", k, value));
-                if (debug.get()) LOG.debug(String.format("SET %s = %s", k, value));
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
-            }
+            this.set(f, handle, value);
+
         } // FOR
     }
     
@@ -1623,19 +1659,18 @@ public final class HStoreConf {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
                 continue;
             }
-            try {
-                f.set(confHandle, value);
-                if (debug.get()) LOG.debug(String.format("PARAM SET %s = %s", k, value));
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
-            } finally {
-                Set<String> s = this.loaded_params.get(confHandle);
-                if (s == null) {
-                    s = new HashSet<String>();
-                    this.loaded_params.put(confHandle, s);
-                }
-                s.add(f_name);
+           
+            this.set(f, confHandle, value);
+            
+            // Keep track of what parameters we loaded from these arguments
+            // This is needed so that we know what parameters to forward to
+            // remote clients and sites in the BenchmarkController
+            Set<String> s = this.loaded_params.get(confHandle);
+            if (s == null) {
+                s = new HashSet<String>();
+                this.loaded_params.put(confHandle, s);
             }
+            s.add(f_name);
         } // FOR
     }
     

@@ -138,8 +138,8 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
             sql.append(m_config.hosts.length).append(", ");
             sql.append(m_config.clients.length).append(", ");
             sql.append(m_config.hosts.length * m_config.sitesPerHost).append(", ");
-            sql.append(m_config.clients.length * hstore_conf.client.processesperclient).append(", ");
-            sql.append(hstore_conf.client.processesperclient).append(");");
+            sql.append(m_config.clients.length * hstore_conf.client.threads_per_host).append(", ");
+            sql.append(hstore_conf.client.threads_per_host).append(");");
             //System.out.println(sql.toString());
             m_stmt.executeUpdate(sql.toString());
 
