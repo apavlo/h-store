@@ -1472,26 +1472,16 @@ public final class HStoreConf {
             throw new RuntimeException(msg, ex);
         }
         
-        // Keep track of what parameters we set manually (either from
-        // a file or from input arguments).
-        // This is needed so that we know what parameters to forward to
-        // remote clients and sites in the BenchmarkController
-        Set<String> s = this.externalParams.get(handle);
-        if (s == null) {
-            s = new HashSet<String>();
-            this.externalParams.put(handle, s);
-        }
-        s.add(f.getName());
-        
         // If this option has been deprecated and replaced, then we 
         // need to also set the new configuration parameter
+        // Make sure that we don't do this for externally set parameters
         ConfigProperty cp = handle.getConfigProperties().get(f);
         assert(cp != null) : "Missing ConfigProperty for " + f;
         if (cp.replacedBy() != null && cp.replacedBy().isEmpty() == false) {
             if (debug.get())
                 LOG.debug(String.format("Automatically updating replaceBy parameter: %s.%s => %s",
-                                        handle.prefix, f.getName(), cp.replacedBy()));    
-            this.set(cp.replacedBy(), value);
+                                        handle.prefix, f.getName(), cp.replacedBy()));
+            this.set(cp.replacedBy(), value, true);
         }
     }
     
@@ -1500,14 +1490,14 @@ public final class HStoreConf {
      * This can only be invoked after all of the Conf handles are initialized
      */
     protected void populateDependencies() {
+        if (debug.get()) LOG.debug("Populating dependent parameters");
+        
         Pattern p = Pattern.compile("^\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
         for (Conf handle : confHandles.values()) {
-            Set<String> ext = this.externalParams.get(handle);
-            
             for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
                 // Skip anything that we set externally
                 Field f = e.getKey();
-                if (ext != null && ext.contains(f.getName())) continue;
+                if (this.isMarkedExternal(handle, f.getName())) continue;
                 
                 // FIXME: This only works with strings
                 ConfigProperty cp = e.getValue();
@@ -1525,6 +1515,31 @@ public final class HStoreConf {
                               handle.prefix, f.getName(), defaultString, value));
             } // FOR
         } // FOR
+    }
+    
+    /**
+     * Keep track of what parameters we set manually (either from a file or from 
+     * input arguments). This is needed so that we know what parameters to forward to
+     * remote clients and sites in the BenchmarkController
+     * @param handle
+     * @param f_name
+     */
+    protected void markAsExternal(Conf handle, String f_name) {
+        Set<String> s = this.externalParams.get(handle);
+        if (s == null) {
+            s = new HashSet<String>();
+            this.externalParams.put(handle, s);
+        }
+        s.add(f_name);
+    }
+    
+    protected boolean isMarkedExternal(Conf handle, String f_name) {
+        Set<String> s = this.externalParams.get(handle);
+        boolean ret = (s != null && s.contains(f_name));
+        if (debug.get())
+            LOG.debug(String.format("Checking whether %s.%s is externally set: %s",
+                               handle.prefix, f_name, ret));
+        return (ret);
     }
     
     // ----------------------------------------------------------------------------
@@ -1557,6 +1572,10 @@ public final class HStoreConf {
     }
     
     public boolean set(String k, Object value) {
+        return this.set(k, value, false);
+    }
+        
+    protected boolean set(String k, Object value, boolean skip_external) {
         Matcher m = REGEX_PARSE.matcher(k);
         boolean found = m.matches();
         if (m == null || found == false) {
@@ -1565,6 +1584,10 @@ public final class HStoreConf {
         }
         assert(m != null);
         Conf handle = confHandles.get(m.group(1));
+        
+        if (skip_external && this.isMarkedExternal(handle, m.group(2))) {
+            return (false);
+        }
         this.set(handle, m.group(2), value);
         return (true);
     }
@@ -1578,6 +1601,8 @@ public final class HStoreConf {
      */
     @SuppressWarnings("unchecked")
     public void loadFromFile(File path) {
+        if (debug.get()) LOG.debug("Loading from input file [" + path + "]");
+        
         try {
             this.config = new PropertiesConfiguration(path);
         } catch (Exception ex) {
@@ -1626,11 +1651,12 @@ public final class HStoreConf {
             }
             
             this.set(handle, f, value);
-
+            this.markAsExternal(handle, f_name);
         } // FOR
     }
     
     public void loadFromArgs(String args[]) {
+        if (debug.get()) LOG.debug("Loading from commandline input arguments");
         final Pattern split_p = Pattern.compile("=");
         
         final Map<String, String> argsMap = new ListOrderedMap<String, String>();
@@ -1677,8 +1703,8 @@ public final class HStoreConf {
             assert(m != null);
 
             String confName = m.group(1);
-            Conf confHandle = confHandles.get(confName);
-            Class<?> confClass = confHandle.getClass();
+            Conf handle = confHandles.get(confName);
+            Class<?> confClass = handle.getClass();
             assert(confClass != null);
             Field f = null;
             String f_name = m.group(2).toLowerCase();
@@ -1688,7 +1714,7 @@ public final class HStoreConf {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = confHandle.getConfigProperties().get(f);
+            ConfigProperty cp = handle.getConfigProperties().get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
@@ -1708,7 +1734,8 @@ public final class HStoreConf {
                 continue;
             }
            
-            this.set(confHandle, f, value);
+            this.set(handle, f, value);
+            this.markAsExternal(handle, f_name);
         } // FOR
     }
     
