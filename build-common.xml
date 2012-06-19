@@ -48,6 +48,7 @@
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
+<arg value="client.profiling=${client.profiling}" />
 
 <!-- SITE -->
 <arg value="site.log_dir=${site.log_dir}" />
