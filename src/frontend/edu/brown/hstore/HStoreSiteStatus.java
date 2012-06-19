@@ -102,6 +102,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private Integer processing_max = null;
     
     private Thread self;
+    private long startTime;
     
     private ProfileMeasurement lastNetworkIdle = null;
     private ProfileMeasurement lastNetworkProcessing = null;
@@ -167,6 +168,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             public void update(EventObservable<HStoreSite> arg0, HStoreSite arg1) {
 //                if (debug.get())
                 LOG.info(arg1.getSiteName() + " - " +HStoreConstants.SITE_FIRST_TXN);
+                startTime = System.currentTimeMillis();
             }
         });
         
@@ -322,10 +324,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 // Compute the approximate arrival rate of transaction
                 // requests per second from clients
                 pm = ci.getNetworkProcessing();
-                double totalTime = pm.getTotalThinkTimeSeconds();
+                double totalTime = System.currentTimeMillis() - startTime;
                 double arrivalRate = (totalTime > 0 ? (pm.getInvocations() / totalTime) : 0d);
                 
-                value = String.format("%.02f txn/sec", arrivalRate);
+                value = String.format("%.02f txn/sec [total=%d]", arrivalRate, pm.getInvocations());
                 siteInfo.put("Arrival Rate", value);
                 
                 pm = ci.getNetworkBackPressureOn();
