@@ -13,17 +13,15 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.ClientInterface;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.utils.CollectionUtil;
+import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 
@@ -31,8 +29,8 @@ import edu.brown.utils.ProfileMeasurement;
  * Reset internal profiling statistics
  */
 @ProcInfo(singlePartition = false)
-public class ResetStats extends VoltSystemProcedure {
-    private static final Logger LOG = Logger.getLogger(ResetStats.class);
+public class ResetProfiling extends VoltSystemProcedure {
+    private static final Logger LOG = Logger.getLogger(ResetProfiling.class);
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("SITE", VoltType.STRING),
@@ -46,8 +44,8 @@ public class ResetStats extends VoltSystemProcedure {
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
             BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_resetStatsAggregate, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_resetStatsDistribute, this);
+        site.registerPlanFragment(SysProcFragmentId.PF_resetProfilingAggregate, this);
+        site.registerPlanFragment(SysProcFragmentId.PF_resetProfilingDistribute, this);
     }
 
     @Override
@@ -59,13 +57,16 @@ public class ResetStats extends VoltSystemProcedure {
         DependencySet result = null;
         switch (fragmentId) {
             // Reset Stats
-            case SysProcFragmentId.PF_resetStatsDistribute: {
+            case SysProcFragmentId.PF_resetProfilingDistribute: {
                 LOG.info("Resetting internal profiling counters");
                 HStoreConf hstore_conf = hstore_site.getHStoreConf();
                 
                 // EXECUTOR
                 if (hstore_conf.site.exec_profiling) {
-                    
+                    this.executor.getWorkExecTime().reset();
+                    this.executor.getWorkIdleTime().reset();
+                    this.executor.getWorkNetworkTime().reset();
+                    this.executor.getWorkUtilityTime().reset();
                 }
                 
                 // The first partition at this HStoreSite will have to reset
@@ -74,14 +75,19 @@ public class ResetStats extends VoltSystemProcedure {
                     
                     // NETWORK
                     if (hstore_conf.site.network_profiling) {
-                        
+                        ClientInterface ci = hstore_site.getClientInterface();
+                        ci.getNetworkProcessing().reset();
+                        ci.getNetworkBackPressureOff().reset();
+                        ci.getNetworkBackPressureOn().reset();
                     }
                     
                     // COMMAND LOGGER
                     if (hstore_conf.site.exec_command_logging_profile) {
-                        
+                        CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
+                        commandLog.getLoggerWritingTime().reset();
+                        commandLog.getLoggerBlockedTime().reset();
+                        commandLog.getLoggerNetworkTime().reset();
                     }
-                    
                 }
                 
                 
@@ -89,19 +95,19 @@ public class ResetStats extends VoltSystemProcedure {
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
                           this.gcTime.getTotalThinkTimeMS() + " ms",
                           new TimestampType());
-                result = new DependencySet(SysProcFragmentId.PF_resetStatsDistribute, vt);
+                result = new DependencySet(SysProcFragmentId.PF_resetProfilingDistribute, vt);
                 break;
             }
             // Aggregate Results
-            case SysProcFragmentId.PF_resetStatsAggregate:
-                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_resetStatsDistribute);
+            case SysProcFragmentId.PF_resetProfilingAggregate:
+                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_resetProfilingDistribute);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
                 
                 VoltTable vt = VoltTableUtil.combine(siteResults);
-                result = new DependencySet(SysProcFragmentId.PF_resetStatsAggregate, vt);
+                result = new DependencySet(SysProcFragmentId.PF_resetProfilingAggregate, vt);
                 break;
             default:
                 String msg = "Unexpected sysproc fragmentId '" + fragmentId + "'";
@@ -112,37 +118,7 @@ public class ResetStats extends VoltSystemProcedure {
     }
 
     public VoltTable[] run() {
-        // Send a gc request to the first partition at each HStoreSite
-        final int num_sites = CatalogUtil.getNumberOfSites(this.database);
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_sites + 1];
-        final ParameterSet params = new ParameterSet();
-        
-        int i = 0;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.database)) {
-            Partition catalog_part = CollectionUtil.first(catalog_site.getPartitions());
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_resetStatsDistribute;
-            pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].outputDependencyIds = new int[] { SysProcFragmentId.PF_resetStatsDistribute };
-            pfs[i].multipartition = true;
-            pfs[i].nonExecSites = false;
-            pfs[i].destPartitionId = catalog_part.getId();
-            pfs[i].parameters = params;
-            pfs[i].last_task = (catalog_site.getId() == hstore_site.getSiteId());
-            i += 1;
-        } // FOR
-
-        // a final plan fragment to aggregate the results
-        pfs[i] = new SynthesizedPlanFragment();
-        pfs[i].fragmentId = SysProcFragmentId.PF_resetStatsAggregate;
-        pfs[i].inputDependencyIds = new int[] { SysProcFragmentId.PF_resetStatsDistribute };
-        pfs[i].outputDependencyIds = new int[] { SysProcFragmentId.PF_resetStatsAggregate };
-        pfs[i].multipartition = false;
-        pfs[i].nonExecSites = false;
-        pfs[i].destPartitionId = CollectionUtil.first(hstore_site.getLocalPartitionIds());
-        pfs[i].parameters = params;
-        pfs[i].last_task = true;
-        
-        return executeSysProcPlanFragments(pfs, SysProcFragmentId.PF_resetStatsAggregate);
+        return this.autoDistribute(SysProcFragmentId.PF_resetProfilingDistribute,
+                                   SysProcFragmentId.PF_resetProfilingAggregate);
     }
 }

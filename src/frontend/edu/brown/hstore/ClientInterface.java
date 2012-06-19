@@ -766,15 +766,15 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         return m_numConnections.get();
     }
     
-    protected ProfileMeasurement getNetworkProcessing() {
+    public ProfileMeasurement getNetworkProcessing() {
         return network_backup_on;
     }
     
-    protected ProfileMeasurement getBackPressureOn() {
+    public ProfileMeasurement getNetworkBackPressureOn() {
         return network_backup_on;
     }
     
-    protected ProfileMeasurement getBackPressureOff() {
+    public ProfileMeasurement getNetworkBackPressureOff() {
         return network_backup_off;
     }
     
