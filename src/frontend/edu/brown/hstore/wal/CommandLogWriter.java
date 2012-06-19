@@ -315,6 +315,19 @@ public class CommandLogWriter implements Shutdownable {
         return (this.stop);
     }
     
+    public ProfileMeasurement getLoggerWritingTime() {
+        return this.writingTime;
+    }
+    
+    public ProfileMeasurement getLoggerBlockedTime() {
+        return this.blockedTime;
+    }
+    
+    public ProfileMeasurement getLoggerNetworkTime() {
+        return this.networkTime;
+    }
+    
+    
     public boolean writeHeader() {
         if (debug.get()) LOG.debug("Writing out WAL header");
         assert(this.singletonSerializer != null);

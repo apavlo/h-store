@@ -139,7 +139,7 @@ public class SysProcFragmentId
     public static final int PF_getCatalog = 190;
     
     // @ResetStats
-    public static final int PF_resetStatsDistribute = 195;
-    public static final int PF_resetStatsAggregate = 196;
+    public static final int PF_resetProfilingDistribute = 195;
+    public static final int PF_resetProfilingAggregate = 196;
     
 }

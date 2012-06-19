@@ -328,10 +328,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 value = String.format("%.02f txn/sec", arrivalRate);
                 siteInfo.put("Arrival Rate", value);
                 
-                pm = ci.getBackPressureOn();
+                pm = ci.getNetworkBackPressureOn();
                 siteInfo.put("Back Pressure Off", formatProfileMeasurements(pm, null, true, false));
                 
-                pm = ci.getBackPressureOff();
+                pm = ci.getNetworkBackPressureOff();
                 siteInfo.put("Back Pressure On", formatProfileMeasurements(pm, null, true, false));
             }
         }

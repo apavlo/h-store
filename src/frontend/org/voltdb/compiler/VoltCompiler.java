@@ -89,6 +89,7 @@ import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
+import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.sysprocs.SnapshotDelete;
 import org.voltdb.sysprocs.SnapshotRestore;
@@ -1227,6 +1228,7 @@ public class VoltCompiler {
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
             {GarbageCollection.class,               true,       true},
+            {ResetProfiling.class,                      true,       true},
             {ExecutorStatus.class,                  true,       false},
             {GetCatalog.class,                      true,       false},
             {SnapshotSave.class,                    false,      true},

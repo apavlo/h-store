@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -139,7 +138,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final CatalogContext catalogContext;
     private final Database catalog_db;
     private final Host catalog_host;
-//    private final int host_id;
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
@@ -189,11 +187,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Collection<Integer> all_partitions;
 
-    /**
-     * Incoming Request counter
-     */
-    private final AtomicInteger request_counter = new AtomicInteger(0); 
-    
     /**
      * Keep track of which txns that we have in-flight right now
      */
@@ -726,7 +719,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.site_name);
     }
     
-    protected ClientInterface getClientInterface() {
+    public ClientInterface getClientInterface() {
         return (this.clientInterface);
     }
     
@@ -854,6 +847,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public DBBPool getBufferPool() {
         return (this.buffer_pool);
     }
+    public CommandLogWriter getCommandLogWriter() {
+        return (this.commandLogger);
+    }
     
     /**
      * Convenience method to dump out status of this HStoreSite
@@ -920,14 +916,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public EstimationThresholds getThresholds() {
         return thresholds;
-    }
-    
-    /**
-     * Internal counter of the number of incoming requests that this
-     * HStoreSite has processed 
-     */
-    private int getNextRequestCounter() {
-        return (this.request_counter.getAndIncrement());
     }
     
     @SuppressWarnings("unchecked")
@@ -2369,7 +2357,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     long initiateTime,
                                     int restartCounter) {
         Status status = cresponse.getStatus();
-        cresponse.setRequestCounter(this.getNextRequestCounter());
  
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
