@@ -74,6 +74,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
+import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
@@ -85,13 +86,16 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
+import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.NoOp;
+import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -999,6 +1003,7 @@ public class BenchmarkController {
         });
         
         
+        Client local_client = null;
         long nextIntervalTime = hstore_conf.client.interval;
         
         for (int i = 0; i < m_clients.size(); i++) {
@@ -1022,15 +1027,19 @@ public class BenchmarkController {
             }
         } // WHILE
         if (this.stop) return;
+        if (m_clientFilesUploaded.get() > 0) {
+            LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
+        }
         
-        if (m_clientFilesUploaded.get() > 0) LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
-
+        // Reset some internal information at the cluster
+        if (local_client == null) local_client = this.getClientConnection();
+        this.resetCluster(local_client);
+        
         // start up all the clients
         for (String clientName : m_clients)
             m_clientPSM.writeToProcess(clientName, ControlCommand.START);
 
         // Warm-up
-        Client local_client = null;
         if (hstore_conf.client.warmup > 0) {
             LOG.info(String.format("Letting system warm-up for %.01f seconds", hstore_conf.client.warmup / 1000.0));
             
@@ -1170,6 +1179,26 @@ public class BenchmarkController {
             LOG.debug("Benchmark failed. Not displaying final results");
         }
 
+    }
+    
+    private void resetCluster(Client client) {
+        @SuppressWarnings("unchecked")
+        Class<VoltSystemProcedure> sysprocs[] = (Class<VoltSystemProcedure>[])new Class<?>[]{
+            ResetProfiling.class,
+            GarbageCollection.class
+        };
+        
+        ClientResponse cr = null;
+        for (Class<VoltSystemProcedure> sysproc : sysprocs) {
+            String procName = "@"+sysproc.getSimpleName();
+            try {
+                cr = client.callProcedure(procName);
+            } catch (Exception ex) {
+                LOG.error("Failed to execute sysproc " + procName, ex);
+                return;
+            }
+            assert(cr.getStatus() == Status.OK);
+        } // FOR
     }
     
     private void recomputeMarkovs(Client client) {
