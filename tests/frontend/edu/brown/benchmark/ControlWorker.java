@@ -7,6 +7,7 @@ import org.voltdb.client.Client;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ProfileMeasurement;
 
 /**
  * Thread that executes the derives classes run loop which invokes stored
@@ -31,6 +32,10 @@ class ControlWorker extends Thread {
      */
     private long m_lastRequestTime;
 
+    
+    private ProfileMeasurement execute_time = new ProfileMeasurement("EXECUTE");
+    
+    
     /**
      * Constructor
      * @param benchmarkComponent
@@ -64,8 +69,10 @@ class ControlWorker extends Thread {
     }
 
     private void rateControlledRunLoop() {
-        Client client = cmp.getClientHandle();
+        final boolean profile = cmp.getHStoreConf().client.profiling;
+        final Client client = cmp.getClientHandle();
         m_lastRequestTime = System.currentTimeMillis();
+        
         while (true) {
             boolean bp = false;
             try {
@@ -108,7 +115,9 @@ class ControlWorker extends Thread {
 
                 for (int ii = 0; ii < transactionsToCreate; ii++) {
                     try {
+                        if (profile) execute_time.start();
                         bp = !cmp.runOnce();
+                        if (profile) execute_time.stop();
                         if (bp) {
                             m_lastRequestTime = now;
                             break;
@@ -130,6 +139,11 @@ class ControlWorker extends Thread {
             }
 
             m_lastRequestTime = now;
-        }
+        } // WHILE
     }
+    
+    public ProfileMeasurement getExecuteTime() {
+        return execute_time;
+    }
+    
 }

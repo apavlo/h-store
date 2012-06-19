@@ -1276,6 +1276,13 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean output_json;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean profiling;
     }
     
     /**
