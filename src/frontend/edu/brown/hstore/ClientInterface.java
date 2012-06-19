@@ -767,7 +767,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
     }
     
     public ProfileMeasurement getNetworkProcessing() {
-        return network_backup_on;
+        return network_processing;
     }
     
     public ProfileMeasurement getNetworkBackPressureOn() {
