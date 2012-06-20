@@ -542,6 +542,12 @@ JAVA COMPILATION
             <include name="**/*.mappings"/>
         </fileset>
     </copy>
+    <copy flatten='false' todir='${build.test.dir}'>
+        <fileset dir="${src.test.dir}">
+            <include name="**/*.sql"/>
+            <include name="**/*.mappings"/>
+        </fileset>
+    </copy>
 
     <copy todir='${build.test.dir}/org/hsqldb'>
         <fileset dir="${src.hsqldb.test.dir}/org/hsqldb">
