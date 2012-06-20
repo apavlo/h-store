@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -32,10 +32,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Exchanger;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -65,10 +62,8 @@ import edu.brown.utils.ProfileMeasurement;
  */
 public class CommandLogWriter implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(CommandLogWriter.class);
-    
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
-    
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -151,53 +146,57 @@ public class CommandLogWriter implements Shutdownable {
         {
             this.setDaemon(true);
         }
-        
+
         @Override
         public void run() {
             Thread self = Thread.currentThread();
             self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COMMANDLOGGER));
-            
-            while (!stop) {
-                try 
-                {
-                    // This sync point is designed to timeout, at which point a flush will be initiated 
-                    entriesFlushing = bufferExchange.exchange(entriesFlushing, 
-                                                              hstore_conf.site.exec_command_logging_group_commit_timeout, 
-                                                              TimeUnit.MILLISECONDS);
+
+            while (stop == false) {
+                // Sleep until our timeout period, at which point a 
+                // flush will be initiated
+                try {
+                    Thread.sleep(hstore_conf.site.commandlog_timeout);
+                } catch (InterruptedException e) {
+                    if (stop) break;
+                } finally {
+                    if (debug.get())
+                        LOG.debug("Group commit timeout occurred, writing buffer to disk.");
                     
-                } 
-                catch (InterruptedException e) 
-                {
-                    throw new RuntimeException("WAL writer thread interrupted while waiting for a new buffer" + e.getStackTrace().toString());
+                    flushInProgress.set(true);
+                    swapBuffers.set(true);
                 }
-                // this will be thrown when the group commit buffer was not filled before the group_commit_timeout
-                catch (TimeoutException e) 
-                { 
-                    LOG.info("Group commit timeout occurred, writing buffer to disk."); 
-                    
-                    try 
-                    {
-                        flushInProgress.set(true);
-                        swapBuffers.set(true); 
-                                                
-                        int free_permits = group_commit_size - writingEntry.drainPermits(); 
-                        
-                        writingEntry.acquire(free_permits); 
-                        
-                        // SYNC POINT: a synchronization point between the thread filling the buffer and the writing thread where a full 
-                        // buffer is exchanged for an empty one and the full buffer is written out to disk. 
-                        entriesFlushing = bufferExchange.exchange(entriesFlushing); 
-                        
-                        writingEntry.release(group_commit_size); 
-                        
-                        groupCommit(entriesFlushing); 
-                        flushInProgress.set(false); 
-                        
-                    } 
-                    catch (InterruptedException ie) 
-                    {
-                        throw new RuntimeException("WAL writer thread interrupted while waiting for a new buffer" + ie.getStackTrace().toString());
+                
+                int free_permits = group_commit_size - writingEntry.drainPermits();
+                if (debug.get())
+                    LOG.debug("Acquiring " + free_permits + " writeEntry permits");
+                do {
+                    try {
+                        writingEntry.acquire(free_permits);
+                    } catch (InterruptedException ex) {
+                        continue;
                     }
+                    break;
+                } while (stop == false);
+
+                try {
+                    // SYNC POINT: a synchronization point between the thread 
+                    // filling the buffer and the writing thread where a full 
+                    // buffer is exchanged for an empty one and the full
+                    // buffer is written out to disk.
+                    entriesFlushing = bufferExchange.exchange(entriesFlushing);
+
+                    // Release our entry permits so that other threads can 
+                    // start filling up their Entry buffers
+                    writingEntry.release(group_commit_size);
+
+                    // Write the entries out to disk
+                    groupCommit(entriesFlushing);
+
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException("WAL writer thread interrupted while waiting for a new buffer", ex);
+                } finally {
+                    flushInProgress.set(false);                    
                 }
             } // WHILE
         }
@@ -214,7 +213,6 @@ public class CommandLogWriter implements Shutdownable {
     private final AtomicBoolean flushInProgress = new AtomicBoolean(false);
     private final AtomicBoolean swapInProgress = new AtomicBoolean(false); 
     private final Semaphore writingEntry; 
-    private final AtomicInteger flushReady;
     private final WriterThread flushThread;
     private final Exchanger<EntryBuffer[]> bufferExchange;
     private int commitBatchCounter = 0;
@@ -246,14 +244,13 @@ public class CommandLogWriter implements Shutdownable {
         this.group_commit_size = 100000; 
         
         LOG.info("group_commit_size: " + group_commit_size); 
-        LOG.info("group_commit_timeout: " + hstore_conf.site.exec_command_logging_group_commit_timeout); 
+        LOG.info("group_commit_timeout: " + hstore_conf.site.commandlog_timeout); 
         
         // Configure group commit parameters
         if(group_commit_size > 0)
         {
             
             this.writingEntry = new Semaphore(group_commit_size, false); 
-            this.flushReady = new AtomicInteger(0);
             this.bufferExchange = new Exchanger<EntryBuffer[]>();
             
             // Make one entry buffer per partition SO THAT SYNCHRONIZATION ON EACH BUFFER IS NOT REQUIRED
@@ -270,7 +267,6 @@ public class CommandLogWriter implements Shutdownable {
             this.singletonLogEntry = null;
         } else {
             this.writingEntry = null; 
-            this.flushReady = null;
             this.bufferExchange = null;
             this.flushThread = null;
             this.singletonLogEntry = new LogEntry();
@@ -279,7 +275,7 @@ public class CommandLogWriter implements Shutdownable {
         FileOutputStream f = null;
         try {
             this.outputFile.getParentFile().mkdirs();
-            LOG.info("Command Log File: " + this.outputFile.getParentFile().toString());
+            LOG.info("Command Log File: " + this.outputFile.getAbsolutePath());
             this.outputFile.createNewFile();
             f = new FileOutputStream(this.outputFile, false);
         } catch (IOException ex) {
@@ -295,7 +291,7 @@ public class CommandLogWriter implements Shutdownable {
         }
         
         // Writer Profiling
-        if (hstore_conf.site.exec_command_logging_profile) {
+        if (hstore_conf.site.commandlog_profiling) {
             this.writingTime = new ProfileMeasurement("WRITING");
             this.blockedTime = new ProfileMeasurement("BLOCKED");
             this.networkTime = new ProfileMeasurement("NETWORK");
@@ -310,20 +306,38 @@ public class CommandLogWriter implements Shutdownable {
     @Override
     public void prepareShutdown(boolean error) {
         this.stop = true;
-        this.flushThread.interrupt();
     }
     
-    //For use in test cases to make sure everything flushes
-    public void finishAndPrepareShutdown() {
-        this.stop = true;
-        while(this.flushInProgress.get()) {} //wait until it's done running
+    /**
+     * Force the writer thread to flush all entries out
+     * to disk right now. Multiple invocations of this will not be queued 
+     */
+    protected void flush() throws InterruptedException {
+//        // Wait until it starts running
+//        while (this.flushInProgress.get() == false) {
+//            this.flushThread.interrupt();
+//            Thread.yield();
+//        } // WHILE
+        
+        this.entries = this.bufferExchange.exchange(entries);
+        
+        // Then wait until it's done running
+        while (this.flushInProgress.get()) {
+            Thread.yield();
+        }  // WHILE
     }
     
     @Override
     public void shutdown() {
+        while (this.flushInProgress.get() == false) {
+//            this.flushThread.interrupt();
+            Thread.yield();
+        } // WHILE
+        
         if (debug.get()) 
             LOG.debug("Closing WAL file");
         try {
+//            this.flushThread.interrupt();
             this.fstream.close();
         } catch (IOException ex) {
             String message = "Failed to close WAL file";
@@ -379,10 +393,10 @@ public class CommandLogWriter implements Shutdownable {
      * @param eb
      */
     public void groupCommit(EntryBuffer[] eb) {
-        if (hstore_conf.site.exec_command_logging_profile) this.writingTime.start();
+        if (hstore_conf.site.commandlog_profiling) this.writingTime.start();
         this.commitBatchCounter++;
         
-        //Write all to a single FastSerializer buffer
+        // Write all to a single FastSerializer buffer
         this.singletonSerializer.clear();
         int txnCounter = 0;
         for (int i = 0; i < eb.length; i++) {
@@ -394,6 +408,10 @@ public class CommandLogWriter implements Shutdownable {
                     WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
                     this.singletonSerializer.writeObject(entry);
                     txnCounter++;
+                    
+                    if (debug.get())
+                        LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
+                                                entry.txnId, this.commitBatchCounter));
                 } // FOR
                 
             } catch (Exception e) {
@@ -402,7 +420,7 @@ public class CommandLogWriter implements Shutdownable {
             }
         } // FOR
         
-        //Compress and force out to disk
+        // Compress and force out to disk
         ByteBuffer compressed;
         try {
             compressed = CompressionService.compressBufferForMessaging(this.singletonSerializer.getBBContainer().b);
@@ -419,10 +437,10 @@ public class CommandLogWriter implements Shutdownable {
             String message = "Failed to group commit for buffer";
             throw new ServerFaultException(message, ex);
         } finally {
-            if (hstore_conf.site.exec_command_logging_profile) this.writingTime.stop();
+            if (hstore_conf.site.commandlog_profiling) this.writingTime.stop();
         }
         
-        if (hstore_conf.site.exec_command_logging_profile) 
+        if (hstore_conf.site.commandlog_profiling) 
             this.networkTime.start();
         
         // Send responses
@@ -440,7 +458,7 @@ public class CommandLogWriter implements Shutdownable {
             buffer.flushCleanup();
         } // FOR
         
-        if (hstore_conf.site.exec_command_logging_profile) 
+        if (hstore_conf.site.commandlog_profiling) 
             this.networkTime.stop();
     }
     
@@ -452,64 +470,62 @@ public class CommandLogWriter implements Shutdownable {
      * @return
      */
     public boolean appendToLog(final LocalTransaction ts, final ClientResponseImpl cresponse) {
-        
+
         boolean sendResponse = true;
-        
-        if(group_commit_size > 0)
-        { 
-            int basePartition = ts.getBasePartition();
-            assert(hstore_site.isLocalPartition(basePartition));
-            basePartition = hstore_site.getLocalPartitionOffset(basePartition);
+
+        if (group_commit_size > 0) {
+            if (debug.get())
+                LOG.debug(ts + " - Queuing up txn to write out to command log");
             
+            int basePartition = ts.getBasePartition();
+            assert (hstore_site.isLocalPartition(basePartition));
+            basePartition = hstore_site.getLocalPartitionOffset(basePartition);
+
             // get the buffer for the partition of the current transaction
             EntryBuffer buffer = this.entries[basePartition];
-            assert(buffer != null) : "Unexpected log entry buffer for partition " + basePartition;
-            
-            try 
-            {	
+            assert (buffer != null) : "Unexpected log entry buffer for partition " + basePartition;
+
+            try {
                 // if a swap is not yet in progress, initiate a swap with the write thread
                 // this ensures exactly one thread initiates the swap with the writer thread
-                if(swapBuffers.compareAndSet(true, false))
-                {
-                    swapInProgress.set(true); 
-                    
+                if (swapBuffers.compareAndSet(true, false)) {
+                    swapInProgress.set(true);
+
                     // SYNC POINT: Will synchronize with writing thread
                     this.entries = this.bufferExchange.exchange(entries);
-                    
-                    swapInProgress.set(false); 
+
+                    swapInProgress.set(false);
                 }
-                
-                // acquire semaphore permit to write a transaction to the log buffer
-                // will wait if buffer is currently being swapped
-                writingEntry.acquire(); 
-                
-                // create an entry for this transaction in the buffer for this partition
-                // NOTE: this is guaranteed to be thread-safe because there is only one thread per partition
+
+                // acquire semaphore permit to write a transaction to the log
+                // buffer will wait if buffer is currently being swapped
+                writingEntry.acquire();
+
+                // create an entry for this transaction in the buffer for this
+                // partition
+                // NOTE: this is guaranteed to be thread-safe because there is
+                // only one thread per partition
                 LogEntry entry = buffer.next(ts, cresponse);
-                assert(entry != null);
-                
-                writingEntry.release(); 
-            } 
-            catch (InterruptedException e) 
-            {
+                assert (entry != null);
+
+                writingEntry.release();
+            } catch (InterruptedException e) {
                 throw new RuntimeException("[WAL] Thread interrupted while waiting for WriterThread to finish writing");
-            } 
-            finally 
-            {
-                if (hstore_conf.site.exec_command_logging_profile) 
+            } finally {
+                if (hstore_conf.site.commandlog_profiling)
                     this.blockedTime.stop();
             }
-            
-            // We always want to set this to false because our flush thread will be the
+
+            // We always want to set this to false because our flush thread will
+            // be the
             // one that actually sends out the network messages
             sendResponse = false;
-        } 
-        else //NO GROUP COMMIT -- FINISH AND RETURN TRUE
-        { 
-            try 
-            {
+        }
+        // NO GROUP COMMIT -- FINISH AND RETURN TRUE
+        else { 
+            try {
                 FastSerializer fs = this.singletonSerializer;
-                assert(fs != null);
+                assert (fs != null);
                 fs.clear();
                 this.singletonLogEntry.init(ts);
                 fs.writeObject(this.singletonLogEntry);
@@ -517,9 +533,7 @@ public class CommandLogWriter implements Shutdownable {
                 this.fstream.write(b.b.asReadOnlyBuffer());
                 this.fstream.force(true);
                 this.singletonLogEntry.finish();
-            } 
-            catch (Exception e) 
-            {
+            } catch (Exception e) {
                 String message = "Failed to write single log entry for " + ts.toString();
                 throw new ServerFaultException(message, e, ts.getTransactionId());
             }

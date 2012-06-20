@@ -79,8 +79,7 @@ public class TestCommandLogger extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         HStoreConf hstore_conf = HStoreConf.singleton();
-        hstore_conf.site.exec_command_logging_group_commit = 2;
-        hstore_conf.site.exec_command_logging_group_commit_timeout = 5000000;
+        hstore_conf.site.commandlog_timeout = 1000;
         hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         assert(hstore_site.isLocalPartition(0));
         
@@ -95,7 +94,7 @@ public class TestCommandLogger extends BaseTestCase {
     }
     
     @Test
-    public void testWithGroupCommit() {
+    public void testWithGroupCommit() throws Exception {
         // Write out a new txn invocation to the log
         long txnId[] = new long[2];
         for (int i = 0; i < 2; i++) {
@@ -116,7 +115,7 @@ public class TestCommandLogger extends BaseTestCase {
             boolean ret = logger.appendToLog(ts, cresponse);
             assertFalse(ret);
         }
-        logger.finishAndPrepareShutdown(); //This makes sure everything is written to the file
+        logger.flush(); //This makes sure everything is written to the file
         logger.shutdown(); // This closes the file
         
         // Now read in the file back in and check to see that we have two

@@ -330,37 +330,38 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If enabled, log all transaction requests to disk",
             defaultBoolean=false,
+            replacedBy="site.commandlog_enable",
             experimental=true
         )
+        @Deprecated
         public boolean exec_command_logging;
         
         @ConfigProperty(
             description="Directory for storage of command logging files",
             defaultString="${global.temp_dir}/wal",
+            replacedBy="site.commandlog_dir",
             experimental=true
         )
+        @Deprecated
         public String exec_command_logging_directory = HStoreConf.this.global.temp_dir + "/wal";
-        
-        @ConfigProperty(
-            description="Transactions to queue before flush for group commit command logging optimization (0 = no group commit)",
-            defaultInt=0,
-            experimental=true
-        )
-        public int exec_command_logging_group_commit;
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
             defaultInt=500,
+            replacedBy="site.commandlog_timeout",
             experimental=true
         )
+        @Deprecated
         public int exec_command_logging_group_commit_timeout;
         
         @ConfigProperty(
             description="If enabled, then the CommandLogWriter will keep track of various internal " +
             		    "profile statistics.",
             defaultBoolean=false,
+            replacedBy="site.commandlog_profiling",
             experimental=true
         )
+        @Deprecated
         public boolean exec_command_logging_profile;
         
         @ConfigProperty(
@@ -388,6 +389,39 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_deferrable_queries;
+        
+        // ----------------------------------------------------------------------------
+        // Command Logging Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If enabled, log all transaction requests to disk",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean commandlog_enable;
+        
+        @ConfigProperty(
+            description="Directory for storage of command logging files",
+            defaultString="${global.temp_dir}/wal",
+            experimental=true
+        )
+        public String commandlog_dir = HStoreConf.this.global.temp_dir + "/wal";
+        
+        @ConfigProperty(
+            description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
+            defaultInt=500,
+            experimental=true
+        )
+        public int commandlog_timeout;
+        
+        @ConfigProperty(
+            description="If enabled, then the CommandLogWriter will keep track of various internal " +
+                        "profile statistics.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean commandlog_profiling;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options
