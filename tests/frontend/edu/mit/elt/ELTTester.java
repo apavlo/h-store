@@ -27,7 +27,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.api.BenchmarkComponent;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

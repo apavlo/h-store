@@ -3,6 +3,7 @@
 	<classpathentry kind="src" path="src/frontend"/>
 	<classpathentry kind="src" path="src/hsqldb19b3"/>
 	<classpathentry kind="src" path="src/protorpc"/>
+	<classpathentry kind="src" path="src/benchmarks"/>
 	<classpathentry kind="src" path="tests/frontend"/>
 	<classpathentry kind="src" path="tests/hsqldb"/>
 	<classpathentry kind="src" path="third_party/cpp/protobuf/java/src/main/java"/>

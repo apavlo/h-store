@@ -50,7 +50,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.ControlCommand;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -58,6 +57,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.api.ControlCommand;
 import edu.brown.hstore.interfaces.Shutdownable;
 
 public class ProcessSetManager implements Shutdownable {
