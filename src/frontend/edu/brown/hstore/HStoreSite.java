@@ -512,11 +512,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Command Logger
-        if (hstore_conf.site.exec_command_logging) {
+        if (hstore_conf.site.commandlog_enable) {
             // It would be nice if we could come up with a unique name for this
             // invocation of the system (like the cluster instanceId). But for now
             // we'll just write out to our directory...
-            File logFile = new File(hstore_conf.site.exec_command_logging_directory +
+            File logFile = new File(hstore_conf.site.commandlog_dir +
                                     File.separator +
                                     this.getSiteName().toLowerCase() + ".log");
             this.commandLogger = new CommandLogWriter(this, logFile);

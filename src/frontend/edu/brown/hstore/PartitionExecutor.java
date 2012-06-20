@@ -3039,7 +3039,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             else {
                 // We have to mark it as loggable to prevent the response
                 // from getting sent back to the client
-                if (hstore_conf.site.exec_command_logging) ts.markLogEnabled();
+                if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
                 
                 if (hstore_conf.site.exec_profiling) this.work_network_time.start();
                 this.hstore_site.sendClientResponse(ts, cresponse);

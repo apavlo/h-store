@@ -82,7 +82,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                     }
                     
                     // COMMAND LOGGER
-                    if (hstore_conf.site.exec_command_logging_profile) {
+                    if (hstore_conf.site.commandlog_profiling) {
                         CommandLogWriter commandLog = hstore_site.getCommandLogWriter();
                         commandLog.getLoggerWritingTime().reset();
                         commandLog.getLoggerBlockedTime().reset();
