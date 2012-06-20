@@ -123,11 +123,11 @@ public abstract class SEATSHistogramUtil {
     public static File findDataDir() {
         File dataDir = null;
         try {
-            File dir = FileUtil.findDirectory("tests");
+            File dir = FileUtil.findDirectory("src");
             assert(dir != null);
             assert(dir.exists()) : "Missing " + dir.getAbsolutePath();
             dataDir = new File(dir.getAbsolutePath() + 
-                               "/frontend/" +
+                               "/benchmarks/" +
                                SEATSClient.class.getPackage().getName().replace(".", "/") + 
                                "/data");
             assert(dataDir.exists()) : "Missing " + dataDir.getAbsolutePath();
