@@ -57,7 +57,6 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.api.ControlCommand;
 import edu.brown.hstore.interfaces.Shutdownable;
 
 public class ProcessSetManager implements Shutdownable {
@@ -392,15 +391,11 @@ public class ProcessSetManager implements Shutdownable {
         return m_output.poll();
     }
 
-    public void writeToAll(ControlCommand cmd) {
+    public void writeToAll(String cmd) {
         LOG.debug(String.format("Sending %s to all processes", cmd));
         for (String processName : m_processes.keySet()) {
             this.writeToProcess(processName, cmd + "\n");
         }
-    }
-    
-    public void writeToProcess(String processName, ControlCommand cmd) {
-        this.writeToProcess(processName, cmd + "\n");
     }
     
     public void writeToProcess(String processName, String data) {
