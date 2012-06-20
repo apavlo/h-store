@@ -72,7 +72,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
@@ -182,7 +181,7 @@ public class BenchmarkController {
 
     final AbstractProjectBuilder m_projectBuilder;
     final File m_jarFileName;
-    ServerThread m_localserver = null;
+//    ServerThread m_localserver = null;
     
     /**
      * SiteId -> Set[Host, Port]
@@ -485,9 +484,9 @@ public class BenchmarkController {
             // START A SERVER LOCALLY IN-PROCESS
             VoltDB.Configuration localconfig = new VoltDB.Configuration();
             localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
-            m_localserver = null;//new ServerThread(localconfig);
-            m_localserver.start();
-            m_localserver.waitForInitialization();
+//            m_localserver = null;//new ServerThread(localconfig);
+//            m_localserver.start();
+//            m_localserver.waitForInitialization();
         }
 
         

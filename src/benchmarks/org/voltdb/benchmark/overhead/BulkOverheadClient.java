@@ -26,7 +26,7 @@ package org.voltdb.benchmark.overhead;
 import java.io.IOException;
 
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.BulkClient;
+import org.voltdb.benchmark.BulkClient;
 import org.voltdb.benchmark.overhead.OverheadClient.Transaction;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ProcedureCallback;

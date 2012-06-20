@@ -40,7 +40,7 @@
  * affiliated with the Apache Software Foundation.
  */
 
-package org.voltdb.client;
+package org.voltdb.benchmark;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -48,6 +48,7 @@ import java.io.InputStreamReader;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.messaging.FastSerializer;
 import java.lang.reflect.Constructor;
