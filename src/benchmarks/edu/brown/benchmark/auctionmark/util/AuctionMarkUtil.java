@@ -51,10 +51,10 @@ public abstract class AuctionMarkUtil {
         // If we weren't given a path, then we need to look for the tests directory and
         // then walk our way up the tree to get to our benchmark's directory
         try {
-            File tests_dir = FileUtil.findDirectory("tests");
+            File tests_dir = FileUtil.findDirectory("src");
             assert(tests_dir != null);
             
-            dataDir = new File(tests_dir.getAbsolutePath() + File.separator + "frontend" + File.separator +
+            dataDir = new File(tests_dir.getAbsolutePath() + File.separator + "benchmarks" + File.separator +
                                AuctionMarkProfile.class.getPackage().getName().replace('.', File.separatorChar) +
                                File.separator + "data").getCanonicalFile();
             if (debug.get()) LOG.debug("Default data directory path = " + dataDir);
