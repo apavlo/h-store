@@ -45,10 +45,8 @@ public class ControlPipe implements Runnable {
         final Thread self = Thread.currentThread();
         self.setName(String.format("client-%02d", cmp.getClientId()));
 
-        ControlCommand command = null;
-
+        final boolean profile = cmp.getHStoreConf().client.profiling;
         final Client client = cmp.getClientHandle();
-        
         final Thread workerThread = new Thread(cmp.worker);
         workerThread.setDaemon(true);
         
@@ -62,6 +60,7 @@ public class ControlPipe implements Runnable {
         }
         
         final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
+        ControlCommand command = null;
         while (true) {
             if (this.autoStart) {
                 command = ControlCommand.START;
@@ -155,6 +154,11 @@ public class ControlPipe implements Runnable {
                 case STOP: {
                     if (cmp.m_controlState == ControlState.RUNNING || cmp.m_controlState == ControlState.PAUSED) {
                         cmp.invokeStopCallback();
+                        
+                        if (profile) {
+                            System.err.println("ExecuteTime: " + cmp.worker.getExecuteTime().debug(true));
+                        }
+                        
                         try {
                             if (cmp.m_sampler != null) {
                                 cmp.m_sampler.setShouldStop();
