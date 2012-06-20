@@ -397,8 +397,9 @@ CLEANING
 <target name="clean" depends="clean-all" />
 
 <target name="clean-java">
-    <delete includeemptydirs="true" dir="${build.dir}/prod" />
-    <delete includeemptydirs="true" dir="${build.dir}/test" />
+    <delete includeemptydirs="true" dir="${build.prod.dir}" />
+    <delete includeemptydirs="true" dir="${build.benchmarks.dir}" />
+    <delete includeemptydirs="true" dir="${build.test.dir}" />
 </target>
 
 <target name="clean-cpp">

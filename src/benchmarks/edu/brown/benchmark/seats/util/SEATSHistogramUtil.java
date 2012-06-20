@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.benchmark.seats.SEATSBaseTestCase;
+import edu.brown.benchmark.seats.SEATSClient;
 import edu.brown.benchmark.seats.SEATSConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.FileUtil;
@@ -128,7 +128,7 @@ public abstract class SEATSHistogramUtil {
             assert(dir.exists()) : "Missing " + dir.getAbsolutePath();
             dataDir = new File(dir.getAbsolutePath() + 
                                "/frontend/" +
-                               SEATSBaseTestCase.class.getPackage().getName().replace(".", "/") + 
+                               SEATSClient.class.getPackage().getName().replace(".", "/") + 
                                "/data");
             assert(dataDir.exists()) : "Missing " + dataDir.getAbsolutePath();
         } catch (Exception ex) {
