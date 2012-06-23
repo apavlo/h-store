@@ -42,9 +42,10 @@ public class HStoreTerminal implements Runnable {
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
     private static final String setPlainText = "\033[0;0m";
-    private static final String setBoldText = "\033[1;32m"; // 0;1m";
+    private static final String setBoldGreenText = "\033[1;32m"; // 0;1m";
+//    private static final String setBoldText = "\033[0;1m";
 
-    private static final String PROMPT = setBoldText + "hstore> " + setPlainText;
+    private static final String PROMPT = setBoldGreenText + "hstore>" + setPlainText + " ";
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
     
     final Catalog catalog;
@@ -62,11 +63,13 @@ public class HStoreTerminal implements Runnable {
     }
     
     private void printHeader() {
+//        System.out.print(setBoldText);
         System.out.println(" _  _     ___ _____ ___  ___ ___"); 
         System.out.println("| || |___/ __|_   _/ _ \\| _ \\ __|");
         System.out.println("| __ |___\\__ \\ | || (_) |   / _|"); 
         System.out.println("|_||_|   |___/ |_| \\___/|_|_\\___|");
         System.out.println();
+//        System.out.println(setPlainText);
     }
     
     /**
