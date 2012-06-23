@@ -43,7 +43,7 @@ public class HStoreTerminal implements Runnable {
     
     private static final String setPlainText = "\033[0;0m";
     private static final String setBoldGreenText = "\033[1;32m"; // 0;1m";
-//    private static final String setBoldText = "\033[0;1m";
+    private static final String setBoldText = "\033[0;1m";
 
     private static final String PROMPT = setBoldGreenText + "hstore>" + setPlainText + " ";
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
@@ -134,7 +134,7 @@ public class HStoreTerminal implements Runnable {
         if (m.matches()) {
             // Extract the parameters and then convert them to their appropriate type
             List<String> params = HStoreTerminal.extractParams(m.group(1));
-            LOG.info("PARAMS: " + params);
+            if (debug.get()) LOG.debug("PARAMS: " + params);
             if (params.size() != catalog_proc.getParameters().size()) {
                 String msg = String.format("Expected %d params for '%s' but %d parameters were given",
                                            catalog_proc.getParameters().size(), catalog_proc.getName(), params.size());
@@ -148,7 +148,7 @@ public class HStoreTerminal implements Runnable {
             } // FOR
         }
         
-        LOG.info(String.format("Executing %s(%s)", 
+        LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
                  catalog_proc.getName(), StringUtil.join(", ", procParams)));
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
@@ -227,7 +227,7 @@ public class HStoreTerminal implements Runnable {
             String header[] = new String[vt.getColumnCount()];
             for (int i = 0; i < header.length; i++) {
                 String colName = vt.getColumnName(i);
-                header[i] = (colName.isEmpty() ? "***" : colName);
+                header[i] = (colName.isEmpty() ? "<empty>" : colName);
             } // FOR
             
             Object rows[][] = new Object[vt.getRowCount()][];
@@ -254,7 +254,8 @@ public class HStoreTerminal implements Runnable {
         // FOOTER
         String footer = "";
         if (num_results == 1) {
-            footer = cr.getResults()[0].getRowCount() + " rows in set";
+            int row_count = cr.getResults()[0].getRowCount(); 
+            footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
         }
         else if (num_results == 0) {
             footer = "No results returned";
