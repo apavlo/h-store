@@ -87,6 +87,7 @@ ALL_PACKAGES = [
     'openjdk-6-jdk',
     'valgrind',
     'ant',
+    'make',
     ## Not required, but handy to have
     'htop',
     'realpath',
@@ -117,7 +118,7 @@ ENV_DEFAULT = {
     "ec2.site_type":               "m2.4xlarge",
     "ec2.client_type":             "m1.xlarge",
     "ec2.placement_group":         None,
-    "ec2.ami":                     "ami-63be790a",
+    "ec2.ami":                     "ami-808220e9",
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
     "ec2.region":                  "us-east-1b",
@@ -870,8 +871,10 @@ def sync_time():
 ## __syncTime__
 ## ----------------------------------------------
 def __syncTime__():
-    sudo("echo 1 > /proc/sys/xen/independent_wallclock")
-    sudo("ntpdate-debian -b")
+    with settings(warn_only=True):
+        sudo("echo 1 > /proc/sys/xen/independent_wallclock")
+        sudo("ntpdate-debian -b")
+    ## WITH
 ## DEF
 
 ## ----------------------------------------------
