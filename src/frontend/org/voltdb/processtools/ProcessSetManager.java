@@ -399,6 +399,10 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     public void writeToProcess(String processName, String data) {
+        // You always need a newline at the end of it to ensure that 
+        // it flushes properly
+        if (data.endsWith("\n") == false) data += "\n";
+        
         ProcessData pd = m_processes.get(processName);
         assert(pd != null);
         OutputStreamWriter out = new OutputStreamWriter(pd.process.getOutputStream());
