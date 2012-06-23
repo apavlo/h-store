@@ -10,16 +10,6 @@ CREATE TABLE contestants
   )
 );
 
--- votes table holds every valid vote.
---   voters are not allowed to submit more than <x> votes, x is passed to client application
-CREATE TABLE votes
-(
-  phone_number       bigint     NOT NULL
-, state              varchar(2) NOT NULL
-, contestant_number  integer    NOT NULL
--- PARTITION BY ( phone_number )
-);
-
 -- Map of Area Codes and States for geolocation classification of incoming calls
 CREATE TABLE area_code_state
 (
@@ -29,6 +19,16 @@ CREATE TABLE area_code_state
   (
     area_code
   )
+);
+
+-- votes table holds every valid vote.
+--   voters are not allowed to submit more than <x> votes, x is passed to client application
+CREATE TABLE votes
+(
+  phone_number       bigint     NOT NULL
+, state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
+, contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+-- PARTITION BY ( phone_number )
 );
 
 -- rollup of votes by phone number, used to reject excessive voting

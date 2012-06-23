@@ -464,10 +464,32 @@ public abstract class StringUtil {
      * @return
      */
     public static String box(String str, String mark, Integer max_len) {
+        return StringUtil.box(str, mark, mark, max_len, null);
+    }
+    
+    /**
+     * 
+     * @param str
+     * @param horzMark
+     * @param vertMark
+     * @param max_len
+     * @param corners
+     * @return
+     */
+    public static String box(String str, String horzMark, String vertMark, Integer max_len, String corners[]) {
         String lines[] = LINE_SPLIT.split(str);
         if (lines.length == 0)
             return ("");
 
+        // CORNERS: 
+        //  0: Top-Left
+        //  1: Top-Right
+        //  2: Bottom-Left
+        //  3: Bottom-Right
+        if (corners == null) {
+            corners = new String[]{horzMark, horzMark, horzMark, horzMark};
+        }
+        
         if (max_len == null) {
             for (String line : lines) {
                 if (max_len == null || line.length() > max_len)
@@ -475,15 +497,16 @@ public abstract class StringUtil {
             } // FOR
         }
 
-        final String top_line = StringUtil.repeat(mark, max_len + 4); // padding
+        final String top_line = corners[0] + StringUtil.repeat(horzMark, max_len + 2) + corners[1]; // padding - two corners
+        final String bot_line = corners[2] + StringUtil.repeat(horzMark, max_len + 2) + corners[3]; // padding - two corners
         final String f = "%s %-" + max_len + "s %s\n";
 
         StringBuilder sb = new StringBuilder();
         sb.append(top_line).append("\n");
         for (String line : lines) {
-            sb.append(String.format(f, mark, line, mark));
+            sb.append(String.format(f, vertMark, line, vertMark));
         } // FOR
-        sb.append(top_line);
+        sb.append(bot_line);
 
         return (sb.toString());
     }

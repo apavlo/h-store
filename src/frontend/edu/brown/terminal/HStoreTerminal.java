@@ -25,10 +25,12 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreThreadManager;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.TableUtil;
 
 /**
  * MySQL Terminal
@@ -40,7 +42,7 @@ public class HStoreTerminal implements Runnable {
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
     private static final String setPlainText = "\033[0;0m";
-    private static final String setBoldText = "\033[0;1m";
+    private static final String setBoldText = "\033[1;32m"; // 0;1m";
 
     private static final String PROMPT = setBoldText + "hstore> " + setPlainText;
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
@@ -204,6 +206,65 @@ public class HStoreTerminal implements Runnable {
         return (params);
     }
     
+    private String formatResult(ClientResponse cr) {
+        StringBuilder sb = new StringBuilder();
+        final int num_results = cr.getResults().length;
+        
+        TableUtil.Format f = TableUtil.defaultTableFormat();
+        f.spacing_col = true;
+        f.trim_all = true;
+        f.delimiter_all = " | ";
+        String corners[] = {"┌", "┐", "└", "┘"};
+        
+        // TABLE RESULTS
+        for (int result_idx = 0; result_idx < num_results; result_idx++) {
+            if (result_idx > 0) sb.append("\n\n");
+            
+            VoltTable vt = cr.getResults()[result_idx];
+            String header[] = new String[vt.getColumnCount()];
+            for (int i = 0; i < header.length; i++) {
+                String colName = vt.getColumnName(i);
+                header[i] = (colName.isEmpty() ? "***" : colName);
+            } // FOR
+            
+            Object rows[][] = new Object[vt.getRowCount()][];
+            f.delimiter_rows = new String[rows.length];
+            for (int i = 0; i < rows.length; i++) {
+                rows[i] = new Object[header.length];
+                f.delimiter_rows[i] = "-";
+                
+                boolean adv = vt.advanceRow();
+                assert(adv);
+                for (int j = 0; j < header.length; j++) {
+                    rows[i][j] = vt.get(j);
+                } // FOR (cols)
+                
+            } // FOR (rows)
+            
+            sb.append(String.format("Result #%d / %d\n", result_idx+1, num_results));
+            
+            String resultTable = TableUtil.table(f, header, rows);
+            resultTable = StringUtil.box(resultTable, "─", "│", null, corners);
+            sb.append(StringUtil.prefix(resultTable, "  "));
+        }
+        
+        // FOOTER
+        String footer = "";
+        if (num_results == 1) {
+            footer = cr.getResults()[0].getRowCount() + " rows in set";
+        }
+        else if (num_results == 0) {
+            footer = "No results returned";
+        }
+        else {
+            footer = num_results + " tables returned";
+        }
+        sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
+        
+        
+        return (sb.toString());
+    }
+    
     @Override
     public void run() {
         this.printHeader();
@@ -256,9 +317,13 @@ public class HStoreTerminal implements Runnable {
                     
                     // Just print out the result
                     if (cresponse != null) {
-                        System.out.println("Server Response: " + cresponse.getStatus());
-                        VoltTable[] results = cresponse.getResults();
-                        System.out.println(StringUtil.join("\n", results));
+                        if (cresponse.getStatus() == Status.OK) {
+                            System.out.println(this.formatResult(cresponse));    
+                        } else {
+                            System.out.printf("Server Response: %s / %s\n",
+                                              cresponse.getStatus(),
+                                              cresponse.getStatusString());
+                        }
                     } else {
                         LOG.warn("Return result is null");
                     }
