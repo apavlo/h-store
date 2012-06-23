@@ -39,7 +39,10 @@ public class HStoreTerminal implements Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
-    private static final String PROMPT = "hstore> ";
+    private static final String setPlainText = "\033[0;0m";
+    private static final String setBoldText = "\033[0;1m";
+
+    private static final String PROMPT = setBoldText + "hstore> " + setPlainText;
     private static final Pattern SPLITTER = Pattern.compile("[ ]+");
     
     final Catalog catalog;
