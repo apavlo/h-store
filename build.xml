@@ -1590,7 +1590,7 @@ BENCHMARKS
     <fail message="Invalid benchmark project '${project}'" unless="benchmark.builder" />
 
     <java fork="true" failonerror="true"
-        classname="edu.brown.benchmark.BenchmarkController">
+        classname="edu.brown.api.BenchmarkController">
         <classpath refid='project.classpath' />
         <jvmarg value="-server" />
         <jvmarg value="-Xmx2048m" />
