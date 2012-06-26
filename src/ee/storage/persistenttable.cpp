@@ -683,7 +683,8 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
  * Implemented by persistent table and called by Table::loadTuplesFrom
  * to do add tuples to indexes
  */
-void PersistentTable::populateIndexes(int tupleCount) {
+void PersistentTable::populateIndexes(int tupleCount) 
+{
     // populate indexes. walk the contiguous memory in the inner loop.
     for (int i = m_indexCount - 1; i >= 0;--i) {
         TableIndex *index = m_indexes[i];
