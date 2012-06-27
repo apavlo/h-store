@@ -15,7 +15,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/ant.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-codec-1.5.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-collections-3.2.1.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar" sourcepath="/home/pavlo/Documents/H-Store/SourceJars/collections-generic-4.01-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar" sourcepath="SourceJars/collections-generic-4.01-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-configuration-1.6.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-pool-1.5.5.jar"/>
@@ -28,7 +28,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/jung-graph-impl-2.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jung-visualization-2.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/junit-4.4.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="/home/pavlo/Documents/H-Store/SourceJars/log4j-1.2.15-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="SourceJars/log4j-1.2.15-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/opencsv-2.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/pmd-4.2.5.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/testability-explorer.jar"/>

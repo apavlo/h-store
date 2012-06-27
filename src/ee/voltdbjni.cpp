@@ -509,6 +509,31 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
 }
 
+
+/**
+ * Enables the anti-cache feature in the EE.
+ * This can only be called *after* the buffers have been initialized
+ * but *before* the catalog has been initialized 
+ * @param pointer the VoltDBEngine pointer
+ * @return error code
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeEnableAntiCache
+  (JNIEnv *env, jobject obj, jlong engine_ptr) {
+    
+    VOLT_DEBUG("nativeEnableAntiCache() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        engine->enableAntiCache();
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
 /**
  * Executes a plan fragment with the given parameter set.
  * @param engine_ptr the VoltDBEngine pointer

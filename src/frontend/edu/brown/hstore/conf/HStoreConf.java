@@ -424,6 +424,17 @@ public final class HStoreConf {
         public boolean commandlog_profiling;
         
         // ----------------------------------------------------------------------------
+        // AntiCache Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Enable the anti-cache feature.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_enable;
+        
+        // ----------------------------------------------------------------------------
         // MapReduce Options
         // ----------------------------------------------------------------------------
         

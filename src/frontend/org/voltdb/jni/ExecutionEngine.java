@@ -58,12 +58,25 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
     // is the execution site dirty
     protected boolean m_dirty;
+    
+    // Whether the anti-cache feature is enabled
+    protected boolean m_anticache;
 
     /** Error codes exported for JNI methods. */
     public static final int ERRORCODE_SUCCESS = 0;
     public static final int ERRORCODE_ERROR = 1; // just error or not so far.
     public static final int ERRORCODE_WRONG_SERIALIZED_BYTES = 101;
 
+    /** Create an ee and load the volt shared library */
+    public ExecutionEngine(final PartitionExecutor site) {
+        this.site = site;
+        
+        // Checks for test cases
+        if (this.site != null) {
+            this.m_anticache = this.site.getHStoreConf().site.anticache_enable;
+        }
+    }
+    
     /** Make the EE clean and ready to do new transactional work. */
     public void resetDirtyStatus() {
         m_dirty = false;
@@ -92,11 +105,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
     @Override
     public void deserializedBytes(final int numBytes) {
-    }
-
-    /** Create an ee and load the volt shared library */
-    public ExecutionEngine(final PartitionExecutor site) {
-        this.site = site;
     }
 
     /*
@@ -494,6 +502,13 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                           ByteBuffer resultBuffer, int result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
 
+    /**
+     * Enables the anti-cache feature in the EE
+     * @param pointer
+     * @return
+     */
+    protected native int nativeEnableAntiCache(long pointer);
+    
     /**
      * Load the system catalog for this engine.
      * @param pointer the VoltDBEngine pointer
