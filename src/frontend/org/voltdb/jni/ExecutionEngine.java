@@ -70,7 +70,11 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /** Create an ee and load the volt shared library */
     public ExecutionEngine(final PartitionExecutor site) {
         this.site = site;
-        this.m_anticache = this.site.getHStoreConf().site.anticache_enable;
+        
+        // Checks for test cases
+        if (this.site != null) {
+            this.m_anticache = this.site.getHStoreConf().site.anticache_enable;
+        }
     }
     
     /** Make the EE clean and ready to do new transactional work. */
