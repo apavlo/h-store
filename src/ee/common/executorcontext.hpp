@@ -52,12 +52,18 @@ class ExecutorContext {
         m_txnId(0),
         m_siteId(siteId), m_partitionId(partitionId),
         m_hostname(hostname), m_hostId(hostId),
-        m_exportEnabled(exportEnabled), m_epoch(epoch)
+        m_exportEnabled(exportEnabled),
+        m_antiCacheEnabled(false),
+        m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
     }
 
+    void setAntiCacheEnabled(bool val) {
+        m_antiCacheEnabled = val;
+    }
+    
     // not always known at initial construction
     void setPartitionId(CatalogId partitionId) {
         m_partitionId = partitionId;
@@ -137,6 +143,7 @@ class ExecutorContext {
     std::string m_hostname;
     CatalogId m_hostId;
     bool m_exportEnabled;
+    bool m_antiCacheEnabled;
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;
