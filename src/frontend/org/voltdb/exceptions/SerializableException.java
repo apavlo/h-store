@@ -73,6 +73,12 @@ public class SerializableException extends VoltProcedure.VoltAbortException {
                 return new ConstraintFailureException(b);
             }
         },
+        EvictedTupleAccessException() {
+            @Override
+            protected SerializableException deserializeException(ByteBuffer b) {
+                return new EvictedTupleAccessException(b);
+            }
+        },
         MispredictionException() {
             @Override
             protected SerializableException deserializeException(ByteBuffer b) {
