@@ -10,11 +10,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -71,7 +71,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     protected double last_skew_cost;
     protected Double last_final_cost;
 
-    protected final Map<String, Histogram<?>> debug_histograms = new ListOrderedMap<String, Histogram<?>>();
+    protected final Map<String, Histogram<?>> debug_histograms = new LinkedHashMap<String, Histogram<?>>();
 
     final Histogram<Integer> target_histogram = new Histogram<Integer>();
 
@@ -138,7 +138,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         this.cost_models = (T[]) (new AbstractCostModel[num_intervals]);
 
         try {
-            Constructor constructor = ClassUtil.getConstructor(inner_class, Database.class, PartitionEstimator.class);
+            Constructor<?> constructor = ClassUtil.getConstructor(inner_class, Database.class, PartitionEstimator.class);
             for (int i = 0; i < this.cost_models.length; i++) {
                 this.cost_models[i] = (T) constructor.newInstance(catalog_db, this.p_estimator);
             } // FOR
@@ -290,7 +290,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
 
         // (1) Grab the costs at the different time intervals
-        // Also create the ratios that we will use to weight the interval costs
+        //     Also create the ratios that we will use to weight the interval costs
         final AtomicLong total_txns = new AtomicLong(0);
 
         // final HashSet<Long> trace_ids[] = new HashSet[num_intervals];
@@ -308,9 +308,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             exec_histogram[i].clear();
         } // FOR
 
-        // (2) Now go through the workload and estimate the partitions that each
-        // txn will touch
-        // for the given catalog setups
+        // (2) Now go through the workload and estimate the partitions that each txn 
+        //     will touch for the given catalog setups
         if (trace.get()) {
             LOG.trace("Total # of Txns in Workload: " + workload.getTransactionCount());
             if (filter != null)
@@ -361,14 +360,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         }
 
         // We have to convert all of the costs into the range of [0.0, 1.0]
-        // For each interval, divide the number of partitions touched by the
-        // total number of partitions
-        // that the interval could have touched (worst case scenario)
+        // For each interval, divide the number of partitions touched by the total number 
+        // of partitions that the interval could have touched (worst case scenario)
         final double execution_costs[] = new double[num_intervals];
         StringBuilder sb = (this.isDebugEnabled() || debug.get() ? new StringBuilder() : null);
         Map<String, Object> debug_m = null;
         if (sb != null) {
-            debug_m = new ListOrderedMap<String, Object>();
+            debug_m = new LinkedHashMap<String, Object>();
         }
 
         if (debug.get())
@@ -386,8 +384,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // Divide the total number of partitions touched by...
             // This is the total number of partitions that we could have touched
             // in this interval
-            // And this is the total number of partitions that we did actually
-            // touch
+            // And this is the total number of partitions that we did actually touch
             if (multipartition_ctrs[i] > 0) {
                 assert (partitions_touched[i] > 0) : "No touched partitions for interval " + i;
                 double cost = (partitions_touched[i] / (double) potential_txn_touches);
@@ -416,7 +413,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 tmp_touched.add(partitions_touched[i]);
                 tmp_potential.add(potential_txn_touches);
 
-                Map<String, Object> inner = new ListOrderedMap<String, Object>();
+                Map<String, Object> inner = new LinkedHashMap<String, Object>();
                 inner.put("Partitions Touched", partitions_touched[i]);
                 inner.put("Potential Touched", potential_txn_touches);
                 inner.put("Multi-Partition Txns", multipartition_ctrs[i]);
@@ -430,12 +427,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         } // FOR
 
         if (sb != null) {
-            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            Map<String, Object> m0 = new LinkedHashMap<String, Object>();
             m0.put("SinglePartition Txns", (total_txns.get() - total_multipartition_txns));
             m0.put("MultiPartition Txns", total_multipartition_txns);
             m0.put("Total Txns", String.format("%d [%.06f]", total_txns.get(), (1.0d - (total_multipartition_txns / (double) total_txns.get()))));
 
-            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            Map<String, Object> m1 = new LinkedHashMap<String, Object>();
             m1.put("Touched Partitions", tmp_touched);
             m1.put("Potential Partitions", tmp_potential);
             m1.put("Total Partitions", tmp_total);
@@ -449,8 +446,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
         // LOG.debug("Execution By Intervals:\n" + sb.toString());
 
-        // (3) We then need to go through and grab the histograms of partitions
-        // were accessed
+        // (3) We then need to go through and grab the histograms of partitions were accessed
         if (sb != null) {
             if (debug.get())
                 LOG.debug("Calculating skew factor for " + this.num_intervals + " intervals...");
@@ -534,7 +530,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 "Maximum Potential Touched Count [" + (total_txns_in_interval * num_partitions) + "]";
 
             if (sb != null) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 for (String key : debug_histograms.keySet()) {
                     Histogram<?> h = debug_histograms.get(key);
                     m.put(key, String.format("[Sample=%d, Value=%d]\n%s", h.getSampleCount(), h.getValueCount(), h));
@@ -595,7 +591,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         double new_final_cost = (this.use_execution ? (this.execution_weight * this.last_execution_cost) : 0) + (this.use_skew ? (this.skew_weight * this.last_skew_cost) : 0);
 
         if (sb != null) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Total Txns", total_txns.get());
             m.put("Interval Txns", Arrays.toString(total_interval_txns));
             m.put("Execution Costs", Arrays.toString(execution_costs));
@@ -697,12 +693,12 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                                    // txn_trace.getCatalogItemName().equalsIgnoreCase("DeleteCallForwarding"))
                                    // {
                     Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
-                    Map<String, Object> inner = new ListOrderedMap<String, Object>();
+                    Map<String, Object> inner = new LinkedHashMap<String, Object>();
                     for (Statement catalog_stmt : catalog_proc.getStatements()) {
                         inner.put(catalog_stmt.fullName(), CatalogUtil.getReferencedTables(catalog_stmt));
                     }
 
-                    Map<String, Object> m = new ListOrderedMap<String, Object>();
+                    Map<String, Object> m = new LinkedHashMap<String, Object>();
                     m.put(txn_trace.toString(), null);
                     m.put("Interval", i);
                     m.put("Single-Partition", txn_entry.isSinglePartitioned());
@@ -727,7 +723,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // increase the partition access histogram
                     incomplete_txn_histogram[i].putAll(tmp_missingPartitions, txn_weight);
                     if (trace.get()) {
-                        Map<String, Object> m = new ListOrderedMap<String, Object>();
+                        Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put(String.format("Marking %s as incomplete in interval #%d", txn_trace, i), null);
                         m.put("Examined Queries", txn_entry.getExaminedQueryCount());
                         m.put("Total Queries", txn_entry.getTotalQueryCount());
@@ -810,7 +806,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             costmodel.applyDesignerHints(args.designer_hints);
         double cost = costmodel.estimateWorkloadCost(args.catalog_db, args.workload);
 
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("PARTITIONS", CatalogUtil.getNumberOfPartitions(args.catalog_db));
         m.put("INTERVALS", args.num_intervals);
         m.put("EXEC COST", costmodel.last_execution_cost);

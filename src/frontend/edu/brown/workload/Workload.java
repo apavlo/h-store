@@ -549,7 +549,8 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     public int getTimeInterval(TransactionTrace xact, int num_intervals) {
         long timestamp = xact.getStartTimestamp();
         if (timestamp == this.max_start_timestamp) timestamp--;
-        double ratio = (timestamp - this.min_start_timestamp) / (double)(this.max_start_timestamp - this.min_start_timestamp);
+        double ratio = (timestamp - this.min_start_timestamp) /
+                       (double)(this.max_start_timestamp - this.min_start_timestamp);
         int interval = (int)(num_intervals  * ratio);
         
 //        System.err.println("min_timestamp=" + this.min_start_timestamp);
