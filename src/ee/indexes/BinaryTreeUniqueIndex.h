@@ -102,6 +102,13 @@ public:
         ++m_updates;
         return (deleted && inserted);
     }
+    
+    bool setEntryToNull(const TableTuple *tupleValue)
+    {
+        m_tmp1.setFromTuple(tupleValue, column_indices_, m_keySchema);
+        
+        return setEntryToNullPrivate(m_tmp1); 
+    }
 
     bool checkForIndexChange(const TableTuple* lhs, const TableTuple* rhs)
     {
@@ -260,6 +267,14 @@ protected:
     {
         ++m_deletes;
         return m_entries.erase(key);
+    }
+    
+    inline bool setEntryToNullPrivate(const KeyType &key)
+    {        
+        ++m_updates; 
+        std::pair<typename MapType::iterator, bool> retval =
+        m_entries.insert(std::pair<KeyType, const void*>(key, NULL));
+        return retval.second;
     }
 
     MapType m_entries;

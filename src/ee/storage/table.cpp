@@ -184,12 +184,6 @@ void Table::initializeWithColumns(TupleSchema *schema, const std::string* column
 TableIterator Table::tableIterator() {
     return TableIterator(this);
 }
-    
-void Table::writeBlockToAntiCache()
-{
-    
-    
-}
 
 void Table::nextFreeTuple(TableTuple *tuple) {
     // First check whether we have any in our list

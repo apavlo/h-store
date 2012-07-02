@@ -242,6 +242,11 @@ class PersistentTable : public Table {
         if (m_wrapper)
             m_wrapper->setBytesUsed(streamBytesUsed);
     }
+    
+    // ------------------------------------------------------------------
+    // ANTI-CACHING OPERATIONS
+    // ------------------------------------------------------------------    
+    bool evictBlockToDisk(int block_id, voltdb::TableTuple *tuples, int block_size, SerializeOutput &serialize_io); 
 
 protected:
     // ------------------------------------------------------------------
@@ -250,12 +255,13 @@ protected:
     void insertIntoAllIndexes(TableTuple *tuple);
     void deleteFromAllIndexes(TableTuple *tuple);
     void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
+    void setNullForAllIndexes(TableTuple &tuple);
 
     bool tryInsertOnAllIndexes(TableTuple *tuple);
     bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
 
     bool checkNulls(TableTuple &tuple) const;
-
+    
     size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
 
     PersistentTable(ExecutorContext *ctx, bool exportEnabled);
