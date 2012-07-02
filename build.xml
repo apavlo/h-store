@@ -695,7 +695,7 @@ BERKELEYDB LIBRARY
 <target name="berkeleydb.check">
     <!-- Check whether we've already built the BerkeleyDB libraries -->
     <available property="berkeleydb.built"
-               file="${build.berkeleydb.dir}/.libs/libdb-5.3.so" />
+               file="${build.berkeleydb.dir}/libdb_cxx.a" />
 </target>
 
 <target name="berkeleydb.compile" description="Builds the BerkeleyDB library"
