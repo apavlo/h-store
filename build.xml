@@ -73,10 +73,14 @@
 <property name='files.hints.dir'             location='${files.dir}/designhints' />
 <property name='files.mappings.dir'          location='${files.dir}/mappings' />
 
+<!-- BerkeleyDB Source -->
+<property name="src.berkeleydb.dir"          location="third_party/cpp/berkeleydb" />
+<property name="build.berkeleydb.dir"        location="${build.dir}/berkeleydb" />
+
 <!-- ProtocolBuffer Source -->
 <property name="src.protobuf.dir"            location="third_party/cpp/protobuf" />
 <property name="build.protobuf.dir"          location="${build.dir}/protobuf" />
-<property name="build.protobuf.dir.protoc"   location="${build.protobuf.dir}/src/protoc" />
+<property name="build.protobuf.protoc.dir"   location="${build.protobuf.dir}/src/protoc" />
 
 <!-- TPC-E Generator -->
 <property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
@@ -680,6 +684,45 @@ DOCUMENTATION
 
 <!--
 ***************************************
+BERKELEYDB LIBRARY
+***************************************
+-->
+
+<target name="clean-berkeleydb">
+    <delete includeemptydirs="true" dir="${build.berkeleydb.dir}" />
+</target>
+
+<target name="berkeleydb.check">
+    <!-- Check whether we've already built the BerkeleyDB libraries -->
+    <available property="berkeleydb.built"
+               file="${build.berkeleydb.dir}/libdb_cxx.a" />
+</target>
+
+<target name="berkeleydb.compile" description="Builds the BerkeleyDB library"
+                                depends="berkeleydb.check, getcpus"
+                                unless="berkeleydb.built">
+    <mkdir dir="${build.berkeleydb.dir}" />
+    <exec executable="${src.berkeleydb.dir}/dist/configure" 
+          dir="${build.berkeleydb.dir}"
+          failonerror="true"
+          resolveexecutable="true">
+          
+        <arg value="--prefix=${build.berkeleydb.dir}" />
+        <arg value="--enable-cxx" />
+        
+        <!-- These are features that we don't need -->
+        <arg value="--disable-test" />
+        <arg value="--disable-cryptography" />
+        <arg value="--disable-replication" />
+        
+    </exec>
+    <exec executable="make" dir="${build.berkeleydb.dir}" failonerror="true">
+        <arg value="-j${numcpus}" />
+    </exec>
+</target>
+
+<!--
+***************************************
 NATIVE EE STUFF
 ***************************************
 -->
@@ -766,7 +809,7 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<target name='ee' depends="buildinfo, jnicompile"
+<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
         <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
@@ -1490,7 +1533,7 @@ PROTOCOL BUFFERS
 
     <sequential>
         <mkdir dir="@{destdir}" />
-        <apply executable="${build.protobuf.dir.protoc}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
+        <apply executable="${build.protobuf.protoc.dir}" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true">
 <!--         <apply executable="echo" dest="@{destdir}" resolveexecutable="true" failonerror="true" verbose="true"> -->
             <arg value="--java_out=@{destdir}" />
             <arg value="--proto_path=@{srcdir}" />
@@ -1508,19 +1551,18 @@ PROTOCOL BUFFERS
     </sequential>
 </macrodef>
 
-<target name="protoc.check">
-    <available property="protoc.built" file="${build.protobuf.dir.protoc}" />
+<target name="protobuf.protoc.check">
+    <available property="protobuf.protoc.built" file="${build.protobuf.protoc.dir}" />
 </target>
 
 <target name="protobuf.compile" description="Builds the protocol buffer compiler"
-                                depends="protoc.check, getcpus"
-                                unless="protoc.built">
+                                depends="protobuf.protoc.check, getcpus"
+                                unless="protobuf.protoc.built">
     <mkdir dir="${build.protobuf.dir}" />
     <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
         <arg value="--disable-shared" />
     </exec>
     <exec executable="make" dir="${build.protobuf.dir}" failonerror="true">
-<!--         <arg value="protoc" /> -->
         <arg value="-j${numcpus}" />
     </exec>
 </target>
@@ -1772,22 +1814,6 @@ BENCHMARKS
 
 <!--
 ***************************************
-JAPEX MICROBENCHMARKS
-***************************************
--->
-
-<target name='microbenchmarks' description="Run all micro-benchmarks.">
-    <!-- don't fail on error: jpeg generator requires sun jdk -->
-    <java fork="true" classname="com.sun.japex.Japex">
-        <jvmarg value="-server"/>
-        <classpath refid="project.classpath"/>
-        <jvmarg value="-Djapex.numberOfThreads=1"/>
-        <arg line="microbenchmark-config.xml"/>
-    </java>
-</target>
-
-<!--
-***************************************
 HUDSON-SPECIFIC TARGETS
 ***************************************
 -->
@@ -1923,7 +1949,7 @@ DESIGNER
     </java>
 </target>
 
-<target name='fixworkload'>
+<target name='workload-fix'>
    <java fork="yes" failonerror="true" classname="edu.brown.workload.FixWorkload">
       <arg value="catalog.jar=${jar}" />
       <arg value="workload=${workload}" />
@@ -1971,7 +1997,7 @@ DESIGNER
     <delete file="${output}" />
 </target>
 
-<target name='stats'
+<target name='workload-stats'
         description="Generate workload statistics">
     <java fork="yes" classname="edu.brown.statistics.WorkloadStatistics" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
