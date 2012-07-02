@@ -50,6 +50,7 @@
 #include "common/tabletuple.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
+#include "storage/evictedtable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"
@@ -172,6 +173,49 @@ Table* TableFactory::getPersistentTable(
                                       ctx->m_siteId,
                                       ctx->m_partitionId,
                                       databaseId);
+    return dynamic_cast<Table*>(table);
+}
+    
+Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
+                                    ExecutorContext *ctx,
+                                    const std::string name,
+                                    TupleSchema* schema,
+                                    const std::string* columnNames,
+                                    const TableIndexScheme &pkeyIndex,
+                                    const std::vector<TableIndexScheme> &indexes,
+                                    int partitionColumn)
+{
+    Table *table = NULL;
+
+    //table = new EvictedTable(ctx);
+    //EvictedTable *pTable = dynamic_cast<EvictedTable*>(table);
+    
+    std::string evicted_name(name + "_EVICTED"); 
+    
+    table = new PersistentTable(ctx, false);
+    PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
+    
+    pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
+    TableFactory::initCommon(databaseId, pTable, evicted_name, schema, columnNames, true);
+    pTable->m_partitionColumn = partitionColumn;
+    
+    // one for pkey + all the other indexes
+    pTable->m_indexCount = 1 + (int)indexes.size();
+    pTable->m_indexes = new TableIndex*[1 + indexes.size()];
+    pTable->m_indexes[0] = pTable->m_pkeyIndex;
+    
+    for (int i = 0; i < indexes.size(); ++i) {
+        pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
+    }
+    initConstraints(pTable);
+    
+    table->getTableStats()->configure(name + " stats",
+                                      ctx->m_hostId,
+                                      ctx->m_hostname,
+                                      ctx->m_siteId,
+                                      ctx->m_partitionId,
+                                      databaseId);
+     
     return dynamic_cast<Table*>(table);
 }
 

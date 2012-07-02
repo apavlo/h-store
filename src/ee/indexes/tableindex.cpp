@@ -112,3 +112,5 @@ bool TableIndex::equals(const TableIndex *other) const
     //TODO Do something useful here!
     return true;
 }
+
+

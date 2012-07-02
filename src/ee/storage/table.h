@@ -153,11 +153,6 @@ public:
     virtual bool insertTuple(TableTuple &source) = 0;
     virtual bool updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes) = 0;
     virtual bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings) = 0;
-    
-    // ------------------------------------------------------------------
-    // ANTI-CACHING OPERATIONS
-    // ------------------------------------------------------------------    
-    void writeBlockToAntiCache(); 
 
     // ------------------------------------------------------------------
     // TUPLES

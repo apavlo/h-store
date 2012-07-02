@@ -126,6 +126,61 @@ PersistentTable::~PersistentTable() {
 
     delete m_wrapper;
 }
+    
+// ------------------------------------------------------------------
+// ANTI-CACHE
+// ------------------------------------------------------------------ 
+/*
+ Writes out blocks in the following format: 
+ [(int) total block size]
+ [(int) header size]
+ [(int) num columns]
+ [column types]
+ [column names]
+ [(int) num tuples in block]
+ [tuples]
+ */
+bool PersistentTable::evictBlockToDisk(int block_id, voltdb::TableTuple *tuples, int block_size, SerializeOutput &serialize_io)
+{
+    //assert(m_schema->equals(tuples[0].getSchema()));
+    
+    // a placeholder for the total block size, which will be written at the end
+    std::size_t pos = serialize_io.position();
+    serialize_io.writeInt(-1);
+    
+    assert(!tuples[0].isNullTuple());
+    
+    if (!serializeColumnHeaderTo(serialize_io))
+        return false;
+    
+    // write out the number of tuples in this block
+    serialize_io.writeInt(static_cast<int32_t>(block_size));
+    
+    // write out each tuple in this block
+    for (int ii = 0; ii < block_size; ii++) {
+        
+        assert(!tupes[ii].isEvicted());
+        tuples[ii].setEvictedTrue(); 
+        
+        // update all the indixes for this tuple
+        setNullForAllIndexes(tuples[ii]); 
+        
+        // remove tuple from regular data table and add to anti-cache table
+        deleteTuple(tuples[ii], true); 
+        //insertTupleIntoAntiCacheTable(tuples[ii], block_id); 
+
+        // serialize this tuple to buffer
+        tuples[ii].serializeTo(serialize_io);
+    }
+    
+    // write out the total block size at beginning of block
+    serialize_io.writeIntAt(pos, static_cast<int32_t>(serialize_io.position() - pos - sizeof(int32_t)));
+    
+    return true;
+    
+}
+    
+    //void PersistentTable::insertTupleIntoAntiCacheTable(
 
 // ------------------------------------------------------------------
 // OPERATIONS
@@ -544,6 +599,17 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     for (int i = m_indexCount - 1; i >= 0;--i) {
         if (!m_indexes[i]->replaceEntry(&targetTuple, &sourceTuple)) {
             throwFatalException("Failed to update tuple in index");
+        }
+    }
+}
+    
+void PersistentTable::setNullForAllIndexes(TableTuple &tuple)
+{
+    for(int i = m_indexCount - 1; i >= 0; --i)
+    {
+        if(!m_indexes[i]->setEntryToNull(&tuple))
+        {
+            throwFatalException("Failed to update tuple in index to NULL");
         }
     }
 }

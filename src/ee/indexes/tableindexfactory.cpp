@@ -172,8 +172,14 @@ TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
             return new BinaryTreeUniqueIndex<GenericKey<128>, GenericComparator<128>, GenericEqualityChecker<128> >(schemeCopy);
         } else if (keySize <= 256) {
             return new BinaryTreeUniqueIndex<GenericKey<256>, GenericComparator<256>, GenericEqualityChecker<256> >(schemeCopy);
+        } else if (keySize <= 512) {
+            return new BinaryTreeUniqueIndex<GenericKey<512>, GenericComparator<512>, GenericEqualityChecker<512> >(schemeCopy);
         } else {
-            return new BinaryTreeUniqueIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);
+            
+
+            throwFatalException( "We currently only support keys of up to 512 bytes when anti-caching is enabled..." );
+            
+            //return new BinaryTreeUniqueIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);
         }
     }
 
@@ -206,8 +212,13 @@ TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
             return new BinaryTreeMultiMapIndex<GenericKey<128>, GenericComparator<128>, GenericEqualityChecker<128> >(schemeCopy);
         } else if (keySize <= 256) {
             return new BinaryTreeMultiMapIndex<GenericKey<256>, GenericComparator<256>, GenericEqualityChecker<256> >(schemeCopy);
+        } else if (keySize <= 512) {
+            return new BinaryTreeMultiMapIndex<GenericKey<512>, GenericComparator<512>, GenericEqualityChecker<512> >(schemeCopy);
         } else {
-            return new BinaryTreeMultiMapIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);
+            
+            throwFatalException( "We currently only support keys of up to 512 bytes when anti-caching is enabled..." );
+            
+            //return new BinaryTreeMultiMapIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);
         }
     }
 
