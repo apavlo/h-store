@@ -59,6 +59,7 @@
 #include "common/FatalException.hpp"
 #include "common/types.h"
 #include "common/RecoveryProtoMessage.h"
+#include "common/ValueFactory.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 #include "storage/table.h"
@@ -72,6 +73,8 @@
 #include "storage/ConstraintFailureException.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/CopyOnWriteContext.h"
+
+#include <map>
 
 namespace voltdb {
 
@@ -144,6 +147,8 @@ bool PersistentTable::evictBlockToDisk(int block_id, voltdb::TableTuple *tuples,
 {
     //assert(m_schema->equals(tuples[0].getSchema()));
     
+    TableTuple* evicted_table_tuple; 
+    
     // a placeholder for the total block size, which will be written at the end
     std::size_t pos = serialize_io.position();
     serialize_io.writeInt(-1);
@@ -157,30 +162,52 @@ bool PersistentTable::evictBlockToDisk(int block_id, voltdb::TableTuple *tuples,
     serialize_io.writeInt(static_cast<int32_t>(block_size));
     
     // write out each tuple in this block
-    for (int ii = 0; ii < block_size; ii++) {
+    for (int i = 0; i < block_size; i++) {
         
-        assert(!tupes[ii].isEvicted());
-        tuples[ii].setEvictedTrue(); 
+        assert(!tupes[i].isEvicted());
+        tuples[i].setEvictedTrue(); 
         
-        // update all the indixes for this tuple
-        setNullForAllIndexes(tuples[ii]); 
+        // update all the indexes for this tuple
+        setNullForAllIndexes(tuples[i]); 
         
-        // remove tuple from regular data table and add to anti-cache table
-        deleteTuple(tuples[ii], true); 
-        //insertTupleIntoAntiCacheTable(tuples[ii], block_id); 
-
+        // create evicted table tuple, remove original tuple from data table and insert evicted table tuple into evicted table
+        evicted_table_tuple = createEvictedTuple(tuples[i], block_id); 
+        deleteTuple(tuples[i], true); 
+        m_evicted_table->insertTuple(*evicted_table_tuple); 
+        
         // serialize this tuple to buffer
-        tuples[ii].serializeTo(serialize_io);
+        tuples[i].serializeTo(serialize_io);
     }
     
     // write out the total block size at beginning of block
     serialize_io.writeIntAt(pos, static_cast<int32_t>(serialize_io.position() - pos - sizeof(int32_t)));
     
     return true;
-    
 }
     
-    //void PersistentTable::insertTupleIntoAntiCacheTable(
+TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id)
+{
+    // create a new evicted table tuple based on the schema for the source tuple
+    TupleSchema *schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
+    TableTuple *evicted_tuple = new TableTuple(schema); 
+    
+    // get a list of which indices in the source tuple are part of the primary key
+    const std::vector<int>& column_indices = m_pkeyIndex->getColumnIndices();
+    
+    //assert((column_indices.size()+1) == tuple->sizeInValues()); 
+    
+    int column_index; 
+    for(int i = 0; i < source_tuple.sizeInValues(); i++)
+    {
+        column_index = column_indices[i]; 
+        evicted_tuple->setNValue(i, source_tuple.getNValue(column_index)); 
+    }
+    
+    // set the block id for this new evicted tuple
+    evicted_tuple->setNValue(source_tuple.sizeInValues(), ValueFactory::getSmallIntValue(block_id)); 
+    
+    return evicted_tuple; 
+}
 
 // ------------------------------------------------------------------
 // OPERATIONS

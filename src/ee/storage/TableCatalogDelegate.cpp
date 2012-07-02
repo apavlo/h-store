@@ -67,8 +67,6 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
     
-    int num_eviction_table_cols = 0; 
-
     // Columns:
     // Column is stored as map<String, Column*> in Catalog. We have to
     // sort it by Column index to preserve column order.
@@ -77,13 +75,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     vector<int32_t> columnLengths(numColumns);
     vector<bool> columnAllowNull(numColumns);
     string *columnNames = new string[numColumns];
-
-    // used to create schema for the eviction table
-    // schema will include all of the primary key fields of the persistent table + 1 field for block id
-    vector<ValueType> columnTypesEvictionTable(numColumns + 1);
-    vector<int32_t> columnLengthsEvictionTable(numColumns + 1);
-    vector<bool> columnAllowNullEvictionTable(numColumns + 1);
-    string *columnNamesEvictionTable = new string[numColumns + 1]; 
+ 
     
     map<string, catalog::Column*>::const_iterator col_iterator;
     
@@ -102,42 +94,6 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         columnLengths[columnIndex] = length;
         columnAllowNull[columnIndex] = catalog_column->nullable();
         columnNames[catalog_column->index()] = catalog_column->name();
-        
-        if(executorContext->m_antiCacheEnabled)  // set eviction table schema variables
-        {
-            // for this column, iterate through all the contraints to find out if it is in the primary key
-            catalog::CatalogMap<catalog::ConstraintRef> constraint_list = catalog_column->constraints(); 
-            
-            for(int constraint_num = 0; constraint_num < constraint_list.size(); constraint_num++)
-            {
-                catalog::ConstraintRef *constraint_ref = constraint_list.getAtRelativeIndex(constraint_num);
-                const catalog::Constraint* con = constraint_ref->constraint(); 
-                
-                // this column is part of the primary key, so add it to the list
-                if(con->type() == CONSTRAINT_TYPE_PRIMARY_KEY)
-                {
-                    columnTypesEvictionTable[num_eviction_table_cols] = type; 
-                    columnLengthsEvictionTable[num_eviction_table_cols] = length;
-                    columnNamesEvictionTable[num_eviction_table_cols] = catalog_column->name();
-                    columnAllowNullEvictionTable[num_eviction_table_cols] = catalog_column->nullable();
-                    
-                    num_eviction_table_cols++; 
-                    
-                    break; 
-                }
-            }
-        }
-    }
-    
-    // add column to evicted table schema for block id
-    if(executorContext->m_antiCacheEnabled) 
-    {
-        columnTypesEvictionTable[num_eviction_table_cols] = VALUE_TYPE_SMALLINT; 
-        columnLengthsEvictionTable[num_eviction_table_cols] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT));
-        columnNamesEvictionTable[num_eviction_table_cols] = "block_id"; 
-        columnAllowNullEvictionTable[num_eviction_table_cols] = false; 
-        
-        num_eviction_table_cols++; 
     }
 
     TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes,
@@ -311,15 +267,20 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
         
+        
         // create evicted table if anti-caching is enabled
         if(executorContext->m_antiCacheEnabled)
         {
-            string evicted_table_name(catalogTable.name() + "_EVICTED");
+            TableIndex* pkey = m_table->primaryKeyIndex(); 
+            assert(TableIndex != NULL); 
+            
+            
+            TupleSchema *evicted_table_schema = TupleSchema::createEvictedTupleSchema(pkey->getKeySchema()); 
+            
             m_evicted_table = TableFactory::getEvictedTable(databaseId, 
                                                             executorContext,
-                                                            evicted_table_name,
-                                                            //catalogTable.name(),
-                                                            schema, 
+                                                            catalogTable.name(),
+                                                            evicted_table_schema, 
                                                             columnNames,
                                                             pkey_index, 
                                                             indexes, 
