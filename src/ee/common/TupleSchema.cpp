@@ -22,6 +22,7 @@
 
 namespace voltdb {
 
+
 TupleSchema* TupleSchema::createTupleSchema(const std::vector<ValueType> columnTypes,
                                             const std::vector<int32_t> columnSizes,
                                             const std::vector<bool> allowNull,
@@ -139,6 +140,24 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
     }
 
     return schema;
+}
+    
+TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schema)
+{
+    TupleSchema *schema; 
+    
+    std::vector<ValueType> columnTypes(1);
+    std::vector<int32_t> columnSizes(1);
+    std::vector<bool> allowNull(1);
+    
+    // create a schema containing a single column for the block_id
+    columnTypes[0] = VALUE_TYPE_SMALLINT; 
+    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
+    allowNull[0] = false; 
+    
+    schema = TupleSchema::createTupleSchema(pkey_schema, TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false)); 
+    
+    return schema; 
 }
 
 void TupleSchema::freeTupleSchema(TupleSchema *schema) {

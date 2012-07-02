@@ -247,6 +247,7 @@ class PersistentTable : public Table {
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------    
     bool evictBlockToDisk(int block_id, voltdb::TableTuple *tuples, int block_size, SerializeOutput &serialize_io); 
+    TableTuple* createEvictedTuple(TableTuple &source_tuple, uint16_t block_id);
 
 protected:
     // ------------------------------------------------------------------
@@ -297,6 +298,8 @@ protected:
     // temporary for tuplestream stuff
     TupleStreamWrapper *m_wrapper;
     int64_t m_tsSeqNo;
+    
+    voltdb::Table *m_evicted_table; 
 
     // partition key
     int m_partitionColumn;
