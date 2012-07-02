@@ -24689,8 +24689,7 @@ LTLIBOBJS=`echo "$LIBOBJS" |
 CREATE_LIST="Makefile
     db_cxx.h:$topdir/src/dbinc/db_cxx.in
     db_int.h:$topdir/src/dbinc/db_int.in
-    clib_port.h:$topdir/dist/clib_port.in
-    include.tcl:$topdir/test/tcl/include.tcl"
+    clib_port.h:$topdir/dist/clib_port.in"
 
 # Create the db.h file from a source file, a list of global function
 # prototypes, and, if configured for unique names, a list of #defines
