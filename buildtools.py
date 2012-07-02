@@ -20,6 +20,7 @@ class BuildContext:
         self.TEST_EXTRAFLAGS = ""
         self.INPUT = {}
         self.THIRD_PARTY_INPUT = {}
+        self.THIRD_PARTY_STATIC_LIBS = [ ]
         self.TESTS = {}
         self.PLATFORM = os.uname()[0]
         self.PLATFORM_VERSION = os.uname()[2] 
@@ -208,7 +209,7 @@ def buildMakefile(CTX):
 
     makefile.write("# main jnilib target\n")
     makefile.write("nativelibs/%s.$(JNIEXT): " % (baselibname) + " ".join(jni_objects) + "\n")
-    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^\n")
+    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^ " + " ".join(CTX.THIRD_PARTY_STATIC_LIBS) + "\n")
     makefile.write("\n")
 
     makefile.write("# voltdb instance that loads the jvm from C++\n")

@@ -72,7 +72,7 @@ public class Histogram<X> implements JSONSerializable {
     public static final String DELIMITER = "\t";
     public static final String MARKER = "*";
     public static final Integer MAX_CHARS = 80;
-    public static final Integer MAX_VALUE_LENGTH = 20;
+    public static final int MAX_VALUE_LENGTH = 20;
 
     public enum Members {
         VALUE_TYPE,
@@ -100,7 +100,7 @@ public class Histogram<X> implements JSONSerializable {
     
     /**
      * The Min/Max counts are the values that have the smallest/greatest number of
-     * occurences in the histogram
+     * occurrences in the histogram
      */
     protected long min_count = 0;
     protected List<X> min_count_values;
@@ -749,9 +749,9 @@ public class Histogram<X> implements JSONSerializable {
      * @param max_length
      * @return
      */
-    public synchronized String toString(Integer max_chars, Integer max_length) {
+    public synchronized String toString(Integer max_chars, Integer _max_length) {
         StringBuilder s = new StringBuilder();
-        if (max_length == null) max_length = MAX_VALUE_LENGTH;
+        int max_length = (_max_length != null ? _max_length.intValue() : MAX_VALUE_LENGTH);
         
         this.calculateInternalValues();
         
@@ -790,7 +790,7 @@ public class Histogram<X> implements JSONSerializable {
             }
             
             // Histogram Bar
-            int barSize = (int)((cnt / (double)this.max_count) * max_chars);
+            int barSize = (int)((cnt / (double)this.max_count) * max_chars.intValue());
             for (int i = 0; i < barSize; i++) s.append(MARKER);
             
             first = false;

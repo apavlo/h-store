@@ -82,6 +82,11 @@ CTX.INPUT_PREFIX = "src/ee"
 # where to find the source
 CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
+# Third-Party Static Libraries
+CTX.THIRD_PARTY_STATIC_LIBS = [
+    "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+]
+
 # where to find the tests
 CTX.TEST_PREFIX = "tests/ee"
 
