@@ -54,7 +54,7 @@ class ExecutorContext {
         m_hostname(hostname), m_hostId(hostId),
         m_exportEnabled(exportEnabled),
         m_antiCacheEnabled(false),
-        m_antiCacheDir(NULL),
+//         m_antiCacheDir(NULL),
         m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
@@ -63,7 +63,7 @@ class ExecutorContext {
 
     void enableAntiCache(std::string dbDir) {
         m_antiCacheEnabled = true;
-        m_antiCacheDir = dbDir;
+//         m_antiCacheDir = dbDir;
     }
     
     // not always known at initial construction
@@ -146,7 +146,7 @@ class ExecutorContext {
     CatalogId m_hostId;
     bool m_exportEnabled;
     bool m_antiCacheEnabled;
-    std::string m_antiCacheDir;
+//     std::string m_antiCacheDir;
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;
