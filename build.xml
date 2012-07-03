@@ -809,7 +809,8 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile"
+<!-- FIXME: berkeleydb.compile -->
+<target name='ee' depends="buildinfo, jnicompile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
         <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
