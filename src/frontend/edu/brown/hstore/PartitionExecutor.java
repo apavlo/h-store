@@ -41,6 +41,7 @@
  */
 package edu.brown.hstore;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -226,6 +227,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
     private final SnapshotSiteProcessor m_snapshotter;
+    
+    // Anti-Cache Abstraction Layer
+    private final AntiCacheManager anticacheManager;
     
     /**
      * Procedure Name -> VoltProcedure
@@ -548,6 +552,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.p_estimator = null;
         this.t_estimator = null;
         this.m_snapshotter = null;
+        this.anticacheManager = null;
         this.thresholds = null;
         this.catalog = null;
         this.cluster = null;
@@ -572,10 +577,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * newlines that, when executed, reconstruct the complete m_catalog.
      */
     public PartitionExecutor(final int partitionId,
-                              final Catalog catalog,
-                              final BackendTarget target,
-                              final PartitionEstimator p_estimator,
-                              final TransactionEstimator t_estimator) {
+                             final Catalog catalog,
+                             final BackendTarget target,
+                             final PartitionEstimator p_estimator,
+                             final TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
         this.work_queue = new ThrottlingQueue<InternalMessage>(
@@ -612,6 +617,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.t_estimator = t_estimator; 
         }
         
+        // The AntiCacheManager will allow us to do special things down in the EE
+        // for evicted tuples
+        if (hstore_conf.site.anticache_enable) {
+            this.anticacheManager = new AntiCacheManager(this.database, this);
+        } else {
+            this.anticacheManager = null;
+        }
+        
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
         // the VoltProcedure interface invokes HSQLDB directly through its
@@ -642,6 +655,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 org.voltdb.EELibraryLoader.loadExecutionEngineLibrary(true);
                 // set up the EE
                 eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
+                
+                // Initialize Anti-Cache
+                if (this.anticacheManager != null) {
+                    File acFile = this.anticacheManager.getDatabaseFile(); 
+                    eeTemp.initializeAntiCache(acFile);
+                }
+                
                 eeTemp.loadCatalog(catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
