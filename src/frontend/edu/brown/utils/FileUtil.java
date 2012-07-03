@@ -81,7 +81,6 @@ public abstract class FileUtil {
 
     /**
      * Create any directory in the list paths if it doesn't exist
-     * 
      * @param paths
      */
     public static void makeDirIfNotExists(String... paths) {
@@ -94,6 +93,16 @@ public abstract class FileUtil {
             }
         } // FOR
     }
+    /**
+     * Create any directory in the list paths if it doesn't exist
+     * @param paths
+     */
+    public static void makeDirIfNotExists(File... paths) {
+        for (File f : paths) {
+            makeDirIfNotExists(f.getAbsolutePath());
+        }
+    }
+    
 
     /**
      * Return a File handle to a temporary file location

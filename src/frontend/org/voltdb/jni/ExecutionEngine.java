@@ -355,10 +355,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /**
      * Initialize anti-caching at this partition's EE.
      * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
-     * @param dbFilePath
+     * @param dbDir
      * @throws EEException
      */
-    public abstract void initializeAntiCache(File dbFilePath) throws EEException;
+    public abstract void initializeAntiCache(File dbDir) throws EEException;
     
     /** Used for test code only (AFAIK jhugg) */
     abstract public VoltTable serializeTable(int tableId) throws EEException;
@@ -507,15 +507,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
 
     /**
-     * Enables the anti-cache feature in the EE. The given database file path
+     * Enables the anti-cache feature in the EE. The given database directory path
      * must be a unique location for this partition where the EE can store 
      * evicted blocks of tuples. The EE assumes that the parent directories 
-     * in dbFilePath exist and are writable.  
+     * for dbDir exist and are writable.  
      * @param pointer
-     * @param dbFilePath
+     * @param dbDir
      * @return
      */
-    protected native int nativeInitializeAntiCache(long pointer, String dbFilePath);
+    protected native int nativeInitializeAntiCache(long pointer, String dbDir);
     
     /**
      * Load the system catalog for this engine.

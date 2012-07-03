@@ -185,12 +185,14 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     @Override
-    public void initializeAntiCache(File dbFilePath) throws EEException {
+    public void initializeAntiCache(File dbDir) throws EEException {
         assert(m_anticache == false);
-        LOG.trace("Intializing anti-cache feature at partition " + this.site.getPartitionId());
-        LOG.trace(String.format("Partition %d Database File: %s",
-                                this.site.getPartitionId(), dbFilePath.getAbsolutePath()));
-        final int errorCode = nativeInitializeAntiCache(pointer, dbFilePath.getAbsolutePath());
+        
+        // TODO: Switch to LOG.debug
+        LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
+        LOG.info(String.format("Partition %d Database Directory: %s",
+                                this.site.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeInitializeAntiCache(pointer, dbDir.getAbsolutePath());
         checkErrorCode(errorCode);
         m_anticache = true;
     }

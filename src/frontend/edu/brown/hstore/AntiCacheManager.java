@@ -27,11 +27,11 @@ public class AntiCacheManager implements Shutdownable {
     }
     
     /**
-     * Returns the path where the EE should store the anti-cache
+     * Returns the directory where the EE should store the anti-cache
      * database for this PartitionExecutor
      * @return
      */
-    public File getDatabaseFile() {
+    public File getDatabaseDir() {
         // First make sure that our base directory exists
         String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir + 
                                             File.separatorChar +
@@ -40,16 +40,17 @@ public class AntiCacheManager implements Shutdownable {
             FileUtil.makeDirIfNotExists(base_dir);
         } // SYNCH
         
-        // Then each partition will have a separate file in that directory
+        // Then each partition will have a separate directory inside of the base one
         String partitionName = HStoreThreadManager.formatPartitionName(this.executor.getSiteId(),
                                                                        this.executor.getPartitionId());
 
-        File dbFile = new File(base_dir + File.separatorChar + partitionName);
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        FileUtil.makeDirIfNotExists(dbDirPath);
         
         // TODO: What do we do if the file already exists?
         //       There should be an HStoreConf that says we should delete it first
         
-        return (dbFile);
+        return (dbDirPath);
     }
     
     @Override

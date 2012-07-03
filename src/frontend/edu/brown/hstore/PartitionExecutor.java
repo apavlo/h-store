@@ -620,7 +620,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // The AntiCacheManager will allow us to do special things down in the EE
         // for evicted tuples
         if (hstore_conf.site.anticache_enable) {
-            this.anticacheManager = new AntiCacheManager(this.database, this);
+            this.anticacheManager = null; // FIXME new AntiCacheManager(this.database, this);
         } else {
             this.anticacheManager = null;
         }
@@ -658,7 +658,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 
                 // Initialize Anti-Cache
                 if (this.anticacheManager != null) {
-                    File acFile = this.anticacheManager.getDatabaseFile(); 
+                    File acFile = this.anticacheManager.getDatabaseDir(); 
                     eeTemp.initializeAntiCache(acFile);
                 }
                 

@@ -712,7 +712,7 @@ public class VoltProjectBuilder {
         // <database>
         final Element database = doc.createElement("database");
         database.setAttribute("name", "database");
-        database.setAttribute("project", this.project_name);
+        // FIXME database.setAttribute("project", this.project_name);
         project.appendChild(database);
         buildDatabaseElement(doc, database);
 
