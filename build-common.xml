@@ -88,6 +88,7 @@
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
 <arg value="site.commandlog_profiling=${site.commandlog_profiling}" />
 <arg value="site.anticache_enable=${site.anticache_enable}" />
+<arg value="site.anticache_dir=${site.anticache_dir}" />
 <arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
 <arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
 <arg value="site.network_profiling=${site.network_profiling}" />
