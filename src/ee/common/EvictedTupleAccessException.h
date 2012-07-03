@@ -40,7 +40,7 @@ protected:
     void p_serialize(ReferenceSerializeOutput *output);
 private:
     const int m_numBlockIds;
-    const short m_blockIds[];
+    const int m_blockIds[];
 };
 }
 
