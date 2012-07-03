@@ -102,7 +102,7 @@ if CTX.COVERAGE:
 CTX.INCLUDE_DIRS = ['src/ee']
 CTX.SYSTEM_DIRS = [
     'third_party/cpp',
-    # FIXME os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb')
+    os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb')
 ]
 
 # extra flags that will get added to building test source
@@ -125,8 +125,8 @@ CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
 # Third-Party Static Libraries
 CTX.THIRD_PARTY_STATIC_LIBS = [
-    # FIXME "berkeleydb/libdb.a",     # BerkeleyDB Base Library
-    # FIXME "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+    "berkeleydb/libdb.a",     # BerkeleyDB Base Library
+    "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
 ]
 
 # where to find the tests
@@ -329,7 +329,8 @@ CTX.TESTS['common'] = """
 
 CTX.TESTS['execution'] = """
  engine_test
-""" # FIXME berkeleydb_test
+ berkeleydb_test
+"""
 
 CTX.TESTS['expressions'] = """
  expression_test
