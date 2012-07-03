@@ -252,6 +252,10 @@ public class HStoreThreadManager {
         if (site_id == null) return (null);
         return (getThreadName(site_id, null));
     }
+    
+    public static final String formatPartitionName(int site_id, int partition) {
+        return (getThreadName(site_id, partition));
+    }
 
     public static final String getThreadName(HStoreSite hstore_site, Integer partition) {
         return (getThreadName(hstore_site.getSiteId(), partition));
