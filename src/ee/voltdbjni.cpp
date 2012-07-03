@@ -515,14 +515,14 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
  * This can only be called *after* the buffers have been initialized
  * but *before* the catalog has been initialized 
  * @param pointer the VoltDBEngine pointer
- * @param dbFilePath the file name of where the EE should store the anti-cache database 
+ * @param dbDir the directory of where the EE should store the anti-cache database 
  * @return error code
  */
 SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeInitializeAntiCache (
         JNIEnv *env,
         jobject obj,
         jlong engine_ptr,
-        jstring dbFilePath) {
+        jstring dbDir) {
     
     VOLT_DEBUG("nativeInitializeAntiCache() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -531,11 +531,11 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeIniti
         return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     }
     try {
-        const char *dbFilePathChars = env->GetStringUTFChars(dbFilePath, NULL);
-        std::string dbFilePathString(dbFilePathChars);
-        env->ReleaseStringUTFChars(dbFilePath, dbFilePathChars);
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->enableAntiCache(dbFilePathString);
+        engine->enableAntiCache(dbDirString);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
