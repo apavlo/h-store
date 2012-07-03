@@ -60,8 +60,9 @@ class ExecutorContext {
         m_lastTickTime = 0;
     }
 
-    void setAntiCacheEnabled(bool val) {
-        m_antiCacheEnabled = val;
+    void enableAntiCache(std::string &dbDir) {
+        m_antiCacheEnabled = true;
+        m_antiCacheDir = dbDir;
     }
     
     // not always known at initial construction
@@ -144,6 +145,7 @@ class ExecutorContext {
     CatalogId m_hostId;
     bool m_exportEnabled;
     bool m_antiCacheEnabled;
+    std::string m_antiCacheDir;
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;

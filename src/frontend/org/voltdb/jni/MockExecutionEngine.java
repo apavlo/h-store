@@ -17,6 +17,8 @@
 
 package org.voltdb.jni;
 
+import java.io.File;
+
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
@@ -186,5 +188,11 @@ public class MockExecutionEngine extends ExecutionEngine {
     {
         // TODO Auto-generated method stub
         return 0;
+    }
+
+    @Override
+    public void initializeAntiCache(File dbFilePath) throws EEException {
+        // TODO Auto-generated method stub
+        
     }
 }

@@ -17,6 +17,7 @@
 
 package org.voltdb.jni;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -59,7 +60,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
-        LOG.debug("??????");
     }
     private static boolean t = trace.get();
     private static boolean d = debug.get();
@@ -83,8 +83,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * when using the IPC backend.
      **/
     private final BBContainer deserializerBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
-    private FastDeserializer deserializer =
-        new FastDeserializer(deserializerBufferOrigin.b);
+    private FastDeserializer deserializer = new FastDeserializer(deserializerBufferOrigin.b);
 
     private final BBContainer exceptionBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 20);
     private ByteBuffer exceptionBuffer = exceptionBufferOrigin.b;
@@ -138,12 +137,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 exceptionBuffer, exceptionBuffer.capacity());
         checkErrorCode(errorCode);
         
-        if (m_anticache) {
-            LOG.info("Enabling anti-cache feature in EE");
-            errorCode = nativeEnableAntiCache(pointer);
-            checkErrorCode(errorCode);
-        }
-        
         //LOG.info("Initialized Execution Engine");
     }
 
@@ -191,6 +184,19 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         if (t) LOG.trace("Released Execution Engine.");
     }
 
+    @Override
+    public void initializeAntiCache(File dbDir) throws EEException {
+        assert(m_anticache == false);
+        
+        // TODO: Switch to LOG.debug
+        LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
+        LOG.info(String.format("Partition %d Database Directory: %s",
+                                this.site.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeInitializeAntiCache(pointer, dbDir.getAbsolutePath());
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+    
     /**
      *  Provide a serialized catalog and initialize version 0 of the engine's
      *  catalog.

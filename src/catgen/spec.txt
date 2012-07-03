@@ -54,6 +54,7 @@ begin Site             "A physical execution context for the system"
 end
 
 begin Database          "A set of schema, procedures and other metadata that together comprise an application"
+    string     project    "The name of the benchmark project used for this database instance. Can be null"
     string     schema     "Full SQL DDL for the database's schema"
     User*      users      "The set of users"
     Group*     groups     "The set of groups"

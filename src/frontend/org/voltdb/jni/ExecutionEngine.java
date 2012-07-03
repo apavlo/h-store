@@ -17,6 +17,7 @@
 
 package org.voltdb.jni;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -70,11 +71,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /** Create an ee and load the volt shared library */
     public ExecutionEngine(final PartitionExecutor site) {
         this.site = site;
-        
-        // Checks for test cases
-        if (this.site != null) {
-            this.m_anticache = this.site.getHStoreConf().site.anticache_enable;
-        }
     }
     
     /** Make the EE clean and ready to do new transactional work. */
@@ -356,6 +352,14 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         return (dset.dependencies);
     }
 
+    /**
+     * Initialize anti-caching at this partition's EE.
+     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
+     * @param dbDir
+     * @throws EEException
+     */
+    public abstract void initializeAntiCache(File dbDir) throws EEException;
+    
     /** Used for test code only (AFAIK jhugg) */
     abstract public VoltTable serializeTable(int tableId) throws EEException;
 
@@ -503,11 +507,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
 
     /**
-     * Enables the anti-cache feature in the EE
+     * Enables the anti-cache feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store 
+     * evicted blocks of tuples. The EE assumes that the parent directories 
+     * for dbDir exist and are writable.  
      * @param pointer
+     * @param dbDir
      * @return
      */
-    protected native int nativeEnableAntiCache(long pointer);
+    protected native int nativeInitializeAntiCache(long pointer, String dbDir);
     
     /**
      * Load the system catalog for this engine.
