@@ -59,7 +59,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
-        LOG.debug("??????");
     }
     private static boolean t = trace.get();
     private static boolean d = debug.get();
