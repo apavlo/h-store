@@ -162,7 +162,7 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         // Created to transition existing unit tests to context abstraction.
         // If using this somewhere new, consider if you're being lazy.
         ExecutorContext *getExecutorContext();
-        void enableAntiCache() const;
+        void enableAntiCache(std::string dbDir) const;
 
         // -------------------------------------------------
         // Dependency Transfer Functions

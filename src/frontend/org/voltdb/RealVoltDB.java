@@ -59,6 +59,7 @@ import org.voltdb.utils.VoltSampler;
 
 import edu.brown.hstore.PartitionExecutor;
 
+@Deprecated
 public class RealVoltDB implements VoltDBInterface
 {
     private static final Logger log =

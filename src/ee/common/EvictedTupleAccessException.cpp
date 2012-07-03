@@ -36,12 +36,12 @@ EvictedTupleAccessException::EvictedTupleAccessException(std::string message) :
         
     // TODO: Need to store the blockIds EvictedTable into our array
     m_numBlockIds = 0;
-    m_blockIds = new short[0];
+    m_blockIds = new int[0];
 }
 
 void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
     output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
     for (int ii = 0; ii < m_numBlockIds; ii++) {
-        output->writeShort(m_blockIds[ii]);
+        output->writeInt(m_blockIds[ii]);
     }
 }

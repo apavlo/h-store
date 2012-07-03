@@ -19,6 +19,7 @@ package org.voltdb.jni;
 
 import java.io.BufferedReader;
 import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
@@ -42,14 +43,13 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Table;
-import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.hstore.PartitionExecutor;
 
@@ -1458,5 +1458,10 @@ public class ExecutionEngineIPC extends ExecutionEngine {
             System.out.println("Exception: " + e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void initializeAntiCache(File dbFilePath) throws EEException {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 }

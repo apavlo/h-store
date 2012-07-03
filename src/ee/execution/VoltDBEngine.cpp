@@ -1133,9 +1133,9 @@ ExecutorContext * VoltDBEngine::getExecutorContext() {
     return m_executorContext;
 }
 
-void VoltDBEngine::enableAntiCache() const {
-    VOLT_DEBUG("Enabling Anti-Cache at Partition %d", m_partitionId);
-    m_executorContext->setAntiCacheEnabled(true);
+void VoltDBEngine::enableAntiCache(std::string dbDir) const {
+    VOLT_INFO("Enabling Anti-Cache at Partition %d: %s", m_partitionId, dbDir.c_str());
+    m_executorContext->enableAntiCache(dbDir);
 }
 
 int64_t VoltDBEngine::uniqueIdForFragment(catalog::PlanFragment *frag) {

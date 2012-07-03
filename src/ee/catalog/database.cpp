@@ -38,6 +38,7 @@ Database::Database(Catalog *catalog, CatalogType *parent, const string &path, co
   m_users(catalog, this, path + "/" + "users"), m_groups(catalog, this, path + "/" + "groups"), m_tables(catalog, this, path + "/" + "tables"), m_programs(catalog, this, path + "/" + "programs"), m_procedures(catalog, this, path + "/" + "procedures"), m_connectors(catalog, this, path + "/" + "connectors"), m_snapshotSchedule(catalog, this, path + "/" + "snapshotSchedule")
 {
     CatalogValue value;
+    m_fields["project"] = value;
     m_fields["schema"] = value;
     m_childCollections["users"] = &m_users;
     m_childCollections["groups"] = &m_groups;
@@ -101,6 +102,7 @@ Database::~Database() {
 }
 
 void Database::update() {
+    m_project = m_fields["project"].strValue.c_str();
     m_schema = m_fields["schema"].strValue.c_str();
 }
 
@@ -192,6 +194,10 @@ bool Database::removeChild(const std::string &collectionName, const std::string 
         return m_snapshotSchedule.remove(childName);
     }
     return false;
+}
+
+const string & Database::project() const {
+    return m_project;
 }
 
 const string & Database::schema() const {

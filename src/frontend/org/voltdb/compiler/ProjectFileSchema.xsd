@@ -57,6 +57,7 @@
       <xsd:element name="snapshot" type="snapshotType" minOccurs="0" maxOccurs="1" />
     </xsd:all>
     <xsd:attribute name="name" type="xsd:string" use="required"/>
+    <xsd:attribute name="project" type="xsd:string" />
   </xsd:complexType>
 
   <!-- <snapshot> -->

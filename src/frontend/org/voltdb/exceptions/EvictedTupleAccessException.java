@@ -25,7 +25,7 @@ public class EvictedTupleAccessException extends SerializableException {
         assert(num_blocks > 0);
         this.block_ids = new int[num_blocks];
         for (int i = 0; i < this.block_ids.length; i++) {
-            this.block_ids[i] = buffer.getShort();
+            this.block_ids[i] = buffer.getInt();
         } // FOR
     }
 
@@ -42,8 +42,8 @@ public class EvictedTupleAccessException extends SerializableException {
     @Override
     protected int p_getSerializedSize() {
         // # of block_ids + 
-        // (2 * # of block_ids)
-        return (2 + (2 * this.block_ids.length));
+        // (4 * # of block_ids)
+        return (2 + (4 * this.block_ids.length));
     }
 
     /**
@@ -54,7 +54,7 @@ public class EvictedTupleAccessException extends SerializableException {
     protected void p_serializeToBuffer(ByteBuffer b) throws IOException {
         b.putShort((short)this.block_ids.length);
         for (int block_id : this.block_ids) {
-            b.putShort((short)block_id);
+            b.putInt(block_id);
         }
     }
 
