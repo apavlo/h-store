@@ -743,6 +743,7 @@ public class VoltProjectBuilder {
 
         final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
+        LOG.debug("PROJECT XML: " + projectPath);
         
         ClusterConfig cc = (this.cluster_config.isEmpty() ? 
                                 new ClusterConfig(hostCount, sitesPerHost, replication, leaderAddress) :
