@@ -30,6 +30,7 @@ import edu.brown.hstore.HStoreSite;
  * It sets up global objects and then starts the individual threads
  * for the <code>ThreadManager</code>s.
  */
+@Deprecated
 public class VoltDB {
 
     static final int INITIATOR_SITE_ID = 0;
