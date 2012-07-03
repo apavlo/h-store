@@ -16,16 +16,16 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1331319092365</id>
+			<id>1341337072561</id>
 			<name></name>
-			<type>10</type>
+			<type>14</type>
 			<matcher>
 				<id>org.eclipse.ui.ide.multiFilter</id>
-				<arguments>1.0-name-matches-false-false-.git</arguments>
+				<arguments>1.0-name-matches-false-false-.git*</arguments>
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092370</id>
+			<id>1341337072561</id>
 			<name></name>
 			<type>10</type>
 			<matcher>
@@ -34,7 +34,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092376</id>
+			<id>1341337072562</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -43,7 +43,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092385</id>
+			<id>1341337072564</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -52,7 +52,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092419</id>
+			<id>1341337072565</id>
 			<name></name>
 			<type>22</type>
 			<matcher>
@@ -61,7 +61,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092432</id>
+			<id>1341337072566</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -70,7 +70,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092447</id>
+			<id>1341337072567</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -79,7 +79,7 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092450</id>
+			<id>1341337072568</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
@@ -88,12 +88,48 @@
 			</matcher>
 		</filter>
 		<filter>
-			<id>1331319092453</id>
+			<id>1341337072569</id>
 			<name></name>
 			<type>6</type>
 			<matcher>
 				<id>org.eclipse.ui.ide.multiFilter</id>
 				<arguments>1.0-name-matches-false-false-*.pyc</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1341337072570</id>
+			<name></name>
+			<type>6</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-.project</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1341337072570</id>
+			<name></name>
+			<type>6</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-plannerlog.txt</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1341337072571</id>
+			<name></name>
+			<type>22</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-true-.*kate-swp</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1341337072572</id>
+			<name></name>
+			<type>6</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-.classpath</arguments>
 			</matcher>
 		</filter>
 	</filteredResources>
