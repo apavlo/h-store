@@ -26,6 +26,7 @@ package org.voltdb.catalog;
  */
 public class Database extends CatalogType {
 
+    String m_project = new String();
     String m_schema = new String();
     CatalogMap<User> m_users;
     CatalogMap<Group> m_groups;
@@ -37,6 +38,7 @@ public class Database extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
+        m_fields.put("project", m_project);
         m_fields.put("schema", m_schema);
         m_users = new CatalogMap<User>(catalog, this, path + "/" + "users", User.class);
         m_childCollections.put("users", m_users);
@@ -55,7 +57,13 @@ public class Database extends CatalogType {
     }
 
     public void update() {
+        m_project = (String) m_fields.get("project");
         m_schema = (String) m_fields.get("schema");
+    }
+
+    /** GETTER: The name of the benchmark project used for this database instance. Can be null */
+    public String getProject() {
+        return m_project;
     }
 
     /** GETTER: Full SQL DDL for the database's schema */
@@ -96,6 +104,11 @@ public class Database extends CatalogType {
     /** GETTER: Schedule for automated snapshots */
     public CatalogMap<SnapshotSchedule> getSnapshotschedule() {
         return m_snapshotSchedule;
+    }
+
+    /** SETTER: The name of the benchmark project used for this database instance. Can be null */
+    public void setProject(String value) {
+        m_project = value; m_fields.put("project", value);
     }
 
     /** SETTER: Full SQL DDL for the database's schema */

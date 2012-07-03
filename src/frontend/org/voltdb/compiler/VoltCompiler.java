@@ -593,6 +593,11 @@ public class VoltCompiler {
         // create the database in the catalog
         m_catalog.execute("add /clusters[cluster] databases " + databaseName);
         Database db = m_catalog.getClusters().get("cluster").getDatabases().get(databaseName);
+        if (database.getProject() != null && database.getProject().isEmpty() == false) {
+            db.setProject(database.getProject());
+        } else {
+            db.setProject("unknown");
+        }
 
         SnapshotType snapshotSettings = database.getSnapshot();
         if (snapshotSettings != null) {
