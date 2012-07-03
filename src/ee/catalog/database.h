@@ -44,6 +44,7 @@ class Database : public CatalogType {
 
 protected:
     Database(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
+    std::string m_project;
     std::string m_schema;
     CatalogMap<User> m_users;
     CatalogMap<Group> m_groups;
@@ -62,6 +63,8 @@ protected:
 public:
     ~Database();
 
+    /** GETTER: The name of the benchmark project used for this database instance. Can be null */
+    const std::string & project() const;
     /** GETTER: Full SQL DDL for the database's schema */
     const std::string & schema() const;
     /** GETTER: The set of users */

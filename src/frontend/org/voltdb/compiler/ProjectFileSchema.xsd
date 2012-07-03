@@ -46,6 +46,7 @@
   <xsd:complexType name="databaseType">
     <xsd:all>
       <!-- elements of an all group may appear in any order at most once. -->
+      <xsd:element name="project" type="xsd:string" minOccurs="0"/>
       <xsd:element name="users" type="usersType" minOccurs="0"/>
       <xsd:element name="groups" type="groupsType" minOccurs="0"/>
       <xsd:element name="schemas" type="schemasType"/>
