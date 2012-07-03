@@ -54,14 +54,13 @@ class ExecutorContext {
         m_hostname(hostname), m_hostId(hostId),
         m_exportEnabled(exportEnabled),
         m_antiCacheEnabled(false),
-        m_antiCacheDir(NULL),
         m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
     }
 
-    void enableAntiCache(std::string dbDir) {
+    void enableAntiCache(std::string &dbDir) {
         m_antiCacheEnabled = true;
         m_antiCacheDir = dbDir;
     }
