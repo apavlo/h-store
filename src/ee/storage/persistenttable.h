@@ -246,8 +246,10 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------    
-    bool evictBlockToDisk(int block_id, voltdb::TableTuple *tuples, int block_size, SerializeOutput &serialize_io); 
+    bool evictBlockToDisk(int block_size);
     TableTuple* createEvictedTuple(TableTuple &source_tuple, uint16_t block_id);
+    bool readEvictedBlock(uint16_t block_id);
+    bool mergeUnevictedTuples(); 
 
 protected:
     // ------------------------------------------------------------------
@@ -299,8 +301,12 @@ protected:
     TupleStreamWrapper *m_wrapper;
     int64_t m_tsSeqNo;
     
+    // ANTI-CACHE VARIABLES
     voltdb::Table *m_evicted_table; 
-
+    char* m_unevictedTuples; 
+    int m_numUnevictedTuples; 
+    int m_unevictedTuplesLength; 
+    
     // partition key
     int m_partitionColumn;
 
@@ -313,7 +319,7 @@ protected:
 
     // is Export enabled
     bool m_exportEnabled;
-
+    
     // Snapshot stuff
     boost::scoped_ptr<CopyOnWriteContext> m_COWContext;
 
