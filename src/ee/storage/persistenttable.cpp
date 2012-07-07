@@ -75,7 +75,7 @@
 #include "storage/CopyOnWriteContext.h"
 
 #ifdef ANTICACHE
-#include <db_cxx.h>
+#include "common/anticache.h"
 #endif
 
 #include <map>
@@ -149,10 +149,11 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
     TableTuple tuple; 
     TableTuple* evicted_table_tuple; 
     
-    int num_tuples_evicted = 0;     
+    // get the AntiCacheDB instance from the executorContext
+    AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB();
     
     // get a unique block id from the executorContext
-    uint16_t block_id = m_executorContext->generateNextBlockID(); 
+    uint16_t block_id = anti_cache_db->nextBlockID(); 
     
     // read the first tuple in the table
     TableIterator table_itr(this); 
@@ -166,8 +167,8 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
     memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
     serialized_data_length += tuple_length; 
 
-    num_tuples_evicted = 1; 
-    while(table_itr.hasNext() && num_tuples_evicted <= block_size) {
+    int num_tuples_evicted = 1; 
+    while (table_itr.hasNext() && num_tuples_evicted <= block_size) {
         table_itr.next(tuple); 
         
         assert(!tuple.isEvicted());
@@ -186,71 +187,14 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
         serialized_data_length += tuple_length; 
         
         num_tuples_evicted++; 
-    }
-    
+    } // WHILE
     assert(num_tuples_evicted * tuple_length == serialized_data_length); 
-            
-    // get the Berkeley DB instance from the executorContext
-    Db* anti_cache_db = m_executorContext->getAntiCacheDB(); 
-    
-    Dbt key; 
-    Dbt value; 
-    
-    key.set_data(&block_id);
-    key.set_size(sizeof(uint16_t));
-        
-    value.set_data(serialized_data);
-    value.set_size(serialized_data_length); 
-    
-    anti_cache_db->put(NULL, &key, &value, 0); 
+     
+    anti_cache_db->writeBlock(block_id, serialized_data, serialized_data_length);
     
     return true;
 }
-    
-bool PersistentTable::readEvictedBlock(uint16_t block_id) {
-    Db* anti_cache_db = m_executorContext->getAntiCacheDB(); 
-    
-    Dbt key; 
-    Dbt value;
-    
-    key.set_data(&block_id);
-    key.set_size(sizeof(uint16_t));
-    
-    value.set_flags(DB_DBT_MALLOC);
-    
-    int ret_value = anti_cache_db->get(NULL, &key, &value, 0);
-    if(ret_value != 0) {
-        // TODO: say block id not found and exit
-    }
-    assert(value.get_data() != NULL); 
-        
-    if(m_unevictedTuplesLength > 0) {
-        // allocate a new array to accomodate the old unevicted block as well as the new one
-        char* temp_ptr = new char[value.get_size() + m_unevictedTuplesLength]; 
-        
-        // copy into new array and delete old
-        memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
-        delete [] m_unevictedTuples; 
-        m_unevictedTuples = temp_ptr; 
-    }
-    
-    // copy newly un-evicted block into unevicted block array
-    memcpy(m_unevictedTuples + m_unevictedTuplesLength, value.get_data(), value.get_size()); 
-    m_unevictedTuplesLength += value.get_size(); 
-    
-    // we asked BDB to allocate memory for data dynamically, so we must delete
-    delete [] (char*)value.get_data(); 
-        
-    return true; 
-}
-    
-bool PersistentTable::mergeUnevictedTuples() {
-    // TODO: Copy evicted tuple blocks back to the data table
-    
-    return true; 
-}
-    
-    
+
 TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id) {
     // create a new evicted table tuple based on the schema for the source tuple
     TupleSchema *schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
@@ -262,7 +206,7 @@ TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16
     //assert((column_indices.size()+1) == tuple->sizeInValues()); 
     
     int column_index; 
-    for(int i = 0; i < source_tuple.sizeInValues(); i++) {
+    for (int i = 0; i < source_tuple.sizeInValues(); i++) {
         column_index = column_indices[i]; 
         evicted_tuple->setNValue(i, source_tuple.getNValue(column_index)); 
     }
@@ -272,6 +216,34 @@ TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16
     
     return evicted_tuple; 
 }
+    
+bool PersistentTable::readEvictedBlock(uint16_t block_id) {
+    AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB(); 
+    AntiCacheBlock value = anti_cache_db->readBlock(block_id);
+
+    if (m_unevictedTuplesLength > 0) {
+        // allocate a new array to accomodate the old unevicted block as well as the new one
+        char* temp_ptr = new char[value.getSize() + m_unevictedTuplesLength]; 
+        
+        // copy into new array and delete old
+        memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
+        delete [] m_unevictedTuples; 
+        m_unevictedTuples = temp_ptr; 
+    }
+    
+    // copy newly un-evicted block into unevicted block array
+    memcpy(m_unevictedTuples + m_unevictedTuplesLength, value.getData(), value.getSize()); 
+    m_unevictedTuplesLength += value.getSize(); 
+    
+    return true; 
+}
+    
+bool PersistentTable::mergeUnevictedTuples() {
+    // TODO: Copy evicted tuple blocks back to the data table
+    
+    return true; 
+}
+
 #endif
 
 
