@@ -50,6 +50,13 @@ public final class HStoreConf {
             experimental=false
         )
         public String temp_dir = "obj";
+        
+        @ConfigProperty(
+            description="Default log directory for H-Store.",
+            defaultString="${global.temp_dir}/logs",
+            experimental=false
+        )
+        public String log_dir; // HStoreConf.this.global.temp_dir + "/logs";
 
         @ConfigProperty(
             description="Options used when logging into client/server hosts. " + 
@@ -100,10 +107,10 @@ public final class HStoreConf {
     
         @ConfigProperty(
             description="HStoreSite log directory on the host that the BenchmarkController is invoked from.",
-            defaultString="${global.temp_dir}/logs/sites",
+            defaultString="${global.log_dir}/sites",
             experimental=false
         )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
+        public String log_dir = HStoreConf.this.global.log_dir + "/sites";
         
         @ConfigProperty(
             description="Whether to back-up log files before the benchmark is exceuted",
@@ -977,10 +984,10 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Benchmark client log directory on the host that the BenchmarkController " +
                         "is invoked from.",
-            defaultString="${global.temp_dir}/logs/clients",
+            defaultString="${global.log_dir}/clients",
             experimental=false
         )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
+        public String log_dir = HStoreConf.this.global.log_dir + "/clients";
         
         @ConfigProperty(
             description="Whether to back-up log files before the benchmark is exceuted",
