@@ -26,22 +26,28 @@
 #ifndef EVICTEDTUPLEACCESSEXCEPTION_H_
 #define EVICTEDTUPLEACCESSEXCEPTION_H_
 
+#include <stdint.h>
+#include <string>
 #include "common/SerializableEEException.h"
 
 namespace voltdb {
 class ReferenceSerializeOutput;
 
 class EvictedTupleAccessException : public SerializableEEException {
-public:
+    public:
 
-    EvictedTupleAccessException(std::string message);
-    virtual ~EvictedTupleAccessException() {}
-protected:
-    void p_serialize(ReferenceSerializeOutput *output);
-private:
-    const int m_numBlockIds;
-    const short m_tableIds[];
-    const short m_blockIds[];
+        EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]);
+        virtual ~EvictedTupleAccessException() {}
+        
+        static std::string ERROR_MSG;
+        
+    protected:
+        void p_serialize(ReferenceSerializeOutput *output);
+        
+    private:
+        const int m_tableId;
+        const int m_numBlockIds;
+        const uint16_t *m_blockIds;
 };
 }
 
