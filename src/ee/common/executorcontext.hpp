@@ -40,11 +40,13 @@ class ExecutorContext {
   public:
     ~ExecutorContext() {
 
-        db_env->close(0); 
-        delete db_env; 
+        if (m_antiCacheEnabled) {
+            db_env->close(0);
+            delete db_env;
 
-        anti_cache_db->close(0); 
-        delete anti_cache_db;         
+            anti_cache_db->close(0);
+            delete anti_cache_db;
+        }
     }
 
     ExecutorContext(CatalogId siteId,
@@ -66,43 +68,6 @@ class ExecutorContext {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
         current_block_id = 0; 
-    }
-    
-    void initializeAntiCacheDB()
-    {
-        try 
-        {
-            // allocate and initialize Berkeley DB database env
-            db_env = new DbEnv(0); 
-            db_env->open("", DB_CREATE | DB_INIT_MPOOL, 0); 
-            
-            // allocate and initialize new Berkeley DB instance
-            anti_cache_db = new Db(db_env, 0); 
-            anti_cache_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
-            
-        }
-        catch(DbException &e)
-        {
-            // TODO: exit program
-        }
-        
-    }
-    
-    Db* getAntiCacheDB()
-    {
-        return anti_cache_db; 
-    }
-    
-    uint16_t generateNextBlockID()
-    {
-        
-        // TODO: merge table_id and block_id
-        return ++current_block_id; 
-    }
-
-    void enableAntiCache(std::string &dbDir) {
-        m_antiCacheEnabled = true;
-        m_antiCacheDir = dbDir;
     }
     
     // not always known at initial construction
@@ -169,6 +134,47 @@ class ExecutorContext {
     /** Time of the last tick() invocation. */
     int64_t lastTickTime() {
         return m_lastTickTime;
+    }
+        
+    // ------------------------------------------------------------------
+    // ANTI-CACHE
+    // ------------------------------------------------------------------ 
+    
+    /**
+     * Return the handle to disk-based storage object that we
+     * can use to read and write tuples to
+     */
+    Db* getAntiCacheDB() {
+        return anti_cache_db; 
+    }
+    
+    uint16_t generateNextBlockID() {
+        
+        // TODO: merge table_id and block_id
+        return ++current_block_id; 
+    }
+
+    /**
+     * Enable the anti-caching feature in the EE.
+     * The input parameter is the directory where our disk-based storage
+     * will write out evicted blocks of tuples for this partition
+     */
+    void enableAntiCache(std::string &dbDir) {
+        m_antiCacheEnabled = true;
+        m_antiCacheDir = dbDir;
+        
+        try {
+            // allocate and initialize Berkeley DB database env
+            db_env = new DbEnv(0); 
+            db_env->open(m_antiCacheDir, DB_CREATE | DB_INIT_MPOOL, 0); 
+            
+            // allocate and initialize new Berkeley DB instance
+            anti_cache_db = new Db(db_env, 0); 
+            anti_cache_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
+            
+        } catch(DbException &e) {
+            // TODO: exit program
+        }
     }
 
   private:
