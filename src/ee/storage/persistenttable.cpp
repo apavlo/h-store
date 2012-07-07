@@ -74,7 +74,9 @@
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/CopyOnWriteContext.h"
 
+#ifdef ANTICACHE
 #include <db_cxx.h>
+#endif
 
 #include <map>
 
@@ -94,12 +96,14 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
 {
+
+#ifdef ANTICACHE
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0; 
     m_unevictedTuplesLength = 0; 
+#endif
     
-    if (exportEnabled)
-    {
+    if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,
                                            m_executorContext->m_lastTickTime);
@@ -140,8 +144,8 @@ PersistentTable::~PersistentTable() {
 // ANTI-CACHE
 // ------------------------------------------------------------------ 
 
-bool PersistentTable::evictBlockToDisk(int block_size)
-{        
+#ifdef ANTICACHE
+bool PersistentTable::evictBlockToDisk(int block_size) {        
     TableTuple tuple; 
     TableTuple* evicted_table_tuple; 
     
@@ -163,8 +167,7 @@ bool PersistentTable::evictBlockToDisk(int block_size)
     serialized_data_length += tuple_length; 
 
     num_tuples_evicted = 1; 
-    while(table_itr.hasNext() && num_tuples_evicted <= block_size)
-    {
+    while(table_itr.hasNext() && num_tuples_evicted <= block_size) {
         table_itr.next(tuple); 
         
         assert(!tuple.isEvicted());
@@ -204,8 +207,7 @@ bool PersistentTable::evictBlockToDisk(int block_size)
     return true;
 }
     
-bool PersistentTable::readEvictedBlock(uint16_t block_id)
-{
+bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     Db* anti_cache_db = m_executorContext->getAntiCacheDB(); 
     
     Dbt key; 
@@ -217,14 +219,12 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id)
     value.set_flags(DB_DBT_MALLOC);
     
     int ret_value = anti_cache_db->get(NULL, &key, &value, 0);
-    if(ret_value != 0)
-    {
+    if(ret_value != 0) {
         // TODO: say block id not found and exit
     }
     assert(value.get_data() != NULL); 
         
-    if(m_unevictedTuplesLength > 0)
-    {
+    if(m_unevictedTuplesLength > 0) {
         // allocate a new array to accomodate the old unevicted block as well as the new one
         char* temp_ptr = new char[value.get_size() + m_unevictedTuplesLength]; 
         
@@ -244,16 +244,14 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id)
     return true; 
 }
     
-bool PersistentTable::mergeUnevictedTuples()
-{
+bool PersistentTable::mergeUnevictedTuples() {
     // TODO: Copy evicted tuple blocks back to the data table
     
     return true; 
 }
     
     
-TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id)
-{
+TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id) {
     // create a new evicted table tuple based on the schema for the source tuple
     TupleSchema *schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
     TableTuple *evicted_tuple = new TableTuple(schema); 
@@ -264,8 +262,7 @@ TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16
     //assert((column_indices.size()+1) == tuple->sizeInValues()); 
     
     int column_index; 
-    for(int i = 0; i < source_tuple.sizeInValues(); i++)
-    {
+    for(int i = 0; i < source_tuple.sizeInValues(); i++) {
         column_index = column_indices[i]; 
         evicted_tuple->setNValue(i, source_tuple.getNValue(column_index)); 
     }
@@ -275,6 +272,8 @@ TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16
     
     return evicted_tuple; 
 }
+#endif
+
 
 // ------------------------------------------------------------------
 // OPERATIONS

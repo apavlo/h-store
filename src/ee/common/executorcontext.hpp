@@ -21,7 +21,9 @@
 #include "Topend.h"
 #include "common/UndoQuantum.h"
 
+#ifdef ANTICACHE
 #include <db_cxx.h>
+#endif
 
 namespace voltdb {
 
@@ -40,13 +42,15 @@ class ExecutorContext {
   public:
     ~ExecutorContext() {
 
+#ifdef ANTICACHE
         if (m_antiCacheEnabled) {
-            db_env->close(0);
-            delete db_env;
+            anticache_dbEnv->close(0);
+            delete anticache_dbEnv;
 
-            anti_cache_db->close(0);
-            delete anti_cache_db;
+            anticache_db->close(0);
+            delete anticache_db;
         }
+#endif
     }
 
     ExecutorContext(CatalogId siteId,
@@ -62,12 +66,15 @@ class ExecutorContext {
         m_siteId(siteId), m_partitionId(partitionId),
         m_hostname(hostname), m_hostId(hostId),
         m_exportEnabled(exportEnabled),
-        m_antiCacheEnabled(false),
         m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
-        current_block_id = 0; 
+        
+#ifdef ANTICACHE
+        m_antiCacheEnabled = false;
+        anticache_nextBlockId = 0; 
+#endif
     }
     
     // not always known at initial construction
@@ -140,18 +147,20 @@ class ExecutorContext {
     // ANTI-CACHE
     // ------------------------------------------------------------------ 
     
+#ifdef ANTICACHE
+    
     /**
      * Return the handle to disk-based storage object that we
      * can use to read and write tuples to
      */
     Db* getAntiCacheDB() {
-        return anti_cache_db; 
+        return anticache_db; 
     }
     
     uint16_t generateNextBlockID() {
         
         // TODO: merge table_id and block_id
-        return ++current_block_id; 
+        return ++anticache_nextBlockId; 
     }
 
     /**
@@ -165,17 +174,19 @@ class ExecutorContext {
         
         try {
             // allocate and initialize Berkeley DB database env
-            db_env = new DbEnv(0); 
-            db_env->open(m_antiCacheDir, DB_CREATE | DB_INIT_MPOOL, 0); 
+            anticache_dbEnv = new DbEnv(0); 
+            anticache_dbEnv->open(m_antiCacheDir, DB_CREATE | DB_INIT_MPOOL, 0); 
             
             // allocate and initialize new Berkeley DB instance
-            anti_cache_db = new Db(db_env, 0); 
-            anti_cache_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
+            anticache_db = new Db(anticache_dbEnv, 0); 
+            anticache_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
             
         } catch(DbException &e) {
             // TODO: exit program
         }
     }
+#endif
+    
 
   private:
     Topend *m_topEnd;
@@ -183,9 +194,11 @@ class ExecutorContext {
     int64_t m_txnId;
     
     // ANTI-CACHE VARIABLES
-    DbEnv* db_env;
-    Db* anti_cache_db; 
-    uint16_t current_block_id; 
+#ifdef ANTICACHE
+    DbEnv* anticache_dbEnv;
+    Db* anticache_db; 
+    uint16_t anticache_nextBlockId; 
+#endif
 
   public:
     int64_t m_lastCommittedTxnId;
@@ -195,8 +208,11 @@ class ExecutorContext {
     std::string m_hostname;
     CatalogId m_hostId;
     bool m_exportEnabled;
+    
+#ifdef ANTICACHE
     bool m_antiCacheEnabled;
     std::string m_antiCacheDir;
+#endif
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;

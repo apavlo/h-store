@@ -269,8 +269,8 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         
         
         // create evicted table if anti-caching is enabled
-        if(executorContext->m_antiCacheEnabled)
-        {
+#ifdef ANTICACHE
+        if(executorContext->m_antiCacheEnabled) {
             TableIndex* pkey = m_table->primaryKeyIndex(); 
             assert(TableIndex != NULL); 
             
@@ -286,6 +286,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                             indexes, 
                                                             partitionColumnIndex);
         }
+#endif
     }
     
 

@@ -245,11 +245,13 @@ class PersistentTable : public Table {
     
     // ------------------------------------------------------------------
     // ANTI-CACHING OPERATIONS
-    // ------------------------------------------------------------------    
+    // ------------------------------------------------------------------
+#ifdef ANTICACHE
     bool evictBlockToDisk(int block_size);
     TableTuple* createEvictedTuple(TableTuple &source_tuple, uint16_t block_id);
     bool readEvictedBlock(uint16_t block_id);
-    bool mergeUnevictedTuples(); 
+    bool mergeUnevictedTuples();
+#endif
 
 protected:
     // ------------------------------------------------------------------
@@ -302,10 +304,12 @@ protected:
     int64_t m_tsSeqNo;
     
     // ANTI-CACHE VARIABLES
+#ifdef ANTICACHE
     voltdb::Table *m_evicted_table; 
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     int m_unevictedTuplesLength; 
+#endif
     
     // partition key
     int m_partitionColumn;
