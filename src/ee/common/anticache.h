@@ -32,13 +32,16 @@
 namespace voltdb {
     
 class ExecutorContext;
+class AntiCacheDB;
 
 /**
  * Wrapper around an evicted block that has
  * been read back in from the AntiCacheDB
  */
 class AntiCacheBlock {
-    public 
+    friend class AntiCacheDB;
+    
+    public:
         ~AntiCacheBlock() {
             // we asked BDB to allocate memory for data dynamically, so we must delete
             delete [] (char*)m_value.get_data(); 
@@ -51,14 +54,14 @@ class AntiCacheBlock {
             return (m_value.get_size());
         }
         inline char* getData() const {
-            return (m_value.get_data());
+            return (static_cast<char*>(m_value.get_data()));
         }
     
-    private 
+    private:
         AntiCacheBlock(uint16_t block_id, Dbt value);
         
         uint16_t m_blockId;
-        Dbt m_value
+        Dbt m_value;
 }; // CLASS
 
 /**
@@ -67,7 +70,7 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-        AntiCacheDB(ExecutorContext *ctx); 
+        AntiCacheDB(ExecutorContext *ctx, std::string db_dir); 
         ~AntiCacheDB();
 
         /**
@@ -89,7 +92,7 @@ class AntiCacheDB {
         }
         
     private:
-        ExecutorContext *ctx;
+        ExecutorContext *m_executorContext;
         std::string m_dbDir;
         DbEnv* m_dbEnv;
         Db* m_db; 

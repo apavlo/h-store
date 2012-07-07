@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "storage/anticache.h"
+#include "common/anticache.h"
 #include "common/FatalException.hpp"
 
 namespace voltdb {
@@ -36,7 +36,7 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
     try {
         // allocate and initialize Berkeley DB database env
         m_dbEnv = new DbEnv(0); 
-        m_dbEnv->open(m_dbDir, DB_CREATE | DB_INIT_MPOOL, 0); 
+        m_dbEnv->open(m_dbDir.c_str(), DB_CREATE | DB_INIT_MPOOL, 0); 
         
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
@@ -64,7 +64,7 @@ void AntiCacheDB::writeBlock(uint16_t block_id, char* serialized_data, int seria
     value.set_data(serialized_data);
     value.set_size(serialized_data_length); 
     
-    anti_cache_db->put(NULL, &key, &value, 0);
+    m_db->put(NULL, &key, &value, 0);
 }
 
 AntiCacheBlock AntiCacheDB::readBlock(uint16_t block_id) {
@@ -75,7 +75,7 @@ AntiCacheBlock AntiCacheDB::readBlock(uint16_t block_id) {
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    int ret_value = anti_cache_db->get(NULL, &key, &value, 0);
+    int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {
         throwFatalException("Invalid anti-cache blockId '%d'", block_id);
     }
