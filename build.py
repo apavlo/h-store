@@ -125,8 +125,8 @@ CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
 # Third-Party Static Libraries
 CTX.THIRD_PARTY_STATIC_LIBS = [
-    #"berkeleydb/libdb.a",     # BerkeleyDB Base Library
-    #"berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+    "berkeleydb/libdb.a",     # BerkeleyDB Base Library
+    "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
 ]
 
 # where to find the tests
@@ -197,6 +197,7 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
+ anticache.cpp
 """
 
 CTX.INPUT['execution'] = """
