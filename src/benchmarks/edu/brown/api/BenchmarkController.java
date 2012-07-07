@@ -364,8 +364,6 @@ public class BenchmarkController {
             m_config.hosts = new String[] { hstore_conf.global.defaulthost };
         }
         
-        System.err.println("global.log_dir: " + hstore_conf.global.log_dir);
-        
         if (m_config.deferrable != null) {
             for (String entry : m_config.deferrable) {
                 String parts[] = entry.split("\\.");
