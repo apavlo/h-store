@@ -709,6 +709,8 @@ BERKELEYDB LIBRARY
           
         <arg value="--prefix=${build.berkeleydb.dir}" />
         <arg value="--enable-cxx" />
+        <arg value="--enable-static" />
+        <arg value="--enable-shared" />
         
         <!-- These are features that we don't need -->
         <arg value="--disable-test" />

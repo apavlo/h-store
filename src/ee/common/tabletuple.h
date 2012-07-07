@@ -72,6 +72,7 @@ class TableTuple {
     friend class TableFactory;
     friend class Table;
     friend class TempTable;
+    friend class EvictedTable;
     friend class PersistentTable;
     friend class PersistentTableUndoDeleteAction;
     friend class PersistentTableUndoUpdateAction;
