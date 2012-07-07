@@ -73,24 +73,26 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
             if (debug.get())
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
             
-            // Client gets the final result, and  txn  is about to finish
+            // Client gets the final result, and txn is about to finish
             
             // STEP 1
             // Send the final result from all the partitions for this MR job
             // back to the client.
             ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
-                                                                  ts.getClientHandle(), 
-                                                                  ts.getBasePartition(), 
-                                                                  Status.OK, 
-                                                                  this.finalResults, 
-                                                                  ""); 
+                                                                  ts.getClientHandle(),
+                                                                  ts.getBasePartition(),
+                                                                  Status.OK,
+                                                                  this.finalResults,
+                                                                  "");
            hstore_site.sendClientResponse(ts, cresponse);
 
-           // STEP 2
-           // Initialize the FinishCallback and tell every partition in the cluster
-           // to clean up this transaction because we're done with it!
-           this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
-           hstore_site.getCoordinator().transactionFinish(ts, Status.OK, this.finish_callback);
+           if (hstore_site.getHStoreConf().site.mr_map_blocking) {
+               // STEP 2
+               // Initialize the FinishCallback and tell every partition in the cluster
+               // to clean up this transaction because we're done with it!
+               this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
+               hstore_site.getCoordinator().transactionFinish(ts, Status.OK, this.finish_callback);
+           }
             
         } else {
             assert(this.finish_callback != null);

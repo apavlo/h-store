@@ -339,7 +339,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
      */
-    public final boolean isPredictSinglePartition() {
+    public boolean isPredictSinglePartition() {
         return (this.predict_singlePartition);
     }
     

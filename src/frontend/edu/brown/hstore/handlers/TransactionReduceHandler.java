@@ -89,7 +89,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
          * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
          * This is to avoid the double invoke for remote task. 
          * */
-        if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
+        if(hstore_site.getHStoreConf().site.mr_reduce_blocking) {
             for (int partition : hstore_site.getLocalPartitionIds()) {
                 if (partition != mr_ts.getBasePartition()) { 
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
@@ -98,7 +98,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
             } // FOR
         } else {
             // non-blocking way of execution for Reduce
-            mr_ts.setBasePartition_Runed(true);
+            mr_ts.setBasePartition_reduce_runed(true);
             hstore_site.getMapReduceHelper().queue(mr_ts);
         }
         

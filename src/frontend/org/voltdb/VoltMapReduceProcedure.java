@@ -126,7 +126,9 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // Check whether the HStoreConf flag for locking the entire cluster
             // is true. If it is, then we have to tell the queue manager that we're done.
             // MapReduceTransaction should finish forever...
-            hstore_site.getTransactionQueueManager().finished(txn_id, Status.OK, this.partitionId);
+            if (this.hstore_conf.site.mr_map_blocking) {
+                hstore_site.getTransactionQueueManager().finished(txn_id, Status.OK, this.partitionId);
+            }
 
             if (debug.get())
                 LOG.debug(String.format("MAP: About to process %d records for %s on partition %d",

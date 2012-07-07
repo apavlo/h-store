@@ -69,10 +69,12 @@
 <arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
 <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
 <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
+<arg value="site.queue_incoming_increase_max=${site.queue_incoming_increase_max}" />
 <arg value="site.queue_incoming_throttle=${site.queue_incoming_throttle}" />
 <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
 <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
+<arg value="site.queue_dtxn_increase_max=${site.queue_dtxn_increase_max}" />
 <arg value="site.queue_dtxn_throttle=${site.queue_dtxn_throttle}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
 <arg value="site.markov_path_caching=${site.markov_path_caching}" />

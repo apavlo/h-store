@@ -57,14 +57,25 @@ public class MapReduceTransaction extends LocalTransaction {
     /*
      * This is for non-blocking reduce executing in MapReduceHelperThread
      * */
-    public boolean basePartition_Runed = false;
     
-    public boolean isBasePartition_Runed() {
-        return basePartition_Runed;
+
+    public boolean basePartition_reduce_runed = false;
+    public boolean basePartition_map_runed = false;
+    
+    public boolean isBasePartition_map_runed() {
+        return basePartition_map_runed;
     }
 
-    public void setBasePartition_Runed(boolean runed) {
-        basePartition_Runed = runed;
+    public void setBasePartition_map_runed(boolean map_runed) {
+        this.basePartition_map_runed = map_runed;
+    }
+
+    public boolean isBasePartition_reduce_runed() {
+        return basePartition_reduce_runed;
+    }
+
+    public void setBasePartition_reduce_runed(boolean reduce_runed) {
+        basePartition_reduce_runed = reduce_runed;
     }
 
     /**
@@ -390,6 +401,11 @@ public class MapReduceTransaction extends LocalTransaction {
         return (StringUtil.formatMaps(this.getDebugMap()));
     }
     
+    @Override
+    public boolean isPredictSinglePartition() {
+        if (debug.get()) LOG.debug("Trying to do asynchronous map execution way, txs:" + this);
+        return !this.hstore_site.getHStoreConf().site.mr_map_blocking;
+    }
 
     @Override
     public void initRound(int partition, long undoToken) {
