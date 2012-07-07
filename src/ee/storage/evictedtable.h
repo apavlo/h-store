@@ -43,74 +43,67 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <iostream>
-#include "tableindex.h"
+#ifndef HSTOREEVICTEDTABLE_H
+#define HSTOREEVICTEDTABLE_H
 
-using namespace voltdb;
+#include "storage/persistenttable.h"
+#include "common/executorcontext.hpp"
 
-TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme)
-{
-    name_ = scheme.name;
-    column_indices_vector_ = scheme.columnIndices;
-    column_types_vector_ = scheme.columnTypes;
-    colCount_ = (int)column_indices_vector_.size();
-    is_unique_index_ = scheme.unique;
-    m_tupleSchema = scheme.tupleSchema;
-    assert(column_types_vector_.size() == column_indices_vector_.size());
-    column_indices_ = new int[colCount_];
-    column_types_ = new ValueType[colCount_];
-    for (int i = 0; i < colCount_; ++i)
-    {
-        column_indices_[i] = column_indices_vector_[i];
-        column_types_[i] = column_types_vector_[i];
-    }
-    m_keySchema = scheme.keySchema;
-    // initialize all the counters to zero
-    m_lookups = m_inserts = m_deletes = m_updates = 0;
-}
-TableIndex::~TableIndex()
-{
-    delete[] column_indices_;
-    delete[] column_types_;
-    voltdb::TupleSchema::freeTupleSchema(m_keySchema);
-}
 
-std::string TableIndex::debug() const
-{
-    std::ostringstream buffer;
-    buffer << this->getTypeName() << "(" << this->getName() << ")";
-    buffer << (isUniqueIndex() ? " UNIQUE " : " NON-UNIQUE ");
-    //
-    // Columns
-    //
-    buffer << " -> Columns[";
-    std::string add = "";
-    for (int ctr = 0; ctr < this->colCount_; ctr++) {
-        buffer << add << ctr << "th entry=" << this->column_indices_[ctr]
-               << "th (" << voltdb::valueToString(column_types_[ctr])
-               << ") column in parent table";
-        add = ", ";
-    }
-    buffer << "] --- size: " << this->getSize();
+namespace voltdb {
+    
+    /**
+     * Represents a non-temporary table which permanently resides in
+     * storage and also registered to Catalog (see other documents for
+     * details of Catalog). PersistentTable has several additional
+     * features to Table.  It has indexes, constraints to check NULL and
+     * uniqueness as well as undo logs to revert changes.
+     *
+     * PersistentTable can have one or more Indexes, one of which must be
+     * Primary Key Index. Primary Key Index is same as other Indexes except
+     * that it's used for deletion and updates. Our Execution Engine collects
+     * Primary Key values of deleted/updated tuples and uses it for specifying
+     * tuples, assuming every PersistentTable has a Primary Key index.
+     *
+     * Currently, constraints are not-null constraint and unique
+     * constraint.  Not-null constraint is just a flag of TableColumn and
+     * checked against insertion and update. Unique constraint is also
+     * just a flag of TableIndex and checked against insertion and
+     * update. There's no rule constraint or foreign key constraint so far
+     * because our focus is performance and simplicity.
+     *
+     * To revert changes after execution, PersistentTable holds UndoLog.
+     * PersistentTable does eager update which immediately changes the
+     * value in data and adds an entry to UndoLog. We chose eager update
+     * policy because we expect reverting rarely occurs.
+     */
+    class EvictedTable : public PersistentTable {
+        
+    public: 
+        
+        EvictedTable(); 
+                        
+        bool insertTuple(TableTuple &source);
 
-    std::string ret(buffer.str());
-    return (ret);
+
+        
+    protected:
+        
+        EvictedTable(ExecutorContext *ctx);
+    
+    };
 }
 
-void TableIndex::printReport()
-{
-    std::cout << name_ << ",";
-    std::cout << getTypeName() << ",";
-    std::cout << m_lookups << ",";
-    std::cout << m_inserts << ",";
-    std::cout << m_deletes << ",";
-    std::cout << m_updates << std::endl;
-}
+#endif
 
-bool TableIndex::equals(const TableIndex *other) const
-{
-    //TODO Do something useful here!
-    return true;
-}
+
+
+
+
+
+
+
+
+
 
 

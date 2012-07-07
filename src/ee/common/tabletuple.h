@@ -64,6 +64,7 @@ namespace voltdb {
 
 #define DELETED_MASK 1
 #define DIRTY_MASK 2
+#define EVICTED_MASK 4
 
 class TableColumn;
 
@@ -202,6 +203,11 @@ public:
     inline bool isDirty() const {
         return (*(reinterpret_cast<const char*> (m_data)) & DIRTY_MASK) == 0 ? false : true;
     }
+    
+    inline bool isEvicted() const
+    {
+        return (*(reinterpret_cast<const char*> (m_data)) & EVICTED_MASK) == 0 ? false : true;
+    }
 
     /** Is the column value null? */
     inline bool isNull(const int idx) const {
@@ -281,6 +287,18 @@ protected:
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
     }
+    
+    inline void setEvictedTrue() 
+    {
+        // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(EVICTED_MASK);
+    }
+    
+    inline void setEvictedFalse() 
+    {
+        // treat the first "value" as a boolean flag
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
+    }
 
     /** The types of the columns in the tuple */
     const TupleSchema *m_schema;
@@ -290,6 +308,7 @@ protected:
      * representing whether the tuple is active or deleted
      */
     char *m_data;
+    
 private:
     inline char* getDataPtr(const int idx) {
         assert(m_schema);

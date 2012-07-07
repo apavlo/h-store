@@ -24,6 +24,11 @@
 #include "catalog/column.h"
 #include "catalog/columnref.h"
 #include "catalog/constraint.h"
+
+#include "catalog/catalogmap.h"
+#include "catalog/catalogtype.h"
+#include "catalog/constraintref.h"
+
 #include "catalog/materializedviewinfo.h"
 #include "common/CatalogUtil.h"
 #include "common/types.h"
@@ -31,6 +36,7 @@
 #include "storage/constraintutil.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/persistenttable.h"
+#include "storage/evictedtable.h"
 #include "storage/StreamBlock.h"
 #include "storage/table.h"
 #include "storage/tablefactory.h"
@@ -60,7 +66,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
 {
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
-
+    
     // Columns:
     // Column is stored as map<String, Column*> in Catalog. We have to
     // sort it by Column index to preserve column order.
@@ -68,15 +74,20 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     vector<ValueType> columnTypes(numColumns);
     vector<int32_t> columnLengths(numColumns);
     vector<bool> columnAllowNull(numColumns);
-    map<string, catalog::Column*>::const_iterator col_iterator;
     string *columnNames = new string[numColumns];
+ 
+    
+    map<string, catalog::Column*>::const_iterator col_iterator;
+    
     for (col_iterator = catalogTable.columns().begin();
-         col_iterator != catalogTable.columns().end(); col_iterator++) {
+         col_iterator != catalogTable.columns().end(); col_iterator++) 
+    {
         const catalog::Column *catalog_column = col_iterator->second;
         const int columnIndex = catalog_column->index();
         const ValueType type = static_cast<ValueType>(catalog_column->type());
         columnTypes[columnIndex] = type;
         const int32_t size = static_cast<int32_t>(catalog_column->size());
+        
         //Strings length is provided, other lengths are derived from type
         const int32_t length = type == VALUE_TYPE_VARCHAR ? size
             : static_cast<int32_t>(NValue::getTupleStorageSize(type));
@@ -239,6 +250,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         partitionColumnIndex = partitionColumn->index();
     }
 
+    // no primary key
     if (pkey_index_id.size() == 0) {
         int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
@@ -246,6 +258,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  indexes, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
+        
     } else {
         int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
@@ -253,7 +266,30 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  pkey_index, indexes, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
+        
+        
+        // create evicted table if anti-caching is enabled
+        if(executorContext->m_antiCacheEnabled)
+        {
+            TableIndex* pkey = m_table->primaryKeyIndex(); 
+            assert(TableIndex != NULL); 
+            
+            
+            TupleSchema *evicted_table_schema = TupleSchema::createEvictedTupleSchema(pkey->getKeySchema()); 
+            
+            m_evicted_table = TableFactory::getEvictedTable(databaseId, 
+                                                            executorContext,
+                                                            catalogTable.name(),
+                                                            evicted_table_schema, 
+                                                            columnNames,
+                                                            pkey_index, 
+                                                            indexes, 
+                                                            partitionColumnIndex);
+        }
     }
+    
+
+    
     delete[] columnNames;
 
     m_exportEnabled = isExportEnabledForTable(catalogDatabase, table_id);
