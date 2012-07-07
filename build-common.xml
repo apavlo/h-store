@@ -1,5 +1,6 @@
 <!-- GLOBAL -->
 <arg value="global.temp_dir=${global.temp_dir}" />
+<arg value="global.log_dir=${global.log_dir}" />
 <arg value="global.sshoptions=${global.sshoptions}" />
 <arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
