@@ -24,6 +24,7 @@
  */
 
 #include "common/anticache.h"
+#include "common/debuglog.h"
 #include "common/FatalException.hpp"
 
 using namespace std;
@@ -56,26 +57,39 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
         m_db = new Db(m_dbEnv, 0); 
         m_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
         
-    } catch(DbException &e) {
-        // TODO: exit program
+    } catch (DbException &e) {
+        VOLT_ERROR("Anti-Cache initialization error: %s", e.what());
+        throwFatalException("Failed to initialize anti-cache database in directory %s: %s",
+                            db_dir.c_str(), e.what());
     }
 }
 
 AntiCacheDB::~AntiCacheDB() {
-    m_dbEnv->close(0);
-    delete m_dbEnv;
-
-    m_db->close(0);
-    delete m_db;
+    // NOTE: You have to close the database first before closing the environment
+    try {
+        m_db->close(0);
+        delete m_db;
+    } catch (DbException &e) {
+        VOLT_ERROR("Anti-Cache database closing error: %s", e.what());
+        throwFatalException("Failed to close anti-cache database: %s", e.what());
+    }
+    
+    try {
+        m_dbEnv->close(0);
+        delete m_dbEnv;
+    } catch (DbException &e) {
+        VOLT_ERROR("Anti-Cache environment closing error: %s", e.what());
+        throwFatalException("Failed to close anti-cache database environment: %s", e.what());
+    }
 }
 
-void AntiCacheDB::writeBlock(uint16_t block_id, char* serialized_data, int serialized_data_length) {
+void AntiCacheDB::writeBlock(uint16_t block_id, const char* serialized_data, int serialized_data_length) {
     Dbt key; 
     key.set_data(&block_id);
     key.set_size(sizeof(uint16_t));
     
     Dbt value;
-    value.set_data(serialized_data);
+    value.set_data(const_cast<char*>(serialized_data));
     value.set_size(serialized_data_length); 
     
     m_db->put(NULL, &key, &value, 0);
