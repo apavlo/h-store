@@ -29,6 +29,8 @@
 #include <db_cxx.h>
 // #include "common/executorcontext.hpp"
 
+using namespace std;
+
 namespace voltdb {
     
 class ExecutorContext;
@@ -42,10 +44,7 @@ class AntiCacheBlock {
     friend class AntiCacheDB;
     
     public:
-        ~AntiCacheBlock() {
-            // we asked BDB to allocate memory for data dynamically, so we must delete
-            delete [] (char*)m_value.get_data(); 
-        }
+        ~AntiCacheBlock();
         
         inline uint16_t getBlockId() const {
             return (m_blockId);

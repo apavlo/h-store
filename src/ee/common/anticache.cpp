@@ -26,8 +26,22 @@
 #include "common/anticache.h"
 #include "common/FatalException.hpp"
 
+using namespace std;
+
 namespace voltdb {
 
+AntiCacheBlock::AntiCacheBlock(uint16_t block_id, Dbt value) :
+        m_blockId(block_id),
+        m_value(value) {
+    // They see me rollin'
+    // They hatin'
+}
+
+AntiCacheBlock::~AntiCacheBlock() {
+    // we asked BDB to allocate memory for data dynamically, so we must delete
+    delete [] (char*)m_value.get_data(); 
+}
+    
 AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
