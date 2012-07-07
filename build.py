@@ -85,7 +85,7 @@ CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
             -pthread
             -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
             -fno-omit-frame-pointer
-            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS"""
+            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS -DANTICACHE"""
 
 if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"

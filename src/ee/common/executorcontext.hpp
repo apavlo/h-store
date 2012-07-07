@@ -27,6 +27,10 @@
 
 namespace voltdb {
 
+#ifdef ANTICACHE
+class AntiCacheDB;
+#endif
+
 /*
  * EE site global data required by executors at runtime.
  *
@@ -159,8 +163,7 @@ class ExecutorContext {
     void enableAntiCache(std::string &dbDir) {
         assert(m_antiCacheEnabled == false);
         m_antiCacheEnabled = true;
-        m_antiCacheDB = new AntiCache(this, dbDir);
-        
+        m_antiCacheDB = new AntiCacheDB(this, dbDir);
     }
 #endif
 
