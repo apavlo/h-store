@@ -82,9 +82,6 @@
 <property name="build.protobuf.dir"          location="${build.dir}/protobuf" />
 <property name="build.protobuf.protoc.dir"   location="${build.protobuf.dir}/src/protoc" />
 
-<!-- TPC-E Generator -->
-<property name="src.tpce.dir"                location="third_party/cpp/tpceloader" />
-
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
@@ -912,7 +909,7 @@ TEST CASES
             <env key="VOLTDBIPC_PATH" value="${build.prod.dir}/voltdbipc" />
 
             <!-- Brown Benchmark Parameters -->
-            <env key="TPCE_LOADER_FILES" value="${src.tpce.dir}" />
+<!--             <env key="TPCE_LOADER_FILES" value="${src.tpce.dir}" /> -->
             <env key="AIRLINE_DATA_DIR" value="${src.test.dir}/edu/brown/benchmark/airline/data" />
 
             <!-- code coverage output settings, harmless if not in use -->
