@@ -38,13 +38,30 @@ public class TestHStoreConf extends BaseTestCase {
         // value to set to its value 
         String origParam = "global.defaulthost";
         Object origValue = hstore_conf.get(origParam);
-        System.err.println(origParam + " => " + origValue);
+//        System.err.println(origParam + " => " + origValue);
         assertNotNull(origValue);
         
         String newParam = "client.hosts";
         Object newValue = hstore_conf.get(newParam);
-        System.err.println(newParam + " => " + newValue);
+//        System.err.println(newParam + " => " + newValue);
         assertEquals(origValue, newValue);
+    }
+    
+    /**
+     * testPopulateDependenciesDefaultString
+     */
+    public void testPopulateDependenciesDefaultString() throws Exception {
+        // Check that we can successfully populate the value of a dependency
+        // into the defaultString value for another parameter
+        String origParam = "global.temp_dir";
+        String origValue = hstore_conf.get(origParam).toString();
+        System.err.println(origParam + " => " + origValue);
+        assertNotNull(origValue);
+        
+        String newParam = "global.log_dir";
+        String newValue = hstore_conf.get(newParam).toString();
+        System.err.println(newParam + " => " + newValue);
+        assertTrue(newValue, newValue.startsWith(origValue));
     }
     
     /**
