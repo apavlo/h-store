@@ -20,6 +20,11 @@ public abstract class HStoreConstants {
      */
     public static final String SITE_FIRST_TXN = "First non-sysproc transaction request recieved";
 
+    /**
+     * The first partition id to use when initializing a cluster
+     */
+    public static final int FIRST_PARTITION_ID = 0;
+
     // ----------------------------------------------------------------------------
     // NETWORK STUFF
     // ----------------------------------------------------------------------------
@@ -80,5 +85,6 @@ public abstract class HStoreConstants {
      * The default name of the Statement given for single-statement (i.e., non-Java) Procedures
      */
     public static final String ANON_STMT_NAME = "sql";
+
 
 }
