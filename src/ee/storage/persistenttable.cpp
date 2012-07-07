@@ -153,7 +153,7 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
     AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB();
     
     // get a unique block id from the executorContext
-    uint16_t block_id = anti_cache_db->nextBlockID(); 
+    uint16_t block_id = anti_cache_db->nextBlockId(); 
     
     // read the first tuple in the table
     TableIterator table_itr(this); 

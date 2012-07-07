@@ -27,7 +27,7 @@
 #define HSTOREANTICACHE_H
 
 #include <db_cxx.h>
-#include "common/executorcontext.hpp"
+// #include "common/executorcontext.hpp"
 
 namespace voltdb {
     
@@ -35,8 +35,8 @@ class ExecutorContext;
 class AntiCacheDB;
 
 /**
- * Wrapper around an evicted block that has
- * been read back in from the AntiCacheDB
+ * Wrapper class for an evicted block that has been read back in 
+ * from the AntiCacheDB
  */
 class AntiCacheBlock {
     friend class AntiCacheDB;
