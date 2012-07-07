@@ -34,6 +34,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
+import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -148,6 +149,8 @@ public abstract class HStore {
                     t_estimator);
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
+        
+        TheHashinator.initialize(catalog_site.getCatalog());
         
         return (singleton);
     }
