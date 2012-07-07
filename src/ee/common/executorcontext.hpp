@@ -21,6 +21,8 @@
 #include "Topend.h"
 #include "common/UndoQuantum.h"
 
+#include <db_cxx.h>
+
 namespace voltdb {
 
 /*
@@ -37,7 +39,12 @@ namespace voltdb {
 class ExecutorContext {
   public:
     ~ExecutorContext() {
-        // currently does not own any of its pointers
+
+        db_env->close(0); 
+        delete db_env; 
+
+        anti_cache_db->close(0); 
+        delete anti_cache_db;         
     }
 
     ExecutorContext(CatalogId siteId,
@@ -58,6 +65,39 @@ class ExecutorContext {
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
+        current_block_id = 0; 
+    }
+    
+    void initializeAntiCacheDB()
+    {
+        try 
+        {
+            // allocate and initialize Berkeley DB database env
+            db_env = new DbEnv(0); 
+            db_env->open("", DB_CREATE | DB_INIT_MPOOL, 0); 
+            
+            // allocate and initialize new Berkeley DB instance
+            anti_cache_db = new Db(db_env, 0); 
+            anti_cache_db->open(NULL, "anticache.db", NULL, DB_HASH, DB_CREATE, 0); 
+            
+        }
+        catch(DbException &e)
+        {
+            // TODO: exit program
+        }
+        
+    }
+    
+    Db* getAntiCacheDB()
+    {
+        return anti_cache_db; 
+    }
+    
+    uint16_t generateNextBlockID()
+    {
+        
+        // TODO: merge table_id and block_id
+        return ++current_block_id; 
     }
 
     void enableAntiCache(std::string &dbDir) {
@@ -135,6 +175,11 @@ class ExecutorContext {
     Topend *m_topEnd;
     UndoQuantum *m_undoQuantum;
     int64_t m_txnId;
+    
+    // ANTI-CACHE VARIABLES
+    DbEnv* db_env;
+    Db* anti_cache_db; 
+    uint16_t current_block_id; 
 
   public:
     int64_t m_lastCommittedTxnId;

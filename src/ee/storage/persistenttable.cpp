@@ -59,6 +59,7 @@
 #include "common/FatalException.hpp"
 #include "common/types.h"
 #include "common/RecoveryProtoMessage.h"
+#include "common/ValueFactory.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 #include "storage/table.h"
@@ -72,6 +73,10 @@
 #include "storage/ConstraintFailureException.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/CopyOnWriteContext.h"
+
+#include <db_cxx.h>
+
+#include <map>
 
 namespace voltdb {
 
@@ -89,6 +94,10 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
 {
+    m_unevictedTuples = NULL; 
+    m_numUnevictedTuples = 0; 
+    m_unevictedTuplesLength = 0; 
+    
     if (exportEnabled)
     {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
@@ -125,6 +134,146 @@ PersistentTable::~PersistentTable() {
     }
 
     delete m_wrapper;
+}
+    
+// ------------------------------------------------------------------
+// ANTI-CACHE
+// ------------------------------------------------------------------ 
+
+bool PersistentTable::evictBlockToDisk(int block_size)
+{        
+    TableTuple tuple; 
+    TableTuple* evicted_table_tuple; 
+    
+    int num_tuples_evicted = 0;     
+    
+    // get a unique block id from the executorContext
+    uint16_t block_id = m_executorContext->generateNextBlockID(); 
+    
+    // read the first tuple in the table
+    TableIterator table_itr(this); 
+    table_itr.next(tuple); 
+    
+    int tuple_length = tuple.tupleLength(); 
+    char* serialized_data = new char[block_size * tuple_length]; 
+    int serialized_data_length = 0; 
+    
+    // copy the first tuple into the buffer
+    memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+    serialized_data_length += tuple_length; 
+
+    num_tuples_evicted = 1; 
+    while(table_itr.hasNext() && num_tuples_evicted <= block_size)
+    {
+        table_itr.next(tuple); 
+        
+        assert(!tuple.isEvicted());
+        tuple.setEvictedTrue(); 
+        
+        // update all the indexes for this tuple
+        setNullForAllIndexes(tuple); 
+        
+        // create evicted table tuple, remove original tuple from data table and insert evicted table tuple into evicted table
+        evicted_table_tuple = createEvictedTuple(tuple, block_id); 
+        deleteTuple(tuple, true); 
+        m_evicted_table->insertTuple(*evicted_table_tuple); 
+
+        // copy the tuple into the serialized buffer
+        memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+        serialized_data_length += tuple_length; 
+        
+        num_tuples_evicted++; 
+    }
+    
+    assert(num_tuples_evicted * tuple_length == serialized_data_length); 
+            
+    // get the Berkeley DB instance from the executorContext
+    Db* anti_cache_db = m_executorContext->getAntiCacheDB(); 
+    
+    Dbt key; 
+    Dbt value; 
+    
+    key.set_data(&block_id);
+    key.set_size(sizeof(uint16_t));
+        
+    value.set_data(serialized_data);
+    value.set_size(serialized_data_length); 
+    
+    anti_cache_db->put(NULL, &key, &value, 0); 
+    
+    return true;
+}
+    
+bool PersistentTable::readEvictedBlock(uint16_t block_id)
+{
+    Db* anti_cache_db = m_executorContext->getAntiCacheDB(); 
+    
+    Dbt key; 
+    Dbt value;
+    
+    key.set_data(&block_id);
+    key.set_size(sizeof(uint16_t));
+    
+    value.set_flags(DB_DBT_MALLOC);
+    
+    int ret_value = anti_cache_db->get(NULL, &key, &value, 0);
+    if(ret_value != 0)
+    {
+        // TODO: say block id not found and exit
+    }
+    assert(value.get_data() != NULL); 
+        
+    if(m_unevictedTuplesLength > 0)
+    {
+        // allocate a new array to accomodate the old unevicted block as well as the new one
+        char* temp_ptr = new char[value.get_size() + m_unevictedTuplesLength]; 
+        
+        // copy into new array and delete old
+        memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
+        delete [] m_unevictedTuples; 
+        m_unevictedTuples = temp_ptr; 
+    }
+    
+    // copy newly un-evicted block into unevicted block array
+    memcpy(m_unevictedTuples + m_unevictedTuplesLength, value.get_data(), value.get_size()); 
+    m_unevictedTuplesLength += value.get_size(); 
+    
+    // we asked BDB to allocate memory for data dynamically, so we must delete
+    delete [] (char*)value.get_data(); 
+        
+    return true; 
+}
+    
+bool PersistentTable::mergeUnevictedTuples()
+{
+    // TODO: Copy evicted tuple blocks back to the data table
+    
+    return true; 
+}
+    
+    
+TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id)
+{
+    // create a new evicted table tuple based on the schema for the source tuple
+    TupleSchema *schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
+    TableTuple *evicted_tuple = new TableTuple(schema); 
+    
+    // get a list of which indices in the source tuple are part of the primary key
+    const std::vector<int>& column_indices = m_pkeyIndex->getColumnIndices();
+    
+    //assert((column_indices.size()+1) == tuple->sizeInValues()); 
+    
+    int column_index; 
+    for(int i = 0; i < source_tuple.sizeInValues(); i++)
+    {
+        column_index = column_indices[i]; 
+        evicted_tuple->setNValue(i, source_tuple.getNValue(column_index)); 
+    }
+    
+    // set the block id for this new evicted tuple
+    evicted_tuple->setNValue(source_tuple.sizeInValues(), ValueFactory::getSmallIntValue(block_id)); 
+    
+    return evicted_tuple; 
 }
 
 // ------------------------------------------------------------------
@@ -547,6 +696,17 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
         }
     }
 }
+    
+void PersistentTable::setNullForAllIndexes(TableTuple &tuple)
+{
+    for(int i = m_indexCount - 1; i >= 0; --i)
+    {
+        if(!m_indexes[i]->setEntryToNull(&tuple))
+        {
+            throwFatalException("Failed to update tuple in index to NULL");
+        }
+    }
+}
 
 bool PersistentTable::tryInsertOnAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
@@ -683,7 +843,8 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
  * Implemented by persistent table and called by Table::loadTuplesFrom
  * to do add tuples to indexes
  */
-void PersistentTable::populateIndexes(int tupleCount) {
+void PersistentTable::populateIndexes(int tupleCount) 
+{
     // populate indexes. walk the contiguous memory in the inner loop.
     for (int i = m_indexCount - 1; i >= 0;--i) {
         TableIndex *index = m_indexes[i];
