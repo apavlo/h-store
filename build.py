@@ -269,6 +269,7 @@ CTX.INPUT['storage'] = """
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
+ evictedtable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
