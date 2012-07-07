@@ -33,8 +33,7 @@ using namespace voltdb;
 using stupidunit::ChTempDir;
 
 /**
- * This is just a simple test to prove that we can successfully
- * link in BerkeleyDB and include all of the headers that we need
+ * AntiCache Tests
  */
 class AntiCacheTest : public Test {
 public:
