@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -36,12 +36,12 @@ using namespace std;
 using namespace voltdb;
 
 const int COLUMN_COUNT = 5;
-// Annoyingly, there's no easy way to compute the exact ELT'd tuple
+// Annoyingly, there's no easy way to compute the exact Exported tuple
 // size without incestuously using code we're trying to test.  I've
-// pre-computed this magic size for an ELT'd tuple of 5 integer
+// pre-computed this magic size for an Exported tuple of 5 integer
 // columns, which includes:
-// 5 ELT header columns * sizeof(int64_t) = 40
-// 1 ELT header column * sizeof(int64_t) = 8
+// 5 Export header columns * sizeof(int64_t) = 40
+// 1 Export header column * sizeof(int64_t) = 8
 // 2 bytes for null mask (10 columns rounds to 16, /8 = 2) = 2
 // sizeof(int32_t) for row header = 4
 // 5 * sizeof(int64_t) for tuple data = 40
@@ -71,7 +71,7 @@ public:
                                          true);
 
         // allocate a new buffer and wrap it
-        m_wrapper = new TupleStreamWrapper(1, 1, 1, 1);
+        m_wrapper = new TupleStreamWrapper(1, 1, 1);
 
         // excercise a smaller buffer capacity
         m_wrapper->setDefaultCapacity(BUFFER_SIZE);
@@ -101,7 +101,7 @@ public:
     }
 
     virtual ~TupleStreamWrapperTest() {
-        m_wrapper->cleanupManagedBuffers(NULL);
+        m_wrapper->cleanupManagedBuffers();
         delete m_wrapper;
         delete m_tuple;
         if (m_schema)
@@ -172,7 +172,7 @@ protected:
 TEST_F(TupleStreamWrapperTest, DoOneTuple)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -183,7 +183,7 @@ TEST_F(TupleStreamWrapperTest, DoOneTuple)
     m_wrapper->periodicFlush(-1, 0, 1, 1);
 
     // we should only have one tuple in the buffer
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), MAGIC_TUPLE_SIZE);
@@ -196,7 +196,7 @@ TEST_F(TupleStreamWrapperTest, DoOneTuple)
 TEST_F(TupleStreamWrapperTest, BasicOps)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -215,21 +215,21 @@ TEST_F(TupleStreamWrapperTest, BasicOps)
     m_wrapper->periodicFlush(-1, 0, 19, 19);
 
     // get the first buffer flushed
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 9));
 
     // now get the second
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 10));
 
     // additional polls should return the current uso and no data
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->offset(), 0);
@@ -242,7 +242,7 @@ TEST_F(TupleStreamWrapperTest, BasicOps)
 TEST_F(TupleStreamWrapperTest, FarFutureFlush)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -261,21 +261,21 @@ TEST_F(TupleStreamWrapperTest, FarFutureFlush)
     m_wrapper->periodicFlush(-1, 0, 130, 131);
 
     // get the first buffer flushed
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 9));
 
     // now get the second
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 10));
 
     // additional polls should return the current uso and no data
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->offset(), 0);
@@ -288,7 +288,7 @@ TEST_F(TupleStreamWrapperTest, FarFutureFlush)
 TEST_F(TupleStreamWrapperTest, Fill) {
 
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -302,7 +302,7 @@ TEST_F(TupleStreamWrapperTest, Fill) {
     }
     // We shouldn't yet get a buffer because we haven't forced the
     // generation of a new one by exceeding the current one.
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -311,7 +311,7 @@ TEST_F(TupleStreamWrapperTest, Fill) {
     // now, drop in one more
     appendTuple(tuples_to_fill, tuples_to_fill + 1);
 
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
@@ -325,7 +325,7 @@ TEST_F(TupleStreamWrapperTest, Fill) {
 TEST_F(TupleStreamWrapperTest, FillSingleTxnAndAppend) {
 
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -339,7 +339,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndAppend) {
     }
     // We shouldn't yet get a buffer because we haven't forced the
     // generation of a new one by exceeding the current one.
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -350,7 +350,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndAppend) {
 
     // We shouldn't yet get a buffer because we haven't closed the current
     // transaction
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -359,7 +359,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndAppend) {
     // now, finally drop in a tuple that closes the first TXN
     appendTuple(1, 2);
 
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
@@ -373,7 +373,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndAppend) {
 TEST_F(TupleStreamWrapperTest, FillSingleTxnAndFlush) {
 
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -387,7 +387,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndFlush) {
     }
     // We shouldn't yet get a buffer because we haven't forced the
     // generation of a new one by exceeding the current one.
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -398,7 +398,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndFlush) {
 
     // We shouldn't yet get a buffer because we haven't closed the current
     // transaction
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -408,13 +408,13 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndFlush) {
     m_wrapper->periodicFlush(-1, 0, 1, 1);
 
     // should be able to get 2 buffers, one full and one with one tuple
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
 
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
     EXPECT_EQ(results->offset(), MAGIC_TUPLE_SIZE);
@@ -429,7 +429,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndFlush) {
 TEST_F(TupleStreamWrapperTest, FillSingleTxnAndCommitWithRollback) {
 
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -443,7 +443,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndCommitWithRollback) {
     }
     // We shouldn't yet get a buffer because we haven't forced the
     // generation of a new one by exceeding the current one.
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -457,7 +457,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndCommitWithRollback) {
     m_wrapper->rollbackTo(mark);
 
     // we'll get the old fake m_currBlock buffer first
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -465,7 +465,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndCommitWithRollback) {
 
     // so flush and make sure we got something sane
     m_wrapper->periodicFlush(-1, 0, 1, 2);
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * tuples_to_fill));
@@ -479,7 +479,7 @@ TEST_F(TupleStreamWrapperTest, FillSingleTxnAndCommitWithRollback) {
 TEST_F(TupleStreamWrapperTest, FillWithOneTxn) {
 
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -493,7 +493,7 @@ TEST_F(TupleStreamWrapperTest, FillWithOneTxn) {
     }
     // We shouldn't yet get a buffer even though we've filled a bunch because
     // the transaction is still open.
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -507,7 +507,7 @@ TEST_F(TupleStreamWrapperTest, FillWithOneTxn) {
 TEST_F(TupleStreamWrapperTest, RollbackFirstTuple)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -522,7 +522,7 @@ TEST_F(TupleStreamWrapperTest, RollbackFirstTuple)
     m_wrapper->periodicFlush(-1, 0, 1, 1);
 
     // we should only have one tuple in the buffer
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), MAGIC_TUPLE_SIZE);
@@ -537,7 +537,7 @@ TEST_F(TupleStreamWrapperTest, RollbackFirstTuple)
 TEST_F(TupleStreamWrapperTest, RollbackMiddleTuple)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -555,7 +555,7 @@ TEST_F(TupleStreamWrapperTest, RollbackMiddleTuple)
     m_wrapper->rollbackTo(mark);
     m_wrapper->periodicFlush(-1, 0, 10, 11);
 
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
@@ -569,7 +569,7 @@ TEST_F(TupleStreamWrapperTest, RollbackMiddleTuple)
 TEST_F(TupleStreamWrapperTest, RollbackWholeBuffer)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -591,7 +591,7 @@ TEST_F(TupleStreamWrapperTest, RollbackWholeBuffer)
     m_wrapper->rollbackTo(mark);
     m_wrapper->periodicFlush(-1, 0, 10, 11);
 
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
@@ -605,7 +605,7 @@ TEST_F(TupleStreamWrapperTest, RollbackWholeBuffer)
 TEST_F(TupleStreamWrapperTest, SimpleRelease)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -624,11 +624,11 @@ TEST_F(TupleStreamWrapperTest, SimpleRelease)
     m_wrapper->periodicFlush(-1, 0, 19, 19);
 
     // release the first buffer
-    bool released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 9));
+    bool released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 9));
     EXPECT_TRUE(released);
 
     // now get the second
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
@@ -636,44 +636,52 @@ TEST_F(TupleStreamWrapperTest, SimpleRelease)
 }
 
 /**
- * Test that attempting to release uncommitted bytes fails
+ * Test that attempting to release uncommitted bytes only returns what
+ * is committed
  */
 TEST_F(TupleStreamWrapperTest, ReleaseUncommitted)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
     EXPECT_EQ(results->unreleasedSize(), 0);
 
-    for (int i = 1; i < 10; i++)
+    // Add some committed tuples
+    for (int i = 1; i < 4; i++)
     {
         appendTuple(i-1, i);
     }
-    m_wrapper->periodicFlush(-1, 0, 9, 9);
 
     // now, add some uncommitted data
-    for (int i = 10; i < 20; i++)
+    for (int i = 4; i < 10; i++)
     {
-        appendTuple(9, 10);
+        appendTuple(3, 4);
     }
 
-    // release the first buffer
-    bool released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 9));
+    // release part of the committed data
+    bool released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 2));
     EXPECT_TRUE(released);
 
-    // now try to release the second, uncommitted tuples
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 19));
-    EXPECT_FALSE(released);
+    // now try to release everything
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 10));
+    EXPECT_TRUE(released);
 
-    // now, commit them and make sure they still exist
+    // now, poll and verify that we have moved to the end of the committed data
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 3));
+    EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 3));
+    EXPECT_EQ(results->offset(), 0);
+    EXPECT_EQ(results->unreleasedSize(), 0);
+
+    // now, commit everything and make sure we get the long transaction
     m_wrapper->periodicFlush(-1, 0, 19, 19);
-    results = m_wrapper->getCommittedEltBytes();
-    EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 9));
-    EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 9));
-    EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 10));
-    EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 10));
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 3));
+    EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 9));
+    EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 6));
 }
 
 /**
@@ -683,7 +691,7 @@ TEST_F(TupleStreamWrapperTest, ReleaseUncommitted)
 TEST_F(TupleStreamWrapperTest, ReleaseOnNonBoundary)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -702,11 +710,11 @@ TEST_F(TupleStreamWrapperTest, ReleaseOnNonBoundary)
     m_wrapper->periodicFlush(-1, 0, 19, 19);
 
     // release part of the first buffer
-    bool released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 4));
+    bool released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 4));
     EXPECT_TRUE(released);
 
     // get the first and make we get the remainder
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 4));
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 9));
@@ -720,7 +728,7 @@ TEST_F(TupleStreamWrapperTest, ReleaseOnNonBoundary)
 TEST_F(TupleStreamWrapperTest, ReleaseAllInAlignedSteps)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -739,15 +747,15 @@ TEST_F(TupleStreamWrapperTest, ReleaseAllInAlignedSteps)
     m_wrapper->periodicFlush(-1, 0, 19, 19);
 
     // release the first buffer
-    bool released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 9));
+    bool released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 9));
     EXPECT_TRUE(released);
 
     // release the second buffer
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 19));
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 19));
     EXPECT_TRUE(released);
 
     // now get the current state
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->offset(), 0);
@@ -761,7 +769,7 @@ TEST_F(TupleStreamWrapperTest, ReleaseAllInAlignedSteps)
 TEST_F(TupleStreamWrapperTest, ReleaseAllAtOnce)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -781,11 +789,11 @@ TEST_F(TupleStreamWrapperTest, ReleaseAllAtOnce)
 
     // release everything
     bool released;
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 19));
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 19));
     EXPECT_TRUE(released);
 
     // now get the current state
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->offset(), 0);
@@ -798,7 +806,7 @@ TEST_F(TupleStreamWrapperTest, ReleaseAllAtOnce)
 TEST_F(TupleStreamWrapperTest, ReleasePreHistory)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -818,15 +826,15 @@ TEST_F(TupleStreamWrapperTest, ReleasePreHistory)
 
     // release everything
     bool released;
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 19));
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 19));
     EXPECT_TRUE(released);
 
     // now release something early in what just got released
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 4));
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 4));
     EXPECT_TRUE(released);
 
     // now get the current state
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 19));
     EXPECT_EQ(results->offset(), 0);
@@ -840,7 +848,7 @@ TEST_F(TupleStreamWrapperTest, ReleasePreHistory)
 TEST_F(TupleStreamWrapperTest, ReleaseInCurrentBlock)
 {
     // we get nothing with no data
-    StreamBlock* results = m_wrapper->getCommittedEltBytes();
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), 0);
     EXPECT_EQ(results->offset(), 0);
@@ -854,12 +862,12 @@ TEST_F(TupleStreamWrapperTest, ReleaseInCurrentBlock)
 
     // release part of the way into the current buffer
     bool released;
-    released = m_wrapper->releaseEltBytes((MAGIC_TUPLE_SIZE * 4));
+    released = m_wrapper->releaseExportBytes((MAGIC_TUPLE_SIZE * 4));
     EXPECT_TRUE(released);
 
     // Poll and verify that we get a StreamBlock that indicates that
     // there's no data available at the new release point
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 4));
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 4));
     EXPECT_EQ(results->offset(), 0);
@@ -868,11 +876,124 @@ TEST_F(TupleStreamWrapperTest, ReleaseInCurrentBlock)
     // Now, flush the buffer and then verify that the next poll gets
     // the right partial result
     m_wrapper->periodicFlush(-1, 0, 9, 9);
-    results = m_wrapper->getCommittedEltBytes();
+    results = m_wrapper->getCommittedExportBytes();
     EXPECT_EQ(results->uso(), 0);
     EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 4));
     EXPECT_EQ(results->offset(), (MAGIC_TUPLE_SIZE * 9));
     EXPECT_EQ(results->unreleasedSize(), (MAGIC_TUPLE_SIZE * 5));
+}
+
+/**
+ * Test that reset allows re-polling data
+ */
+TEST_F(TupleStreamWrapperTest, ResetInFirstBlock)
+{
+    // Fill the current buffer with some stuff
+    for (int i = 1; i < 10; i++)
+    {
+        appendTuple(i-1, i);
+    }
+
+    // Flush all data
+    m_wrapper->periodicFlush(-1, 0, 10, 10);
+
+    // Poll and verify that data is returned
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), 0);
+    EXPECT_EQ(results->offset(), MAGIC_TUPLE_SIZE * 9);
+    EXPECT_EQ(results->unreleasedSize(), MAGIC_TUPLE_SIZE * 9);
+
+    // Poll again and see that an empty block is returned
+    // (Not enough data to require more than one block)
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), MAGIC_TUPLE_SIZE * 9);
+    EXPECT_EQ(results->offset(), 0);
+    EXPECT_EQ(results->unreleasedUso(), results->uso());
+
+    // Reset the stream and get the first poll again
+    m_wrapper->resetPollMarker();
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), 0);
+    EXPECT_EQ(results->offset(), MAGIC_TUPLE_SIZE * 9);
+    EXPECT_EQ(results->unreleasedSize(), MAGIC_TUPLE_SIZE * 9);
+}
+
+TEST_F(TupleStreamWrapperTest, ResetInPartiallyAckedBlock)
+{
+    // Fill the current buffer with some stuff
+    for (int i = 1; i < 10; i++) {
+        appendTuple(i-1, i);
+    }
+
+    // Ack the first 4 tuples.
+    bool released = m_wrapper->releaseExportBytes(MAGIC_TUPLE_SIZE * 4);
+    EXPECT_TRUE(released);
+
+    // Poll and verify that we get a StreamBlock that indicates that
+    // there's no data available at the new release point
+    // (because the full block is not committed)
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 4));
+    EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 4));
+    EXPECT_EQ(results->offset(), 0);
+    EXPECT_EQ(results->unreleasedSize(), 0);
+
+    // reset the poll point; this should not change anything.
+    m_wrapper->resetPollMarker();
+
+    // Same verification as above.
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), (MAGIC_TUPLE_SIZE * 4));
+    EXPECT_EQ(results->unreleasedUso(), (MAGIC_TUPLE_SIZE * 4));
+    EXPECT_EQ(results->offset(), 0);
+    EXPECT_EQ(results->unreleasedSize(), 0);
+}
+
+TEST_F(TupleStreamWrapperTest, ResetInPartiallyAckedCommittedBlock)
+{
+    // write some, committing as tuples are added
+    int i = 0;  // keep track of the current txnid
+    for (i = 1; i < 10; i++) {
+        appendTuple(i-1, i);
+    }
+
+    // partially ack the buffer
+    bool released = m_wrapper->releaseExportBytes(MAGIC_TUPLE_SIZE * 4);
+    EXPECT_TRUE(released);
+
+    // wrap and require a new buffer
+    int tuples_to_fill = BUFFER_SIZE / MAGIC_TUPLE_SIZE + 10;
+    for (int j = 0; j < tuples_to_fill; j++, i++) {
+        appendTuple(i, i+1);
+    }
+
+    // poll - should get the content post release (in the old buffer)
+    StreamBlock* results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), MAGIC_TUPLE_SIZE * 4);
+    EXPECT_TRUE(results->offset() > 0);
+
+    // poll again.
+     m_wrapper->getCommittedExportBytes();
+
+    // reset. Aftwards, should be able to get original block back
+    m_wrapper->resetPollMarker();
+
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), MAGIC_TUPLE_SIZE * 4);
+    EXPECT_TRUE(results->offset() > 0);
+
+    // flush should also not change the reset base poll point
+    m_wrapper->periodicFlush(-1, 0, i, i);
+    m_wrapper->resetPollMarker();
+
+    results = m_wrapper->getCommittedExportBytes();
+    EXPECT_EQ(results->uso(), 0);
+    EXPECT_EQ(results->unreleasedUso(), MAGIC_TUPLE_SIZE * 4);
+    EXPECT_TRUE(results->offset() > 0);
 }
 
 int main() {

@@ -148,7 +148,7 @@ public class TestOrderBySuite extends RegressionSuite {
         }
     }
 
-    private void loadWithDupes(Client client) throws NoConnectionsException, ProcCallException, IOException {
+    private void loadWithDupes(Client client) throws NoConnectionsException, ProcCallException, IOException, InterruptedException {
         client.callProcedure(new SyncCallback(), "InsertO1", new Long(1), new Long(1), "Alice", "AlphaBitters");
         client.callProcedure(new SyncCallback(), "InsertO1", new Long(2), new Long(2), "Alice", "CrunchTubers");
         client.callProcedure(new SyncCallback(), "InsertO1", new Long(3), new Long(3), "Alice", "BetaBuildingBlocks");
@@ -315,7 +315,7 @@ public class TestOrderBySuite extends RegressionSuite {
          *   9      3       Chris      AlphaBitters
          */
 
-    public void testMultiColumnOrderBy() throws NoConnectionsException, ProcCallException, IOException {
+    public void testMultiColumnOrderBy() throws NoConnectionsException, ProcCallException, IOException, InterruptedException {
         VoltTable vt;
         Client client = this.getClient();
         loadWithDupes(client);
@@ -485,6 +485,7 @@ public class TestOrderBySuite extends RegressionSuite {
         // Cluster
         config = new LocalCluster("testorderby-cluster.jar", 2, 2,
                                   1, BackendTarget.NATIVE_EE_JNI);
+        config.setConfParameter("site.exec_adhoc_sql", true);
         config.compile(project);
         builder.addServerConfig(config);
 

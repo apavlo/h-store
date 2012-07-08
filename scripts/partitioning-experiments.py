@@ -42,12 +42,6 @@ import types
 from datetime import datetime
 from pprint import pprint, pformat
 from types import *
-from fabric.api import *
-from fabric.network import *
-from fabric.contrib.files import *
-
-## This has all the functions we can use to invoke experiments on EC2
-import fabfile
 
 ## H-Store Third-Party Libraries
 realpath = os.path.realpath(__file__)
@@ -60,6 +54,16 @@ if not os.path.exists(realpath):
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import codespeed
 import argparse
+from fabric.api import *
+from fabric.network import *
+from fabric.contrib.files import *
+
+## This has all the functions we can use to invoke experiments on EC2
+import fabfile
+
+## ==============================================
+## LOGGING CONFIGURATION
+## ==============================================
 
 LOG = logging.getLogger(__name__)
 LOG_handler = logging.StreamHandler()

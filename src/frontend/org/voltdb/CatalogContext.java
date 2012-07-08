@@ -39,10 +39,14 @@ public class CatalogContext {
     public final Database database;
     public final CatalogMap<Procedure> procedures;
     public final CatalogMap<Site> sites;
-    public final AuthSystem authSystem;
     public final int numberOfPartitions;
     public final int numberOfExecSites;
     public final int numberOfNodes;
+
+    @Deprecated
+    public final AuthSystem authSystem;
+    
+    @Deprecated
     public final SiteTracker siteTracker;
 
     // PRIVATE
@@ -69,21 +73,13 @@ public class CatalogContext {
         procedures = database.getProcedures();
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
         sites = cluster.getSites();
-        siteTracker = new SiteTracker(cluster.getSites());
+        siteTracker = null; // new SiteTracker(cluster.getSites());
 
         // count nodes
         numberOfNodes = cluster.getHosts().size();
 
         // count exec sites
-        int execSiteCount = 0;
-        for (Site site : sites) {
-            assert(false);
-//            if (site.getPartition() != null) {
-//                assert (site.getIsexec());
-//                execSiteCount++;
-//            }
-        }
-        numberOfExecSites = execSiteCount;
+        numberOfExecSites = cluster.getSites().size();
 
         // count partitions
         numberOfPartitions = cluster.getNum_partitions();

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package org.voltdb.jni;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -30,11 +31,11 @@ import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
+import org.voltdb.TableStreamType;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Table;
-import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.LogKeys;
@@ -58,12 +59,20 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
     // is the execution site dirty
     protected boolean m_dirty;
+    
+    // Whether the anti-cache feature is enabled
+    protected boolean m_anticache;
 
     /** Error codes exported for JNI methods. */
     public static final int ERRORCODE_SUCCESS = 0;
     public static final int ERRORCODE_ERROR = 1; // just error or not so far.
     public static final int ERRORCODE_WRONG_SERIALIZED_BYTES = 101;
 
+    /** Create an ee and load the volt shared library */
+    public ExecutionEngine(final PartitionExecutor site) {
+        this.site = site;
+    }
+    
     /** Make the EE clean and ready to do new transactional work. */
     public void resetDirtyStatus() {
         m_dirty = false;
@@ -77,6 +86,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     /** Utility method to verify return code and throw as required */
     final protected void checkErrorCode(final int errorCode) {
         if (errorCode != ERRORCODE_SUCCESS) {
+            if (d) LOG.error(String.format("Unexpected ExecutionEngine error [code=%d]", errorCode));
             throwExceptionForError(errorCode);
         }
     }
@@ -91,11 +101,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
 
     @Override
     public void deserializedBytes(final int numBytes) {
-    }
-
-    /** Create an ee and load the volt shared library */
-    public ExecutionEngine(final PartitionExecutor site) {
-        this.site = site;
     }
 
     /*
@@ -160,13 +165,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                 ArrayDeque<VoltTable> deque = m_depsById.get(e.getKey());
                 if (deque == null) {
                     deque = new ArrayDeque<VoltTable>();
-                    // intentionally overwrite the previous dependency id.
-                    // would a lookup and a clear() be faster?
-                    m_depsById.put(e.getKey(), deque);
+                // intentionally overwrite the previous dependency id.
+                // would a lookup and a clear() be faster?
+                m_depsById.put(e.getKey(), deque);
                 } else {
                     deque.clear();
                 }
-                deque.addAll(e.getValue());
+                for (VoltTable vt : e.getValue()) {
+                    if (vt != null) deque.add(vt);
+                } // FOR
             }
             if (d) LOG.debug("Current InputDepencies:\n" + StringUtil.formatMaps(m_depsById));
         }
@@ -273,16 +280,18 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * Interface frontend invokes to communicate to CPP execution engine.
      */
 
-    abstract public boolean activateCopyOnWrite(final int tableId);
+    abstract public boolean activateTableStream(final int tableId, TableStreamType type);
 
     /**
-     * Serialize more tuples from the specified table that is already in COW mode
+     * Serialize more tuples from the specified table that already has a stream enabled
      * @param c Buffer to serialize tuple data too
      * @param tableId Catalog ID of the table to serialize
      * @return A positive number indicating the number of bytes serialized or 0 if there is no more data.
-     *        -1 is returned if there is an error (such as the table not being COW mode).
+     *        -1 is returned if there is an error (such as the table not having the specified stream type activated).
      */
-    public abstract int cowSerializeMore(BBContainer c, int tableId);
+    public abstract int tableStreamSerializeMore(BBContainer c, int tableId, TableStreamType type);
+
+    public abstract void processRecoveryMessage( ByteBuffer buffer, long pointer);
 
     /** Releases the Engine object. */
     abstract public void release() throws EEException, InterruptedException;
@@ -291,7 +300,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     abstract public void loadCatalog(final String serializedCatalog) throws EEException;
 
     /** Pass diffs to apply to the EE's catalog to update it */
-    abstract public void updateCatalog(final String diffCommands) throws EEException;
+    abstract public void updateCatalog(final String diffCommands, int catalogVersion) throws EEException;
 
     /** Run a plan fragment */
     abstract public DependencyPair executePlanFragment(
@@ -343,15 +352,20 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         return (dset.dependencies);
     }
 
-    abstract public VoltTable serializeTable(Table catalog_tbl, int offset, int limit) throws EEException;
+    /**
+     * Initialize anti-caching at this partition's EE.
+     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
+     * @param dbDir
+     * @throws EEException
+     */
+    public abstract void initializeAntiCache(File dbDir) throws EEException;
     
-    public final VoltTable serializeTable(Table catalog_tbl) throws EEException {
-        return this.serializeTable(catalog_tbl, -1, -1);
-    }
+    /** Used for test code only (AFAIK jhugg) */
+    abstract public VoltTable serializeTable(int tableId) throws EEException;
 
     abstract public void loadTable(
         int tableId, VoltTable table, long txnId,
-        long lastCommittedTxnId, long undoToken, boolean allowELT) throws EEException;
+        long lastCommittedTxnId, long undoToken, boolean allowExport) throws EEException;
 
     /**
      * Set the log levels to be used when logging in this engine
@@ -369,7 +383,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     abstract public void tick(long time, long lastCommittedTxnId);
 
     /**
-     * Instruct EE to come to an idle state. Flush ELT buffers, finish
+     * Instruct EE to come to an idle state. Flush Export buffers, finish
      * any in-progress checkpoint, etc.
      */
     abstract public void quiesce(long lastCommittedTxnId);
@@ -389,7 +403,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             Long now);
 
     /**
-     * Wrapper for {@link #nativeToggleProfiler(long, int)}.
+     * Instruct the EE to start/stop its profiler.
      */
     public abstract int toggleProfiler(int toggle);
 
@@ -406,17 +420,34 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public abstract boolean undoUndoToken(long undoToken);
 
     /**
-     * Execute an ELT action against the execution engine.
-     * @param mAckAction true if this message instructs an ack.
-     * @param mPollAction true if this message instructs a poll.
-     * @param mAckTxnId if an ack, the transaction id being acked
-     * @param mTableId the table being polled or acked.
-     * @return the response ELTMessage
+     * Execute an Export action against the execution engine.
+     * @param ackAction true if this message instructs an ack.
+     * @param pollAction true if this message instructs a poll.
+     * @param syncAction TODO
+     * @param ackTxnId if an ack, the transaction id being acked
+     * @param tableId the table being polled or acked.
+     * @param syncOffset TODO
+     * @return the response ExportMessage
      */
-    public abstract ELTProtoMessage eltAction(
-            boolean mAckAction, boolean mPollAction,
-            long mAckTxnId, int partitionId, int mTableId);
+    public abstract ExportProtoMessage exportAction(
+            boolean ackAction, boolean pollAction, boolean resetAction, boolean syncAction,
+            long ackOffset, long seqNo, int partitionId, long tableId);
 
+    /**
+     * Calculate a hash code for a table.
+     * @param pointer Pointer to an engine instance
+     * @param tableId table to calculate a hash code for
+     */
+    public abstract long tableHashCode(int tableId);
+
+    /**
+     * Compute the partition to which the parameter value maps using the
+     * ExecutionEngine's hashinator.  Currently only valid for int types
+     * (tiny, small, integer, big) and strings.
+     *
+     * THIS METHOD IS CURRENTLY ONLY USED FOR TESTING
+     */
+    public abstract int hashinate(Object value, int partitionCount);
 
     /*
      * Declare the native interface. Structurally, in Java, it would be cleaner to
@@ -424,7 +455,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * jni_class instances in the execution engine. From the EE perspective, a single
      * JNI class is better.  So put this here with the backend->frontend api definition.
      */
-
 
     protected native byte[] nextDependencyTest(int dependencyId);
 
@@ -477,6 +507,17 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
 
     /**
+     * Enables the anti-cache feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store 
+     * evicted blocks of tuples. The EE assumes that the parent directories 
+     * for dbDir exist and are writable.  
+     * @param pointer
+     * @param dbDir
+     * @return
+     */
+    protected native int nativeInitializeAntiCache(long pointer, String dbDir);
+    
+    /**
      * Load the system catalog for this engine.
      * @param pointer the VoltDBEngine pointer
      * @param serialized_catalog the root catalog object serialized as text strings.
@@ -490,9 +531,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * Update the EE's catalog.
      * @param pointer the VoltDBEngine pointer
      * @param diff_commands Commands to apply to the existing EE catalog to update it
+     * @param catalogVersion
      * @return error code
      */
-    protected native int nativeUpdateCatalog(long pointer, String diff_commands);
+    protected native int nativeUpdateCatalog(long pointer, String diff_commands, int catalogVersion);
 
     /**
      * This method is called to initially load table data.
@@ -503,7 +545,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param undoToken token for undo quantum where changes should be logged.
      */
     protected native int nativeLoadTable(long pointer, int table_id, byte[] serialized_table,
-            long txnId, long lastCommittedTxnId, long undoToken, boolean allowELT);
+            long txnId, long lastCommittedTxnId, long undoToken, boolean allowExport);
 
     //Execution
 
@@ -539,7 +581,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param outputCapacity maximum number of bytes to write to buffer.
      * @return serialized temporary table
      */
-    protected native int nativeSerializeTable(long pointer, int table_id, int offset, int limit,
+    protected native int nativeSerializeTable(long pointer, int table_id,
                                               ByteBuffer outputBuffer, int outputCapacity);
 
     /**
@@ -579,28 +621,14 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native int nativeToggleProfiler(long pointer, int mode);
 
     /**
-     * Given a long value, pick a partition to store the data.
-     * This is for test code only. Identical functionality exists in Java in
-     * TheHashinator.hashinate(..).
-     *
-     * @param value The value to hash.
-     * @param partitionCount The number of partitions to choose from.
-     * @return A value between 0 and partitionCount-1, hopefully pretty evenly
-     * distributed.
+     * Use the EE's hashinator to compute the partition to which the
+     * value provided in the input parameter buffer maps.  This is
+     * currently a test-only method.
+     * @param pointer
+     * @param partitionCount
+     * @return
      */
-    public native int hashinate(long value, int partitionCount);
-
-    /**
-     * Given a String value, pick a partition to store the data.
-     * This is for test code only. Identical functionality exists in Java in
-     * TheHashinator.hashinate(..).
-     *
-     * @param string value The value to hash.
-     * @param partitionCount The number of partitions to choose from.
-     * @return A value between 0 and partitionCount-1, hopefully pretty evenly
-     * distributed.
-     */
-    public native int hashinate(String string, int partitionCount);
+    protected native int nativeHashinate(long pointer, int partitionCount);
 
     /**
      * @param nextUndoToken The undo token to associate with future work
@@ -628,27 +656,43 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native boolean nativeSetLogLevels(long pointer, long logLevels);
 
     /**
-     * Active copy on write mode for a table.
+     * Active a table stream of the specified type for a table.
      * @param pointer Pointer to an engine instance
      * @param tableId Catalog ID of the table
+     * @param streamType type of stream to activate
      * @return <code>true</code> on success and <code>false</code> on failure
      */
-    protected native boolean nativeActivateCopyOnWrite(long pointer, int tableId);
+    protected native boolean nativeActivateTableStream(long pointer, int tableId, int streamType);
 
     /**
-     * Serialize more tuples from the specified table that is already in COW mode
+     * Serialize more tuples from the specified table that has an active stream of the specified type
      * @param pointer Pointer to an engine instance
      * @param bufferPointer Buffer to serialize data to
      * @param offset Offset into the buffer to start serializing to
      * @param length length of the buffer
      * @param tableId Catalog ID of the table to serialize
+     * @param streamType type of stream to pull data from
      * @return A positive number indicating the number of bytes serialized or 0 if there is no more data.
      *         -1 is returned if there is an error (such as the table not being COW mode).
      */
-    protected native int nativeCOWSerializeMore(long pointer, long bufferPointer, int offset, int length, int tableId);
+    protected native int nativeTableStreamSerializeMore(long pointer, long bufferPointer, int offset, int length, int tableId, int streamType);
 
     /**
-     * Perform an ELT poll or ack action. Poll data will be returned via the usual
+     * Process a recovery message and load the data it contains.
+     * @param pointer Pointer to an engine instance
+     * @param message Recovery message to load
+     */
+    protected native void nativeProcessRecoveryMessage(long pointer, long message, int offset, int length);
+
+    /**
+     * Calculate a hash code for a table.
+     * @param pointer Pointer to an engine instance
+     * @param tableId table to calculate a hash code for
+     */
+    protected native long nativeTableHashCode(long pointer, int tableId);
+
+    /**
+     * Perform an export poll or ack action. Poll data will be returned via the usual
      * results buffer. A single action may encompass both a poll and ack.
      * @param pointer Pointer to an engine instance
      * @param mAckAction True if an ack is requested
@@ -657,8 +701,13 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param mTableId The table ID being acted against.
      * @return
      */
-    protected native long nativeELTAction(
+    protected native long nativeExportAction(
             long pointer,
-            boolean mAckAction, boolean mPollAction,
-            long mAckOffset, int mTableId);
+            boolean ackAction,
+            boolean pollAction,
+            boolean resetAction,
+            boolean syncAction,
+            long mAckOffset,
+            long seqNo,
+            long mTableId);
 }

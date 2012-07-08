@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -46,7 +46,8 @@
 #ifndef BINARYTREEUNIQUEINDEX_H_
 #define BINARYTREEUNIQUEINDEX_H_
 
-#include <map>
+//#include <map>
+#include "stx/btree_map.h"
 #include <iostream>
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
@@ -63,7 +64,8 @@ class BinaryTreeUniqueIndex : public TableIndex
 {
     friend class TableIndexFactory;
 
-    typedef std::map<KeyType, const void*, KeyComparator> MapType;
+    //typedef std::map<KeyType, const void*, KeyComparator> MapType;
+    typedef stx::btree_map<KeyType, const void*, KeyComparator> MapType;
 
 public:
 
@@ -257,11 +259,7 @@ protected:
     inline bool deleteEntryPrivate(const KeyType &key)
     {
         ++m_deletes;
-        typename MapType::iterator mapiter = m_entries.find(key);
-        if (mapiter == m_entries.end())
-            return false; //key not exists
-        m_entries.erase(mapiter);
-        return true; //deleted
+        return m_entries.erase(key);
     }
 
     MapType m_entries;

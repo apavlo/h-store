@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package org.voltdb.exceptions;
 
+import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
@@ -45,6 +46,10 @@ public class SQLException extends SerializableException {
         m_sqlState = new String(sqlStateBytes);
     }
 
+    public SQLException(String sqlState) {
+        m_sqlState = sqlState;
+    }
+
     /**
      * Retrieve the SQLState code for the error that generated this exception.
      * @return Five character SQLState code.
@@ -66,9 +71,10 @@ public class SQLException extends SerializableException {
 
     /**
      * Serialize the five character SQLState to the provided ByteBuffer
+     * @throws IOException
      */
     @Override
-    protected void p_serializeToBuffer(ByteBuffer b) {
+    protected void p_serializeToBuffer(ByteBuffer b) throws IOException {
         assert (m_sqlState.getBytes().length == 5);
         b.put(m_sqlState.getBytes());
     }

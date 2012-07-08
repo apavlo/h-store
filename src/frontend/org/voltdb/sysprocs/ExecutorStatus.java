@@ -2,6 +2,7 @@ package org.voltdb.sysprocs;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
@@ -62,7 +63,7 @@ public class ExecutorStatus extends VoltSystemProcedure {
         VoltTable vt = new VoltTable(nodeResultsColumns);
         for (Integer p : hstore_site.getLocalPartitionIdArray()) {
             PartitionExecutor es = hstore_site.getPartitionExecutor(p.intValue());
-            ThrottlingQueue<?> es_queue = this.executor.getThrottlingQueue();
+            Queue<?> es_queue = this.executor.getWorkQueue();
                 
             Long currentTxnId = es.getCurrentTxnId();
             Long currentDtxnId = es.getCurrentDtxnId();

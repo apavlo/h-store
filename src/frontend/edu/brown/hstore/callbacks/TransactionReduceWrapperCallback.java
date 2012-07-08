@@ -9,7 +9,7 @@ import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -19,7 +19,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * at this HStoreSite is finished with the Reduce phase. 
  * @author yujia
  */
-public class TransactionReduceWrapperCallback extends BlockingCallback<TransactionReduceResponse, ReduceResult> {
+public class TransactionReduceWrapperCallback extends BlockingRpcCallback<TransactionReduceResponse, ReduceResult> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -74,7 +74,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
     }
 
     @Override
-    protected int runImpl(ReduceResult result) {
+    protected synchronized int runImpl(ReduceResult result) {
         if (this.isAborted() == false) {
             this.builder.addResults(result);
             LOG.debug(String.format("%s - Added %s from partition %d!",
@@ -82,7 +82,8 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
         }
         assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
-
+//        if(!ts.checkDeletableFlag())
+//            ts.markAsDeletable();
         return 1;
     }
 

@@ -47,13 +47,13 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             if (debug.get()) LOG.debug("SKIP - Not a distributed query plan");
             return (Pair.of(false, rootNode));
         }
-//        // Right now, Can't do averages
-//        for (ExpressionType et: node.getAggregateTypes()) {
-//            if (et.equals(ExpressionType.AGGREGATE_AVG)) {
-//                if (debug.get()) LOG.debug("SKIP - Right now can't optimize AVG()");
-//                return (Pair.of(false, rootNode));
-//            }
-//        }
+// // Right now, Can't do averages
+// for (ExpressionType et: node.getAggregateTypes()) {
+// if (et.equals(ExpressionType.AGGREGATE_AVG)) {
+// if (debug.get()) LOG.debug("SKIP - Right now can't optimize AVG()");
+// return (Pair.of(false, rootNode));
+// }
+// }
         
         // Get the AbstractScanPlanNode that is directly below us
         Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(node, AbstractScanPlanNode.class);
@@ -68,13 +68,13 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
         assert (scan_node != null);
         
-//        // For some reason we have to do this??
-//        for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
-//            int col_guid = scan_node.getOutputColumnGUIDs().get(col);
-//            assert (state.plannerContext.get(col_guid) != null) : "Failed [" + col_guid + "]";
-//            // PlanColumn retval = new PlanColumn(guid, expression, columnName,
-//            // sortOrder, storage);
-//        } // FOR
+// // For some reason we have to do this??
+// for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
+// int col_guid = scan_node.getOutputColumnGUIDs().get(col);
+// assert (state.plannerContext.get(col_guid) != null) : "Failed [" + col_guid + "]";
+// // PlanColumn retval = new PlanColumn(guid, expression, columnName,
+// // sortOrder, storage);
+// } // FOR
         
         // Skip if we're already directly after the scan (meaning no network traffic)
         if (scan_node.getParent(0).equals(node)) {
@@ -101,7 +101,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         }
         
         // Note that we don't want actually move the existing aggregate. We just
-        // want to clone it and then attach it down below the SEND/RECIEVE so 
+        // want to clone it and then attach it down below the SEND/RECIEVE so
         // that we calculate the aggregates in parallel
         if (clone_node == null) {
             clone_node = this.cloneAggregatePlanNode(node);
@@ -159,10 +159,10 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
     }
     
     /**
-     * 
-     * @param node
-     * @return
-     */
+*
+* @param node
+* @return
+*/
     protected HashAggregatePlanNode cloneAggregatePlanNode(final HashAggregatePlanNode node) {
         HashAggregatePlanNode clone_agg = null;
         try {
@@ -172,14 +172,14 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         }
         state.markDirty(clone_agg);
 
-        // Update the cloned AggregateNode to handle distributed averages 
+        // Update the cloned AggregateNode to handle distributed averages
         List<ExpressionType> clone_types = clone_agg.getAggregateTypes();
         
         // For now we'll always put a COUNT at the end of the AggregatePlanNode
         // This makes it easier for us to find it in the EE
         boolean has_count = false;
-//        boolean has_count = (clone_types.contains(ExpressionType.AGGREGATE_COUNT) ||
-//                             clone_types.contains(ExpressionType.AGGREGATE_COUNT_STAR));
+// boolean has_count = (clone_types.contains(ExpressionType.AGGREGATE_COUNT) ||
+// clone_types.contains(ExpressionType.AGGREGATE_COUNT_STAR));
 
         int orig_cnt = clone_types.size();
         for (int i = 0; i < orig_cnt; i++) {

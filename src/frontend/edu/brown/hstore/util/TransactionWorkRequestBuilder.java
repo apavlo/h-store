@@ -9,7 +9,7 @@ import java.util.Set;
 import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 
 public class TransactionWorkRequestBuilder {
 

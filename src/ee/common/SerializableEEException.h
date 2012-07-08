@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@ enum VoltEEExceptionType {
     VOLT_EE_EXCEPTION_TYPE_NONE = 0,
     VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION = 1,
     VOLT_EE_EXCEPTION_TYPE_SQL = 2,
-    VOLT_EE_EXCEPTION_TYPE_CONSTRAINT_VIOLATION = 3
+    VOLT_EE_EXCEPTION_TYPE_CONSTRAINT_VIOLATION = 3,
+    VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE = 4
 };
 
 /*

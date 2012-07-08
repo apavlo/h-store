@@ -67,8 +67,6 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dispatchers.TransactionFinishDispatcher;
 import edu.brown.hstore.dispatchers.TransactionInitDispatcher;
 import edu.brown.hstore.dispatchers.TransactionRedirectDispatcher;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.RemoteTransaction;
 import edu.brown.hstore.handlers.SendDataHandler;
 import edu.brown.hstore.handlers.TransactionFinishHandler;
 import edu.brown.hstore.handlers.TransactionInitHandler;
@@ -78,6 +76,8 @@ import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -142,8 +142,10 @@ public class HStoreCoordinator implements Shutdownable {
     private class MessengerListener implements Runnable {
         @Override
         public void run() {
-            if (hstore_conf.site.cpu_affinity)
-                hstore_site.getThreadManager().registerProcessingThread();
+            Thread self = Thread.currentThread();
+            self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_COORDINATOR));
+            hstore_site.getThreadManager().registerProcessingThread();
+            
             Throwable error = null;
             try {
                 HStoreCoordinator.this.eventLoop.run();
@@ -243,7 +245,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.sendData_handler = new SendDataHandler(hstore_site, this);
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread(new MessengerListener(), HStoreThreadManager.getThreadName(this.hstore_site, "coord"));
+        this.listener_thread = new Thread(new MessengerListener());
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
         
@@ -492,7 +494,7 @@ public class HStoreCoordinator implements Shutdownable {
         RpcCallback<InitializeResponse> callback = new RpcCallback<InitializeResponse>() {
             @Override
             public void run(InitializeResponse parameter) {
-                LOG.info(String.format("Initialization Response: %s / %s",
+                if (debug.get()) LOG.debug(String.format("Initialization Response: %s / %s",
                                        HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
                                        parameter.getStatus()));
                 latch.countDown();
@@ -587,10 +589,10 @@ public class HStoreCoordinator implements Shutdownable {
             // it back to whomever told us about this txn
             if (debug.get()) 
                 LOG.debug(String.format("Received redirected transaction request from HStoreSite %s", HStoreThreadManager.formatSiteName(request.getSenderSite())));
-            byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
+            ByteBuffer serializedRequest = request.getWork().asReadOnlyByteBuffer();
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderSite(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
@@ -599,7 +601,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (transactionRedirect_dispatcher != null) {
                 transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
             } else {
-                hstore_site.procedureInvocation(serializedRequest, callback);
+                hstore_site.queueInvocation(serializedRequest, callback);
             }
         }
         
@@ -634,8 +636,10 @@ public class HStoreCoordinator implements Shutdownable {
             // See if they gave us the original error. If they did, then we'll
             // try to be helpful and print it out here
             SerializableException error = null;
+
             if (request.hasError() && request.getError().isEmpty() == false) {
                 error = SerializableException.deserializeFromBuffer(request.getError().asReadOnlyByteBuffer());
+
 //                LOG.fatal("Error that caused shutdown from HStoreSite " + originName, error);
             }
             
@@ -657,9 +661,9 @@ public class HStoreCoordinator implements Shutdownable {
             if (debug.get())
                 LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                         transactionRedirect_dispatcher.getIdleTime().getTotalThinkTimeMS()));
-            ThreadUtil.sleep(1000); // HACK
-            LogManager.shutdown();
-            System.exit(request.getExitStatus());
+            // ThreadUtil.sleep(1000); // HACK
+            // LogManager.shutdown();
+            // System.exit(request.getExitStatus());
             
         }
 
@@ -841,7 +845,12 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
-        if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreThreadManager.formatSiteName(dest_site_id));
+        if (debug.get()) {
+            LOG.debug(String.format("Redirecting transaction request to partition #%d on %s",
+                                    partition, HStoreThreadManager.formatSiteName(dest_site_id)));
+        }
+        
+        
         ByteString bs = ByteString.copyFrom(serializedRequest);
         TransactionRedirectRequest mr = TransactionRedirectRequest.newBuilder()
                                         .setSenderSite(this.local_site_id)
@@ -859,18 +868,20 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      */
     public void transactionMap(LocalTransaction ts, RpcCallback<TransactionMapResponse> callback) {
-        ByteString invocation = null;
+        ByteString paramBytes = null;
         try {
-            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
-            invocation = ByteString.copyFrom(b.array()); 
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getProcedureParameters()));
+            paramBytes = ByteString.copyFrom(b.array()); 
         } catch (Exception ex) {
             throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
         }
         
         TransactionMapRequest request = TransactionMapRequest.newBuilder()
                                                      .setTransactionId(ts.getTransactionId())
+                                                     .setClientHandle(ts.getClientHandle())
                                                      .setBasePartition(ts.getBasePartition())
-                                                     .setInvocation(invocation)
+                                                     .setProcedureId(ts.getProcedure().getId())
+                                                     .setParams(paramBytes)
                                                      .build();
         
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
@@ -887,18 +898,10 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      */
     public void transactionReduce(LocalTransaction ts, RpcCallback<TransactionReduceResponse> callback) {
-        ByteString invocation = null;
-        try {
-            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
-            invocation = ByteString.copyFrom(b.array()); 
-        } catch (Exception ex) {
-            throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
-        }
-        
+        // We only need to send over the transaction. The remote side should 
+        // already have all the information that it needs about this txn
         TransactionReduceRequest request = TransactionReduceRequest.newBuilder()
                                                      .setTransactionId(ts.getTransactionId())
-                                                     .setBasePartition(ts.getBasePartition())
-                                                     .setInvocation(invocation)
                                                      .build();
         
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
@@ -1026,7 +1029,7 @@ public class HStoreCoordinator implements Shutdownable {
         // We don't need to do this if there is only one site
         if (this.num_sites == 1) return;
         
-        final CountDownLatch latch = new CountDownLatch(this.num_sites);
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
         RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
@@ -1094,6 +1097,8 @@ public class HStoreCoordinator implements Shutdownable {
         Thread shutdownThread = new Thread() {
             @Override
             public void run() {
+                LOG.info("HACK: Sleeping for 5 seconds...");
+                ThreadUtil.sleep(5000);
                 HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
             }
         };
@@ -1179,8 +1184,8 @@ public class HStoreCoordinator implements Shutdownable {
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }
-            LogManager.shutdown();
-            System.exit(exit_status);
+//            LogManager.shutdown();
+//            System.exit(exit_status);
         }
     }
 

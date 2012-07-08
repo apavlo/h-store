@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,8 +72,8 @@ namespace voltdb
          */
         inline void undo(const int64_t undoToken) {
             //std::cout << "Undoing token " << undoToken
-            //         << " lastUndo: " << m_lastUndoToken
-            //         << " lastRelease: " << m_lastReleaseToken << std::endl;
+            //          << " lastUndo: " << m_lastUndoToken
+            //          << " lastRelease: " << m_lastReleaseToken << std::endl;
             // This ensures that undo is only ever called after
             // generateUndoToken has been called
             assert(m_lastReleaseToken < m_lastUndoToken);

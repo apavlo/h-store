@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@ class SnapshotSchedule : public CatalogType {
 
 protected:
     SnapshotSchedule(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     std::string m_frequencyUnit;
     int32_t m_frequencyValue;
     int32_t m_retain;
@@ -48,9 +47,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~SnapshotSchedule();
+
     /** GETTER: Unit of time frequency is specified in */
     const std::string & frequencyUnit() const;
     /** GETTER: Frequency in some unit */

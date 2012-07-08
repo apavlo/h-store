@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ Database::Database(Catalog *catalog, CatalogType *parent, const string &path, co
   m_users(catalog, this, path + "/" + "users"), m_groups(catalog, this, path + "/" + "groups"), m_tables(catalog, this, path + "/" + "tables"), m_programs(catalog, this, path + "/" + "programs"), m_procedures(catalog, this, path + "/" + "procedures"), m_connectors(catalog, this, path + "/" + "connectors"), m_snapshotSchedule(catalog, this, path + "/" + "snapshotSchedule")
 {
     CatalogValue value;
+    m_fields["project"] = value;
     m_fields["schema"] = value;
     m_childCollections["users"] = &m_users;
     m_childCollections["groups"] = &m_groups;
@@ -48,7 +49,60 @@ Database::Database(Catalog *catalog, CatalogType *parent, const string &path, co
     m_childCollections["snapshotSchedule"] = &m_snapshotSchedule;
 }
 
+Database::~Database() {
+    std::map<std::string, User*>::const_iterator user_iter = m_users.begin();
+    while (user_iter != m_users.end()) {
+        delete user_iter->second;
+        user_iter++;
+    }
+    m_users.clear();
+
+    std::map<std::string, Group*>::const_iterator group_iter = m_groups.begin();
+    while (group_iter != m_groups.end()) {
+        delete group_iter->second;
+        group_iter++;
+    }
+    m_groups.clear();
+
+    std::map<std::string, Table*>::const_iterator table_iter = m_tables.begin();
+    while (table_iter != m_tables.end()) {
+        delete table_iter->second;
+        table_iter++;
+    }
+    m_tables.clear();
+
+    std::map<std::string, Program*>::const_iterator program_iter = m_programs.begin();
+    while (program_iter != m_programs.end()) {
+        delete program_iter->second;
+        program_iter++;
+    }
+    m_programs.clear();
+
+    std::map<std::string, Procedure*>::const_iterator procedure_iter = m_procedures.begin();
+    while (procedure_iter != m_procedures.end()) {
+        delete procedure_iter->second;
+        procedure_iter++;
+    }
+    m_procedures.clear();
+
+    std::map<std::string, Connector*>::const_iterator connector_iter = m_connectors.begin();
+    while (connector_iter != m_connectors.end()) {
+        delete connector_iter->second;
+        connector_iter++;
+    }
+    m_connectors.clear();
+
+    std::map<std::string, SnapshotSchedule*>::const_iterator snapshotschedule_iter = m_snapshotSchedule.begin();
+    while (snapshotschedule_iter != m_snapshotSchedule.end()) {
+        delete snapshotschedule_iter->second;
+        snapshotschedule_iter++;
+    }
+    m_snapshotSchedule.clear();
+
+}
+
 void Database::update() {
+    m_project = m_fields["project"].strValue.c_str();
     m_schema = m_fields["schema"].strValue.c_str();
 }
 
@@ -116,22 +170,34 @@ CatalogType * Database::getChild(const std::string &collectionName, const std::s
     return NULL;
 }
 
-void Database::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Database::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("users") == 0)
+    if (collectionName.compare("users") == 0) {
         return m_users.remove(childName);
-    if (collectionName.compare("groups") == 0)
+    }
+    if (collectionName.compare("groups") == 0) {
         return m_groups.remove(childName);
-    if (collectionName.compare("tables") == 0)
+    }
+    if (collectionName.compare("tables") == 0) {
         return m_tables.remove(childName);
-    if (collectionName.compare("programs") == 0)
+    }
+    if (collectionName.compare("programs") == 0) {
         return m_programs.remove(childName);
-    if (collectionName.compare("procedures") == 0)
+    }
+    if (collectionName.compare("procedures") == 0) {
         return m_procedures.remove(childName);
-    if (collectionName.compare("connectors") == 0)
+    }
+    if (collectionName.compare("connectors") == 0) {
         return m_connectors.remove(childName);
-    if (collectionName.compare("snapshotSchedule") == 0)
+    }
+    if (collectionName.compare("snapshotSchedule") == 0) {
         return m_snapshotSchedule.remove(childName);
+    }
+    return false;
+}
+
+const string & Database::project() const {
+    return m_project;
 }
 
 const string & Database::schema() const {

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,11 +25,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
@@ -48,7 +48,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreThreadManager;
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -87,10 +87,10 @@ class Distributer {
     private final DBBPool m_pool;
 
     private final boolean m_useMultipleThreads;
-    
-    private final int m_backpressureWait;
 
     private final String m_hostname;
+    
+    private final ConcurrentHashMap<Thread, FastSerializer> m_serializers = new ConcurrentHashMap<Thread, FastSerializer>();
 
     /**
      * Server's instances id. Unique for the cluster
@@ -189,6 +189,7 @@ class Distributer {
     }
 
     class NodeConnection extends VoltProtocolHandler implements org.voltdb.network.QueueMonitor {
+        private final AtomicInteger m_callbacksToInvoke = new AtomicInteger(0);
         private final HashMap<Long, CallbackValues> m_callbacks;
         private final HashMap<String, ProcedureStats> m_stats
             = new HashMap<String, ProcedureStats>();
@@ -198,12 +199,7 @@ class Distributer {
         private String m_hostname;
         private int m_port;
         private boolean m_isConnected = true;
-        private final AtomicBoolean m_hasBackPressure = new AtomicBoolean(false);
-        private long m_hasBackPressureTimestamp = -1;
-        private int m_lastServerTimestamp = Integer.MIN_VALUE;
 
-        private long m_invocationsThrottled = 0;
-        private long m_lastInvocationsThrottled = 0;
         private long m_invocationsCompleted = 0;
         private long m_lastInvocationsCompleted = 0;
         private long m_invocationAborts = 0;
@@ -225,7 +221,7 @@ class Distributer {
         public void createWork(long now, long handle, String name, BBContainer c, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
@@ -233,6 +229,7 @@ class Distributer {
                     return;
                 }
                 m_callbacks.put(handle, new CallbackValues(now, callback, name));
+                m_callbacksToInvoke.incrementAndGet();
             }
             m_connection.writeStream().enqueue(c);
         }
@@ -240,13 +237,14 @@ class Distributer {
         public void createWork(long now, long handle, String name, FastSerializable f, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
                     return;
                 }
                 m_callbacks.put(handle, new CallbackValues(now, callback, name));
+                m_callbacksToInvoke.incrementAndGet();
             }
             m_connection.writeStream().enqueue(f);
         }
@@ -274,6 +272,7 @@ class Distributer {
                 response = fds.readObject(ClientResponseImpl.class);
             } catch (IOException e) {
                 LOG.error("Invalid ClientResponse object returned by " + this, e);
+                return;
             }
             ProcedureCallback cb = null;
             long callTime = 0;
@@ -285,8 +284,7 @@ class Distributer {
             }
             
             final long clientHandle = response.getClientHandle();
-            final boolean should_throttle = response.getThrottleFlag();
-            final Hstoreservice.Status status = response.getStatus();
+            final Status status = response.getStatus();
             final int timestamp = response.getRequestCounter();
             final int restart_counter = response.getRestartCounter();
             
@@ -305,53 +303,32 @@ class Distributer {
                     m_invocationsCompleted++;
                     
                     if (debug.get()) {
-                        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+                        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
                         m0.put("Txn #", response.getTransactionId());
                         m0.put("Status", response.getStatus());
                         m0.put("ClientHandle", clientHandle);
-                        m0.put("ThrottleFlag", should_throttle);
                         m0.put("Timestamp", timestamp);
                         m0.put("RestartCounter", restart_counter);
                         
-                        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+                        Map<String, Object> m1 = new LinkedHashMap<String, Object>();
                         m1.put("Connection", this);
-                        m1.put("Back Pressure", m_hasBackPressure.get());
-                        m1.put("BackPressure Timestamp", m_hasBackPressureTimestamp);
-                        m1.put("Last Server Timestamp", m_lastServerTimestamp);
                         m1.put("Completed Invocations", m_invocationsCompleted);
                         m1.put("Error Invocations", m_invocationErrors);
                         m1.put("Abort Invocations", m_invocationAborts);
-                        m1.put("Throttled Invocations", m_invocationsThrottled);
                         LOG.debug("ClientResponse Information:\n" + StringUtil.formatMaps(m0, m1));
                     }
-                    
-                    // BackPressure (Throttle)
-                    // If this response's timestamp is greater than the last one that we processed, then we'll allow it to modify whether
-                    // we are throttled or not. This ensures that we don't get stuck because the messages came back out of order
-                    if (timestamp > m_lastServerTimestamp) {
-                        m_lastServerTimestamp = timestamp;
-                        
-                        if (should_throttle == false && m_hasBackPressure.compareAndSet(true, should_throttle)) {
-                            if (debug.get()) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
-                            m_connection.writeStream().setBackPressure(false);
-                            
-                        } else if (should_throttle == true && m_hasBackPressure.compareAndSet(false, true)) {
-                            m_invocationsThrottled++;
-                            if (debug.get()) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
-                            m_connection.writeStream().setBackPressure(true);
-                            m_hasBackPressureTimestamp = now;
-                        }
-                    }
+
                 } else {
-                    LOG.warn("Failed to get callback for client handle #" + clientHandle + " from " + this);
+                    LOG.warn(String.format("Failed to get callback for client handle #%d from %s\n%s\n%s",
+                                           clientHandle, this, response.toString(), m_callbacks.keySet())); 
                 }
             } // SYNCH
 
             if (stuff != null) {
-                if (status == Hstoreservice.Status.ABORT_USER || status == Hstoreservice.Status.ABORT_GRACEFUL) {
+                if (status == Status.ABORT_USER || status == Status.ABORT_GRACEFUL) {
                     m_invocationAborts++;
                     abort = true;
-                } else if (status != Hstoreservice.Status.OK) {
+                } else if (status != Status.OK) {
                     m_invocationErrors++;
                     error = true;
                 }
@@ -359,14 +336,16 @@ class Distributer {
             }
 
             if (cb != null) {
-                // We always need to call this so that we unblock the blocking client
-                // if (status != Hstoreservice.Status.ABORT_THROTTLED && status != Hstoreservice.Status.ABORT_REJECT) {
-                    response.setClientRoundtrip(delta);
+                response.setClientRoundtrip(delta);
+                try {
                     cb.clientCallback(response);
-                //}
+                } catch (Exception e) {
+                    uncaughtException(cb, response, e);
+                }
+                m_callbacksToInvoke.decrementAndGet();
             } else if (m_isConnected) {
                 // TODO: what's the right error path here?
-//                LOG.warn("No callback available for clientHandle " + clientHandle);
+                LOG.warn("No callback available for clientHandle " + clientHandle);
 //                assert(false);
             }
         }
@@ -386,23 +365,8 @@ class Distributer {
             return Integer.MAX_VALUE;
         }
 
-        public boolean hadBackPressure(long now) {
-            if (trace.get()) 
-                LOG.trace(String.format("Checking whether %s has backup pressure: %s",
-                                        m_connection, m_hasBackPressure));
-            if (m_hasBackPressure.get()) {
-                if (now - m_hasBackPressureTimestamp > m_backpressureWait) {
-                    if (trace.get()) 
-                        LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms",
-                                                this, (now - m_hasBackPressureTimestamp)));
-//                    assert(m_hasBackPressureTimestamp >= 0);
-                    m_hasBackPressure.set(false);
-                    m_hasBackPressureTimestamp = -1;
-                    return (false);
-                }
-                return (true);
-            }
-            return (false); 
+        public boolean hadBackPressure() {
+            return m_connection.writeStream().hadBackPressure();
         }
 
         @Override
@@ -421,7 +385,7 @@ class Distributer {
 
                 //Invoke callbacks for all queued invocations with a failure response
                 final ClientResponse r =
-                    new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
+                    new ClientResponseImpl(-1, -1, -1, Status.ABORT_CONNECTION_LOST,
                         new VoltTable[0], "Connection to database host (" + m_hostname +
                         ") was lost before a response was received");
                 for (final CallbackValues cbv : m_callbacks.values()) {
@@ -479,20 +443,15 @@ class Distributer {
 
             final long invocationErrorsThisTime = m_invocationErrors - m_lastInvocationErrors;
             m_lastInvocationErrors = m_invocationErrors;
-
-            final long invocationsThrottledThisTime = m_invocationsThrottled - m_lastInvocationsThrottled;
-            m_lastInvocationsThrottled = m_invocationsThrottled;
-            
             return new long[] {
                     invocationsCompletedThisTime,
                     invocationsAbortsThisTime,
                     invocationErrorsThisTime,
-                    invocationsThrottledThisTime
             };
         }
 
         private int m_queuedBytes = 0;
-        private final int m_maxQueuedBytes = 2097152;
+        private final int m_maxQueuedBytes = 262144;
 
         @Override
         public boolean queue(int bytes) {
@@ -504,18 +463,18 @@ class Distributer {
         }
     }
 
-    void drain() throws NoConnectionsException {
+    void drain() throws NoConnectionsException, InterruptedException {
         boolean more;
         do {
             more = false;
             synchronized (this) {
                 for (NodeConnection cxn : m_connections) {
-                    synchronized(cxn.m_callbacks) {
-                        more = more || cxn.m_callbacks.size() > 0;
-                    }
+                    more = more || cxn.m_callbacksToInvoke.get() > 0;
                 }
             }
-            Thread.yield();
+            if (more) {
+                Thread.sleep(5);
+            }
         } while(more);
 
         synchronized (this) {
@@ -549,7 +508,6 @@ class Distributer {
             m_statsLoader = null;
         }
         m_useMultipleThreads = useMultipleThreads;
-        m_backpressureWait = backpressureWait;
         m_network = new VoltNetwork( useMultipleThreads, true, 3);
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
         m_network.start();
@@ -563,8 +521,8 @@ class Distributer {
         m_hostname = hostname;
         
         if (debug.get())
-            LOG.debug(String.format("Created new Distributer for %s [multiThread=%s, backpressureWait=%d]",
-                                    m_hostname, m_useMultipleThreads, m_backpressureWait));
+            LOG.debug(String.format("Created new Distributer for %s [multiThread=%s]",
+                                    m_hostname, m_useMultipleThreads));
 
 //        new Thread() {
 //            @Override
@@ -661,7 +619,7 @@ class Distributer {
             synchronized (m_connectionSiteXref) {
                 Collection<NodeConnection> nc = m_connectionSiteXref.get(site_id);
                 if (nc == null) {
-                    nc = new HashSet<NodeConnection>();
+                    nc = new ArrayList<NodeConnection>();
                     m_connectionSiteXref.put(site_id, nc);
                 }
                 nc.add(cxn);    
@@ -706,7 +664,6 @@ class Distributer {
         throws NoConnectionsException {
         NodeConnection cxn = null;
         boolean backpressure = true;
-        int queuedInvocations = 0;
         long now = System.currentTimeMillis();
         
         final int totalConnections = m_connections.size();
@@ -714,33 +671,38 @@ class Distributer {
         if (totalConnections == 0) {
             throw new NoConnectionsException("No connections.");
         }
+        
+        // If we were given a site_id, then we will want to grab a 
+        // random Connection to that site. This is so that we can send the
+        // txn request directly to the site that presumably has all of the
+        // data that the txn will need
         if (site_id != null && m_connectionSiteXref.containsKey(site_id)) {
-             cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
-//            cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
+            cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
             if (cxn == null) {
                 LOG.warn("No direct connection to " + HStoreThreadManager.formatSiteName(site_id));
-            } else backpressure = false; // XXX
-//            else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
-//                backpressure = false;
-//            }
-//            else {
-//                cxn = null;
-//            }
+            }
+            else if (!cxn.hadBackPressure() || ignoreBackpressure) {
+                backpressure = false;
+            }
+            else {
+                cxn = null;
+            }
         }
         
-        /*
-         * Synchronization is necessary to ensure that m_connections is not modified
-         * as well as to ensure that backpressure is reported correctly
-         */
+        // If we didn't get a direct site connection then we'll grab the next 
+        // connection in our round-robin look up
+        // Synchronization is necessary to ensure that m_connections is not modified
+        // as well as to ensure that backpressure is reported correctly
         if (cxn == null) {
+            // int queuedInvocations = 0;
             synchronized (this) {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
                     cxn = m_connections.get(idx);
                     if (trace.get())
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
-                    queuedInvocations += cxn.m_callbacks.size();
-                    if (cxn.hadBackPressure(now) == false || ignoreBackpressure) {
+                    // queuedInvocations += cxn.m_callbacks.size();
+                    if (cxn.hadBackPressure() == false || ignoreBackpressure) {
                         // serialize and queue the invocation
                         backpressure = false;
                         break;
@@ -755,19 +717,22 @@ class Distributer {
             }
         }
         
-        if (debug.get()) 
-            LOG.debug(String.format("Queuing new %s Request [clientHandle=%d, siteId=%s]",
-                                    invocation.getProcName(), invocation.getClientHandle(), site_id));
-
         /*
          * Do the heavy weight serialization outside the synchronized block.
          * createWork synchronizes on an individual connection which allows for more concurrency
          */
         if (cxn != null) {
+            if (debug.get()) 
+                LOG.debug(String.format("Queuing new %s Request at %s [clientHandle=%d, siteId=%s]",
+                                        invocation.getProcName(), cxn, invocation.getClientHandle(), site_id));
+            
             if (m_useMultipleThreads) {
                 cxn.createWork(now, invocation.getClientHandle(), invocation.getProcName(), invocation, cb);
             } else {
+                
                 final FastSerializer fs = new FastSerializer(m_pool, expectedSerializedSize);
+//                FastSerializer fs = this.getSerializer();
+//                fs.reset();
                 BBContainer c = null;
                 try {
                     c = fs.writeObjectForMessaging(invocation);
@@ -793,6 +758,22 @@ class Distributer {
 
         return !backpressure;
     }
+    
+    /**
+     * Return a thread-safe FastSerializer
+     * @return
+     */
+    @SuppressWarnings("unused")
+    private FastSerializer getSerializer() {
+        Thread t = Thread.currentThread();
+        FastSerializer fs = this.m_serializers.get(t);
+        if (fs == null) {
+            fs = new FastSerializer(m_pool);
+            this.m_serializers.put(t, fs);
+        }
+        assert(fs != null);
+        return (fs);
+    }
 
     /**
      * Shutdown the VoltNetwork allowing the Ports to close and free resources
@@ -805,7 +786,29 @@ class Distributer {
         }
         m_network.shutdown();
         synchronized (this) {
-            m_pool.clear();
+            try {
+                m_pool.clear();
+            } catch (Throwable ex) {
+                // HACK: Ignore!
+            }
+        }
+    }
+
+    private void uncaughtException(ProcedureCallback cb, ClientResponse r, Throwable t) {
+        boolean handledByClient = false;
+        for (ClientStatusListener csl : m_listeners) {
+            if (csl instanceof ClientImpl.CSL) {
+                continue;
+            }
+            try {
+               csl.uncaughtException(cb, r, t);
+               handledByClient = true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (!handledByClient) {
+            t.printStackTrace();
         }
     }
 
@@ -829,7 +832,6 @@ class Distributer {
             new ColumnInfo( "INVOCATIONS_COMPLETED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_ABORTED", VoltType.BIGINT),
             new ColumnInfo( "INVOCATIONS_FAILED", VoltType.BIGINT),
-            new ColumnInfo( "INVOCATIONS_THROTTLED", VoltType.BIGINT),
             new ColumnInfo( "BYTES_READ", VoltType.BIGINT),
             new ColumnInfo( "MESSAGES_READ", VoltType.BIGINT),
             new ColumnInfo( "BYTES_WRITTEN", VoltType.BIGINT),
@@ -856,6 +858,7 @@ class Distributer {
             new ColumnInfo( "TIMES_RESTARTED", VoltType.BIGINT)
     };
 
+    @SuppressWarnings("unused")
     VoltTable getProcedureStats(final boolean interval) {
         final Long now = System.currentTimeMillis();
         final VoltTable retval = new VoltTable(procedureStatsColumns);
@@ -961,7 +964,6 @@ class Distributer {
         long totalInvocations = 0;
         long totalAbortedInvocations = 0;
         long totalFailedInvocations = 0;
-        long totalThrottledInvocations = 0;
         synchronized (m_connections) {
             for (NodeConnection cxn : m_connections) {
                 synchronized (cxn) {
@@ -974,8 +976,6 @@ class Distributer {
                     totalInvocations += counters[0];
                     totalAbortedInvocations += counters[1];
                     totalFailedInvocations += counters[2];
-                    totalThrottledInvocations += counters[3];
-                    
                     final long networkCounters[] = networkStats.get(cxn.connectionId()).getSecond();
                     final String hostname = networkStats.get(cxn.connectionId()).getFirst();
                     long bytesRead = 0;
@@ -999,7 +999,6 @@ class Distributer {
                             counters[0],
                             counters[1],
                             counters[2],
-                            counters[3],
                             bytesRead,
                             messagesRead,
                             bytesWritten,
@@ -1019,7 +1018,6 @@ class Distributer {
                 totalInvocations,
                 totalAbortedInvocations,
                 totalFailedInvocations,
-                totalThrottledInvocations,
                 globalIOStats[0],
                 globalIOStats[1],
                 globalIOStats[2],

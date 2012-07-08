@@ -59,6 +59,7 @@ import org.voltdb.utils.VoltSampler;
 
 import edu.brown.hstore.PartitionExecutor;
 
+@Deprecated
 public class RealVoltDB implements VoltDBInterface
 {
     private static final Logger log =
@@ -406,9 +407,6 @@ public class RealVoltDB implements VoltDBInterface
 
             m_messenger.sendReadyMessage();
             m_messenger.waitForAllHostsToBeReady();
-
-            fivems = new PeriodicWorkTimerThread(m_clientInterfaces);
-            fivems.start();
 
             hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_ServerCompletedInitialization.name(), null);
         }

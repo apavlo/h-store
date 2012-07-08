@@ -30,6 +30,8 @@ package edu.brown.statistics;
 import java.util.Collection;
 import java.util.Random;
 
+import org.json.JSONObject;
+
 import edu.brown.BaseTestCase;
 
 /**
@@ -52,13 +54,30 @@ public class TestFastIntHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(min) + min; 
             h.put(val);
-            fast_h.put(val);
+            fast_h.fastPut(val);
         }
         for (int i = 0; i < NUM_SAMPLES; i++) {
             int val = rand.nextInt(RANGE); 
             h.put(val);
-            fast_h.put(val);
+            fast_h.fastPut(val);
         }
+    }
+    
+    /**
+     * testSerialization
+     */
+    public void testSerialization() throws Exception {
+        String json = fast_h.toJSONString();
+        assertFalse(json.isEmpty());
+        
+        FastIntHistogram clone = new FastIntHistogram();
+        JSONObject jsonObj = new JSONObject(json);
+        clone.fromJSON(jsonObj, null);
+        
+        assertEquals(fast_h.fastSize(), clone.fastSize());
+        for (int i = 0, cnt = fast_h.fastSize(); i < cnt; i++) {
+            assertEquals(fast_h.fastGet(i), clone.fastGet(i));
+        } // FOR
     }
     
     /**

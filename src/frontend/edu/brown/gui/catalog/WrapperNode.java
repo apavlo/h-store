@@ -12,7 +12,8 @@ public class WrapperNode {
         this.show_type = show_type;
 
         if (custom == null) {
-            this.label = (this.show_type ? this.catalog_obj.getClass().getSimpleName() + " " : "") + this.catalog_obj.getName();
+            String prefix = (this.show_type ? this.catalog_obj.getClass().getSimpleName() + " " : ""); 
+            this.label = prefix + this.catalog_obj.getName();
         } else {
             this.label = custom;
         }

@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,11 +34,11 @@ public class SnapshotSchedule extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("frequencyUnit", m_frequencyUnit);
-        this.addField("frequencyValue", m_frequencyValue);
-        this.addField("retain", m_retain);
-        this.addField("path", m_path);
-        this.addField("prefix", m_prefix);
+        m_fields.put("frequencyUnit", m_frequencyUnit);
+        m_fields.put("frequencyValue", m_frequencyValue);
+        m_fields.put("retain", m_retain);
+        m_fields.put("path", m_path);
+        m_fields.put("prefix", m_prefix);
     }
 
     public void update() {

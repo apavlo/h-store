@@ -50,41 +50,92 @@
 
 package org.voltdb;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+
 import org.voltdb.ParameterSet;
-import org.voltdb.messaging.FastSerializableTestUtil;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.TimestampType;
 
 import junit.framework.TestCase;
 
 public class TestParameterSet extends TestCase {
     ParameterSet params;
+
+    @Override
     public void setUp() {
         params = new ParameterSet();
     }
 
-    public void testNull() {
-        params.setParameters(new Object[]{null});
+    public void testNull() throws IOException {
+        params.setParameters(new Object[]{null, null, null});
+        ByteBuffer buf = ByteBuffer.wrap(FastSerializer.serialize(params));
+        buf.rewind();
 
-        ParameterSet out = FastSerializableTestUtil.roundTrip(params);
-        assertEquals(1, out.toArray().length);
+        ParameterSet out = new ParameterSet();
+        out.readExternal(new FastDeserializer(buf));
+
+        assertEquals(3, out.toArray().length);
         assertNull(out.toArray()[0]);
     }
 
-    public void testStrings() {
+    public void testStrings() throws IOException {
         params.setParameters(new Object[]{"foo"});
-        ParameterSet out = FastSerializableTestUtil.roundTrip(params);
+        ByteBuffer buf = ByteBuffer.wrap(FastSerializer.serialize(params));
+        buf.rewind();
+
+        ParameterSet out = new ParameterSet();
+        out.readExternal(new FastDeserializer(buf));
         assertEquals(1, out.toArray().length);
         assertEquals("foo", out.toArray()[0]);
     }
 
-    public void testStringsAsByteArray() {
-        params = new ParameterSet(true);
+    public void testStringsAsByteArray() throws IOException {
+        params = new ParameterSet();
         params.setParameters(new Object[]{new byte[]{'f', 'o', 'o'}});
-        ParameterSet out = FastSerializableTestUtil.roundTrip(params);
+        ByteBuffer buf = ByteBuffer.wrap(FastSerializer.serialize(params));
+        buf.rewind();
+
+        ParameterSet out = new ParameterSet();
+        out.readExternal(new FastDeserializer(buf));
         assertEquals(1, out.toArray().length);
 
-        // TODO(evanj): It would probably be best to use a byte array as the
-        // "native" string format, and only convert to String where needed.
-        // Hence, this probably should be a byte array.
-        assertEquals("foo", out.toArray()[0]);
+        byte[] bin = (byte[]) out.toArray()[0];
+        assertEquals(bin[0], 'f'); assertEquals(bin[1], 'o'); assertEquals(bin[2], 'o');
+    }
+
+    private boolean arrayLengthTester(Object[] objs)
+    {
+        params = new ParameterSet();
+        params.setParameters(objs);
+        boolean threw = false;
+        try
+        {
+            ByteBuffer buf = ByteBuffer.wrap(FastSerializer.serialize(params));
+        }
+        catch (IOException ioe)
+        {
+            threw = true;
+        }
+        return threw;
+    }
+
+    public void testArraysTooLong() throws IOException {
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new short[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new int[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new long[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new double[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new String[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new TimestampType[Short.MAX_VALUE + 1]}));
+        assertTrue("Array longer than Short.MAX_VALUE didn't fail to serialize",
+                   arrayLengthTester(new Object[]{new BigDecimal[Short.MAX_VALUE + 1]}));
     }
 }

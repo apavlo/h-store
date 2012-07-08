@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ public class Group extends CatalogType {
         super.setBaseValues(catalog, parent, path, name);
         m_users = new CatalogMap<UserRef>(catalog, this, path + "/" + "users", UserRef.class);
         m_childCollections.put("users", m_users);
-        this.addField("sysproc", m_sysproc);
-        this.addField("adhoc", m_adhoc);
+        m_fields.put("sysproc", m_sysproc);
+        m_fields.put("adhoc", m_adhoc);
     }
 
     public void update() {

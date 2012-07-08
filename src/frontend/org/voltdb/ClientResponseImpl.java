@@ -18,9 +18,9 @@
 package org.voltdb;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FastDeserializer;
@@ -51,7 +51,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     // PAVLO
     private long txn_id;
     private int requestCounter = -1;
-    private boolean throttle = false;
     private boolean singlepartition = false;
     private int basePartition = -1;
     private int restartCounter = 0;
@@ -73,11 +72,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
 
     /**
-     * Another constructor for test and error responses
+     * 
+     * @param txn_id
      * @param client_handle
+     * @param basePartition
      * @param status
      * @param results
-     * @param extra
+     * @param statusString
      */
     public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString) {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);
@@ -160,21 +161,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
     
     /**
-     * Mark the throttle flag in the byte array without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setThrottleFlag(ByteBuffer b, boolean flag) {
-        b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
-    }
-    
-    /**
      * Set the base partition for the client response without deserializing it
      * @param arr
      * @param flag
      */
     public static void setBasePartition(ByteBuffer b, int basePartition) {
-        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 + 1 = 23 
+        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 = 22 
     }
     
     /**
@@ -183,7 +175,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 + 4 = 27 
+        b.put(26, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 4 = 26 
     }
     
     // ----------------------------------------------------------------------------
@@ -209,14 +201,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     public void setStatus(Status status) {
         this.status = status;
-    }
-    
-    @Override
-    public boolean getThrottleFlag() {
-        return (this.throttle);
-    }
-    public void setThrottleFlag(boolean val) {
-        this.throttle = val;
     }
     
     @Override
@@ -288,16 +272,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
-        in.readByte();//Skip version byte
-        requestCounter = in.readInt();
-        txn_id = in.readLong();
-        clientHandle = in.readLong();
-        singlepartition = in.readBoolean();
-        throttle = in.readBoolean();
-        basePartition = in.readInt();
+        in.readByte();//Skip version byte   // 1 byte
+        requestCounter = in.readInt();      // 4 bytes
+        txn_id = in.readLong();             // 8 bytes
+        clientHandle = in.readLong();       // 8 bytes
+        singlepartition = in.readBoolean(); // 1 byte
+        basePartition = in.readInt();       // 4 bytes
+        status = Status.valueOf(in.readByte()); // 1 byte
         
-        byte presentFields = in.readByte();
-        status = Status.valueOf(in.readByte());
+        byte presentFields = in.readByte(); // 1 byte
         if ((presentFields & (1 << 5)) != 0) {
             statusString = in.readString();
         } else {
@@ -327,8 +310,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
-        out.writeBoolean(throttle);
         out.writeInt(basePartition);
+        out.write((byte)status.ordinal());
         
         byte presentFields = 0;
         if (appStatusString != null) {
@@ -341,7 +324,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             presentFields |= 1 << 5;
         }
         out.writeByte(presentFields);
-        out.write((byte)status.ordinal());
+        
         if (statusString != null) {
             out.writeString(statusString);
         }
@@ -397,14 +380,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
 
     @Override
     public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Status", this.status +
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("RequestCounter", this.requestCounter);
-        m.put("Throttle", this.throttle);
-        m.put("SinglePartition", this.singlepartition);
-        m.put("BasePartition", this.basePartition);
+        m.put("Request Counter", this.requestCounter);
+        m.put("Restart Counter", this.restartCounter);
+        m.put("Single-Partition", this.singlepartition);
+        m.put("Base Partition", this.basePartition);
         m.put("Exception", m_exception);
         
         if (this.clientRoundTripTime > 0) {
@@ -414,7 +397,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             m.put("Cluster RoundTrip Time", this.clusterRoundTripTime + " ms");
         }
         
-        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        Map<String, Object> inner = new LinkedHashMap<String, Object>();
         for (int i = 0; i < results.length; i++) {
             inner.put(String.format("[%d]", i), results[i].toString());
         }

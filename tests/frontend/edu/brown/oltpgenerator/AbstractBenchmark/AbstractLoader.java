@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.api.BenchmarkComponent;
 import edu.brown.oltpgenerator.RandUtil;
 import edu.brown.oltpgenerator.env.TableEnv;
 import edu.brown.oltpgenerator.velocity.CodeGenerator;

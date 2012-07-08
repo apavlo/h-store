@@ -58,13 +58,13 @@ public abstract class VoltTypeUtil {
             // INTEGERS
             // --------------------------------
             case TINYINT:
-                ret = Long.valueOf((byte) Math.abs(rand.nextInt() % 128));
+                ret = Integer.valueOf((byte) Math.abs(rand.nextInt() % 128));
                 break;
             case SMALLINT:
-                ret = Long.valueOf((short) Math.abs(rand.nextInt() % 32768));
+                ret = Integer.valueOf((short) Math.abs(rand.nextInt() % 32768));
                 break;
             case INTEGER:
-                ret = Long.valueOf(Math.abs(rand.nextInt() % 100000));
+                ret = Integer.valueOf(Math.abs(rand.nextInt() % 100000));
                 break;
             case BIGINT:
                 ret = Long.valueOf(Math.abs(rand.nextInt() % 100000));
@@ -271,8 +271,8 @@ public abstract class VoltTypeUtil {
                 //ret = Short.valueOf(value);
                 //break;
             case INTEGER:
-                //ret = Integer.valueOf(value);
-                //break;
+                ret = Integer.valueOf(value);
+                break;
             case BIGINT:
                 try {
                     ret = Long.valueOf(value);

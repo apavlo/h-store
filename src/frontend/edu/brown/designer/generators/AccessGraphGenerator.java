@@ -521,7 +521,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             for (Column catalog_col : scan_cset.findAllForParent(Column.class, catalog_tbl)) {
                 // Get the foreign key constraint for this column and then add
                 // it to the ColumnSet
-                Set<Constraint> catalog_consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
+                Collection<Constraint> catalog_consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
                 catalog_consts = CatalogUtil.findAll(catalog_consts, "type", ConstraintType.FOREIGN_KEY.getValue());
                 if (!catalog_consts.isEmpty()) {
                     assert (catalog_consts.size() == 1) : CatalogUtil.getDisplayName(catalog_col) + " has " + catalog_consts.size() + " foreign key constraints: " + catalog_consts;

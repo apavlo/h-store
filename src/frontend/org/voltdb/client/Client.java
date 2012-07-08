@@ -76,7 +76,7 @@ public interface Client {
     // default port number for volt cluster instances.
     public static final int VOLTDB_SERVER_PORT = 21212;
 
-     /**
+    /**
      * Create a connection to another VoltDB node.
      * @param siteId TODO
      * @param host hostname or IP address of the host to connect to
@@ -88,7 +88,7 @@ public interface Client {
      */
     public void createConnection(Integer siteId, String host, int port, String username, String password)
         throws UnknownHostException, IOException;
-    
+
     /**
      * Synchronously invoke a procedure. Blocks until a result is available. A {@link ProcCallException}
      * is thrown if the response is anything other then success.
@@ -150,7 +150,7 @@ public interface Client {
      * or there are no more connections to the cluster
      * @throws NoConnectionsException
      */
-    public void drain() throws NoConnectionsException;
+    public void drain() throws NoConnectionsException, InterruptedException;
 
     /**
      * Shutdown the {@link Client} closing all network connections and release all memory resources.
@@ -208,7 +208,7 @@ public interface Client {
      * @return Table containing procedure stats
      */
     public VoltTable getProcedureStatsInterval();
-    
+
     public ProfileMeasurement getQueueTime();
 
     /**

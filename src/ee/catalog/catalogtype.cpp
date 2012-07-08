@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,12 @@ CatalogType::CatalogType(Catalog * catalog, CatalogType * parent, const string &
 
     if (this != m_catalog) {
         m_catalog->registerGlobally(this);
+    }
+}
+
+CatalogType::~CatalogType() {
+    if (this != m_catalog) {
+        m_catalog->unregisterGlobally(this);
     }
 }
 

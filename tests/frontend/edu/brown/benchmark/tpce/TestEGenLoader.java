@@ -40,7 +40,7 @@ import edu.brown.utils.ProjectType;
 public class TestEGenLoader extends BaseTestCase {
 
     // HACK
-    private static final String EGENLOADER_HOME = System.getenv(TPCEConstants.PARAM_EGENLOADER_HOME);
+    private static final String EGENLOADER_HOME = System.getenv("TPCE_LOADER_FILES");
     protected static EGenLoader loader;
     protected static Catalog catalog;
     protected static Database catalog_db;

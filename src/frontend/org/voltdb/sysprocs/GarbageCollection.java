@@ -13,16 +13,12 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 
@@ -94,39 +90,9 @@ public class GarbageCollection extends VoltSystemProcedure {
         // Invalid!
         return (result);
     }
-
+    
     public VoltTable[] run() {
-        // Send a gc request to the first partition at each HStoreSite
-        final int num_sites = CatalogUtil.getNumberOfSites(this.database);
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_sites + 1];
-        final ParameterSet params = new ParameterSet();
-        
-        int i = 0;
-        for (Site catalog_site : CatalogUtil.getAllSites(this.database)) {
-            Partition catalog_part = CollectionUtil.first(catalog_site.getPartitions());
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_gcDistribute;
-            pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].outputDependencyIds = new int[] { SysProcFragmentId.PF_gcDistribute };
-            pfs[i].multipartition = true;
-            pfs[i].nonExecSites = false;
-            pfs[i].destPartitionId = catalog_part.getId();
-            pfs[i].parameters = params;
-            pfs[i].last_task = (catalog_site.getId() == hstore_site.getSiteId());
-            i += 1;
-        } // FOR
-
-        // a final plan fragment to aggregate the results
-        pfs[i] = new SynthesizedPlanFragment();
-        pfs[i].fragmentId = SysProcFragmentId.PF_gcAggregate;
-        pfs[i].inputDependencyIds = new int[] { SysProcFragmentId.PF_gcDistribute };
-        pfs[i].outputDependencyIds = new int[] { SysProcFragmentId.PF_gcAggregate };
-        pfs[i].multipartition = false;
-        pfs[i].nonExecSites = false;
-        pfs[i].destPartitionId = CollectionUtil.first(hstore_site.getLocalPartitionIds());
-        pfs[i].parameters = params;
-        pfs[i].last_task = true;
-        
-        return executeSysProcPlanFragments(pfs, SysProcFragmentId.PF_gcAggregate);
+        return this.autoDistribute(SysProcFragmentId.PF_gcDistribute,
+                                   SysProcFragmentId.PF_gcAggregate);
     }
 }

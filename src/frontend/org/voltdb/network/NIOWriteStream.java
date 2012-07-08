@@ -49,7 +49,8 @@ import org.voltdb.utils.VoltLoggerFactory;
 *  allocation works well.
 */
 public class NIOWriteStream implements WriteStream {
-
+    private static final Logger LOG = Logger.getLogger(NIOWriteStream.class);
+    
     /**
      * Reference to the port for changing interest ops
      */

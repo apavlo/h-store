@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,6 +57,37 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["ms_exptree"] = value;
     m_fields["ms_fullplan"] = value;
     m_fields["cost"] = value;
+}
+
+Statement::~Statement() {
+    std::map<std::string, StmtParameter*>::const_iterator stmtparameter_iter = m_parameters.begin();
+    while (stmtparameter_iter != m_parameters.end()) {
+        delete stmtparameter_iter->second;
+        stmtparameter_iter++;
+    }
+    m_parameters.clear();
+
+    std::map<std::string, Column*>::const_iterator column_iter = m_output_columns.begin();
+    while (column_iter != m_output_columns.end()) {
+        delete column_iter->second;
+        column_iter++;
+    }
+    m_output_columns.clear();
+
+    std::map<std::string, PlanFragment*>::const_iterator planfragment_iter = m_fragments.begin();
+    while (planfragment_iter != m_fragments.end()) {
+        delete planfragment_iter->second;
+        planfragment_iter++;
+    }
+    m_fragments.clear();
+
+    planfragment_iter = m_ms_fragments.begin();
+    while (planfragment_iter != m_ms_fragments.end()) {
+        delete planfragment_iter->second;
+        planfragment_iter++;
+    }
+    m_ms_fragments.clear();
+
 }
 
 void Statement::update() {
@@ -121,16 +152,21 @@ CatalogType * Statement::getChild(const std::string &collectionName, const std::
     return NULL;
 }
 
-void Statement::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Statement::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("parameters") == 0)
+    if (collectionName.compare("parameters") == 0) {
         return m_parameters.remove(childName);
-    if (collectionName.compare("output_columns") == 0)
+    }
+    if (collectionName.compare("output_columns") == 0) {
         return m_output_columns.remove(childName);
-    if (collectionName.compare("fragments") == 0)
+    }
+    if (collectionName.compare("fragments") == 0) {
         return m_fragments.remove(childName);
-    if (collectionName.compare("ms_fragments") == 0)
+    }
+    if (collectionName.compare("ms_fragments") == 0) {
         return m_ms_fragments.remove(childName);
+    }
+    return false;
 }
 
 int32_t Statement::id() const {

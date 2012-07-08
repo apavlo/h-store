@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,6 +46,37 @@ Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_fields["materializer"] = value;
     m_fields["systable"] = value;
     m_fields["mapreduce"] = value;
+}
+
+Table::~Table() {
+    std::map<std::string, Column*>::const_iterator column_iter = m_columns.begin();
+    while (column_iter != m_columns.end()) {
+        delete column_iter->second;
+        column_iter++;
+    }
+    m_columns.clear();
+
+    std::map<std::string, Index*>::const_iterator index_iter = m_indexes.begin();
+    while (index_iter != m_indexes.end()) {
+        delete index_iter->second;
+        index_iter++;
+    }
+    m_indexes.clear();
+
+    std::map<std::string, Constraint*>::const_iterator constraint_iter = m_constraints.begin();
+    while (constraint_iter != m_constraints.end()) {
+        delete constraint_iter->second;
+        constraint_iter++;
+    }
+    m_constraints.clear();
+
+    std::map<std::string, MaterializedViewInfo*>::const_iterator materializedviewinfo_iter = m_views.begin();
+    while (materializedviewinfo_iter != m_views.end()) {
+        delete materializedviewinfo_iter->second;
+        materializedviewinfo_iter++;
+    }
+    m_views.clear();
+
 }
 
 void Table::update() {
@@ -97,16 +128,21 @@ CatalogType * Table::getChild(const std::string &collectionName, const std::stri
     return NULL;
 }
 
-void Table::removeChild(const std::string &collectionName, const std::string &childName) {
+bool Table::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("columns") == 0)
+    if (collectionName.compare("columns") == 0) {
         return m_columns.remove(childName);
-    if (collectionName.compare("indexes") == 0)
+    }
+    if (collectionName.compare("indexes") == 0) {
         return m_indexes.remove(childName);
-    if (collectionName.compare("constraints") == 0)
+    }
+    if (collectionName.compare("constraints") == 0) {
         return m_constraints.remove(childName);
-    if (collectionName.compare("views") == 0)
+    }
+    if (collectionName.compare("views") == 0) {
         return m_views.remove(childName);
+    }
+    return false;
 }
 
 const CatalogMap<Column> & Table::columns() const {

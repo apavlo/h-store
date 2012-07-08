@@ -72,7 +72,7 @@ public class Histogram<X> implements JSONSerializable {
     public static final String DELIMITER = "\t";
     public static final String MARKER = "*";
     public static final Integer MAX_CHARS = 80;
-    public static final Integer MAX_VALUE_LENGTH = 20;
+    public static final int MAX_VALUE_LENGTH = 20;
 
     public enum Members {
         VALUE_TYPE,
@@ -86,12 +86,10 @@ public class Histogram<X> implements JSONSerializable {
     protected VoltType value_type = VoltType.INVALID;
     protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
     protected int num_samples = 0;
-    private transient boolean dirty = false;
     
-    /**
-     * 
-     */
-    protected transient Map<Object, String> debug_names; 
+    private transient boolean dirty = false;
+    protected transient Map<Object, String> debug_names;
+    protected transient boolean debug_percentages = false;
     
     /**
      * The Min/Max values are the smallest/greatest values we have seen based
@@ -102,7 +100,7 @@ public class Histogram<X> implements JSONSerializable {
     
     /**
      * The Min/Max counts are the values that have the smallest/greatest number of
-     * occurences in the histogram
+     * occurrences in the histogram
      */
     protected long min_count = 0;
     protected List<X> min_count_values;
@@ -146,26 +144,6 @@ public class Histogram<X> implements JSONSerializable {
         }
         return (false);
     }
-    
-    /**
-     * Helper method used for replacing the object's toString() output with labels
-     * @param names_map
-     */
-    public Histogram<X> setDebugLabels(Map<?, String> names_map) {
-        if (this.debug_names == null) {
-            synchronized (this) {
-                if (this.debug_names == null) {
-                    this.debug_names = new HashMap<Object, String>();
-                }
-            } // SYNCH
-        }
-        this.debug_names.putAll(names_map);
-        return (this);
-    }
-    public boolean hasDebugLabels() {
-        return (this.debug_names != null && this.debug_names.isEmpty() == false);
-    }
-    
 
     /**
      * Set whether this histogram is allowed to retain zero count entries
@@ -241,6 +219,10 @@ public class Histogram<X> implements JSONSerializable {
      */
     @SuppressWarnings("unchecked")
     private synchronized void calculateInternalValues() {
+        // Do this before we check before we're dirty
+        if (this.min_count_values == null) this.min_count_values = new ArrayList<X>();
+        if (this.max_count_values == null) this.max_count_values = new ArrayList<X>();
+        
         if (this.dirty == false) return;
         
         // New Min/Max Counts
@@ -251,9 +233,6 @@ public class Histogram<X> implements JSONSerializable {
         this.min_count = Long.MAX_VALUE;
         this.min_value = null;
         this.max_value = null;
-        
-        if (this.min_count_values == null) this.min_count_values = new ArrayList<X>();
-        if (this.max_count_values == null) this.max_count_values = new ArrayList<X>();
         
         for (Entry<X, Long> e : this.histogram.entrySet()) {
             X value = e.getKey();
@@ -716,6 +695,39 @@ public class Histogram<X> implements JSONSerializable {
     // ----------------------------------------------------------------------------
 
     /**
+     * Helper method used for replacing the object's toString() output with labels
+     * @param names_map
+     */
+    public Histogram<X> setDebugLabels(Map<?, String> names_map) {
+        if (this.debug_names == null) {
+            synchronized (this) {
+                if (this.debug_names == null) {
+                    this.debug_names = new HashMap<Object, String>();
+                }
+            } // SYNCH
+        }
+        this.debug_names.putAll(names_map);
+        return (this);
+    }
+    public boolean hasDebugLabels() {
+        return (this.debug_names != null && this.debug_names.isEmpty() == false);
+    }
+    public Map<Object, String> getDebugLabels() {
+        return (this.debug_names);
+    }
+    public String getDebugLabel(Object key) {
+        return (this.debug_names.get(key));
+    }
+    
+    /**
+     * Enable percentages in toString() output
+     * @return
+     */
+    public void enablePercentages() {
+        this.debug_percentages = true;
+    }
+    
+    /**
      * Histogram Pretty Print
      */
     public String toString() {
@@ -737,20 +749,27 @@ public class Histogram<X> implements JSONSerializable {
      * @param max_length
      * @return
      */
-    public synchronized String toString(Integer max_chars, Integer max_length) {
+    public synchronized String toString(Integer max_chars, Integer _max_length) {
         StringBuilder s = new StringBuilder();
-        if (max_length == null) max_length = MAX_VALUE_LENGTH;
+        int max_length = (_max_length != null ? _max_length.intValue() : MAX_VALUE_LENGTH);
         
         this.calculateInternalValues();
         
         // Figure out the max size of the counts
         int max_ctr_length = 4;
+        long total = 0;
         for (Long ctr : this.histogram.values()) {
+            total += ctr.longValue();
             max_ctr_length = Math.max(max_ctr_length, ctr.toString().length());
         } // FOR
         
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
-        String f = "%-" + max_length + "s [%" + max_ctr_length + "d] ";
+        String f = "%-" + max_length + "s [%" + max_ctr_length + "d";
+        if (this.debug_percentages) {
+            f += " - %4.1f%%";
+        }
+        f += "] ";
+        
         boolean first = true;
         boolean has_labels = this.hasDebugLabels();
         for (Object value : this.histogram.keySet()) {
@@ -761,10 +780,19 @@ public class Histogram<X> implements JSONSerializable {
             int value_str_len = str.length();
             if (value_str_len > max_length) str = str.substring(0, max_length - 3) + "...";
             
+            // Value Label + Count
             long cnt = (value != null ? this.histogram.get(value).longValue() : 0);
-            int chars = (int)((cnt / (double)this.max_count) * max_chars);
-            s.append(String.format(f, str, cnt));
-            for (int i = 0; i < chars; i++) s.append(MARKER);
+            if (this.debug_percentages) {
+                double percent = (cnt / (double)total) * 100;
+                s.append(String.format(f, str, cnt, percent));
+            } else {
+                s.append(String.format(f, str, cnt));
+            }
+            
+            // Histogram Bar
+            int barSize = (int)((cnt / (double)this.max_count) * max_chars.intValue());
+            for (int i = 0; i < barSize; i++) s.append(MARKER);
+            
             first = false;
         } // FOR
         if (this.histogram.isEmpty()) s.append("<EMPTY>");
@@ -799,20 +827,30 @@ public class Histogram<X> implements JSONSerializable {
         for (Members element : Histogram.Members.values()) {
             try {
                 Field field = Histogram.class.getDeclaredField(element.toString().toLowerCase());
-                if (element == Members.HISTOGRAM) {
-                    stringer.key(Members.HISTOGRAM.name()).object();
-                    synchronized (this) {
-                        for (Object value : this.histogram.keySet()) {
-                            stringer.key(value.toString()).value(this.histogram.get(value));
-                        } // FOR
-                    } // SYNCH
-                    stringer.endObject();
-                } else if (element == Members.KEEP_ZERO_ENTRIES) {
-                    if (this.keep_zero_entries)
-                        stringer.key(element.name()).value(this.keep_zero_entries);
-                } else {
-                    stringer.key(element.name()).value(field.get(this));
-                }
+                switch (element) {
+                    case HISTOGRAM: {
+                        if (this.histogram.isEmpty() == false) {
+                            stringer.key(element.name()).object();
+                            synchronized (this) {
+                                for (Object value : this.histogram.keySet()) {
+                                    stringer.key(value.toString())
+                                            .value(this.histogram.get(value));
+                                } // FOR
+                            } // SYNCH
+                            stringer.endObject();
+                        }
+                        break;
+                    }
+                    case KEEP_ZERO_ENTRIES: {
+                        if (this.keep_zero_entries)
+                            stringer.key(element.name())
+                                    .value(this.keep_zero_entries);
+                        break;
+                    }
+                    default:
+                        stringer.key(element.name())
+                                .value(field.get(this));
+                } // SWITCH
             } catch (Exception ex) {
                 ex.printStackTrace();
                 System.exit(1);
@@ -838,10 +876,11 @@ public class Histogram<X> implements JSONSerializable {
                 String field_name = element.toString().toLowerCase();
                 Field field = Histogram.class.getDeclaredField(field_name);
                 if (element == Members.HISTOGRAM) {
-                    JSONObject jsonObject = object.getJSONObject(Members.HISTOGRAM.name());
-                    Iterator<String> keys = jsonObject.keys();
-                    while (keys.hasNext()) {
-                        String key_name = keys.next();
+                    if (object.has(element.name()) == false) {
+                        continue;
+                    }
+                    JSONObject jsonObject = object.getJSONObject(element.name());
+                    for (String key_name : CollectionUtil.iterable(jsonObject.keys())) {
                         Object key_value = VoltTypeUtil.getObjectFromString(this.value_type, key_name);
                         Long count = Long.valueOf(jsonObject.getLong(key_name));
                         this.histogram.put((X) key_value, count);

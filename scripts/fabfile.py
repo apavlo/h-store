@@ -42,9 +42,23 @@ import paramiko
 import socket
 import string 
 from StringIO import StringIO
+from pprint import pformat
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 from fabric.api import *
 from fabric.contrib.files import *
-from pprint import pformat
+
+## ==============================================
+## LOGGING CONFIGURATION
+## ==============================================
 
 LOG = logging.getLogger(__name__)
 LOG_handler = logging.StreamHandler()
@@ -73,6 +87,7 @@ ALL_PACKAGES = [
     'openjdk-6-jdk',
     'valgrind',
     'ant',
+    'make',
     ## Not required, but handy to have
     'htop',
     'realpath',
@@ -103,7 +118,7 @@ ENV_DEFAULT = {
     "ec2.site_type":               "m2.4xlarge",
     "ec2.client_type":             "m1.xlarge",
     "ec2.placement_group":         None,
-    "ec2.ami":                     "ami-63be790a",
+    "ec2.ami":                     "ami-808220e9",
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
     "ec2.region":                  "us-east-1b",
@@ -830,7 +845,8 @@ def clear_logs():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
-            with settings(host_string=inst.public_dns_name), settings(warn_only=True):
+            #### below 'and' changed from comma by ambell
+            with settings(host_string=inst.public_dns_name) and settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
                 log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
                 run("rm -rf %s/*" % log_dir)
@@ -855,8 +871,10 @@ def sync_time():
 ## __syncTime__
 ## ----------------------------------------------
 def __syncTime__():
-    sudo("echo 1 > /proc/sys/xen/independent_wallclock")
-    sudo("ntpdate-debian -b")
+    with settings(warn_only=True):
+        sudo("echo 1 > /proc/sys/xen/independent_wallclock")
+        sudo("ntpdate-debian -b")
+    ## WITH
 ## DEF
 
 ## ----------------------------------------------
