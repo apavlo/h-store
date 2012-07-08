@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -117,12 +117,12 @@ protected:
         }
         if (pkey) {
             printf("creating table with pkey\n");
-            table = TableFactory::getPersistentTable(this->database_id, 1, m_engine.getExecutorContext(),
+            table = TableFactory::getPersistentTable(this->database_id, m_engine.getExecutorContext(),
                                                      "test_table", schema, names, *pkey, -1, false, false);
         }
         else {
             printf("creating table with no pkey\n");
-            table = TableFactory::getPersistentTable(this->database_id, 1, m_engine.getExecutorContext(),
+            table = TableFactory::getPersistentTable(this->database_id, m_engine.getExecutorContext(),
                                                      "test_table", schema, names, -1, false, false);
         }
 
@@ -141,7 +141,7 @@ TEST_F(ConstraintTest, NotNull) {
     bool allow_null[4] = { false, false, false, true };
     for (int ctr = 0; ctr < 4; ctr++) {
         char name[16];
-        sprintf(name, "col%02d", ctr);
+        snprintf(name, 16, "col%02d", ctr);
         addColumn(name, VALUE_TYPE_BIGINT,
                   NValue::getTupleStorageSize(voltdb::VALUE_TYPE_BIGINT),
                   allow_null[ctr]);
@@ -189,7 +189,7 @@ TEST_F(ConstraintTest, UniqueOneColumnNotNull) {
     bool allow_null[columnCount] = { false, true, true };
     for (int ctr = 0; ctr < columnCount; ctr++) {
         char name[16];
-        sprintf(name, "col%02d", ctr);
+        snprintf(name, 16, "col%02d", ctr);
         addColumn(name, VALUE_TYPE_BIGINT,
                   NValue::getTupleStorageSize(VALUE_TYPE_BIGINT),
                   allow_null[ctr]);
@@ -253,7 +253,7 @@ TEST_F(ConstraintTest, UniqueOneColumnAllowNull) {
     bool allow_null[columnCount] = { true, true, true };
     for (int ctr = 0; ctr < columnCount; ctr++) {
         char name[16];
-        sprintf(name, "col%02d", ctr);
+        snprintf(name, 16, "col%02d", ctr);
         addColumn(name, VALUE_TYPE_BIGINT,
                   NValue::getTupleStorageSize(VALUE_TYPE_BIGINT), allow_null[ctr]);
     }
@@ -310,7 +310,7 @@ TEST_F(ConstraintTest, UniqueTwoColumnNotNull) {
     bool allow_null[columnCount] = { false, true, false, false };
     for (int ctr = 0; ctr < columnCount; ctr++) {
         char name[16];
-        sprintf(name, "col%02d", ctr);
+        snprintf(name, 16, "col%02d", ctr);
         addColumn(name, VALUE_TYPE_BIGINT, NValue::getTupleStorageSize(VALUE_TYPE_BIGINT), allow_null[ctr]);
     }
 
@@ -358,7 +358,7 @@ TEST_F(ConstraintTest, UniqueTwoColumnAllowNull) {
     bool allow_null[columnCount] = { true, true, true, true };
     for (int ctr = 0; ctr < columnCount; ctr++) {
         char name[16];
-        sprintf(name, "col%02d", ctr);
+        snprintf(name, 16, "col%02d", ctr);
         addColumn(name, VALUE_TYPE_BIGINT, NValue::getTupleStorageSize(VALUE_TYPE_BIGINT), allow_null[ctr]);
     }
 

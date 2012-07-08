@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -119,8 +119,26 @@ class Table {
 
 public:
     virtual ~Table();
-    /** Release EL or checkpoint buffers associated to the table */
-    virtual void cleanupManagedBuffers(Topend *) = 0;
+
+    /*
+     * Table lifespan can be managed bya reference count. The
+     * reference is trivial to maintain since it is only accessed by
+     * the execution engine thread. Snapshot, Export and the
+     * corresponding CatalogDelegate may be reference count
+     * holders. The table is deleted when the refcount falls to
+     * zero. This allows longer running processes to complete
+     * gracefully after a table has been removed from the catalog.
+     */
+    void incrementRefcount() {
+        m_refcount += 1;
+    }
+
+    void decrementRefcount() {
+        m_refcount -= 1;
+        if (m_refcount == 0) {
+            delete this;
+        }
+    }
 
     // ------------------------------------------------------------------
     // ACCESS METHODS
@@ -155,6 +173,7 @@ public:
     inline const std::string& columnName(int index) const { return m_columnNames[index]; }
     inline int columnCount() const { return m_columnCount; };
     int columnIndex(const std::string &name) const;
+    const std::string *columnNames() { return m_columnNames; }
     std::vector<std::string> getColumnNames();
     // ------------------------------------------------------------------
     // INDEXES
@@ -170,7 +189,6 @@ public:
     // UTILITY
     // ------------------------------------------------------------------
     CatalogId databaseId() const;
-    virtual CatalogId tableId() const { assert(false); return -1; }
     const std::string& name() const;
 
     virtual std::string tableType() const = 0;
@@ -181,7 +199,6 @@ public:
     // ------------------------------------------------------------------
     int getApproximateSizeToSerialize() const;
     bool serializeTo(SerializeOutput &serialize_out);
-    bool serializeTo(int32_t offset, int32_t limit, SerializeOutput &serialize_out);
     bool serializeColumnHeaderTo(SerializeOutput &serialize_io);
 
     /*
@@ -190,20 +207,29 @@ public:
     bool serializeTupleTo(SerializeOutput &serialize_out, TableTuple *tuples, int numTuples);
 
     /**
-     * Loads only tuple data, not schema, from the serialized table.
-     * Used for initial data loading and receiving dependencies.
-     * @param allowELT if false, elt enabled is overriden for this load.
+     * Loads only tuple data and assumes there is no schema present.
+     * Used for recovery where the schema is not sent.
+     * @param allowExport if false, export enabled is overriden for this load.
      */
-    void loadTuplesFrom(bool allowELT,
+    void loadTuplesFromNoHeader(bool allowExport,
                                 SerializeInput &serialize_in,
                                 Pool *stringPool = NULL);
+
+    /**
+     * Loads only tuple data, not schema, from the serialized table.
+     * Used for initial data loading and receiving dependencies.
+     * @param allowExport if false, export enabled is overriden for this load.
+     */
+    void loadTuplesFrom(bool allowExport,
+                        SerializeInput &serialize_in,
+                        Pool *stringPool = NULL);
     //------------
     // EL-RELATED
     //------------
     /**
-     * Get the next block of committed but unreleased ELT bytes
+     * Get the next block of committed but unreleased Export bytes
      */
-    virtual StreamBlock* getCommittedEltBytes()
+    virtual StreamBlock* getCommittedExportBytes()
     {
         // default implementation is to return NULL, which
         // indicates an error)
@@ -211,13 +237,29 @@ public:
     }
 
     /**
-     * Release any committed ELT bytes up to the provided stream offset
+     * Set the current offset in bytes of the export stream for this Table
+     * since startup (used for rejoin/recovery).
      */
-    virtual bool releaseEltBytes(int64_t releaseOffset)
+    virtual void setExportStreamPositions(int64_t seqNo, size_t streamBytesUsed) {
+        // this should be overidden by any table involved in an export
+        assert(false);
+    }
+
+    /**
+     * Release any committed Export bytes up to the provided stream offset
+     */
+    virtual bool releaseExportBytes(int64_t releaseOffset)
     {
         // default implementation returns false, which
         // indicates an error
         return false;
+    }
+
+    /**
+     * Reset the Export poll marker
+     */
+    virtual void resetPollMarker() {
+        // default, do nothing.
     }
 
     /**
@@ -230,9 +272,9 @@ public:
 protected:
     /*
      * Implemented by persistent table and called by Table::loadTuplesFrom
-     * to do additional processing for views and ELT
+     * to do additional processing for views and Export
      */
-    virtual void processLoadedTuple(bool allowELT, TableTuple &tuple) {};
+    virtual void processLoadedTuple(bool allowExport, TableTuple &tuple) {};
 
     /*
      * Implemented by persistent table and called by Table::loadTuplesFrom
@@ -310,6 +352,9 @@ protected:
     // ptr to global integer tracking temp table memory allocated per frag
     // should be null for persistent tables
     int* m_tempTableMemoryInBytes;
+
+  private:
+    int32_t m_refcount;
 };
 
 /**

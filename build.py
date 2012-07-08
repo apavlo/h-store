@@ -34,56 +34,6 @@ CTX = BuildContext(sys.argv)
 #  and how the build will go down. It also checks the platform and parses
 #  command line args to determine target and build level.
 
-###############################################################################
-# SET GLOBAL CONTEXT VARIABLES FOR BUILDING
-###############################################################################
-
-# these are the base compile options that get added to every compile step
-# this does not include header/lib search paths or specific flags for
-#  specific targets
-CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
-            -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
-            -Winit-self -Wno-sign-compare -Wno-unused-parameter
-            -pthread
-            -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
-            -fno-omit-frame-pointer
-            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS"""
-
-if gcc_major == 4 and gcc_minor >= 3:
-    CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
-
-# linker flags
-CTX.LDFLAGS = """-g3 -rdynamic -ldl"""
-if CTX.COVERAGE:
-    CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
-# for the google perftools profiler and the recommended stack unwinder
-#CTX.LDFLAGS = """ -g3 -rdynamic -lprofiler -lunwind"""
-
-# this is where the build will look for header files
-# - the test source will also automatically look in the test root dir
-CTX.INCLUDE_DIRS = ['src/ee']
-CTX.SYSTEM_DIRS = ['third_party/cpp']
-
-# extra flags that will get added to building test source
-if CTX.LEVEL == "MEMCHECK":
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK"""
-elif CTX.LEVEL == "MEMCHECK_NOFREELIST":
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST"""
-else:
-    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG """
-
-# don't worry about checking for changes in header files in the following
-#  directories
-CTX.IGNORE_SYS_PREFIXES = ['/usr/include', '/usr/lib', 'third_party']
-
-# where to find the source
-CTX.INPUT_PREFIX = "src/ee"
-
-# where to find the source
-CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
-
-# where to find the tests
-CTX.TEST_PREFIX = "tests/ee"
 
 ###############################################################################
 # SET RELEASE LEVEL CONTEXT
@@ -121,6 +71,66 @@ if CTX.VOLT_LOG_LEVEL != None: volt_log_level = CTX.VOLT_LOG_LEVEL
 CTX.EXTRAFLAGS += " -DVOLT_LOG_LEVEL=%d" % volt_log_level
 
 CTX.OUTPUT_PREFIX += "/"
+
+###############################################################################
+# SET GLOBAL CONTEXT VARIABLES FOR BUILDING
+###############################################################################
+
+# these are the base compile options that get added to every compile step
+# this does not include header/lib search paths or specific flags for
+#  specific targets
+CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
+            -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
+            -Winit-self -Wno-sign-compare -Wno-unused-parameter
+            -pthread
+            -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
+            -fno-omit-frame-pointer
+            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS"""
+
+if gcc_major == 4 and gcc_minor >= 3:
+    CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
+
+# linker flags
+CTX.LDFLAGS = """-g3 -rdynamic -ldl"""
+if CTX.COVERAGE:
+    CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
+# for the google perftools profiler and the recommended stack unwinder
+#CTX.LDFLAGS = """ -g3 -rdynamic -lprofiler -lunwind"""
+
+# this is where the build will look for header files
+# - the test source will also automatically look in the test root dir
+CTX.INCLUDE_DIRS = ['src/ee']
+CTX.SYSTEM_DIRS = [
+    'third_party/cpp',
+    # FIXME os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb')
+]
+
+# extra flags that will get added to building test source
+if CTX.LEVEL == "MEMCHECK":
+    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK"""
+elif CTX.LEVEL == "MEMCHECK_NOFREELIST":
+    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG -DMEMCHECK -DMEMCHECK_NOFREELIST"""
+else:
+    CTX.TEST_EXTRAFLAGS = """ -g3 -DDEBUG """
+
+# don't worry about checking for changes in header files in the following
+#  directories
+CTX.IGNORE_SYS_PREFIXES = ['/usr/include', '/usr/lib', 'third_party']
+
+# where to find the source
+CTX.INPUT_PREFIX = "src/ee"
+
+# where to find the source
+CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
+
+# Third-Party Static Libraries
+CTX.THIRD_PARTY_STATIC_LIBS = [
+    # FIXME "berkeleydb/libdb.a",     # BerkeleyDB Base Library
+    # FIXME "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+]
+
+# where to find the tests
+CTX.TEST_PREFIX = "tests/ee"
 
 ###############################################################################
 # HANDLE PLATFORM SPECIFIC STUFF
@@ -176,6 +186,7 @@ for f in glob.glob(os.path.join(CTX.INPUT_PREFIX, 'catalog', '*.cpp')):
 CTX.INPUT['catalog'] = "\n".join(sorted(catalog_files))
 
 CTX.INPUT['common'] = """
+ SegvException.cpp
  SerializableEEException.cpp
  SQLException.cpp
  tabletuple.cpp
@@ -183,6 +194,9 @@ CTX.INPUT['common'] = """
  types.cpp
  UndoLog.cpp
  NValue.cpp
+ RecoveryProtoMessage.cpp
+ RecoveryProtoMessageBuilder.cpp
+ DefaultTupleSerializer.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -252,7 +266,6 @@ CTX.INPUT['storage'] = """
  constraintutil.cpp
  CopyOnWriteContext.cpp
  CopyOnWriteIterator.cpp
- DefaultTupleSerializer.cpp
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
@@ -260,13 +273,16 @@ CTX.INPUT['storage'] = """
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
  PersistentTableUndoUpdateAction.cpp
+ StreamedTableStats.cpp
  streamedtable.cpp
  table.cpp
+ TableCatalogDelegate.cpp
  tablefactory.cpp
  TableStats.cpp
  tableutil.cpp
  temptable.cpp
  TupleStreamWrapper.cpp
+ RecoveryContext.cpp
 """
 
 CTX.INPUT['stats'] = """
@@ -313,8 +329,7 @@ CTX.TESTS['common'] = """
 
 CTX.TESTS['execution'] = """
  engine_test
- executors_test
-"""
+""" # FIXME berkeleydb_test
 
 CTX.TESTS['expressions'] = """
  expression_test
@@ -335,7 +350,7 @@ CTX.TESTS['storage'] = """
  StreamedTable_test
  table_and_indexes_test
  table_test
- tabletuple_elt_test
+ tabletuple_export_test
  TupleStreamWrapper_test
 """
 

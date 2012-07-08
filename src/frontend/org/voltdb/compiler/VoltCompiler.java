@@ -85,9 +85,11 @@ import org.voltdb.sysprocs.AdHoc;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
+import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
+import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.sysprocs.SnapshotDelete;
 import org.voltdb.sysprocs.SnapshotRestore;
@@ -591,6 +593,11 @@ public class VoltCompiler {
         // create the database in the catalog
         m_catalog.execute("add /clusters[cluster] databases " + databaseName);
         Database db = m_catalog.getClusters().get("cluster").getDatabases().get(databaseName);
+        if (database.getProject() != null && database.getProject().isEmpty() == false) {
+            db.setProject(database.getProject());
+        } else {
+            db.setProject("unknown");
+        }
 
         SnapshotType snapshotSettings = database.getSnapshot();
         if (snapshotSettings != null) {
@@ -1226,12 +1233,14 @@ public class VoltCompiler {
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
             {GarbageCollection.class,               true,       true},
+            {ResetProfiling.class,                      true,       true},
             {ExecutorStatus.class,                  true,       false},
-            {SnapshotSave.class,                    false,      false},
-            {SnapshotRestore.class,                 false,      false},
-            {SnapshotStatus.class,                  false,      false},
-            {SnapshotScan.class,                    false,      false},
-            {SnapshotDelete.class,                  false,      false},
+            {GetCatalog.class,                      true,       false},
+            {SnapshotSave.class,                    false,      true},
+            {SnapshotRestore.class,                 false,      true},
+            {SnapshotStatus.class,                  false,      true},
+            {SnapshotScan.class,                    false,      true},
+            {SnapshotDelete.class,                  false,      true},
          
 //       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},

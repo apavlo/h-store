@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,19 +29,22 @@ public class MaterializedViewInfo extends CatalogType {
     CatalogMap<ColumnRef> m_groupbycols;
     String m_predicate = new String();
     boolean m_verticalpartition;
+    String m_sqltext = new String();
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        this.addField("dest", null);
+        m_fields.put("dest", null);
         m_groupbycols = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "groupbycols", ColumnRef.class);
         m_childCollections.put("groupbycols", m_groupbycols);
-        this.addField("predicate", m_predicate);
-        this.addField("verticalpartition", m_verticalpartition);
+        m_fields.put("predicate", m_predicate);
+        m_fields.put("verticalpartition", m_verticalpartition);
+        m_fields.put("sqltext", m_sqltext);
     }
 
     public void update() {
         m_predicate = (String) m_fields.get("predicate");
         m_verticalpartition = (Boolean) m_fields.get("verticalpartition");
+        m_sqltext = (String) m_fields.get("sqltext");
     }
 
     /** GETTER: The table which will be updated when the source table is updated */
@@ -72,6 +75,11 @@ public class MaterializedViewInfo extends CatalogType {
         return m_verticalpartition;
     }
 
+    /** GETTER: The text of the sql statement for this view */
+    public String getSqltext() {
+        return m_sqltext;
+    }
+
     /** SETTER: The table which will be updated when the source table is updated */
     public void setDest(Table value) {
         m_fields.put("dest", value);
@@ -85,6 +93,11 @@ public class MaterializedViewInfo extends CatalogType {
     /** SETTER: Is this materialized view a vertical partition? */
     public void setVerticalpartition(boolean value) {
         m_verticalpartition = value; m_fields.put("verticalpartition", value);
+    }
+
+    /** SETTER: The text of the sql statement for this view */
+    public void setSqltext(String value) {
+        m_sqltext = value; m_fields.put("sqltext", value);
     }
 
 }

@@ -16,7 +16,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -26,7 +26,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * this HStoreSite will we invoke the original callback.
  * @author pavlo
  */
-public class TransactionInitQueueCallback extends BlockingCallback<TransactionInitResponse, Integer> {
+public class TransactionInitQueueCallback extends BlockingRpcCallback<TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionInitQueueCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -48,7 +48,9 @@ public class TransactionInitQueueCallback extends BlockingCallback<TransactionIn
         this.prefetch = hstore_site.getHStoreConf().site.exec_prefetch_queries;
     }
     
-    public void init(Long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
+    public void init(Long txn_id,
+                      Collection<Integer> partitions,
+                      RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :

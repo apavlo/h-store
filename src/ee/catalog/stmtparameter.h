@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@ class StmtParameter : public CatalogType {
 
 protected:
     StmtParameter(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
-
     int32_t m_sqltype;
     int32_t m_javatype;
     int32_t m_index;
@@ -49,9 +48,11 @@ protected:
 
     virtual CatalogType * addChild(const std::string &collectionName, const std::string &name);
     virtual CatalogType * getChild(const std::string &collectionName, const std::string &childName) const;
-    virtual void removeChild(const std::string &collectionName, const std::string &childName);
+    virtual bool removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    ~StmtParameter();
+
     /** GETTER: The SQL type of the parameter (int/float/date/etc) */
     int32_t sqltype() const;
     /** GETTER: The Java class of the parameter (int/float/date/etc) */

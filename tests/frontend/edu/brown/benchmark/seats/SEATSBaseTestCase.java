@@ -30,8 +30,6 @@ package edu.brown.benchmark.seats;
 import java.io.File;
 import java.util.Random;
 
-import org.voltdb.catalog.Catalog;
-
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.util.SEATSHistogramUtil;
 import edu.brown.utils.ProjectType;

@@ -4,14 +4,17 @@ import java.io.IOException;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.HStoreObjectPools;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
-import edu.brown.utils.Poolable;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.pools.Poolable;
 
 /**
  * This callback is used by the original HStoreSite that is sending out a transaction redirect
@@ -20,17 +23,24 @@ import edu.brown.utils.Poolable;
  */
 public class TransactionRedirectCallback implements RpcCallback<TransactionRedirectResponse>, Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
-    protected RpcCallback<byte[]> orig_callback;
+    private final HStoreSite hstore_site;
+    private final FastDeserializer fds = new FastDeserializer();
+    private RpcCallback<ClientResponseImpl> orig_callback;
 
     /**
      * Default Constructor
      */
-    public TransactionRedirectCallback() {
-        // Nothing to do...
+    public TransactionRedirectCallback(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
     }
     
-    public void init(RpcCallback<byte[]> orig_callback) {
+    public void init(RpcCallback<ClientResponseImpl> orig_callback) {
         this.orig_callback = orig_callback;
     }
 
@@ -46,30 +56,40 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
     
     @Override
     public void run(TransactionRedirectResponse parameter) {
-        if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
-                                                          HStoreThreadManager.formatSiteName(parameter.getSenderSite()), parameter.getOutput().size()));
-        byte data[] = parameter.getOutput().toByteArray();
+        if (debug.get())
+            LOG.debug(String.format("Got back %s from %s. Sending response to client [bytes=%d]",
+                                    parameter.getClass().getSimpleName(),
+                                    HStoreThreadManager.formatSiteName(parameter.getSenderSite()),
+                                    parameter.getOutput().size()));
+        
         try {
-            this.orig_callback.run(data);
-        } catch (Throwable ex) {
-            FastDeserializer fds = new FastDeserializer(data);
+            // Get the embedded ClientResponse
+            // TODO: We should really just send the raw bytes through the callback instead
+            // of having to deserialize it first.
             ClientResponseImpl cresponse = null;
-            long txn_id = -1;
+            this.fds.setBuffer(parameter.getOutput().asReadOnlyByteBuffer());
             try {
-                cresponse = fds.readObject(ClientResponseImpl.class);
-                txn_id = cresponse.getTransactionId();
-            } catch (IOException e) {
-                LOG.fatal("We're really falling apart here!", e);
+                cresponse = this.fds.readObject(ClientResponseImpl.class);
+            } catch (IOException ex) {
+                String msg = String.format("Failed to deserialize %s from %s",
+                                           parameter.getClass().getSimpleName(),
+                                           HStoreThreadManager.formatSiteName(parameter.getSenderSite()));
+                throw new ServerFaultException(msg, ex);
             }
-            LOG.fatal("Failed to forward ClientResponse data back for txn #" + txn_id, ex);
-            // throw ex;
+            
+            assert(cresponse != null);
+            if (debug.get()) 
+                LOG.debug("Returning redirected ClientResponse to client:\n" + cresponse);
+            try {
+                this.orig_callback.run(cresponse);
+            } catch (Throwable ex) {
+                LOG.fatal("Failed to forward ClientResponse data back!", ex);
+                throw new RuntimeException(ex);
+            }
+            
+        // Always return ourselves to the HStoreObjectPool
         } finally {
-            try {
-                this.finish();
-                HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
-            } catch (Exception ex) {
-                throw new RuntimeException("Funky failure", ex);
-            }
+            hstore_site.getObjectPools().CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
         }
         
     }

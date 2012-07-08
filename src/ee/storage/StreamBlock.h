@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +66,13 @@ namespace voltdb
         }
 
         /**
+         * Number of bytes left in the buffer
+         */
+        const size_t remaining() const {
+            return m_capacity - m_offset;
+        }
+
+        /**
          * Returns the USO of the first unreleased octet in this block
          */
         const size_t unreleasedUso()
@@ -83,7 +90,7 @@ namespace voltdb
 
     private:
         char* mutableDataPtr() {
-            return m_data;
+            return m_data + m_offset;
         }
 
         // The USO for octets up to which are being released
@@ -108,7 +115,7 @@ namespace voltdb
                 m_offset = mark - m_uso;
             }
             else {
-                throwFatalException("Attempted ELT block truncation past start of block."
+                throwFatalException("Attempted Export block truncation past start of block."
                                     "\n m_uso(%jd), m_offset(%jd), mark(%jd)\n",
                                     (intmax_t)m_uso, (intmax_t)m_offset, (intmax_t)mark);
             }
@@ -116,9 +123,9 @@ namespace voltdb
 
         char *m_data;
         const size_t m_capacity;
-        size_t m_offset;  // position for next write.
+        size_t m_offset;         // position for next write.
         size_t m_releaseOffset;  // position for next read.
-        size_t m_uso;     // universal stream offset of m_offset 0.
+        size_t m_uso;            // universal stream offset of m_offset 0.
 
         friend class TupleStreamWrapper;
     };

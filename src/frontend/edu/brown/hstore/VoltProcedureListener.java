@@ -16,7 +16,6 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 
@@ -36,9 +35,14 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final AtomicInteger connectionId = new AtomicInteger(0);
     private ServerSocketChannel serverSocket;
     
+    private final AtomicInteger numConnections = new AtomicInteger(0);
     
-//    private final HStoreSite hstore_site;
 
+    public static interface Handler {
+        public long getInstanceId();
+        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> clientCallback);
+    }
+    
     public VoltProcedureListener(int hostId, EventLoop eventLoop, Handler handler) {
         this.hostId = hostId;
         this.eventLoop = eventLoop;
@@ -62,7 +66,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
         NIOMessageConnection connection = new NIOMessageConnection(client);
         connection.setBigEndian();
 
-        eventLoop.registerRead(client, new ClientConnectionHandler(connection));
+        this.eventLoop.registerRead(client, new ClientConnectionHandler(connection));
+        this.numConnections.incrementAndGet();
     }
 
     // Not private so it can be used in a JUnit test. Gross, but it makes the test a bit easier
@@ -91,9 +96,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
             return connectionBlocked;
         }
 
-//        public void registerWrite() {
-//            eventLoop.registerWrite(connection.getChannel(), this);
-//        }
 
         public void hackWritePasswordOk() {
             // Write the "connection ok" message
@@ -191,8 +193,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
             }
             
             // Execute store procedure!
+//            LOG.info("Queuing new transaction request from client");
             try {
-                handler.procedureInvocation(request, eventLoopCallback);
+                handler.queueInvocation(ByteBuffer.wrap(request), eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -263,11 +266,6 @@ public class VoltProcedureListener extends AbstractEventHandler {
         this.serverSocket = serverSocket;
     }
 
-    public static interface Handler {
-        public long getInstanceId();
-        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done);
-    }
-
     public static void main(String[] vargs) throws Exception {
         // Example of using VoltProcedureListener: prints procedure name, returns empty array
         NIOEventLoop eventLoop = new NIOEventLoop();
@@ -276,7 +274,8 @@ public class VoltProcedureListener extends AbstractEventHandler {
             public long getInstanceId() {
                 return 0;
             }
-            public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+            @Override
+            public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> done) {
                 StoredProcedureInvocation invocation = null;
                 try {
                     invocation = FastDeserializer.deserialize(serializedRequest, StoredProcedureInvocation.class);
@@ -285,7 +284,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
                 }
                 LOG.debug("request: " + invocation.getProcName() + " " +
                         invocation.getParams().toArray().length);
-                done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));
+                done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));                
             }
         }
         PrintHandler printer = new PrintHandler();

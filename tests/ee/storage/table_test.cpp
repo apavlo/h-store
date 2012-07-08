@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -107,7 +107,7 @@ class TableTest : public Test {
             std::vector<int32_t> columnLengths;
             std::vector<bool> columnAllowNull;
             for (int ctr = 0; ctr < NUM_OF_COLUMNS; ctr++) {
-                sprintf(buffer, "column%02d", ctr);
+                snprintf(buffer, 32, "column%02d", ctr);
                 columnNames[ctr] = buffer;
                 columnTypes.push_back(COLUMN_TYPES[ctr]);
                 columnLengths.push_back(COLUMN_SIZES[ctr]);
@@ -115,7 +115,7 @@ class TableTest : public Test {
             }
             voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchema(columnTypes, columnLengths, columnAllowNull, true);
             if (xact) {
-                persistent_table = voltdb::TableFactory::getPersistentTable(database_id, 1, NULL, "test_table", schema, columnNames, -1, false, false);
+                persistent_table = voltdb::TableFactory::getPersistentTable(database_id, NULL, "test_table", schema, columnNames, -1, false, false);
                 table = persistent_table;
             } else {
                 temp_table = voltdb::TableFactory::getTempTable(database_id, "test_table", schema, columnNames, NULL);

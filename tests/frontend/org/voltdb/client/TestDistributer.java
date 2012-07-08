@@ -330,7 +330,7 @@ public class TestDistributer extends TestCase {
             assertEquals(2, volt2.handler.roundTrips.get());
 
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             fail();
         }
@@ -380,7 +380,7 @@ public class TestDistributer extends TestCase {
         } catch (IOException e) {
             e.printStackTrace();
             fail();
-        } catch (ProcCallException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             fail();
         }

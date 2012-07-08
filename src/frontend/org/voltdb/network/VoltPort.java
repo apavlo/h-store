@@ -26,11 +26,15 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.ArrayDeque;
 
+import org.apache.log4j.Logger;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
+
 /** Encapsulates a socket registration for a VoltNetwork */
 public class VoltPort implements Callable<VoltPort>, Connection
 {
+    private static final Logger LOG = Logger.getLogger(VoltPort.class);
+    
     /** The network this port participates in */
     private final VoltNetwork m_network;
 

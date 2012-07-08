@@ -1,8 +1,8 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * This file contains original code and/or modifications of original code.
- * Any modifications made by VoltDB L.L.C. are licensed under the following
+ * Any modifications made by VoltDB Inc. are licensed under the following
  * terms and conditions:
  *
  * VoltDB is free software: you can redistribute it and/or modify
@@ -58,6 +58,7 @@
 #include "storage/TableStats.h"
 #include "storage/PersistentTableStats.h"
 #include "storage/CopyOnWriteContext.h"
+#include "storage/RecoveryContext.h"
 
 namespace voltdb {
 
@@ -71,6 +72,7 @@ class Topend;
 class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
+class RecoveryProtoMsg;
 
 /**
  * Represents a non-temporary table which permanently resides in
@@ -112,14 +114,6 @@ class PersistentTable : public Table {
 
   public:
     virtual ~PersistentTable();
-
-    virtual void cleanupManagedBuffers(Topend *cxt) {
-        if (m_wrapper) {
-            m_wrapper->cleanupManagedBuffers(cxt);
-        }
-    }
-
-    virtual CatalogId tableId() const { return m_id; }
 
     // ------------------------------------------------------------------
     // OPERATIONS
@@ -185,13 +179,14 @@ class PersistentTable : public Table {
      */
     TableTuple& getTempTupleInlined(TableTuple &source);
 
-    // ELT-related inherited methods
+    // Export-related inherited methods
     virtual void flushOldTuples(int64_t timeInMillis);
-    virtual StreamBlock* getCommittedEltBytes();
-    virtual bool releaseEltBytes(int64_t releaseOffset);
+    virtual StreamBlock* getCommittedExportBytes();
+    virtual bool releaseExportBytes(int64_t releaseOffset);
+    virtual void resetPollMarker();
 
-    /** At EE setup time, add the list of views driven from this table */
-    void setMaterializedViews(const std::vector<MaterializedViewMetadata*> &views);
+    /** Add a view to this table */
+    void addMaterializedView(MaterializedViewMetadata *view);
 
     /**
      * Switch the table to copy on write mode. Returns true if the table was already in copy on write mode.
@@ -199,11 +194,54 @@ class PersistentTable : public Table {
     bool activateCopyOnWrite(TupleSerializer *serializer, int32_t partitionId);
 
     /**
-     * Attempt to serialize more tuples from the table to the provided output stream.
-     * Returns true if there are more tuples and false if there are no more tuples waiting to be
-     * serialized.
+     * Create a recovery stream for this table. Returns true if the table already has an active recovery stream
      */
-    void serializeMore(ReferenceSerializeOutput *out);
+    bool activateRecoveryStream(int32_t tableId);
+
+    /**
+     * Serialize the next message in the stream of recovery messages. Returns true if there are
+     * more messages and false otherwise.
+     */
+    void nextRecoveryMessage(ReferenceSerializeOutput *out);
+
+    /**
+     * Process the updates from a recovery message
+     */
+    void processRecoveryMessage(RecoveryProtoMsg* message, Pool *pool, bool allowExport);
+
+    /**
+     * Attempt to serialize more tuples from the table to the provided
+     * output stream.  Returns true if there are more tuples and false
+     * if there are no more tuples waiting to be serialized.
+     */
+    bool serializeMore(ReferenceSerializeOutput *out);
+
+    /**
+     * Create a tree index on the primary key and then iterate it and hash
+     * the tuple data.
+     */
+    size_t hashCode();
+
+    /**
+     * Get the current offset in bytes of the export stream for this Table
+     * since startup.
+     */
+    void getExportStreamSequenceNo(long &seqNo, size_t &streamBytesUsed) {
+        seqNo = m_exportEnabled ? m_tsSeqNo : -1;
+        streamBytesUsed = m_wrapper ? m_wrapper->bytesUsed() : 0;
+    }
+
+    /**
+     * Set the current offset in bytes of the export stream for this Table
+     * since startup (used for rejoin/recovery).
+     */
+    virtual void setExportStreamPositions(int64_t seqNo, size_t streamBytesUsed) {
+        // assume this only gets called from a fresh rejoined node
+        assert(m_tsSeqNo == 0);
+        m_tsSeqNo = seqNo;
+        if (m_wrapper)
+            m_wrapper->setBytesUsed(streamBytesUsed);
+    }
 
 protected:
     // ------------------------------------------------------------------
@@ -225,17 +263,15 @@ protected:
 
     /*
      * Implemented by persistent table and called by Table::loadTuplesFrom
-     * to do additional processing for views and ELT
+     * to do additional processing for views and Export
      */
-    virtual void processLoadedTuple(bool allowELT, TableTuple &tuple);
+    virtual void processLoadedTuple(bool allowExport, TableTuple &tuple);
 
     /*
      * Implemented by persistent table and called by Table::loadTuplesFrom
      * to do add tuples to indexes
      */
     virtual void populateIndexes(int tupleCount);
-
-    CatalogId m_id;
 
     // pointer to current transaction id and other "global" state.
     // abstract this out of VoltDBEngine to avoid creating dependendencies
@@ -254,24 +290,26 @@ protected:
 
     // temporary for tuplestream stuff
     TupleStreamWrapper *m_wrapper;
-    int64_t tsSeqNo;
+    int64_t m_tsSeqNo;
 
     // partition key
     int m_partitionColumn;
 
     // list of materialized views that are sourced from this table
-    int32_t m_viewCount;
-    MaterializedViewMetadata **m_views;
+    std::vector<MaterializedViewMetadata *> m_views;
 
     // STATS
     voltdb::PersistentTableStats stats_;
     voltdb::TableStats* getTableStats();
 
-    // is ELT enabled
+    // is Export enabled
     bool m_exportEnabled;
 
     // Snapshot stuff
     boost::scoped_ptr<CopyOnWriteContext> m_COWContext;
+
+    //Recovery stuff
+    boost::scoped_ptr<RecoveryContext> m_recoveryContext;
 };
 
 inline TableTuple& PersistentTable::getTempTupleInlined(TableTuple &source) {

@@ -26,13 +26,16 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.sysprocs.SysProcFragmentId;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -231,5 +234,48 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         
         // Bombs away!
         return (this.executor.dispatchWorkFragments(ts, 1, this.fragments, parameters));
+    }
+    
+    /**
+     * Helper method that will return true if the invoking partition
+     * is the first partition at this HStoreSite
+     * @return
+     */
+    protected final boolean isFirstLocalPartition() { 
+        return (CollectionUtil.first(hstore_site.getLocalPartitionIds()) == this.partitionId);
+    }
+    
+    protected final VoltTable[] autoDistribute(final int distributeId, final int aggregateId) {
+        final int num_sites = CatalogUtil.getNumberOfSites(this.database);
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_sites + 1];
+        final ParameterSet params = new ParameterSet();
+        
+        int i = 0;
+        for (Site catalog_site : CatalogUtil.getAllSites(this.database)) {
+            Partition catalog_part = CollectionUtil.first(catalog_site.getPartitions());
+            pfs[i] = new SynthesizedPlanFragment();
+            pfs[i].fragmentId = distributeId;
+            pfs[i].inputDependencyIds = new int[] { };
+            pfs[i].outputDependencyIds = new int[] { distributeId };
+            pfs[i].multipartition = true;
+            pfs[i].nonExecSites = false;
+            pfs[i].destPartitionId = catalog_part.getId();
+            pfs[i].parameters = params;
+            pfs[i].last_task = (catalog_site.getId() == hstore_site.getSiteId());
+            i += 1;
+        } // FOR
+
+        // a final plan fragment to aggregate the results
+        pfs[i] = new SynthesizedPlanFragment();
+        pfs[i].fragmentId = aggregateId;
+        pfs[i].inputDependencyIds = new int[] { distributeId };
+        pfs[i].outputDependencyIds = new int[] { aggregateId };
+        pfs[i].multipartition = false;
+        pfs[i].nonExecSites = false;
+        pfs[i].destPartitionId = CollectionUtil.first(hstore_site.getLocalPartitionIds());
+        pfs[i].parameters = params;
+        pfs[i].last_task = true;
+        
+        return (this.executeSysProcPlanFragments(pfs, aggregateId));
     }
 }

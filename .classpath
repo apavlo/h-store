@@ -3,6 +3,7 @@
 	<classpathentry kind="src" path="src/frontend"/>
 	<classpathentry kind="src" path="src/hsqldb19b3"/>
 	<classpathentry kind="src" path="src/protorpc"/>
+	<classpathentry kind="src" path="src/benchmarks"/>
 	<classpathentry kind="src" path="tests/frontend"/>
 	<classpathentry kind="src" path="tests/hsqldb"/>
 	<classpathentry kind="src" path="third_party/cpp/protobuf/java/src/main/java"/>
@@ -14,7 +15,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/ant.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-codec-1.5.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-collections-3.2.1.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar" sourcepath="/home/pavlo/Documents/H-Store/SourceJars/collections-generic-4.01-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/commons-collections15-4.01.jar" sourcepath="SourceJars/collections-generic-4.01-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-configuration-1.6.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/commons-pool-1.5.5.jar"/>
@@ -27,7 +28,7 @@
 	<classpathentry kind="lib" path="third_party/java/jars/jung-graph-impl-2.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/jung-visualization-2.0.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/junit-4.4.jar"/>
-	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="/home/pavlo/Documents/H-Store/SourceJars/log4j-1.2.15-sources.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/log4j-1.2.15.jar" sourcepath="SourceJars/log4j-1.2.15-sources.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/opencsv-2.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/pmd-4.2.5.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/testability-explorer.jar"/>
@@ -35,16 +36,17 @@
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3-dep.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/weka-3.6.3.jar"/>
-	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/guava-10.0.1.jar"/>
-	<classpathentry kind="lib" path="/home/cjl6/hstore/h-store/third_party/java/jars/jsr305.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/guava-10.0.1.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jsr305.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="third_party/java/jars/snappy-1.0.4.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/mysql-connector-java-5.1.18-bin.jar"/>
-	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/gdata-client-1.0.jar"/>
-	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/gdata-client-meta-1.0.jar"/>
-	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/gdata-core-1.0.jar"/>
-	<classpathentry kind="lib" path="/ltmp/cjl6/h-store/third_party/java/jars/gdata-media-1.0.jar"/>
-	<classpathentry kind="lib" path="/gpfs/main/research/hstore/cjl6/h-store/third_party/java/jars/mail.jar"/>
-	<classpathentry kind="lib" path="/home/cjl6/hstore/h-store/third_party/java/jars/google-oauth-client-1.8.0-beta.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/gdata-client-1.0.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/gdata-client-meta-1.0.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/gdata-core-1.0.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/gdata-media-1.0.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/mail.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/google-oauth-client-1.8.0-beta.jar"/>
+	<classpathentry kind="lib" path="third_party/java/jars/jline-1.0.jar"/>
 	<classpathentry kind="output" path="obj/eclipse"/>
 </classpath>

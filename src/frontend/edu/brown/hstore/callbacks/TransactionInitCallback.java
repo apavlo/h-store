@@ -2,13 +2,13 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.TransactionQueueManager;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
@@ -76,7 +76,6 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                 } // SYNCH
                 break;
             }
-            case ABORT_THROTTLED:
             case ABORT_REJECT:
                 this.hstore_site.transactionReject(this.ts, status);
                 break;

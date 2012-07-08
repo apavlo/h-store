@@ -83,13 +83,13 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltLoggerFactory;
 
 /** Produces work for registered ports that are selected for read, write */
- public class VoltNetwork implements Runnable
-{
-    private final Selector m_selector;
-    private static final Logger m_logger =
-        Logger.getLogger(VoltNetwork.class.getName(), VoltLoggerFactory.instance());
+ public class VoltNetwork implements Runnable {
+    
+    private static final Logger m_logger = Logger.getLogger(VoltNetwork.class);
     private static final Logger networkLog =
         Logger.getLogger("NETWORK", VoltLoggerFactory.instance());
+    
+    private final Selector m_selector;
     private final ArrayDeque<Runnable> m_tasks = new ArrayDeque<Runnable>();
     // keep two lists and swap them in and out to minimize contention
     private final ArrayDeque<VoltPort> m_selectorUpdates_1 = new ArrayDeque<VoltPort>();//Used as the lock for swapping lists

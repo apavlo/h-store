@@ -36,7 +36,7 @@ import junit.framework.TestCase;
 public class TestAdHocQueries extends TestCase {
 
     public void testSimple() throws InterruptedException, IOException, ProcCallException {
-        Configuration config = new Configuration();
+        Configuration config = new Configuration();        
         config.m_backend = BackendTarget.NATIVE_EE_JNI;
         config.m_noLoadLibVOLTDB = false;
         config.setPathToCatalogForTest("tpcc.jar");
@@ -48,7 +48,7 @@ public class TestAdHocQueries extends TestCase {
         project.addProcedures(org.voltdb.compiler.procedures.EmptyProcedure.class);
         assertTrue(project.compile(config.m_pathToCatalog));
 
-        ServerThread server = null;//new ServerThread(config);
+        ServerThread server = null; // new ServerThread(jarfile, target)
         server.start();
         server.waitForInitialization();
 

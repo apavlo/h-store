@@ -75,6 +75,7 @@ import edu.brown.hstore.Hstoreservice;
  * <code>ClientConnection</code> instances.
  *
  */
+@Deprecated
 public class ClientInterface implements DumpManager.Dumpable {
     private static final Logger log = Logger.getLogger(ClientInterface.class.getName(), org.voltdb.utils.VoltLoggerFactory.instance());
     private static final Logger authLog = Logger.getLogger("AUTH", org.voltdb.utils.VoltLoggerFactory.instance());

@@ -10,16 +10,14 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.StringUtil;
-
 
 public class TestHStoreConf extends BaseTestCase {
 
     private static final Map<String, Object> properties = new ListOrderedMap<String, Object>();
     static {
-        properties.put("site.markov_path_caching", false);               // Boolean
-        properties.put("site.markov_path_caching_threshold", 0.91919);   // Double
-        properties.put("site.helper_initial_delay", 19999);              // Long
+        properties.put("site.markov_path_caching", false);              // Boolean
+        properties.put("site.markov_path_caching_threshold", 0.91919);  // Double
+        properties.put("site.memory", 19999);                           // Long
     }
     
     private HStoreConf hstore_conf;
@@ -32,17 +30,51 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     /**
-     * testMakeHTML
+     * testPopulateDependencies
+     */
+    public void testPopulateDependencies() throws Exception {
+        // Just check to see whether any parameter that references
+        // another parameter in its defaultString has that other parameter's
+        // value to set to its value 
+        String origParam = "global.defaulthost";
+        Object origValue = hstore_conf.get(origParam);
+        System.err.println(origParam + " => " + origValue);
+        assertNotNull(origValue);
+        
+        String newParam = "client.hosts";
+        Object newValue = hstore_conf.get(newParam);
+        System.err.println(newParam + " => " + newValue);
+        assertEquals(origValue, newValue);
+    }
+    
+    /**
+     * testSetReplacedParameters
+     */
+    public void testSetReplacedParameters() throws Exception {
+        // Check that if we change a deprecated parameter that the parameter
+        // that replaces it also gets changed
+        String origParam = "client.processesperclient";
+        String newParam = "client.threads_per_host";
+        
+        int expected = 9999;
+        hstore_conf.set(origParam, expected);
+        
+        Object origValue = hstore_conf.get(origParam);
+        assertEquals(expected, origValue);
+        
+        Object newValue = hstore_conf.get(newParam);
+        assertEquals(expected, newValue);
+    }
+    
+    /**
+     * testMakeIndexHTML
      */
     public void testMakeIndexHTML() throws Exception {
         for (String prefix : groups) {
             String contents = HStoreConfUtil.makeIndexHTML(hstore_conf, prefix);
             assertNotNull(contents);
-            System.err.println(contents);
+            assertFalse(contents.isEmpty());
         } // FOR
-        System.err.println(HStoreConfUtil.navigationLink);
-        
-        System.err.println(StringUtil.DOUBLE_LINE);
     }
     
     /**
@@ -53,10 +85,7 @@ public class TestHStoreConf extends BaseTestCase {
             String contents = HStoreConfUtil.makeHTML(hstore_conf, prefix);
             assertNotNull(contents);
             assertFalse(contents.isEmpty());
-            System.err.println(contents);
-            System.err.println(StringUtil.DOUBLE_LINE);
-        }
-        System.err.println(HStoreConfUtil.navigationLink);
+        } // FOR
     }
     
     /**
@@ -67,24 +96,7 @@ public class TestHStoreConf extends BaseTestCase {
             String contents = HStoreConfUtil.makeBuildXML(hstore_conf, prefix);
             assertNotNull(contents);
             assertFalse(contents.isEmpty());
-            System.err.println(contents);
-        }
-    }
-    
-    /**
-     * 
-     */
-    public void testMakeConfig() throws Exception {
-        String contents = HStoreConfUtil.makeConfig(hstore_conf, true);
-        assertNotNull(contents);
-        Class<?> confClass = hstore_conf.site.getClass();
-//        for (Field f : confClass.getFields()) {
-//            String key = String.format("site.%s", f.getName());
-//            assert(contents.contains(key)) : "Missing " + key;
-//        } // FOR
-        System.err.println(contents);
-        System.err.println(StringUtil.DOUBLE_LINE);
-        
+        } // FOR
     }
     
     /**

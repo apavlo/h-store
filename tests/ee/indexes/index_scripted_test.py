@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # This file is part of VoltDB.
-# Copyright (C) 2008-2010 VoltDB L.L.C.
+# Copyright (C) 2008-2010 VoltDB Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -55,7 +55,7 @@ ls 5,6,7
 ds 5,6,7
 df 8,9,10
 exec
-begin GenericTest MultiGenericTree,MultiGenericHash,UniqueGenericTree,UniqueGenericHash str,bint,bint
+begin GenericTest MultiGenericTree,MultiGenericHash,UniqueGenericTree,UniqueGenericHash str4,bint,bint
 is foo,6,7
 ls foo,6,7
 #us foo,6,7 bar,9,10

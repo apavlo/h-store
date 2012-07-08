@@ -4,7 +4,8 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
-import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 
@@ -13,13 +14,13 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.LocalTransaction;
 
 public class MockHStoreSite extends HStoreSite {
     private static final Logger LOG = Logger.getLogger(MockHStoreSite.class);
@@ -41,13 +42,13 @@ public class MockHStoreSite extends HStoreSite {
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");
-        StoredProcedureInvocation invocation = new StoredProcedureInvocation(clientHandle, catalog_proc.getName());
-        RpcCallback<byte[]> client_callback = null;
+        ParameterSet params = new ParameterSet();
+        RpcCallback<ClientResponseImpl> client_callback = null;
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
         ts.init(txnId, clientHandle, base_partition,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                catalog_proc, invocation, client_callback);
+                catalog_proc, params, client_callback);
         return (ts);
     }
     
@@ -117,7 +118,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.status_enable = false;
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
-        hstore_site.init().start(); // Blocks until all connections are established
+        hstore_site.init().run(); // Blocks until all connections are established
         final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
         assert(hstore_coordinator.isStarted());
         

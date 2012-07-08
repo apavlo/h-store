@@ -20,6 +20,7 @@ import edu.brown.mappings.ParametersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 /**
  * @author pavlo
@@ -73,7 +74,13 @@ public abstract class FixCatalog {
         catalog_clus.getSites().clear();
         for (String host : cc.getHosts()) {
             if (LOCALHOST_TYPOS.contains(host)) {
-                LOG.warn(String.format("Possible typo in hostname '%s'. Did you mean 'localhost'?", host));
+                String msg = StringUtil.box(String.format("POSSIBLE TYPO IN HOSTNAME '%s'. " +
+                		                                  "DID YOU MEAN 'localhost'?", host));
+                LOG.warn("");
+                for (String line : StringUtil.splitLines(msg)) {
+                    LOG.warn(line);
+                } // FOR
+                LOG.warn("");
             }
             
             String host_name = String.format("host%02d", host_id);
@@ -215,9 +222,10 @@ public abstract class FixCatalog {
                 new_catalog = FixCatalog.addHostInfo(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);
             }
 
-            // Use host list
+        // Use host list
         } else {
-            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            String hostsInfo = args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS);
+            ClusterConfiguration cc = new ClusterConfiguration(hostsInfo);
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
 
@@ -226,7 +234,7 @@ public abstract class FixCatalog {
 
         // We need to write this things somewhere now...
         FileUtil.writeStringToFile(new File(catalogOutputPath), new_catalog.serialize());
-        LOG.info("Wrote updated catalog specification to '" + catalogOutputPath + "'");
+        LOG.debug("Wrote updated catalog specification to '" + catalogOutputPath + "'");
 
         // FileUtil.writeStringToFile(new File(dtxnOutputPath), new_dtxn);
         // LOG.info("Wrote updated Dtxn.Coordinator configuration to '" +

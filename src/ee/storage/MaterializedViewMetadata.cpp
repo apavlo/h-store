@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstdio>
 #include "boost/shared_array.hpp"
+#include "common/debuglog.h"
 #include "common/types.h"
 #include "common/FatalException.hpp"
 #include "catalog/catalog.h"
@@ -36,6 +37,8 @@ MaterializedViewMetadata::MaterializedViewMetadata(
         PersistentTable *srcTable, PersistentTable *destTable, catalog::MaterializedViewInfo *metadata)
         : m_target(destTable), m_filterPredicate(NULL) {
 
+    m_name = metadata->name();
+            
     // try to load the predicate from the catalog view
     parsePredicate(metadata);
 
@@ -43,9 +46,16 @@ MaterializedViewMetadata::MaterializedViewMetadata(
     m_groupByColumnCount = metadata->groupbycols().size();
     m_groupByColumns = new int32_t[m_groupByColumnCount];
     std::map<std::string, catalog::ColumnRef*>::const_iterator colRefIterator;
-    int i = 0;
-    for (colRefIterator = metadata->groupbycols().begin(); colRefIterator != metadata->groupbycols().end(); colRefIterator++) {
-        m_groupByColumns[i++] = colRefIterator->second->column()->index();
+    for (colRefIterator = metadata->groupbycols().begin();
+         colRefIterator != metadata->groupbycols().end();
+         colRefIterator++)
+    {
+        int32_t grouping_order_offset = colRefIterator->second->index();
+        m_groupByColumns[grouping_order_offset] = colRefIterator->second->column()->index();
+        VOLT_DEBUG("%s GroupByColumn %02d: %s / %d",
+                   m_name.c_str(), grouping_order_offset, 
+                   colRefIterator->second->column()->name().c_str(),
+                   colRefIterator->second->column()->index());
     }
 
     // set up the mapping from input col to output col
@@ -53,20 +63,22 @@ MaterializedViewMetadata::MaterializedViewMetadata(
     m_outputColumnSrcTableIndexes = new int32_t[m_outputColumnCount];
     m_outputColumnAggTypes = new ExpressionType[m_outputColumnCount];
     std::map<std::string, catalog::Column*>::const_iterator colIterator;
+    // iterate the source table
     for (colIterator = metadata->dest()->columns().begin(); colIterator != metadata->dest()->columns().end(); colIterator++) {
         const catalog::Column *destCol = colIterator->second;
-        const catalog::Column *srcCol = destCol->matviewsource();
         int destIndex = destCol->index();
+
+        const catalog::Column *srcCol = destCol->matviewsource();
 
         if (srcCol) {
             m_outputColumnSrcTableIndexes[destIndex] = srcCol->index();
             m_outputColumnAggTypes[destIndex] = static_cast<ExpressionType>(destCol->aggregatetype());
-            //printf("Setting column %d to exp type %d/%d\n", destIndex, destCol->aggregatetype(), m_outputColumnAggTypes[destIndex]);
+            VOLT_DEBUG("Setting column %d to exp type %d/%d", destIndex, destCol->aggregatetype(), m_outputColumnAggTypes[destIndex]);
         }
         else {
             m_outputColumnSrcTableIndexes[destIndex] = -1;
             m_outputColumnAggTypes[destIndex] = EXPRESSION_TYPE_INVALID;
-            //printf("Setting column %d to exp type %d\n", destIndex, EXPRESSION_TYPE_INVALID);
+            VOLT_DEBUG("Setting column %d to exp type %d", destIndex, EXPRESSION_TYPE_INVALID);
         }
     }
 
@@ -87,8 +99,6 @@ MaterializedViewMetadata::MaterializedViewMetadata(
     m_emptyTupleBackingStore = new char[m_target->schema()->tupleLength() + 1];
     memset(m_emptyTupleBackingStore, 0, m_target->schema()->tupleLength() + 1);
     m_emptyTuple.move(m_emptyTupleBackingStore);
-
-
 }
 
 MaterializedViewMetadata::~MaterializedViewMetadata() {
@@ -126,6 +136,8 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         && (m_filterPredicate->eval(&newTuple, NULL).isFalse()))
         return;
 
+    VOLT_DEBUG("Attempting to insert a new tuple into materialized view %s", m_name.c_str());
+    
     bool exists = findExistingTuple(newTuple);
     if (!exists) {
         // create a blank tuple
@@ -160,7 +172,7 @@ void MaterializedViewMetadata::processTupleInsert(TableTuple &newTuple) {
         }
         else {
             char message[128];
-            sprintf(message, "Error in materialized view table update for"
+            snprintf(message, 128, "Error in materialized view table update for"
                     " col %d. Expression type %d", i, m_outputColumnAggTypes[i]);
             throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                           message);
@@ -245,8 +257,19 @@ void MaterializedViewMetadata::processTupleDelete(TableTuple &oldTuple) {
 
 bool MaterializedViewMetadata::findExistingTuple(TableTuple &oldTuple, bool expected) {
     // find the key for this tuple (which is the group by columns)
-    for (int i = 0; i < m_groupByColumnCount; i++)
-        m_searchKey.setNValue(i, oldTuple.getNValue(m_groupByColumns[i]));
+    VOLT_DEBUG("Building %s Search Key: %s",
+               m_name.c_str(), m_searchKey.debugNoHeader().c_str());
+    for (int i = 0; i < m_groupByColumnCount; i++) {
+        VOLT_DEBUG("GroupByColumn #%d (%s) -> SearchKey #%d (%s)",
+                   m_groupByColumns[i], getTypeName(oldTuple.getType(m_groupByColumns[i])).c_str(),
+                   i, getTypeName(m_searchKey.getType(i)).c_str());
+        try {
+            m_searchKey.setNValue(i, oldTuple.getNValue(m_groupByColumns[i]));
+        } catch (SerializableEEException &e) {
+            VOLT_ERROR("Failed to set %s search key value at offset %d", m_name.c_str(), i);
+            throw;
+        }
+    }
 
     // determine if the row exists (create the empty one if it doesn't)
     m_index->moveToKey(&m_searchKey);

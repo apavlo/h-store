@@ -4,17 +4,22 @@
 <arg value="global.sshprefix=${global.sshprefix}" />
 <arg value="global.defaulthost=${global.defaulthost}" />
 <arg value="global.hasherClass=${global.hasherClass}" />
+<arg value="global.log_refresh=${global.log_refresh}" />
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
 <arg value="client.log_backup=${client.log_backup}" />
+<arg value="client.jvm_args=${client.jvm_args}" />
 <arg value="client.jar_dir=${client.jar_dir}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
+<arg value="client.hosts=${client.hosts}" />
 <arg value="client.txnrate=${client.txnrate}" />
 <arg value="client.weights=${client.weights}" />
 <arg value="client.processesperclient=${client.processesperclient}" />
+<arg value="client.threads_per_host=${client.threads_per_host}" />
 <arg value="client.processesperclient_per_partition=${client.processesperclient_per_partition}" />
+<arg value="client.shared_connection=${client.shared_connection}" />
 <arg value="client.count=${client.count}" />
 <arg value="client.duration=${client.duration}" />
 <arg value="client.warmup=${client.warmup}" />
@@ -27,7 +32,6 @@
 <arg value="client.temporalwindow=${client.temporalwindow}" />
 <arg value="client.temporaltotal=${client.temporaltotal}" />
 <arg value="client.tick_interval=${client.tick_interval}" />
-<arg value="client.throttle_backoff=${client.throttle_backoff}" />
 <arg value="client.dump_database=${client.dump_database}" />
 <arg value="client.dump_database_dir=${client.dump_database_dir}" />
 <arg value="client.tablestats=${client.tablestats}" />
@@ -42,7 +46,9 @@
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 <arg value="client.output_clients=${client.output_clients}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
+<arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
+<arg value="client.profiling=${client.profiling}" />
 
 <!-- SITE -->
 <arg value="site.log_dir=${site.log_dir}" />
@@ -63,18 +69,29 @@
 <arg value="site.exec_voltdb_procinfo=${site.exec_voltdb_procinfo}" />
 <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
 <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
-<arg value="site.exec_postprocessing_thread=${site.exec_postprocessing_thread}" />
-<arg value="site.exec_postprocessing_thread_count=${site.exec_postprocessing_thread_count}" />
+<arg value="site.exec_preprocessing_threads=${site.exec_preprocessing_threads}" />
+<arg value="site.exec_preprocessing_threads_count=${site.exec_preprocessing_threads_count}" />
+<arg value="site.exec_postprocessing_threads=${site.exec_postprocessing_threads}" />
+<arg value="site.exec_postprocessing_threads_count=${site.exec_postprocessing_threads_count}" />
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
 <arg value="site.exec_validate_work=${site.exec_validate_work}" />
 <arg value="site.exec_command_logging=${site.exec_command_logging}" />
 <arg value="site.exec_command_logging_directory=${site.exec_command_logging_directory}" />
-<arg value="site.exec_command_logging_group_commit=${site.exec_command_logging_group_commit}" />
+<arg value="site.exec_command_logging_group_commit_timeout=${site.exec_command_logging_group_commit_timeout}" />
+<arg value="site.exec_command_logging_profile=${site.exec_command_logging_profile}" />
 <arg value="site.exec_adhoc_sql=${site.exec_adhoc_sql}" />
 <arg value="site.exec_prefetch_queries=${site.exec_prefetch_queries}" />
 <arg value="site.exec_deferrable_queries=${site.exec_deferrable_queries}" />
-<arg value="site.mapreduce_reduce_blocking=${site.mapreduce_reduce_blocking}" />
+<arg value="site.commandlog_enable=${site.commandlog_enable}" />
+<arg value="site.commandlog_dir=${site.commandlog_dir}" />
+<arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
+<arg value="site.commandlog_profiling=${site.commandlog_profiling}" />
+<arg value="site.anticache_enable=${site.anticache_enable}" />
+<arg value="site.anticache_dir=${site.anticache_dir}" />
+<arg value="site.mr_map_blocking=${site.mr_map_blocking}" />
+<arg value="site.mr_reduce_blocking=${site.mr_reduce_blocking}" />
+<arg value="site.network_profiling=${site.network_profiling}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
@@ -84,12 +101,10 @@
 <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
 <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
 <arg value="site.queue_incoming_increase_max=${site.queue_incoming_increase_max}" />
-<arg value="site.queue_incoming_throttle=${site.queue_incoming_throttle}" />
 <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
 <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
 <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
 <arg value="site.queue_dtxn_increase_max=${site.queue_dtxn_increase_max}" />
-<arg value="site.queue_dtxn_throttle=${site.queue_dtxn_throttle}" />
 <arg value="site.mappings_path=${site.mappings_path}" />
 <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
 <arg value="site.markov_path=${site.markov_path}" />
@@ -97,6 +112,7 @@
 <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
 <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
 <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
+<arg value="site.markov_fixed=${site.markov_fixed}" />
 <arg value="site.planner_profiling=${site.planner_profiling}" />
 <arg value="site.planner_caching=${site.planner_caching}" />
 <arg value="site.planner_max_round_size=${site.planner_max_round_size}" />
@@ -106,10 +122,6 @@
 <arg value="site.coordinator_finish_thread=${site.coordinator_finish_thread}" />
 <arg value="site.coordinator_redirect_thread=${site.coordinator_redirect_thread}" />
 <arg value="site.coordinator_sync_time=${site.coordinator_sync_time}" />
-<arg value="site.helper_initial_delay=${site.helper_initial_delay}" />
-<arg value="site.helper_interval=${site.helper_interval}" />
-<arg value="site.helper_txn_per_round=${site.helper_txn_per_round}" />
-<arg value="site.helper_txn_expire=${site.helper_txn_expire}" />
 <arg value="site.trace_txn_output=${site.trace_txn_output}" />
 <arg value="site.trace_query_output=${site.trace_query_output}" />
 <arg value="site.status_enable=${site.status_enable}" />
@@ -126,7 +138,6 @@
 <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
 <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
 <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
-<arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
 <arg value="site.pool_dtxnstates_idle=${site.pool_dtxnstates_idle}" />
 <arg value="site.pool_prefetchstates_idle=${site.pool_prefetchstates_idle}" />
 <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
@@ -135,4 +146,5 @@
 <arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
 <arg value="site.pool_txninitqueue_idle=${site.pool_txninitqueue_idle}" />
 <arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
+<arg value="site.pool_parametersets_idle=${site.pool_parametersets_idle}" />
 

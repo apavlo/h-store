@@ -71,13 +71,20 @@ public abstract class CatalogUtil {
         } // FOR
         return (to_column);
     }
-    
-    public static Set<Constraint> getConstraints(Iterable<ConstraintRef> map) {
-        Set<Constraint> ret = new HashSet<Constraint>();
-        for (ConstraintRef ref : map) {
-            Constraint catalog_item = ref.getConstraint();
-            assert(catalog_item != null);
-            ret.add(catalog_item);
+
+    /**
+     * Return the real Constraint objects for the ConstraintRefs
+     * @param map
+     * @return
+     */
+    public static Collection<Constraint> getConstraints(Iterable<ConstraintRef> map) {
+        List<Constraint> ret = new ArrayList<Constraint>();
+        if (map != null) {
+            for (ConstraintRef ref : map) {
+                Constraint catalog_item = ref.getConstraint();
+                assert(catalog_item != null);
+                ret.add(catalog_item);
+            }
         }
         return (ret);
     }

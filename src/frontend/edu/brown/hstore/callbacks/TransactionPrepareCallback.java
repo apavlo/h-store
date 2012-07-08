@@ -2,13 +2,12 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.client.ClientResponse;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -16,7 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * 
  * @author pavlo
  */
-public class TransactionPrepareCallback extends AbstractTransactionCallback<byte[], TransactionPrepareResponse> {
+public class TransactionPrepareCallback extends AbstractTransactionCallback<ClientResponseImpl, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

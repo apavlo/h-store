@@ -26,12 +26,15 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
+import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -63,11 +66,14 @@ public abstract class HStore {
     }
 
     private static HStoreSite singleton;
+    private static String buildString;
+    private static String versionString;
+    
     
     /**
      * Initialize the HStore server.
      */
-    public synchronized static HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
+    public synchronized static final HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
         singleton = new HStoreSite(catalog_site, hstore_conf);
         
         // For every partition in our local site, we want to setup a new ExecutionSite
@@ -144,17 +150,19 @@ public abstract class HStore {
             singleton.addPartitionExecutor(local_partition, executor);
         } // FOR
         
+        TheHashinator.initialize(catalog_site.getCatalog());
+        
         return (singleton);
     }
     
     /**
-     * Retrieve a reference to the object implementing VoltDBInterface.  When
-     * running a real server (and not a test harness), this instance will only
-     * be useful after calling VoltDB.initialize().
+     * Retrieve a reference to the main HStoreSite running in this JVM. 
+     * When running a real server (and not a test harness), this instance will only
+     * be useful after calling HStore.initialize().
      *
-     * @return A reference to the underlying VoltDBInterface object.
+     * @return A reference to the underlying HStoreSite object.
      */
-    public static HStoreSite instance() {
+    public static final HStoreSite instance() {
         return singleton;
     }
     
@@ -203,5 +211,56 @@ public abstract class HStore {
         // ----------------------------------------------------------------------------
         LOG.info("Instantiating HStoreSite network connections...");
         hstore_site.run();
+    }
+    
+    public static String getBuildString() {
+        if (buildString == null) {
+            synchronized (HStore.class) {
+                if (buildString == null) readBuildInfo();
+            } // SYNCH
+        }
+        return (buildString);
+    }
+    
+    public static String getVersionString() {
+        if (versionString == null) {
+            synchronized (HStore.class) {
+                if (versionString == null) readBuildInfo();
+            } // SYNCH
+        }
+        return (versionString);
+    }
+    
+    private static void readBuildInfo() {
+        StringBuilder sb = new StringBuilder(64);
+        byte b = -1;
+        try {
+            InputStream buildstringStream =
+                ClassLoader.getSystemResourceAsStream("buildstring.txt");
+            while ((b = (byte) buildstringStream.read()) != -1) {
+                sb.append((char)b);
+            }
+            sb.append("\n");
+            String parts[] = sb.toString().split(" ", 2);
+            if (parts.length != 2) {
+                throw new RuntimeException("Invalid buildstring.txt file.");
+            }
+            versionString = parts[0].trim();
+            buildString = parts[1].trim();
+        } catch (Exception ignored) {
+            try {
+                InputStream buildstringStream = new FileInputStream("version.txt");
+                while ((b = (byte) buildstringStream.read()) != -1) {
+                    sb.append((char)b);
+                }
+                versionString = sb.toString().trim();
+            }
+            catch (Exception ignored2) {
+                throw new RuntimeException(ignored);
+            }
+        } finally {
+            if (buildString == null) buildString = "H-Store";
+        }
+        LOG.info("Build: " + versionString + " " + buildString);
     }
 }

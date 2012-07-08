@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ class ExecutorContext {
                     CatalogId partitionId,
                     UndoQuantum *undoQuantum,
                     Topend* topend,
-                    bool eltEnabled,
+                    bool exportEnabled,
                     int64_t epoch,
                     std::string hostname,
                     CatalogId hostId) :
@@ -52,12 +52,20 @@ class ExecutorContext {
         m_txnId(0),
         m_siteId(siteId), m_partitionId(partitionId),
         m_hostname(hostname), m_hostId(hostId),
-        m_eltEnabled(eltEnabled), m_epoch(epoch)
+        m_exportEnabled(exportEnabled),
+        m_antiCacheEnabled(false),
+//         m_antiCacheDir(NULL),
+        m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
     }
 
+    void enableAntiCache(std::string dbDir) {
+        m_antiCacheEnabled = true;
+//         m_antiCacheDir = dbDir;
+    }
+    
     // not always known at initial construction
     void setPartitionId(CatalogId partitionId) {
         m_partitionId = partitionId;
@@ -136,7 +144,9 @@ class ExecutorContext {
     CatalogId m_partitionId;
     std::string m_hostname;
     CatalogId m_hostId;
-    bool m_eltEnabled;
+    bool m_exportEnabled;
+    bool m_antiCacheEnabled;
+//     std::string m_antiCacheDir;
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;

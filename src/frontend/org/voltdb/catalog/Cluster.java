@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
+ * Copyright (C) 2008-2010 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,10 +42,10 @@ public class Cluster extends CatalogType {
         m_childCollections.put("hosts", m_hosts);
         m_sites = new CatalogMap<Site>(catalog, this, path + "/" + "sites", Site.class);
         m_childCollections.put("sites", m_sites);
-        this.addField("num_partitions", m_num_partitions);
-        this.addField("leaderaddress", m_leaderaddress);
-        this.addField("localepoch", m_localepoch);
-        this.addField("securityEnabled", m_securityEnabled);
+        m_fields.put("num_partitions", m_num_partitions);
+        m_fields.put("leaderaddress", m_leaderaddress);
+        m_fields.put("localepoch", m_localepoch);
+        m_fields.put("securityEnabled", m_securityEnabled);
     }
 
     public void update() {

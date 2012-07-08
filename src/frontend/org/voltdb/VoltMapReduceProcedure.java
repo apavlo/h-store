@@ -18,7 +18,7 @@ import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -126,8 +126,10 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             // Check whether the HStoreConf flag for locking the entire cluster
             // is true. If it is, then we have to tell the queue manager that we're done.
             // MapReduceTransaction should finish forever...
-            hstore_site.getTransactionQueueManager().lockFinished(txn_id, Status.OK, this.partitionId);
-
+            if (this.hstore_conf.site.mr_map_blocking) {
+                hstore_site.getTransactionQueueManager().lockFinished(txn_id, Status.OK, this.partitionId);
+            }
+            
             if (debug.get())
                 LOG.debug(String.format("MAP: About to process %d records for %s on partition %d",
                           mapResult[0].getRowCount(), this.m_localTxnState, this.partitionId));
