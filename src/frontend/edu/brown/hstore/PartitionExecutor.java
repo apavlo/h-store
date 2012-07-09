@@ -2293,6 +2293,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                      getNextUndoToken(),
                      allowELT != 0);
     }
+    
+    protected void loadTable(Long txnId, Table catalog_tbl, VoltTable data, boolean allowELT) throws VoltAbortException {
+        ee.loadTable(catalog_tbl.getRelativeIndex(),
+                     data,
+                     txnId.longValue(),
+                     lastCommittedTxnId,
+                     getNextUndoToken(),
+                     allowELT);
+    }
 
     /**
      * Execute a SQLStmt batch at this partition.

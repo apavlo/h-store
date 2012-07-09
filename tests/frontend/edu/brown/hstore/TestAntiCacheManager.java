@@ -5,10 +5,12 @@ import java.util.concurrent.Semaphore;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.voter.VoterConstants;
@@ -23,12 +25,16 @@ import edu.brown.utils.ProjectType;
 public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
+    private static final int NUM_TUPLES = 100;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
     private Thread thread;
     private File anticache_dir;
     private Semaphore readyLock;
+    
+    private PartitionExecutor executor;
+    private ExecutionEngine ee;
 
     private EventObserver<HStoreSite> ready = new EventObserver<HStoreSite>() {
         @Override
@@ -46,6 +52,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         this.hstore_conf = HStoreConf.singleton();
+        this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = true;
         this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
         
@@ -56,6 +63,11 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Wait until we know that our HStoreSite has started
         this.readyLock.acquire();
+        
+        this.executor = hstore_site.getPartitionExecutor(0);
+        assertNotNull(this.executor);
+        this.ee = executor.getExecutionEngine();
+        assertNotNull(this.executor);
     }
     
     @Override
@@ -69,6 +81,17 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testEvictTuples() throws Exception {
+        // Load in a bunch of dummy data for this table
+        Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        assertNotNull(vt);
+        for (int i = 0; i < NUM_TUPLES; i++) {
+            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            vt.addRow(row);
+        } // FOR
+        this.executor.loadTable(1000l, catalog_tbl, vt, false);
+
+        // Now force the EE to evict our boys out
 
     }
 
@@ -77,11 +100,6 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testReadNonExistentBlock() throws Exception {
-        PartitionExecutor executor = hstore_site.getPartitionExecutor(0);
-        assertNotNull(executor);
-        ExecutionEngine ee = executor.getExecutionEngine();
-        assertNotNull(executor);
-        
         Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
         short block_ids[] = new short[]{ 1111 };
         boolean failed = false;

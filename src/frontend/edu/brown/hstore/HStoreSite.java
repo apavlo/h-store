@@ -1248,7 +1248,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Perform shutdown operations for this HStoreSiteNode
-     * This should only be called by HStoreMessenger 
      */
 	@Override
     public synchronized void shutdown(){
