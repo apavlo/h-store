@@ -32,32 +32,7 @@
 
 namespace voltdb {
     
-    /**
-     * Represents a non-temporary table which permanently resides in
-     * storage and also registered to Catalog (see other documents for
-     * details of Catalog). PersistentTable has several additional
-     * features to Table.  It has indexes, constraints to check NULL and
-     * uniqueness as well as undo logs to revert changes.
-     *
-     * PersistentTable can have one or more Indexes, one of which must be
-     * Primary Key Index. Primary Key Index is same as other Indexes except
-     * that it's used for deletion and updates. Our Execution Engine collects
-     * Primary Key values of deleted/updated tuples and uses it for specifying
-     * tuples, assuming every PersistentTable has a Primary Key index.
-     *
-     * Currently, constraints are not-null constraint and unique
-     * constraint.  Not-null constraint is just a flag of TableColumn and
-     * checked against insertion and update. Unique constraint is also
-     * just a flag of TableIndex and checked against insertion and
-     * update. There's no rule constraint or foreign key constraint so far
-     * because our focus is performance and simplicity.
-     *
-     * To revert changes after execution, PersistentTable holds UndoLog.
-     * PersistentTable does eager update which immediately changes the
-     * value in data and adds an entry to UndoLog. We chose eager update
-     * policy because we expect reverting rarely occurs.
-     */
-    class EvictedTable : public PersistentTable {
+class EvictedTable : public PersistentTable {
         
     public: 
         
