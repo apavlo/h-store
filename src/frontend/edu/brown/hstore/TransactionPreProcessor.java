@@ -34,7 +34,7 @@ public class TransactionPreProcessor extends AbstractProcessingThread<Pair<ByteB
     }
     
     @Override
-    public void processingCallback(Pair<ByteBuffer, RpcCallback<ClientResponseImpl>> next) {
+    protected void processingCallback(Pair<ByteBuffer, RpcCallback<ClientResponseImpl>> next) {
         this.hstore_site.invocationProcess(next.getFirst(), next.getSecond());
     }
 }

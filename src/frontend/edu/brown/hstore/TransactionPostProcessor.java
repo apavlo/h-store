@@ -36,7 +36,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
     }
     
     @Override
-    public void processingCallback(Pair<LocalTransaction, ClientResponseImpl> pair) {
+    protected void processingCallback(Pair<LocalTransaction, ClientResponseImpl> pair) {
         LocalTransaction ts = pair.getFirst();
         assert(ts != null);
         ClientResponseImpl cr = pair.getSecond();
