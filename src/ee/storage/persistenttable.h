@@ -73,6 +73,7 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
+class EvictedTable;
 
 /**
  * Represents a non-temporary table which permanently resides in
@@ -247,8 +248,8 @@ class PersistentTable : public Table {
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------
 #ifdef ANTICACHE
+    void setEvictedTable(voltdb::Table *evictedTable);
     bool evictBlockToDisk(const long block_size);
-    TableTuple* createEvictedTuple(TableTuple &source_tuple, TableTuple *evicted_tuple, uint16_t block_id);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();
 #endif
@@ -305,7 +306,7 @@ protected:
     
     // ANTI-CACHE VARIABLES
 #ifdef ANTICACHE
-    voltdb::Table *m_evicted_table; 
+    voltdb::Table *m_evictedTable;
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     int m_unevictedTuplesLength; 

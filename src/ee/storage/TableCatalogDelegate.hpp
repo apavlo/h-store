@@ -59,7 +59,6 @@ class TableCatalogDelegate : public CatalogDelegate {
 
   private:
     voltdb::Table *m_table;
-    voltdb::Table *m_evicted_table; 
     bool m_exportEnabled;
 };
 

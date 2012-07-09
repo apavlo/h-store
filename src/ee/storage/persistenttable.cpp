@@ -75,6 +75,7 @@
 #include "storage/CopyOnWriteContext.h"
 
 #ifdef ANTICACHE
+#include "storage/evictedtable.h"
 #include "common/anticache.h"
 #endif
 
@@ -98,6 +99,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
 {
 
 #ifdef ANTICACHE
+    m_evictedTable = NULL;
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0; 
     m_unevictedTuplesLength = 0; 
@@ -130,6 +132,10 @@ PersistentTable::~PersistentTable() {
     if (m_uniqueIndexes) delete[] m_uniqueIndexes;
     if (m_allowNulls) delete[] m_allowNulls;
     if (m_indexes) delete[] m_indexes;
+    
+#ifdef ANTICACHE
+    if (m_evictedTable) delete m_evictedTable;
+#endif
 
     // note this class has ownership of the views, even if they
     // were allocated by VoltDBEngine
@@ -145,22 +151,37 @@ PersistentTable::~PersistentTable() {
 // ------------------------------------------------------------------ 
 
 #ifdef ANTICACHE
+
+void PersistentTable::setEvictedTable(voltdb::Table *evictedTable) {
+    VOLT_INFO("Initialized EvictedTable for table '%s'", this->name().c_str());
+    m_evictedTable = evictedTable;
+}
+
 bool PersistentTable::evictBlockToDisk(const long block_size) {
+    if (m_evictedTable == NULL) {
+        throwFatalException("Trying to evict block from table '%s' before its "\
+                            "EvictedTable has been initialized", this->name().c_str());
+    }
+    
+#ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
                block_size, this->name().c_str());
-    
-    TableTuple tuple(m_schema);
-    
-    // create a new evicted table tuple based on the schema for the source tuple
-//     TupleSchema *evicted_schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
-//     fprintf(stderr, "EVICTED TABLE SCHEMA:\n%s\n", evicted_schema->debug().c_str());
-//     TableTuple *evicted_tuple = NULL; // new TableTuple(schema); 
+    int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
+#endif
     
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB();
+    AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB();
     
     // get a unique block id from the executorContext
-    uint16_t block_id = anti_cache_db->nextBlockId(); 
+    uint16_t block_id = antiCacheDB->nextBlockId(); 
+
+    // create a new evicted table tuple based on the schema for the source tuple
+    // Get the columns in the source tuple are part of the primary key
+    // The last entry will always be the block id for this new evicted tuple
+    TableTuple evicted_tuple(m_evictedTable->schema());
+    int evicted_offset = m_pkeyIndex->getColumnCount() - 1;
+    evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); 
+    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
     
     int tuple_length = -1;
     long serialized_data_length = 0; 
@@ -175,6 +196,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     // TODO: This is reading tuples straight through. We need to create an LRU iterator
     //       that can walk through the table and just grab the boring tuples and 
     //       shove them out to our new block.
+    TableTuple tuple(m_schema);
     TableIterator table_itr(this); 
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple); 
@@ -192,49 +214,41 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         // update all the indexes for this tuple
         // FIXME setNullForAllIndexes(tuple); 
         
-        // create evicted table tuple, remove original tuple from data 
-        // table and insert evicted table tuple into evicted table
-//         evicted_tuple = new TableTuple(evicted_schema);
-//         evicted_tuple = createEvictedTuple(tuple, evicted_tuple, block_id); 
-//         deleteTuple(tuple, true); 
-//         m_evicted_table->insertTuple(*evicted_table_tuple); 
-// 
-//         // copy the tuple into the serialized buffer
+        // Populate the evicted_tuple with the source tuple's primary key values
+        evicted_offset = 0;
+        for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+            evicted_tuple.setNValue(evicted_offset++, tuple.getNValue(*it)); 
+        } // FOR
+
+        // Then add it to this table's EvictedTable
+//         m_evictedTable->insertTuple(evicted_tuple); 
+        
+        // Now copy the raw bytes for this tuple into the serialized buffer
 //         memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
 //         serialized_data_length += tuple_length; 
-//         
+        
+        // At this point it's safe for us to delete this mofo
+//         deleteTuple(tuple, true); 
         num_tuples_evicted++; 
     } // WHILE
     // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
      
-    anti_cache_db->writeBlock(block_id, serialized_data, serialized_data_length);
+    antiCacheDB->writeBlock(block_id, serialized_data, serialized_data_length);
     
+#ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
               block_id, this->name().c_str(),
               num_tuples_evicted, serialized_data_length, tuple_length);
+    VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
+              this->name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
+#endif
     
     return true;
 }
-
-TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple,
-                                                TableTuple *evicted_tuple,
-                                                uint16_t block_id) {
-    // Get a list of which columns in the source tuple are part of the primary key
-    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
-    int evicted_offset = 0;
-    for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
-        evicted_tuple->setNValue(evicted_offset++, source_tuple.getNValue(*it)); 
-    } // FOR
-    
-    // The last entry will always be the block id for this new evicted tuple
-    evicted_tuple->setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); 
-    
-    return (evicted_tuple); 
-}
     
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
-    AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB(); 
-    AntiCacheBlock value = anti_cache_db->readBlock(this->name(), block_id);
+    AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
+    AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
 
     if (m_unevictedTuplesLength > 0) {
         // allocate a new array to accomodate the old unevicted block as well as the new one

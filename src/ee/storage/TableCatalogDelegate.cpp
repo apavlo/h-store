@@ -268,16 +268,17 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  isTableExportOnly(catalogDatabase, table_id));
         
         
-        // create evicted table if anti-caching is enabled
 #ifdef ANTICACHE
-        if(executorContext->m_antiCacheEnabled) {
-            TableIndex* pkey = m_table->primaryKeyIndex(); 
-            assert(TableIndex != NULL); 
+        // Create evicted table if anti-caching is enabled and this table 
+        // is not generated from a materialized view
+        if (executorContext->m_antiCacheEnabled && catalogTable.materializer() == NULL) {
             
+            TableIndex* pkey = m_table->primaryKeyIndex(); 
+            assert(TableIndex != NULL);
             
             TupleSchema *evicted_table_schema = TupleSchema::createEvictedTupleSchema(pkey->getKeySchema()); 
-            
-            m_evicted_table = TableFactory::getEvictedTable(databaseId, 
+            voltdb::Table *evicted_table = TableFactory::getEvictedTable(
+                                                            databaseId, 
                                                             executorContext,
                                                             catalogTable.name(),
                                                             evicted_table_schema, 
@@ -285,6 +286,11 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                             pkey_index, 
                                                             indexes, 
                                                             partitionColumnIndex);
+            // We'll shove the EvictedTable to the PersistentTable
+            // It will be responsible for deleting it in its deconstructor
+            dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
+        } else {
+            VOLT_INFO("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
         }
 #endif
     }
