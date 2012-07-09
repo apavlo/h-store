@@ -80,7 +80,7 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        AntiCacheBlock readBlock(uint16_t block_id);
+        AntiCacheBlock readBlock(std::string tableName, uint16_t block_id);
 
         /**
          * Return the next BlockId to use in the anti-cache database

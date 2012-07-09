@@ -25,6 +25,7 @@
 
 #include "common/anticache.h"
 #include "common/debuglog.h"
+#include "common/UnknownBlockAccessException.h"
 #include "common/FatalException.hpp"
 
 using namespace std;
@@ -95,7 +96,7 @@ void AntiCacheDB::writeBlock(uint16_t block_id, const char* serialized_data, int
     m_db->put(NULL, &key, &value, 0);
 }
 
-AntiCacheBlock AntiCacheDB::readBlock(uint16_t block_id) {
+AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t block_id) {
     Dbt key;
     key.set_data(&block_id);
     key.set_size(sizeof(uint16_t));
@@ -105,13 +106,13 @@ AntiCacheBlock AntiCacheDB::readBlock(uint16_t block_id) {
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {
-        throwFatalException("Invalid anti-cache blockId '%d'", block_id);
+        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", block_id, tableName.c_str());
+        throw UnknownBlockAccessException(tableName, block_id);
     }
     assert(value.get_data() != NULL);
     
     AntiCacheBlock block(block_id, value);
     return (block);
-    
 }
     
 }

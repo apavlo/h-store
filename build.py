@@ -190,6 +190,7 @@ CTX.INPUT['common'] = """
  SerializableEEException.cpp
  SQLException.cpp
  EvictedTupleAccessException.cpp
+ UnknownBlockAccessException.cpp
  tabletuple.cpp
  TupleSchema.cpp
  types.cpp

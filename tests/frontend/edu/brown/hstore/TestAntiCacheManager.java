@@ -84,13 +84,17 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
         short block_ids[] = new short[]{ 1111 };
+        boolean failed = false;
         try {
             ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
         } catch (UnknownBlockAccessException ex) {
-            
+            // This is what we want!
+            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
+            assertEquals(block_ids[0], ex.getBlockId());
+            failed = true;
+            System.err.println(ex);
         }
-        
-
+        assertTrue(failed);
     }
     
 }
