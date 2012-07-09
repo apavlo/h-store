@@ -149,7 +149,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
                block_size, this->name().c_str());
     
-    TableTuple tuple; 
+    TableTuple tuple(m_schema);
     // TableTuple* evicted_table_tuple; 
     
     // get the AntiCacheDB instance from the executorContext
@@ -184,9 +184,9 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         
         assert(!tuple.isEvicted());
         tuple.setEvictedTrue(); 
-//         
-//         // update all the indexes for this tuple
-//         setNullForAllIndexes(tuple); 
+        
+        // update all the indexes for this tuple
+        setNullForAllIndexes(tuple); 
 //         
 //         // create evicted table tuple, remove original tuple from data 
 //         // table and insert evicted table tuple into evicted table
