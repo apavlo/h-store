@@ -150,7 +150,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                block_size, this->name().c_str());
     
     TableTuple tuple(m_schema);
-    // TableTuple* evicted_table_tuple; 
+    
+    // create a new evicted table tuple based on the schema for the source tuple
+//     TupleSchema *evicted_schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
+//     fprintf(stderr, "EVICTED TABLE SCHEMA:\n%s\n", evicted_schema->debug().c_str());
+//     TableTuple *evicted_tuple = NULL; // new TableTuple(schema); 
     
     // get the AntiCacheDB instance from the executorContext
     AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB();
@@ -186,11 +190,12 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         tuple.setEvictedTrue(); 
         
         // update all the indexes for this tuple
-        setNullForAllIndexes(tuple); 
-//         
-//         // create evicted table tuple, remove original tuple from data 
-//         // table and insert evicted table tuple into evicted table
-//         evicted_table_tuple = createEvictedTuple(tuple, block_id); 
+        // FIXME setNullForAllIndexes(tuple); 
+        
+        // create evicted table tuple, remove original tuple from data 
+        // table and insert evicted table tuple into evicted table
+//         evicted_tuple = new TableTuple(evicted_schema);
+//         evicted_tuple = createEvictedTuple(tuple, evicted_tuple, block_id); 
 //         deleteTuple(tuple, true); 
 //         m_evicted_table->insertTuple(*evicted_table_tuple); 
 // 
@@ -211,26 +216,20 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     return true;
 }
 
-TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16_t block_id) {
-    // create a new evicted table tuple based on the schema for the source tuple
-    TupleSchema *schema = TupleSchema::createEvictedTupleSchema(m_pkeyIndex->getKeySchema()); 
-    TableTuple *evicted_tuple = new TableTuple(schema); 
+TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple,
+                                                TableTuple *evicted_tuple,
+                                                uint16_t block_id) {
+    // Get a list of which columns in the source tuple are part of the primary key
+    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
+    int evicted_offset = 0;
+    for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+        evicted_tuple->setNValue(evicted_offset++, source_tuple.getNValue(*it)); 
+    } // FOR
     
-    // get a list of which indices in the source tuple are part of the primary key
-    const std::vector<int>& column_indices = m_pkeyIndex->getColumnIndices();
+    // The last entry will always be the block id for this new evicted tuple
+    evicted_tuple->setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); 
     
-    //assert((column_indices.size()+1) == tuple->sizeInValues()); 
-    
-    int column_index; 
-    for (int i = 0; i < source_tuple.sizeInValues(); i++) {
-        column_index = column_indices[i]; 
-        evicted_tuple->setNValue(i, source_tuple.getNValue(column_index)); 
-    }
-    
-    // set the block id for this new evicted tuple
-    evicted_tuple->setNValue(source_tuple.sizeInValues(), ValueFactory::getSmallIntValue(block_id)); 
-    
-    return evicted_tuple; 
+    return (evicted_tuple); 
 }
     
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
@@ -684,12 +683,9 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     }
 }
     
-void PersistentTable::setNullForAllIndexes(TableTuple &tuple)
-{
-    for(int i = m_indexCount - 1; i >= 0; --i)
-    {
-        if(!m_indexes[i]->setEntryToNull(&tuple))
-        {
+void PersistentTable::setNullForAllIndexes(TableTuple &tuple) {
+    for (int i = m_indexCount - 1; i >= 0; --i) {
+        if (!m_indexes[i]->setEntryToNull(&tuple)) {
             throwFatalException("Failed to update tuple in index to NULL");
         }
     }

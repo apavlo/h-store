@@ -142,10 +142,7 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
     return schema;
 }
     
-TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schema)
-{
-    TupleSchema *schema; 
-    
+TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schema) {
     std::vector<ValueType> columnTypes(1);
     std::vector<int32_t> columnSizes(1);
     std::vector<bool> allowNull(1);
@@ -155,9 +152,9 @@ TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schem
     columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
     allowNull[0] = false; 
     
-    schema = TupleSchema::createTupleSchema(pkey_schema, TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false)); 
+    TupleSchema *evicted_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
     
-    return schema; 
+    return (TupleSchema::createTupleSchema(pkey_schema, evicted_schema));
 }
 
 void TupleSchema::freeTupleSchema(TupleSchema *schema) {
