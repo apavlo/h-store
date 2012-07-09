@@ -247,7 +247,7 @@ class PersistentTable : public Table {
     // ANTI-CACHING OPERATIONS
     // ------------------------------------------------------------------
 #ifdef ANTICACHE
-    bool evictBlockToDisk(int block_size);
+    bool evictBlockToDisk(long block_size);
     TableTuple* createEvictedTuple(TableTuple &source_tuple, uint16_t block_id);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();

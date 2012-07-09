@@ -145,7 +145,7 @@ PersistentTable::~PersistentTable() {
 // ------------------------------------------------------------------ 
 
 #ifdef ANTICACHE
-bool PersistentTable::evictBlockToDisk(int block_size) {        
+bool PersistentTable::evictBlockToDisk(long block_size) {        
     TableTuple tuple; 
     TableTuple* evicted_table_tuple; 
     
@@ -155,21 +155,29 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
     // get a unique block id from the executorContext
     uint16_t block_id = anti_cache_db->nextBlockId(); 
     
-    // read the first tuple in the table
-    TableIterator table_itr(this); 
-    table_itr.next(tuple); 
-    
-    int tuple_length = tuple.tupleLength(); 
-    char* serialized_data = new char[block_size * tuple_length]; 
+    int tuple_length = -1;
     int serialized_data_length = 0; 
-    
-    // copy the first tuple into the buffer
-    memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
-    serialized_data_length += tuple_length; 
+    int num_tuples_evicted = 1;
 
-    int num_tuples_evicted = 1; 
-    while (table_itr.hasNext() && num_tuples_evicted <= block_size) {
+    // TODO: We may want to write a header in the block that tells us
+    //       the original name of this table that these tuples came from,
+    //       as well as the number of tuples that we evicted.
+    char* serialized_data = new char[block_size]; 
+    
+    
+    // Iterate through the table and pluck out tuples to put in our block
+    // TODO: This is reading tuples straight through. We need to create an LRU iterator
+    //       that can walk through the table and just grab the boring tuples and 
+    //       shove them out to our new block.
+    TableIterator table_itr(this); 
+    while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple); 
+        
+        // If this is the first tuple, then we need to allocate all of the memory and
+        // what not that we're going to need
+        if (tuple_length == -1) {
+            tuple_length = tuple.tupleLength();
+        }
         
         assert(!tuple.isEvicted());
         tuple.setEvictedTrue(); 
@@ -177,7 +185,8 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
         // update all the indexes for this tuple
         setNullForAllIndexes(tuple); 
         
-        // create evicted table tuple, remove original tuple from data table and insert evicted table tuple into evicted table
+        // create evicted table tuple, remove original tuple from data 
+        // table and insert evicted table tuple into evicted table
         evicted_table_tuple = createEvictedTuple(tuple, block_id); 
         deleteTuple(tuple, true); 
         m_evicted_table->insertTuple(*evicted_table_tuple); 
@@ -188,7 +197,7 @@ bool PersistentTable::evictBlockToDisk(int block_size) {
         
         num_tuples_evicted++; 
     } // WHILE
-    assert(num_tuples_evicted * tuple_length == serialized_data_length); 
+    // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
      
     anti_cache_db->writeBlock(block_id, serialized_data, serialized_data_length);
     

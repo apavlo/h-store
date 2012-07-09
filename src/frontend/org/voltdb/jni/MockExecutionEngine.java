@@ -208,4 +208,10 @@ public class MockExecutionEngine extends ExecutionEngine {
         // TODO Auto-generated method stub
         
     }
+
+    @Override
+    public void antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
+        // TODO Auto-generated method stub
+        
+    }
 }
