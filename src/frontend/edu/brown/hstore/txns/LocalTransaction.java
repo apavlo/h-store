@@ -44,7 +44,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
@@ -94,13 +93,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * The original StoredProcedureInvocation request that was sent to the HStoreSite
-     * XXX: Why do we need to keep this?
-     */
-    @Deprecated
-    protected StoredProcedureInvocation invocation;
     
     /**
      * StoredProcedureInvocation Input Parameters
@@ -362,7 +354,6 @@ public class LocalTransaction extends AbstractTransaction {
         super.finish();
         
         this.catalog_proc = null;
-        this.invocation = null;
         this.client_callback = null;
         this.initiateTime = 0;
         
@@ -753,16 +744,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public final void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
-    }
-    
-    /**
-     * Return the StoredProcedureInvocation that came over the wire 
-     * from the client for the original transaction request 
-     * @return
-     */
-    @Deprecated
-    public StoredProcedureInvocation getInvocation() {
-        return (this.invocation);
     }
 
     /**
