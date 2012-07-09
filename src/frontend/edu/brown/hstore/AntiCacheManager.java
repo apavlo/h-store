@@ -89,6 +89,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
+        
+        // TODO: We should check whether there are any other txns that are also blocked waiting
+        // for these blocks. This will ensure that we don't try to read in blocks twice.
+        
         return (this.queue.offer(e));
     }
     

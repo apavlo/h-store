@@ -640,4 +640,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
         checkErrorCode(errorCode);
     }
+    
+    @Override
+    public void antiCacheMergeBlocks(Table catalog_tbl) {
+        assert(m_anticache);
+        final int errorCode = nativeAntiCacheMergeBlocks(pointer, catalog_tbl.getRelativeIndex());
+        checkErrorCode(errorCode);
+    }
 }

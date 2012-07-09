@@ -1471,4 +1471,10 @@ public class ExecutionEngineIPC extends ExecutionEngine {
         // TODO Auto-generated method stub
         
     }
+
+    @Override
+    public void antiCacheMergeBlocks(Table catalog_tbl) {
+        // TODO Auto-generated method stub
+        
+    }
 }
