@@ -3,9 +3,12 @@ package edu.brown.hstore;
 import java.io.File;
 
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.utils.FileUtil;
 
 /**
@@ -16,41 +19,25 @@ import edu.brown.utils.FileUtil;
  */
 public class AntiCacheManager implements Shutdownable {
 
-    private final PartitionExecutor executor;
+    private final HStoreSite hstore_site;
     private final Database catalog_db;
     private final HStoreConf hstore_conf;
     
-    protected AntiCacheManager(Database catalog_db, PartitionExecutor executor) {
-        this.catalog_db = catalog_db;
-        this.executor = executor;
-        this.hstore_conf = this.executor.getHStoreConf();
+    protected AntiCacheManager(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
+        this.catalog_db = hstore_site.getDatabase();
+        this.hstore_conf = hstore_site.getHStoreConf();
     }
     
     /**
-     * Returns the directory where the EE should store the anti-cache
-     * database for this PartitionExecutor
-     * @return
+     * Queue the evicted blocks for a given Table to be read back in at this partition
+     * This is a non-blocking call. The AntiCacheManager will figure out when it's
+     * ready to get these blocks back in 
+     * @param catalog_tbl
+     * @param block_ids
      */
-    public File getDatabaseDir() {
-        // First make sure that our base directory exists
-        String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir + 
-                                            File.separatorChar +
-                                            this.catalog_db.getProject());
-        synchronized (AntiCacheManager.class) {
-            FileUtil.makeDirIfNotExists(base_dir);
-        } // SYNCH
+    public void queueReadBlocks(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[]) {
         
-        // Then each partition will have a separate directory inside of the base one
-        String partitionName = HStoreThreadManager.formatPartitionName(this.executor.getSiteId(),
-                                                                       this.executor.getPartitionId());
-
-        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
-        FileUtil.makeDirIfNotExists(dbDirPath);
-        
-        // TODO: What do we do if the file already exists?
-        //       There should be an HStoreConf that says we should delete it first
-        
-        return (dbDirPath);
     }
     
     @Override
@@ -71,6 +58,38 @@ public class AntiCacheManager implements Shutdownable {
         return false;
     }
     
-    
+    // ----------------------------------------------------------------------------
+    // STATIC HELPER METHODS
+    // ----------------------------------------------------------------------------
 
+    /**
+     * Returns the directory where the EE should store the anti-cache
+     * database for this PartitionExecutor
+     * @return
+     */
+    public static File getDatabaseDir(PartitionExecutor executor) {
+        HStoreConf hstore_conf = executor.getHStoreConf();
+        Database catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
+        
+        // First make sure that our base directory exists
+        String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir + 
+                                            File.separatorChar +
+                                            catalog_db.getProject());
+        synchronized (AntiCacheManager.class) {
+            FileUtil.makeDirIfNotExists(base_dir);
+        } // SYNCH
+        
+        // Then each partition will have a separate directory inside of the base one
+        String partitionName = HStoreThreadManager.formatPartitionName(executor.getSiteId(),
+                                                                       executor.getPartitionId());
+
+        File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        FileUtil.makeDirIfNotExists(dbDirPath);
+        
+        // TODO: What do we do if the directory already exists?
+        //       There should be an HStoreConf that says we should delete it first
+        
+        return (dbDirPath);
+    }
+    
 }

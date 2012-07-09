@@ -87,6 +87,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.exceptions.EvictedTupleAccessException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SQLException;
 import org.voltdb.exceptions.SerializableException;
@@ -227,9 +228,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
     private final SnapshotSiteProcessor m_snapshotter;
-    
+
     // Anti-Cache Abstraction Layer
-    private final AntiCacheManager anticacheManager;
+    private AntiCacheManager anticacheManager;
     
     /**
      * Procedure Name -> VoltProcedure
@@ -552,7 +553,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.p_estimator = null;
         this.t_estimator = null;
         this.m_snapshotter = null;
-        this.anticacheManager = null;
         this.thresholds = null;
         this.catalog = null;
         this.cluster = null;
@@ -617,14 +617,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.t_estimator = t_estimator; 
         }
         
-        // The AntiCacheManager will allow us to do special things down in the EE
-        // for evicted tuples
-        if (hstore_conf.site.anticache_enable) {
-            this.anticacheManager = new AntiCacheManager(this.database, this);
-        } else {
-            this.anticacheManager = null;
-        }
-        
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
         // the VoltProcedure interface invokes HSQLDB directly through its
@@ -657,8 +649,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
                 
                 // Initialize Anti-Cache
-                if (this.anticacheManager != null) {
-                    File acFile = this.anticacheManager.getDatabaseDir(); 
+                if (hstore_conf.site.anticache_enable) {
+                    File acFile = AntiCacheManager.getDatabaseDir(this); 
                     eeTemp.initializeAntiCache(acFile);
                 }
                 
@@ -752,6 +744,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
+        }
+        
+        if (hstore_conf.site.anticache_enable) {
+            this.anticacheManager = hstore_site.getAntiCacheManager();
         }
         
         if (hstore_conf.site.exec_profiling) {
@@ -1825,21 +1821,30 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         try {
             result = this.executeWorkFragment(ts, fragment, parameters);
+            
+        } catch (EvictedTupleAccessException ex) {
+            // XXX: What do we do if this is not a single-partition txn? 
+            if (this.anticacheManager != null) {
+                status = Status.ABORT_EVICTEDACCESS;
+                Table catalog_tbl = ex.getTableId(this.database);
+                this.anticacheManager.queueReadBlocks(ts, this.partitionId, catalog_tbl, ex.getBlockIds());
+            } else {
+                String message = "Got eviction notice but anti-caching is not enabled";
+                error = new ServerFaultException(message, ex, ts.getTransactionId());
+                status = Status.ABORT_UNEXPECTED;
+            }
+            error = ex;
         } catch (ConstraintFailureException ex) {
-            if (d) LOG.warn(String.format("%s - Unexpected ConstraintFailureException error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
-            LOG.error(String.format("%s - Unexpected ExecutionEngine error on partition %d", ts, this.partitionId), ex);
             this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
-            LOG.error(String.format("%s - Unexpected SQL error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.error(String.format("%s - Unexpected error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -1847,10 +1852,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 error = new SerializableException(ex);
             }
         } finally {
+            if (error != null && d) {
+                LOG.error(String.format("%s - Unexpected %s on partition %d",
+                         ts, error.getClass().getSimpleName(), this.partitionId), error);
+            }
+            
             // Success, but without any results???
             if (result == null && status == Status.OK) {
-                Exception ex = new Exception(String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
-                                                           fragment.getFragmentIdList(), this.partitionId, ts));
+                String msg = String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
+                                           fragment.getFragmentIdList(), this.partitionId, ts);
+                Exception ex = new Exception(msg);
                 if (d) LOG.warn(ex);
                 status = Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);

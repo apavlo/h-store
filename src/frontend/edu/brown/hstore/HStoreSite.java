@@ -278,6 +278,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final PeriodicWorkTimerThread periodicWorkTimer_thread;
     
     /**
+     * Anti-Cache Abstraction Layer
+     */
+    private final AntiCacheManager anticacheManager;
+    
+    /**
      * This catches any exceptions that are thrown in the various
      * threads spawned by this HStoreSite
      */
@@ -531,6 +536,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.periodicWorkTimer_thread = null;
             this.asyncCompilerWork_thread = null;
+        }
+        
+        // The AntiCacheManager will allow us to do special things down in the EE
+        // for evicted tuples
+        if (hstore_conf.site.anticache_enable) {
+            this.anticacheManager = new AntiCacheManager(this);
+        } else {
+            this.anticacheManager = null;
         }
         
         // -------------------------------
@@ -842,6 +855,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
+    }
+    public AntiCacheManager getAntiCacheManager() {
+        return (this.anticacheManager);
     }
     
     public DBBPool getBufferPool() {
@@ -1583,12 +1599,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.asyncCompilerWork_thread.planSQL(ts, sql);
             return (true);
         }
-        // new for AdHoc end **********************************************************************
         
         return (false);
     }
-
-
 
     // ----------------------------------------------------------------------------
     // TRANSACTION HANDLE CREATION METHODS
@@ -2079,7 +2092,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Restart the given transaction with a brand new transaction handle.
      * This method will perform the following operations:
      *  (1) Restart the transaction as new multi-partitioned transaction
-     *  (2) Mark the original transaction as aborted
+     *  (2) Mark the original transaction as aborted so that is rolled back
      *  
      * <B>IMPORTANT:</B> If the return status of the transaction is ABORT_REJECT, then
      *                   you will probably need to delete the transaction handle.
@@ -2110,17 +2123,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        // Figure out whether this transaction should be redirected based on what partitions it
-        // tried to touch before it was aborted 
-        if (status != Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
+        // -------------------------------
+        // ANTI-CACHING RESTART
+        // -------------------------------
+        if (status == Status.ABORT_EVICTEDACCESS) {
+        
+        
+        }
+        
+        // -------------------------------
+        // REDIRECTION
+        // -------------------------------
+        else if (status != Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
+            // Figure out whether this transaction should be redirected based on what partitions it
+            // tried to touch before it was aborted
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Collection<Integer> most_touched = touched.getMaxCountValues();
             assert(most_touched != null) :
                 "Failed to get most touched partition for " + orig_ts + "\n" + touched;
             
-            // HACK: We should probably decrement the base partition by one 
-            // so that we only consider where they actually executed queries
-            
+            // XXX: We should probably decrement the base partition by one 
+            //      so that we only consider where they actually executed queries
             if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
                                            orig_ts, touched));
             Integer redirect_partition = null;
@@ -2190,6 +2213,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
+        // -------------------------------
+        // LOCAL RE-EXECUTION
+        // -------------------------------
+        
         Long new_txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
         LocalTransaction new_ts = null;
         try {
