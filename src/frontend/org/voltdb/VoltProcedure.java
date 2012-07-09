@@ -40,6 +40,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
@@ -592,6 +593,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                            this.procParams + Arrays.toString(this.procParams),
                                            this.partitionId));
             try {
+                // ANTI-CACHE MERGE
+                if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
+                    Table catalog_tbl = txnState.getAntiCacheMergeTable();
+                    executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
+                }
+                
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
