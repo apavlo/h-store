@@ -52,7 +52,6 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
@@ -195,12 +194,6 @@ public class LocalTransaction extends AbstractTransaction {
     public final TransactionProfile profiler;
 
     /**
-     * TODO: We need to remove the need for this
-     */
-    @Deprecated
-    private final InitiateTaskMessage itask;
-
-    /**
      * Whether this transaction's control code was executed on
      * its base partition.
      */
@@ -226,8 +219,6 @@ public class LocalTransaction extends AbstractTransaction {
         HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
         this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfile() : null);
       
-        this.itask = new InitiateTaskMessage();
-        
         int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
         this.done_partitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
@@ -278,13 +269,6 @@ public class LocalTransaction extends AbstractTransaction {
                    predict_abortable,
                    true);
         
-        // Initialize the InitialTaskMessage
-        // We have to wrap the StoredProcedureInvocation object into an
-        // InitiateTaskMessage so that it can be put into the PartitionExecutor's execution queue
-        this.itask.setTransactionId(txn_id);
-        this.itask.setSrcPartition(base_partition);
-        this.itask.setDestPartition(base_partition);
-        this.itask.setSysProc(catalog_proc.getSystemproc());
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
@@ -404,7 +388,6 @@ public class LocalTransaction extends AbstractTransaction {
     
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
-        this.itask.setTransactionId(txn_id);
     }
     
     public void setExecutionState(ExecutionState state) {
@@ -772,11 +755,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.state.batch_size = batchSize;
     }
     
-    @Deprecated
-    public InitiateTaskMessage getInitiateTaskMessage() {
-        return (this.itask);
-    }
-    
     /**
      * Return the StoredProcedureInvocation that came over the wire 
      * from the client for the original transaction request 
@@ -828,7 +806,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Return the ParameterSet that contains the procedure input
-     * parameters for this transaction
+     * parameters for this transaction. These are the original parameters
+     * that were sent from the client for this txn.
      */
     public ParameterSet getProcedureParameters() {
     	return (this.parameters);
