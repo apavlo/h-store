@@ -329,6 +329,7 @@ CTX.TESTS['common'] = """
  undolog_test
  valuearray_test
  nvalue_test
+ tupleschema_test
  anticache_test
 """
 
