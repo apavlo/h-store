@@ -75,7 +75,7 @@ class AntiCacheDB {
         /**
          * Write a block of serialized tuples out to the anti-cache database
          */
-        void writeBlock(uint16_t block_id, const char* serialized_data, int serialized_data_length);
+        void writeBlock(uint16_t block_id, const char* data, const long size);
         
         /**
          * Read a block and return its contents
