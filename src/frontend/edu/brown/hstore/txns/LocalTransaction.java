@@ -115,6 +115,11 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean not_deletable = false; // FIXME
     
     /**
+     * Is this transaction part of a large MapReduce transaction  
+     */
+    private boolean mapreduce = false;
+    
+    /**
      * If set to true, then this will need to have an entry written
      * to the command log for its invocation
      */
@@ -142,8 +147,6 @@ public class LocalTransaction extends AbstractTransaction {
      * The set of partitions that we expected this partition to touch.
      */
     private Collection<Integer> predict_touchedPartitions;
-    
-    private boolean mapreduce = false;
   
     /**
      * TransctionEstimator State Handle

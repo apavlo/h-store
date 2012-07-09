@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;

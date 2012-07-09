@@ -24,7 +24,8 @@ import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
+
+import edu.brown.hstore.HStore;
 
 /**
  * A pool of {@link java.nio.ByteBuffer ByteBuffers} that are
@@ -641,7 +642,7 @@ public final class DBBPool {
             return container;
         } catch (java.lang.OutOfMemoryError e) {
             m_logger.fatal("Total bytes allocated globally before OOM is " + bytesAllocatedGlobally.get(), e);
-            VoltDB.crashVoltDB();
+            HStore.crashDB();
         }
         return null;
     }

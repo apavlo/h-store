@@ -71,6 +71,44 @@ public abstract class HStore {
     
     
     /**
+     * Retrieve a reference to the main HStoreSite running in this JVM. 
+     * When running a real server (and not a test harness), this instance will only
+     * be useful after calling HStore.initialize().
+     *
+     * @return A reference to the underlying HStoreSite object.
+     */
+    public static final HStoreSite instance() {
+        return singleton;
+    }
+    
+    /**
+     * Exit the process, dumping any useful info and notifying any
+     * important parties beforehand.
+     *
+     * For now, just die.
+     */
+    public static void crashDB() {
+//        if (HStore.instance().ignoreCrash()) {
+//            return;
+//        }
+        Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+        StackTraceElement[] myTrace = traces.get(Thread.currentThread());
+        for (StackTraceElement t : myTrace) {
+            System.err.println(t.toString());
+        }
+    
+        HStoreSite handle = instance();
+        if (handle != null) {
+            handle.getHStoreCoordinator().shutdownCluster();
+        } else {
+            System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
+            System.err.println("The log may contain additional information.");
+            System.exit(-1);
+        }
+    }
+    
+    
+    /**
      * Initialize the HStore server.
      */
     public synchronized static final HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
@@ -153,17 +191,6 @@ public abstract class HStore {
         TheHashinator.initialize(catalog_site.getCatalog());
         
         return (singleton);
-    }
-    
-    /**
-     * Retrieve a reference to the main HStoreSite running in this JVM. 
-     * When running a real server (and not a test harness), this instance will only
-     * be useful after calling HStore.initialize().
-     *
-     * @return A reference to the underlying HStoreSite object.
-     */
-    public static final HStoreSite instance() {
-        return singleton;
     }
     
     /**

@@ -57,6 +57,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.VoltSampler;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
 
 @Deprecated
@@ -97,7 +98,7 @@ public class RealVoltDB implements VoltDBInterface
                 {
                     hostLog.fatal("Failure of host " + node_fault.getHostId() +
                                   " has rendered the cluster unviable.  Shutting down...");
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
             }
         }
@@ -227,14 +228,14 @@ public class RealVoltDB implements VoltDBInterface
 
             final String serializedCatalog = CatalogUtil.loadCatalogFromJar(m_config.m_pathToCatalog, hostLog);
             if ((serializedCatalog == null) || (serializedCatalog.length() == 0))
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
 
             // get a CRC for the jarfile to check if everyone has the same one
             long catalogCRC = 0;
             try {
                 catalogCRC = JarReader.crcForJar(m_config.m_pathToCatalog);
             } catch (IOException e1) {
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
 
             Catalog catalog = new Catalog();
@@ -267,7 +268,7 @@ public class RealVoltDB implements VoltDBInterface
             // ensure at least one host (catalog compiler should check this too
             if (m_catalogContext.numberOfNodes <= 0) {
                 hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_InvalidHostCount.name(), new Object[] { m_catalogContext.numberOfNodes }, null);
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
 
             hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_CreatingVoltDB.name(), new Object[] { m_catalogContext.numberOfNodes, leader }, null);

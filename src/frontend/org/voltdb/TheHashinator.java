@@ -26,6 +26,8 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStore;
+
 /**
  * Class that maps object values to partitions. It's rather simple
  * really. It'll get more complicated if you give it time.
@@ -77,12 +79,12 @@ public abstract class TheHashinator {
                 return java.lang.Math.abs(hashCode % partitionCount);
             } catch (UnsupportedEncodingException e) {
                 hostLogger.l7dlog( Level.FATAL, LogKeys.host_TheHashinator_ExceptionHashingString.name(), new Object[] { string }, e);
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
         }
         hostLogger.l7dlog(Level.FATAL, LogKeys.host_TheHashinator_AttemptedToHashinateNonLongOrString.name(), new Object[] { value
                 .getClass().getName() }, null);
-        VoltDB.crashVoltDB();
+        HStore.crashDB();
         return -1;
     }
 

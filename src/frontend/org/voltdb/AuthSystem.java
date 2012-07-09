@@ -32,6 +32,8 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStore;
+
 
 /**
  * The AuthSystem parses authentication and permission information from the catalog and uses it to generate a representation
@@ -358,7 +360,7 @@ public class AuthSystem {
             md = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
             authLogger.l7dlog(Level.FATAL, LogKeys.auth_AuthSystem_NoSuchAlgorithm.name(), e);
-            VoltDB.crashVoltDB();
+            HStore.crashDB();
         }
         byte passwordHash[] = md.digest(password);
         if (java.util.Arrays.equals(passwordHash, user.m_shadowPassword)) {
