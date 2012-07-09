@@ -593,8 +593,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                            this.procParams + Arrays.toString(this.procParams),
                                            this.partitionId));
             try {
-                // ANTI-CACHE MERGE
+                // ANTI-CACHE TABLE MERGE
                 if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
+                    // Note that I decided to put this in here because we already
+                    // have the logic down below for handling various errors from the EE
                     Table catalog_tbl = txnState.getAntiCacheMergeTable();
                     executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
                 }

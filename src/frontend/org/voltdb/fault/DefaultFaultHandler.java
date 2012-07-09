@@ -16,7 +16,7 @@
  */
 package org.voltdb.fault;
 
-import org.voltdb.VoltDB;
+import edu.brown.hstore.HStore;
 
 public class DefaultFaultHandler implements FaultHandler
 {
@@ -28,7 +28,7 @@ public class DefaultFaultHandler implements FaultHandler
     public void faultOccured(VoltFault fault)
     {
         System.err.println("Unrecoverable fault occured: " + fault.toString());
-        VoltDB.crashVoltDB();
+        HStore.crashDB();
     }
 
 }

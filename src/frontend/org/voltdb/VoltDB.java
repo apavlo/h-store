@@ -18,12 +18,9 @@
 package org.voltdb;
 
 import java.io.File;
-import java.util.Map;
 import java.util.TimeZone;
 
-import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
 
 /**
  * <code>VoltDB</code> is the main class for VoltDB server.
@@ -193,32 +190,6 @@ public class VoltDB {
     public static boolean getQuietAdhoc()
     {
         return m_config.m_quietAdhoc;
-    }
-
-    /**
-     * Exit the process, dumping any useful info and notifying any
-     * important parties beforehand.
-     *
-     * For now, just die.
-     */
-    public static void crashVoltDB() {
-        if (instance().ignoreCrash()) {
-            return;
-        }
-        Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
-        StackTraceElement[] myTrace = traces.get(Thread.currentThread());
-        for (StackTraceElement t : myTrace) {
-            System.err.println(t.toString());
-        }
-
-        HStoreSite handle = HStore.instance();
-        if (handle != null) {
-            handle.getHStoreCoordinator().shutdownCluster();
-        } else {
-            System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
-            System.err.println("The log may contain additional information.");
-            System.exit(-1);
-        }
     }
 
     /**

@@ -32,7 +32,6 @@ import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
@@ -42,6 +41,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.StringUtil;
 
@@ -207,25 +207,24 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             if (dependencies == null) {
                 hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyNotFound.name(),
                                new Object[] { dependencyId }, null);
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
             for (final Object dependency : dependencies) {
                 if (dependency == null) {
                     hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyContainedNull.name(),
                                    new Object[] { dependencyId },
                             null);
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
                 if (!(dependency instanceof VoltTable)) {
                     hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyNotVoltTable.name(),
                                    new Object[] { dependencyId }, null);
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
                 if (t) LOG.trace(String.format("Storing Dependency %d\n:%s", dependencyId, dependency));
             } // FOR
 
         }
-
     }
 
 
@@ -244,7 +243,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             LOG.fatal("ExecutionEngine requested that we crash: " + reason);
             LOG.fatal("Error was in " + filename + ":" + lineno + "\n" + StringUtil.join("\n", traces));
         }
-        VoltDB.crashVoltDB();
+        HStore.crashDB();
     }
 
     /**

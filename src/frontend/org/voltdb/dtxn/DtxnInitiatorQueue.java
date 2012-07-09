@@ -39,6 +39,8 @@ import org.voltdb.messaging.VoltMessage;
 import org.voltdb.network.Connection;
 import org.voltdb.utils.EstTime;
 
+import edu.brown.hstore.HStore;
+
 /**
  * DtxnInitiatorQueue matches incoming result set responses to outstanding
  * transactions, performing duplicate suppression and consistency checking
@@ -147,7 +149,7 @@ public class DtxnInitiatorQueue implements Queue<VoltMessage>
                         // response or an outstanding InFlightTxnState.
                         // Single partition transactions with no replication
                         // means that a node failure kills the cluster.
-                        VoltDB.crashVoltDB();
+                        HStore.crashDB();
                     }
                     InitiateResponseMessage r = m_txnIdResponses.get(txn_id);
                     m_pendingTxns.removeTxnId(r.getTxnId());
