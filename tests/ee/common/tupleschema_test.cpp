@@ -25,21 +25,23 @@
 #include "common/TupleSchema.h"
 #include "common/types.h"
 #include "common/NValue.hpp"
-#include "common/ValueFactory.hpp"
+#include "indexes/tableindex.h"
 #include <vector>
 #include <string>
 #include <stdint.h>
 
 using namespace voltdb;
 
+const int NUM_COLUMNS = 10;
+
 class TupleSchemaTest : public Test {
 public:
     TupleSchemaTest() {
-        int num_columns = 10;
+        m_numPrimaryKeyCols = 0;
         
-        for (int i = 0; i < num_columns; i++) {
+        for (int i = 0; i < NUM_COLUMNS; i++) {
             // COlUMN TYPE
-            int col_type = (i % 2 == 0 ? VALUE_TYPE_BIGINT : VALUE_TYPE_INTEGER);
+            ValueType col_type = (i % 2 == 0 ? VALUE_TYPE_BIGINT : VALUE_TYPE_INTEGER);
             m_tableSchemaTypes.push_back(col_type);
             m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(col_type));
             
@@ -51,6 +53,8 @@ public:
             // PRIMARY KEY
             if (i <= 3) {
                 m_tableSchemaAllowNull.push_back(false);
+                
+                m_numPrimaryKeyCols++;
                 m_primaryKeyIndexSchemaTypes.push_back(col_type);
                 m_primaryKeyIndexColumns.push_back(i);
                 m_primaryKeyIndexSchemaAllowNull.push_back(false);
@@ -65,6 +69,7 @@ public:
 
     ~TupleSchemaTest() {
         TupleSchema::freeTupleSchema(m_primaryKeyIndexSchema);
+        TupleSchema::freeTupleSchema(m_tableSchema);
     }
 
     void initTable(bool allowInlineStrings) {
@@ -98,16 +103,44 @@ public:
     std::vector<ValueType> m_tableSchemaTypes;
     std::vector<int32_t> m_tableSchemaColumnSizes;
     std::vector<bool> m_tableSchemaAllowNull;
+    
+    int m_numPrimaryKeyCols;
     std::vector<ValueType> m_primaryKeyIndexSchemaTypes;
     std::vector<int32_t> m_primaryKeyIndexSchemaColumnSizes;
     std::vector<bool> m_primaryKeyIndexSchemaAllowNull;
     std::vector<int> m_primaryKeyIndexColumns;
 };
 
+TEST_F(TupleSchemaTest, CreateTupleSchema) {
+    initTable(true);
+    
+    // Just make sure that we have the right number of columns
+    // and that they are all marked as not nullable
+    ASSERT_EQ(NUM_COLUMNS, m_tableSchema->columnCount());
+    for (int i = 0; i < NUM_COLUMNS; i++) {
+        ASSERT_FALSE(m_tableSchema->columnAllowNull(i));
+    } // FOR
+}
+
 TEST_F(TupleSchemaTest, CreateEvictedTupleSchema) {
     initTable(true);
-    fprintf(stderr, "TABLE SCHEMA\n%s\n", m_tableSchema->debug().c_str());
     
+    // Create the TupleSchema for our evicted tuple tables
+    // The first columns should be all of the columns of our primary key index
+    TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(m_primaryKeyIndexSchema);
+    // fprintf(stdout, "\nEVICTED TABLE SCHEMA\n%s\n", evictedSchema->debug().c_str());
+    ASSERT_EQ(m_numPrimaryKeyCols+1, evictedSchema->columnCount());
+    for (int i = 0; i < m_numPrimaryKeyCols; i++) {
+        ASSERT_EQ(m_primaryKeyIndexSchema->columnType(i), evictedSchema->columnType(i));
+        ASSERT_EQ(m_primaryKeyIndexSchema->columnLength(i), evictedSchema->columnLength(i));
+        ASSERT_EQ(m_primaryKeyIndexSchema->columnAllowNull(i), evictedSchema->columnAllowNull(i));
+    }
+    
+    // Then there should only be one more column that contains the 16-bit block ids
+    ASSERT_EQ(VALUE_TYPE_SMALLINT, evictedSchema->columnType(m_numPrimaryKeyCols));
+    ASSERT_FALSE(evictedSchema->columnAllowNull(m_numPrimaryKeyCols));
+    
+    TupleSchema::freeTupleSchema(evictedSchema);
 }
 
 int main() {
