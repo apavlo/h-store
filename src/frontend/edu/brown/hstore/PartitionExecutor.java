@@ -1454,9 +1454,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public boolean queueNewTransaction(ByteBuffer serializedRequest, 
-                                         Procedure catalog_proc,
-                                         ParameterSet procParams,
-                                         RpcCallback<ClientResponseImpl> clientCallback) {
+                                       Procedure catalog_proc,
+                                       ParameterSet procParams,
+                                       RpcCallback<ClientResponseImpl> clientCallback) {
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
@@ -1658,7 +1658,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                     ts, before_mode, this.currentExecMode));
             if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
-            
+        
         ClientResponseImpl cresponse = null;
         try {
             cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...

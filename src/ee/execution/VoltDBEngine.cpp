@@ -1394,6 +1394,10 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t b
     return (retval);
 }
 
+/**
+ * Merge the recently all of the unevicted data for the given tableId
+ * Note: This should only be called when no other txn is running
+ */
 int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     int retval = ENGINE_ERRORCODE_SUCCESS;
     
@@ -1409,10 +1413,8 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     try {
         table->mergeUnevictedTuples();
     } catch (SerializableEEException &e) {
-        VOLT_TRACE("antiCacheMerge: Failed to merge unevicted tuples '%s'",
+        VOLT_TRACE("antiCacheMerge: Failed to merge unevicted tuples for table '%s'",
                    table->name().c_str());
-        // FIXME: This won't work if we execute are executing this operation the
-        //        same time that txns are running
         resetReusedResultOutputBuffer();
         e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;

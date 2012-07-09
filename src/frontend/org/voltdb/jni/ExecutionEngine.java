@@ -713,7 +713,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
 
     /**
-     * Instruct the EE to merge in the unevicted blocks into the table's regular data
+     * Instruct the EE to merge in the unevicted blocks into the table's regular data.
+     * This is a blocking call and should only be executed when there is no other transaction
+     * running at this partition.
      * @param catalog_tbl
      */
     public abstract void antiCacheMergeBlocks(Table catalog_tbl);

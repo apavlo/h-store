@@ -50,6 +50,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.utils.EstTime;
@@ -118,10 +119,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private int restart_ctr = 0;
     
-    private boolean needs_restart = false;
-    
-    private boolean deletable = false;
-    private boolean not_deletable = false;
+    private boolean needs_restart = false; // FIXME
+    private boolean deletable = false; // FIXME
+    private boolean not_deletable = false; // FIXME
     
     /**
      * If set to true, then this will need to have an entry written
@@ -130,17 +130,18 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean log_enabled = false;
     
     /**
-     * If set to true, then this txn's log entry has been flushed to disk
-     */
-    private boolean log_flushed = false;
-    
-    /**
      * The timestamp (from EstTime) that our transaction showed up
      * at this HStoreSite
      */
     private long initiateTime;
     
     private DistributedState dtxnState;
+    
+    /**
+     * The table that this txn needs to merge the results for in the EE
+     * before it starts executing
+     */
+    private Table anticache_table = null;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -269,13 +270,13 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_abortable = predict_abortable;
         
         super.init(txn_id,
-                    clientHandle,
-                    base_partition,
-                    catalog_proc.getSystemproc(),
-                    (this.predict_touchedPartitions.size() == 1),
-                    predict_readOnly,
-                    predict_abortable,
-                    true);
+                   clientHandle,
+                   base_partition,
+                   catalog_proc.getSystemproc(),
+                   (this.predict_touchedPartitions.size() == 1),
+                   predict_readOnly,
+                   predict_abortable,
+                   true);
         
         // Initialize the InitialTaskMessage
         // We have to wrap the StoredProcedureInvocation object into an
@@ -388,8 +389,8 @@ public class LocalTransaction extends AbstractTransaction {
         this.done_partitions.clear();
         this.restart_ctr = 0;
 
+        this.anticache_table = null;
         this.log_enabled = false;
-        this.log_flushed = false;
         this.needs_restart = false;
         this.deletable = false;
         this.not_deletable = false;
@@ -968,24 +969,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.log_enabled);
     }
     
-    /**
-     * Mark this txn as having it's log entry flushed to disk
-     * This should only be invoked once per invocation
-     */
-    public void markLogFlushed() {
-        assert(this.log_flushed == false) :
-            "Trying to mark " + this + " as flushed more than once";
-        this.log_flushed = true;
-    }
-    
-    /**
-     * Returns true if this txn's log entry has been flushed to disk.
-     * @return
-     */
-    public boolean isLogFlushed() {
-        return (this.log_flushed);
-    }
-    
     // ----------------------------------------------------------------------------
     // PREFETCHABLE QUERIES
     // ----------------------------------------------------------------------------
@@ -998,6 +981,23 @@ public class LocalTransaction extends AbstractTransaction {
     public void addPrefetchResults(WorkResult result) {
         assert(this.prefetch != null);
         this.prefetch.results.add(result);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+    
+    public boolean hasAntiCacheMergeTable() {
+        return (this.anticache_table != null);
+    }
+    
+    public Table getAntiCacheMergeTable() {
+        return (this.anticache_table);
+    }
+    
+    public void setAntiCacheMergeTable(Table catalog_tbl) {
+        assert(this.anticache_table == null);
+        this.anticache_table = catalog_tbl;
     }
     
     // ----------------------------------------------------------------------------
@@ -1464,7 +1464,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
-        m.put("Log Flushed", this.log_flushed);
+        m.put("Needs CommandLog", this.log_enabled);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
 

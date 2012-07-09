@@ -6,6 +6,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
+import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 
 import edu.brown.catalog.CatalogUtil;
@@ -31,8 +32,6 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final Database catalog_db;
-    
     protected class QueueEntry {
         final LocalTransaction ts;
         final int partition;
@@ -52,7 +51,6 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
               HStoreConstants.THREAD_NAME_ANTICACHE,
               new LinkedBlockingQueue<QueueEntry>(),
               false);
-        this.catalog_db = hstore_site.getDatabase();
     }
     
     @Override
@@ -62,12 +60,26 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
         ExecutionEngine ee = executor.getExecutionEngine();
         
-        // We can now tell it to read in the blocks that we want
-        // TODO: We need to make sure that this is safe to do when there 
+        // We can now tell it to read in the blocks that this txn needs
+        // Note that we are doing this without checking whether another txn is already
+        // running. That's because reading in unevicted tuples is a two-stage process.
+        // First we read the blocks from disk in a standalone buffer. Then once we 
+        // know that all of the tuples that we need are there, we will requeue the txn, 
+        // which knows that it needs to tell the EE to merge in the results from this buffer
+        // before it executes anything.
+        // 
         // TODO: We may want to create a HStoreConf option that allows to dispatch this
         //       request asynchronously per partition. For now we're just going to
         //       block the AntiCacheManager until each of the requests are finished
+        try {
+            ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids);
+        } catch (SerializableException ex) {
+            
+        }
         
+        // Now go ahead and requeue our transaction
+        next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+        this.hstore_site.transactionStart(next.ts, next.ts.getBasePartition());
         
     }
     

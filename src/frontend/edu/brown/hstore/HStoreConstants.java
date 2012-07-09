@@ -67,7 +67,7 @@ public abstract class HStoreConstants {
      * Null Partition Id
      */
     public static final int NULL_PARTITION_ID = -1;
-
+    
     /**
      * Default token used to indicate that a txn is not using undo buffers
      * when executing PlanFragments in the EE
