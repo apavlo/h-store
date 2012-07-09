@@ -287,6 +287,25 @@ public abstract class FileUtil {
         in.close();
         return (bytes);
     }
+    
+    /**
+     * Recursively delete all of the contents of the given directory
+     * @param path
+     * @return
+     */
+    public static boolean deleteDirectory(File path) {
+        if (path.exists()) {
+            File[] files = path.listFiles();
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    deleteDirectory(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }
+        return path.delete();
+    }
 
     /**
      * Find the path to a directory below our current location in the source
