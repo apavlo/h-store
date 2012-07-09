@@ -648,7 +648,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
                     File acFile = AntiCacheManager.getDatabaseDir(this); 
-                    eeTemp.initializeAntiCache(acFile);
+                    eeTemp.antiCacheInitialize(acFile);
                 }
                 
                 eeTemp.loadCatalog(catalog.serialize());

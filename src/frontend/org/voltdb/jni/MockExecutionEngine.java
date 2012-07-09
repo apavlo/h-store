@@ -27,6 +27,7 @@ import org.voltdb.TableStreamType;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.utils.DBBPool.BBContainer;
@@ -191,7 +192,13 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void initializeAntiCache(File dbFilePath) throws EEException {
+    public void antiCacheInitialize(File dbFilePath) throws EEException {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
         // TODO Auto-generated method stub
         
     }

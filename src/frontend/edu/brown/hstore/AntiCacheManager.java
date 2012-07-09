@@ -6,8 +6,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
+import org.voltdb.jni.ExecutionEngine;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.AbstractProcessingThread;
@@ -54,9 +56,24 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     }
     
     @Override
-    public void processingCallback(QueueEntry next) {
-        // TODO Auto-generated method stub
+    protected void processingCallback(QueueEntry next) {
+        // We need to get the EE handle for the partition that this txn
+        // needs to have read in some blocks from disk
+        PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
+        ExecutionEngine ee = executor.getExecutionEngine();
         
+        // We can now tell it to read in the blocks that we want
+        // TODO: We need to make sure that this is safe to do when there 
+        // TODO: We may want to create a HStoreConf option that allows to dispatch this
+        //       request asynchronously per partition. For now we're just going to
+        //       block the AntiCacheManager until each of the requests are finished
+        
+        
+    }
+    
+    @Override
+    protected void removeCallback(QueueEntry next) {
+        this.hstore_site.transactionReject(next.ts, Status.ABORT_GRACEFUL);
     }
 
     
@@ -70,7 +87,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * @param catalog_tbl
      * @param block_ids
      */
-    public boolean queueReadBlocks(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
+    public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
         return (this.queue.offer(e));
     }

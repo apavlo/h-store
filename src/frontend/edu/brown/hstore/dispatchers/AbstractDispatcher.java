@@ -32,7 +32,7 @@ public abstract class AbstractDispatcher<E> extends AbstractProcessingThread<E> 
         this.hstore_coordinator = hstore_coordinator;
     }
     
-    public final void processingCallback(E e) {
+    protected final void processingCallback(E e) {
         try {
             this.runImpl(e);
         } catch (Throwable ex) {

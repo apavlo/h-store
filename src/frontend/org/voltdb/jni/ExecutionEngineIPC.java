@@ -43,6 +43,7 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.export.ExportProtoMessage;
@@ -1461,7 +1462,13 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void initializeAntiCache(File dbFilePath) throws EEException {
+    public void antiCacheInitialize(File dbFilePath) throws EEException {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+        // TODO Auto-generated method stub
+        
     }
 }

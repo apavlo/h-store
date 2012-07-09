@@ -34,6 +34,7 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
@@ -352,14 +353,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         return (dset.dependencies);
     }
 
-    /**
-     * Initialize anti-caching at this partition's EE.
-     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
-     * @param dbDir
-     * @throws EEException
-     */
-    public abstract void initializeAntiCache(File dbDir) throws EEException;
-    
     /** Used for test code only (AFAIK jhugg) */
     abstract public VoltTable serializeTable(int tableId) throws EEException;
 
@@ -505,17 +498,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
                                           ByteBuffer resultBuffer, int result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
-
-    /**
-     * Enables the anti-cache feature in the EE. The given database directory path
-     * must be a unique location for this partition where the EE can store 
-     * evicted blocks of tuples. The EE assumes that the parent directories 
-     * for dbDir exist and are writable.  
-     * @param pointer
-     * @param dbDir
-     * @return
-     */
-    protected native int nativeInitializeAntiCache(long pointer, String dbDir);
     
     /**
      * Load the system catalog for this engine.
@@ -710,4 +692,43 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             long mAckOffset,
             long seqNo,
             long mTableId);
+
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Initialize anti-caching at this partition's EE.
+     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
+     * @param dbDir
+     * @throws EEException
+     */
+    public abstract void antiCacheInitialize(File dbDir) throws EEException;
+    
+    /**
+     * 
+     * @param tableId
+     * @param block_ids
+     */
+    public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
+    
+    /**
+     * Enables the anti-cache feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store 
+     * evicted blocks of tuples. The EE assumes that the parent directories 
+     * for dbDir exist and are writable.  
+     * @param pointer
+     * @param dbDir
+     * @return
+     */
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @param block_ids
+     * @return
+     */
+    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[]);
 }

@@ -43,7 +43,6 @@ public abstract class AbstractProcessingThread<E> implements Runnable, Shutdowna
         this.name = name;
         this.queue = queue;
         
-        
         if (profile) {
             this.idleTime = new ProfileMeasurement("IDLE");
             this.execTime = new ProfileMeasurement("EXEC");
@@ -82,12 +81,30 @@ public abstract class AbstractProcessingThread<E> implements Runnable, Shutdowna
         } // WHILE
     }
 
-    public abstract void processingCallback(E next);
+    /**
+     * Special callback for when the processing thread gets a new entry in its queue
+     * If the implementing class should invoke shutdown() if it needs to stop the processing.
+     * Otherwise the processing thread will immediately go back to queue and wait
+     * for another entry 
+     * @param next
+     */
+    protected abstract void processingCallback(E next);
+    
+    /**
+     * Special callback for when an entry is removed from the processing queue.
+     * This will be invoked by prepareShutdown()
+     * @param next
+     */
+    protected void removeCallback(E next) {
+        // The default is to do nothing!
+    }
     
     @Override
     public final void prepareShutdown(boolean error) {
-        // TODO Auto-generated method stub
-
+        E next = null;
+        while ((next = this.queue.poll()) != null) {
+            this.removeCallback(next);
+        } // WHILE
     }
 
     @Override

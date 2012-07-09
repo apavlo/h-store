@@ -893,7 +893,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public PartitionExecutor getPartitionExecutor(int partition) {
         PartitionExecutor es = this.executors[partition]; 
-        assert(es != null) : "Unexpected null PartitionExecutor for partition #" + partition + " on " + this.getSiteName();
+        assert(es != null) : 
+            String.format("Unexpected null PartitionExecutor for partition #%d on %s",
+                          partition, this.getSiteName());
         return (es);
     }
     
@@ -2317,7 +2319,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
             Table catalog_tbl = error.getTableId(this.catalog_db);
             short block_ids[] = error.getBlockIds();
-            this.anticacheManager.queueReadBlocks(new_ts, base_partition, catalog_tbl, block_ids);
+            this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }
             
         // -------------------------------

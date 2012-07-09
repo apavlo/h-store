@@ -60,7 +60,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
     }
 
     @Override
-    public void processingCallback(MapReduceTransaction ts) {
+    protected void processingCallback(MapReduceTransaction ts) {
         
         if (hstore_conf.site.mr_reduce_blocking == false && this.executor == null) {
             // Initialization

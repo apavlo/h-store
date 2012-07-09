@@ -30,6 +30,7 @@ import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.export.ExportProtoMessage;
@@ -182,19 +183,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         exceptionBuffer = null;
         exceptionBufferOrigin.discard();
         if (t) LOG.trace("Released Execution Engine.");
-    }
-
-    @Override
-    public void initializeAntiCache(File dbDir) throws EEException {
-        assert(m_anticache == false);
-        
-        // TODO: Switch to LOG.debug
-        LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
-        LOG.info(String.format("Partition %d Database Directory: %s",
-                                this.site.getPartitionId(), dbDir.getAbsolutePath()));
-        final int errorCode = nativeInitializeAntiCache(pointer, dbDir.getAbsolutePath());
-        checkErrorCode(errorCode);
-        m_anticache = true;
     }
     
     /**
@@ -627,5 +615,29 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
 
         return nativeHashinate(pointer, partitionCount);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+
+    @Override
+    public void antiCacheInitialize(File dbDir) throws EEException {
+        assert(m_anticache == false);
+        
+        // TODO: Switch to LOG.debug
+        LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
+        LOG.info(String.format("Partition %d Database Directory: %s",
+                                this.site.getPartitionId(), dbDir.getAbsolutePath()));
+        final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath());
+        checkErrorCode(errorCode);
+        m_anticache = true;
+    }
+    
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+        assert(m_anticache);
+        final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
+        checkErrorCode(errorCode);
     }
 }
