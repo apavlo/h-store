@@ -145,9 +145,12 @@ PersistentTable::~PersistentTable() {
 // ------------------------------------------------------------------ 
 
 #ifdef ANTICACHE
-bool PersistentTable::evictBlockToDisk(long block_size) {        
+bool PersistentTable::evictBlockToDisk(const long block_size) {
+    VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
+               block_size, this->name().c_str());
+    
     TableTuple tuple; 
-    TableTuple* evicted_table_tuple; 
+    // TableTuple* evicted_table_tuple; 
     
     // get the AntiCacheDB instance from the executorContext
     AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB();
@@ -156,14 +159,13 @@ bool PersistentTable::evictBlockToDisk(long block_size) {
     uint16_t block_id = anti_cache_db->nextBlockId(); 
     
     int tuple_length = -1;
-    int serialized_data_length = 0; 
-    int num_tuples_evicted = 1;
+    long serialized_data_length = 0; 
+    int num_tuples_evicted = 0;
 
     // TODO: We may want to write a header in the block that tells us
     //       the original name of this table that these tuples came from,
     //       as well as the number of tuples that we evicted.
     char* serialized_data = new char[block_size]; 
-    
     
     // Iterate through the table and pluck out tuples to put in our block
     // TODO: This is reading tuples straight through. We need to create an LRU iterator
@@ -178,28 +180,33 @@ bool PersistentTable::evictBlockToDisk(long block_size) {
         if (tuple_length == -1) {
             tuple_length = tuple.tupleLength();
         }
+        assert(tuple_length > 0);
         
         assert(!tuple.isEvicted());
         tuple.setEvictedTrue(); 
-        
-        // update all the indexes for this tuple
-        setNullForAllIndexes(tuple); 
-        
-        // create evicted table tuple, remove original tuple from data 
-        // table and insert evicted table tuple into evicted table
-        evicted_table_tuple = createEvictedTuple(tuple, block_id); 
-        deleteTuple(tuple, true); 
-        m_evicted_table->insertTuple(*evicted_table_tuple); 
-
-        // copy the tuple into the serialized buffer
-        memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
-        serialized_data_length += tuple_length; 
-        
+//         
+//         // update all the indexes for this tuple
+//         setNullForAllIndexes(tuple); 
+//         
+//         // create evicted table tuple, remove original tuple from data 
+//         // table and insert evicted table tuple into evicted table
+//         evicted_table_tuple = createEvictedTuple(tuple, block_id); 
+//         deleteTuple(tuple, true); 
+//         m_evicted_table->insertTuple(*evicted_table_tuple); 
+// 
+//         // copy the tuple into the serialized buffer
+//         memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+//         serialized_data_length += tuple_length; 
+//         
         num_tuples_evicted++; 
     } // WHILE
     // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
      
     anti_cache_db->writeBlock(block_id, serialized_data, serialized_data_length);
+    
+    VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+              block_id, this->name().c_str(),
+              num_tuples_evicted, serialized_data_length, tuple_length);
     
     return true;
 }

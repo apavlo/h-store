@@ -84,15 +84,17 @@ AntiCacheDB::~AntiCacheDB() {
     }
 }
 
-void AntiCacheDB::writeBlock(uint16_t block_id, const char* serialized_data, int serialized_data_length) {
+void AntiCacheDB::writeBlock(uint16_t block_id, const char* data, const long size) {
     Dbt key; 
     key.set_data(&block_id);
     key.set_size(sizeof(uint16_t));
     
     Dbt value;
-    value.set_data(const_cast<char*>(serialized_data));
-    value.set_size(serialized_data_length); 
+    value.set_data(const_cast<char*>(data));
+    value.set_size(static_cast<int32_t>(size)); 
     
+    VOLT_INFO("Writing out a block #%d to anti-cache database [size=%ld]",
+               block_id, size);
     m_db->put(NULL, &key, &value, 0);
 }
 

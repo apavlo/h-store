@@ -1406,6 +1406,8 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
         throwFatalException("Invalid table id %d", tableId);
     }
     
+    VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
+               blockSize, table->name().c_str());
     if (table->evictBlockToDisk(blockSize) == false) {
         throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
     }

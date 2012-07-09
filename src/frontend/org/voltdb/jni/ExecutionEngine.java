@@ -754,7 +754,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param blockSize
      * @return
      */
-    protected native int nativeAntiCacheEvictBlocks(long pointer, int tableId, long blockSize);
+    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize);
     
     /**
      * 

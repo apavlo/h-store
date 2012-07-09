@@ -93,28 +93,28 @@ public class TestAntiCacheManager extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranted to include all of our tuples
-        this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024 * 1024);
+        this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
 
     }
 
     /**
      * testReadNonExistentBlock
      */
-    @Test
-    public void testReadNonExistentBlock() throws Exception {
-        Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
-        short block_ids[] = new short[]{ 1111 };
-        boolean failed = false;
-        try {
-            ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
-        } catch (UnknownBlockAccessException ex) {
-            // This is what we want!
-            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
-            assertEquals(block_ids[0], ex.getBlockId());
-            failed = true;
-            System.err.println(ex);
-        }
-        assertTrue(failed);
-    }
+//    @Test
+//    public void testReadNonExistentBlock() throws Exception {
+//        Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
+//        short block_ids[] = new short[]{ 1111 };
+//        boolean failed = false;
+//        try {
+//            ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
+//        } catch (UnknownBlockAccessException ex) {
+//            // This is what we want!
+//            assertEquals(catalog_tbl, ex.getTableId(catalog_db));
+//            assertEquals(block_ids[0], ex.getBlockId());
+//            failed = true;
+//            System.err.println(ex);
+//        }
+//        assertTrue(failed);
+//    }
     
 }
