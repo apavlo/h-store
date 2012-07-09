@@ -36,7 +36,7 @@ class ReferenceSerializeOutput;
 class UnknownBlockAccessException : public SerializableEEException {
     public:
 
-        UnknownBlockAccessException(int32_t tableId, uint16_t blockId);
+        UnknownBlockAccessException(std::string tableName, uint16_t blockId);
         virtual ~UnknownBlockAccessException() {}
         
         static std::string ERROR_MSG;
@@ -45,7 +45,7 @@ class UnknownBlockAccessException : public SerializableEEException {
         void p_serialize(ReferenceSerializeOutput *output);
         
     private:
-        const int32_t m_tableId;
+        const std::string m_tableName;
         const uint16_t m_blockId;
 };
 }

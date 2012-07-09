@@ -82,7 +82,7 @@ public class SerializableException extends VoltProcedure.VoltAbortException {
         UnknownBlockAccessException() {
             @Override
             protected SerializableException deserializeException(ByteBuffer b) {
-                return new EvictedTupleAccessException(b);
+                return new UnknownBlockAccessException(b);
             }
         },
         MispredictionException() {

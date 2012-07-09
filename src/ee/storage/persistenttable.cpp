@@ -219,7 +219,7 @@ TableTuple* PersistentTable::createEvictedTuple(TableTuple &source_tuple, uint16
     
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     AntiCacheDB* anti_cache_db = m_executorContext->getAntiCacheDB(); 
-    AntiCacheBlock value = anti_cache_db->readBlock(block_id);
+    AntiCacheBlock value = anti_cache_db->readBlock(this->name(), block_id);
 
     if (m_unevictedTuplesLength > 0) {
         // allocate a new array to accomodate the old unevicted block as well as the new one

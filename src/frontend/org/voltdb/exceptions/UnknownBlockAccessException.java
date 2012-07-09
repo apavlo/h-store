@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializer;
 
 /**
  * Special exception that is thrown by the EE when somebody tries to have it
@@ -15,7 +17,7 @@ public class UnknownBlockAccessException extends SerializableException {
 
     public static final long serialVersionUID = 0L;
 
-    public final int table_id;
+    public final String table_name;
     public final short block_id;
     
     /**
@@ -24,8 +26,18 @@ public class UnknownBlockAccessException extends SerializableException {
      */
     public UnknownBlockAccessException(ByteBuffer buffer) {
         super(buffer);
-        this.table_id = buffer.getInt();
-        this.block_id = buffer.getShort();
+        
+        FastDeserializer fds = new FastDeserializer(buffer);
+        String _table_name;
+        short _block_id;
+        try {
+            _table_name = fds.readString();
+            _block_id = fds.readShort();
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        this.table_name = _table_name;
+        this.block_id = _block_id;
     }
 
     /**
@@ -33,7 +45,7 @@ public class UnknownBlockAccessException extends SerializableException {
      * @param catalog_db The current Database catalog handle
      */
     public Table getTableId(Database catalog_db) {
-        return catalog_db.getTables().values()[this.table_id];
+        return catalog_db.getTables().getIgnoreCase(this.table_name);
     }
     
     /**
@@ -48,7 +60,7 @@ public class UnknownBlockAccessException extends SerializableException {
      */
     @Override
     protected int p_getSerializedSize() {
-        return (4 + 2);
+        return (4 + this.table_name.length() + 2);
     }
 
     /**
@@ -57,8 +69,14 @@ public class UnknownBlockAccessException extends SerializableException {
      */
     @Override
     protected void p_serializeToBuffer(ByteBuffer b) throws IOException {
-        b.putInt(this.table_id);
-        b.putShort(this.block_id);
+        FastSerializer fs = new FastSerializer();
+        try {
+            fs.writeString(this.table_name);
+            fs.writeShort(this.block_id);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        b.put(fs.getBuffer());
     }
 
     @Override
