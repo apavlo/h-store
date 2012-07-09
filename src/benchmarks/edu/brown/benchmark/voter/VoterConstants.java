@@ -31,6 +31,10 @@ package edu.brown.benchmark.voter;
 
 public abstract class VoterConstants {
 
+    public static final String TABLENAME_CONTESTANTS     = "contestants";
+    public static final String TABLENAME_AREA_CODE_STATE = "area_code_state";
+    public static final String TABLENAME_VOTES           = "votes";
+    
 	public static final int MAX_VOTES = 1000; 
 	public static final int NUM_CONTESTANTS = 6; 
 
