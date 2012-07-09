@@ -43,6 +43,7 @@ import org.voltdb.catalog.StmtParameter;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.exceptions.EvictedTupleAccessException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
@@ -638,6 +639,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 if (d) LOG.warn("Caught MispredictionException for " + this.m_currentTxnState);
                 this.status = Status.ABORT_MISPREDICT;
                 this.m_localTxnState.getTouchedPartitions().putHistogram((((MispredictionException)ex).getPartitions()));
+                
+            // -------------------------------
+            // EvictedTupleAccessException
+            // -------------------------------
+            } else if (ex_class.equals(EvictedTupleAccessException.class)) {
+                if (d) LOG.warn("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
+                this.status = Status.ABORT_EVICTEDACCESS;
 
             // -------------------------------
             // ConstraintFailureException
