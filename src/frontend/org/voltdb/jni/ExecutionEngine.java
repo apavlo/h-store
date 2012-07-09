@@ -711,6 +711,12 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_ids
      */
     public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
+
+    /**
+     * Instruct the EE to merge in the unevicted blocks into the table's regular data
+     * @param catalog_tbl
+     */
+    public abstract void antiCacheMergeBlocks(Table catalog_tbl);
     
     /**
      * Enables the anti-cache feature in the EE. The given database directory path
@@ -731,4 +737,12 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      */
     protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[]);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @return
+     */
+    protected native int nativeAntiCacheMergeBlocks(long pointer, int tableId);
 }

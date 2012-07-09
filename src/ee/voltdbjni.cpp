@@ -73,8 +73,7 @@
 #endif
 #else
 #ifndef __x86_64
-#error VoltDB server does not compile or run on 32-bit platforms. The Java clien
-t library does (ant jars)
+#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
 #endif
 #endif
 
@@ -1273,30 +1272,51 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jint tableId,
         jshortArray blockIdsArray) {
     
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
     VOLT_DEBUG("nativeAntiCacheReadBlocks() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
-    if (engine == NULL) {
-        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
-    }
+    if (engine == NULL) return (retval);
+    
     try {
         jsize numBlockIds = env->GetArrayLength(blockIdsArray);
-        jshort *_blockIds = env->GetBooleanArrayElements(blockIdsArray, NULL);
+        jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
         if (_blockIds == NULL) {
-            return;
+            VOLT_ERROR("No evicted blockIds were given to the EE");
+            return (retval);
         }
         // XXX: Is this necessary?
-        uint16_t blockIds = new uint16_t[numBlockIds];
+        uint16_t *blockIds = new uint16_t[numBlockIds];
         for (int ii = 0; ii < numBlockIds; ii++) {
             blockIds[ii] = _blockIds[ii];
         } // FOR
         
-        engine->antiCacheReadBlocks(static_cast<int>(tableId), static_cast<int>(numBlockIds), blockIds);
+        retval = engine->antiCacheReadBlocks(static_cast<int32_t>(tableId), static_cast<int>(numBlockIds), blockIds);
         
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
-    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+    return (retval);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheMergeBlocks (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jint tableId) {
+
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VOLT_DEBUG("nativeAntiCacheMergeBlocks() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) return (retval);
+    
+    try {
+        retval = engine->antiCacheMergeBlocks(static_cast<int32_t>(tableId));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return (retval);
 }
 
 #endif
