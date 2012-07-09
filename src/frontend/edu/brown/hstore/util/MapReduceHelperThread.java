@@ -188,7 +188,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
             volt_proc.setPartitionId(mr_ts.getBasePartition());
             if (debug.get())
                 LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));
-            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+            volt_proc.call(mr_ts, mr_ts.getProcedureParameters());
 
         } else {
 
@@ -201,7 +201,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
                     if (debug.get())
                         LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d", mr_ts, partition));
                     volt_proc.setPartitionId(partition);
-                    volt_proc.call(ts, ts.getInitiateTaskMessage().getParameters());
+                    volt_proc.call(ts, ts.getProcedureParameters());
                 }
             }
 
