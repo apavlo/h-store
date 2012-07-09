@@ -92,6 +92,8 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
 
         // Now force the EE to evict our boys out
+        // We'll tell it to remove 1MB, which is guaranted to include all of our tuples
+        this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024 * 1024);
 
     }
 

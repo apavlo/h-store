@@ -1395,15 +1395,31 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t b
 }
 
 /**
+ * Somebody wants us to forcibly evict a certain number of bytes from the given table.
+ * This is likely only used for testing...
+ * @param tableId
+ * @param blockSize The number of bytes to evict from this table
+ */
+int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
+    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+    if (table == NULL) {
+        throwFatalException("Invalid table id %d", tableId);
+    }
+    
+    if (table->evictBlockToDisk(blockSize) == false) {
+        throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
+    }
+    
+    return (ENGINE_ERRORCODE_SUCCESS);
+}
+
+/**
  * Merge the recently all of the unevicted data for the given tableId
  * Note: This should only be called when no other txn is running
+ * @param tableId
  */
 int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     int retval = ENGINE_ERRORCODE_SUCCESS;
-    
-    // Grab the PersistentTable referenced by the given tableId
-    // This is simply the relativeIndex of the table in the catalog
-    // We can assume that the ordering hasn't changed.
     PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
     if (table == NULL) {
         throwFatalException("Invalid table id %d", tableId);

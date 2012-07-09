@@ -642,6 +642,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
     
     @Override
+    public void antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
+        assert(m_anticache);
+    }
+    
+    @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         assert(m_anticache);
         final int errorCode = nativeAntiCacheMergeBlocks(pointer, catalog_tbl.getRelativeIndex());

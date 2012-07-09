@@ -706,11 +706,19 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     
     /**
      * 
-     * @param tableId
+     * @param catalog_tbl
      * @param block_ids
      */
     public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
 
+    /**
+     * Forcibly tell the EE that it needs to evict a certain number of bytes
+     * for a table. This is most likely only useful for testing
+     * @param catalog_tbl
+     * @param block_size The number of bytes to evict from the target table
+     */
+    public abstract void antiCacheEvictBlock(Table catalog_tbl, long block_size);
+    
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
      * This is a blocking call and should only be executed when there is no other transaction
@@ -738,6 +746,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      */
     protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[]);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @param blockSize
+     * @return
+     */
+    protected native int nativeAntiCacheEvictBlocks(long pointer, int tableId, long blockSize);
     
     /**
      * 
