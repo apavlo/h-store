@@ -15,12 +15,8 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.TransactionPostProcessor;
 import edu.brown.hstore.callbacks.SendDataCallback;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -29,7 +25,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
-public class MapReduceHelperThread implements Runnable, Shutdownable {
+public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTransaction> {
     private static final Logger LOG = Logger.getLogger(MapReduceHelperThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -37,19 +33,15 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final LinkedBlockingDeque<MapReduceTransaction> queue = new LinkedBlockingDeque<MapReduceTransaction>();
-    private final HStoreSite hstore_site;
-    private final HStoreConf hstore_conf;
     private final PartitionEstimator p_estimator;
-    private Thread self = null;
-    private boolean stop = false;
     private ExecutionState execState = null;
-
     private PartitionExecutor executor;
 
     public MapReduceHelperThread(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
-        this.hstore_conf = hstore_site.getHStoreConf();
+        super(hstore_site,
+              HStoreConstants.THREAD_NAME_MAPREDUCE,
+              new LinkedBlockingDeque<MapReduceTransaction>(),
+              false);
         this.p_estimator = hstore_site.getPartitionEstimator();
     }
 
@@ -67,45 +59,22 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         return executor;
     }
 
-    /**
-     * @see TransactionPostProcessor
-     */
     @Override
-    public void run() {
-        this.self = Thread.currentThread();
-        this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_MAPREDUCE));
-        hstore_site.getThreadManager().registerProcessingThread();
+    public void processingCallback(MapReduceTransaction ts) {
         
-        if (!hstore_conf.site.mr_reduce_blocking) {
+        if (hstore_conf.site.mr_reduce_blocking == false && this.executor == null) {
             // Initialization
             this.executor = this.initPartitionExecutor();
-            execState = new ExecutionState(this.executor);
+            this.execState = new ExecutionState(this.executor);
         }
 
-        if (debug.get())
-            LOG.debug("Starting transaction post-processing thread");
-
-        MapReduceTransaction ts = null;
-        while (this.self.isInterrupted() == false) {
-            // Grab a MapReduceTransaction from the queue
-            // Take all of the Map output tables and perform the shuffle
-            // operation
-            try {
-                ts = this.queue.take();
-            } catch (InterruptedException ex) {
-                // Ignore!
-                break;
-            }
-            assert (ts != null);
-            if (ts.isShufflePhase()) {
-                this.shuffle(ts);
-            }
-            if (ts.isReducePhase() && !hstore_conf.site.mr_reduce_blocking) {
-                this.reduce(ts);
-            }
-
-        } // WHILE
-
+        // Take all of the Map output tables and perform the shuffle operation
+        if (ts.isShufflePhase()) {
+            this.shuffle(ts);
+        }
+        if (ts.isReducePhase() && !hstore_conf.site.mr_reduce_blocking) {
+            this.reduce(ts);
+        }
     }
     
 //    public void map(final MapReduceTransaction mr_ts) {
@@ -146,20 +115,19 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 //
 //    }
 
+    /**
+     * Loop through all of the MAP output tables from the txn handle For
+     * each of those, iterate through the table row-by-row and use the
+     * PartitionEstimator to determine what partition you need to send the
+     * row to.
+     * 
+     * @see LoadMultipartitionTable.createNonReplicatedPlan() Partitions
+     *      Then you will use HStoreCoordinator.sendData() to send the
+     *      partitioned table data to each of the partitions. Once that is
+     *      all done, clean things up and invoke the network-outbound
+     *      callback stored in the TransactionMapWrapperCallback
+     */
     protected void shuffle(final MapReduceTransaction ts) {
-        /**
-         * Loop through all of the MAP output tables from the txn handle For
-         * each of those, iterate through the table row-by-row and use the
-         * PartitionEstimator to determine what partition you need to send the
-         * row to.
-         * 
-         * @see LoadMultipartitionTable.createNonReplicatedPlan() Partitions
-         *      Then you will use HStoreCoordinator.sendData() to send the
-         *      partitioned table data to each of the partitions. Once that is
-         *      all done, clean things up and invoke the network-outbound
-         *      callback stored in the TransactionMapWrapperCallback
-         */
-
         // create a table for each partition
         Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
         for (int partition : hstore_site.getAllPartitionIds()) {
@@ -196,12 +164,9 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
         } // FOR
 
-        // The SendDataCallback should invoke the TransactionMapCallback to tell
-        // it that
-        // the SHUFFLE phase is complete and that we need to send a message back
-        // to the
-        // transaction's base partition to let it know that the MAP phase is
-        // complete
+        // The SendDataCallback should invoke the TransactionMapCallback to tell it that 
+        // the SHUFFLE phase is complete and that we need to send a message back to the
+        // transaction's base partition to let it know that the MAP phase is complete
         SendDataCallback sendData_callback = ts.getSendDataCallback();
         sendData_callback.init(ts, new RpcCallback<AbstractTransaction>() {
             @Override
@@ -243,27 +208,4 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         }
 
     }
-    
-    @Override
-    public boolean isShuttingDown() {
-
-        return (this.stop);
-    }
-
-    @Override
-    public void prepareShutdown(boolean error) {
-        this.queue.clear();
-
-    }
-
-    @Override
-    public void shutdown() {
-
-        if (debug.get())
-            LOG.debug(String.format("MapReduce Transaction helper Thread should be shutdown now ..."));
-        this.stop = true;
-        if (this.self != null)
-            this.self.interrupt();
-    }
-
 }
