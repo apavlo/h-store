@@ -6,8 +6,12 @@ import java.util.concurrent.Semaphore;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
+import org.voltdb.exceptions.UnknownBlockAccessException;
+import org.voltdb.jni.ExecutionEngine;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
@@ -32,7 +36,6 @@ public class TestAntiCacheManager extends BaseTestCase {
             readyLock.release();
         }
     };
-    
     
     @Before
     public void setUp() throws Exception {
@@ -74,6 +77,19 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testReadNonExistentBlock() throws Exception {
+        PartitionExecutor executor = hstore_site.getPartitionExecutor(0);
+        assertNotNull(executor);
+        ExecutionEngine ee = executor.getExecutionEngine();
+        assertNotNull(executor);
+        
+        Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
+        short block_ids[] = new short[]{ 1111 };
+        try {
+            ee.antiCacheReadBlocks(catalog_tbl, block_ids);   
+        } catch (UnknownBlockAccessException ex) {
+            
+        }
+        
 
     }
     
