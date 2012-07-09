@@ -151,10 +151,14 @@ TupleSchema* TupleSchema::createEvictedTupleSchema(const TupleSchema *pkey_schem
     columnTypes[0] = VALUE_TYPE_SMALLINT; 
     columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT)); 
     allowNull[0] = false; 
+    TupleSchema *blockids_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
     
-    TupleSchema *evicted_schema = TupleSchema::createTupleSchema(columnTypes, columnSizes, allowNull, false);
+    TupleSchema *evicted_schema = TupleSchema::createTupleSchema(pkey_schema, blockids_schema);
     
-    return (TupleSchema::createTupleSchema(pkey_schema, evicted_schema));
+    // Always make sure that we return memory!
+    TupleSchema::freeTupleSchema(blockids_schema);
+    
+    return (evicted_schema);
 }
 
 void TupleSchema::freeTupleSchema(TupleSchema *schema) {
