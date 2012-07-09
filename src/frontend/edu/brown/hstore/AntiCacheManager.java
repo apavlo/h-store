@@ -1,14 +1,18 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.util.AbstractProcessingThread;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.FileUtil;
 
 /**
@@ -17,45 +21,58 @@ import edu.brown.utils.FileUtil;
  * layer for now
  * @author pavlo
  */
-public class AntiCacheManager implements Shutdownable {
+public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.QueueEntry> {
+    private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
-    private final HStoreSite hstore_site;
     private final Database catalog_db;
-    private final HStoreConf hstore_conf;
     
-    protected AntiCacheManager(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
-        this.catalog_db = hstore_site.getDatabase();
-        this.hstore_conf = hstore_site.getHStoreConf();
+    protected class QueueEntry {
+        final LocalTransaction ts;
+        final int partition;
+        final Table catalog_tbl;
+        final short block_ids[];
+        
+        public QueueEntry(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
+            this.ts = ts;
+            this.partition = partition;
+            this.catalog_tbl = catalog_tbl;
+            this.block_ids = block_ids;
+        }
     }
     
+    protected AntiCacheManager(HStoreSite hstore_site) {
+        super(hstore_site,
+              HStoreConstants.THREAD_NAME_ANTICACHE,
+              new LinkedBlockingQueue<QueueEntry>(),
+              false);
+        this.catalog_db = hstore_site.getDatabase();
+    }
+    
+    @Override
+    public void processingCallback(QueueEntry next) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    
     /**
-     * Queue the evicted blocks for a given Table to be read back in at this partition
-     * This is a non-blocking call. The AntiCacheManager will figure out when it's
-     * ready to get these blocks back in 
+     * Queue a transaction that needs to wait until the evicted blocks at the target Table 
+     * are read back in at the given partition. This is a non-blocking call.
+     * The AntiCacheManager will figure out when it's ready to get these blocks back in
+     * <B>Note:</B> The given LocalTransaction handle must have been already started. 
+     * @param ts
+     * @param partition
      * @param catalog_tbl
      * @param block_ids
      */
-    public void queueReadBlocks(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[]) {
-        
-    }
-    
-    @Override
-    public void prepareShutdown(boolean error) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    @Override
-    public void shutdown() {
-        // TODO Auto-generated method stub
-        
-    }
-
-    @Override
-    public boolean isShuttingDown() {
-        // TODO Auto-generated method stub
-        return false;
+    public boolean queueReadBlocks(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
+        QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
+        return (this.queue.offer(e));
     }
     
     // ----------------------------------------------------------------------------

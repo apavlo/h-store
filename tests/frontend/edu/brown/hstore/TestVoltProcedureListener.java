@@ -59,7 +59,7 @@ public class TestVoltProcedureListener extends TestCase {
             return 0;
         }
         @Override
-        public void queueInvocation(ByteBuffer serializedRequest, RpcCallback<byte[]> done) {
+        public void invocationQueue(ByteBuffer serializedRequest, RpcCallback<byte[]> done) {
             StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest.array());
             invocation.buildParameterSet();
             assertEquals(PROC_NAME, invocation.getProcName());

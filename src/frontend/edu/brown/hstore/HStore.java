@@ -57,7 +57,7 @@ import edu.brown.workload.Workload;
  * @author pavlo
  */
 public abstract class HStore {
-    public static final Logger LOG = Logger.getLogger(HStore.class);
+    private static final Logger LOG = Logger.getLogger(HStore.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {

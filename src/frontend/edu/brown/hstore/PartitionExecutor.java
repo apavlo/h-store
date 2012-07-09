@@ -229,9 +229,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // Each execution site manages snapshot using a SnapshotSiteProcessor
     private final SnapshotSiteProcessor m_snapshotter;
 
-    // Anti-Cache Abstraction Layer
-    private AntiCacheManager anticacheManager;
-    
     /**
      * Procedure Name -> VoltProcedure
      */
@@ -744,10 +741,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         if (hstore_conf.site.exec_deferrable_queries) {
             tmp_def_txn = new LocalTransaction(hstore_site);
-        }
-        
-        if (hstore_conf.site.anticache_enable) {
-            this.anticacheManager = hstore_site.getAntiCacheManager();
         }
         
         if (hstore_conf.site.exec_profiling) {
@@ -1824,15 +1817,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         } catch (EvictedTupleAccessException ex) {
             // XXX: What do we do if this is not a single-partition txn? 
-            if (this.anticacheManager != null) {
-                status = Status.ABORT_EVICTEDACCESS;
-                Table catalog_tbl = ex.getTableId(this.database);
-                this.anticacheManager.queueReadBlocks(ts, this.partitionId, catalog_tbl, ex.getBlockIds());
-            } else {
-                String message = "Got eviction notice but anti-caching is not enabled";
-                error = new ServerFaultException(message, ex, ts.getTransactionId());
-                status = Status.ABORT_UNEXPECTED;
-            }
+            status = Status.ABORT_EVICTEDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
             status = Status.ABORT_UNEXPECTED;

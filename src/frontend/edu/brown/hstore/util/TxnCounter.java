@@ -36,6 +36,8 @@ public enum TxnCounter {
     RESTARTED,
     /** The number of transactions that were mispredicted (and thus re-executed) */
     MISPREDICTED,
+    /** The number of transactions that were aborted because they tried to access evicted data */
+    EVICTEDACCESS,
     /** Speculative Execution **/
     SPECULATIVE,
     /** No undo buffers! Naked transactions! */

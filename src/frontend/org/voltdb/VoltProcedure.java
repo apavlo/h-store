@@ -1203,6 +1203,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * Derivation of StatsSource to expose timing information of procedure invocations.
      *
      */
+    @SuppressWarnings("unused")
     private final class ProcedureStatsCollector extends SiteStatsSource {
 
         /**
@@ -1435,6 +1436,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param e
      * @return A ClientResponse containing error information
      */
+    @SuppressWarnings("unused")
     private ClientResponseImpl getErrorResponse(Throwable e) {
         StackTraceElement[] stack = e.getStackTrace();
         ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
@@ -1512,7 +1514,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 msgOut.toString(), e);
     }
     
-    private String mispredictDebug(SQLStmt batchStmts[], ParameterSet params[], MarkovGraph markov, TransactionEstimator.State s, Exception ex, int batchSize) {
+    private String mispredictDebug(SQLStmt batchStmts[],
+                                   ParameterSet params[],
+                                   MarkovGraph markov,
+                                   TransactionEstimator.State s,
+                                   Exception ex,
+                                   int batchSize) {
         StringBuilder sb = new StringBuilder();
         sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
           .append(StringUtil.SINGLE_LINE);
