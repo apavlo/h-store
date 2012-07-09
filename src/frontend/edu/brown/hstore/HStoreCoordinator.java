@@ -601,7 +601,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (transactionRedirect_dispatcher != null) {
                 transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
             } else {
-                hstore_site.queueInvocation(serializedRequest, callback);
+                hstore_site.invocationQueue(serializedRequest, callback);
             }
         }
         
