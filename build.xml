@@ -85,9 +85,6 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
-<!-- Checkstyle Initilization -->
-<taskdef resource="checkstyletask.properties" classpath="${vendor.lib.dir}/checkstyle-5.5.jar"/>
-
 <property name='jprofiler.dir'                  location='/home/ubuntu/jprofiler' />
 <property name='jprofiler.port'                 value='8849' />
 
