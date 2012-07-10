@@ -1497,9 +1497,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         PartitionExecutor executor = this.executors[base_partition];
         boolean success = executor.queueNewTransaction(buffer,
-                                                        catalog_proc,
-                                                        procParams,
-                                                        clientCallback);
+                                                       catalog_proc,
+                                                       procParams,
+                                                       clientCallback);
         if (success == false) {
             // Depending on what we need to do for this type txn, we will send
             // either an ABORT_THROTTLED or an ABORT_REJECT in our response
