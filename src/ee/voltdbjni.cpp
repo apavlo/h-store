@@ -1232,6 +1232,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
 // ----------------------------------------------------------------------------
 // ANTI-CACHING
 // ----------------------------------------------------------------------------
+#if ANTICACHE
 
 /**
  * Enables the anti-cache feature in the EE.
@@ -1278,7 +1279,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) return (retval);
     
-#if ANTICACHE
     try {
         jsize numBlockIds = env->GetArrayLength(blockIdsArray);
         jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
@@ -1297,7 +1297,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
-#endif
     return (retval);
 }
 
@@ -1314,13 +1313,11 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) return (retval);
 
-#if ANTICACHE
     try {
         retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
-#endif
     return (retval);
 }
 
@@ -1336,15 +1333,14 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) return (retval);
 
-#if ANTICACHE
     try {
         retval = engine->antiCacheMergeBlocks(static_cast<int32_t>(tableId));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
-#endif
     return (retval);
 }
+#endif
 
 #endif
 
