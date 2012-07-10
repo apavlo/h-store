@@ -178,37 +178,18 @@ Table* TableFactory::getPersistentTable(
     
 Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
                                     ExecutorContext *ctx,
-                                    const std::string name,
+                                    const std::string &name,
                                     TupleSchema* schema,
-                                    const std::string* columnNames,
-                                    const TableIndexScheme &pkeyIndex,
-                                    const std::vector<TableIndexScheme> &indexes,
-                                    int partitionColumn)
-{
-    Table *table = NULL;
-
-    //table = new EvictedTable(ctx);
-    //EvictedTable *pTable = dynamic_cast<EvictedTable*>(table);
+                                    const std::string* columnNames) {
+    VOLT_DEBUG("Creating %s", name.c_str());
+    Table *table = new EvictedTable(ctx);
+    EvictedTable *pTable = dynamic_cast<EvictedTable*>(table);
+    pTable->m_indexCount = 0;
     
-    std::string evicted_name(name + "_EVICTED"); 
+    VOLT_DEBUG("Initializing %s common stuff", name.c_str());
+    TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
     
-    table = new PersistentTable(ctx, false);
-    PersistentTable *pTable = dynamic_cast<PersistentTable*>(table);
-    
-    pTable->m_pkeyIndex = TableIndexFactory::getInstance(pkeyIndex);
-    TableFactory::initCommon(databaseId, pTable, evicted_name, schema, columnNames, true);
-    pTable->m_partitionColumn = partitionColumn;
-    
-    // one for pkey + all the other indexes
-    pTable->m_indexCount = 1 + (int)indexes.size();
-    pTable->m_indexes = new TableIndex*[1 + indexes.size()];
-    pTable->m_indexes[0] = pTable->m_pkeyIndex;
-    
-    for (int i = 0; i < indexes.size(); ++i) {
-        pTable->m_indexes[i + 1] = TableIndexFactory::getInstance(indexes[i]);
-    }
-    initConstraints(pTable);
-    
+    VOLT_DEBUG("Hooking %s into table stats", name.c_str());
     table->getTableStats()->configure(name + " stats",
                                       ctx->m_hostId,
                                       ctx->m_hostname,
@@ -256,7 +237,10 @@ void TableFactory::initCommon(
             const bool ownsTupleSchema) {
     table->m_databaseId = databaseId;
     table->m_name = name;
+    fprintf(stderr, "%s TABLE SCHEMA\n%s\n----------------------------\n", name.c_str(), schema->debug().c_str());
+    
     table->initializeWithColumns(schema, columnNames, ownsTupleSchema);
+    VOLT_INFO("%s XXXX", name.c_str());
     assert (table->columnCount() == schema->columnCount());
 }
 

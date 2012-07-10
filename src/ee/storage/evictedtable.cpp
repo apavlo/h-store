@@ -38,8 +38,7 @@ EvictedTable::EvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false)
 /*
  Insert a tuple into the evicted table but don't create any UNDO action. 
  */
-bool EvictedTable::insertTuple(TableTuple &source)
-{
+bool EvictedTable::insertTuple(TableTuple &source) {
     // not null checks at first
     if (!checkNulls(source)) {
         throwFatalException("Failed to insert tuple into table %s for undo:"

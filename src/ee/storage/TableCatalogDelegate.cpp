@@ -64,6 +64,8 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                            catalog::Database &catalogDatabase,
                            catalog::Table &catalogTable)
 {
+    VOLT_INFO("Initializing table '%s'", catalogTable.name().c_str());
+    
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
     
@@ -214,14 +216,16 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
             case CONSTRAINT_TYPE_CHECK:
             case CONSTRAINT_TYPE_FOREIGN_KEY:
             case CONSTRAINT_TYPE_MAIN:
-                VOLT_WARN("Unsupported type '%s' for constraint '%s'",
+                VOLT_WARN("Unsupported type '%s' for constraint '%s.%s'",
                           constraintutil::getTypeName(type).c_str(),
+                          catalogTable.name().c_str(),
                           catalog_constraint->name().c_str());
                 break;
             // Unknown
             default:
-                VOLT_ERROR("Invalid constraint type '%s' for '%s'",
+                VOLT_ERROR("Invalid constraint type '%s' for '%s.%s'",
                            constraintutil::getTypeName(type).c_str(),
+                           catalogTable.name().c_str(),
                            catalog_constraint->name().c_str());
                 delete [] columnNames;
                 return false;
@@ -271,21 +275,37 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
 #ifdef ANTICACHE
         // Create evicted table if anti-caching is enabled and this table 
         // is not generated from a materialized view
-        if (executorContext->m_antiCacheEnabled && catalogTable.materializer() == NULL) {
+        if (executorContext->m_antiCacheEnabled &&
+                catalogTable.materializer() == NULL &&
+                catalogTable.mapreduce() == false) {
             
-            TableIndex* pkey = m_table->primaryKeyIndex(); 
-            assert(TableIndex != NULL);
+            TableIndex* parentPkey = m_table->primaryKeyIndex(); 
+            assert(parentPkey != NULL);
             
-            TupleSchema *evicted_table_schema = TupleSchema::createEvictedTupleSchema(pkey->getKeySchema()); 
+            std::ostringstream stream;
+            stream << catalogTable.name() << "__EVICTED";
+            const std::string evictedName = stream.str();
+        
+            TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(parentPkey->getKeySchema()); 
+
+            // Get the column names for the EvictedTable
+            std::vector<int> column_indices = parentPkey->getColumnIndices();
+            string *evictedColumnNames = new string[evictedSchema->columnCount()];
+            int evictedColumnOffset = 0;
+            for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+                evictedColumnNames[evictedColumnOffset++] = columnNames[*it];
+            } // FOR
+            evictedColumnNames[evictedColumnOffset] = std::string("BLOCK_ID");
+            
+            // TODO: Should we construct a primary key index?
+            //       For now I'm going to skip that.
+        
             voltdb::Table *evicted_table = TableFactory::getEvictedTable(
                                                             databaseId, 
                                                             executorContext,
-                                                            catalogTable.name(),
-                                                            evicted_table_schema, 
-                                                            columnNames,
-                                                            pkey_index, 
-                                                            indexes, 
-                                                            partitionColumnIndex);
+                                                            evictedName,
+                                                            evictedSchema, 
+                                                            evictedColumnNames);
             // We'll shove the EvictedTable to the PersistentTable
             // It will be responsible for deleting it in its deconstructor
             dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
@@ -294,8 +314,6 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         }
 #endif
     }
-    
-
     
     delete[] columnNames;
 
