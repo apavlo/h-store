@@ -68,6 +68,8 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         ts.addPrefetchResults(request.getResult());
         
         // I don't think we even need to bother wasting our time sending an acknowledgement
+        controller.startCancel();
+        
 //        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
 //                                                            .setTransactionId(txn_id.longValue())
 //                                                            .setTargetPartition(request.getSourcePartition())

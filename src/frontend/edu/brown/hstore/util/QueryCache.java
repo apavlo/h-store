@@ -165,7 +165,6 @@ public class QueryCache {
      * @param params
      * @param result
      */
-    @SuppressWarnings("unchecked")
     public void addTransactionQueryResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
         if (debug.get()) LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
                                                  txnId, fragmentId, params));
@@ -176,7 +175,7 @@ public class QueryCache {
                 entries = this.txnCacheXref.get(txnId);
                 if (entries == null) {
                     try {
-                        entries = (List<Integer>)this.listPool.borrowObject();
+                        entries = this.listPool.borrowObject();
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to initialize list from object pool", ex);
                     }
