@@ -237,10 +237,7 @@ void TableFactory::initCommon(
             const bool ownsTupleSchema) {
     table->m_databaseId = databaseId;
     table->m_name = name;
-    fprintf(stderr, "%s TABLE SCHEMA\n%s\n----------------------------\n", name.c_str(), schema->debug().c_str());
-    
     table->initializeWithColumns(schema, columnNames, ownsTupleSchema);
-    VOLT_INFO("%s XXXX", name.c_str());
     assert (table->columnCount() == schema->columnCount());
 }
 

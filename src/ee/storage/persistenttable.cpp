@@ -166,6 +166,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
                block_size, this->name().c_str());
+    VOLT_INFO("%s Table Schema:\n%s",
+              m_evictedTable->name().c_str(), m_evictedTable->schema()->debug().c_str());
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
 #endif
     
@@ -178,11 +180,14 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     // create a new evicted table tuple based on the schema for the source tuple
     // Get the columns in the source tuple are part of the primary key
     // The last entry will always be the block id for this new evicted tuple
+    VOLT_INFO("Getting %s tuple", m_evictedTable->name().c_str());
     TableTuple evicted_tuple(m_evictedTable->schema());
-    int evicted_offset = m_pkeyIndex->getColumnCount() - 1;
-    evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); 
-    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
+    int evicted_offset = m_pkeyIndex->getColumnCount();
+    VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
+    evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
+    VOLT_INFO("!!!");
     
+    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
     int tuple_length = -1;
     long serialized_data_length = 0; 
     int num_tuples_evicted = 0;
@@ -197,7 +202,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     //       that can walk through the table and just grab the boring tuples and 
     //       shove them out to our new block.
     TableTuple tuple(m_schema);
-    TableIterator table_itr(this); 
+    TableIterator table_itr(this);
+    VOLT_INFO("Starting TableIterator for %s", name().c_str());
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple); 
         
