@@ -57,6 +57,17 @@ public final class TPCCConstants {
     static int STARTING_WAREHOUSE = 1;
 
     private TPCCConstants() { assert false; }
+    
+    public static final String TABLENAME_WAREHOUSE = "WAREHOUSE";
+    public static final String TABLENAME_DISTRICT = "DISTRICT";
+    public static final String TABLENAME_ITEM = "ITEM";
+    public static final String TABLENAME_CUSTOMER = "CUSTOMER";
+    public static final String TABLENAME_CUSTOMER_NAME = "CUSTOMER_NAME";
+    public static final String TABLENAME_HISTORY = "HISTORY";
+    public static final String TABLENAME_STOCK = "STOCK";
+    public static final String TABLENAME_ORDERS = "ORDERS";
+    public static final String TABLENAME_NEW_ORDER = "NEW_ORDER";
+    public static final String TABLENAME_ORDER_LINE = "ORDER_LINE";
 
     public static final int FREQUENCY_STOCK_LEVEL = 4;
     public static final int FREQUENCY_DELIVERY = 4;

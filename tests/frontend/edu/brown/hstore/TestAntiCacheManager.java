@@ -6,6 +6,7 @@ import java.util.concurrent.Semaphore;
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.VoltTable;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.UnknownBlockAccessException;
@@ -21,6 +22,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 
 public class TestAntiCacheManager extends BaseTestCase {
     
@@ -45,7 +47,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     @Before
     public void setUp() throws Exception {
-        super.setUp(ProjectType.VOTER);
+        super.setUp(ProjectType.TPCC);
         initializeCluster(1, 1, NUM_PARTITIONS);
         this.anticache_dir = FileUtil.getTempDirectory();
         this.readyLock = new Semaphore(0);
@@ -63,6 +65,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Wait until we know that our HStoreSite has started
         this.readyLock.acquire();
+        ThreadUtil.sleep(5000);
         
         this.executor = hstore_site.getPartitionExecutor(0);
         assertNotNull(this.executor);
@@ -82,7 +85,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testEvictTuples() throws Exception {
         // Load in a bunch of dummy data for this table
-        Table catalog_tbl = getTable(VoterConstants.TABLENAME_VOTES);
+        Table catalog_tbl = getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
         for (int i = 0; i < NUM_TUPLES; i++) {
