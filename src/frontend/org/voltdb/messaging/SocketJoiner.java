@@ -33,7 +33,8 @@ import java.util.Map;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
+
+import edu.brown.hstore.HStore;
 
 /** SocketJoiner runs at startup to create a fully meshed cluster.
  * The primary (aka: leader, coordinater) node listens on BASE_PORT.
@@ -279,12 +280,12 @@ public class SocketJoiner extends Thread {
                 if (m_hostLog != null)
                     m_hostLog.info("Maximum clock/network is " + (maxDiffMS*100)/MAX_ACCEPTABLE_TIME_DIFF_IN_MS +
                                    "% higher than allowable limit");
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
             if (command == COMMAND_CRCFAIL) {
                 if (m_hostLog != null)
                     m_hostLog.info("Catalog checksums do not match across cluster");
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
 
         }
@@ -406,12 +407,12 @@ public class SocketJoiner extends Thread {
                 if (m_hostLog != null)
                     m_hostLog.info("Maximum clock/network is " + (maxDiffMS*100)/MAX_ACCEPTABLE_TIME_DIFF_IN_MS +
                                    "% higher than allowable limit");
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
             if (command == COMMAND_CRCFAIL) {
                 if (m_hostLog != null)
                     m_hostLog.info("Catalog checksums do not match across cluster");
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
                 for (SocketChannel sock : m_sockets.values()) {
                     sock.close();
                 }

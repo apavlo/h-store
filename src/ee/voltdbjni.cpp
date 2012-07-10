@@ -73,8 +73,7 @@
 #endif
 #else
 #ifndef __x86_64
-#error VoltDB server does not compile or run on 32-bit platforms. The Java clien
-t library does (ant jars)
+#error VoltDB server does not compile or run on 32-bit platforms. The Java client library does (ant jars)
 #endif
 #endif
 
@@ -506,39 +505,6 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
         topend->crashVoltDB(e);
     }
 
-    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
-}
-
-
-/**
- * Enables the anti-cache feature in the EE.
- * This can only be called *after* the buffers have been initialized
- * but *before* the catalog has been initialized 
- * @param pointer the VoltDBEngine pointer
- * @param dbDir the directory of where the EE should store the anti-cache database 
- * @return error code
- */
-SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeInitializeAntiCache (
-        JNIEnv *env,
-        jobject obj,
-        jlong engine_ptr,
-        jstring dbDir) {
-    
-    VOLT_DEBUG("nativeInitializeAntiCache() start");
-    VoltDBEngine *engine = castToEngine(engine_ptr);
-    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
-    if (engine == NULL) {
-        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
-    }
-    try {
-        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
-        std::string dbDirString(dbDirChars);
-        env->ReleaseStringUTFChars(dbDir, dbDirChars);
-        
-        engine->enableAntiCache(dbDirString);
-    } catch (FatalException e) {
-        topend->crashVoltDB(e);
-    }
     return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
 }
 
@@ -1262,6 +1228,120 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_utils_ThreadUtils_getNumCores
     long int NUM_PROCS = sysconf(_SC_NPROCESSORS_CONF);
     return static_cast<jint>(NUM_PROCS);
 }
+
+// ----------------------------------------------------------------------------
+// ANTI-CACHING
+// ----------------------------------------------------------------------------
+#if ANTICACHE
+
+/**
+ * Enables the anti-cache feature in the EE.
+ * This can only be called *after* the buffers have been initialized
+ * but *before* the catalog has been initialized 
+ * @param pointer the VoltDBEngine pointer
+ * @param dbDir the directory of where the EE should store the anti-cache database 
+ * @return error code
+ */
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheInitialize (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir) {
+    
+    VOLT_DEBUG("nativeAntiCacheInitialize() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+        
+        engine->antiCacheInitialize(dbDirString);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheReadBlocks (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jint tableId,
+        jshortArray blockIdsArray) {
+    
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VOLT_DEBUG("nativeAntiCacheReadBlocks() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) return (retval);
+    
+    try {
+        jsize numBlockIds = env->GetArrayLength(blockIdsArray);
+        jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
+        if (_blockIds == NULL) {
+            VOLT_ERROR("No evicted blockIds were given to the EE");
+            return (retval);
+        }
+        // XXX: Is this necessary?
+        uint16_t *blockIds = new uint16_t[numBlockIds];
+        for (int ii = 0; ii < numBlockIds; ii++) {
+            blockIds[ii] = _blockIds[ii];
+        } // FOR
+        
+        retval = engine->antiCacheReadBlocks(static_cast<int32_t>(tableId), static_cast<int>(numBlockIds), blockIds);
+        
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return (retval);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlock (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jint tableId,
+        jlong blockSize) {
+         
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VOLT_DEBUG("nativeAntiCacheEvictBlocks() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) return (retval);
+
+    try {
+        retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return (retval);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheMergeBlocks (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jint tableId) {
+
+    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VOLT_DEBUG("nativeAntiCacheMergeBlocks() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) return (retval);
+
+    try {
+        retval = engine->antiCacheMergeBlocks(static_cast<int32_t>(tableId));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return (retval);
+}
+#endif
+
 #endif
 
 /** @} */ // end of JNI doxygen group

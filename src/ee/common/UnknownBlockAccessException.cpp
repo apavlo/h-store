@@ -23,30 +23,24 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/EvictedTupleAccessException.h"
+#include "common/UnknownBlockAccessException.h"
 #include "common/SerializableEEException.h"
 #include "common/serializeio.h"
 #include <iostream>
-#include <cassert>
 
 using namespace voltdb;
 
+std::string UnknownBlockAccessException::ERROR_MSG = std::string("Tried to access unknown block");
 
-std::string EvictedTupleAccessException::ERROR_MSG = std::string("Txn tried to access evicted tuples");
-
-EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]) :
-    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE, EvictedTupleAccessException::ERROR_MSG),
-        m_tableId(tableId),
-        m_numBlockIds(numBlockIds),
-        m_blockIds(blockIds) {
+UnknownBlockAccessException::UnknownBlockAccessException(std::string tableName, uint16_t blockId) :
+    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, UnknownBlockAccessException::ERROR_MSG),
+        m_tableName(tableName),
+        m_blockId(blockId) {
     
     // Nothing to see, nothing to do...
 }
 
-void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
-    output->writeInt(m_tableId);
-    output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
-    for (int ii = 0; ii < m_numBlockIds; ii++) {
-        output->writeShort(m_blockIds[ii]);
-    }
+void UnknownBlockAccessException::p_serialize(ReferenceSerializeOutput *output) {
+    output->writeTextString(m_tableName);
+    output->writeShort(m_blockId);
 }

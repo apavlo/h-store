@@ -34,7 +34,6 @@ CTX = BuildContext(sys.argv)
 #  and how the build will go down. It also checks the platform and parses
 #  command line args to determine target and build level.
 
-
 ###############################################################################
 # SET RELEASE LEVEL CONTEXT
 ###############################################################################
@@ -102,7 +101,6 @@ if CTX.COVERAGE:
 CTX.INCLUDE_DIRS = ['src/ee']
 CTX.SYSTEM_DIRS = [
     'third_party/cpp',
-    # FIXME os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb')
 ]
 
 # extra flags that will get added to building test source
@@ -124,10 +122,7 @@ CTX.INPUT_PREFIX = "src/ee"
 CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
 # Third-Party Static Libraries
-CTX.THIRD_PARTY_STATIC_LIBS = [
-    # FIXME "berkeleydb/libdb.a",     # BerkeleyDB Base Library
-    # FIXME "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
-]
+CTX.THIRD_PARTY_STATIC_LIBS = [ ]
 
 # where to find the tests
 CTX.TEST_PREFIX = "tests/ee"
@@ -189,6 +184,8 @@ CTX.INPUT['common'] = """
  SegvException.cpp
  SerializableEEException.cpp
  SQLException.cpp
+ EvictedTupleAccessException.cpp
+ UnknownBlockAccessException.cpp
  tabletuple.cpp
  TupleSchema.cpp
  types.cpp
@@ -269,6 +266,7 @@ CTX.INPUT['storage'] = """
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
+ evictedtable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
@@ -325,11 +323,13 @@ CTX.TESTS['common'] = """
  undolog_test
  valuearray_test
  nvalue_test
+ tupleschema_test
 """
 
 CTX.TESTS['execution'] = """
  engine_test
-""" # FIXME berkeleydb_test
+ berkeleydb_test
+"""
 
 CTX.TESTS['expressions'] = """
  expression_test
@@ -356,6 +356,20 @@ CTX.TESTS['storage'] = """
 
 # these are incomplete and out of date. need to be replaced
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
+
+###############################################################################
+# ANTI-CACHING
+###############################################################################
+ENABLE_ANTICACHE = True
+if ENABLE_ANTICACHE:
+    CTX.CPPFLAGS += " -DANTICACHE"
+    CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
+    CTX.THIRD_PARTY_STATIC_LIBS.extend([
+        "berkeleydb/libdb.a",     # BerkeleyDB Base Library
+        "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+    ])
+    CTX.INPUT['common'] += " anticache.cpp"
+    CTX.TESTS['common'] += " anticache_test"
 
 
 ###############################################################################

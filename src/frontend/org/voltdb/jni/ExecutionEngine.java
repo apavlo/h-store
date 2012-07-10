@@ -32,8 +32,8 @@ import org.voltdb.DependencySet;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.messaging.FastDeserializer;
@@ -41,6 +41,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.StringUtil;
 
@@ -206,25 +207,24 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             if (dependencies == null) {
                 hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyNotFound.name(),
                                new Object[] { dependencyId }, null);
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
             for (final Object dependency : dependencies) {
                 if (dependency == null) {
                     hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyContainedNull.name(),
                                    new Object[] { dependencyId },
                             null);
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
                 if (!(dependency instanceof VoltTable)) {
                     hostLog.l7dlog(Level.FATAL, LogKeys.host_ExecutionSite_DependencyNotVoltTable.name(),
                                    new Object[] { dependencyId }, null);
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
                 if (t) LOG.trace(String.format("Storing Dependency %d\n:%s", dependencyId, dependency));
             } // FOR
 
         }
-
     }
 
 
@@ -243,7 +243,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             LOG.fatal("ExecutionEngine requested that we crash: " + reason);
             LOG.fatal("Error was in " + filename + ":" + lineno + "\n" + StringUtil.join("\n", traces));
         }
-        VoltDB.crashVoltDB();
+        HStore.crashDB();
     }
 
     /**
@@ -352,14 +352,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         return (dset.dependencies);
     }
 
-    /**
-     * Initialize anti-caching at this partition's EE.
-     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
-     * @param dbDir
-     * @throws EEException
-     */
-    public abstract void initializeAntiCache(File dbDir) throws EEException;
-    
     /** Used for test code only (AFAIK jhugg) */
     abstract public VoltTable serializeTable(int tableId) throws EEException;
 
@@ -505,17 +497,6 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
                                           ByteBuffer resultBuffer, int result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size);
-
-    /**
-     * Enables the anti-cache feature in the EE. The given database directory path
-     * must be a unique location for this partition where the EE can store 
-     * evicted blocks of tuples. The EE assumes that the parent directories 
-     * for dbDir exist and are writable.  
-     * @param pointer
-     * @param dbDir
-     * @return
-     */
-    protected native int nativeInitializeAntiCache(long pointer, String dbDir);
     
     /**
      * Load the system catalog for this engine.
@@ -710,4 +691,76 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             long mAckOffset,
             long seqNo,
             long mTableId);
+
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Initialize anti-caching at this partition's EE.
+     * <B>NOTE:</B> This must be invoked before loadCatalog is invoked
+     * @param dbDir
+     * @throws EEException
+     */
+    public abstract void antiCacheInitialize(File dbDir) throws EEException;
+    
+    /**
+     * 
+     * @param catalog_tbl
+     * @param block_ids
+     */
+    public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[]);
+
+    /**
+     * Forcibly tell the EE that it needs to evict a certain number of bytes
+     * for a table. This is most likely only useful for testing
+     * @param catalog_tbl
+     * @param block_size The number of bytes to evict from the target table
+     */
+    public abstract void antiCacheEvictBlock(Table catalog_tbl, long block_size);
+    
+    /**
+     * Instruct the EE to merge in the unevicted blocks into the table's regular data.
+     * This is a blocking call and should only be executed when there is no other transaction
+     * running at this partition.
+     * @param catalog_tbl
+     */
+    public abstract void antiCacheMergeBlocks(Table catalog_tbl);
+    
+    /**
+     * Enables the anti-cache feature in the EE. The given database directory path
+     * must be a unique location for this partition where the EE can store 
+     * evicted blocks of tuples. The EE assumes that the parent directories 
+     * for dbDir exist and are writable.  
+     * @param pointer
+     * @param dbDir
+     * @return
+     */
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @param block_ids
+     * @return
+     */
+    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[]);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @param blockSize
+     * @return
+     */
+    protected native int nativeAntiCacheEvictBlock(long pointer, int tableId, long blockSize);
+    
+    /**
+     * 
+     * @param pointer
+     * @param tableId
+     * @return
+     */
+    protected native int nativeAntiCacheMergeBlocks(long pointer, int tableId);
 }

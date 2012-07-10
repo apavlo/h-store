@@ -20,7 +20,8 @@ package org.voltdb.utils;
 import java.lang.Thread.UncaughtExceptionHandler;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
+
+import edu.brown.hstore.HStore;
 
 public class VoltUncaughtExceptionHandler implements UncaughtExceptionHandler {
 
@@ -32,7 +33,7 @@ public class VoltUncaughtExceptionHandler implements UncaughtExceptionHandler {
         log.fatal(stringRep);
         log.fatal("VoltDB has encountered an unrecoverable error and is exiting.");
         log.fatal("The log may contain additional information.");
-        VoltDB.crashVoltDB();
+        HStore.crashDB();
     }
 
 }

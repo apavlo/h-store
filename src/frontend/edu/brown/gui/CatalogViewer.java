@@ -638,6 +638,8 @@ public class CatalogViewer extends AbstractViewer {
                     }
                 }
             } // FOR
+        } else {
+            map.put("project", ((Database)catalog_obj).getProject());
         }
         
         // INDEX

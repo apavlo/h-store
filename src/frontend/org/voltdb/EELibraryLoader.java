@@ -19,6 +19,8 @@ package org.voltdb;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStore;
+
 public class EELibraryLoader {
 
     private static boolean voltSharedLibraryLoaded = false;
@@ -63,7 +65,7 @@ public class EELibraryLoader {
                     if (mustSuccede) {
                         hostLog.fatal("Library VOLTDB JNI shared library loading failed. Library path "
                                 + System.getProperty("java.library.path"), t);
-                        VoltDB.crashVoltDB();
+                        HStore.crashDB();
                     } else {
                         hostLog.error("Library VOLTDB JNI shared library loading failed. Library path "
                                 + System.getProperty("java.library.path"), t);

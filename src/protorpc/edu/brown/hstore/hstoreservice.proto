@@ -28,6 +28,9 @@ enum Status {
     // The transaction could not be initialized because on partition rejected it.
     // The transaction will be retried at the initiaizing HStoreSite
     ABORT_REJECT = 7;
+    // The transaction was aborted because it tried to access a tuple that was
+    // evicted. This is only used with the anti-caching feature.
+    ABORT_EVICTEDACCESS = 8;
 }
 
 // -----------------------------------

@@ -143,7 +143,13 @@ public:
      */
     virtual bool replaceEntry(const TableTuple *oldTupleValue,
                               const TableTuple *newTupleValue) = 0;
-
+    
+    bool setEntryToNull(const TableTuple *tupleValue)
+    {
+        throwFatalException("Invoked TableIndex virtual method setEntryToNull which has no implementation");
+        return false; 
+    }
+    
     /**
      * just returns whether the value is already stored. no
      * modification occurs.
@@ -271,35 +277,29 @@ public:
      * We might have to make a different class in future for maximizing
      * performance of UniqueIndex.
      */
-    inline bool isUniqueIndex() const
-    {
+    inline bool isUniqueIndex() const {
         return is_unique_index_;
     }
 
     virtual size_t getSize() const = 0;
 
-    const std::vector<int>& getColumnIndices() const
-    {
+    const std::vector<int>& getColumnIndices() const {
         return column_indices_vector_;
     }
 
-    const std::vector<ValueType>& getColumnTypes() const
-    {
+    const std::vector<ValueType>& getColumnTypes() const {
         return column_types_vector_;
     }
 
-    int getColumnCount() const
-    {
+    int getColumnCount() const {
         return colCount_;
     }
 
-    const std::string& getName() const
-    {
+    const std::string& getName() const {
         return name_;
     }
 
-    const TupleSchema * getKeySchema() const
-    {
+    const TupleSchema * getKeySchema() const {
         return m_keySchema;
     }
 

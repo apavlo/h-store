@@ -695,6 +695,7 @@ BERKELEYDB LIBRARY
 <target name="berkeleydb.compile" description="Builds the BerkeleyDB library"
                                 depends="berkeleydb.check, getcpus"
                                 unless="berkeleydb.built">
+                                
     <mkdir dir="${build.berkeleydb.dir}" />
     <exec executable="${src.berkeleydb.dir}/dist/configure" 
           dir="${build.berkeleydb.dir}"
@@ -703,8 +704,11 @@ BERKELEYDB LIBRARY
           
         <arg value="--prefix=${build.berkeleydb.dir}" />
         <arg value="--enable-cxx" />
+        <arg value="--enable-static" />
+        <arg value="--with-pic" />
         
         <!-- These are features that we don't need -->
+        <arg value="--disable-shared" />
         <arg value="--disable-test" />
         <arg value="--disable-cryptography" />
         <arg value="--disable-replication" />
@@ -787,8 +791,12 @@ NATIVE EE STUFF
     />
 </target>
 
-<target name="eecheck" depends="ee"
-    description="Run testcases for C++ JNI library.">
+<target name="eecheck" depends="ee, eecheck-build"
+    description="Build and execute testcases for C++ JNI library.">
+</target>
+
+<target name="eecheck-build"
+    description="Quickly build the testcases for C++ JNI library.">
     <exec dir='.' executable='python' failonerror='true'>
         <env key='M1CATALOG_PATH' value='${m1catalog}' />
         <env key="TEST_DIR" value="${build.testobjects.dir}" />
@@ -803,8 +811,7 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<!-- FIXME: berkeleydb.compile -->
-<target name='ee' depends="buildinfo, jnicompile"
+<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
         <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />

@@ -57,7 +57,7 @@ import edu.brown.workload.Workload;
  * @author pavlo
  */
 public abstract class HStore {
-    public static final Logger LOG = Logger.getLogger(HStore.class);
+    private static final Logger LOG = Logger.getLogger(HStore.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -68,6 +68,44 @@ public abstract class HStore {
     private static HStoreSite singleton;
     private static String buildString;
     private static String versionString;
+    
+    
+    /**
+     * Retrieve a reference to the main HStoreSite running in this JVM. 
+     * When running a real server (and not a test harness), this instance will only
+     * be useful after calling HStore.initialize().
+     *
+     * @return A reference to the underlying HStoreSite object.
+     */
+    public static final HStoreSite instance() {
+        return singleton;
+    }
+    
+    /**
+     * Exit the process, dumping any useful info and notifying any
+     * important parties beforehand.
+     *
+     * For now, just die.
+     */
+    public static void crashDB() {
+//        if (HStore.instance().ignoreCrash()) {
+//            return;
+//        }
+        Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+        StackTraceElement[] myTrace = traces.get(Thread.currentThread());
+        for (StackTraceElement t : myTrace) {
+            System.err.println(t.toString());
+        }
+    
+        HStoreSite handle = instance();
+        if (handle != null) {
+            handle.getHStoreCoordinator().shutdownCluster();
+        } else {
+            System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
+            System.err.println("The log may contain additional information.");
+            System.exit(-1);
+        }
+    }
     
     
     /**
@@ -153,17 +191,6 @@ public abstract class HStore {
         TheHashinator.initialize(catalog_site.getCatalog());
         
         return (singleton);
-    }
-    
-    /**
-     * Retrieve a reference to the main HStoreSite running in this JVM. 
-     * When running a real server (and not a test harness), this instance will only
-     * be useful after calling HStore.initialize().
-     *
-     * @return A reference to the underlying HStoreSite object.
-     */
-    public static final HStoreSite instance() {
-        return singleton;
     }
     
     /**

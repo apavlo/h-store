@@ -23,30 +23,42 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/EvictedTupleAccessException.h"
-#include "common/SerializableEEException.h"
-#include "common/serializeio.h"
-#include <iostream>
-#include <cassert>
+#ifndef HSTOREEVICTEDTABLE_H
+#define HSTOREEVICTEDTABLE_H
 
-using namespace voltdb;
+#include "storage/persistenttable.h"
+#include "common/executorcontext.hpp"
 
 
-std::string EvictedTupleAccessException::ERROR_MSG = std::string("Txn tried to access evicted tuples");
-
-EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]) :
-    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE, EvictedTupleAccessException::ERROR_MSG),
-        m_tableId(tableId),
-        m_numBlockIds(numBlockIds),
-        m_blockIds(blockIds) {
+namespace voltdb {
     
-    // Nothing to see, nothing to do...
+class EvictedTable : public PersistentTable {
+        
+    friend class TableFactory;
+    
+    public: 
+        
+        EvictedTable(); 
+                        
+        bool insertTuple(TableTuple &source);
+        
+    protected:
+        
+        EvictedTable(ExecutorContext *ctx);
+    
+    };
 }
 
-void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
-    output->writeInt(m_tableId);
-    output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
-    for (int ii = 0; ii < m_numBlockIds; ii++) {
-        output->writeShort(m_blockIds[ii]);
-    }
-}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+

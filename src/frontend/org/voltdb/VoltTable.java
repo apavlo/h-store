@@ -282,6 +282,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
 
                 for (int i = 0; i < columnCount; i++)
                     m_buffer.put(columns[i].type.getValue());
+                
                 for (int i = 0; i < columnCount; i++) {
                     if (columns[i].name == null) {
                         m_buffer.position(0);

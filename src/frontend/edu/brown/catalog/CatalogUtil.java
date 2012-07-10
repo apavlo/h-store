@@ -713,16 +713,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
-     * Return a random partition id for all of the partitions available
-     * 
-     * @param catalog_item
-     * @return
-     */
-    public static int getRandomPartition(CatalogType catalog_item) {
-        return (rand.nextInt(CatalogUtil.getNumberOfPartitions(catalog_item)));
-    }
-
-    /**
      * Return the Partition catalog object for the given PartitionId
      * 
      * @param catalog_item

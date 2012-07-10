@@ -59,6 +59,7 @@
 #include "common/FatalException.hpp"
 #include "common/types.h"
 #include "common/RecoveryProtoMessage.h"
+#include "common/ValueFactory.hpp"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 #include "storage/table.h"
@@ -72,6 +73,13 @@
 #include "storage/ConstraintFailureException.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/CopyOnWriteContext.h"
+
+#ifdef ANTICACHE
+#include "storage/evictedtable.h"
+#include "common/anticache.h"
+#endif
+
+#include <map>
 
 namespace voltdb {
 
@@ -89,8 +97,15 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_tsSeqNo(0), stats_(this), m_exportEnabled(exportEnabled),
     m_COWContext(NULL)
 {
-    if (exportEnabled)
-    {
+
+#ifdef ANTICACHE
+    m_evictedTable = NULL;
+    m_unevictedTuples = NULL; 
+    m_numUnevictedTuples = 0; 
+    m_unevictedTuplesLength = 0; 
+#endif
+    
+    if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
                                            m_executorContext->m_siteId,
                                            m_executorContext->m_lastTickTime);
@@ -117,6 +132,10 @@ PersistentTable::~PersistentTable() {
     if (m_uniqueIndexes) delete[] m_uniqueIndexes;
     if (m_allowNulls) delete[] m_allowNulls;
     if (m_indexes) delete[] m_indexes;
+    
+#ifdef ANTICACHE
+    if (m_evictedTable) delete m_evictedTable;
+#endif
 
     // note this class has ownership of the views, even if they
     // were allocated by VoltDBEngine
@@ -126,6 +145,142 @@ PersistentTable::~PersistentTable() {
 
     delete m_wrapper;
 }
+    
+// ------------------------------------------------------------------
+// ANTI-CACHE
+// ------------------------------------------------------------------ 
+
+#ifdef ANTICACHE
+
+void PersistentTable::setEvictedTable(voltdb::Table *evictedTable) {
+    VOLT_INFO("Initialized EvictedTable for table '%s'", this->name().c_str());
+    m_evictedTable = evictedTable;
+}
+
+bool PersistentTable::evictBlockToDisk(const long block_size) {
+    if (m_evictedTable == NULL) {
+        throwFatalException("Trying to evict block from table '%s' before its "\
+                            "EvictedTable has been initialized", this->name().c_str());
+    }
+    
+#ifdef VOLT_INFO_ENABLED
+    VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
+               block_size, this->name().c_str());
+    VOLT_INFO("%s Table Schema:\n%s",
+              m_evictedTable->name().c_str(), m_evictedTable->schema()->debug().c_str());
+    int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
+#endif
+    
+    // get the AntiCacheDB instance from the executorContext
+    AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB();
+    
+    // get a unique block id from the executorContext
+    uint16_t block_id = antiCacheDB->nextBlockId(); 
+
+    // create a new evicted table tuple based on the schema for the source tuple
+    // Get the columns in the source tuple are part of the primary key
+    // The last entry will always be the block id for this new evicted tuple
+    VOLT_INFO("Getting %s tuple", m_evictedTable->name().c_str());
+    TableTuple evicted_tuple(m_evictedTable->schema());
+    int evicted_offset = m_pkeyIndex->getColumnCount();
+    VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
+    evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
+    VOLT_INFO("!!!");
+    
+    std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
+    int tuple_length = -1;
+    long serialized_data_length = 0; 
+    int num_tuples_evicted = 0;
+
+    // TODO: We may want to write a header in the block that tells us
+    //       the original name of this table that these tuples came from,
+    //       as well as the number of tuples that we evicted.
+    char* serialized_data = new char[block_size]; 
+    
+    // Iterate through the table and pluck out tuples to put in our block
+    // TODO: This is reading tuples straight through. We need to create an LRU iterator
+    //       that can walk through the table and just grab the boring tuples and 
+    //       shove them out to our new block.
+    TableTuple tuple(m_schema);
+    TableIterator table_itr(this);
+    VOLT_INFO("Starting TableIterator for %s", name().c_str());
+    while (table_itr.hasNext() && serialized_data_length <= block_size) {
+        table_itr.next(tuple); 
+        
+        // If this is the first tuple, then we need to allocate all of the memory and
+        // what not that we're going to need
+        if (tuple_length == -1) {
+            tuple_length = tuple.tupleLength();
+        }
+        assert(tuple_length > 0);
+        
+        assert(!tuple.isEvicted());
+        tuple.setEvictedTrue(); 
+        
+        // update all the indexes for this tuple
+        // FIXME setNullForAllIndexes(tuple); 
+        
+        // Populate the evicted_tuple with the source tuple's primary key values
+        evicted_offset = 0;
+        for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+            evicted_tuple.setNValue(evicted_offset++, tuple.getNValue(*it)); 
+        } // FOR
+
+        // Then add it to this table's EvictedTable
+//         m_evictedTable->insertTuple(evicted_tuple); 
+        
+        // Now copy the raw bytes for this tuple into the serialized buffer
+//         memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+//         serialized_data_length += tuple_length; 
+        
+        // At this point it's safe for us to delete this mofo
+//         deleteTuple(tuple, true); 
+        num_tuples_evicted++; 
+    } // WHILE
+    // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
+     
+    antiCacheDB->writeBlock(block_id, serialized_data, serialized_data_length);
+    
+#ifdef VOLT_INFO_ENABLED
+    VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+              block_id, this->name().c_str(),
+              num_tuples_evicted, serialized_data_length, tuple_length);
+    VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
+              this->name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
+#endif
+    
+    return true;
+}
+    
+bool PersistentTable::readEvictedBlock(uint16_t block_id) {
+    AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
+    AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
+
+    if (m_unevictedTuplesLength > 0) {
+        // allocate a new array to accomodate the old unevicted block as well as the new one
+        char* temp_ptr = new char[value.getSize() + m_unevictedTuplesLength]; 
+        
+        // copy into new array and delete old
+        memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
+        delete [] m_unevictedTuples; 
+        m_unevictedTuples = temp_ptr; 
+    }
+    
+    // copy newly un-evicted block into unevicted block array
+    memcpy(m_unevictedTuples + m_unevictedTuplesLength, value.getData(), value.getSize()); 
+    m_unevictedTuplesLength += value.getSize(); 
+    
+    return true; 
+}
+    
+bool PersistentTable::mergeUnevictedTuples() {
+    // TODO: Copy evicted tuple blocks back to the data table
+    
+    return true; 
+}
+
+#endif
+
 
 // ------------------------------------------------------------------
 // OPERATIONS
@@ -547,6 +702,14 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
         }
     }
 }
+    
+void PersistentTable::setNullForAllIndexes(TableTuple &tuple) {
+    for (int i = m_indexCount - 1; i >= 0; --i) {
+        if (!m_indexes[i]->setEntryToNull(&tuple)) {
+            throwFatalException("Failed to update tuple in index to NULL");
+        }
+    }
+}
 
 bool PersistentTable::tryInsertOnAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
@@ -683,7 +846,8 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
  * Implemented by persistent table and called by Table::loadTuplesFrom
  * to do add tuples to indexes
  */
-void PersistentTable::populateIndexes(int tupleCount) {
+void PersistentTable::populateIndexes(int tupleCount) 
+{
     // populate indexes. walk the contiguous memory in the inner loop.
     for (int i = m_indexCount - 1; i >= 0;--i) {
         TableIndex *index = m_indexes[i];

@@ -50,6 +50,7 @@
 #include "common/tabletuple.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
+#include "storage/evictedtable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"
@@ -172,6 +173,30 @@ Table* TableFactory::getPersistentTable(
                                       ctx->m_siteId,
                                       ctx->m_partitionId,
                                       databaseId);
+    return dynamic_cast<Table*>(table);
+}
+    
+Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
+                                    ExecutorContext *ctx,
+                                    const std::string &name,
+                                    TupleSchema* schema,
+                                    const std::string* columnNames) {
+    VOLT_DEBUG("Creating %s", name.c_str());
+    Table *table = new EvictedTable(ctx);
+    EvictedTable *pTable = dynamic_cast<EvictedTable*>(table);
+    pTable->m_indexCount = 0;
+    
+    VOLT_DEBUG("Initializing %s common stuff", name.c_str());
+    TableFactory::initCommon(databaseId, pTable, name, schema, columnNames, true);
+    
+    VOLT_DEBUG("Hooking %s into table stats", name.c_str());
+    table->getTableStats()->configure(name + " stats",
+                                      ctx->m_hostId,
+                                      ctx->m_hostname,
+                                      ctx->m_siteId,
+                                      ctx->m_partitionId,
+                                      databaseId);
+     
     return dynamic_cast<Table*>(table);
 }
 

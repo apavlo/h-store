@@ -22,6 +22,8 @@ import java.util.Date;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStore;
+
 /**
  * <p>The TransactionIdManager creates Transaction ids that
  * get assigned to VoltDB timestamps. A transaction id contains
@@ -135,12 +137,12 @@ public class TransactionIdManager {
                     if (count < 0) {
                         LOG.error("H-Store was unable to recover after the system time was externally negatively adusted. " +
                                   "It is possible that there is a serious system time or NTP error. ");
-                        VoltDB.crashVoltDB();
+                        HStore.crashDB();
                     }
                 }
                 // crash immediately if time has gone backwards by too much
                 else {
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
                 }
             }
             lastUsedTime = currentTime;
