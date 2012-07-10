@@ -263,7 +263,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final ConcurrentLinkedQueue<DeferredWork> deferred_queue;
 
     /**
-     * 
+     * XXX: Should this be removed? I don't think we're actually using this
      */
     private final ConcurrentLinkedQueue<InternalMessage> new_queue = new ConcurrentLinkedQueue<InternalMessage>();
     
@@ -1410,7 +1410,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                        this.partitionId, this.currentDtxn));
         this.currentDtxn = null;
     }
+
     
+    /**
+     * Store a new prefetch result for a transaction
+     * @param txnId
+     * @param fragmentId
+     * @param partitionId
+     * @param params
+     * @param result
+     */
+    public void addPrefetchResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
+        this.queryCache.addTransactionQueryResult(txnId, fragmentId, partitionId, params, result); 
+    }
     
     // ---------------------------------------------------------------
     // PartitionExecutor API
@@ -1795,11 +1807,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_local = ts.isExecLocal(this.partitionId);
-        boolean is_dtxn = (ts instanceof LocalTransaction == false);
+        boolean is_remote = (ts instanceof LocalTransaction == false);
         boolean is_prefetch = fragment.getPrefetch();
-        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isDtxn=%s, isPrefetch=%s, fragments=%s]",
+        if (d) LOG.debug(String.format("%s - Executing %s [isLocal=%s, isRemote=%s, isPrefetch=%s, fragments=%s]",
                                        ts, fragment.getClass().getSimpleName(),
-                                       is_local, is_dtxn, is_prefetch,
+                                       is_local, is_remote, is_prefetch,
                                        fragment.getFragmentIdCount()));
         
         // If this txn isn't local, then we have to update our undoToken
@@ -1870,7 +1882,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         if (is_prefetch) {
             // Regardless of whether this txn is running at the same HStoreSite as this PartitionExecutor,
-            // we always need to put the result inside of the AbstractTransaction
+            // we always need to put the result inside of the local query cache
             // This is so that we can identify if we get request for a query that we have already executed
             // We'll only do this if it succeeded. If it failed, then we won't do anything and will
             // just wait until they come back to execute the query again before 
@@ -1878,26 +1890,27 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (status == Status.OK) {
                 if (d) LOG.debug(String.format("%s - Storing %d prefetch query results in partition %d query cache",
                                                ts, result.size(), ts.getBasePartition()));
-                PartitionExecutor other = null; // 
+                PartitionExecutor other = null; // The executor at the txn's base partition 
+                
+                // We're going to store the result in the base partition cache if they're 
+                // on the same HStoreSite as us
+                boolean is_sameSite = hstore_site.isLocalPartition(ts.getBasePartition()); 
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    // We're going to store the result in the base partition cache if they're 
-                    // on the same HStoreSite as us
-                    if (hstore_site.isLocalPartition(ts.getBasePartition())) {
+                    if (is_sameSite) {
                         if (other == null) other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
-                        other.queryCache.addTransactionQueryResult(ts.getTransactionId(),
-                                                                   fragment.getFragmentId(i),
-                                                                   fragment.getPartitionId(),
-                                                                   parameters[i],
-                                                                   result.dependencies[i]);
+                        other.addPrefetchResult(ts.getTransactionId(),
+                                                fragment.getFragmentId(i),
+                                                fragment.getPartitionId(),
+                                                parameters[i],
+                                                result.dependencies[i]);
                     }
                     // We also need to store it in our own cache in case we need to retrieve it
                     // if they come at us with the same query request
-                    this.queryCache.addTransactionQueryResult(ts.getTransactionId(),
-                                                              fragment.getFragmentId(i),
-                                                              fragment.getPartitionId(),
-                                                              parameters[i],
-                                                              result.dependencies[i]);
-
+                    this.addPrefetchResult(ts.getTransactionId(),
+                                           fragment.getFragmentId(i),
+                                           fragment.getPartitionId(),
+                                           parameters[i],
+                                           result.dependencies[i]);
                 } // FOR
             }
             
@@ -1905,7 +1918,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // them our result. Note that we want to send a single message per partition. Unlike
             // with the TransactionWorkRequests, we don't need to wait until all of the partitions
             // that are prefetching for this txn at our local HStoreSite to finish.
-            if (is_dtxn) {
+            if (is_remote) {
                 WorkResult wr = this.buildWorkResult(ts, result, status, error);
                 TransactionPrefetchResult prefetchResult = TransactionPrefetchResult.newBuilder()
                                                                 .setTransactionId(ts.getTransactionId().longValue())
@@ -1919,7 +1932,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         // LOCAL TRANSACTION
         // -------------------------------
-        else if (is_dtxn == false) {
+        else if (is_remote == false) {
             LocalTransaction local_ts = (LocalTransaction)ts;
             
             // If the transaction is local, store the result directly in the local TransactionState
@@ -2353,7 +2366,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    batchParams);
         
         assert(plan != null);
-        if (d) LOG.debug("BatchPlan for " + ts + ":\n" + plan.toString());
+        if (t) LOG.trace("BatchPlan for " + ts + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) ts.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
@@ -2720,7 +2733,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 fragments = queue.poll(); // NON-BLOCKING
                 if (fragments == null) {
                     boolean hasdeferredwork = true;
-                    do{
+                    do {
                         hasdeferredwork = this.utilityWork();
                         fragments = queue.poll();
                     } while (fragments == null && hasdeferredwork == true);
