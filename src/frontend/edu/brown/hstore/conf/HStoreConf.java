@@ -50,6 +50,13 @@ public final class HStoreConf {
             experimental=false
         )
         public String temp_dir = "obj";
+        
+        @ConfigProperty(
+            description="Default log directory for H-Store.",
+            defaultString="${global.temp_dir}/logs",
+            experimental=false
+        )
+        public String log_dir;
 
         @ConfigProperty(
             description="Options used when logging into client/server hosts. " + 
@@ -100,10 +107,10 @@ public final class HStoreConf {
     
         @ConfigProperty(
             description="HStoreSite log directory on the host that the BenchmarkController is invoked from.",
-            defaultString="${global.temp_dir}/logs/sites",
+            defaultString="${global.log_dir}/sites",
             experimental=false
         )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
+        public String log_dir;
         
         @ConfigProperty(
             description="Whether to back-up log files before the benchmark is exceuted",
@@ -406,7 +413,7 @@ public final class HStoreConf {
             defaultString="${global.temp_dir}/wal",
             experimental=true
         )
-        public String commandlog_dir = HStoreConf.this.global.temp_dir + "/wal";
+        public String commandlog_dir;
         
         @ConfigProperty(
             description="Timeout in milliseconds before group commit buffer flushes, if it does not fill",
@@ -440,7 +447,7 @@ public final class HStoreConf {
             defaultString="${global.temp_dir}/anticache",
             experimental=true
         )
-        public String anticache_dir = HStoreConf.this.global.temp_dir + "/anticache";
+        public String anticache_dir;
         
         // ----------------------------------------------------------------------------
         // MapReduce Options
@@ -977,10 +984,10 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Benchmark client log directory on the host that the BenchmarkController " +
                         "is invoked from.",
-            defaultString="${global.temp_dir}/logs/clients",
+            defaultString="${global.log_dir}/clients",
             experimental=false
         )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
+        public String log_dir;
         
         @ConfigProperty(
             description="Whether to back-up log files before the benchmark is exceuted",
@@ -1552,7 +1559,7 @@ public final class HStoreConf {
     protected void populateDependencies() {
         if (debug.get()) LOG.debug("Populating dependent parameters");
         
-        Pattern p = Pattern.compile("^\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile("\\$\\{" + REGEX_STR + "\\}", Pattern.CASE_INSENSITIVE);
         for (Conf handle : confHandles.values()) {
             for (Entry<Field, ConfigProperty> e : handle.getConfigProperties().entrySet()) {
                 // Skip anything that we set externally
@@ -1564,15 +1571,25 @@ public final class HStoreConf {
                 String defaultString = cp.defaultString();
                 if (defaultString == null) continue;
                 
-                Matcher m = p.matcher(defaultString.trim());
-                boolean found = m.matches();
+                defaultString = defaultString.trim();
+                if (defaultString.isEmpty()) continue;
+                
+                Matcher m = p.matcher(defaultString);
+                boolean found = m.find();
                 if (m == null || found == false) continue;
                 
-                Object value = this.get(m.group(1) + "." + m.group(2));
-                this.set(handle, f, value);
+                String dependencyKey = m.group(1) + "." + m.group(2);
+                if (trace.get())
+                    LOG.trace(String.format("Found dependency: %s -> %s", f.getName(), dependencyKey));
+                
+                Object dependencyValue = this.get(dependencyKey);
+                String newValue = defaultString.substring(0, m.start()) +
+                                  dependencyValue +
+                                  defaultString.substring(m.end());
+                this.set(handle, f, newValue);
                 if (debug.get())
-                    LOG.debug(String.format("%s.%s [%s] ==> %s",
-                              handle.prefix, f.getName(), defaultString, value));
+                    LOG.debug(String.format("Updated dependent parameter %s.%s [%s] ==> %s",
+                              handle.prefix, f.getName(), defaultString, newValue));
             } // FOR
         } // FOR
     }
@@ -1593,6 +1610,12 @@ public final class HStoreConf {
         s.add(f_name);
     }
     
+    /**
+     * Returns true if this parameter was set manually from an external source
+     * @param handle
+     * @param f_name
+     * @return
+     */
     protected boolean isMarkedExternal(Conf handle, String f_name) {
         Set<String> s = this.externalParams.get(handle);
         boolean ret = (s != null && s.contains(f_name));

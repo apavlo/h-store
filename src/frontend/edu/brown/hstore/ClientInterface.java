@@ -474,7 +474,7 @@ public class ClientInterface implements DumpManager.Dumpable, Shutdownable {
         @Override
         public void handleMessage(ByteBuffer message, Connection c) {
             if (network_processing != null) network_processing.start();
-            hstore_site.queueInvocation(message, this, c);
+            hstore_site.invocationQueue(message, this, c);
             if (network_processing != null) network_processing.stop();
         }
 

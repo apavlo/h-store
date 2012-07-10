@@ -24,6 +24,11 @@
 #include "catalog/column.h"
 #include "catalog/columnref.h"
 #include "catalog/constraint.h"
+
+#include "catalog/catalogmap.h"
+#include "catalog/catalogtype.h"
+#include "catalog/constraintref.h"
+
 #include "catalog/materializedviewinfo.h"
 #include "common/CatalogUtil.h"
 #include "common/types.h"
@@ -31,6 +36,7 @@
 #include "storage/constraintutil.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/persistenttable.h"
+#include "storage/evictedtable.h"
 #include "storage/StreamBlock.h"
 #include "storage/table.h"
 #include "storage/tablefactory.h"
@@ -58,9 +64,11 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                            catalog::Database &catalogDatabase,
                            catalog::Table &catalogTable)
 {
+    VOLT_INFO("Initializing table '%s'", catalogTable.name().c_str());
+    
     // Create a persistent table for this table in our catalog
     int32_t table_id = catalogTable.relativeIndex();
-
+    
     // Columns:
     // Column is stored as map<String, Column*> in Catalog. We have to
     // sort it by Column index to preserve column order.
@@ -68,15 +76,20 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
     vector<ValueType> columnTypes(numColumns);
     vector<int32_t> columnLengths(numColumns);
     vector<bool> columnAllowNull(numColumns);
-    map<string, catalog::Column*>::const_iterator col_iterator;
     string *columnNames = new string[numColumns];
+ 
+    
+    map<string, catalog::Column*>::const_iterator col_iterator;
+    
     for (col_iterator = catalogTable.columns().begin();
-         col_iterator != catalogTable.columns().end(); col_iterator++) {
+         col_iterator != catalogTable.columns().end(); col_iterator++) 
+    {
         const catalog::Column *catalog_column = col_iterator->second;
         const int columnIndex = catalog_column->index();
         const ValueType type = static_cast<ValueType>(catalog_column->type());
         columnTypes[columnIndex] = type;
         const int32_t size = static_cast<int32_t>(catalog_column->size());
+        
         //Strings length is provided, other lengths are derived from type
         const int32_t length = type == VALUE_TYPE_VARCHAR ? size
             : static_cast<int32_t>(NValue::getTupleStorageSize(type));
@@ -203,14 +216,16 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
             case CONSTRAINT_TYPE_CHECK:
             case CONSTRAINT_TYPE_FOREIGN_KEY:
             case CONSTRAINT_TYPE_MAIN:
-                VOLT_WARN("Unsupported type '%s' for constraint '%s'",
+                VOLT_WARN("Unsupported type '%s' for constraint '%s.%s'",
                           constraintutil::getTypeName(type).c_str(),
+                          catalogTable.name().c_str(),
                           catalog_constraint->name().c_str());
                 break;
             // Unknown
             default:
-                VOLT_ERROR("Invalid constraint type '%s' for '%s'",
+                VOLT_ERROR("Invalid constraint type '%s' for '%s.%s'",
                            constraintutil::getTypeName(type).c_str(),
+                           catalogTable.name().c_str(),
                            catalog_constraint->name().c_str());
                 delete [] columnNames;
                 return false;
@@ -239,6 +254,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         partitionColumnIndex = partitionColumn->index();
     }
 
+    // no primary key
     if (pkey_index_id.size() == 0) {
         int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
@@ -246,6 +262,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  indexes, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
+        
     } else {
         int32_t databaseId = catalogDatabase.relativeIndex();
         m_table = TableFactory::getPersistentTable(databaseId, executorContext,
@@ -253,7 +270,51 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
                                                  pkey_index, indexes, partitionColumnIndex,
                                                  isExportEnabledForTable(catalogDatabase, table_id),
                                                  isTableExportOnly(catalogDatabase, table_id));
+        
+        
+#ifdef ANTICACHE
+        // Create evicted table if anti-caching is enabled and this table 
+        // is not generated from a materialized view
+        if (executorContext->m_antiCacheEnabled &&
+                catalogTable.materializer() == NULL &&
+                catalogTable.mapreduce() == false) {
+            
+            TableIndex* parentPkey = m_table->primaryKeyIndex(); 
+            assert(parentPkey != NULL);
+            
+            std::ostringstream stream;
+            stream << catalogTable.name() << "__EVICTED";
+            const std::string evictedName = stream.str();
+        
+            TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema(parentPkey->getKeySchema()); 
+
+            // Get the column names for the EvictedTable
+            std::vector<int> column_indices = parentPkey->getColumnIndices();
+            string *evictedColumnNames = new string[evictedSchema->columnCount()];
+            int evictedColumnOffset = 0;
+            for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
+                evictedColumnNames[evictedColumnOffset++] = columnNames[*it];
+            } // FOR
+            evictedColumnNames[evictedColumnOffset] = std::string("BLOCK_ID");
+            
+            // TODO: Should we construct a primary key index?
+            //       For now I'm going to skip that.
+        
+            voltdb::Table *evicted_table = TableFactory::getEvictedTable(
+                                                            databaseId, 
+                                                            executorContext,
+                                                            evictedName,
+                                                            evictedSchema, 
+                                                            evictedColumnNames);
+            // We'll shove the EvictedTable to the PersistentTable
+            // It will be responsible for deleting it in its deconstructor
+            dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
+        } else {
+            VOLT_INFO("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
+        }
+#endif
     }
+    
     delete[] columnNames;
 
     m_exportEnabled = isExportEnabledForTable(catalogDatabase, table_id);

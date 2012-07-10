@@ -73,6 +73,7 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
+class EvictedTable;
 
 /**
  * Represents a non-temporary table which permanently resides in
@@ -242,6 +243,16 @@ class PersistentTable : public Table {
         if (m_wrapper)
             m_wrapper->setBytesUsed(streamBytesUsed);
     }
+    
+    // ------------------------------------------------------------------
+    // ANTI-CACHING OPERATIONS
+    // ------------------------------------------------------------------
+#ifdef ANTICACHE
+    void setEvictedTable(voltdb::Table *evictedTable);
+    bool evictBlockToDisk(const long block_size);
+    bool readEvictedBlock(uint16_t block_id);
+    bool mergeUnevictedTuples();
+#endif
 
 protected:
     // ------------------------------------------------------------------
@@ -250,12 +261,13 @@ protected:
     void insertIntoAllIndexes(TableTuple *tuple);
     void deleteFromAllIndexes(TableTuple *tuple);
     void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
+    void setNullForAllIndexes(TableTuple &tuple);
 
     bool tryInsertOnAllIndexes(TableTuple *tuple);
     bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
 
     bool checkNulls(TableTuple &tuple) const;
-
+    
     size_t appendToELBuffer(TableTuple &tuple, int64_t seqNo, TupleStreamWrapper::Type type);
 
     PersistentTable(ExecutorContext *ctx, bool exportEnabled);
@@ -291,7 +303,15 @@ protected:
     // temporary for tuplestream stuff
     TupleStreamWrapper *m_wrapper;
     int64_t m_tsSeqNo;
-
+    
+    // ANTI-CACHE VARIABLES
+#ifdef ANTICACHE
+    voltdb::Table *m_evictedTable;
+    char* m_unevictedTuples; 
+    int m_numUnevictedTuples; 
+    int m_unevictedTuplesLength; 
+#endif
+    
     // partition key
     int m_partitionColumn;
 
@@ -304,7 +324,7 @@ protected:
 
     // is Export enabled
     bool m_exportEnabled;
-
+    
     // Snapshot stuff
     boost::scoped_ptr<CopyOnWriteContext> m_COWContext;
 

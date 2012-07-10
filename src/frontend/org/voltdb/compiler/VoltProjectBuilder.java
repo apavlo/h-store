@@ -712,7 +712,7 @@ public class VoltProjectBuilder {
         // <database>
         final Element database = doc.createElement("database");
         database.setAttribute("name", "database");
-        // FIXME database.setAttribute("project", this.project_name);
+        database.setAttribute("project", this.project_name);
         project.appendChild(database);
         buildDatabaseElement(doc, database);
 
@@ -743,6 +743,7 @@ public class VoltProjectBuilder {
 
         final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
+        LOG.debug("PROJECT XML: " + projectPath);
         
         ClusterConfig cc = (this.cluster_config.isEmpty() ? 
                                 new ClusterConfig(hostCount, sitesPerHost, replication, leaderAddress) :

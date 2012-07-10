@@ -44,14 +44,13 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
@@ -96,13 +95,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
-     * The original StoredProcedureInvocation request that was sent to the HStoreSite
-     * XXX: Why do we need to keep this?
-     */
-    @Deprecated
-    protected StoredProcedureInvocation invocation;
-    
-    /**
      * StoredProcedureInvocation Input Parameters
      * These are the parameters that are sent from the client
      */
@@ -118,21 +110,20 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private int restart_ctr = 0;
     
-    private boolean needs_restart = false;
+    private boolean needs_restart = false; // FIXME
+    private boolean deletable = false; // FIXME
+    private boolean not_deletable = false; // FIXME
     
-    private boolean deletable = false;
-    private boolean not_deletable = false;
+    /**
+     * Is this transaction part of a large MapReduce transaction  
+     */
+    private boolean mapreduce = false;
     
     /**
      * If set to true, then this will need to have an entry written
      * to the command log for its invocation
      */
     private boolean log_enabled = false;
-    
-    /**
-     * If set to true, then this txn's log entry has been flushed to disk
-     */
-    private boolean log_flushed = false;
     
     /**
      * The timestamp (from EstTime) that our transaction showed up
@@ -142,6 +133,12 @@ public class LocalTransaction extends AbstractTransaction {
     
     private DistributedState dtxnState;
     
+    /**
+     * The table that this txn needs to merge the results for in the EE
+     * before it starts executing
+     */
+    private Table anticache_table = null;
+    
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -150,8 +147,6 @@ public class LocalTransaction extends AbstractTransaction {
      * The set of partitions that we expected this partition to touch.
      */
     private Collection<Integer> predict_touchedPartitions;
-    
-    private boolean mapreduce = false;
   
     /**
      * TransctionEstimator State Handle
@@ -194,12 +189,6 @@ public class LocalTransaction extends AbstractTransaction {
     public final TransactionProfile profiler;
 
     /**
-     * TODO: We need to remove the need for this
-     */
-    @Deprecated
-    private final InitiateTaskMessage itask;
-
-    /**
      * Whether this transaction's control code was executed on
      * its base partition.
      */
@@ -225,8 +214,6 @@ public class LocalTransaction extends AbstractTransaction {
         HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
         this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfile() : null);
       
-        this.itask = new InitiateTaskMessage();
-        
         int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
         this.done_partitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
@@ -269,21 +256,14 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_abortable = predict_abortable;
         
         super.init(txn_id,
-                    clientHandle,
-                    base_partition,
-                    catalog_proc.getSystemproc(),
-                    (this.predict_touchedPartitions.size() == 1),
-                    predict_readOnly,
-                    predict_abortable,
-                    true);
+                   clientHandle,
+                   base_partition,
+                   catalog_proc.getSystemproc(),
+                   (this.predict_touchedPartitions.size() == 1),
+                   predict_readOnly,
+                   predict_abortable,
+                   true);
         
-        // Initialize the InitialTaskMessage
-        // We have to wrap the StoredProcedureInvocation object into an
-        // InitiateTaskMessage so that it can be put into the PartitionExecutor's execution queue
-        this.itask.setTransactionId(txn_id);
-        this.itask.setSrcPartition(base_partition);
-        this.itask.setDestPartition(base_partition);
-        this.itask.setSysProc(catalog_proc.getSystemproc());
         
         // Grab a DistributedState that will have all the goodies that we need
         // to execute a distributed transaction
@@ -377,7 +357,6 @@ public class LocalTransaction extends AbstractTransaction {
         super.finish();
         
         this.catalog_proc = null;
-        this.invocation = null;
         this.client_callback = null;
         this.initiateTime = 0;
         
@@ -388,8 +367,8 @@ public class LocalTransaction extends AbstractTransaction {
         this.done_partitions.clear();
         this.restart_ctr = 0;
 
+        this.anticache_table = null;
         this.log_enabled = false;
-        this.log_flushed = false;
         this.needs_restart = false;
         this.deletable = false;
         this.not_deletable = false;
@@ -403,7 +382,6 @@ public class LocalTransaction extends AbstractTransaction {
     
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
-        this.itask.setTransactionId(txn_id);
     }
     
     public void setExecutionState(ExecutionState state) {
@@ -770,21 +748,6 @@ public class LocalTransaction extends AbstractTransaction {
     public final void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
     }
-    
-    @Deprecated
-    public InitiateTaskMessage getInitiateTaskMessage() {
-        return (this.itask);
-    }
-    
-    /**
-     * Return the StoredProcedureInvocation that came over the wire 
-     * from the client for the original transaction request 
-     * @return
-     */
-    @Deprecated
-    public StoredProcedureInvocation getInvocation() {
-        return (this.invocation);
-    }
 
     /**
      * Return the number of times that this transaction was restarted
@@ -827,7 +790,8 @@ public class LocalTransaction extends AbstractTransaction {
     
     /**
      * Return the ParameterSet that contains the procedure input
-     * parameters for this transaction
+     * parameters for this transaction. These are the original parameters
+     * that were sent from the client for this txn.
      */
     public ParameterSet getProcedureParameters() {
     	return (this.parameters);
@@ -968,24 +932,6 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.log_enabled);
     }
     
-    /**
-     * Mark this txn as having it's log entry flushed to disk
-     * This should only be invoked once per invocation
-     */
-    public void markLogFlushed() {
-        assert(this.log_flushed == false) :
-            "Trying to mark " + this + " as flushed more than once";
-        this.log_flushed = true;
-    }
-    
-    /**
-     * Returns true if this txn's log entry has been flushed to disk.
-     * @return
-     */
-    public boolean isLogFlushed() {
-        return (this.log_flushed);
-    }
-    
     // ----------------------------------------------------------------------------
     // PREFETCHABLE QUERIES
     // ----------------------------------------------------------------------------
@@ -998,6 +944,23 @@ public class LocalTransaction extends AbstractTransaction {
     public void addPrefetchResults(WorkResult result) {
         assert(this.prefetch != null);
         this.prefetch.results.add(result);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // ANTI-CACHING
+    // ----------------------------------------------------------------------------
+    
+    public boolean hasAntiCacheMergeTable() {
+        return (this.anticache_table != null);
+    }
+    
+    public Table getAntiCacheMergeTable() {
+        return (this.anticache_table);
+    }
+    
+    public void setAntiCacheMergeTable(Table catalog_tbl) {
+        assert(this.anticache_table == null);
+        this.anticache_table = catalog_tbl;
     }
     
     // ----------------------------------------------------------------------------
@@ -1464,7 +1427,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Deletable", this.deletable);
         m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
-        m.put("Log Flushed", this.log_flushed);
+        m.put("Needs CommandLog", this.log_enabled);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
 

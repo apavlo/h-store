@@ -35,6 +35,8 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.VoltLoggerFactory;
 
+import edu.brown.hstore.HStore;
+
 public class ForeignHost {
     private static final Logger hostLog =
         Logger.getLogger("HOST", VoltLoggerFactory.instance());
@@ -228,7 +230,7 @@ public class ForeignHost {
             addr = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             e.printStackTrace();
-            VoltDB.crashVoltDB();
+            HStore.crashDB();
         }
         String hostname = addr.getHostName();
         byte hostnameBytes[] = hostname.getBytes();

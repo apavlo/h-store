@@ -40,9 +40,11 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.exceptions.EvictedTupleAccessException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.exceptions.ServerFaultException;
@@ -591,6 +593,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                            this.procParams + Arrays.toString(this.procParams),
                                            this.partitionId));
             try {
+                // ANTI-CACHE TABLE MERGE
+                if (hstore_conf.site.anticache_enable && txnState.hasAntiCacheMergeTable()) {
+                    // Note that I decided to put this in here because we already
+                    // have the logic down below for handling various errors from the EE
+                    Table catalog_tbl = txnState.getAntiCacheMergeTable();
+                    executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
+                }
+                
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
                 if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
@@ -638,6 +648,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 if (d) LOG.warn("Caught MispredictionException for " + this.m_currentTxnState);
                 this.status = Status.ABORT_MISPREDICT;
                 this.m_localTxnState.getTouchedPartitions().putHistogram((((MispredictionException)ex).getPartitions()));
+                
+            // -------------------------------
+            // EvictedTupleAccessException
+            // -------------------------------
+            } else if (ex_class.equals(EvictedTupleAccessException.class)) {
+                if (d) LOG.warn("Caught EvictedTupleAccessException for " + this.m_currentTxnState);
+                this.status = Status.ABORT_EVICTEDACCESS;
 
             // -------------------------------
             // ConstraintFailureException
@@ -1195,6 +1212,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * Derivation of StatsSource to expose timing information of procedure invocations.
      *
      */
+    @SuppressWarnings("unused")
     private final class ProcedureStatsCollector extends SiteStatsSource {
 
         /**
@@ -1427,6 +1445,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param e
      * @return A ClientResponse containing error information
      */
+    @SuppressWarnings("unused")
     private ClientResponseImpl getErrorResponse(Throwable e) {
         StackTraceElement[] stack = e.getStackTrace();
         ArrayList<StackTraceElement> matches = new ArrayList<StackTraceElement>();
@@ -1504,7 +1523,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 msgOut.toString(), e);
     }
     
-    private String mispredictDebug(SQLStmt batchStmts[], ParameterSet params[], MarkovGraph markov, TransactionEstimator.State s, Exception ex, int batchSize) {
+    private String mispredictDebug(SQLStmt batchStmts[],
+                                   ParameterSet params[],
+                                   MarkovGraph markov,
+                                   TransactionEstimator.State s,
+                                   Exception ex,
+                                   int batchSize) {
         StringBuilder sb = new StringBuilder();
         sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
           .append(StringUtil.SINGLE_LINE);

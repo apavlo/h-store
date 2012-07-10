@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
@@ -67,7 +66,7 @@ public abstract class FixCatalog {
 
         // Add a bunch of hosts and partitions to this mofo
         assert (catalog_clus != null);
-        int host_id = VoltDB.FIRST_SITE_ID;
+        int host_id = HStoreConstants.FIRST_PARTITION_ID;
 
         int partition_ctr = 0;
         catalog_clus.getHosts().clear();

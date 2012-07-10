@@ -21,7 +21,15 @@
 #include "Topend.h"
 #include "common/UndoQuantum.h"
 
+#ifdef ANTICACHE
+#include "common/anticache.h"
+#endif
+
 namespace voltdb {
+
+#ifdef ANTICACHE
+class AntiCacheDB;
+#endif
 
 /*
  * EE site global data required by executors at runtime.
@@ -37,7 +45,12 @@ namespace voltdb {
 class ExecutorContext {
   public:
     ~ExecutorContext() {
-        // currently does not own any of its pointers
+
+#ifdef ANTICACHE
+        if (m_antiCacheEnabled) {
+            delete m_antiCacheDB;
+        }
+#endif
     }
 
     ExecutorContext(CatalogId siteId,
@@ -53,17 +66,14 @@ class ExecutorContext {
         m_siteId(siteId), m_partitionId(partitionId),
         m_hostname(hostname), m_hostId(hostId),
         m_exportEnabled(exportEnabled),
-        m_antiCacheEnabled(false),
-//         m_antiCacheDir(NULL),
         m_epoch(epoch)
     {
         m_lastCommittedTxnId = 0;
         m_lastTickTime = 0;
-    }
-
-    void enableAntiCache(std::string dbDir) {
-        m_antiCacheEnabled = true;
-//         m_antiCacheDir = dbDir;
+        
+#ifdef ANTICACHE
+        m_antiCacheEnabled = false;
+#endif
     }
     
     // not always known at initial construction
@@ -131,11 +141,40 @@ class ExecutorContext {
     int64_t lastTickTime() {
         return m_lastTickTime;
     }
+        
+    // ------------------------------------------------------------------
+    // ANTI-CACHE
+    // ------------------------------------------------------------------ 
+    
+#ifdef ANTICACHE
+    /**
+     * Return the handle to disk-based storage object that we
+     * can use to read and write tuples to
+     */
+    AntiCacheDB* getAntiCacheDB() const {
+        return m_antiCacheDB; 
+    }
+    
+    /**
+     * Enable the anti-caching feature in the EE.
+     * The input parameter is the directory where our disk-based storage
+     * will write out evicted blocks of tuples for this partition
+     */
+    void enableAntiCache(std::string &dbDir) {
+        assert(m_antiCacheEnabled == false);
+        m_antiCacheEnabled = true;
+        m_antiCacheDB = new AntiCacheDB(this, dbDir);
+    }
+#endif
 
   private:
     Topend *m_topEnd;
     UndoQuantum *m_undoQuantum;
     int64_t m_txnId;
+
+#ifdef ANTICACHE
+    AntiCacheDB *m_antiCacheDB;
+#endif
 
   public:
     int64_t m_lastCommittedTxnId;
@@ -145,8 +184,10 @@ class ExecutorContext {
     std::string m_hostname;
     CatalogId m_hostId;
     bool m_exportEnabled;
+    
+#ifdef ANTICACHE
     bool m_antiCacheEnabled;
-//     std::string m_antiCacheDir;
+#endif
 
     /** local epoch for voltdb, somtime around 2008, pulled from catalog */
     int64_t m_epoch;

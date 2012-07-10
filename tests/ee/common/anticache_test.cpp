@@ -23,32 +23,55 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EVICTEDTUPLEACCESSEXCEPTION_H_
-#define EVICTEDTUPLEACCESSEXCEPTION_H_
-
-#include <stdint.h>
 #include <string>
-#include "common/SerializableEEException.h"
+#include "harness.h"
 
-namespace voltdb {
-class ReferenceSerializeOutput;
+#include "common/anticache.h"
 
-class EvictedTupleAccessException : public SerializableEEException {
-    public:
+using namespace std;
+using namespace voltdb;
+using stupidunit::ChTempDir;
 
-        EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]);
-        virtual ~EvictedTupleAccessException() {}
+/**
+ * AntiCache Tests
+ */
+class AntiCacheTest : public Test {
+public:
+    AntiCacheTest() {
         
-        static std::string ERROR_MSG;
-        
-    protected:
-        void p_serialize(ReferenceSerializeOutput *output);
-        
-    private:
-        const int m_tableId;
-        const int m_numBlockIds;
-        const uint16_t *m_blockIds;
+    };
 };
+
+TEST_F(AntiCacheTest, NextBlockId) {
+    ChTempDir tempdir;
+    AntiCacheDB anticache(NULL, ".");
+    
+    uint16_t lastBlockId;
+    for (int i = 0; i < 1000; i++) {
+        uint16_t blockId = anticache.nextBlockId();
+        if (i > 0) ASSERT_NE(lastBlockId, blockId);
+        lastBlockId = blockId;
+    } // FOR
 }
 
-#endif /* EVICTEDTUPLEACCESSEXCEPTION_H_ */
+// This is based off of the code from Yi Wang
+// http://cxwangyi.wordpress.com/2010/10/10/how-to-use-berkeley-db/
+TEST_F(AntiCacheTest, WriteBlock) {
+    // This will create a tempdir that will automatically be cleaned up
+    ChTempDir tempdir;
+    AntiCacheDB anticache(NULL, ".");
+
+    string payload("Squirrels and Girls!");
+    uint16_t blockId = anticache.nextBlockId();
+
+    try {
+        anticache.writeBlock(blockId,
+                             const_cast<char*>(payload.data()),
+                             static_cast<int>(payload.size())+1);
+    } catch (...) {
+        ASSERT_TRUE(false);
+    }
+}
+int main() {
+    return TestSuite::globalInstance()->runAll();
+}

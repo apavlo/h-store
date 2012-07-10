@@ -72,7 +72,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -411,7 +410,7 @@ public class BenchmarkController {
         if (m_config.useCatalogHosts == false) {
             if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
             m_launchHosts = new HashMap<Integer, Set<Pair<String,Integer>>>();
-            int site_id = VoltDB.FIRST_SITE_ID;
+            int site_id = HStoreConstants.FIRST_PARTITION_ID;
             for (String host : m_config.hosts) {
                 if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
                                                          HStoreThreadManager.formatSiteName(site_id), host, HStoreConstants.DEFAULT_PORT));
@@ -482,8 +481,8 @@ public class BenchmarkController {
             
         } else {
             // START A SERVER LOCALLY IN-PROCESS
-            VoltDB.Configuration localconfig = new VoltDB.Configuration();
-            localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
+//            VoltDB.Configuration localconfig = new VoltDB.Configuration();
+//            localconfig.m_pathToCatalog = m_jarFileName.getAbsolutePath();
 //            m_localserver = null;//new ServerThread(localconfig);
 //            m_localserver.start();
 //            m_localserver.waitForInitialization();

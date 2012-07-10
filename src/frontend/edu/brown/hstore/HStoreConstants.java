@@ -20,6 +20,11 @@ public abstract class HStoreConstants {
      */
     public static final String SITE_FIRST_TXN = "First non-sysproc transaction request recieved";
 
+    /**
+     * The first partition id to use when initializing a cluster
+     */
+    public static final int FIRST_PARTITION_ID = 0;
+
     // ----------------------------------------------------------------------------
     // NETWORK STUFF
     // ----------------------------------------------------------------------------
@@ -39,6 +44,7 @@ public abstract class HStoreConstants {
     public static final String THREAD_NAME_HELPER = "help";
     public static final String THREAD_NAME_TXNQUEUE = "queue";
     public static final String THREAD_NAME_COMMANDLOGGER = "wal";
+    public static final String THREAD_NAME_ANTICACHE = "anticache";
     public static final String THREAD_NAME_LOGGING = "logging";
     public static final String THREAD_NAME_MAPREDUCE = "mr";
     public static final String THREAD_NAME_DEBUGSTATUS = "status";
@@ -61,7 +67,7 @@ public abstract class HStoreConstants {
      * Null Partition Id
      */
     public static final int NULL_PARTITION_ID = -1;
-
+    
     /**
      * Default token used to indicate that a txn is not using undo buffers
      * when executing PlanFragments in the EE
@@ -80,5 +86,6 @@ public abstract class HStoreConstants {
      * The default name of the Statement given for single-statement (i.e., non-Java) Procedures
      */
     public static final String ANON_STMT_NAME = "sql";
+
 
 }

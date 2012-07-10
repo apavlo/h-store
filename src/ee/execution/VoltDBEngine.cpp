@@ -1133,11 +1133,6 @@ ExecutorContext * VoltDBEngine::getExecutorContext() {
     return m_executorContext;
 }
 
-void VoltDBEngine::enableAntiCache(std::string dbDir) const {
-    VOLT_INFO("Enabling Anti-Cache at Partition %d: %s", m_partitionId, dbDir.c_str());
-    m_executorContext->enableAntiCache(dbDir);
-}
-
 int64_t VoltDBEngine::uniqueIdForFragment(catalog::PlanFragment *frag) {
     int64_t retval = 0;
     
@@ -1357,4 +1352,99 @@ size_t VoltDBEngine::tableHashCode(int32_t tableId) {
     }
     return table->hashCode();
 }
+
+// -------------------------------------------------
+// ANTI-CACHE FUNCTIONS
+// -------------------------------------------------
+
+#ifdef ANTICACHE
+void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
+    VOLT_INFO("Enabling Anti-Cache at Partition %d: %s", m_partitionId, dbDir.c_str());
+    m_executorContext->enableAntiCache(dbDir);
+}
+
+int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, uint16_t blockIds[]) {
+    int retval = ENGINE_ERRORCODE_SUCCESS;
+    
+    // Grab the PersistentTable referenced by the given tableId
+    // This is simply the relativeIndex of the table in the catalog
+    // We can assume that the ordering hasn't changed.
+    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+    if (table == NULL) {
+        throwFatalException("Invalid table id %d", tableId);
+    }
+    
+    // We can now ask it directly to read in the evicted blocks that they want
+    bool finalResult = true;
+    try {
+        for (int i = 0; i < numBlocks; i++) {
+            finalResult = table->readEvictedBlock(blockIds[i]) && finalResult;
+        } // FOR
+    
+    } catch (SerializableEEException &e) {
+        VOLT_TRACE("antiCacheReadBlocks: Failed to read %d evicted blocks for table '%s'",
+                   numBlocks, table->name().c_str());
+        // FIXME: This won't work if we execute are executing this operation the
+        //        same time that txns are running
+        resetReusedResultOutputBuffer();
+        e.serialize(getExceptionOutputSerializer());
+        retval = ENGINE_ERRORCODE_ERROR;
+    }
+   
+    return (retval);
+}
+
+/**
+ * Somebody wants us to forcibly evict a certain number of bytes from the given table.
+ * This is likely only used for testing...
+ * @param tableId
+ * @param blockSize The number of bytes to evict from this table
+ */
+int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
+    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+    if (table == NULL) {
+        throwFatalException("Invalid table id %d", tableId);
+    }
+    
+    VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
+               blockSize, table->name().c_str());
+    if (table->evictBlockToDisk(blockSize) == false) {
+        throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
+    }
+    
+    return (ENGINE_ERRORCODE_SUCCESS);
+}
+
+/**
+ * Merge the recently all of the unevicted data for the given tableId
+ * Note: This should only be called when no other txn is running
+ * @param tableId
+ */
+int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
+    int retval = ENGINE_ERRORCODE_SUCCESS;
+    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+    if (table == NULL) {
+        throwFatalException("Invalid table id %d", tableId);
+    }
+    
+    // Merge all the newly unevicted blocks back into our regular table data
+    try {
+        table->mergeUnevictedTuples();
+    } catch (SerializableEEException &e) {
+        VOLT_TRACE("antiCacheMerge: Failed to merge unevicted tuples for table '%s'",
+                   table->name().c_str());
+        resetReusedResultOutputBuffer();
+        e.serialize(getExceptionOutputSerializer());
+        retval = ENGINE_ERRORCODE_ERROR;
+    }
+   
+    return (retval);
+}
+
+#else
+void VoltDBEngine::antiCacheInitialize(std::string dbDir) const {
+    VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
+}
+#endif
+    
 }

@@ -87,6 +87,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
+import org.voltdb.exceptions.EvictedTupleAccessException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SQLException;
 import org.voltdb.exceptions.SerializableException;
@@ -227,10 +228,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     // Each execution site manages snapshot using a SnapshotSiteProcessor
     private final SnapshotSiteProcessor m_snapshotter;
-    
-    // Anti-Cache Abstraction Layer
-    private final AntiCacheManager anticacheManager;
-    
+
     /**
      * Procedure Name -> VoltProcedure
      */
@@ -552,7 +550,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.p_estimator = null;
         this.t_estimator = null;
         this.m_snapshotter = null;
-        this.anticacheManager = null;
         this.thresholds = null;
         this.catalog = null;
         this.cluster = null;
@@ -617,14 +614,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.t_estimator = t_estimator; 
         }
         
-        // The AntiCacheManager will allow us to do special things down in the EE
-        // for evicted tuples
-        if (hstore_conf.site.anticache_enable) {
-            this.anticacheManager = null; // FIXME new AntiCacheManager(this.database, this);
-        } else {
-            this.anticacheManager = null;
-        }
-        
         // An execution site can be backed by HSQLDB, by volt's EE accessed
         // via JNI or by volt's EE accessed via IPC.  When backed by HSQLDB,
         // the VoltProcedure interface invokes HSQLDB directly through its
@@ -657,9 +646,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
                 
                 // Initialize Anti-Cache
-                if (this.anticacheManager != null) {
-                    File acFile = this.anticacheManager.getDatabaseDir(); 
-                    eeTemp.initializeAntiCache(acFile);
+                if (hstore_conf.site.anticache_enable) {
+                    File acFile = AntiCacheManager.getDatabaseDir(this); 
+                    eeTemp.antiCacheInitialize(acFile);
                 }
                 
                 eeTemp.loadCatalog(catalog.serialize());
@@ -1465,9 +1454,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public boolean queueNewTransaction(ByteBuffer serializedRequest, 
-                                         Procedure catalog_proc,
-                                         ParameterSet procParams,
-                                         RpcCallback<ClientResponseImpl> clientCallback) {
+                                       Procedure catalog_proc,
+                                       ParameterSet procParams,
+                                       RpcCallback<ClientResponseImpl> clientCallback) {
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
@@ -1669,7 +1658,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                     ts, before_mode, this.currentExecMode));
             if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
-            
+        
         ClientResponseImpl cresponse = null;
         try {
             cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
@@ -1825,21 +1814,22 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         try {
             result = this.executeWorkFragment(ts, fragment, parameters);
+            
+        } catch (EvictedTupleAccessException ex) {
+            // XXX: What do we do if this is not a single-partition txn? 
+            status = Status.ABORT_EVICTEDACCESS;
+            error = ex;
         } catch (ConstraintFailureException ex) {
-            if (d) LOG.warn(String.format("%s - Unexpected ConstraintFailureException error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
-            LOG.error(String.format("%s - Unexpected ExecutionEngine error on partition %d", ts, this.partitionId), ex);
             this.crash(ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
-            LOG.error(String.format("%s - Unexpected SQL error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.error(String.format("%s - Unexpected error on partition %d", ts, this.partitionId), ex);
             status = Status.ABORT_UNEXPECTED;
             if (ex instanceof SerializableException) {
                 error = (SerializableException)ex;
@@ -1847,10 +1837,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 error = new SerializableException(ex);
             }
         } finally {
+            if (error != null && d) {
+                LOG.error(String.format("%s - Unexpected %s on partition %d",
+                         ts, error.getClass().getSimpleName(), this.partitionId), error);
+            }
+            
             // Success, but without any results???
             if (result == null && status == Status.OK) {
-                Exception ex = new Exception(String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
-                                                           fragment.getFragmentIdList(), this.partitionId, ts));
+                String msg = String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
+                                           fragment.getFragmentIdList(), this.partitionId, ts);
+                Exception ex = new Exception(msg);
                 if (d) LOG.warn(ex);
                 status = Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
@@ -2296,6 +2292,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                      lastCommittedTxnId,
                      getNextUndoToken(),
                      allowELT != 0);
+    }
+    
+    protected void loadTable(Long txnId, Table catalog_tbl, VoltTable data, boolean allowELT) throws VoltAbortException {
+        ee.loadTable(catalog_tbl.getRelativeIndex(),
+                     data,
+                     txnId.longValue(),
+                     lastCommittedTxnId,
+                     getNextUndoToken(),
+                     allowELT);
     }
 
     /**

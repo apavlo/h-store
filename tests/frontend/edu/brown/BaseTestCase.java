@@ -348,7 +348,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     
     protected Table getTable(Database catalog_db, String table_name) {
         assertNotNull(catalog_db);
-        Table catalog_tbl = catalog_db.getTables().get(table_name);
+        Table catalog_tbl = catalog_db.getTables().getIgnoreCase(table_name);
         assert(catalog_tbl != null) : "Failed to retrieve '" + table_name + "' table from catalog"; 
         return (catalog_tbl);
     }

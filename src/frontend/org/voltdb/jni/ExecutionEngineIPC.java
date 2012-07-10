@@ -41,8 +41,8 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
-import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.export.ExportProtoMessage;
@@ -51,6 +51,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.NotImplementedException;
 
+import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
 
 
@@ -212,7 +213,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
                     });
                 } catch (final IOException e) {
                     e.printStackTrace();
-                    VoltDB.crashVoltDB();
+                    HStore.crashDB();
             }
 
                 /*
@@ -251,7 +252,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
                                 e.printStackTrace();
                             }
                             System.out.println("[ipc=" + m_eePID + "] Returned end of stream and exit value " + m_eeProcess.exitValue());
-                            VoltDB.crashVoltDB();
+                            HStore.crashDB();
                         }
                     }
                 } catch (final IOException e) {
@@ -1461,7 +1462,25 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
 
     @Override
-    public void initializeAntiCache(File dbFilePath) throws EEException {
+    public void antiCacheInitialize(File dbFilePath) throws EEException {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void antiCacheMergeBlocks(Table catalog_tbl) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
+        // TODO Auto-generated method stub
+        
     }
 }

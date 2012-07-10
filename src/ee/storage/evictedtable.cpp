@@ -23,30 +23,41 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/EvictedTupleAccessException.h"
-#include "common/SerializableEEException.h"
-#include "common/serializeio.h"
-#include <iostream>
-#include <cassert>
-
-using namespace voltdb;
+#include "storage/evictedtable.h"
+#include "storage/persistenttable.h"
 
 
-std::string EvictedTupleAccessException::ERROR_MSG = std::string("Txn tried to access evicted tuples");
+namespace voltdb {
 
-EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlockIds, uint16_t blockIds[]) :
-    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE, EvictedTupleAccessException::ERROR_MSG),
-        m_tableId(tableId),
-        m_numBlockIds(numBlockIds),
-        m_blockIds(blockIds) {
+EvictedTable::EvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false)
+{
     
-    // Nothing to see, nothing to do...
 }
 
-void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
-    output->writeInt(m_tableId);
-    output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
-    for (int ii = 0; ii < m_numBlockIds; ii++) {
-        output->writeShort(m_blockIds[ii]);
+    
+/*
+ Insert a tuple into the evicted table but don't create any UNDO action. 
+ */
+bool EvictedTable::insertTuple(TableTuple &source) {
+    // not null checks at first
+    if (!checkNulls(source)) {
+        throwFatalException("Failed to insert tuple into table %s for undo:"
+                            " null constraint violation\n%s\n", m_name.c_str(),
+                            source.debugNoHeader().c_str());
     }
+    
+    // First get the next free tuple This will either give us one from
+    // the free slot list, or grab a tuple at the end of our chunk of
+    // memory
+    nextFreeTuple(&m_tmpTarget1);
+    m_tupleCount++;
+    
+    // Then copy the source into the target
+    m_tmpTarget1.copy(source);
+    m_tmpTarget1.setDeletedFalse();
+    
+    return (true); // FIXME
 }
+    
+}
+

@@ -39,7 +39,9 @@ import org.voltdb.planner.TrivialCostModel;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.Encoder;
 
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
+import edu.brown.utils.FileUtil;
 
 /**
  * Planner tool accepts an already compiled VoltDB catalog and then
@@ -204,6 +206,10 @@ public class PlannerTool {
         cmd.add(classpath);
         cmd.add("-Xmx256m");
         cmd.add(PlannerTool.class.getName());
+        
+        // Log Output File
+        HStoreConf hstore_conf = HStoreConf.singleton(true);
+        cmd.add(hstore_conf.global.log_dir + File.separatorChar + "plannerlog.txt");
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
@@ -257,7 +263,8 @@ public class PlannerTool {
         // PARSE COMMAND LINE ARGS
         //////////////////////
 
-        m_logfile = new File("plannerlog.txt");
+        m_logfile = new File(args.length > 0 ? args[0] : "plannerlog.txt");
+        FileUtil.makeDirIfNotExists(m_logfile.getParent());
 
         log("\ngetting started at: " + new Date().toString());
 

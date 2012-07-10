@@ -26,6 +26,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.hstore.HStore;
+
 /**
  * Encapsulates the state needed to manage an ongoing snapshot at the
  * per-execution site level. Also contains some static global snapshot
@@ -214,7 +216,7 @@ public class SnapshotSiteProcessor {
 
             if (serialized < 0) {
                 LOG.error("Failure while serialize data from a table for COW snapshot");
-                VoltDB.crashVoltDB();
+                HStore.crashDB();
             }
 
             /**

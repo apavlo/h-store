@@ -295,7 +295,8 @@ def buildMakefile(CTX):
 
         # link the test
         makefile.write("%s: %s objects/volt.a\n" % (binname, objectname))
-        makefile.write("\t$(LINK.cpp) %s -o %s %s %s objects/volt.a\n" % (CTX.TEST_EXTRAFLAGS, binname, objectname, " ".join(CTX.THIRD_PARTY_STATIC_LIBS)))
+        # Note that volt.a must come *before* our static libraries
+        makefile.write("\t$(LINK.cpp) %s -o %s %s objects/volt.a %s\n" % (CTX.TEST_EXTRAFLAGS, binname, objectname, " ".join(CTX.THIRD_PARTY_STATIC_LIBS)))
         targetpath = OUTPUT_PREFIX + "/" + "/".join(binname.split("/")[:-1])
         os.system("mkdir -p %s" % (targetpath))
 
