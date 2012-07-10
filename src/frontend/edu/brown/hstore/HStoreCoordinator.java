@@ -107,7 +107,7 @@ public class HStoreCoordinator implements Shutdownable {
     private final int local_site_id;
     
     /** SiteId -> HStoreService */
-    private final Map<Integer, HStoreService> channels = new HashMap<Integer, HStoreService>();
+    private final HStoreService channels[];
     
     private final Thread listener_thread;
     private final ProtoServer listener;
@@ -193,6 +193,8 @@ public class HStoreCoordinator implements Shutdownable {
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
         this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
+        this.channels = new HStoreService[this.num_sites];
+        
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
 
         // Incoming RPC Handler
@@ -388,7 +390,7 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     public HStoreService getChannel(int site_id) {
-        return (this.channels.get(site_id));
+        return (this.channels[site_id]);
     }
     public HStoreService getHandler() {
         return (this.remoteService);
@@ -475,7 +477,7 @@ public class HStoreCoordinator implements Shutdownable {
             assert channels.length == destinations.size();
             for (int i = 0; i < channels.length; i++) {
                 Pair<Integer, InetSocketAddress> p = destinations.get(i);
-                this.channels.put(p.getFirst(), HStoreService.newStub(channels[i]));
+                this.channels[p.getFirst()] = HStoreService.newStub(channels[i]);
             } // FOR
             
             if (debug.get()) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
@@ -489,7 +491,7 @@ public class HStoreCoordinator implements Shutdownable {
                                             .setSenderSite(0)
                                             .setInstanceId(instanceId)
                                             .build();
-        final CountDownLatch latch = new CountDownLatch(this.channels.size()); 
+        final CountDownLatch latch = new CountDownLatch(this.num_sites-1); 
         RpcCallback<InitializeResponse> callback = new RpcCallback<InitializeResponse>() {
             @Override
             public void run(InitializeResponse parameter) {
@@ -499,14 +501,14 @@ public class HStoreCoordinator implements Shutdownable {
                 latch.countDown();
             }
         };
-        for (Integer site_id : this.channels.keySet()) {
-            assert(site_id.intValue() != this.local_site_id);
+        for (int site_id = 0; site_id < this.num_sites; site_id++) {
+            if (site_id == this.local_site_id) continue;
             ProtoRpcController controller = new ProtoRpcController();
-            this.channels.get(site_id).initialize(controller, request, callback);
+            this.channels[site_id].initialize(controller, request, callback);
         } // FOR
         
         if (debug.get())
-            LOG.debug(String.format("Waiting for %s initialization responses", this.channels.size()));
+            LOG.debug(String.format("Waiting for %s initialization responses", latch.getCount()));
         boolean finished = false;
         try {
             finished = latch.await(10, TimeUnit.SECONDS);
@@ -703,7 +705,8 @@ public class HStoreCoordinator implements Shutdownable {
             String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         
         // Look at the Procedure to see whether it has prefetchable queries. If it does, 
-        // then embed them in the TransactionInitRequest
+        // then embed them in the TransactionInitRequest. We will need to generate a separate
+        // request for each site that we want to execute different queries on.
         // TODO: We probably don't want to bother prefetching for txns that only touch
         //       partitions that are in its same local HStoreSite
         if (ts.getProcedure().getPrefetchable()) {
@@ -728,9 +731,9 @@ public class HStoreCoordinator implements Shutdownable {
                 }
                 else {
                     ProtoRpcController controller = ts.getTransactionInitController(site_id);
-                    this.channels.get(site_id).transactionInit(controller,
-                                                               requests[site_id],
-                                                               callback);
+                    this.channels[site_id].transactionInit(controller,
+                                                           requests[site_id],
+                                                           callback);
                 }
                 
                 sent_ctr++;
@@ -776,7 +779,7 @@ public class HStoreCoordinator implements Shutdownable {
                           ts.getClass().getSimpleName(), ts.getTransactionId(),
                           request.getClass().getSimpleName(), request.getTransactionId());
         
-        this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), request, callback);
+        this.channels[site_id].transactionWork(ts.getTransactionWorkController(site_id), request, callback);
     }
     
     public void transactionPrefetchResult(RemoteTransaction ts, TransactionPrefetchResult request) {
@@ -789,7 +792,7 @@ public class HStoreCoordinator implements Shutdownable {
         assert(site_id != this.local_site_id);
         
         ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
-        this.channels.get(site_id).transactionPrefetch(controller,
+        this.channels[site_id].transactionPrefetch(controller,
                                                        request,
                                                        this.transactionPrefetch_callback);
     }
@@ -855,7 +858,7 @@ public class HStoreCoordinator implements Shutdownable {
                                         .setSenderSite(this.local_site_id)
                                         .setWork(bs)
                                         .build();
-        this.channels.get(dest_site_id).transactionRedirect(new ProtoRpcController(), mr, callback);
+        this.channels[dest_site_id].transactionRedirect(new ProtoRpcController(), mr, callback);
     }
     
     // ----------------------------------------------------------------------------
@@ -989,7 +992,7 @@ public class HStoreCoordinator implements Shutdownable {
                 if (debug.get())
                     LOG.debug(String.format("Sending data to %d partitions at %s for %s",
                                                      builder.getDataCount(), remote_site, ts));
-                this.channels.get(dest_site_id).sendData(new ProtoRpcController(), builder.build(), callback);
+                this.channels[dest_site_id].sendData(new ProtoRpcController(), builder.build(), callback);
             }
         } // FOR n sites in this catalog
                 
@@ -1042,14 +1045,14 @@ public class HStoreCoordinator implements Shutdownable {
         };
         
         // Send out TimeSync request 
-        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-            if (e.getKey().intValue() == this.local_site_id) continue;
+        for (int site_id = 0; site_id < this.num_sites; site_id++) {
+            if (site_id == this.local_site_id) continue;
             TimeSyncRequest request = TimeSyncRequest.newBuilder()
                                             .setSenderSite(this.local_site_id)
                                             .setT0S(System.currentTimeMillis())
                                             .build();
-            e.getValue().timeSync(new ProtoRpcController(), request, callback);
-            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(e.getKey()));
+            this.channels[site_id].timeSync(new ProtoRpcController(), request, callback);
+            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreThreadManager.formatSiteName(site_id));
         } // FOR
         
         if (trace.get()) LOG.trace("Sent out all TIMESYNC requests!");
@@ -1159,11 +1162,12 @@ public class HStoreCoordinator implements Shutdownable {
                 ShutdownRequest request = builder.build();
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d remote sites",
                                                          request.getClass().getSimpleName(), this.num_sites));
-                for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-                    e.getValue().shutdown(new ProtoRpcController(), request, callback);
+                for (int site_id = 0; site_id < this.num_sites; site_id++) {
+                    if (site_id == this.local_site_id) continue;
+                    this.channels[site_id].shutdown(new ProtoRpcController(), request, callback);
                     if (trace.get()) LOG.trace(String.format("Sent %s to %s",
                                                              request.getClass().getSimpleName(),
-                                                             HStoreThreadManager.formatSiteName(e.getKey())));
+                                                             HStoreThreadManager.formatSiteName(site_id)));
                 } // FOR
             }
         

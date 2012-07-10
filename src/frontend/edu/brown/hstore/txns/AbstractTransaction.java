@@ -647,6 +647,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // PREFETCH QUERIES
     // ----------------------------------------------------------------------------
     
+    /**
+     * Grab a PrefetchState object for this LocalTransaction
+     * This must be called before you can send prefetch requests on behalf of this txn
+     */
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
