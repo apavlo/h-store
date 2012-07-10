@@ -34,7 +34,6 @@ CTX = BuildContext(sys.argv)
 #  and how the build will go down. It also checks the platform and parses
 #  command line args to determine target and build level.
 
-
 ###############################################################################
 # SET RELEASE LEVEL CONTEXT
 ###############################################################################
@@ -85,7 +84,7 @@ CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
             -pthread
             -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
             -fno-omit-frame-pointer
-            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS -DANTICACHE"""
+            -fvisibility=hidden -DBOOST_SP_DISABLE_THREADS"""
 
 if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
@@ -102,7 +101,6 @@ if CTX.COVERAGE:
 CTX.INCLUDE_DIRS = ['src/ee']
 CTX.SYSTEM_DIRS = [
     'third_party/cpp',
-    os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb')
 ]
 
 # extra flags that will get added to building test source
@@ -124,10 +122,7 @@ CTX.INPUT_PREFIX = "src/ee"
 CTX.THIRD_PARTY_INPUT_PREFIX = "third_party/cpp/"
 
 # Third-Party Static Libraries
-CTX.THIRD_PARTY_STATIC_LIBS = [
-    "berkeleydb/libdb.a",     # BerkeleyDB Base Library
-    "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
-]
+CTX.THIRD_PARTY_STATIC_LIBS = [ ]
 
 # where to find the tests
 CTX.TEST_PREFIX = "tests/ee"
@@ -199,7 +194,6 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
- anticache.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -330,7 +324,6 @@ CTX.TESTS['common'] = """
  valuearray_test
  nvalue_test
  tupleschema_test
- anticache_test
 """
 
 CTX.TESTS['execution'] = """
@@ -363,6 +356,20 @@ CTX.TESTS['storage'] = """
 
 # these are incomplete and out of date. need to be replaced
 # CTX.TESTS['expressions'] = """expserialize_test expression_test"""
+
+###############################################################################
+# ANTI-CACHING
+###############################################################################
+ENABLE_ANTICACHE = True
+if ENABLE_ANTICACHE:
+    CTX.CPPFLAGS += " -DANTICACHE"
+    CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
+    CTX.THIRD_PARTY_STATIC_LIBS.extend([
+        "berkeleydb/libdb.a",     # BerkeleyDB Base Library
+        "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
+    ])
+    CTX.INPUT['common'] += " anticache.cpp"
+    CTX.TESTS['common'] += " anticache_test"
 
 
 ###############################################################################
