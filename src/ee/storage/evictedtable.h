@@ -34,13 +34,13 @@ namespace voltdb {
     
 class EvictedTable : public PersistentTable {
         
+    friend class TableFactory;
+    
     public: 
         
         EvictedTable(); 
                         
         bool insertTuple(TableTuple &source);
-
-
         
     protected:
         

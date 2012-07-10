@@ -129,12 +129,9 @@ namespace voltdb {
         
         static Table* getEvictedTable(voltdb::CatalogId databaseId,
                                       ExecutorContext *ctx,
-                                      const std::string name,
+                                      const std::string &name,
                                       TupleSchema* schema,
-                                      const std::string* columnNames,
-                                      const TableIndexScheme &pkeyIndex,
-                                      const std::vector<TableIndexScheme> &indexes,
-                                      int partitionColumn);
+                                      const std::string* columnNames);
         
         
         /**
