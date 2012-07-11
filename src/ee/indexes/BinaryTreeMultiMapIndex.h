@@ -108,6 +108,32 @@ public:
         ++m_updates;
         return (deleted && inserted);
     }
+	
+	bool setEntryToNull(const TableTuple *tuple)
+    {
+        m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
+		
+		++m_updates; 
+		
+        std::pair<MMIter,MMIter> key_iter;
+        for (key_iter = m_entries.equal_range(m_tmp1);
+             key_iter.first != key_iter.second;
+             ++(key_iter.first))
+        {
+            if (key_iter.first->second == tuple->address())
+            {
+                m_entries.erase(key_iter.first);
+				
+				std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, NULL));
+				return retval.second;
+				
+                return true;
+            }
+        }
+        
+        //key exists, but not this tuple
+        return false;
+	}
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs)
     {

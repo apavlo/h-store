@@ -90,6 +90,19 @@ public:
         ++m_updates;
         return (deleted && inserted);
     }
+    
+    bool setEntryToNull(const TableTuple *tupleValue)
+    {
+        // set the key from the tuple 
+        m_tmp1.setFromTuple(tupleValue, column_indices_, m_keySchema);
+		
+		++m_updates; 
+        
+        // erase the entry and add a entry with the same key and a NULL value
+        m_entries.erase(m_tmp1); 
+        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, NULL));
+        return retval.second;
+    }
 
     bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs) {
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
