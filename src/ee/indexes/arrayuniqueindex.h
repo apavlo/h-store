@@ -47,6 +47,7 @@ class ArrayUniqueIndex : public TableIndex {
         bool addEntry(const TableTuple *tuples);
         bool deleteEntry(const TableTuple *tuple);
         bool replaceEntry(const TableTuple *oldTupleValue, const TableTuple* newTupleValue);
+        bool setEntryToNull(const TableTuple* tuple);
         bool exists(const TableTuple* values);
         bool moveToKey(const TableTuple *searchKey);
         bool moveToTuple(const TableTuple *searchTuple);
