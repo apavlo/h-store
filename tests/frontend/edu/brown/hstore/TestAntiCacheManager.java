@@ -10,21 +10,18 @@ import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
 public class TestAntiCacheManager extends BaseTestCase {
@@ -82,6 +79,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Wait until we know that our HStoreSite has started
         this.readyLock.acquire();
+        // I added an extra little sleep just to be sure...
         ThreadUtil.sleep(3000);
         
         this.executor = hstore_site.getPartitionExecutor(0);
@@ -112,7 +110,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
 
         // Now force the EE to evict our boys out
-        // We'll tell it to remove 1MB, which is guaranted to include all of our tuples
+        // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
 
     }

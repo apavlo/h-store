@@ -493,7 +493,11 @@ public class VoltCompiler {
             compileXMLRootNode(project);
         } catch (final VoltCompilerException e) {
 //            compilerLog.l7dlog( Level.ERROR, LogKeys.compiler_VoltCompiler_FailedToCompileXML.name(), null);
-            LOG.error(e.getMessage(), e);
+            if (debug.get()) {
+                LOG.error(e.getMessage(), e);
+            } else {
+                LOG.error(e.getMessage());
+            }
             //e.printStackTrace();
             return null;
         }
@@ -804,12 +808,23 @@ public class VoltCompiler {
         }
 
         // Mark tables evictable if needed
+        // NOTE: A table can only be evictable if it has a primary key
         if (database.getEvictables() != null) {
             for (Evictable e : database.getEvictables().getEvictable()) {
                 String tableName = e.getTable();
                 Table catalog_tbl = db.getTables().getIgnoreCase(tableName);
                 if (catalog_tbl == null) {
                     throw new VoltCompilerException("Invalid evictable table name '" + tableName + "'");
+                }
+                Index pkey = null;
+                try {
+                    pkey = CatalogUtil.getPrimaryKeyIndex(catalog_tbl);
+                } catch (Exception ex) {
+                    // Ignore
+                }
+                if (pkey == null) {
+                    throw new VoltCompilerException("Unable to mark table '" + catalog_tbl.getName() + "' as " +
+                    		                        "evictable because it does not have a primary key");
                 }
                 catalog_tbl.setEvictable(true);
             } // FOR

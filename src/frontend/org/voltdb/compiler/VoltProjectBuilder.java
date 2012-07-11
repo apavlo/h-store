@@ -469,9 +469,9 @@ public class VoltProjectBuilder {
     // -------------------------------------------------------------------
     
     /**
-     * Mark a table as deferrable
-     * @param procedureName
-     * @param statementName
+     * Mark a table as evictable. When using the anti-caching feature, this means
+     * that portions of this table can be moved out to blocks on disk 
+     * @param tableName
      */
     public void markTableEvictable(String tableName) {
         m_evictableTables.add(tableName);
