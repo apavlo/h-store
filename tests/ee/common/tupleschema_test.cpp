@@ -118,7 +118,7 @@ TEST_F(TupleSchemaTest, CreateTupleSchema) {
     // and that they are all marked as not nullable
     ASSERT_EQ(NUM_COLUMNS, m_tableSchema->columnCount());
     for (int i = 0; i < NUM_COLUMNS; i++) {
-        ASSERT_FALSE(m_tableSchema->columnAllowNull(i));
+        ASSERT_EQ(m_tableSchemaAllowNull[i], m_tableSchema->columnAllowNull(i));
     } // FOR
 }
 
