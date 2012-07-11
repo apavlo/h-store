@@ -65,7 +65,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Wait until we know that our HStoreSite has started
         this.readyLock.acquire();
-        ThreadUtil.sleep(10000);
+        ThreadUtil.sleep(3000);
         
         this.executor = hstore_site.getPartitionExecutor(0);
         assertNotNull(this.executor);
@@ -90,6 +90,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(vt);
         for (int i = 0; i < NUM_TUPLES; i++) {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            row[0] = Long.valueOf(i);
             vt.addRow(row);
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
