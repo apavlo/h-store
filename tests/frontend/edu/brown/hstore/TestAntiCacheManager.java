@@ -65,7 +65,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Wait until we know that our HStoreSite has started
         this.readyLock.acquire();
-        ThreadUtil.sleep(5000);
+        ThreadUtil.sleep(10000);
         
         this.executor = hstore_site.getPartitionExecutor(0);
         assertNotNull(this.executor);

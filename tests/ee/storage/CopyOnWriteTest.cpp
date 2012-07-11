@@ -266,6 +266,10 @@ TEST_F(CopyOnWriteTest, TestTableTupleFlags) {
     tuple.setDirtyFalse();
     ASSERT_TRUE(tuple.isActive());
     ASSERT_FALSE(tuple.isDirty());
+    
+    ASSERT_FALSE(tuple.isEvicted());
+    tuple.setEvictedTrue();
+    ASSERT_TRUE(tuple.isEvicted());
 }
 
 TEST_F(CopyOnWriteTest, BigTest) {

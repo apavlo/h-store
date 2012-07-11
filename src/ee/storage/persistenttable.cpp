@@ -186,7 +186,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int evicted_offset = m_pkeyIndex->getColumnCount();
     VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
     evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
-    VOLT_INFO("!!!");
     
     std::vector<int> column_indices = m_pkeyIndex->getColumnIndices();
     int tuple_length = -1;
@@ -214,8 +213,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
             tuple_length = tuple.tupleLength();
         }
         assert(tuple_length > 0);
-        
-        assert(!tuple.isEvicted());
+        assert(tuple.isEvicted() == false);
         tuple.setEvictedTrue(); 
         
         // update all the indexes for this tuple
@@ -228,7 +226,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         } // FOR
 
         // Then add it to this table's EvictedTable
-//         m_evictedTable->insertTuple(evicted_tuple); 
+        m_evictedTable->insertTuple(evicted_tuple); 
         
         // Now copy the raw bytes for this tuple into the serialized buffer
 //         memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
