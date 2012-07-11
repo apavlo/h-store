@@ -140,16 +140,16 @@
     </xsd:sequence>
   </xsd:complexType>
   
-    <!-- <evictables> -->
-    <xsd:complexType name="evictablesType">
-        <xsd:sequence>
-            <xsd:element name="evictable" minOccurs="1" maxOccurs="unbounded">
-                <xsd:complexType>
-                    <xsd:attribute name="table" type="xsd:string" use="required"/>
-                </xsd:complexType>
-            </xsd:element>
-        </xsd:sequence>
-    </xsd:complexType>
+  <!-- <evictables> -->
+  <xsd:complexType name="evictablesType">
+    <xsd:sequence>
+      <xsd:element name="evictable" minOccurs="1" maxOccurs="unbounded">
+        <xsd:complexType>
+          <xsd:attribute name="table" type="xsd:string" use="required"/>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
   
   <!-- <verticalpartitions> -->
   <xsd:complexType name="verticalpartitionsType">

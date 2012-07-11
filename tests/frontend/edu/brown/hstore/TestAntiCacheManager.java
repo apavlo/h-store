@@ -7,13 +7,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.exceptions.UnknownBlockAccessException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
@@ -28,6 +31,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 100;
+    private static final String TARGET_TABLE = TPCCConstants.TABLENAME_WAREHOUSE;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -37,6 +41,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     private PartitionExecutor executor;
     private ExecutionEngine ee;
+    private Table catalog_tbl;
 
     private EventObserver<HStoreSite> ready = new EventObserver<HStoreSite>() {
         @Override
@@ -45,10 +50,22 @@ public class TestAntiCacheManager extends BaseTestCase {
         }
     };
     
+    private final AbstractProjectBuilder builder = new TPCCProjectBuilder() {
+        {
+            this.markTableEvictable(TARGET_TABLE);
+            this.addAllDefaults();
+        }
+    };
+    
     @Before
     public void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+        super.setUp(builder, false);
         initializeCluster(1, 1, NUM_PARTITIONS);
+        
+        // Just make sure that the Table has the evictable flag set to true
+        this.catalog_tbl = getTable(TARGET_TABLE);
+        assertTrue(catalog_tbl.getEvictable());
+        
         this.anticache_dir = FileUtil.getTempDirectory();
         this.readyLock = new Semaphore(0);
         
@@ -85,7 +102,6 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testEvictTuples() throws Exception {
         // Load in a bunch of dummy data for this table
-        Table catalog_tbl = getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
         for (int i = 0; i < NUM_TUPLES; i++) {
@@ -106,7 +122,6 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testReadNonExistentBlock() throws Exception {
-        Table catalog_tbl = getTable(TPCCConstants.TABLENAME_WAREHOUSE);
         short block_ids[] = new short[]{ 1111 };
         boolean failed = false;
         try {
