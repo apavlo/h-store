@@ -328,7 +328,6 @@ CTX.TESTS['common'] = """
 
 CTX.TESTS['execution'] = """
  engine_test
- berkeleydb_test
 """
 
 CTX.TESTS['expressions'] = """
@@ -370,7 +369,7 @@ if ENABLE_ANTICACHE:
     ])
     CTX.INPUT['common'] += " anticache.cpp"
     CTX.TESTS['common'] += " anticache_test"
-
+    CTX.TESTS['execution'] += " berkeleydb_test"
 
 ###############################################################################
 # BUILD THE MAKEFILE
