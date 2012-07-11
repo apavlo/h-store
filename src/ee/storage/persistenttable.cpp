@@ -205,7 +205,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     TableIterator table_itr(this);
     VOLT_INFO("Starting TableIterator for %s", name().c_str());
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
-        table_itr.next(tuple); 
+        table_itr.next(tuple);
+        VOLT_INFO("Next Tuple: %s", tuple.debug(name()).c_str());
         
         // If this is the first tuple, then we need to allocate all of the memory and
         // what not that we're going to need
@@ -214,7 +215,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         }
         assert(tuple_length > 0);
         assert(tuple.isEvicted() == false);
-        tuple.setEvictedTrue(); 
+//         tuple.setEvictedTrue(); 
         
         // update all the indexes for this tuple
         // FIXME setNullForAllIndexes(tuple); 
@@ -224,17 +225,20 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         for (std::vector<int>::iterator it = column_indices.begin(); it != column_indices.end(); it++) {
             evicted_tuple.setNValue(evicted_offset++, tuple.getNValue(*it)); 
         } // FOR
+        VOLT_INFO("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
 
         // Then add it to this table's EvictedTable
         m_evictedTable->insertTuple(evicted_tuple); 
         
         // Now copy the raw bytes for this tuple into the serialized buffer
-//         memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
-//         serialized_data_length += tuple_length; 
+        memcpy(serialized_data + serialized_data_length, tuple.address(), tuple_length);
+        serialized_data_length += tuple_length; 
         
         // At this point it's safe for us to delete this mofo
-//         deleteTuple(tuple, true); 
-        num_tuples_evicted++; 
+        deleteTuple(tuple, true);
+        num_tuples_evicted++;
+        VOLT_INFO("Added new evicted %s tuple to block #%d [numEvicted=%d]",
+                  name().c_str(), block_id, num_tuples_evicted);
     } // WHILE
     // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
      
