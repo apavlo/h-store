@@ -218,7 +218,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         tuple.setEvictedTrue(); 
         
         // update all the indexes for this tuple
-        setNullForAllIndexes(tuple); 
+        // FIXME setNullForAllIndexes(tuple); 
         
         // Populate the evicted_tuple with the source tuple's primary key values
         evicted_offset = 0;
