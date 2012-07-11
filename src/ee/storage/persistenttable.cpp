@@ -181,7 +181,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     // Get the columns in the source tuple are part of the primary key
     // The last entry will always be the block id for this new evicted tuple
     VOLT_INFO("Getting %s tuple", m_evictedTable->name().c_str());
-    TableTuple evicted_tuple(m_evictedTable->schema());
+    char* evicted_data = new char[m_evictedTable->schema()->tupleLength()]; 
+    TableTuple evicted_tuple(evicted_data, m_evictedTable->schema());
     int evicted_offset = m_pkeyIndex->getColumnCount();
     VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
     evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
@@ -248,6 +249,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
               this->name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
 #endif
+    
+    delete [] evicted_data;
     
     return true;
 }
