@@ -273,11 +273,20 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         
         
 #ifdef ANTICACHE
-        // Create evicted table if anti-caching is enabled and this table 
+        // Create evicted table if anti-caching is enabled and this table is marked as evictable
         // is not generated from a materialized view
-        if (executorContext->m_antiCacheEnabled &&
-                catalogTable.materializer() == NULL &&
-                catalogTable.mapreduce() == false) {
+        if (executorContext->m_antiCacheEnabled && catalogTable.evictable()) {
+            
+            if (catalogTable.materializer() != NULL) {
+                VOLT_ERROR("Trying to use the anti-caching feature on materialized view '%s'",
+                           catalogTable.name().c_str());
+                return (false);
+            }
+            if (catalogTable.mapreduce()) {
+                VOLT_ERROR("Trying to use the anti-caching feature on mapreduce output table '%s'",
+                           catalogTable.name().c_str());
+                return (false);
+            }
             
             TableIndex* parentPkey = m_table->primaryKeyIndex(); 
             assert(parentPkey != NULL);
