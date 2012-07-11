@@ -296,32 +296,32 @@ public class TestMessaging extends TestCase {
         assertTrue(false);
     }
 
-    public void testJoinerBadCRC() {
-        MockVoltDB mockVoltDB = new MockVoltDB();
-        VoltDB.replaceVoltDBInstanceForTest(mockVoltDB);
-
-        try {
-            SocketJoiner joiner1 = new SocketJoiner(InetAddress.getLocalHost(), 3, 0, null);
-            SocketJoiner joiner2 = new SocketJoiner(InetAddress.getLocalHost(), 3, 0, null);
-            SocketJoiner joiner3 = new SocketJoiner(InetAddress.getLocalHost(), 3, 1, null);
-
-            joiner1.start();
-            joiner2.start();
-            joiner3.start();
-
-            joiner1.join();
-            joiner2.join();
-            joiner3.join();
-
-            assertTrue(mockVoltDB.getCrashCount() > 0);
-            return;
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        assertTrue(false);
-    }
+//    public void testJoinerBadCRC() {
+//        MockVoltDB mockVoltDB = new MockVoltDB();
+//        VoltDB.replaceVoltDBInstanceForTest(mockVoltDB);
+//
+//        try {
+//            SocketJoiner joiner1 = new SocketJoiner(InetAddress.getLocalHost(), 3, 0, null);
+//            SocketJoiner joiner2 = new SocketJoiner(InetAddress.getLocalHost(), 3, 0, null);
+//            SocketJoiner joiner3 = new SocketJoiner(InetAddress.getLocalHost(), 3, 1, null);
+//
+//            joiner1.start();
+//            joiner2.start();
+//            joiner3.start();
+//
+//            joiner1.join();
+//            joiner2.join();
+//            joiner3.join();
+//
+//            assertTrue(mockVoltDB.getCrashCount() > 0);
+//            return;
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        assertTrue(false);
+//    }
 
     public void testSimple() throws MessagingException, UnknownHostException, InterruptedException {
         try {
