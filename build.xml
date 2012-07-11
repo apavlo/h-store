@@ -1654,6 +1654,7 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="DEFERRABLE=${deferrable}" />
+        <arg value="EVICTABLE=${evictable}" />
         
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />

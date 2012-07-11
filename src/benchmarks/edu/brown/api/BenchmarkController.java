@@ -381,6 +381,14 @@ public class BenchmarkController {
                                                          procName, stmtName, this.getProjectName())); 
             } // FOR
         }
+        if (m_config.evictable != null) {
+            for (String tableName : m_config.evictable) {
+                if (tableName.isEmpty()) continue;
+                m_projectBuilder.markTableEvictable(tableName);
+                if (debug.get()) LOG.debug(String.format("Marking table %s as evictable in %s",
+                                                         tableName, this.getProjectName())); 
+            } // FOR
+        }
         
         boolean success = m_projectBuilder.compile(m_jarFileName.getAbsolutePath(),
                                                    m_config.sitesPerHost,
@@ -1419,6 +1427,9 @@ public class BenchmarkController {
         
         // Deferrable Queries
         String deferrable[] = null;
+
+        // Evictable Tables
+        String evictable[] = null;
         
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
@@ -1600,7 +1611,13 @@ public class BenchmarkController {
                  * Launch the ExecutionSites using the hosts that are in the catalog
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
-                
+            
+            /*
+             * List of evictable tables
+             */
+            } else if (parts[0].equalsIgnoreCase("EVICTABLE")) {
+                if (debug.get()) LOG.debug("EVICTABLE: " + parts[1]);
+                evictable = parts[1].split(",");
             /*
              * List of deferrable queries
              * Format: <ProcedureName>.<StatementName>
@@ -1777,6 +1794,7 @@ public class BenchmarkController {
                 markov_thresholdsValue,
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
+                evictable,
                 deferrable,
                 dumpDatabase,
                 dumpDatabaseDir,

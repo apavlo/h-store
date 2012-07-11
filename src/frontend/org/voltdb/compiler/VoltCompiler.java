@@ -70,6 +70,7 @@ import org.voltdb.catalog.User;
 import org.voltdb.catalog.UserRef;
 import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.DatabaseType;
+import org.voltdb.compiler.projectfile.EvictablesType.Evictable;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
 import org.voltdb.compiler.projectfile.GroupsType;
@@ -802,6 +803,18 @@ public class VoltCompiler {
             }
         }
 
+        // Mark tables evictable if needed
+        if (database.getEvictables() != null) {
+            for (Evictable e : database.getEvictables().getEvictable()) {
+                String tableName = e.getTable();
+                Table catalog_tbl = db.getTables().getIgnoreCase(tableName);
+                if (catalog_tbl == null) {
+                    throw new VoltCompilerException("Invalid evictable table name '" + tableName + "'");
+                }
+                catalog_tbl.setEvictable(true);
+            } // FOR
+        }
+        
         // add vertical partitions
         if (database.getVerticalpartitions() != null) {
             for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {

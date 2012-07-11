@@ -138,6 +138,7 @@ begin Table                   "A table (relation) in the database"
     Table? materializer         "If this is a materialized view, this field stores the source table"
     bool systable               "Is this table an internal system table?"
     bool mapreduce              "Is this table a MapReduce transaction table?"
+    bool evictable              "Can contents of this table be evicted by the anti-cache?"
 end
 
 begin MaterializedViewInfo "Information used to build and update a materialized view"
