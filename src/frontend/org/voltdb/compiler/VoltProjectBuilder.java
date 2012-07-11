@@ -214,6 +214,11 @@ public class VoltProjectBuilder {
     final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
     /**
+     * Evictable Tables
+     */
+    private final HashSet<String> m_evictableTables = new HashSet<String>();
+    
+    /**
      * Prefetchable Queries
      * ProcedureName -> StatementName
      * @see Prefetchable
@@ -460,7 +465,20 @@ public class VoltProjectBuilder {
     }
     
     // -------------------------------------------------------------------
-    // DEFERRABLE
+    // EVICTABLE TABLES
+    // -------------------------------------------------------------------
+    
+    /**
+     * Mark a table as deferrable
+     * @param procedureName
+     * @param statementName
+     */
+    public void markTableEvictable(String tableName) {
+        m_evictableTables.add(tableName);
+    }
+    
+    // -------------------------------------------------------------------
+    // DEFERRABLE STATEMENTS
     // -------------------------------------------------------------------
     
     /**
@@ -897,7 +915,6 @@ public class VoltProjectBuilder {
             schemas.appendChild(schema);
         }
 
-
         // /project/database/procedures
         final Element procedures = doc.createElement("procedures");
         database.appendChild(procedures);
@@ -999,6 +1016,19 @@ public class VoltProjectBuilder {
             }
         }
 
+        // Evictable Tables
+        if (m_evictableTables.isEmpty() == false) {
+            final Element evictables = doc.createElement("evictables");
+            database.appendChild(evictables);
+            
+            // Table entries
+            for (String tableName : m_evictableTables) {
+                final Element table = doc.createElement("evictable");
+                table.setAttribute("table", tableName);
+                evictables.appendChild(table);
+            }
+        }
+        
         // Vertical Partitions
         if (m_verticalpartitionInfos.size() > 0) {
             // /project/database/partitions
