@@ -323,8 +323,7 @@ CTX.TESTS['common'] = """
  undolog_test
  valuearray_test
  nvalue_test
- tupleschema_test
-"""
+""" # tupleschema_test
 
 CTX.TESTS['execution'] = """
  engine_test
