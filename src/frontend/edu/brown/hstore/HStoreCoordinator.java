@@ -793,8 +793,8 @@ public class HStoreCoordinator implements Shutdownable {
         
         ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
         this.channels[site_id].transactionPrefetch(controller,
-                                                       request,
-                                                       this.transactionPrefetch_callback);
+                                                   request,
+                                                   this.transactionPrefetch_callback);
     }
     
     

@@ -189,21 +189,7 @@ public class BatchPlanner implements Loggable {
         }
     } // END CLASS
 
-    protected static class PlanEdge {
-        final int dep_id;
-
-        public PlanEdge(int dep_id) {
-            // super(graph);
-            this.dep_id = dep_id;
-        }
-
-        @Override
-        public String toString() {
-            return (Integer.toString(this.dep_id));
-        }
-    } // END CLASS
-
-    protected static class PlanGraph extends DirectedSparseMultigraph<PlanVertex, PlanEdge> {
+    protected static class PlanGraph extends DirectedSparseMultigraph<PlanVertex, Integer> {
         private static final long serialVersionUID = 1L;
 
         /**
@@ -969,7 +955,11 @@ public class BatchPlanner implements Loggable {
      * @param graph
      * @param tasks
      */
-    protected void buildWorkFragments(final Long txn_id, final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<WorkFragment> tasks) {
+    protected void buildWorkFragments(final Long txn_id,
+                                      final BatchPlanner.BatchPlan plan,
+                                      final PlanGraph graph,
+                                      final List<WorkFragment> tasks) {
+        
         if (this.enable_profiling) time_partitionFragments.start();
         if (d) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]", txn_id, plan.base_partition));
 
@@ -1093,10 +1083,15 @@ public class BatchPlanner implements Loggable {
                     String.format("No PartitionIds for [%02d] %s in Statement #%d",
                                   round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                Integer output_id = new Integer(this.enable_unique_ids ?
+                final Integer output_id = Integer.valueOf(this.enable_unique_ids ?
                                                     BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : last_id++);
 
-                PlanVertex v = new PlanVertex(catalog_frag, stmt_index, round, last_output_id, output_id.intValue(), f_local);
+                PlanVertex v = new PlanVertex(catalog_frag,
+                                              stmt_index,
+                                              round,
+                                              last_output_id,
+                                              output_id.intValue(),
+                                              f_local);
 
                 Set<PlanVertex> dependencies = output_dependency_xref.get(output_id);
                 if (dependencies == null) {
@@ -1122,8 +1117,7 @@ public class BatchPlanner implements Loggable {
                 assert (!v0.equals(v1)) : v0;
                 if (!graph.findEdgeSet(v0, v1).isEmpty())
                     continue;
-                PlanEdge e = new PlanEdge(v0.input_dependency_id);
-                graph.addEdge(e, v0, v1);
+                graph.addEdge(v0.input_dependency_id, v0, v1);
             } // FOR
         } // FOR
 

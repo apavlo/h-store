@@ -2,7 +2,7 @@ package edu.brown.hstore.util;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,10 +56,10 @@ public class QueryCache {
             this.idx = Integer.valueOf(idx);
         }
         
-        public void init(int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
+        public void init(int fragmentId, int partitionId, int paramsHash, VoltTable result) {
             this.fragmentId = fragmentId;
             this.partitionId = partitionId;
-            this.paramsHash = params.hashCode();
+            this.paramsHash = paramsHash;
             this.result = result;
         }
         
@@ -137,7 +137,11 @@ public class QueryCache {
 
     private final Cache globalCache;
     private final Cache txnCache;
-    private final IdentityHashMap<Long, List<Integer>> txnCacheXref = new IdentityHashMap<Long, List<Integer>>();
+    
+    /**
+     * TransactionId -> List of CacheEntry Offsets
+     */
+    private final Map<Long, List<Integer>> txnCacheXref = new HashMap<Long, List<Integer>>();
     
     /**
      * Constructor
@@ -165,9 +169,26 @@ public class QueryCache {
      * @param params
      * @param result
      */
-    public void addTransactionQueryResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
-        if (debug.get()) LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
-                                                 txnId, fragmentId, params));
+    public void addTransactionResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
+        if (debug.get())
+            LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
+                                    txnId, fragmentId, params));
+        this.addTransactionResult(txnId, fragmentId, partitionId, params.hashCode(), result);
+    }
+    
+    /**
+     * Store a new cache entry for a query that is specific to a transaction
+     * This cached result is not be available to other transactions
+     * @param txnId
+     * @param fragmentId
+     * @param partitionId
+     * @param paramsHash
+     * @param result
+     */
+    public void addTransactionResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
+        if (debug.get())
+            LOG.debug(String.format("#%d - Storing query result for FragmentId %d / paramsHash:%d",
+                                    txnId, fragmentId, paramsHash));
         
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries == null) {
@@ -186,7 +207,7 @@ public class QueryCache {
         
         CacheEntry entry = this.txnCache.getNext(txnId);
         assert(entry != null);
-        entry.init(fragmentId, partitionId, params, result);
+        entry.init(fragmentId, partitionId, paramsHash, result);
         entries.add(entry.idx);
         if (debug.get()) LOG.debug(String.format("#%d - CacheEntry\n%s", txnId, entry.toString()));
     }
@@ -198,12 +219,17 @@ public class QueryCache {
      * @param params
      * @return
      */
-    public VoltTable getTransactionCachedResult(Long txnId, int fragmentId, int partitionId, ParameterSet params) {
+    public VoltTable getTransactionCachedResult(Long txnId,
+                                                int fragmentId,
+                                                int partitionId,
+                                                ParameterSet params) {
+        
         if (debug.get()) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
                                                  txnId, fragmentId, params));
         
         List<Integer> entries = this.txnCacheXref.get(txnId);
         if (entries != null) {
+            if (trace.get()) LOG.trace(String.format("Txn #%d has %d cache entries", txnId, entries.size()));
             int paramsHash = -1;
             for (int i = 0, cnt = entries.size(); i < cnt; i++) {
                 CacheEntry entry = this.txnCache.get(entries.get(i));
