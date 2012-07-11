@@ -2,6 +2,15 @@
 import os, sys, threading, shutil
 from subprocess import Popen, PIPE, STDOUT
 
+LOG_LEVEL_NAMES = {
+    "TRACE":    100,
+    "DEBUG":    200,
+    "INFO":     300,
+    "WARN":     400,
+    "ERROR":    500,
+    "DISABLE":  1000,
+}
+
 class BuildContext:
     def __init__(self, args):
         self.CPPFLAGS = ""
@@ -39,7 +48,12 @@ class BuildContext:
                 self.COVERAGE = True
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")
-                if len(parts) > 1 and parts[1].isdigit(): self.VOLT_LOG_LEVEL = int(parts[1])
+                if len(parts) > 1:
+                    if parts[1].isdigit():
+                        self.VOLT_LOG_LEVEL = int(parts[1])
+                    elif parts[1].upper() in LOG_LEVEL_NAMES:
+                        self.VOLT_LOG_LEVEL = LOG_LEVEL_NAMES[parts[1].upper()]
+                ## IF
                 
 
 def readFile(filename):
