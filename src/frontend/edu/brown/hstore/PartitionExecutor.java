@@ -1420,8 +1420,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param params
      * @param result
      */
-    public void addPrefetchResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
-        this.queryCache.addTransactionQueryResult(txnId, fragmentId, partitionId, params, result); 
+    public void addPrefetchResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
+        if (d) LOG.debug(String.format("Adding prefetch result for txn #%d from partition %d",
+                                       txnId, partitionId));
+        this.queryCache.addTransactionResult(txnId, fragmentId, partitionId, paramsHash, result); 
     }
     
     // ---------------------------------------------------------------
@@ -1898,19 +1900,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     if (is_sameSite) {
                         if (other == null) other = this.hstore_site.getPartitionExecutor(ts.getBasePartition());
-                        other.addPrefetchResult(ts.getTransactionId(),
-                                                fragment.getFragmentId(i),
-                                                fragment.getPartitionId(),
-                                                parameters[i],
-                                                result.dependencies[i]);
+                        other.queryCache.addTransactionResult(ts.getTransactionId(),
+                                                              fragment.getFragmentId(i),
+                                                              fragment.getPartitionId(),
+                                                              parameters[i],
+                                                              result.dependencies[i]);
                     }
                     // We also need to store it in our own cache in case we need to retrieve it
                     // if they come at us with the same query request
-                    this.addPrefetchResult(ts.getTransactionId(),
-                                           fragment.getFragmentId(i),
-                                           fragment.getPartitionId(),
-                                           parameters[i],
-                                           result.dependencies[i]);
+                    this.queryCache.addTransactionResult(ts.getTransactionId(),
+                                                         fragment.getFragmentId(i),
+                                                         fragment.getPartitionId(),
+                                                         parameters[i],
+                                                         result.dependencies[i]);
                 } // FOR
             }
             
@@ -1920,13 +1922,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // that are prefetching for this txn at our local HStoreSite to finish.
             if (is_remote) {
                 WorkResult wr = this.buildWorkResult(ts, result, status, error);
-                TransactionPrefetchResult prefetchResult = TransactionPrefetchResult.newBuilder()
+                TransactionPrefetchResult.Builder builder = TransactionPrefetchResult.newBuilder()
                                                                 .setTransactionId(ts.getTransactionId().longValue())
                                                                 .setSourcePartition(this.partitionId)
                                                                 .setResult(wr)
                                                                 .setStatus(status)
-                                                                .build();
-                hstore_coordinator.transactionPrefetchResult((RemoteTransaction)ts, prefetchResult);
+                                                                .addAllFragmentId(fragment.getFragmentIdList());
+                for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+                    builder.addParamHash(parameters[i].hashCode());
+                }
+                hstore_coordinator.transactionPrefetchResult((RemoteTransaction)ts, builder.build());
             }
         }
         // -------------------------------
@@ -2826,6 +2831,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                                                           partition,
                                                                                           parameters[paramIdx]);
                                 if (vt != null) {
+                                    if (t) LOG.trace(String.format("%s - Storing cached result from partition %d for fragment %d",
+                                                                   ts, partition, fragId));
                                     ts.addResult(partition, fragment.getOutputDepId(i), vt);
                                 } else {
                                     skip_queue = false;

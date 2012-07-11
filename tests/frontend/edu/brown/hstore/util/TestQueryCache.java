@@ -64,7 +64,7 @@ public class TestQueryCache extends BaseTestCase {
             expectedValues.put(fragmentId, expected);
         
             // First store it in the cache
-            this.cache.addTransactionQueryResult(txnId, fragmentId, partitionId, params, result);
+            this.cache.addTransactionResult(txnId, fragmentId, partitionId, params, result);
         } // FOR
 //        System.err.println(StringUtil.formatMaps(expectedValues));
 //        System.err.println("---------------");

@@ -1,9 +1,12 @@
 package edu.brown.hstore.handlers;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
@@ -11,13 +14,20 @@ import com.google.protobuf.RpcController;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchAcknowledgement;
 import edu.brown.hstore.Hstoreservice.TransactionPrefetchResult;
+import edu.brown.hstore.Hstoreservice.WorkResult;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
 
+/**
+ * Process TransactionPrefetchResult sent from remote sites for prefetched queries
+ * @author pavlo
+ */
 public class TransactionPrefetchHandler extends AbstractTransactionHandler<TransactionPrefetchResult, TransactionPrefetchAcknowledgement> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkHandler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -25,6 +35,8 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    private final FastDeserializer fds = new FastDeserializer();
     
     public TransactionPrefetchHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         super(hstore_site, hstore_coord);
@@ -65,10 +77,36 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
         
         // We want to store this before sending back the acknowledgment so that the transaction can get
         // access to it right away
-        ts.addPrefetchResults(request.getResult());
+        PartitionExecutor executor = hstore_site.getPartitionExecutor(ts.getBasePartition());
+        WorkResult result = request.getResult();
+        
+        if (result.getStatus() != Status.OK) {
+            // TODO: Process error!
+        } else {
+            for (int i = 0, cnt = result.getDepIdCount(); i < cnt; i++) {
+                int fragmentId = request.getFragmentId(i);
+                int paramsHash = request.getParamHash(i);
+                
+                VoltTable vt = null;
+                try {
+                    this.fds.setBuffer(result.getDepData(i).asReadOnlyByteBuffer());
+                    vt = this.fds.readObject(VoltTable.class);
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+        
+                executor.addPrefetchResult(txn_id,
+                                           fragmentId,
+                                           request.getSourcePartition(),
+                                           paramsHash,
+                                           vt);
+            } // FOR
+        }
+        
         
         // I don't think we even need to bother wasting our time sending an acknowledgement
-        controller.startCancel();
+        // We would like to cancel but we can't do that on the "server" side
+        // controller.startCancel();
         
 //        TransactionPrefetchAcknowledgement response = TransactionPrefetchAcknowledgement.newBuilder()
 //                                                            .setTransactionId(txn_id.longValue())
