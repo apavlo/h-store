@@ -324,6 +324,7 @@ CTX.TESTS['common'] = """
  valuearray_test
  nvalue_test
  tupleschema_test
+ tabletuple_test
 """
 
 CTX.TESTS['execution'] = """
