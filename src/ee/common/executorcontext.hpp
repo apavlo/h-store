@@ -22,7 +22,7 @@
 #include "common/UndoQuantum.h"
 
 #ifdef ANTICACHE
-#include "common/anticache.h"
+#include "anticache/AntiCacheDB.h"
 #include "common/AntiCacheEvictionManager.h"
 #endif
 

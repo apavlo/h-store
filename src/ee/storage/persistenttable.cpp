@@ -76,7 +76,7 @@
 
 #ifdef ANTICACHE
 #include "storage/evictedtable.h"
-#include "common/anticache.h"
+#include "anticache/AntiCacheDB.h"
 #endif
 
 #include <map>

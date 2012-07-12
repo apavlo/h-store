@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/anticache.h"
+#include "anticache/AntiCacheDB.h"
 #include "common/debuglog.h"
 #include "common/UnknownBlockAccessException.h"
 #include "common/FatalException.hpp"

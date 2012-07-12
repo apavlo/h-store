@@ -58,13 +58,16 @@ public class AntiCacheEviction extends VoltSystemProcedure {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
         
-        VoltTable allResults = new VoltTable(nodeResultsColumns);
-        
         // TODO: Instead of sending down requests one at a time per table, it will
         //       be much faster if we just send down the entire batch
+        VoltTable allResults = null;
         for (int i = 0; i < tableNames.length; i++) {
             Table catalog_tbl = database.getTables().getIgnoreCase(tableNames[i]);
             VoltTable vt = ee.antiCacheEvictBlock(catalog_tbl, blockSizes[i]);
+            if (allResults == null) {
+                allResults = new VoltTable(vt);
+            }
+            
             boolean adv = vt.advanceRow();
             assert(adv);
             allResults.add(vt);
