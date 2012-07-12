@@ -256,6 +256,7 @@ public class DDLCompiler {
         String name = attrs.getNamedItem("name").getNodeValue();
 
         Table table = db.getTables().add(name);
+        table.setEvictable(false);
 
         // handle the case where this is a materialized view
         Node queryAttr = attrs.getNamedItem("query");

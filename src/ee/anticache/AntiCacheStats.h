@@ -30,31 +30,14 @@ namespace voltdb {
 /**
  * StatsSource extension for tables.
  */
-class TableStats : public voltdb::StatsSource {
+class AntiCacheStats : public voltdb::StatsSource {
 public:
-    /**
-     * Static method to generate the column names for the tables which
-     * contain persistent table stats.
-     */
-    static std::vector<std::string> generateTableStatsColumnNames();
 
-    /**
-     * Static method to generate the remaining schema information for
-     * the tables which contain persistent table stats.
-     */
-    static void populateTableStatsSchema(std::vector<voltdb::ValueType>& types,
-                                         std::vector<int32_t>& columnLengths,
-                                         std::vector<bool>& allowNull);
-
-    /**
-     * Return an empty TableStats table
-     */
-    static Table* generateEmptyTableStatsTable();
 
     /*
      * Constructor caches reference to the table that will be generating the statistics
      */
-    TableStats(voltdb::Table* table);
+    AntiCacheStats(voltdb::Table* table);
 
     /**
      * Configure a StatsSource superclass for a set of statistics. Since this class is only used in the EE it can be assumed that
@@ -94,22 +77,17 @@ protected:
      */
     virtual void populateSchema(std::vector<voltdb::ValueType> &types, std::vector<int32_t> &columnLengths, std::vector<bool> &allowNull);
 
-    ~TableStats();
+    ~AntiCacheStats();
 
 private:
     /**
      * Table whose stats are being collected.
      */
-    voltdb::Table * m_table;
-
+    voltdb::Table *m_table;
     voltdb::NValue m_tableName;
-
-    voltdb::NValue m_tableType;
-
-    int64_t m_lastTupleCount;
-    int64_t m_lastAllocatedTupleMemory;
-    int64_t m_lastOccupiedTupleMemory;
-    int64_t m_lastStringDataMemory;
+    int64_t m_lastTuplesEvicted;
+    int64_t m_lastBlocksEvicted;
+    int64_t m_lastBytesEvicted;
 };
 
 }

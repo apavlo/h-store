@@ -46,6 +46,7 @@ Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_fields["materializer"] = value;
     m_fields["systable"] = value;
     m_fields["mapreduce"] = value;
+    m_fields["evictable"] = value;
 }
 
 Table::~Table() {
@@ -86,6 +87,7 @@ void Table::update() {
     m_materializer = m_fields["materializer"].typeValue;
     m_systable = m_fields["systable"].intValue;
     m_mapreduce = m_fields["mapreduce"].intValue;
+    m_evictable = m_fields["evictable"].intValue;
 }
 
 CatalogType * Table::addChild(const std::string &collectionName, const std::string &childName) {
@@ -183,5 +185,9 @@ bool Table::systable() const {
 
 bool Table::mapreduce() const {
     return m_mapreduce;
+}
+
+bool Table::evictable() const {
+    return m_evictable;
 }
 

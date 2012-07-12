@@ -40,12 +40,14 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
-import org.voltdb.PeriodicWorkTimerThread;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Catalog;
@@ -110,6 +112,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * 
@@ -279,7 +282,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private boolean adhoc_helper_started = false;
     private final AsyncCompilerWorkThread asyncCompilerWork_thread;
-    private final PeriodicWorkTimerThread periodicWorkTimer_thread;
+    private ScheduledThreadPoolExecutor m_periodicWorkThread;
     
     /**
      * Anti-Cache Abstraction Layer
@@ -533,12 +536,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.commandLogger = null;
         }
 
+        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor("Periodic Work", 1, 1024 * 128);
+        
         // AdHoc Support
         if (hstore_conf.site.exec_adhoc_sql) {
-            this.periodicWorkTimer_thread = new PeriodicWorkTimerThread(this);
             this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
         } else {
-            this.periodicWorkTimer_thread = null;
             this.asyncCompilerWork_thread = null;
         }
         
@@ -556,12 +559,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.voltNetwork = new VoltNetwork();
         this.clientInterface = ClientInterface.create(this,
-                                                       this.voltNetwork,
-                                                       this.catalogContext,
-                                                       this.getSiteId(),
-                                                       this.getSiteId(),
-                                                       catalog_site.getProc_port(),
-                                                       null);
+                                                      this.voltNetwork,
+                                                      this.catalogContext,
+                                                      this.getSiteId(),
+                                                      this.getSiteId(),
+                                                      catalog_site.getProc_port(),
+                                                      null);
         
         
         // -------------------------------
@@ -815,8 +818,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void startAdHocHelper() {
         assert(this.adhoc_helper_started == false);
-        if (d) LOG.debug("Starting " + this.periodicWorkTimer_thread.getClass().getSimpleName());
-        this.periodicWorkTimer_thread.start();
+//        if (d) LOG.debug("Starting " + this.periodicWorkTimer_thread.getClass().getSimpleName());
+//        this.periodicWorkTimer_thread.start();
         if (d) LOG.debug("Starting " + this.asyncCompilerWork_thread.getClass().getSimpleName());
         this.asyncCompilerWork_thread.start();
         this.adhoc_helper_started = true;
@@ -1081,16 +1084,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.setUncaughtExceptionHandler(this.exceptionHandler);
         t.start();
         
-        // Start Status Monitor
+        // Initialize Status Monitor
         if (hstore_conf.site.status_enable) {
             assert(hstore_conf.site.status_interval >= 0);
-            if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
             this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
-            t = new Thread(this.status_monitor);
-            t.setPriority(Thread.MIN_PRIORITY);
-            t.setDaemon(true);
-            t.setUncaughtExceptionHandler(this.exceptionHandler);
-            t.start();
         }
         
         // TransactionPreProcessors
@@ -1126,10 +1123,39 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.start();
         } // FOR
         
+        this.schedulePeriodicWorks();
+        
         // Add in our shutdown hook
         // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
         
         return (this);
+    }
+    
+    /**
+     * Schedule all the periodic works
+     */
+    private void schedulePeriodicWorks() {
+        // Internal Updates
+        this.scheduleWork(new Runnable() {
+            @Override
+            public void run() {
+                HStoreSite.this.processPeriodicWork();
+            }
+        }, 0, 5, TimeUnit.MILLISECONDS);
+        
+        // HStoreStatus
+        if (this.status_monitor != null) {
+            this.scheduleWork(this.status_monitor,
+                              hstore_conf.site.status_interval,
+                              hstore_conf.site.status_interval,
+                              TimeUnit.MILLISECONDS);
+        }
+        
+        // AntiCache Monitor
+        if (this.anticacheManager != null) {
+            this.scheduleWork(this.anticacheManager.getStatsSamplingThread(),
+                              60, 60, TimeUnit.SECONDS);
+        }
     }
     
     /**
@@ -1236,8 +1262,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.adhoc_helper_started) {
             if (this.asyncCompilerWork_thread != null)
                 this.asyncCompilerWork_thread.prepareShutdown(error);
-            if (this.periodicWorkTimer_thread != null)
-                this.periodicWorkTimer_thread.prepareShutdown(error);
         }
         
         for (int p : this.local_partitions_arr) {
@@ -1276,12 +1300,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.anticacheManager.shutdown();
         }
       
+        m_periodicWorkThread.shutdown();
+        
         // Stop AdHoc threads
         if (this.adhoc_helper_started) {
             if (this.asyncCompilerWork_thread != null)
                 this.asyncCompilerWork_thread.shutdown();
-            if (this.periodicWorkTimer_thread != null)
-                this.periodicWorkTimer_thread.shutdown();
         }
 
         if (this.preProcessors != null) {
@@ -1336,6 +1360,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public boolean isShuttingDown() {
         return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
+    }
+    
+    /**
+     * From VoltDB
+     * @param work
+     * @param initialDelay
+     * @param delay
+     * @param unit
+     * @return
+     */
+    public ScheduledFuture<?> scheduleWork(Runnable work, long initialDelay, long delay, TimeUnit unit) {
+        if (delay > 0) {
+            return m_periodicWorkThread.scheduleWithFixedDelay(work,
+                    initialDelay, delay,
+                    unit);
+        } else {
+            return m_periodicWorkThread.schedule(work, initialDelay, unit);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -2620,7 +2662,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Added for @AdHoc processes, periodically checks for AdHoc queries waiting to be compiled.
      * 
      */
-	public void processPeriodicWork() {
+	private void processPeriodicWork() {
 	    if (t)
 		    LOG.trace("Checking for PeriodicWork...");
 

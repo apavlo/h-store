@@ -716,8 +716,9 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * for a table. This is most likely only useful for testing
      * @param catalog_tbl
      * @param block_size The number of bytes to evict from the target table
+     * @return TODO
      */
-    public abstract void antiCacheEvictBlock(Table catalog_tbl, long block_size);
+    public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size);
     
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.

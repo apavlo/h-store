@@ -34,6 +34,7 @@ public class Table extends CatalogType {
     CatalogMap<MaterializedViewInfo> m_views;
     boolean m_systable;
     boolean m_mapreduce;
+    boolean m_evictable;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -51,6 +52,7 @@ public class Table extends CatalogType {
         m_fields.put("materializer", null);
         m_fields.put("systable", m_systable);
         m_fields.put("mapreduce", m_mapreduce);
+        m_fields.put("evictable", m_evictable);
     }
 
     public void update() {
@@ -58,6 +60,7 @@ public class Table extends CatalogType {
         m_estimatedtuplecount = (Integer) m_fields.get("estimatedtuplecount");
         m_systable = (Boolean) m_fields.get("systable");
         m_mapreduce = (Boolean) m_fields.get("mapreduce");
+        m_evictable = (Boolean) m_fields.get("evictable");
     }
 
     /** GETTER: The set of columns in the table */
@@ -126,6 +129,11 @@ public class Table extends CatalogType {
         return m_mapreduce;
     }
 
+    /** GETTER: Can contents of this table be evicted by the anti-cache? */
+    public boolean getEvictable() {
+        return m_evictable;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
@@ -154,6 +162,11 @@ public class Table extends CatalogType {
     /** SETTER: Is this table a MapReduce transaction table? */
     public void setMapreduce(boolean value) {
         m_mapreduce = value; m_fields.put("mapreduce", value);
+    }
+
+    /** SETTER: Can contents of this table be evicted by the anti-cache? */
+    public void setEvictable(boolean value) {
+        m_evictable = value; m_fields.put("evictable", value);
     }
 
 }

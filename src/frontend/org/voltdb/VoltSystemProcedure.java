@@ -29,7 +29,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.sysprocs.SysProcFragmentId;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
@@ -245,10 +244,47 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         return (CollectionUtil.first(hstore_site.getLocalPartitionIds()) == this.partitionId);
     }
     
-    protected final VoltTable[] autoDistribute(final int distributeId, final int aggregateId) {
+    /**
+     * Helper method that will queue and execute the given SynthesizedPlanFragment id 
+     * at the local partition
+     * @param fragId
+     * @param params
+     * @return
+     */
+    protected final VoltTable[] executeLocal(final int fragId, final ParameterSet params) {
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[1];
+        
+        int i = 0;
+        pfs[i] = new SynthesizedPlanFragment();
+        pfs[i].fragmentId = fragId;
+        pfs[i].inputDependencyIds = new int[] { };
+        pfs[i].outputDependencyIds = new int[] { fragId };
+        pfs[i].multipartition = true;
+        pfs[i].nonExecSites = false;
+        pfs[i].destPartitionId = this.partitionId;
+        pfs[i].parameters = params;
+        pfs[i].last_task = true;
+        
+        return (this.executeSysProcPlanFragments(pfs, fragId));
+    }
+    
+    protected final VoltTable[] executeOncePerSite(final int distributeId, final int aggregateId) {
+        return this.executeOncePerSite(distributeId, aggregateId, new ParameterSet());
+    }
+    
+    /**
+     * Helper method that will queue up the distributed SynthesizedPlanFragment (distributeId)
+     * at the first partition at each site and then execute the aggregate 
+     * SynthesizedPlanFragment (aggregateId) at the local partition. Note that the same
+     * ParameterSet will be given to both the distributed and aggregate operations
+     * @param distributeId
+     * @param aggregateId
+     * @param params
+     * @return
+     */
+    protected final VoltTable[] executeOncePerSite(final int distributeId, final int aggregateId, final ParameterSet params) {
         final int num_sites = CatalogUtil.getNumberOfSites(this.database);
         final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_sites + 1];
-        final ParameterSet params = new ParameterSet();
         
         int i = 0;
         for (Site catalog_site : CatalogUtil.getAllSites(this.database)) {
