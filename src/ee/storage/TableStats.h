@@ -106,9 +106,10 @@ private:
 
     voltdb::NValue m_tableType;
 
-    int64_t m_lastActiveTupleCount;
-    int64_t m_lastAllocatedTupleCount;
-    int64_t m_lastDeletedTupleCount;
+    int64_t m_lastTupleCount;
+    int64_t m_lastAllocatedTupleMemory;
+    int64_t m_lastOccupiedTupleMemory;
+    int64_t m_lastStringDataMemory;
 };
 
 }

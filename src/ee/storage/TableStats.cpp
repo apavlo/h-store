@@ -81,8 +81,11 @@ TableStats::generateEmptyTableStatsTable()
 /*
  * Constructor caches reference to the table that will be generating the statistics
  */
-TableStats::TableStats(Table* table) : StatsSource(), m_table(table),
-        m_lastActiveTupleCount(0), m_lastAllocatedTupleCount(0), m_lastDeletedTupleCount(0) {
+TableStats::TableStats(Table* table)
+    : StatsSource(), m_table(table), m_lastTupleCount(0),
+      m_lastAllocatedTupleMemory(0), m_lastOccupiedTupleMemory(0),
+      m_lastStringDataMemory(0)
+{
 }
 
 /**
@@ -96,7 +99,7 @@ TableStats::TableStats(Table* table) : StatsSource(), m_table(table),
  * @parameter databaseId Database this source is associated with
  */
 void TableStats::configure(
-        std::string name,
+        string name,
         CatalogId hostId,
         std::string hostname,
         CatalogId siteId,
@@ -112,14 +115,8 @@ void TableStats::configure(
  * the parent class's version to obtain the list of columns contributed by ancestors and then append the columns they will be
  * contributing to the end of the list.
  */
-std::vector<std::string> TableStats::generateStatsColumnNames() {
-    std::vector<std::string> columnNames = StatsSource::generateStatsColumnNames();
-    columnNames.push_back("TABLE_NAME");
-    columnNames.push_back("TABLE_TYPE");
-    columnNames.push_back("TABLE_ACTIVE_TUPLE_COUNT");
-    columnNames.push_back("TABLE_ALLOCATED_TUPLE_COUNT");
-    columnNames.push_back("TABLE_DELETED_TUPLE_COUNT");
-    return columnNames;
+vector<string> TableStats::generateStatsColumnNames() {
+    return TableStats::generateTableStatsColumnNames();
 }
 
 /**
@@ -128,28 +125,54 @@ std::vector<std::string> TableStats::generateStatsColumnNames() {
 void TableStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue( StatsSource::m_columnName2Index["TABLE_NAME"], m_tableName);
     tuple->setNValue( StatsSource::m_columnName2Index["TABLE_TYPE"], m_tableType);
-    int64_t activeTupleCount = m_table->activeTupleCount();
-    int64_t allocatedTupleCount = m_table->allocatedTupleCount();
-    int64_t deletedTupleCount = 0; // m_table->deletedTupleCount();
+    int64_t tupleCount = m_table->activeTupleCount();
+    // This overflow is unlikely (requires 2 terabytes of allocated string memory)
+    int64_t allocated_tuple_mem_kb = m_table->allocatedTupleMemory() / 1024;
+    int64_t occupied_tuple_mem_kb = 0;
+//     if (!m_table->isExport()) {
+        occupied_tuple_mem_kb = m_table->occupiedTupleMemory() / 1024;
+//     }
+    int64_t string_data_mem_kb = m_table->nonInlinedMemorySize() / 1024;
 
     if (interval()) {
-        activeTupleCount = activeTupleCount - m_lastActiveTupleCount;
-        m_lastActiveTupleCount = m_table->activeTupleCount();
+        tupleCount = tupleCount - m_lastTupleCount;
+        m_lastTupleCount = m_table->activeTupleCount();
+        allocated_tuple_mem_kb =
+            allocated_tuple_mem_kb - (m_lastAllocatedTupleMemory / 1024);
+        m_lastAllocatedTupleMemory = m_table->allocatedTupleMemory();
+        occupied_tuple_mem_kb =
+            occupied_tuple_mem_kb - (m_lastOccupiedTupleMemory / 1024);
+        m_lastOccupiedTupleMemory = m_table->occupiedTupleMemory();
+        string_data_mem_kb =
+            string_data_mem_kb - (m_lastStringDataMemory / 1024);
+        m_lastStringDataMemory = m_table->nonInlinedMemorySize();
+    }
 
-        allocatedTupleCount = allocatedTupleCount - m_lastAllocatedTupleCount;
-        m_lastAllocatedTupleCount = m_table->allocatedTupleCount();
-
-        deletedTupleCount = deletedTupleCount - m_lastDeletedTupleCount;
-        m_lastDeletedTupleCount = 0; // m_table->deletedTupleCount();
+    if (string_data_mem_kb > INT32_MAX)
+    {
+        string_data_mem_kb = -1;
+    }
+    if (allocated_tuple_mem_kb > INT32_MAX)
+    {
+        allocated_tuple_mem_kb = -1;
+    }
+    if (occupied_tuple_mem_kb > INT32_MAX)
+    {
+        occupied_tuple_mem_kb = -1;
     }
 
     tuple->setNValue(
-            StatsSource::m_columnName2Index["TABLE_ACTIVE_TUPLE_COUNT"],
-            ValueFactory::getBigIntValue(activeTupleCount));
-    tuple->setNValue( StatsSource::m_columnName2Index["TABLE_ALLOCATED_TUPLE_COUNT"],
-            ValueFactory::getBigIntValue(allocatedTupleCount));
-    tuple->setNValue( StatsSource::m_columnName2Index["TABLE_DELETED_TUPLE_COUNT"],
-            ValueFactory::getBigIntValue(deletedTupleCount));
+            StatsSource::m_columnName2Index["TUPLE_COUNT"],
+            ValueFactory::getBigIntValue(tupleCount));
+    tuple->setNValue(StatsSource::m_columnName2Index["TUPLE_ALLOCATED_MEMORY"],
+                     ValueFactory::
+                     getIntegerValue(static_cast<int32_t>(allocated_tuple_mem_kb)));
+    tuple->setNValue(StatsSource::m_columnName2Index["TUPLE_DATA_MEMORY"],
+                     ValueFactory::
+                     getIntegerValue(static_cast<int32_t>(occupied_tuple_mem_kb)));
+    tuple->setNValue( StatsSource::m_columnName2Index["STRING_DATA_MEMORY"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(string_data_mem_kb)));
 }
 
 /**
@@ -157,15 +180,10 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
  * end of a list.
  */
 void TableStats::populateSchema(
-        std::vector<ValueType> &types,
-        std::vector<int32_t> &columnLengths,
-        std::vector<bool> &allowNull) {
-    StatsSource::populateSchema(types, columnLengths, allowNull);
-    types.push_back(VALUE_TYPE_VARCHAR); columnLengths.push_back(4096); allowNull.push_back(false);
-    types.push_back(VALUE_TYPE_VARCHAR); columnLengths.push_back(4096); allowNull.push_back(false);
-    types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
-    types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
-    types.push_back(VALUE_TYPE_BIGINT); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT)); allowNull.push_back(false);
+        vector<ValueType> &types,
+        vector<int32_t> &columnLengths,
+        vector<bool> &allowNull) {
+    TableStats::populateTableStatsSchema(types, columnLengths, allowNull);
 }
 
 TableStats::~TableStats() {
