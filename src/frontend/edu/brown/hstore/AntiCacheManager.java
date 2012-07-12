@@ -1,9 +1,12 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
@@ -12,11 +15,15 @@ import org.voltdb.jni.ExecutionEngine;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.AbstractProcessingThread;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.MathUtil;
 
 /**
  * A high-level manager for the anti-cache feature
@@ -45,13 +52,56 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             this.block_ids = block_ids;
         }
     }
+
+    // ----------------------------------------------------------------------------
+    // INSTANCE MEMBERS
+    // ----------------------------------------------------------------------------
+
+    private final long availableMemory;
+    private final double memoryThreshold;
+    private final Collection<Table> evictableTables;
+    
+    /**
+     * 
+     */
+    private final TableStatsRequestMessage statsMessage;
+    
+    /**
+     * The amount of memory used at each partition
+     * PartitionOffset -> Kilobytes
+     */
+    private final long partitionSizes[];
+    
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
     
     protected AntiCacheManager(HStoreSite hstore_site) {
         super(hstore_site,
               HStoreConstants.THREAD_NAME_ANTICACHE,
               new LinkedBlockingQueue<QueueEntry>(),
               false);
+        
+        // XXX: Do we want to use Runtime.getRuntime().totalMemory() instead?
+        this.availableMemory = hstore_conf.site.memory;
+        this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        this.evictableTables = CatalogUtil.getEvictableTables(hstore_site.getDatabase()); 
+                
+        this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
+        Arrays.fill(this.partitionSizes, 0);
+        
+        this.statsMessage = new TableStatsRequestMessage(CatalogUtil.getDataTables(hstore_site.getDatabase()));
+        this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
+            @Override
+            public void update(EventObservable<VoltTable> o, VoltTable vt) {
+                AntiCacheManager.this.updatePartitionStats(vt);
+            }
+        });
     }
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION PROCESSING
+    // ----------------------------------------------------------------------------
     
     @Override
     protected void processingCallback(QueueEntry next) {
@@ -106,6 +156,49 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // for these blocks. This will ensure that we don't try to read in blocks twice.
         
         return (this.queue.offer(e));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EVICTION INITIATION
+    // ----------------------------------------------------------------------------
+    
+    protected void checkEviction() {
+        double usage = (MathUtil.sum(this.partitionSizes)/1024d) / (double)this.availableMemory;
+        if (usage >= this.memoryThreshold) {
+            // TODO: Invoke our special sysproc that will tell the EE to evict some blocks
+            //       to save us space.
+            // TODO: Need to figure out what the optimal solution is for picking the block sizes
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // MEMORY MANAGEMENT METHODS
+    // ----------------------------------------------------------------------------
+    
+    protected void getPartitionSize(int partition) {
+        
+        // Queue up a utility work operation at the PartitionExecutor so
+        // that we can get the total size of the partition
+        hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
+        
+    }
+    
+    protected void updatePartitionStats(VoltTable vt) {
+        int partition = (int)vt.getLong("PARTITION_ID");
+        long totalSizeKb = 0;
+        vt.resetRowPosition();
+        int memory_idx = -1;
+        while (vt.advanceRow()) {
+            if (memory_idx == -1) {
+                vt.getColumnIndex("TUPLE_DATA_MEMORY");
+            }
+            totalSizeKb += vt.getLong(memory_idx);
+        } // WHILE
+        
+        // TODO: If the total size is greater than some threshold, then
+        //       we need to initiate the eviction process
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.partitionSizes[offset] = totalSizeKb;
     }
     
     // ----------------------------------------------------------------------------

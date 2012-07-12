@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -30,7 +29,6 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
-import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Index;
@@ -104,8 +102,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static final String DEFAULT_DATABASE_NAME = "database";
     public static final String DEFAULT_PROCEDURE_NAME = "procedure";
     public static final String DEFAULT_STATEMENT_NAME = "statement";
-
-    private static final Random rand = new Random();
 
     // ------------------------------------------------------------
     // CACHES
@@ -1037,6 +1033,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getMapreduce())
                 tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
+     * Return all of the evictable tables for the database
+     */
+    public static Collection<Table> getEvictableTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getEvictable()) tables.add(catalog_tbl);
         }
         return (tables);
     }
