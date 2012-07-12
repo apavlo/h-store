@@ -194,7 +194,6 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
- AntiCacheEvictionManager.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -370,9 +369,17 @@ if ENABLE_ANTICACHE:
         "berkeleydb/libdb.a",     # BerkeleyDB Base Library
         "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
     ])
-    CTX.INPUT['common'] += " anticache.cpp"
-    CTX.TESTS['common'] += " anticache_test"
-    CTX.TESTS['execution'] += " berkeleydb_test"
+    
+    CTX.INPUT['anticache'] = """
+        AntiCacheDB.cpp
+        AntiCacheStats.cpp
+    """
+    CTX.INPUT['common'] += " AntiCacheEvictionManager.cpp" # FIXME
+    
+    CTX.TESTS['anticache'] = """
+        anticachedb_test
+        berkeleydb_test
+    """
 
 ###############################################################################
 # BUILD THE MAKEFILE
