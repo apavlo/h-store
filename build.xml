@@ -811,15 +811,17 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile"
+<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile, ee-build"
     description="Build C++ JNI library and copy it to production folder.">
-    <exec dir='.' executable='python' failonerror='true'>
-        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
-    </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
     </exec>
    <symlink link="${build.dir}/nativelibs/libvoltdb.so" resource="${build.dir}/nativelibs/libvoltdb-${dist.version}.so" overwrite="true" failonerror="false"/>-->
+</target>
+<target name="ee-build">
+    <exec dir='.' executable='python' failonerror='true'>
+        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
+    </exec>
 </target>
 
 <target name='execplanfrag' depends="ee"
