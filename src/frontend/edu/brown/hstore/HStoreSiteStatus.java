@@ -188,13 +188,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 
         if (LOG.isDebugEnabled()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {
-            try {
-                Thread.sleep(this.interval);
-            } catch (InterruptedException ex) {
-                return;
-            }
-            if (this.hstore_site.isShuttingDown()) break;
-            if (this.hstore_site.isRunning() == false) continue;
+//            try {
+//                Thread.sleep(this.interval);
+//            } catch (InterruptedException ex) {
+//                return;
+//            }
+//            if (this.hstore_site.isShuttingDown()) break;
+//            if (this.hstore_site.isRunning() == false) continue;
 
             // Out we go!
             this.printStatus();
@@ -208,6 +208,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 this.hstore_site.getHStoreCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
+            break;
         } // WHILE
     }
     

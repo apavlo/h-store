@@ -784,6 +784,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
+                if (work == null) continue;
                 if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
@@ -809,7 +810,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 // BAD MOJO!
                 // -------------------------------
-                else if (work != null) {
+                else {
                     String msg = "Unexpected work message in queue: " + work;
                     throw new ServerFaultException(msg, this.currentTxnId);
                 }
@@ -873,7 +874,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (d) LOG.debug("Partition " + this.partitionId + " queue is empty. Waiting...");
                 if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                 try {
-                    work = this.work_queue.take();
+                    work = this.work_queue.poll(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (d && this.isShuttingDown() == false)
                         LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
@@ -1432,8 +1433,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
-    
+
+    /**
+     * Add a new work message to our utility queue 
+     * @param work
+     */
     public void queueUtilityWork(InternalMessage work) {
+        if (debug.get())
+            LOG.debug(String.format("Queuing utility work on partition %d\n%s", this.partitionId, work));
         this.utility_queue.offer(work);
     }
     

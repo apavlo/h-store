@@ -1145,12 +1145,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // HStoreStatus
         if (this.status_monitor != null) {
-            this.scheduleWork(this.status_monitor, 0, hstore_conf.site.status_interval, TimeUnit.MILLISECONDS);
+            this.scheduleWork(this.status_monitor,
+                              hstore_conf.site.status_interval,
+                              hstore_conf.site.status_interval,
+                              TimeUnit.MILLISECONDS);
         }
         
         // AntiCache Monitor
         if (this.anticacheManager != null) {
-            // TODO
+            this.scheduleWork(this.anticacheManager.getStatsSamplingThread(),
+                              60, 60, TimeUnit.SECONDS);
         }
     }
     
