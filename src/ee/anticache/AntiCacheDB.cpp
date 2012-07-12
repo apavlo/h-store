@@ -24,8 +24,8 @@
  */
 
 #include "anticache/AntiCacheDB.h"
+#include "anticache/UnknownBlockAccessException.h"
 #include "common/debuglog.h"
-#include "common/UnknownBlockAccessException.h"
 #include "common/FatalException.hpp"
 
 using namespace std;

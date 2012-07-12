@@ -184,8 +184,6 @@ CTX.INPUT['common'] = """
  SegvException.cpp
  SerializableEEException.cpp
  SQLException.cpp
- EvictedTupleAccessException.cpp
- UnknownBlockAccessException.cpp
  tabletuple.cpp
  TupleSchema.cpp
  types.cpp
@@ -371,6 +369,8 @@ if ENABLE_ANTICACHE:
     ])
     
     CTX.INPUT['anticache'] = """
+        EvictedTupleAccessException.cpp
+        UnknownBlockAccessException.cpp
         AntiCacheDB.cpp
         AntiCacheStats.cpp
     """
