@@ -52,7 +52,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             this.block_ids = block_ids;
         }
     }
-
+    
     // ----------------------------------------------------------------------------
     // INSTANCE MEMBERS
     // ----------------------------------------------------------------------------
@@ -71,6 +71,20 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * PartitionOffset -> Kilobytes
      */
     private final long partitionSizes[];
+
+    private final Runnable statsSamplingThread = new Runnable() {
+        @Override
+        public void run() {
+            for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+                LOG.info("Requesting table statistics from partition #" + p);
+                // Queue up a utility work operation at the PartitionExecutor so
+                // that we can get the total size of the partition
+                hstore_site.getPartitionExecutor(p.intValue()).queueUtilityWork(statsMessage);
+            } // FOR
+            
+            // TODO: We could also call checkEviction() in here too
+        }
+    };
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -82,7 +96,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
               new LinkedBlockingQueue<QueueEntry>(),
               false);
         
-        // XXX: Do we want to use Runtime.getRuntime().totalMemory() instead?
+        // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
+        // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
         this.availableMemory = hstore_conf.site.memory;
         this.memoryThreshold = hstore_conf.site.anticache_threshold;
         this.evictableTables = CatalogUtil.getEvictableTables(hstore_site.getDatabase()); 
@@ -97,6 +112,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
+    }
+    
+    public Runnable getStatsSamplingThread() {
+        return this.statsSamplingThread;
     }
     
     // ----------------------------------------------------------------------------
@@ -175,22 +194,15 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     // MEMORY MANAGEMENT METHODS
     // ----------------------------------------------------------------------------
     
-    protected void getPartitionSize(int partition) {
-        
-        // Queue up a utility work operation at the PartitionExecutor so
-        // that we can get the total size of the partition
-        hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
-        
-    }
-    
     protected void updatePartitionStats(VoltTable vt) {
-        int partition = (int)vt.getLong("PARTITION_ID");
         long totalSizeKb = 0;
-        vt.resetRowPosition();
+        int partition = -1;
         int memory_idx = -1;
+        vt.resetRowPosition();
         while (vt.advanceRow()) {
             if (memory_idx == -1) {
-                vt.getColumnIndex("TUPLE_DATA_MEMORY");
+                partition = (int)vt.getLong("PARTITION_ID");
+                memory_idx = vt.getColumnIndex("TUPLE_DATA_MEMORY");
             }
             totalSizeKb += vt.getLong(memory_idx);
         } // WHILE
