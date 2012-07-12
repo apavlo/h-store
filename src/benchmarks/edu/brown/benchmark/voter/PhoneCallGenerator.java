@@ -80,7 +80,7 @@ public class PhoneCallGenerator {
     }
 	
 	//public PhoneCallGenerator(final int contestantCount)
-	public PhoneCallGenerator(int contestantCount, int clientId) {
+	public PhoneCallGenerator(int clientId, int contestantCount) {
 	    this.nextVoteId = clientId * 1000000;
         this.contestantCount = contestantCount;
 		
