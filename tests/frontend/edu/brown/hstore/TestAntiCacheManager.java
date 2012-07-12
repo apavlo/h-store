@@ -5,6 +5,7 @@ import java.util.concurrent.Semaphore;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -109,6 +110,10 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
 
+        final int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
+        final VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        System.err.println(results[0]);
+        
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
