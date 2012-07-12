@@ -71,7 +71,7 @@ public class VoterClient extends BenchmarkComponent {
     public VoterClient(String args[]) {
         super(args);
         int numContestants = VoterUtil.getScaledNumContestants(this.getScaleFactor());
-        this.switchboard = new PhoneCallGenerator(numContestants);
+        this.switchboard = new PhoneCallGenerator(this.getClientId(), numContestants);
     }
 
     @Override
@@ -103,6 +103,7 @@ public class VoterClient extends BenchmarkComponent {
         try {
             response = client.callProcedure(callback,
                                             "Vote",
+                                            call.voteId,
                                             call.phoneNumber,
                                             call.contestantNumber,
                                             VoterConstants.MAX_VOTES);
