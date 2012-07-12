@@ -255,6 +255,11 @@ class PersistentTable : public Table {
 #endif
 
 protected:
+    
+    size_t allocatedBlockCount() const {
+        return m_data.size();
+    }
+    
     // ------------------------------------------------------------------
     // FROM PIMPL
     // ------------------------------------------------------------------

@@ -70,6 +70,9 @@ class StreamedTable : public Table {
     // Stats
     voltdb::StreamedTableStats stats_;
     voltdb::TableStats *getTableStats();
+    
+    // Just say 0
+    size_t allocatedBlockCount() const;
 
   private:
     ExecutorContext *m_executorContext;

@@ -168,6 +168,12 @@ void Table::initializeWithColumns(TupleSchema *schema, const std::string* column
 #endif
 
     m_tupleLength = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+    if (m_tuplesPerBlock < 1) {
+        m_tuplesPerBlock = 1;
+        m_tableAllocationSize = m_tupleLength;
+    } else {
+        m_tableAllocationSize = m_tableAllocationTargetSize;
+    }
 
     // note that any allocated memory in m_data is left alone
     // as is m_allocatedTuples

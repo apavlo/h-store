@@ -113,6 +113,10 @@ class TempTable : public Table {
     protected:
         // can not use this constructor to coerce a cast
         explicit TempTable();
+        
+        size_t allocatedBlockCount() const {
+            return m_data.size();
+        }
 };
 
 inline void TempTable::insertTupleNonVirtualWithDeepCopy(TableTuple &source, Pool *pool) {

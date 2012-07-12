@@ -155,16 +155,46 @@ public:
     virtual bool deleteTuple(TableTuple &tuple, bool deleteAllocatedStrings) = 0;
 
     // ------------------------------------------------------------------
-    // TUPLES
+    // TUPLES AND MEMORY USAGE
     // ------------------------------------------------------------------
-    int64_t allocatedTupleCount() const { return m_allocatedTuples; }
-    int64_t activeTupleCount() const { return m_tupleCount; }
-#ifdef MEMCHECK_NOFREELIST
-    int64_t deletedTupleCount() const { return m_deletedTupleCount; }
-#else
-    int64_t deletedTupleCount() const { return m_holeFreeTuples.size(); }
-#endif
-    TableTuple& tempTuple();
+    virtual size_t allocatedBlockCount() const = 0;
+    
+    TableTuple& tempTuple() {
+        assert (m_tempTuple.m_data);
+        return m_tempTuple;
+    }
+    
+    int64_t allocatedTupleCount() const {
+        return allocatedBlockCount() * m_tuplesPerBlock;
+    }
+    
+    /**
+     * Includes tuples that are pending any kind of delete.
+     * Used by iterators to determine how many tupels to expect while scanning
+     */
+    virtual int64_t activeTupleCount() const {
+        return m_tupleCount;
+    }
+    
+    /*
+     * Count of tuples that actively contain user data
+     */
+    int64_t usedTupleCount() const {
+        return m_usedTuples;
+    }
+    
+    virtual int64_t allocatedTupleMemory() const {
+        return allocatedBlockCount() * m_tableAllocationSize;
+    }
+    
+    int64_t occupiedTupleMemory() const {
+        return m_tupleCount * m_tempTuple.tupleLength();
+    }
+    
+    // Only counts persistent table usage, currently
+//     int64_t nonInlinedMemorySize() const {
+//         return m_nonInlinedMemorySize;
+//     }
 
     // ------------------------------------------------------------------
     // COLUMNS
@@ -348,6 +378,7 @@ protected:
     bool m_ownsTupleSchema;
 
     const int m_tableAllocationTargetSize;
+    int m_tableAllocationSize;
 
     // ptr to global integer tracking temp table memory allocated per frag
     // should be null for persistent tables
@@ -380,11 +411,6 @@ inline char* Table::dataPtrForTupleForced(const int index) {
         allocateNextBlock();
     }
     return dataPtrForTuple(index);
-}
-
-inline TableTuple& Table::tempTuple() {
-    assert (m_tempTuple.m_data);
-    return m_tempTuple;
 }
 
 inline const std::string& Table::name()     const { return m_name; }
