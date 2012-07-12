@@ -645,6 +645,12 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
         assert(m_anticache);
         deserializer.clear();
+        
+        final int errorCode = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
+        checkErrorCode(errorCode);
+        return (null);
+        
+        /* TODO
         final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
         if (numResults == -1) {
             throwExceptionForError(ERRORCODE_ERROR);
@@ -661,6 +667,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
+        */
     }
     
     @Override
