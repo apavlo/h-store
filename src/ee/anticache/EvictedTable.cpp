@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "storage/evictedtable.h"
+#include "anticache/evictedtable.h"
 #include "storage/persistenttable.h"
 
 

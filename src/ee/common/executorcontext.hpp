@@ -23,7 +23,7 @@
 
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
-#include "common/AntiCacheEvictionManager.h"
+#include "anticache/AntiCacheEvictionManager.h"
 #endif
 
 namespace voltdb {
