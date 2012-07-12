@@ -43,35 +43,36 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EVICTIONITERATOR_H
-#define EVICTIONITERATOR_H
 
-#include "storage/EvictionIterator.h"
+#ifndef ANTICACHEEVICTIONMANAGER_H
+#define ANTICACHEEVICTIONMANAGER_H
+
+#include "storage/TupleIterator.h"
+#include "anticache/EvictionIterator.h"
+#include "storage/table.h"
+#include "common/tabletuple.h"
+
+using namespace voltdb; 
 
 namespace voltdb {
-    
 
-EvictionIterator::EvictionIterator(const Table *table)
+    class EvictionIterator; 
+    class TupleIterator; 
+    
+    
+class AntiCacheEvictionManager
 {
-    table_itr = new TableIterator(table); 
-}
+        
+public: 
+    
+    AntiCacheEvictionManager(); 
+    
+    bool updateTuple(TableTuple& tuple); 
+            
+    
+}; // AntiCacheEvictionManager class
 
-EvictionIterator::~EvictionIterator()
-{
-    delete table_itr; 
-}
 
-bool EvictionIterator::next(TableTuple &tuple)
-{
-    // TODO: This simply iterates through all tuples, must implement LRU iteration policy
-    
-    if(table_itr->hasNext())
-        return false; 
-    
-    table_itr->next(tuple); 
-    
-    return true; 
-}
     
 }
 
