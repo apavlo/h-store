@@ -83,6 +83,7 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.AntiCacheEviction;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
@@ -1261,7 +1262,7 @@ public class VoltCompiler {
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
             {GarbageCollection.class,               true,       true},
-            {ResetProfiling.class,                      true,       true},
+            {ResetProfiling.class,                  true,       true},
             {ExecutorStatus.class,                  true,       false},
             {GetCatalog.class,                      true,       false},
             {SnapshotSave.class,                    false,      true},
@@ -1269,6 +1270,9 @@ public class VoltCompiler {
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},
+            
+            // Anti-Cache Operations
+            {AntiCacheEviction.class,               false,      false},
          
 //       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},

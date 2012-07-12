@@ -92,7 +92,7 @@ public class GarbageCollection extends VoltSystemProcedure {
     }
     
     public VoltTable[] run() {
-        return this.autoDistribute(SysProcFragmentId.PF_gcDistribute,
+        return this.executeOncePerSite(SysProcFragmentId.PF_gcDistribute,
                                    SysProcFragmentId.PF_gcAggregate);
     }
 }
