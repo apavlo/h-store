@@ -192,9 +192,10 @@ public:
     }
     
     // Only counts persistent table usage, currently
-//     int64_t nonInlinedMemorySize() const {
-//         return m_nonInlinedMemorySize;
-//     }
+    int64_t nonInlinedMemorySize() const {
+        // return m_nonInlinedMemorySize;
+        return 0l;
+    }
 
     // ------------------------------------------------------------------
     // COLUMNS
