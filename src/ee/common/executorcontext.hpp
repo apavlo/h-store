@@ -23,12 +23,14 @@
 
 #ifdef ANTICACHE
 #include "common/anticache.h"
+#include "common/AntiCacheEvictionManager.h"
 #endif
 
 namespace voltdb {
 
 #ifdef ANTICACHE
 class AntiCacheDB;
+class AntiCacheEvictionManager; 
 #endif
 
 /*
@@ -49,6 +51,7 @@ class ExecutorContext {
 #ifdef ANTICACHE
         if (m_antiCacheEnabled) {
             delete m_antiCacheDB;
+            delete m_antiCacheEvictionManager; 
         }
 #endif
     }
@@ -156,6 +159,14 @@ class ExecutorContext {
     }
     
     /**
+     * Return the handle to the anti-cache manager that will update tuple timestamps
+     * and can select tuples for eviction. 
+     */
+    AntiCacheEvictionManager* getAntiCacheEvictionManager() const {
+        return m_antiCacheEvictionManager; 
+    }
+    
+    /**
      * Enable the anti-caching feature in the EE.
      * The input parameter is the directory where our disk-based storage
      * will write out evicted blocks of tuples for this partition
@@ -164,6 +175,7 @@ class ExecutorContext {
         assert(m_antiCacheEnabled == false);
         m_antiCacheEnabled = true;
         m_antiCacheDB = new AntiCacheDB(this, dbDir);
+        m_antiCacheEvictionManager = new AntiCacheEvictionManager(); 
     }
 #endif
 
@@ -174,6 +186,8 @@ class ExecutorContext {
 
 #ifdef ANTICACHE
     AntiCacheDB *m_antiCacheDB;
+    
+    AntiCacheEvictionManager *m_antiCacheEvictionManager; 
 #endif
 
   public:

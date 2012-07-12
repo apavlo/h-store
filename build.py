@@ -194,6 +194,7 @@ CTX.INPUT['common'] = """
  RecoveryProtoMessage.cpp
  RecoveryProtoMessageBuilder.cpp
  DefaultTupleSerializer.cpp
+ AntiCacheEvictionManager.cpp
 """
 
 CTX.INPUT['execution'] = """
@@ -281,6 +282,7 @@ CTX.INPUT['storage'] = """
  temptable.cpp
  TupleStreamWrapper.cpp
  RecoveryContext.cpp
+ EvictionIterator.cpp
 """
 
 CTX.INPUT['stats'] = """

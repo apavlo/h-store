@@ -203,6 +203,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     //       shove them out to our new block.
     TableTuple tuple(m_schema);
     TableIterator table_itr(this);
+    
     VOLT_INFO("Starting TableIterator for %s", name().c_str());
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple);
@@ -256,7 +257,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     
     return true;
 }
-    
+	
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
     AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
@@ -269,6 +270,10 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id) {
         memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
         delete [] m_unevictedTuples; 
         m_unevictedTuples = temp_ptr; 
+    }
+    else // no previous unevicted block, so just allocate memory for new block
+    {
+        m_unevictedTuples = new char[value.getSize()]; 
     }
     
     // copy newly un-evicted block into unevicted block array
