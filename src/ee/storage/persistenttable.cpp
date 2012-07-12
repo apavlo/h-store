@@ -203,6 +203,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     //       shove them out to our new block.
     TableTuple tuple(m_schema);
     TableIterator table_itr(this);
+    
     VOLT_INFO("Starting TableIterator for %s", name().c_str());
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple); 
