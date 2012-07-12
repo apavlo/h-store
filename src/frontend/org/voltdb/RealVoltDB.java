@@ -180,7 +180,7 @@ public class RealVoltDB implements VoltDBInterface
         }
     }
 
-    PeriodicWorkTimerThread fivems;
+    // PeriodicWorkTimerThread fivems;
 
     /**
      * Initialize all the global components, then initialize all the m_sites.
@@ -470,9 +470,9 @@ public class RealVoltDB implements VoltDBInterface
      */
     public void shutdown(Thread mainSiteThread) throws InterruptedException {
         synchronized(m_startAndStopLock) {
-            if (fivems == null) return;
-            fivems.interrupt();
-            fivems.join();
+//            if (fivems == null) return;
+//            fivems.interrupt();
+//            fivems.join();
             // Things are going pear-shaped, tell the fault distributor to
             // shut its fat mouth
             m_faultManager.shutDown();

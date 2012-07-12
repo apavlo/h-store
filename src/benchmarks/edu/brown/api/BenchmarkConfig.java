@@ -101,6 +101,7 @@ public class BenchmarkConfig {
     public boolean markovRecomputeAfterEnd;
     public boolean markovRecomputeAfterWarmup;
     
+    public String evictable[];
     public String deferrable[];
     
     public boolean dumpDatabase;
@@ -223,6 +224,7 @@ public class BenchmarkConfig {
             Double thresholdsValue,
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
+            String evictable[],
             String deferrable[],
             boolean dumpDatabase,
             String dumpDatabaseDir,
@@ -287,6 +289,7 @@ public class BenchmarkConfig {
         this.markovRecomputeAfterEnd = markovRecomputeAfterEnd;
         this.markovRecomputeAfterWarmup = markovRecomputeAfterWarmup;
         
+        this.evictable = evictable;
         this.deferrable = deferrable;
         
         this.dumpDatabase = dumpDatabase;

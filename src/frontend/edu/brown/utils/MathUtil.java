@@ -197,4 +197,17 @@ public abstract class MathUtil {
         }
         return Math.sqrt(sum / n);
     }
+    
+    /** Compute the sum of the given array */
+    public static long sum(long...values) {
+        long total = 0;
+        for (long v : values) total += v;
+        return (total);
+    }
+    /** Compute the sum of the given array */
+    public static int sum(int...values) {
+        int total = 0;
+        for (int v : values) total += v;
+        return (total);
+    }
 }

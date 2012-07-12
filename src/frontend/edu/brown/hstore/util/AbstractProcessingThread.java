@@ -40,6 +40,7 @@ public abstract class AbstractProcessingThread<E> implements Runnable, Shutdowna
         assert(queue != null);
         
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.name = name;
         this.queue = queue;
         
@@ -57,7 +58,6 @@ public abstract class AbstractProcessingThread<E> implements Runnable, Shutdowna
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_ANTICACHE));
         this.hstore_site.getThreadManager().registerProcessingThread();
-        this.hstore_conf = hstore_site.getHStoreConf();
 
         E next = null;
         while (this.stop == false) {

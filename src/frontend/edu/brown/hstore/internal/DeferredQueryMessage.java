@@ -10,12 +10,12 @@ import org.voltdb.SQLStmt;
  * @param params The parameters the SQLStmt was called with
  *
  */
-public class DeferredWork extends InternalMessage {
+public class DeferredQueryMessage extends InternalMessage {
     private Long _txnid;
     private SQLStmt _stmt;
     private ParameterSet _params;
     
-    public DeferredWork(Long txnid, SQLStmt stmt, ParameterSet params){
+    public DeferredQueryMessage(Long txnid, SQLStmt stmt, ParameterSet params){
         // TODO: have it take a timer, also! so we can see how long deferred work lasts, on average
         _txnid = txnid;
         _stmt = stmt;

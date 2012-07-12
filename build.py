@@ -281,6 +281,7 @@ CTX.INPUT['storage'] = """
  temptable.cpp
  TupleStreamWrapper.cpp
  RecoveryContext.cpp
+ EvictionIterator.cpp
 """
 
 CTX.INPUT['stats'] = """
@@ -324,6 +325,7 @@ CTX.TESTS['common'] = """
  valuearray_test
  nvalue_test
  tupleschema_test
+ tabletuple_test
 """
 
 CTX.TESTS['execution'] = """
@@ -367,9 +369,17 @@ if ENABLE_ANTICACHE:
         "berkeleydb/libdb.a",     # BerkeleyDB Base Library
         "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
     ])
-    CTX.INPUT['common'] += " anticache.cpp"
-    CTX.TESTS['common'] += " anticache_test"
-    CTX.TESTS['execution'] += " berkeleydb_test"
+    
+    CTX.INPUT['anticache'] = """
+        AntiCacheDB.cpp
+        AntiCacheStats.cpp
+    """
+    CTX.INPUT['common'] += " AntiCacheEvictionManager.cpp" # FIXME
+    
+    CTX.TESTS['anticache'] = """
+        anticachedb_test
+        berkeleydb_test
+    """
 
 ###############################################################################
 # BUILD THE MAKEFILE

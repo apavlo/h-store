@@ -51,6 +51,7 @@
       <xsd:element name="schemas" type="schemasType"/>
       <xsd:element name="procedures" type="proceduresType"/>
       <xsd:element name="partitions" type="partitionsType" minOccurs="0"/>
+      <xsd:element name="evictables" type="evictablesType" minOccurs="0"/>
       <xsd:element name="verticalpartitions" type="verticalpartitionsType" minOccurs="0"/>
       <xsd:element name="classdependencies" type="classdependenciesType" minOccurs="0"/>
       <xsd:element name="exports" type="exportsType" minOccurs="0"/>
@@ -134,6 +135,17 @@
         <xsd:complexType>
           <xsd:attribute name="table" type="xsd:string" use="required"/>
           <xsd:attribute name="column" type="xsd:string" use="required"/>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <!-- <evictables> -->
+  <xsd:complexType name="evictablesType">
+    <xsd:sequence>
+      <xsd:element name="evictable" minOccurs="1" maxOccurs="unbounded">
+        <xsd:complexType>
+          <xsd:attribute name="table" type="xsd:string" use="required"/>
         </xsd:complexType>
       </xsd:element>
     </xsd:sequence>

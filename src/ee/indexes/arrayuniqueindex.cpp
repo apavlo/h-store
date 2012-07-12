@@ -77,6 +77,19 @@ bool ArrayUniqueIndex::replaceEntry(const TableTuple *oldTupleValue, const Table
     ++m_updates;
     return true;
 }
+    
+bool ArrayUniqueIndex::setEntryToNull(const TableTuple* tuple)
+{
+    int32_t key = ValuePeeker::peekAsInteger(tuple->getNValue(column_indices_[0]));
+    
+    assert(key < ARRAY_INDEX_INITIAL_SIZE);
+    assert(key >= 0);
+    
+    entries_[key] = NULL; 
+    ++m_updates; 
+    
+    return true; 
+}
 
 bool ArrayUniqueIndex::exists(const TableTuple* values) {
     int32_t key = ValuePeeker::peekAsInteger(values->getNValue(column_indices_[0]));

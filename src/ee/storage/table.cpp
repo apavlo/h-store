@@ -168,6 +168,12 @@ void Table::initializeWithColumns(TupleSchema *schema, const std::string* column
 #endif
 
     m_tupleLength = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+    if (m_tuplesPerBlock < 1) {
+        m_tuplesPerBlock = 1;
+        m_tableAllocationSize = m_tupleLength;
+    } else {
+        m_tableAllocationSize = m_tableAllocationTargetSize;
+    }
 
     // note that any allocated memory in m_data is left alone
     // as is m_allocatedTuples
@@ -470,15 +476,18 @@ void Table::loadTuplesFromNoHeader(bool allowExport,
         m_tmpTarget1.move(dataPtrForTuple((int) m_usedTuples + i));
         m_tmpTarget1.setDeletedFalse();
         m_tmpTarget1.setDirtyFalse();
+        m_tmpTarget1.setEvictedFalse();
         m_tmpTarget1.deserializeFrom(serialize_io, stringPool);
 
         processLoadedTuple( allowExport, m_tmpTarget1);
+        VOLT_DEBUG("Loaded new tuple #%02d\n%s", i, m_tmpTarget1.debug(name()).c_str());
     }
 
     populateIndexes(tupleCount);
 
     m_tupleCount += tupleCount;
     m_usedTuples += tupleCount;
+    
 }
 
 void Table::loadTuplesFrom(bool allowExport,
