@@ -642,7 +642,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
     
     @Override
-    public void antiCacheEvictBlock(Table catalog_tbl, long block_size) {
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
         assert(m_anticache);
         final int errorCode = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
         checkErrorCode(errorCode);

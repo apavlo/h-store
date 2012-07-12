@@ -210,7 +210,7 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
         // TODO Auto-generated method stub
         
     }
