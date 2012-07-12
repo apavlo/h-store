@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
 import org.apache.log4j.Logger;
@@ -62,6 +63,32 @@ public abstract class ThreadUtil {
                 // IGNORE!
             }
         }
+    }
+    
+    /*
+    * Have shutdown actually means shutdown. Tasks that need to complete should use
+    * futures.
+    */
+    public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, int poolSize, int stackSize) {
+        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, getThreadFactory(name));
+        ses.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        ses.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        return ses;
+    }
+    
+    public static ThreadFactory getThreadFactory(String name) {
+        return getThreadFactory(name, 1024 * 1024);
+    }
+
+    public static ThreadFactory getThreadFactory(final String name, final int stackSize) {
+        return new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(null, r, name, stackSize);
+                t.setDaemon(true);
+                return t;
+            }
+        };
     }
 
     /**
