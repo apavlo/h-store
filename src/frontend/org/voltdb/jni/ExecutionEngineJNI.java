@@ -644,8 +644,23 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     @Override
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
         assert(m_anticache);
-        final int errorCode = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
-        checkErrorCode(errorCode);
+        deserializer.clear();
+        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
+        if (numResults == -1) {
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
     }
     
     @Override

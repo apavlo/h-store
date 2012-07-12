@@ -1481,6 +1481,6 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     @Override
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long num_blocks) {
         // TODO Auto-generated method stub
-        
+        return (null);
     }
 }
