@@ -29,6 +29,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
@@ -636,19 +637,21 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
-        assert(m_anticache);
+        if (m_anticache == false) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
         final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
         checkErrorCode(errorCode);
     }
     
     @Override
     public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
-        assert(m_anticache);
+        if (m_anticache == false) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
         deserializer.clear();
-        
-//        final int errorCode = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
-//        checkErrorCode(errorCode);
-//        return (null);
         
         final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
         if (numResults == -1) {
