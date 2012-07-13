@@ -36,13 +36,16 @@
 #include "storage/constraintutil.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/persistenttable.h"
-#include "anticache/evictedtable.h"
 #include "storage/StreamBlock.h"
 #include "storage/table.h"
 #include "storage/tablefactory.h"
 
 #include <vector>
 #include <map>
+
+#ifdef ANTICACHE
+#include "anticache/EvictedTable.h"
+#endif
 
 using namespace std;
 namespace voltdb {

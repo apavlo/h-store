@@ -36,6 +36,13 @@ vector<string> TableStats::generateTableStatsColumnNames() {
     columnNames.push_back("TUPLE_ALLOCATED_MEMORY");
     columnNames.push_back("TUPLE_DATA_MEMORY");
     columnNames.push_back("STRING_DATA_MEMORY");
+    
+    #ifdef ANTICACHE
+    columnNames.push_back("TUPLES_EVICTED");
+    columnNames.push_back("BLOCKS_EVICTED");
+    columnNames.push_back("BYTES_EVICTED");
+    #endif
+    
     return columnNames;
 }
 
@@ -50,6 +57,23 @@ void TableStats::populateTableStatsSchema(
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
     types.push_back(VALUE_TYPE_INTEGER); columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER)); allowNull.push_back(false);
+    
+    #ifdef ANTICACHE
+    // TUPLES_EVICTED
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BLOCKS_EVICTED
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+    
+    // BYTES_EVICTED
+    types.push_back(VALUE_TYPE_BIGINT);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+    allowNull.push_back(false);
+    #endif
 }
 
 Table*
@@ -86,6 +110,11 @@ TableStats::TableStats(Table* table)
       m_lastAllocatedTupleMemory(0), m_lastOccupiedTupleMemory(0),
       m_lastStringDataMemory(0)
 {
+    #ifdef ANTICACHE
+    m_lastTuplesEvicted = 0;
+    m_lastBlocksEvicted = 0;
+    m_lastBytesEvicted = 0;
+    #endif
 }
 
 /**
@@ -133,6 +162,13 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         occupied_tuple_mem_kb = m_table->occupiedTupleMemory() / 1024;
 //     }
     int64_t string_data_mem_kb = m_table->nonInlinedMemorySize() / 1024;
+    
+    #ifdef ANTICACHE
+    int32_t tuplesEvicted = 0; // FIXME
+    int32_t blocksEvicted = 0; // FIXME
+    int64_t bytesEvicted = 0; // FIXME
+    #endif
+    
 
     if (interval()) {
         tupleCount = tupleCount - m_lastTupleCount;
@@ -146,6 +182,17 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         string_data_mem_kb =
             string_data_mem_kb - (m_lastStringDataMemory / 1024);
         m_lastStringDataMemory = m_table->nonInlinedMemorySize();
+        
+        #ifdef ANTICACHE
+        tuplesEvicted = tuplesEvicted - m_lastTuplesEvicted;
+        m_lastTuplesEvicted = 0;
+        
+        blocksEvicted = blocksEvicted - m_lastBlocksEvicted;
+        m_lastBlocksEvicted = 0;
+        
+        bytesEvicted = bytesEvicted - m_lastBytesEvicted;
+        m_lastBytesEvicted = 0;
+        #endif
     }
 
     if (string_data_mem_kb > INT32_MAX)
@@ -173,6 +220,18 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue( StatsSource::m_columnName2Index["STRING_DATA_MEMORY"],
                       ValueFactory::
                       getIntegerValue(static_cast<int32_t>(string_data_mem_kb)));
+    
+    #ifdef ANTICACHE
+    tuple->setNValue( StatsSource::m_columnName2Index["TUPLES_EVICTED"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BLOCKS_EVICTED"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+    tuple->setNValue( StatsSource::m_columnName2Index["BYTES_EVICTED"],
+                      ValueFactory::
+                      getIntegerValue(static_cast<int64_t>(tuplesEvicted)));
+    #endif
 }
 
 /**

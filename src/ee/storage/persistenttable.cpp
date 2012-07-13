@@ -75,7 +75,7 @@
 #include "storage/CopyOnWriteContext.h"
 
 #ifdef ANTICACHE
-#include "anticache/evictedtable.h"
+#include "anticache/EvictedTable.h"
 #include "anticache/AntiCacheDB.h"
 #endif
 
@@ -243,7 +243,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     } // WHILE
     // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
      
-    antiCacheDB->writeBlock(block_id, serialized_data, serialized_data_length);
+    antiCacheDB->writeBlock(name(),
+                            block_id,
+                            num_tuples_evicted,
+                            serialized_data,
+                            serialized_data_length);
     
 #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
