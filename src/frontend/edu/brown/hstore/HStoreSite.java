@@ -496,6 +496,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // THREADS
         // -------------------------------
         
+        EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
+            @Override
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                Thread thread = arg.getFirst();
+                Throwable error = arg.getSecond();
+                LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
+                hstore_coordinator.shutdownClusterBlocking(error);
+            }
+        };
+        this.exceptionHandler.addObserver(observer);
+        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor("Periodic Work", this.exceptionHandler, 1, 1024 * 128);
+        
         // HStoreSite Thread Manager (this always get invoked first)
         this.threadManager = new HStoreThreadManager(this);
         
@@ -536,8 +548,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.commandLogger = null;
         }
 
-        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor("Periodic Work", 1, 1024 * 128);
-        
         // AdHoc Support
         if (hstore_conf.site.exec_adhoc_sql) {
             this.asyncCompilerWork_thread = new AsyncCompilerWorkThread(this, this.site_id);
@@ -1056,17 +1066,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         this.hstore_coordinator = this.initHStoreCoordinator();
         
-        EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
-            @Override
-            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                Thread thread = arg.getFirst();
-                Throwable error = arg.getSecond();
-                LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
-                hstore_coordinator.shutdownClusterBlocking(error);
-            }
-        };
-        this.exceptionHandler.addObserver(observer);
-        
         // First we need to tell the HStoreCoordinator to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreCoordinator for " + this.getSiteName());
         this.hstore_coordinator.start();
@@ -1154,7 +1153,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // AntiCache Monitor
         if (this.anticacheManager != null) {
             this.scheduleWork(this.anticacheManager.getStatsSamplingThread(),
-                              60, 60, TimeUnit.SECONDS);
+                              0, 30, TimeUnit.SECONDS);
         }
     }
     
