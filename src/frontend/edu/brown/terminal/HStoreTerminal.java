@@ -1,6 +1,7 @@
 package edu.brown.terminal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +21,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
@@ -31,10 +33,9 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
 
 /**
- * MySQL Terminal
+ * H-Store Commandline Client Terminal
  * @author gen
  * @author pavlo
  */
@@ -147,7 +148,8 @@ public class HStoreTerminal implements Runnable {
         // to proper type
         Pattern p = Pattern.compile("^" + Command.EXEC.name() + "[ ]+" + procName + "[ ]+(.*?)[;]*", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(query);
-        List<Object> procParams = new ArrayList<Object>(); 
+        List<Object> procParams = new ArrayList<Object>();
+        String procParamsStr = "";
         if (m.matches()) {
             // Extract the parameters and then convert them to their appropriate type
             List<String> params = HStoreTerminal.extractParams(m.group(1));
@@ -159,14 +161,52 @@ public class HStoreTerminal implements Runnable {
             }
             int i = 0;
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                if (i > 0) procParamsStr += ", ";
                 VoltType vtype = VoltType.get(catalog_param.getType());
-                procParams.add(VoltTypeUtil.getObjectFromString(vtype, params.get(i)));
+                Object value = VoltTypeUtil.getObjectFromString(vtype, params.get(i));
+                
+                // HACK: Allow us to send one-element array parameters
+                if (catalog_param.getIsarray()) {
+                    switch (vtype) {
+                        case BOOLEAN:
+                            value = new boolean[]{ (Boolean)value };
+                            procParamsStr += Arrays.toString((boolean[])value);
+                            break;
+                        case TINYINT:
+                        case SMALLINT:
+                        case INTEGER:
+                            value = new int[]{ (Integer)value };
+                            procParamsStr += Arrays.toString((int[])value);
+                            break;
+                        case BIGINT:
+                            value = new long[]{ (Long)value };
+                            procParamsStr += Arrays.toString((long[])value);
+                            break;
+                        case FLOAT:
+                        case DECIMAL:
+                            value = new double[]{ (Double)value };
+                            procParamsStr += Arrays.toString((double[])value);
+                            break;
+                        case STRING:
+                            value = new String[]{ (String)value };
+                            procParamsStr += Arrays.toString((String[])value);
+                            break;
+                        case TIMESTAMP:
+                            value = new TimestampType[]{ (TimestampType)value };
+                            procParamsStr += Arrays.toString((TimestampType[])value);
+                        default:
+                            assert(false);
+                    } // SWITCH
+                } else {
+                    procParamsStr += value.toString();
+                }
+                procParams.add(value);
                 i++;
             } // FOR
         }
         
         LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
-                 catalog_proc.getName(), StringUtil.join(", ", procParams)));
+                 catalog_proc.getName(), procParamsStr));
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
     }
