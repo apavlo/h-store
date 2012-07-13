@@ -29,14 +29,15 @@
 
 #include "storage/TupleIterator.h"
 #include "anticache/EvictionIterator.h"
-#include "storage/table.h"
 #include "common/tabletuple.h"
 
 using namespace voltdb; 
 
 namespace voltdb {
 
-class EvictionIterator; 
+class Table;
+class PersistentTable;
+class EvictionIterator;
 class TupleIterator;  // ???
     
     
@@ -48,8 +49,8 @@ public:
     
     bool updateTuple(TableTuple& tuple); 
             
-    Table* evictBlock(Table *table, long blockSize);
-    Table* readBlocks(Table *table, int numBlocks, uint16_t blockIds[]);
+    Table* evictBlock(PersistentTable *table, long blockSize);
+    Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);
     
 protected:
     void initEvictResultTable();
