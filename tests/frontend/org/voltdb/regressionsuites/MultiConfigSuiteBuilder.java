@@ -27,6 +27,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.log4j.Logger;
+
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -41,7 +44,8 @@ import junit.framework.TestSuite;
  *
  */
 public class MultiConfigSuiteBuilder extends TestSuite {
-
+    private static final Logger LOG = Logger.getLogger(MultiConfigSuiteBuilder.class);
+    
     /** The class that contains the JUnit test methods to run */
     Class<? extends TestCase> m_testClass = null;
 
@@ -86,7 +90,7 @@ public class MultiConfigSuiteBuilder extends TestSuite {
     public boolean addServerConfig(VoltServerConfig config) {
 
         final String enabled_configs = System.getenv().get("VOLT_REGRESSIONS");
-        System.out.println("VOLT REGRESSIONS ENABLED: " + enabled_configs);
+        LOG.debug("VOLT REGRESSIONS ENABLED: " + enabled_configs);
 
         if (!(enabled_configs == null || enabled_configs.contentEquals("all")))
         {
