@@ -100,6 +100,12 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testEvictTuples() throws Exception {
+        String statsFields[] = {
+            "TUPLES_EVICTED",
+            "BLOCKS_EVICTED",
+            "BYTES_EVICTED"
+        };
+        
         // Load in a bunch of dummy data for this table
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
@@ -110,14 +116,32 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
 
-        final int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
-        final VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
-        System.err.println(results[0]);
+        int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
         
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
         this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
 
+        // Our stats should now come back with at least one block evicted
+        results = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            if (col == "BLOCKS_EVICTED") {
+                assertEquals(col, 1, results[0].getLong(idx));
+            } else {
+                assertNotSame(col, 0, results[0].getLong(idx));
+            }
+            
+        } // FOR
     }
 
     /**

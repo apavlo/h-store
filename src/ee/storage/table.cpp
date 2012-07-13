@@ -79,6 +79,11 @@ Table::Table(int tableAllocationTargetSize) :
     m_tempTableMemoryInBytes(NULL),
     m_refcount(0)
 {
+    #ifdef ANTICACHE
+    m_tuplesEvicted = 0;
+    m_blocksEvicted = 0;
+    m_bytesEvicted = 0;
+    #endif
 }
 
 Table::~Table() {
