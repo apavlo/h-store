@@ -61,11 +61,14 @@ TEST_F(AntiCacheDBTest, WriteBlock) {
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".");
 
+    string tableName("FAKE");
     string payload("Squirrels and Girls!");
     uint16_t blockId = anticache.nextBlockId();
 
     try {
-        anticache.writeBlock(blockId,
+        anticache.writeBlock(tableName,
+                             blockId,
+                             1,
                              const_cast<char*>(payload.data()),
                              static_cast<int>(payload.size())+1);
     } catch (...) {

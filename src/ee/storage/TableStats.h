@@ -110,6 +110,12 @@ private:
     int64_t m_lastAllocatedTupleMemory;
     int64_t m_lastOccupiedTupleMemory;
     int64_t m_lastStringDataMemory;
+    
+    #ifdef ANTICACHE
+    int32_t m_lastTuplesEvicted;
+    int32_t m_lastBlocksEvicted;
+    int64_t m_lastBytesEvicted;
+    #endif
 };
 
 }

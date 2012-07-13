@@ -370,12 +370,10 @@ if ENABLE_ANTICACHE:
         EvictedTupleAccessException.cpp
         UnknownBlockAccessException.cpp
         AntiCacheDB.cpp
-        AntiCacheStats.cpp
         AntiCacheEvictionManager.cpp
         EvictionIterator.cpp
         EvictedTable.cpp
     """
-    # CTX.INPUT['common'] += " AntiCacheEvictionManager.cpp" # FIXME
     
     CTX.TESTS['anticache'] = """
         anticachedb_test
