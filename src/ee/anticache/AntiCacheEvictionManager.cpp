@@ -24,8 +24,17 @@
  */
 
 #include "anticache/AntiCacheEvictionManager.h"
-#include "anticache/EvictionIterator.h"
+#include "common/types.h"
 #include "common/FatalException.hpp"
+#include "common/ValueFactory.hpp"
+#include "storage/table.h"
+#include "storage/persistenttable.h"
+#include "storage/temptable.h"
+#include "storage/tablefactory.h"
+#include "anticache/EvictionIterator.h"
+
+#include <string>
+#include <vector>
 
 namespace voltdb
 {
@@ -45,45 +54,46 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
 }
 
 void AntiCacheEvictionManager::initEvictResultTable() {
-    string tableName = "EVICT_RESULT";
+    std::string tableName = "EVICT_RESULT";
     CatalogId databaseId = 1;
-    vector<string> columnNames;
-    vector<ValueType> types;
-    vector<int32_t> columnLengths;
-    vector<bool> allowNull;
+    std::vector<std::string> colNames;
+    std::vector<ValueType> colTypes;
+    std::vector<int32_t> colLengths;
+    std::vector<bool> colAllowNull;
     
     // TABLE_NAME
-    columnNames.push_back("TABLE_NAME");
-    types.push_back(VALUE_TYPE_INTEGER);
-    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull.push_back(false);
+    colNames.push_back("TABLE_NAME");
+    colTypes.push_back(VALUE_TYPE_VARCHAR);
+    colLengths.push_back(4096);
+    colAllowNull.push_back(false);
     
     // TUPLES_EVICTED
-    columnNames.push_back("TUPLES_EVICTED");
-    types.push_back(VALUE_TYPE_INTEGER);
-    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull.push_back(false);
+    colNames.push_back("TUPLES_EVICTED");
+    colTypes.push_back(VALUE_TYPE_INTEGER);
+    colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    colAllowNull.push_back(false);
     
     // BLOCKS_EVICTED
-    columnNames.push_back("BLOCKS_EVICTED");
-    types.push_back(VALUE_TYPE_INTEGER);
-    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
-    allowNull.push_back(false);
+    colNames.push_back("BLOCKS_EVICTED");
+    colTypes.push_back(VALUE_TYPE_INTEGER);
+    colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    colAllowNull.push_back(false);
     
     // BYTES_EVICTED
-    columnNames.push_back("BYTES_EVICTED");
-    types.push_back(VALUE_TYPE_BIGINT);
-    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
-    allowNull.push_back(false);
+    colNames.push_back("BYTES_EVICTED");
+    colTypes.push_back(VALUE_TYPE_BIGINT);
+    colLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+    colAllowNull.push_back(false);
     
-    TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes, columnLengths,
-                                                         columnAllowNull, true);
+    TupleSchema *schema = TupleSchema::createTupleSchema(colTypes,
+                                                         colLengths,
+                                                         colAllowNull, true);
     
     m_evictResultTable = reinterpret_cast<Table*>(TableFactory::getTempTable(
                                                         databaseId,
                                                         tableName,
                                                         schema,
-                                                        &columnNames[0],
+                                                        &colNames[0],
                                                         NULL));
 }
 
@@ -93,7 +103,7 @@ bool AntiCacheEvictionManager::updateTuple(TableTuple& tuple) {
     return true; 
 }
 
-Table* AntiCacheEvictionManager::evictBlock(Table *table, long blockSize) {
+Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize) {
     int32_t lastTuplesEvicted = table->getTuplesEvicted();
     int32_t lastBlocksEvicted = table->getBlocksEvicted();
     int64_t lastBytesEvicted  = table->getBytesEvicted();
@@ -110,7 +120,7 @@ Table* AntiCacheEvictionManager::evictBlock(Table *table, long blockSize) {
     TableTuple tuple = m_evictResultTable->tempTuple();
     
     int idx = 0;
-    tuple.setNValue(idx++, table->name());
+    tuple.setNValue(idx++, ValueFactory::getStringValue(table->name()));
     tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
     tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(blocksEvicted)));
     tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(bytesEvicted)));
@@ -118,7 +128,7 @@ Table* AntiCacheEvictionManager::evictBlock(Table *table, long blockSize) {
     return (m_evictResultTable);
 }
 
-Table* AntiCacheEvictionManager::readBlocks(Table *table, int numBlocks, uint16_t blockIds[]) {
+Table* AntiCacheEvictionManager::readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]) {
     // TODO
     
     return (m_readResultTable);
