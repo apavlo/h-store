@@ -36,7 +36,7 @@
 #include "storage/constraintutil.h"
 #include "storage/MaterializedViewMetadata.h"
 #include "storage/persistenttable.h"
-#include "storage/evictedtable.h"
+#include "anticache/evictedtable.h"
 #include "storage/StreamBlock.h"
 #include "storage/table.h"
 #include "storage/tablefactory.h"

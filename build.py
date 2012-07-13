@@ -264,7 +264,6 @@ CTX.INPUT['storage'] = """
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
- evictedtable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
@@ -279,7 +278,6 @@ CTX.INPUT['storage'] = """
  temptable.cpp
  TupleStreamWrapper.cpp
  RecoveryContext.cpp
- EvictionIterator.cpp
 """
 
 CTX.INPUT['stats'] = """
@@ -373,8 +371,11 @@ if ENABLE_ANTICACHE:
         UnknownBlockAccessException.cpp
         AntiCacheDB.cpp
         AntiCacheStats.cpp
+        AntiCacheEvictionManager.cpp
+        EvictionIterator.cpp
+        EvictedTable.cpp
     """
-    CTX.INPUT['common'] += " AntiCacheEvictionManager.cpp" # FIXME
+    # CTX.INPUT['common'] += " AntiCacheEvictionManager.cpp" # FIXME
     
     CTX.TESTS['anticache'] = """
         anticachedb_test
