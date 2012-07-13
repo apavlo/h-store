@@ -24,9 +24,9 @@ import edu.brown.utils.PartitionEstimator;
  * 
  */
 @ProcInfo(singlePartition = true)
-public class AntiCacheEviction extends VoltSystemProcedure {
+public class EvictTuples extends VoltSystemProcedure {
     @SuppressWarnings("unused")
-    private static final Logger LOG = Logger.getLogger(AntiCacheEviction.class);
+    private static final Logger LOG = Logger.getLogger(EvictTuples.class);
 
     public static final ColumnInfo nodeResultsColumns[] = {
         new ColumnInfo("PARTITION", VoltType.INTEGER),

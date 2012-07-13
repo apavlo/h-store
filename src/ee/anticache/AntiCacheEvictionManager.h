@@ -36,19 +36,28 @@ using namespace voltdb;
 
 namespace voltdb {
 
-    class EvictionIterator; 
-    class TupleIterator; 
+class EvictionIterator; 
+class TupleIterator;  // ???
     
     
-class AntiCacheEvictionManager
-{
+class AntiCacheEvictionManager {
         
 public: 
-    
-    AntiCacheEvictionManager(); 
+    AntiCacheEvictionManager();
+    ~AntiCacheEvictionManager();
     
     bool updateTuple(TableTuple& tuple); 
             
+    Table* evictBlock(Table *table, long blockSize);
+    Table* readBlocks(Table *table, int numBlocks, uint16_t blockIds[]);
+    
+protected:
+    void initEvictResultTable();
+    Table *m_evictResultTable;
+    
+    // TODO void initReadResultTable();
+    Table *m_readResultTable;
+    
     
 }; // AntiCacheEvictionManager class
 
