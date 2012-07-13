@@ -19,7 +19,7 @@ public abstract class VoltTableUtil {
      * @param results
      * @return
      */
-    public static String format(VoltTable results[]) {
+    public static String format(VoltTable...results) {
         StringBuilder sb = new StringBuilder();
         final int num_results = results.length;
         

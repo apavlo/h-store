@@ -124,6 +124,7 @@ Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSi
     tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
     tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(blocksEvicted)));
     tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(bytesEvicted)));
+    m_evictResultTable->insertTuple(tuple);
     
     return (m_evictResultTable);
 }

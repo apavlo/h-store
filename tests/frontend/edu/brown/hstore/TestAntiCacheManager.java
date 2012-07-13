@@ -127,20 +127,28 @@ public class TestAntiCacheManager extends BaseTestCase {
         
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
+        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024);
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(evictResult));
+        assertNotNull(evictResult);
+        assertEquals(1, evictResult.getRowCount());
+        assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+        evictResult.resetRowPosition();
+        boolean adv = evictResult.advanceRow();
+        assertTrue(adv);
 
         // Our stats should now come back with at least one block evicted
         results = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
         assertEquals(1, results.length);
+        System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(results));
         for (String col : statsFields) {
-            int idx = results[0].getColumnIndex(col);
+            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
             if (col == "BLOCKS_EVICTED") {
-                assertEquals(col, 1, results[0].getLong(idx));
+                assertEquals(col, 1, results[0].getLong(col));
             } else {
-                assertNotSame(col, 0, results[0].getLong(idx));
+                assertNotSame(col, 0, results[0].getLong(col));
             }
-            
         } // FOR
     }
 
