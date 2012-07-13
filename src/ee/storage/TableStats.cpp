@@ -164,9 +164,9 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
     int64_t string_data_mem_kb = m_table->nonInlinedMemorySize() / 1024;
     
     #ifdef ANTICACHE
-    int32_t tuplesEvicted = 0; // FIXME
-    int32_t blocksEvicted = 0; // FIXME
-    int64_t bytesEvicted = 0; // FIXME
+    int32_t tuplesEvicted = m_table->getTuplesEvicted();
+    int32_t blocksEvicted = m_table->getBlocksEvicted();
+    int64_t bytesEvicted = m_table->getBytesEvicted();
     #endif
     
 
@@ -185,13 +185,13 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
         
         #ifdef ANTICACHE
         tuplesEvicted = tuplesEvicted - m_lastTuplesEvicted;
-        m_lastTuplesEvicted = 0;
+        m_lastTuplesEvicted = m_table->getTuplesEvicted();
         
         blocksEvicted = blocksEvicted - m_lastBlocksEvicted;
-        m_lastBlocksEvicted = 0;
+        m_lastBlocksEvicted = m_table->getBlocksEvicted();
         
         bytesEvicted = bytesEvicted - m_lastBytesEvicted;
-        m_lastBytesEvicted = 0;
+        m_lastBytesEvicted = m_table->getBytesEvicted();
         #endif
     }
 
@@ -227,10 +227,10 @@ void TableStats::updateStatsTuple(TableTuple *tuple) {
                       getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
     tuple->setNValue( StatsSource::m_columnName2Index["BLOCKS_EVICTED"],
                       ValueFactory::
-                      getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+                      getIntegerValue(static_cast<int32_t>(blocksEvicted)));
     tuple->setNValue( StatsSource::m_columnName2Index["BYTES_EVICTED"],
                       ValueFactory::
-                      getIntegerValue(static_cast<int64_t>(tuplesEvicted)));
+                      getBigIntValue(static_cast<int64_t>(bytesEvicted)));
     #endif
 }
 

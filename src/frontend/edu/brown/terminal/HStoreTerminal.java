@@ -21,6 +21,7 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
@@ -30,7 +31,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.TableUtil;
 
 /**
  * MySQL Terminal
@@ -209,52 +209,18 @@ public class HStoreTerminal implements Runnable {
         return (params);
     }
     
-    private String formatResult(ClientResponse cr) {
+    private static String formatResult(ClientResponse cr) {
+        final VoltTable results[] = cr.getResults();
+        final int num_results = results.length;
         StringBuilder sb = new StringBuilder();
-        final int num_results = cr.getResults().length;
         
-        TableUtil.Format f = TableUtil.defaultTableFormat();
-        f.spacing_col = true;
-        f.trim_all = true;
-        f.delimiter_all = " | ";
-        String corners[] = {"┌", "┐", "└", "┘"};
-        
-        // TABLE RESULTS
-        for (int result_idx = 0; result_idx < num_results; result_idx++) {
-            if (result_idx > 0) sb.append("\n\n");
-            
-            VoltTable vt = cr.getResults()[result_idx];
-            String header[] = new String[vt.getColumnCount()];
-            for (int i = 0; i < header.length; i++) {
-                String colName = vt.getColumnName(i);
-                header[i] = (colName.isEmpty() ? "<empty>" : colName);
-            } // FOR
-            
-            Object rows[][] = new Object[vt.getRowCount()][];
-            f.delimiter_rows = new String[rows.length];
-            for (int i = 0; i < rows.length; i++) {
-                rows[i] = new Object[header.length];
-                f.delimiter_rows[i] = "-";
-                
-                boolean adv = vt.advanceRow();
-                assert(adv);
-                for (int j = 0; j < header.length; j++) {
-                    rows[i][j] = vt.get(j);
-                } // FOR (cols)
-                
-            } // FOR (rows)
-            
-            sb.append(String.format("Result #%d / %d\n", result_idx+1, num_results));
-            
-            String resultTable = TableUtil.table(f, header, rows);
-            resultTable = StringUtil.box(resultTable, "─", "│", null, corners);
-            sb.append(StringUtil.prefix(resultTable, "  "));
-        }
+        // MAIN BODY
+        sb.append(VoltTableUtil.format(results));
         
         // FOOTER
         String footer = "";
         if (num_results == 1) {
-            int row_count = cr.getResults()[0].getRowCount(); 
+            int row_count = results[0].getRowCount(); 
             footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
         }
         else if (num_results == 0) {
@@ -264,8 +230,6 @@ public class HStoreTerminal implements Runnable {
             footer = num_results + " tables returned";
         }
         sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
-        
-        
         return (sb.toString());
     }
     
@@ -322,7 +286,7 @@ public class HStoreTerminal implements Runnable {
                     // Just print out the result
                     if (cresponse != null) {
                         if (cresponse.getStatus() == Status.OK) {
-                            System.out.println(this.formatResult(cresponse));    
+                            System.out.println(formatResult(cresponse));    
                         } else {
                             System.out.printf("Server Response: %s / %s\n",
                                               cresponse.getStatus(),

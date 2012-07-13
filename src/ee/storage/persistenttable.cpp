@@ -249,6 +249,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                             serialized_data,
                             serialized_data_length);
     
+    // Update Stats
+    m_tuplesEvicted += num_tuples_evicted;
+    m_blocksEvicted += 1;
+    m_bytesEvicted += serialized_data_length;
+    
 #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
               block_id, this->name().c_str(),
@@ -289,6 +294,11 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     
 bool PersistentTable::mergeUnevictedTuples() {
     // TODO: Copy evicted tuple blocks back to the data table
+    
+    // Update Stats
+    // FIXME m_tuplesEvicted -= num_tuples_evicted;
+    // FIXME m_blocksEvicted -= 1;
+    // FIXME m_bytesEvicted -= serialized_data_length;
     
     return true; 
 }
