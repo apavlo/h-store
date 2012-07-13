@@ -75,7 +75,7 @@
 #include "storage/CopyOnWriteContext.h"
 
 #ifdef ANTICACHE
-#include "storage/evictedtable.h"
+#include "anticache/evictedtable.h"
 #include "anticache/AntiCacheDB.h"
 #endif
 

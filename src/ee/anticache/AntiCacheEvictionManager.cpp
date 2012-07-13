@@ -43,39 +43,27 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "anticache/AntiCacheEvictionManager.h"
+#include "anticache/EvictionIterator.h"
+#include "common/FatalException.hpp"
 
-#ifndef ANTICACHEEVICTIONMANAGER_H
-#define ANTICACHEEVICTIONMANAGER_H
-
-#include "storage/TupleIterator.h"
-#include "storage/EvictionIterator.h"
-#include "storage/table.h"
-#include "common/tabletuple.h"
-
-using namespace voltdb; 
-
-namespace voltdb {
-
-    class EvictionIterator; 
-    class TupleIterator; 
-    
-    
-class AntiCacheEvictionManager
+namespace voltdb
 {
-        
-public: 
+            
+// -----------------------------------------
+// AntiCacheEvictionManager Implementation 
+// -----------------------------------------
     
-    AntiCacheEvictionManager(); 
-    
-    bool updateTuple(TableTuple& tuple); 
-    
-    //TupleIterator::TupleIterator* getEvictionIterator(Table* table);
-        
-    
-}; // AntiCacheEvictionManager class
-
-
-    
+AntiCacheEvictionManager::AntiCacheEvictionManager()
+{
 }
 
-#endif
+bool AntiCacheEvictionManager::updateTuple(TableTuple& tuple)
+{
+    // TODO: Implement mechanism to determine least recently used tuples
+    
+    return true; 
+}
+
+}
+
