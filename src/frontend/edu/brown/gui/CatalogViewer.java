@@ -472,7 +472,7 @@ public class CatalogViewer extends AbstractViewer {
      */
     @SuppressWarnings("unchecked")
     protected String getSummaryText() {
-        Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[3];
+        Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[4];
         int idx = -1;
         
         // ----------------------
@@ -482,32 +482,29 @@ public class CatalogViewer extends AbstractViewer {
         int cols = 0;
         int fkeys = 0;
         int tables = 0;
-        int systables = 0;
-        int views = 0;
-        Map<Table, MaterializedViewInfo> catalog_views = CatalogUtil.getVerticallyPartitionedTables(catalog);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         Database catalog_db = CatalogUtil.getDatabase(catalog);
-        for (Table t : catalog_db.getTables()) {
-            if (catalog_views.values().contains(t)) {
-                views++;
-            }
-            else if (t.getSystable()) {
-                systables++;
-            } else {
-                tables++;
-                cols += t.getColumns().size();
-                for (Column c : t.getColumns()) {
-                    Column fkey = CatalogUtil.getForeignKeyParent(c);
-                    if (fkey != null) fkeys++;
-                }
+        for (Table t : CatalogUtil.getDataTables(catalog_db)) {
+            tables++;
+            cols += t.getColumns().size();
+            for (Column c : t.getColumns()) {
+                Column fkey = CatalogUtil.getForeignKeyParent(c);
+                if (fkey != null) fkeys++;
             }
         } // FOR
         m[idx].put("Tables", tables);
+        m[idx].put("Replicated Tables", CatalogUtil.getReplicatedTables(catalog_db).size());
+        m[idx].put("Views", CatalogUtil.getViewTables(catalog_db).size());
+        m[idx].put("Vertical Partition Replicas", CatalogUtil.getVerticallyPartitionedTables(catalog_db).size());
+        m[idx].put("Evictable Tables", CatalogUtil.getEvictableTables(catalog_db).size());
+        m[idx].put("System Tables", CatalogUtil.getSysTables(catalog_db).size());
+        
+        // ----------------------
+        // COLUMN INFO
+        // ----------------------
+        m[++idx] = new LinkedHashMap<String, Integer>();
         m[idx].put("Columns", cols);
         m[idx].put("Foreign Keys", fkeys);
-        m[idx].put("Views", views);
-        m[idx].put("Vertical Replicas", systables);
-        m[idx].put("System Tables", systables);
         
         // ----------------------
         // PROCEDURES INFO

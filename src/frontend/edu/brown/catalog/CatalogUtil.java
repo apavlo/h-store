@@ -1038,6 +1038,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
+     * Return all of the replicated tables for the database
+     */
+    public static Collection<Table> getReplicatedTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getIsreplicated()) tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
      * Return all of the evictable tables for the database
      */
     public static Collection<Table> getEvictableTables(Database catalog_db) {

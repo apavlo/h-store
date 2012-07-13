@@ -28,6 +28,8 @@ package org.voltdb;
 public class ProcInfoData {
     /** See ProcInfo.partitionInfo() */
     public String partitionInfo = "";
+    /** See ProcInfo.partitionParam() */
+    public int partitionParam = -1;
     /** See ProcInfo.singlePartition() */
     public boolean singlePartition = false;
     

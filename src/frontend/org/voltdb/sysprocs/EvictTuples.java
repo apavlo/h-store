@@ -23,7 +23,10 @@ import edu.brown.utils.PartitionEstimator;
 /** 
  * 
  */
-@ProcInfo(singlePartition = true)
+@ProcInfo(
+    partitionParam = 0,
+    singlePartition = true
+)
 public class EvictTuples extends VoltSystemProcedure {
     @SuppressWarnings("unused")
     private static final Logger LOG = Logger.getLogger(EvictTuples.class);
@@ -54,7 +57,7 @@ public class EvictTuples extends VoltSystemProcedure {
         throw new IllegalAccessError("Invalid invocation of " + this.getClass() + ".executePlanFragment()");
     }
     
-    public VoltTable[] run(String tableNames[], long blockSizes[]) {
+    public VoltTable[] run(int partition, String tableNames[], long blockSizes[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
         

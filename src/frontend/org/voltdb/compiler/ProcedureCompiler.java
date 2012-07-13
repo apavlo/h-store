@@ -127,6 +127,7 @@ public abstract class ProcedureCompiler {
             ProcInfo annotationInfo = procClass.getAnnotation(ProcInfo.class);
             if (annotationInfo != null) {
                 info.partitionInfo = annotationInfo.partitionInfo();
+                info.partitionParam = annotationInfo.partitionParam();
                 info.singlePartition = annotationInfo.singlePartition();
                 info.mapInputQuery = annotationInfo.mapInputQuery();
                 // info.mapEmitTable = annotationInfo.mapEmitTable();
@@ -282,6 +283,15 @@ public abstract class ProcedureCompiler {
             }
         } else {
             procedure.setPartitionparameter(NullProcParameter.PARAM_IDX);
+        }
+        
+        // ProcInfo.partitionParam overrides everything else
+        if (info.partitionParam != -1) {
+            if (info.partitionParam >= paramTypes.length || info.partitionParam < 0) {
+                String msg = "PartitionInfo 'partitionParam' not a valid parameter for procedure: " + procedure.getClassname();
+                throw compiler.new VoltCompilerException(msg);
+            }
+            procedure.setPartitionparameter(info.partitionParam);
         }
 
         // put the compiled code for this procedure into the jarfile

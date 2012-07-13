@@ -1,5 +1,6 @@
 package edu.brown.terminal;
 
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -17,6 +18,7 @@ import org.voltdb.types.QueryType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * This is a class that holds a list of the table names for an instance of HStore
@@ -29,12 +31,6 @@ public class TokenCompletor implements Completor {
 
     protected static final String DELIMITER = " ";
     protected static final Pattern SPLIT = Pattern.compile("[" + DELIMITER + "]+");
-    
-    private static final String SPECIAL_TOKENS[] = {
-        "DESCRIBE",
-        "EXEC",
-        "SHOW"
-    };
     
     private static final String TABLE_PREFIXES[] = {
         "UPDATE",
@@ -52,8 +48,10 @@ public class TokenCompletor implements Completor {
     
     final Catalog catalog;
     
+    final SortedSet<String> emptyTokens = new TreeSet<String>();
     final SortedSet<String> allTokens = new TreeSet<String>();
     final SortedSet<String> sqlTokens = new TreeSet<String>();
+    final SortedSet<String> specialTokens = new TreeSet<String>();
     final SortedSet<String> commandTokens = new TreeSet<String>();
     final SortedSet<String> tableTokens = new TreeSet<String>();
     final SortedSet<String> columnTokens = new TreeSet<String>();
@@ -82,7 +80,10 @@ public class TokenCompletor implements Completor {
             if (qtype == QueryType.INVALID || qtype == QueryType.NOOP) continue;
             this.commandTokens.add(qtype.name());
         } // FOR
-        CollectionUtil.addAll(this.commandTokens, SPECIAL_TOKENS);
+        for (HStoreTerminal.Command c : HStoreTerminal.Command.values()) {
+            this.commandTokens.add(c.name());
+            this.specialTokens.add(c.name());
+        } // FOR
         
         // Catalog Keywords
         // Tables, columns, procedures names
@@ -107,6 +108,9 @@ public class TokenCompletor implements Completor {
         this.allTokens.addAll(this.tableTokens);
         this.allTokens.addAll(this.columnTokens);
         this.allTokens.addAll(this.procTokens);
+        
+        if (debug.get())
+            LOG.debug("Token Information:\n" + this.toString());
     }
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -125,6 +129,7 @@ public class TokenCompletor implements Completor {
         if (debug.get()) {
             LOG.debug("BUFFER: '" + buffer + "'");
             LOG.debug("CURSOR: " + cursor);
+            LOG.debug("TOKENS: " + Arrays.toString(tokens));
         }
         
         // Figure out whether they are trying to enter in a SQL
@@ -144,14 +149,26 @@ public class TokenCompletor implements Completor {
         // what's in the previous token
         SortedSet<String> candidates = (tokens.length == 1 ? this.commandTokens : this.sqlTokens);
         
-        if (this.tablePrefixes.contains(prevToken)) {
+        // Check whether the buffer is "EXEC <ProcedureName>"
+        // If it is, then we don't want to return any tokens for now
+        // Ideally we want to be able to print the parameter info for this procedure
+        if (tokens.length >= 2 &&
+            tokens[0].equalsIgnoreCase(HStoreTerminal.Command.EXEC.name()) &&
+            this.procTokens.contains(tokens[1].toUpperCase())) {
+            if (debug.get()) LOG.debug("EXEC COMMAND: '" + buffer + "'");
+            candidates = this.emptyTokens;
+        }
+        // TABLE
+        else if (this.tablePrefixes.contains(prevToken)) {
             if (debug.get()) LOG.debug("TABLE PREFIX: '" + prevToken + "'");
             candidates = this.tableTokens;
         }
+        // COLUMN
         else if (this.columnPrefixes.contains(prevToken)) {
             if (debug.get()) LOG.debug("COLUMN PREFIX: " + prevToken);
             candidates = this.columnTokens;
         }
+        // PROCEDURE
         else if (this.procPrefixes.contains(prevToken)) {
             if (debug.get()) LOG.debug("PROC PREFIX: " + prevToken);
             candidates = this.procTokens;
@@ -198,6 +215,25 @@ public class TokenCompletor implements Completor {
         }
 
         return (clist.size() == 0 ? -1 : lastIndex+1);
+    }
+    
+    @Override
+    public String toString() {
+        Class<?> clazz = this.getClass();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        for (Field f : clazz.getDeclaredFields()) {
+            if (f.getName().equalsIgnoreCase("catalog")) continue;
+            if (f.getName().equalsIgnoreCase("allTokens")) continue;
+            
+            Object obj = null;
+            try {
+                obj = f.get(this);
+            } catch (IllegalAccessException ex) {
+                throw new RuntimeException(ex);
+            }
+            m.put(f.getName(), obj);
+        } // FOR
+        return StringUtil.formatMaps(m);
     }
     
 }
