@@ -1307,12 +1307,14 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jint tableId,
         jlong blockSize) {
          
-    int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    int retval = -1;
     VOLT_DEBUG("nativeAntiCacheEvictBlocks() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     if (engine == NULL) return (retval);
 
+    engine->resetReusedResultOutputBuffer();
+    
     try {
         retval = engine->antiCacheEvictBlock(static_cast<int32_t>(tableId), static_cast<long>(blockSize));
     } catch (FatalException e) {
