@@ -196,6 +196,12 @@ public:
         // return m_nonInlinedMemorySize;
         return 0l;
     }
+    
+    #ifdef ANTICACHE
+    inline int32_t getTuplesEvicted() const { return (m_tuplesEvicted); }
+    inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
+    inline int64_t getBytesEvicted()  const { return (m_bytesEvicted); }
+    #endif
 
     // ------------------------------------------------------------------
     // COLUMNS
@@ -351,17 +357,12 @@ protected:
 
     char *m_columnHeaderData;
     int32_t m_columnHeaderSize;
-    
-#ifdef ANTICACHE
-    inline int32_t getTuplesEvicted() const { return (m_tuplesEvicted); }
-    inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
-    inline int64_t getBytesEvicted()  const { return (m_bytesEvicted); }
-    
+
+#if ANTICACHE
     int32_t m_tuplesEvicted;
     int32_t m_blocksEvicted;
     int64_t m_bytesEvicted;
 #endif
-    
 
 #ifdef MEMCHECK_NOFREELIST
     int64_t m_deletedTupleCount;
