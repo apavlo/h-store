@@ -96,7 +96,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Read Only", ts.readonly);
                 m.put("Table Size", StringUtil.formatSize(ts.tuple_size_total));
-                m.put("Table Partition Size", StringUtil.formatSize(partition_size));
+                m.put("Table Partition Size", StringUtil.formatSize((long)partition_size));
                 m.put("Table Partition Ratio", String.format("%.02f", partition_ratio));
                 m.put("Total Partition Size", String.format("%s / %s", StringUtil.formatSize(total_partitionSize), StringUtil.formatSize(hints.max_memory_per_partition)));
                 m.put("Total Partition Ratio", String.format("%.02f", total_partitionRatio));

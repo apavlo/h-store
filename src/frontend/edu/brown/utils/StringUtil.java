@@ -74,7 +74,7 @@ public abstract class StringUtil {
      * @param bytes
      * @return
      */
-    public static String formatSize(double bytes) {
+    public static String formatSize(long bytes) {
         if (bytes >= GB) {
             return df.format(bytes / GB) + " GB";
         } else if (bytes >= MB) {
