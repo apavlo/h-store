@@ -167,7 +167,7 @@ public class ConflictCalculator {
         } // FOR (proc0)
         
         if (conflicts) {
-            if (debug.get()) LOG.debug(String.format("%s <-> %s CONFLICTS",
+            if (debug.get()) LOG.debug(String.format("**CONFLICT** %s <-> %s",
                                                      proc0.getName(), proc1.getName()));
             pInfo0.conflicts.add(proc1);
             pInfo1.conflicts.add(proc0);

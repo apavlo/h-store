@@ -410,17 +410,7 @@ public class VoltCompiler {
             return false;
         }
 
-        // Create Dtxn.Coordinator configuration for cluster
-//        byte[] dtxnConfBytes = null;
-//        try {
-//            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
-//        } catch (final Exception e1) {
-//            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
-//            return false;
-//        }
-        
         try {
-//            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
             m_jarBuilder.addEntry(CatalogUtil.CATALOG_FILENAME, catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
@@ -499,6 +489,16 @@ public class VoltCompiler {
         }
         assert(m_catalog != null);
 
+        
+        // Calculate Procedure conflicts
+        ConflictCalculator cc = new ConflictCalculator(m_catalog);
+        try {
+            cc.process();
+        } catch (Exception ex) {
+            LOG.warn("Unexpected error", ex);
+            addErr("Failed to calculate procedure conflicts");
+        }
+        
         try {
             ClusterCompiler.compile(m_catalog, clusterConfig);
         } catch (RuntimeException e) {
@@ -517,15 +517,6 @@ public class VoltCompiler {
                 LOG.warn("Unexpected error", ex);
                 addErr("Failed to apply vertical partition optimizations");
             }
-        }
-        
-        // Calculate Procedure conflicts
-        ConflictCalculator cc = new ConflictCalculator(m_catalog);
-        try {
-            cc.process();
-        } catch (Exception ex) {
-            LOG.warn("Unexpected error", ex);
-            addErr("Failed to calculate procedure conflicts");
         }
 
         // add epoch info to catalog

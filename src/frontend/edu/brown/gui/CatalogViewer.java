@@ -77,6 +77,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -671,6 +672,11 @@ public class CatalogViewer extends AbstractViewer {
             MaterializedViewInfo catalog_view = (MaterializedViewInfo)catalog_obj;
             Collection<ColumnRef> cols = catalog_view.getGroupbycols();
             map.put("groupbycols", CatalogUtil.debug(CatalogUtil.getColumns(cols)));
+        }
+        // PROCEDURE
+        else if (catalog_obj instanceof Procedure) {
+            Procedure catalog_proc = (Procedure)catalog_obj;
+            map.put("conflicts", StringUtil.join(", ", CatalogUtil.getConflictProcedures(catalog_proc)));
         }
         
         StringBuilder sb = new StringBuilder(StringUtil.formatMaps(map));
