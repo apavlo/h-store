@@ -1,6 +1,5 @@
 package edu.brown.gui.catalog;
 
-import java.awt.BorderLayout;
 import java.util.Collection;
 
 import javax.swing.JPanel;
@@ -16,7 +15,6 @@ import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.CollectionUtil;
 
 public class ProcedureConflictGraphNode {
-    private static final long serialVersionUID = 1L;
     
     final Database catalog_db;
     final Collection<Procedure> procs;
@@ -25,8 +23,6 @@ public class ProcedureConflictGraphNode {
     GraphVisualizationPanel<ConflictVertex, ConflictEdge> vizPanel;
     
     public ProcedureConflictGraphNode(Collection<Procedure> procs) {
-//        super();
-        
         this.catalog_db = CatalogUtil.getDatabase(CollectionUtil.first(procs));
         this.procs = procs;
         
@@ -50,7 +46,6 @@ public class ProcedureConflictGraphNode {
         }
         
         this.vizPanel = GraphVisualizationPanel.factory(this.graph);
-        // this.add(this.vizPanel, BorderLayout.CENTER);
     }
     
     public JPanel getVisualization() {

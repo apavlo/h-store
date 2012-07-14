@@ -1,4 +1,4 @@
-package edu.brown.hstore.interfaces;
+package edu.brown.interfaces;
 
 /**
  * Special marker that indicates that a given SQLStmt may be

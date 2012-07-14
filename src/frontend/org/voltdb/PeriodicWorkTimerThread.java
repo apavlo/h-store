@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.interfaces.Shutdownable;
 
 /**
  * This thread fires a timer every five milliseconds
