@@ -456,7 +456,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Procedure> getConflictProcedures(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
         for (ProcedureRef ref : catalog_proc.getConflicts()) {
-            conflicts.add(ref.getProcedure());
+            Procedure ref_proc = ref.getProcedure();
+            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
+            assert(ref_proc.equals(catalog_proc) == false) :
+                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getConflicts());
+            conflicts.add(ref_proc);
         } // FOR
         return (conflicts);
     }
