@@ -11,7 +11,6 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.conf.HStoreConf.Conf;
-import edu.brown.hstore.interfaces.ConfigProperty;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;

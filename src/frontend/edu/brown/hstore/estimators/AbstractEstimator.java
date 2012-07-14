@@ -54,6 +54,14 @@ public abstract class AbstractEstimator {
         return this.initializeTransactionImpl(catalog_proc, args, mangled);
     }
     
+    /**
+     * Returns the list of partitions that we think that this txn is going to
+     * need to access.
+     * @param catalog_proc
+     * @param args
+     * @param mangled
+     * @return
+     */
     protected abstract Collection<Integer> initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]);
     
 }

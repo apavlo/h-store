@@ -5,7 +5,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-import edu.brown.hstore.interfaces.Prefetchable;
+import edu.brown.interfaces.Prefetchable;
 import edu.brown.utils.ThreadUtil;
 
 @ProcInfo(
