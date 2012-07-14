@@ -58,7 +58,12 @@ public class TestConflictCalculator extends BaseTestCase {
         Procedure proc0 = this.getProcedure(neworder.class);
         Procedure proc1 = this.getProcedure(slev.class);
         
+        // There is no conflict between #1 and #2
         boolean conflicts = this.cc.computeConflicts(proc0, proc1);
+        assertFalse(conflicts);
+        
+        // But there should be one between #2 and #1
+        conflicts = this.cc.computeConflicts(proc1, proc0);
         assertTrue(conflicts);
     }
     
