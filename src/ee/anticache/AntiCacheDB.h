@@ -57,7 +57,7 @@ class AntiCacheBlock {
         }
     
     private:
-        AntiCacheBlock(uint16_t block_id, Dbt value);
+        AntiCacheBlock(uint16_t blockId, Dbt value);
         
         uint16_t m_blockId;
         Dbt m_value;
@@ -75,12 +75,16 @@ class AntiCacheDB {
         /**
          * Write a block of serialized tuples out to the anti-cache database
          */
-        void writeBlock(uint16_t block_id, const char* data, const long size);
+        void writeBlock(const std::string tableName,
+                        uint16_t blockId,
+                        const int tupleCount,
+                        const char* data,
+                        const long size);
         
         /**
          * Read a block and return its contents
          */
-        AntiCacheBlock readBlock(std::string tableName, uint16_t block_id);
+        AntiCacheBlock readBlock(std::string tableName, uint16_t blockId);
 
         /**
          * Return the next BlockId to use in the anti-cache database

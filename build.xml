@@ -811,15 +811,17 @@ NATIVE EE STUFF
     </exec>
 </target>
 
-<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile"
+<target name='ee' depends="buildinfo, jnicompile, berkeleydb.compile, ee-build"
     description="Build C++ JNI library and copy it to production folder.">
-    <exec dir='.' executable='python' failonerror='true'>
-        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
-    </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
     </exec>
    <symlink link="${build.dir}/nativelibs/libvoltdb.so" resource="${build.dir}/nativelibs/libvoltdb-${dist.version}.so" overwrite="true" failonerror="false"/>-->
+</target>
+<target name="ee-build">
+    <exec dir='.' executable='python' failonerror='true'>
+        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
+    </exec>
 </target>
 
 <target name='execplanfrag' depends="ee"
@@ -986,8 +988,6 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
 
-                <exclude name='edu/brown/hstore/TestAntiCache*'/>
-                
                 <!-- Busted tests because of hacking -->
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
@@ -1078,7 +1078,6 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
-                <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 
@@ -1657,6 +1656,7 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="DEFERRABLE=${deferrable}" />
+        <arg value="EVICTABLE=${evictable}" />
         
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
@@ -2446,6 +2446,17 @@ H-STORE REMIX
         <param name="catalog" value="${jar}" />
         <param name="compile" value="false" />
         <param name="cataloghosts" value="true" />
+    </antcall>
+</target>
+
+<target name='hstore-start' description="Start the H-Store cluster">
+    <condition property="noloader" value="true">
+        <not><isset property="noloader"/></not>
+    </condition>
+    <antcall target="hstore-benchmark">
+        <param name="noloader" value="${noloader}" />
+        <param name="noexecute" value="true" />
+        <param name="noshutdown" value="true" />
     </antcall>
 </target>
 

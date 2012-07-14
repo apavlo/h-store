@@ -70,6 +70,7 @@ import org.voltdb.catalog.User;
 import org.voltdb.catalog.UserRef;
 import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.DatabaseType;
+import org.voltdb.compiler.projectfile.EvictablesType.Evictable;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
 import org.voltdb.compiler.projectfile.GroupsType;
@@ -82,6 +83,7 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.AdHoc;
+import org.voltdb.sysprocs.EvictTuples;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.ExecutorStatus;
 import org.voltdb.sysprocs.GarbageCollection;
@@ -483,7 +485,11 @@ public class VoltCompiler {
             compileXMLRootNode(project);
         } catch (final VoltCompilerException e) {
 //            compilerLog.l7dlog( Level.ERROR, LogKeys.compiler_VoltCompiler_FailedToCompileXML.name(), null);
-            LOG.error(e.getMessage(), e);
+            if (debug.get()) {
+                LOG.error(e.getMessage(), e);
+            } else {
+                LOG.error(e.getMessage());
+            }
             //e.printStackTrace();
             return null;
         }
@@ -798,6 +804,29 @@ public class VoltCompiler {
             }
         }
 
+        // Mark tables evictable if needed
+        // NOTE: A table can only be evictable if it has a primary key
+        if (database.getEvictables() != null) {
+            for (Evictable e : database.getEvictables().getEvictable()) {
+                String tableName = e.getTable();
+                Table catalog_tbl = db.getTables().getIgnoreCase(tableName);
+                if (catalog_tbl == null) {
+                    throw new VoltCompilerException("Invalid evictable table name '" + tableName + "'");
+                }
+                Index pkey = null;
+                try {
+                    pkey = CatalogUtil.getPrimaryKeyIndex(catalog_tbl);
+                } catch (Exception ex) {
+                    // Ignore
+                }
+                if (pkey == null) {
+                    throw new VoltCompilerException("Unable to mark table '" + catalog_tbl.getName() + "' as " +
+                    		                        "evictable because it does not have a primary key");
+                }
+                catalog_tbl.setEvictable(true);
+            } // FOR
+        }
+        
         // add vertical partitions
         if (database.getVerticalpartitions() != null) {
             for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {
@@ -1229,7 +1258,7 @@ public class VoltCompiler {
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
             {GarbageCollection.class,               true,       true},
-            {ResetProfiling.class,                      true,       true},
+            {ResetProfiling.class,                  true,       true},
             {ExecutorStatus.class,                  true,       false},
             {GetCatalog.class,                      true,       false},
             {SnapshotSave.class,                    false,      true},
@@ -1237,6 +1266,9 @@ public class VoltCompiler {
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},
+            
+            // Anti-Cache Operations
+            {EvictTuples.class,               false,      false},
          
 //       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},

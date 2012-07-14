@@ -18,20 +18,20 @@ import javax.xml.bind.annotation.XmlType;
 
 
 /**
- * <p>Java class for schemasType complex type.
+ * <p>Java class for evictablesType complex type.
  * 
  * <p>The following schema fragment specifies the expected content contained within this class.
  * 
  * <pre>
- * &lt;complexType name="schemasType">
+ * &lt;complexType name="evictablesType">
  *   &lt;complexContent>
  *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
  *       &lt;sequence>
- *         &lt;element name="schema" maxOccurs="unbounded">
+ *         &lt;element name="evictable" maxOccurs="unbounded">
  *           &lt;complexType>
  *             &lt;complexContent>
  *               &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
- *                 &lt;attribute name="path" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
+ *                 &lt;attribute name="table" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
  *               &lt;/restriction>
  *             &lt;/complexContent>
  *           &lt;/complexType>
@@ -45,41 +45,41 @@ import javax.xml.bind.annotation.XmlType;
  * 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "schemasType", propOrder = {
-    "schema"
+@XmlType(name = "evictablesType", propOrder = {
+    "evictable"
 })
-public class SchemasType {
+public class EvictablesType {
 
     @XmlElement(required = true)
-    protected List<SchemasType.Schema> schema;
+    protected List<EvictablesType.Evictable> evictable;
 
     /**
-     * Gets the value of the schema property.
+     * Gets the value of the evictable property.
      * 
      * <p>
      * This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the schema property.
+     * This is why there is not a <CODE>set</CODE> method for the evictable property.
      * 
      * <p>
      * For example, to add a new item, do as follows:
      * <pre>
-     *    getSchema().add(newItem);
+     *    getEvictable().add(newItem);
      * </pre>
      * 
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link SchemasType.Schema }
+     * {@link EvictablesType.Evictable }
      * 
      * 
      */
-    public List<SchemasType.Schema> getSchema() {
-        if (schema == null) {
-            schema = new ArrayList<SchemasType.Schema>();
+    public List<EvictablesType.Evictable> getEvictable() {
+        if (evictable == null) {
+            evictable = new ArrayList<EvictablesType.Evictable>();
         }
-        return this.schema;
+        return this.evictable;
     }
 
 
@@ -92,7 +92,7 @@ public class SchemasType {
      * &lt;complexType>
      *   &lt;complexContent>
      *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
-     *       &lt;attribute name="path" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
+     *       &lt;attribute name="table" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
      *     &lt;/restriction>
      *   &lt;/complexContent>
      * &lt;/complexType>
@@ -102,33 +102,33 @@ public class SchemasType {
      */
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(name = "")
-    public static class Schema {
+    public static class Evictable {
 
         @XmlAttribute(required = true)
-        protected String path;
+        protected String table;
 
         /**
-         * Gets the value of the path property.
+         * Gets the value of the table property.
          * 
          * @return
          *     possible object is
          *     {@link String }
          *     
          */
-        public String getPath() {
-            return path;
+        public String getTable() {
+            return table;
         }
 
         /**
-         * Sets the value of the path property.
+         * Sets the value of the table property.
          * 
          * @param value
          *     allowed object is
          *     {@link String }
          *     
          */
-        public void setPath(String value) {
-            this.path = value;
+        public void setTable(String value) {
+            this.table = value;
         }
 
     }

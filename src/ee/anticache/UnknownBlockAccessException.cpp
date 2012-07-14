@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/UnknownBlockAccessException.h"
+#include "anticache/UnknownBlockAccessException.h"
 #include "common/SerializableEEException.h"
 #include "common/serializeio.h"
 #include <iostream>

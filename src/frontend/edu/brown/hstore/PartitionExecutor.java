@@ -70,6 +70,7 @@ import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
+import org.voltdb.SysProcSelector;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
@@ -118,13 +119,14 @@ import edu.brown.hstore.Hstoreservice.WorkResult;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.internal.DeferredWork;
+import edu.brown.hstore.internal.DeferredQueryMessage;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
 import edu.brown.hstore.internal.InternalTxnMessage;
 import edu.brown.hstore.internal.PotentialSnapshotWorkMessage;
 import edu.brown.hstore.internal.StartTxnMessage;
+import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.ExecutionState;
@@ -258,15 +260,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final ThrottlingQueue<InternalMessage> work_queue;
     
     /**
-     * This is the queue for work deferred .
+     * This is the queue for utility work that the PartitionExecutor can perform
+     * whenever it has some idle time.
      */
-    private final ConcurrentLinkedQueue<DeferredWork> deferred_queue;
+    private final ConcurrentLinkedQueue<InternalMessage> utility_queue;
 
-    /**
-     * XXX: Should this be removed? I don't think we're actually using this
-     */
-    private final ConcurrentLinkedQueue<InternalMessage> new_queue = new ConcurrentLinkedQueue<InternalMessage>();
-    
     
     // ----------------------------------------------------------------------------
     // Internal Execution State
@@ -544,7 +542,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     protected PartitionExecutor() {
         this.work_queue = null;
-        this.deferred_queue = null;
+        this.utility_queue = null;
         this.ee = null;
         this.hsql = null;
         this.p_estimator = null;
@@ -689,12 +687,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
         
-        // Defferable Work Queue
-        if (hstore_conf.site.exec_deferrable_queries) {
-            this.deferred_queue = new ConcurrentLinkedQueue<DeferredWork>();
-        } else {
-            this.deferred_queue = null;
-        }
+        // Utility Work Queue
+        this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
     }
     
     @SuppressWarnings("unchecked")
@@ -790,6 +784,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Poll Work Queue
                 // -------------------------------
                 work = this.getNext();
+                if (work == null) continue;
                 if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
@@ -815,7 +810,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 // BAD MOJO!
                 // -------------------------------
-                else if (work != null) {
+                else {
                     String msg = "Unexpected work message in queue: " + work;
                     throw new ServerFaultException(msg, this.currentTxnId);
                 }
@@ -879,7 +874,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (d) LOG.debug("Partition " + this.partitionId + " queue is empty. Waiting...");
                 if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                 try {
-                    work = this.work_queue.take();
+                    work = this.work_queue.poll(100, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (d && this.isShuttingDown() == false)
                         LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
@@ -1023,7 +1018,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * we are waiting for a response or something real to do.
      * Note: this tracks how long the system spends doing utility work. It would
      * be interesting to have the system report on this before it shuts down.
-     * @return true if there is more deferred work that can be done
+     * @return true if there is more utility work that can be done
      */
     protected boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.work_utility_time.start();
@@ -1032,39 +1027,21 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Always invoke tick()
         this.tick();
         
-        // Check whether we have anything in our non-blocking queue
-        InternalMessage new_work = null;
-        boolean stopNow = false;
-        while ((new_work = this.new_queue.poll()) != null) {
-            this.work_queue.offer(new_work);
-
-            // Stop as soon as it's anything but a InitializeTxnMessage
-            if ((new_work instanceof InitializeTxnMessage) == false) {
-                stopNow = true;
-                break;
-            }
-        } // WHILE
-        if (stopNow) {
-            if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
-            return (false);
-        }
-        
-        
         // Try to free some memory
         // TODO(pavlo): Is this really safe to do?
         // this.tmp_fragmentParams.reset();
         // this.tmp_serializedParams.clear();
         // this.tmp_EEdependencies.clear();
-        
-        if (hstore_conf.site.exec_deferrable_queries == false) {
-            if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
-            return (false);
-        }
 
-        boolean ret = false;
-        DeferredWork def_work = this.deferred_queue.poll();
-        if (def_work != null) {
-            // We have work to do
+        // Check whether we have anything in our non-blocking queue
+        InternalMessage work = this.utility_queue.poll();
+        
+        // -------------------------------
+        // DEFERRED QUERIES
+        // -------------------------------
+        if (work instanceof DeferredQueryMessage) {
+            DeferredQueryMessage def_work = (DeferredQueryMessage)work;
+            
             // TODO: Set the txnId in our handle to be what the original txn was that
             //       deferred this query.
             tmp_def_stmt[0] = def_work.getStmt();
@@ -1078,13 +1055,24 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                        tmp_def_stmt[0].getProcedure(),
                        def_work.getParams(),
                        null // We don't need the client callback
-                    );
+            );
             this.executeSQLStmtBatch(tmp_def_txn, 1, tmp_def_stmt, tmp_def_params, false, false);
-            ret = (this.deferred_queue.isEmpty() == false);
+        }
+        // -------------------------------
+        // TABLE STATS REQUEST
+        // -------------------------------
+        else if (work instanceof TableStatsRequestMessage) {
+            TableStatsRequestMessage stats_work = (TableStatsRequestMessage)work;
+            VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE,
+                                                   stats_work.getLocators(),
+                                                   false,
+                                                   EstTime.currentTimeMillis());
+            assert(results.length == 1);
+            stats_work.getObservable().notifyObservers(results[0]);
         }
         
         if (hstore_conf.site.exec_profiling) this.work_utility_time.stop();
-        return (ret);
+        return (work != null && this.utility_queue.isEmpty() == false);
     }
 
     public void tick() {
@@ -1444,6 +1432,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.work_queue.offer(work, true);
         if (d) LOG.debug(String.format("%s - Added distributed txn %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
+    }
+
+    /**
+     * Add a new work message to our utility queue 
+     * @param work
+     */
+    public void queueUtilityWork(InternalMessage work) {
+        if (debug.get())
+            LOG.debug(String.format("Queuing utility work on partition %d\n%s", this.partitionId, work));
+        this.utility_queue.offer(work);
     }
     
     /**

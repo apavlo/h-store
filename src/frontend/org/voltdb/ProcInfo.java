@@ -36,6 +36,11 @@ public @interface ProcInfo {
      * in a table to a parameter value. This is required for a single-sited procedure.
      */
     String partitionInfo() default "";
+    
+    /**
+     * Explicitly define what ProcParameter to use to route transactions
+     */
+    int partitionParam() default -1;
 
     /**
      * Is the procedure single sited? This information is hard to determine if there

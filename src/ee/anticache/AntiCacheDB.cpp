@@ -23,17 +23,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/anticache.h"
+#include "anticache/AntiCacheDB.h"
+#include "anticache/UnknownBlockAccessException.h"
 #include "common/debuglog.h"
-#include "common/UnknownBlockAccessException.h"
 #include "common/FatalException.hpp"
 
 using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(uint16_t block_id, Dbt value) :
-        m_blockId(block_id),
+AntiCacheBlock::AntiCacheBlock(uint16_t blockId, Dbt value) :
+        m_blockId(blockId),
         m_value(value) {
     // They see me rollin'
     // They hatin'
@@ -84,23 +84,29 @@ AntiCacheDB::~AntiCacheDB() {
     }
 }
 
-void AntiCacheDB::writeBlock(uint16_t block_id, const char* data, const long size) {
+void AntiCacheDB::writeBlock(const std::string tableName,
+                             uint16_t blockId,
+                             const int tupleCount,
+                             const char* data,
+                             const long size) {
     Dbt key; 
-    key.set_data(&block_id);
+    key.set_data(&blockId);
     key.set_size(sizeof(uint16_t));
     
     Dbt value;
     value.set_data(const_cast<char*>(data));
     value.set_size(static_cast<int32_t>(size)); 
     
-    VOLT_INFO("Writing out a block #%d to anti-cache database [size=%ld]",
-               block_id, size);
+    VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
+               blockId, tupleCount, size);
     m_db->put(NULL, &key, &value, 0);
+    
+    // TODO(debrabant): Should we do an fsync here?
 }
 
-AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t block_id) {
+AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t blockId) {
     Dbt key;
-    key.set_data(&block_id);
+    key.set_data(&blockId);
     key.set_size(sizeof(uint16_t));
 
     Dbt value;
@@ -108,12 +114,12 @@ AntiCacheBlock AntiCacheDB::readBlock(std::string tableName, uint16_t block_id) 
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
     if (ret_value != 0) {
-        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", block_id, tableName.c_str());
-        throw UnknownBlockAccessException(tableName, block_id);
+        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
+        throw UnknownBlockAccessException(tableName, blockId);
     }
     assert(value.get_data() != NULL);
     
-    AntiCacheBlock block(block_id, value);
+    AntiCacheBlock block(blockId, value);
     return (block);
 }
     

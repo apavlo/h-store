@@ -26,23 +26,23 @@
 #include <string>
 #include "harness.h"
 
-#include "common/anticache.h"
+#include "anticache/AntiCacheDB.h"
 
 using namespace std;
 using namespace voltdb;
 using stupidunit::ChTempDir;
 
 /**
- * AntiCache Tests
+ * AntiCacheDB Tests
  */
-class AntiCacheTest : public Test {
+class AntiCacheDBTest : public Test {
 public:
-    AntiCacheTest() {
+    AntiCacheDBTest() {
         
     };
 };
 
-TEST_F(AntiCacheTest, NextBlockId) {
+TEST_F(AntiCacheDBTest, NextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".");
     
@@ -56,16 +56,19 @@ TEST_F(AntiCacheTest, NextBlockId) {
 
 // This is based off of the code from Yi Wang
 // http://cxwangyi.wordpress.com/2010/10/10/how-to-use-berkeley-db/
-TEST_F(AntiCacheTest, WriteBlock) {
+TEST_F(AntiCacheDBTest, WriteBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
     AntiCacheDB anticache(NULL, ".");
 
+    string tableName("FAKE");
     string payload("Squirrels and Girls!");
     uint16_t blockId = anticache.nextBlockId();
 
     try {
-        anticache.writeBlock(blockId,
+        anticache.writeBlock(tableName,
+                             blockId,
+                             1,
                              const_cast<char*>(payload.data()),
                              static_cast<int>(payload.size())+1);
     } catch (...) {

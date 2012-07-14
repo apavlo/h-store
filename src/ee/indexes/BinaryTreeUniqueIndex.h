@@ -105,9 +105,15 @@ public:
     
     bool setEntryToNull(const TableTuple *tupleValue)
     {
+        // set the key from the tuple 
         m_tmp1.setFromTuple(tupleValue, column_indices_, m_keySchema);
+		
+		++m_updates; 
         
-        return setEntryToNullPrivate(m_tmp1); 
+        // erase the entry and add a entry with the same key and a NULL value
+        m_entries.erase(m_tmp1); 
+        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, NULL));
+        return retval.second;
     }
 
     bool checkForIndexChange(const TableTuple* lhs, const TableTuple* rhs)
@@ -268,14 +274,17 @@ protected:
         ++m_deletes;
         return m_entries.erase(key);
     }
-    
+        
+	/*
     inline bool setEntryToNullPrivate(const KeyType &key)
     {        
         ++m_updates; 
-        std::pair<typename MapType::iterator, bool> retval =
-        m_entries.insert(std::pair<KeyType, const void*>(key, NULL));
+        
+        m_entries.erase(key); 
+        std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(key, NULL));
         return retval.second;
     }
+	 */
 
     MapType m_entries;
     KeyType m_tmp1;

@@ -184,8 +184,6 @@ CTX.INPUT['common'] = """
  SegvException.cpp
  SerializableEEException.cpp
  SQLException.cpp
- EvictedTupleAccessException.cpp
- UnknownBlockAccessException.cpp
  tabletuple.cpp
  TupleSchema.cpp
  types.cpp
@@ -266,7 +264,6 @@ CTX.INPUT['storage'] = """
  ConstraintFailureException.cpp
  MaterializedViewMetadata.cpp
  persistenttable.cpp
- evictedtable.cpp
  PersistentTableStats.cpp
  PersistentTableUndoDeleteAction.cpp
  PersistentTableUndoInsertAction.cpp
@@ -324,6 +321,7 @@ CTX.TESTS['common'] = """
  valuearray_test
  nvalue_test
  tupleschema_test
+ tabletuple_test
 """
 
 CTX.TESTS['execution'] = """
@@ -359,7 +357,7 @@ CTX.TESTS['storage'] = """
 ###############################################################################
 # ANTI-CACHING
 ###############################################################################
-ENABLE_ANTICACHE = False
+ENABLE_ANTICACHE = True
 if ENABLE_ANTICACHE:
     CTX.CPPFLAGS += " -DANTICACHE"
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))
@@ -367,9 +365,20 @@ if ENABLE_ANTICACHE:
         "berkeleydb/libdb.a",     # BerkeleyDB Base Library
         "berkeleydb/libdb_cxx.a", # BerkeleyDB C++ Library
     ])
-    CTX.INPUT['common'] += " anticache.cpp"
-    CTX.TESTS['common'] += " anticache_test"
-    CTX.TESTS['execution'] += " berkeleydb_test"
+    
+    CTX.INPUT['anticache'] = """
+        EvictedTupleAccessException.cpp
+        UnknownBlockAccessException.cpp
+        AntiCacheDB.cpp
+        AntiCacheEvictionManager.cpp
+        EvictionIterator.cpp
+        EvictedTable.cpp
+    """
+    
+    CTX.TESTS['anticache'] = """
+        anticachedb_test
+        berkeleydb_test
+    """
 
 ###############################################################################
 # BUILD THE MAKEFILE

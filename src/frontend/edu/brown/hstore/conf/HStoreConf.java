@@ -448,6 +448,13 @@ public final class HStoreConf {
         )
         public String anticache_dir;
         
+        @ConfigProperty(
+            description="", // TODO
+            defaultDouble=0.75,
+            experimental=true
+        )
+        public double anticache_threshold;
+        
         // ----------------------------------------------------------------------------
         // MapReduce Options
         // ----------------------------------------------------------------------------
