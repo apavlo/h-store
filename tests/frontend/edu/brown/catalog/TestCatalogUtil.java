@@ -24,7 +24,6 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
