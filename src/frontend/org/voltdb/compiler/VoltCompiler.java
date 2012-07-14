@@ -106,6 +106,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ConflictCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -498,12 +499,9 @@ public class VoltCompiler {
         }
         assert(m_catalog != null);
 
-        try
-        {
+        try {
             ClusterCompiler.compile(m_catalog, clusterConfig);
-        }
-        catch (RuntimeException e)
-        {
+        } catch (RuntimeException e) {
             addErr(e.getMessage());
             return null;
         }
@@ -519,6 +517,15 @@ public class VoltCompiler {
                 LOG.warn("Unexpected error", ex);
                 addErr("Failed to apply vertical partition optimizations");
             }
+        }
+        
+        // Calculate Procedure conflicts
+        ConflictCalculator cc = new ConflictCalculator(m_catalog);
+        try {
+            cc.process();
+        } catch (Exception ex) {
+            LOG.warn("Unexpected error", ex);
+            addErr("Failed to calculate procedure conflicts");
         }
 
         // add epoch info to catalog
