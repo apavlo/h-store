@@ -24,6 +24,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -50,6 +51,41 @@ public class TestCatalogUtil extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+    }
+    
+    /**
+     * testGetConflictProcedures
+     */
+    public void testGetConflictProcedures() throws Exception {
+        // We expect there to be a conflict between slev and neworder
+        Procedure proc0 = this.getProcedure(neworder.class);
+        Procedure proc1 = this.getProcedure(slev.class);
+        
+        Collection<Procedure> conflicts = CatalogUtil.getConflictProcedures(proc0);
+        assertNotNull(conflicts);
+        assertFalse(conflicts.contains(proc0));
+        assertTrue(conflicts.contains(proc1));
+        
+        // Make sure it's symmetrical
+        conflicts = CatalogUtil.getConflictProcedures(proc1);
+        assertNotNull(conflicts);
+        assertFalse(conflicts.contains(proc1));
+        assertTrue(conflicts.contains(proc0));
+    }
+    
+    /**
+     * testGetConflictProcedureSymmetries
+     */
+    public void testGetConflictProceduresSymmetries() throws Exception {
+        // For each Procedure that is marked as conflicting with another,
+        // make sure that they each know about each other
+        for (Procedure proc0 : catalog_db.getProcedures()) {
+            Collection<Procedure> conflicts0 = CatalogUtil.getConflictProcedures(proc0);
+            for (Procedure proc1 : conflicts0) {
+                Collection<Procedure> conflicts1 = CatalogUtil.getConflictProcedures(proc1);
+                assertTrue(conflicts1.contains(proc0));
+            } // FOR
+        } // FOR
     }
 
     /**

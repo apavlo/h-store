@@ -78,7 +78,7 @@ public class ConflictCalculator {
             ProcedureInfo pInfo = this.procedures.get(proc);
             for (Procedure conflict_proc : pInfo.conflicts) {
                 ProcedureRef ref = proc.getConflicts().add(conflict_proc.getName());
-                ref.setProcedure(proc);
+                ref.setProcedure(conflict_proc);
             } // FOR
         } // FOR
     }

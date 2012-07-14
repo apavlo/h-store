@@ -676,7 +676,11 @@ public class CatalogViewer extends AbstractViewer {
         // PROCEDURE
         else if (catalog_obj instanceof Procedure) {
             Procedure catalog_proc = (Procedure)catalog_obj;
-            map.put("conflicts", StringUtil.join(", ", CatalogUtil.getConflictProcedures(catalog_proc)));
+            Collection<Procedure> conflicts = CatalogUtil.getConflictProcedures(catalog_proc);
+            map.put("conflicts",
+                    StringUtil.join(", ", CatalogUtil.getDisplayNames(conflicts)));
+            map.put("conflictsX",
+                    StringUtil.join(", ", conflicts));
         }
         
         StringBuilder sb = new StringBuilder(StringUtil.formatMaps(map));
