@@ -437,7 +437,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 cc.addPartition("localhost", 0, i);
                 // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
-            catalog = FixCatalog.addHostInfo(catalog, cc);
+            catalog = FixCatalog.cloneCatalog(catalog, cc);
             this.init(this.last_type, catalog);
             
         }
@@ -452,7 +452,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
             CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
             CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
-            catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
+            catalog = FixCatalog.cloneCatalog(catalog, "localhost", num_hosts, num_sites, num_partitions);
             this.init(this.last_type, catalog);
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);

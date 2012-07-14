@@ -489,21 +489,19 @@ public class VoltCompiler {
         }
         assert(m_catalog != null);
 
-        
-        // Calculate Procedure conflicts
-        ConflictCalculator cc = new ConflictCalculator(m_catalog);
-        try {
-            cc.process();
-        } catch (Exception ex) {
-            LOG.warn("Unexpected error", ex);
-            addErr("Failed to calculate procedure conflicts");
-        }
-        
         try {
             ClusterCompiler.compile(m_catalog, clusterConfig);
         } catch (RuntimeException e) {
             addErr(e.getMessage());
             return null;
+        }
+        
+        // Optimization: Calculate Procedure conflicts
+        try {
+            new ConflictCalculator(m_catalog).process();
+        } catch (Exception ex) {
+            LOG.warn("Unexpected error", ex);
+            addErr("Failed to calculate procedure conflicts");
         }
         
         // Optimization: Vertical Partitioning
