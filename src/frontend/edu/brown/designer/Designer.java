@@ -256,7 +256,7 @@ public class Designer {
 
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+            args.updateCatalog(FixCatalog.cloneCatalog(args.catalog, cc), null);
         }
 
         // Create the container object that will hold all the information that

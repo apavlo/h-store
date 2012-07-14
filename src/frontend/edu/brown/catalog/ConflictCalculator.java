@@ -65,7 +65,12 @@ public class ConflictCalculator {
         for (Procedure proc0 : this.procedures.keySet()) {
             for (Procedure proc1 : this.procedures.keySet()) {
                 if (proc0.equals(proc1)) continue;
-                this.computeConflicts(proc0, proc1);
+                if (this.computeConflicts(proc0, proc1)) {
+                    if (debug.get()) 
+                        LOG.debug(String.format("**CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
+                    this.procedures.get(proc0).conflicts.add(proc1);
+                    this.procedures.get(proc1).conflicts.add(proc0);
+                }
             } // FOR
         } // FOR
         
@@ -93,11 +98,14 @@ public class ConflictCalculator {
         assert(pInfo1 != null);
         
         boolean conflicts = false;
+        Collection<Column> cols0 = new HashSet<Column>();
+        
         
         // Read-Write Conflicts
         for (Statement stmt0 : pInfo0.readQueries) {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
-            Collection<Column> cols0 = new HashSet<Column>(CatalogUtil.getReferencedColumns(stmt0));
+            cols0.clear();
+            cols0.addAll(CatalogUtil.getReferencedColumns(stmt0));
             cols0.addAll(PlanNodeUtil.getOutputColumnsForStatement(stmt0));
             assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
@@ -130,11 +138,11 @@ public class ConflictCalculator {
         
         // Write-Write Conflicts
         // Any INSERT or DELETE is always a conflict
-        // For UPDATEs, we will check whether their columns intersect
+        // For UPDATE, we will check whether their columns intersect
         for (Statement stmt0 : pInfo0.writeQueries) {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             QueryType type0 = QueryType.get(stmt0.getQuerytype());
-            Collection<Column> cols0 = CatalogUtil.getReferencedColumns(stmt0);
+            cols0 = CatalogUtil.getReferencedColumns(stmt0);
             
             // If there are no columns, then this must be a delete
 //            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
@@ -165,14 +173,6 @@ public class ConflictCalculator {
             } // FOR (proc1)
             if (conflicts) break;
         } // FOR (proc0)
-        
-        if (conflicts) {
-            if (debug.get()) LOG.debug(String.format("**CONFLICT** %s <-> %s",
-                                                     proc0.getName(), proc1.getName()));
-            pInfo0.conflicts.add(proc1);
-            pInfo1.conflicts.add(proc0);
-        }
-        
         return (conflicts);
     }
 }

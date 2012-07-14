@@ -221,7 +221,7 @@ public class LocalCluster extends VoltServerConfig {
                 cc.addPartition("localhost", site, currentPartition);
             }
         }
-        this.catalog = FixCatalog.addHostInfo(tmpCatalog, cc);
+        this.catalog = FixCatalog.cloneCatalog(tmpCatalog, cc);
         
         // (3) Write updated catalog back out to jar file
         try {

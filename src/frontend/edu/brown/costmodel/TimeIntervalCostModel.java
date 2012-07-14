@@ -766,7 +766,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+            args.updateCatalog(FixCatalog.cloneCatalog(args.catalog, cc), null);
         }
 
         // If given a PartitionPlan, then update the catalog

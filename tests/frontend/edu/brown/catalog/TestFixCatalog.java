@@ -28,7 +28,7 @@ public class TestFixCatalog extends BaseTestCase {
      * testAddHostInfo
      */
     public void testAddHostInfo() throws Exception {
-        Catalog new_catalog = FixCatalog.addHostInfo(catalog, NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
+        Catalog new_catalog = FixCatalog.cloneCatalog(catalog, NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         Cluster catalog_clus = CatalogUtil.getCluster(new_catalog);
         assertEquals(NUM_PARTITIONS_PER_SITE * NUM_SITES_PER_HOST * NUM_HOSTS, CatalogUtil.getNumberOfPartitions(new_catalog));
 

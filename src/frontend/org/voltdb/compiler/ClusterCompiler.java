@@ -36,7 +36,7 @@ public class ClusterCompiler
     {
         // HACK!
         if (clusterConfig instanceof ClusterConfiguration) {
-            FixCatalog.writeHostInfo(catalog, (ClusterConfiguration)clusterConfig);
+            FixCatalog.updateCatalog(catalog, (ClusterConfiguration)clusterConfig);
             return;
         }
         

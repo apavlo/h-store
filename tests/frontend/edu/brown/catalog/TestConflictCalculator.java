@@ -35,6 +35,9 @@ public class TestConflictCalculator extends BaseTestCase {
         this.cc = new ConflictCalculator(catalog);
     }
     
+    /**
+     * testReadReadNonConflict
+     */
     @Test
     public void testReadReadNonConflict() throws Exception {
         Procedure proc0 = this.getProcedure("NonConflictRead");
@@ -44,6 +47,9 @@ public class TestConflictCalculator extends BaseTestCase {
         assertFalse(conflicts);
     }
     
+    /**
+     * testReadWriteUpdateNonConflict
+     */
     @Test
     public void testReadWriteUpdateNonConflict() throws Exception {
         Procedure proc0 = this.getProcedure("NonConflictRead");
@@ -53,6 +59,9 @@ public class TestConflictCalculator extends BaseTestCase {
         assertFalse(conflicts);
     }
     
+    /**
+     * testReadWriteConflict
+     */
     @Test
     public void testReadWriteConflict() throws Exception {
         Procedure proc0 = this.getProcedure(neworder.class);
@@ -67,6 +76,9 @@ public class TestConflictCalculator extends BaseTestCase {
         assertTrue(conflicts);
     }
     
+    /**
+     * testWriteWriteConflict
+     */
     @Test
     public void testWriteWriteConflict() throws Exception {
         Procedure proc0 = this.getProcedure(paymentByCustomerId.class);

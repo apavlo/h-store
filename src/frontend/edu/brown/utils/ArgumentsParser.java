@@ -837,7 +837,7 @@ public class ArgumentsParser {
         // Update Cluster Configuration
         if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS) && DISABLE_UPDATE_CATALOG == false) {
             ClusterConfiguration cc = new ClusterConfiguration(this.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            this.updateCatalog(FixCatalog.addHostInfo(this.catalog, cc), null);
+            this.updateCatalog(FixCatalog.cloneCatalog(this.catalog, cc), null);
         }
 
         // Check the requirements after loading the catalog, because some of the
