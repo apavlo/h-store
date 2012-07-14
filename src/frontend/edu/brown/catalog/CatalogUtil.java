@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -30,7 +29,6 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
-import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Index;
@@ -39,6 +37,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -104,8 +103,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static final String DEFAULT_DATABASE_NAME = "database";
     public static final String DEFAULT_PROCEDURE_NAME = "procedure";
     public static final String DEFAULT_STATEMENT_NAME = "statement";
-
-    private static final Random rand = new Random();
 
     // ------------------------------------------------------------
     // CACHES
@@ -450,6 +447,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // PROCEDURES + STATEMENTS + PARAMETERS
     // ------------------------------------------------------------
 
+    /**
+     * Get all the Procedure handles that are marked as conflicting
+     * with the given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getConflictProcedures(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        for (ProcedureRef ref : catalog_proc.getConflicts()) {
+            conflicts.add(ref.getProcedure());
+        } // FOR
+        return (conflicts);
+    }
+    
     /**
      * Return all of the internal system Procedures for the database
      */
