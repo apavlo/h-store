@@ -258,11 +258,11 @@ public class CatalogViewer extends AbstractViewer {
                 else if (user_obj instanceof AttributesNode) {
                     AttributesNode wrapper = (AttributesNode)user_obj;
                     new_text += wrapper.getAttributes();
-                    
                 }
                 else if (user_obj instanceof ProcedureConflictGraphNode) {
                     ProcedureConflictGraphNode wrapper = (ProcedureConflictGraphNode)user_obj; 
                     CatalogViewer.this.replaceMainPanel(wrapper.getVisualization());
+                    text_mode = false;
                 }
                 else if (user_obj instanceof PlanTreeCatalogNode) {
                     final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
@@ -287,8 +287,7 @@ public class CatalogViewer extends AbstractViewer {
                 // Text Mode
                 if (text_mode) {
                     if (CatalogViewer.this.text_mode == false) {
-                        CatalogViewer.this.mainPanel.remove(0);
-                        CatalogViewer.this.mainPanel.add(CatalogViewer.this.textInfoPanel);
+                        CatalogViewer.this.replaceMainPanel(CatalogViewer.this.textInfoPanel);
                     }
                     CatalogViewer.this.textInfoTextArea.setText(new_text);
                     
