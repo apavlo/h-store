@@ -179,8 +179,10 @@ public final class HStoreConf {
                         "single-partition transactions whenever it completes a work request for a multi-partition " +
                         "transaction running on a different node.",
             defaultBoolean=true,
+            replacedBy="site.specexec_enable",
             experimental=true
         )
+        @Deprecated
         public boolean exec_speculative_execution;
         
         @ConfigProperty(
@@ -395,6 +397,19 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_deferrable_queries;
+
+        // ----------------------------------------------------------------------------
+        // Speculative Execution Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute " +
+                        "single-partition transactions whenever it completes a work request for a multi-partition " +
+                        "transaction running on a different node.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean specexec_enable;
         
         // ----------------------------------------------------------------------------
         // Command Logging Options

@@ -56,10 +56,10 @@ import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 

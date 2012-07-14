@@ -92,12 +92,12 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 /**

@@ -36,8 +36,8 @@ import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 
 /**
  *  A client that connects to one or more nodes in a VoltCluster

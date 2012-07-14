@@ -22,8 +22,8 @@ import edu.brown.hstore.ClientInterface;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.wal.CommandLogWriter;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 
 /** 
  * Reset internal profiling statistics

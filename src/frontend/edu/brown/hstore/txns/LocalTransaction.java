@@ -70,6 +70,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
@@ -186,7 +187,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * 
      */
-    public final TransactionProfile profiler;
+    public final TransactionProfiler profiler;
 
     /**
      * Whether this transaction's control code was executed on
@@ -212,7 +213,7 @@ public class LocalTransaction extends AbstractTransaction {
         super(hstore_site);
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
-        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfile() : null);
+        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
       
         int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
         this.done_partitions = new BitSet(num_partitions);
