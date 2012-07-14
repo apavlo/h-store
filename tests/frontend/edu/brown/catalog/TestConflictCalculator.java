@@ -1,0 +1,74 @@
+package edu.brown.catalog;
+
+import org.junit.Test;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
+import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerName;
+import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Procedure;
+
+import edu.brown.BaseTestCase;
+import edu.brown.benchmark.AbstractProjectBuilder;
+
+public class TestConflictCalculator extends BaseTestCase {
+    
+    ConflictCalculator cc;
+    
+    private final AbstractProjectBuilder builder = new TPCCProjectBuilder() {
+        {
+            this.addAllDefaults();
+            this.addStmtProcedure(
+                "NonConflictRead",
+                "SELECT W_ZIP FROM WAREHOUSE WHERE W_NAME = ?"
+            );
+            this.addStmtProcedure(
+                "NonConflictUpdate",
+                "UPDATE WAREHOUSE SET W_STREET_1 = ? WHERE W_ID = ?"
+            );
+        }
+    };
+    
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp(builder);
+        this.cc = new ConflictCalculator(catalog);
+    }
+    
+    @Test
+    public void testReadReadNonConflict() throws Exception {
+        Procedure proc0 = this.getProcedure("NonConflictRead");
+        Procedure proc1 = this.getProcedure(slev.class);
+        
+        boolean conflicts = this.cc.computeConflicts(proc0, proc1);
+        assertFalse(conflicts);
+    }
+    
+    @Test
+    public void testReadWriteUpdateNonConflict() throws Exception {
+        Procedure proc0 = this.getProcedure("NonConflictRead");
+        Procedure proc1 = this.getProcedure("NonConflictUpdate");
+        
+        boolean conflicts = this.cc.computeConflicts(proc0, proc1);
+        assertFalse(conflicts);
+    }
+    
+    @Test
+    public void testReadWriteConflict() throws Exception {
+        Procedure proc0 = this.getProcedure(neworder.class);
+        Procedure proc1 = this.getProcedure(slev.class);
+        
+        boolean conflicts = this.cc.computeConflicts(proc0, proc1);
+        assertTrue(conflicts);
+    }
+    
+    @Test
+    public void testWriteWriteConflict() throws Exception {
+        Procedure proc0 = this.getProcedure(paymentByCustomerId.class);
+        Procedure proc1 = this.getProcedure(paymentByCustomerName.class);
+        
+        boolean conflicts = this.cc.computeConflicts(proc0, proc1);
+        assertTrue(conflicts);
+    }
+
+}

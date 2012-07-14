@@ -1,10 +1,8 @@
 package edu.brown.catalog;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.collections15.CollectionUtils;
@@ -81,7 +79,7 @@ public class ConflictCalculator {
         ProcedureInfo pInfo0 = this.procedures.get(proc0);
         assert(pInfo0 != null);
         
-        ProcedureInfo pInfo1 = this.procedures.get(proc0);
+        ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         
         boolean conflicts = false;
