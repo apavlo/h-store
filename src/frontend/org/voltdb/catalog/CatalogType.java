@@ -415,6 +415,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
     public boolean equals(Object obj) {
         // It's null or not a CatalogType
         if (obj == null || (obj instanceof CatalogType) == false) return (false);
+        if (this == obj) return (true);
         
         CatalogType other = (CatalogType)obj;
         
