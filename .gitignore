@@ -23,6 +23,7 @@ keepalive
 obj
 conf-*.html
 .DS_Store
+SourceJars
 
 ## -------------------------------
 ## JNI Compiler Artifacts

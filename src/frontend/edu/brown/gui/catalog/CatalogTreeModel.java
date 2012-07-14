@@ -249,9 +249,14 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 procs.removeAll(sysProcs);
                 procedures_node = new CatalogMapTreeNode("Stored Procedures", procs.size());
                 database_node.add(procedures_node);
+                
+                // Conflicts Graph
+                DefaultMutableTreeNode conflictNode = new DefaultMutableTreeNode(new ProcedureConflictGraphNode(procs));
+                procedures_node.add(conflictNode);
+                
                 this.buildProceduresTree(procedures_node, procs);
                 
-            } // FOR (databses)
+            } // FOR (databases)
             
             // Construct a xref mapping between host->sites and site->partitions
             Map<Host, Set<Site>> host_site_xref = new HashMap<Host, Set<Site>>();

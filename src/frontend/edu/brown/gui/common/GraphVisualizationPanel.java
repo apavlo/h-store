@@ -164,10 +164,9 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
             layout = new TreeLayout<V, E>((Forest<V, E>) graph);
         } else if (graph instanceof MarkovGraph){
             layout = new FRLayout<V,E>( graph);
-        }else if (graph instanceof AbstractDirectedGraph) {
+        } else if (graph instanceof AbstractDirectedGraph) {
             layout = new DAGLayout<V, E>(graph);
-        } else
-        {
+        } else {
             layout = new CircleLayout<V, E>(graph);
         }
         return (new GraphVisualizationPanel<V, E>(layout, graph));

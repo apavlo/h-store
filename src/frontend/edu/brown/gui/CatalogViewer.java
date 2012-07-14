@@ -26,6 +26,7 @@
 package edu.brown.gui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -70,13 +71,13 @@ import edu.brown.gui.catalog.CatalogAttributeText;
 import edu.brown.gui.catalog.CatalogSummaryText;
 import edu.brown.gui.catalog.CatalogTreeModel;
 import edu.brown.gui.catalog.PlanTreeCatalogNode;
+import edu.brown.gui.catalog.ProcedureConflictGraphNode;
 import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.utils.ArgumentsParser;
 
 /**
- * 
+ * Graphical Catalog Viewer Tool
  * @author pavlo
- *
  */
 public class CatalogViewer extends AbstractViewer {
     private static final long serialVersionUID = -7566054105094378095L;
@@ -253,18 +254,21 @@ public class CatalogViewer extends AbstractViewer {
                 if (user_obj instanceof WrapperNode) {
                     CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
                     new_text += CatalogViewer.this.attributeText.getAttributesText(catalog_obj);
-                } else if (user_obj instanceof AttributesNode) {
+                }
+                else if (user_obj instanceof AttributesNode) {
                     AttributesNode wrapper = (AttributesNode)user_obj;
                     new_text += wrapper.getAttributes();
                     
-                } else if (user_obj instanceof PlanTreeCatalogNode) {
+                }
+                else if (user_obj instanceof ProcedureConflictGraphNode) {
+                    ProcedureConflictGraphNode wrapper = (ProcedureConflictGraphNode)user_obj; 
+                    CatalogViewer.this.replaceMainPanel(wrapper.getVisualization());
+                }
+                else if (user_obj instanceof PlanTreeCatalogNode) {
                     final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
                     text_mode = false;
                     
-                    CatalogViewer.this.mainPanel.remove(0);
-                    CatalogViewer.this.mainPanel.add(wrapper.getPanel(), BorderLayout.CENTER);
-                    CatalogViewer.this.mainPanel.validate();
-                    CatalogViewer.this.mainPanel.repaint();
+                    CatalogViewer.this.replaceMainPanel(wrapper.getPanel());
                     
                     if (SwingUtilities.isEventDispatchThread() == false) {
                         SwingUtilities.invokeLater(new Runnable() {
@@ -297,9 +301,9 @@ public class CatalogViewer extends AbstractViewer {
         });
         this.generateCatalogTree(this.catalog, this.catalog_file_path.getName());
 
-        //
-        // Text Information Panel
-        //
+        // ----------------------------------------------
+        // TEXT INFORMATION PANEL
+        // ----------------------------------------------
         this.textInfoPanel = new JPanel();
         this.textInfoPanel.setLayout(new BorderLayout());
         this.textInfoTextArea = new JTextArea();
@@ -322,9 +326,9 @@ public class CatalogViewer extends AbstractViewer {
         this.mainPanel = new JPanel(new BorderLayout());
         this.mainPanel.add(textInfoPanel, BorderLayout.CENTER);
         
-        //
-        // Search Toolbar
-        //
+        // ----------------------------------------------
+        // SEARCH TOOLBAR
+        // ----------------------------------------------
         JPanel searchPanel = new JPanel();
         searchPanel.setLayout(new BorderLayout());
         JPanel innerSearchPanel = new JPanel();
@@ -366,6 +370,13 @@ public class CatalogViewer extends AbstractViewer {
         splitPane.setDividerLocation(400);
 
         this.add(splitPane, BorderLayout.CENTER);
+    }
+    
+    protected void replaceMainPanel(JPanel newPanel) {
+        this.mainPanel.remove(0);
+        this.mainPanel.add(newPanel, BorderLayout.CENTER);
+        this.mainPanel.validate();
+        this.mainPanel.repaint();
     }
     
     protected void search(String value) {
@@ -447,10 +458,6 @@ public class CatalogViewer extends AbstractViewer {
         // System.err.println("VERTICAL=" + verticalScrollBar.getValue() + ", HORIZONTAL=" + horizontalScrollBar.getValue());
     }
     
-
-    
-
-    
     public class CatalogTreeRenderer extends DefaultTreeCellRenderer {
         private static final long serialVersionUID = 1L;
 
@@ -462,7 +469,8 @@ public class CatalogViewer extends AbstractViewer {
             super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
             if (value instanceof DefaultMutableTreeNode) {
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode)value;
-                if (node.getUserObject() instanceof WrapperNode) {
+                Object obj = node.getUserObject();
+                if (obj instanceof WrapperNode) {
                     CatalogType catalog_obj = ((WrapperNode)node.getUserObject()).getCatalogType();
                     this.setFont(this.getFont().deriveFont(Font.BOLD));
                     
@@ -477,7 +485,13 @@ public class CatalogViewer extends AbstractViewer {
                     } else if (catalog_obj instanceof Database) {
                         this.setIcon(UIManager.getIcon("FileView.hardDriveIcon"));
                     }
-                } else {
+                }
+                else if (obj instanceof ProcedureConflictGraphNode) {
+                    this.setForeground(new Color(0, 0, 200));
+                    this.setFont(this.getFont().deriveFont(Font.BOLD | Font.ITALIC));
+                    this.setIcon(UIManager.getIcon("FileChooser.listViewIcon"));
+                }
+                else {
                     this.setFont(this.getFont().deriveFont(Font.PLAIN));
                 }
             }

@@ -193,15 +193,18 @@ public class CatalogAttributeText {
         // PROCEDURE
         else if (catalog_obj instanceof Procedure) {
             Procedure catalog_proc = (Procedure)catalog_obj;
+            Collection<Procedure> conflicts = CatalogUtil.getConflictProcedures(catalog_proc);
             
-            Map<String, Object> orig_m = m[0];
-            m = (Map<String, Object>[])new Map[2];
-            m[0] = orig_m;
-            
-            List<String> conflicts = new ArrayList<String>(CatalogUtil.getDisplayNames(CatalogUtil.getConflictProcedures(catalog_proc)));
-            Collections.sort(conflicts);
-            m[1] = new TreeMap<String, Object>();
-            m[1].put("conflicts", StringUtil.join("\n", conflicts));
+            if (conflicts.size() > 0) {
+                Map<String, Object> orig_m = m[0];
+                m = (Map<String, Object>[])new Map[2];
+                m[0] = orig_m;
+                
+                List<String> conflictLabels = new ArrayList<String>(CatalogUtil.getDisplayNames(conflicts));
+                Collections.sort(conflictLabels);
+                m[1] = new TreeMap<String, Object>();
+                m[1].put("conflicts", StringUtil.join("\n", conflictLabels));
+            }
         }
         
         StringBuilder sb = new StringBuilder(StringUtil.formatMaps(m));
