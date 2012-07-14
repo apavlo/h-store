@@ -19,8 +19,8 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 
 /** 
  * Force the garbage collector run at each HStoreSite

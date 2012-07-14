@@ -52,7 +52,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /**
  * Transaction Command Log Writer

@@ -103,6 +103,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -111,7 +112,6 @@ import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 
 /**
@@ -1961,9 +1961,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
-            if (ts != null && hstore_conf.site.exec_speculative_execution) {
+            if (ts != null && hstore_conf.site.specexec_enable) {
                 if (d) LOG.debug(String.format("Telling partition %d to enable speculative execution because of txn #%d", p, txn_id));
-                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
+                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts);
                 if (d && ret) {
                     spec_cnt++;
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));

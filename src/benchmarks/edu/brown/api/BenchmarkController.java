@@ -99,6 +99,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -106,7 +107,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 

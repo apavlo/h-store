@@ -54,8 +54,7 @@ public class SpecExecScheduler {
      * Find the next non-conflicting txn that we can speculatively execute
      * @return
      */
-    public InitializeTxnMessage next() {
-        AbstractTransaction dtxn = this.executor.getCurrentDtxn();
+    public InitializeTxnMessage next(AbstractTransaction dtxn) {
         int proc_id = dtxn.getProcedureId();
         Procedure catalog_proc = this.catalog_procs[proc_id];
         

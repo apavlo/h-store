@@ -50,6 +50,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -57,7 +58,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 /**

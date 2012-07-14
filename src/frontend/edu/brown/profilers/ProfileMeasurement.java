@@ -25,7 +25,7 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-package edu.brown.utils;
+package edu.brown.profilers;
 
 import java.io.IOException;
 
@@ -37,6 +37,10 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
 /**
  * @author pavlo

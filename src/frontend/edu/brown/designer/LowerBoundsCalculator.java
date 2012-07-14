@@ -13,8 +13,8 @@ import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.partitioners.MostPopularPartitioner;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.workload.Workload;
 
 /**

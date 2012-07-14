@@ -27,7 +27,6 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.TransactionProfile;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.interfaces.Shutdownable;
@@ -37,11 +36,12 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.TransactionProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -836,9 +836,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private void initTxnProfileInfo(Database catalog_db) {
         // COLUMN DELIMITERS
         String last_prefix = null;
-        String col_delimiters[] = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        String col_delimiters[] = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
         int col_idx = 0;
-        for (Field f : TransactionProfile.PROFILE_FIELDS) {
+        for (Field f : TransactionProfiler.PROFILE_FIELDS) {
             String prefix = f.getName().split("_")[1];
             assert(prefix.isEmpty() == false);
             if (last_prefix != null && col_idx > 0 && prefix.equals(last_prefix) == false) {
@@ -851,11 +851,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         // TABLE HEADER
         int idx = 0;
-        this.txn_profiler_header = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        this.txn_profiler_header = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
         this.txn_profiler_header[idx++] = "";
         this.txn_profiler_header[idx++] = "txns";
-        for (int i = 0; i < TransactionProfile.PROFILE_FIELDS.length; i++) {
-            String name = TransactionProfile.PROFILE_FIELDS[i].getName()
+        for (int i = 0; i < TransactionProfiler.PROFILE_FIELDS.length; i++) {
+            String name = TransactionProfiler.PROFILE_FIELDS[i].getName()
                                 .replace("pm_", "")
                                 .replace("_total", "");
             this.txn_profiler_header[idx++] = name;
@@ -866,7 +866,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (catalog_proc.getSystemproc()) continue;
             this.txn_profile_queues.put(catalog_proc, new LinkedBlockingDeque<long[]>());
             
-            long totals[] = new long[TransactionProfile.PROFILE_FIELDS.length + 1];
+            long totals[] = new long[TransactionProfiler.PROFILE_FIELDS.length + 1];
             for (int i = 0; i < totals.length; i++) {
                 totals[i] = 0;
             } // FOR
@@ -878,7 +878,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * 
      * @param tp
      */
-    public void addTxnProfile(Procedure catalog_proc, TransactionProfile tp) {
+    public void addTxnProfile(Procedure catalog_proc, TransactionProfiler tp) {
         assert(catalog_proc != null);
         assert(tp.isStopped());
         if (trace.get()) LOG.info("Calculating TransactionProfile information");
