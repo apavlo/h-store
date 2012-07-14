@@ -233,14 +233,14 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction init(Long txn_id,
-                                  long clientHandle,
-                                  int base_partition,
-                                  Collection<Integer> predict_touchedPartitions,
-                                  boolean predict_readOnly,
-                                  boolean predict_abortable,
-                                  Procedure catalog_proc,
-                                  ParameterSet params,
-                                  RpcCallback<ClientResponseImpl> client_callback) {
+                                 long clientHandle,
+                                 int base_partition,
+                                 Collection<Integer> predict_touchedPartitions,
+                                 boolean predict_readOnly,
+                                 boolean predict_abortable,
+                                 Procedure catalog_proc,
+                                 ParameterSet params,
+                                 RpcCallback<ClientResponseImpl> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
@@ -258,6 +258,7 @@ public class LocalTransaction extends AbstractTransaction {
         super.init(txn_id,
                    clientHandle,
                    base_partition,
+                   catalog_proc.getId(),
                    catalog_proc.getSystemproc(),
                    (this.predict_touchedPartitions.size() == 1),
                    predict_readOnly,
@@ -299,6 +300,7 @@ public class LocalTransaction extends AbstractTransaction {
                           txn_id,                       // TxnId
                           Integer.MAX_VALUE,            // ClientHandle
                           base_partition,               // BasePartition
+                          catalog_proc.getId(),         // ProcedureId
                           catalog_proc.getSystemproc(), // SysProc
                           predict_singlePartition,      // SinglePartition
                           catalog_proc.getReadonly(),   // ReadOnly

@@ -25,9 +25,8 @@
  ***************************************************************************/
 package edu.brown.hstore.txns;
 
-import java.util.BitSet;
-
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
@@ -63,9 +62,24 @@ public class RemoteTransaction extends AbstractTransaction {
         this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
     }
     
-    public RemoteTransaction init(long txnId, int source_partition, boolean sysproc, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, -1, source_partition, sysproc,
-                                              false, true, predict_abortable, false));
+    public RemoteTransaction init(long txnId,
+                                  int base_partition,
+                                  Procedure catalog_proc,
+                                  boolean predict_abortable) {
+        int proc_id = catalog_proc.getId();
+        boolean sysproc = catalog_proc.getSystemproc();
+        
+        return ((RemoteTransaction)super.init(
+                            txnId,              // TxnId
+                            -1,                 // ClientHandle
+                            base_partition,     // BasePartition
+                            proc_id,            // ProcedureId
+                            sysproc,            // SysProc
+                            false,              // SinglePartition 
+                            true,               // ReadOnly (???)
+                            predict_abortable,  // Abortable
+                            false               // ExecLocal
+        ));
     }
     
     @Override

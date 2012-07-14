@@ -83,6 +83,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     protected Long txn_id = null;
     protected long client_handle;
+    protected int proc_id;
     protected int base_partition;
     protected Status status;
     protected boolean sysproc;
@@ -111,7 +112,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected PrefetchState prefetch;
     
     // ----------------------------------------------------------------------------
-    // VoltMessage Wrappers
+    // Internal Message Wrappers
     // ----------------------------------------------------------------------------
     
     private final FinishTxnMessage finish_task;
@@ -203,16 +204,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * @return
      */
     protected final AbstractTransaction init(Long txn_id,
-                                               long client_handle,
-                                               int base_partition,
-                                               boolean sysproc,
-                                               boolean predict_singlePartition,
-                                               boolean predict_readOnly,
-                                               boolean predict_abortable,
-                                               boolean exec_local) {
+                                             long client_handle,
+                                             int base_partition,
+                                             int proc_id,
+                                             boolean sysproc,
+                                             boolean predict_singlePartition,
+                                             boolean predict_readOnly,
+                                             boolean predict_abortable,
+                                             boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
+        this.proc_id = proc_id;
         this.sysproc = sysproc;
         this.predict_singlePartition = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
@@ -262,6 +265,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
+        this.proc_id = -1;
         this.base_partition = -1;
         this.txn_id = null;
     }
@@ -445,6 +449,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      */
     public final int getBasePartition() {
         return base_partition;
+    }
+    /**
+     * Get the Procedure catalog id for this txn
+     */
+    public final int getProcedureId() {
+        return this.proc_id;
     }
     /**
      * Returns true if this transaction is for a system procedure
