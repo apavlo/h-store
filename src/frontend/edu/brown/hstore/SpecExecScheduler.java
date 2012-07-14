@@ -34,7 +34,7 @@ public class SpecExecScheduler {
         this.executor = executor;
         this.work_queue = this.executor.getWorkQueue();
         this.catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
-        this.procConflicts = new BitSet[this.catalog_db.getProcedures().size()];
+        this.procConflicts = new BitSet[this.catalog_db.getProcedures().size()+1];
         this.catalog_procs = new Procedure[catalog_db.getProcedures().size()+1];
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures().values()) {
