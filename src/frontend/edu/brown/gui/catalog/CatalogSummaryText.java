@@ -36,7 +36,7 @@ public class CatalogSummaryText {
      */
     @SuppressWarnings("unchecked")
     public String getSummaryText() {
-        Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[3];
+        Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[4];
         int idx = -1;
         
         // ----------------------
