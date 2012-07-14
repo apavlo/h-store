@@ -125,6 +125,11 @@ begin Procedure             "A stored procedure (transaction) in the system"
     AuthProgram* authPrograms "The set of authorized programs for this procedure (users)"
     Statement* statements     "The set of SQL statements this procedure may call"
     ProcParameter* parameters "The set of parameters to this stored procedure"
+    ProcedureRef* conflicts   "Procedures whose Statements conflict with this procedure"
+end
+
+begin ProcedureRef
+    Procedure? procedure
 end
 
 begin Table                   "A table (relation) in the database"

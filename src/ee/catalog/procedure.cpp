@@ -24,6 +24,7 @@
 #include "catalog.h"
 #include "procparameter.h"
 #include "column.h"
+#include "procedureref.h"
 #include "userref.h"
 #include "authprogram.h"
 #include "groupref.h"
@@ -35,7 +36,7 @@ using namespace std;
 
 Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_authUsers(catalog, this, path + "/" + "authUsers"), m_authGroups(catalog, this, path + "/" + "authGroups"), m_authPrograms(catalog, this, path + "/" + "authPrograms"), m_statements(catalog, this, path + "/" + "statements"), m_parameters(catalog, this, path + "/" + "parameters")
+  m_authUsers(catalog, this, path + "/" + "authUsers"), m_authGroups(catalog, this, path + "/" + "authGroups"), m_authPrograms(catalog, this, path + "/" + "authPrograms"), m_statements(catalog, this, path + "/" + "statements"), m_parameters(catalog, this, path + "/" + "parameters"), m_conflicts(catalog, this, path + "/" + "conflicts")
 {
     CatalogValue value;
     m_fields["id"] = value;
@@ -60,6 +61,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_childCollections["authPrograms"] = &m_authPrograms;
     m_childCollections["statements"] = &m_statements;
     m_childCollections["parameters"] = &m_parameters;
+    m_childCollections["conflicts"] = &m_conflicts;
 }
 
 Procedure::~Procedure() {
@@ -97,6 +99,13 @@ Procedure::~Procedure() {
         procparameter_iter++;
     }
     m_parameters.clear();
+
+    std::map<std::string, ProcedureRef*>::const_iterator procedureref_iter = m_conflicts.begin();
+    while (procedureref_iter != m_conflicts.end()) {
+        delete procedureref_iter->second;
+        procedureref_iter++;
+    }
+    m_conflicts.clear();
 
 }
 
@@ -151,6 +160,12 @@ CatalogType * Procedure::addChild(const std::string &collectionName, const std::
             return NULL;
         return m_parameters.add(childName);
     }
+    if (collectionName.compare("conflicts") == 0) {
+        CatalogType *exists = m_conflicts.get(childName);
+        if (exists)
+            return NULL;
+        return m_conflicts.add(childName);
+    }
     return NULL;
 }
 
@@ -165,6 +180,8 @@ CatalogType * Procedure::getChild(const std::string &collectionName, const std::
         return m_statements.get(childName);
     if (collectionName.compare("parameters") == 0)
         return m_parameters.get(childName);
+    if (collectionName.compare("conflicts") == 0)
+        return m_conflicts.get(childName);
     return NULL;
 }
 
@@ -184,6 +201,9 @@ bool Procedure::removeChild(const std::string &collectionName, const std::string
     }
     if (collectionName.compare("parameters") == 0) {
         return m_parameters.remove(childName);
+    }
+    if (collectionName.compare("conflicts") == 0) {
+        return m_conflicts.remove(childName);
     }
     return false;
 }
@@ -274,5 +294,9 @@ const CatalogMap<Statement> & Procedure::statements() const {
 
 const CatalogMap<ProcParameter> & Procedure::parameters() const {
     return m_parameters;
+}
+
+const CatalogMap<ProcedureRef> & Procedure::conflicts() const {
+    return m_conflicts;
 }
 

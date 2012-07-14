@@ -11,12 +11,14 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  * Procedure Conflict Calculator
@@ -66,6 +68,14 @@ public class ConflictCalculator {
                 this.computeConflicts(proc0, proc1);
             } // FOR
         } // FOR
+        
+        for (Procedure proc : this.procedures.keySet()) {
+            ProcedureInfo pInfo = this.procedures.get(proc);
+            for (Procedure conflict_proc : pInfo.conflicts) {
+                ProcedureRef ref = proc.getConflicts().add(conflict_proc.getName());
+                ref.setProcedure(proc);
+            } // FOR
+        } // FOR
     }
     
     /**
@@ -87,8 +97,9 @@ public class ConflictCalculator {
         // Read-Write Conflicts
         for (Statement stmt0 : pInfo0.readQueries) {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
-            Collection<Column> cols0 = CatalogUtil.getReferencedColumns(stmt0);
-            assert(cols0.isEmpty() == false);
+            Collection<Column> cols0 = new HashSet<Column>(CatalogUtil.getReferencedColumns(stmt0));
+            cols0.addAll(PlanNodeUtil.getOutputColumnsForStatement(stmt0));
+            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
@@ -103,6 +114,7 @@ public class ConflictCalculator {
                 // the output or the where clause for the SELECT query
                 if (stmt1.getQuerytype() == QueryType.UPDATE.getValue()) {
                     Collection<Column> cols1 = CatalogUtil.getModifiedColumns(stmt1);
+                    assert(cols1.isEmpty() == false) : "No columns for " + stmt1.fullName();
                     Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
                     if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Columns %s",
                                                stmt0.fullName(), stmt1.fullName(), intersectColumns));
@@ -123,7 +135,9 @@ public class ConflictCalculator {
             Collection<Table> tables0 = CatalogUtil.getReferencedTables(stmt0);
             QueryType type0 = QueryType.get(stmt0.getQuerytype());
             Collection<Column> cols0 = CatalogUtil.getReferencedColumns(stmt0);
-            assert(cols0.isEmpty() == false);
+            
+            // If there are no columns, then this must be a delete
+//            assert(cols0.isEmpty() == false) : "No columns for " + stmt0.fullName();
             
             for (Statement stmt1 : pInfo1.writeQueries) {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
@@ -141,7 +155,7 @@ public class ConflictCalculator {
                 }
                 
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
-                assert(cols1.isEmpty() == false);
+                assert(cols1.isEmpty() == false) : "No columns for " + stmt0.fullName();
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
                 if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
@@ -161,11 +175,4 @@ public class ConflictCalculator {
         
         return (conflicts);
     }
-    
-    
-    public void updateCatalog() {
-        
-    }
-    
-    
 }
