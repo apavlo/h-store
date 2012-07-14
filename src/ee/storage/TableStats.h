@@ -1,5 +1,5 @@
 /* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB Inc.
+ * Copyright (C) 2008-2012 VoltDB Inc.
  *
  * VoltDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,25 @@ namespace voltdb {
  */
 class TableStats : public voltdb::StatsSource {
 public:
+    /**
+     * Static method to generate the column names for the tables which
+     * contain persistent table stats.
+     */
+    static std::vector<std::string> generateTableStatsColumnNames();
+
+    /**
+     * Static method to generate the remaining schema information for
+     * the tables which contain persistent table stats.
+     */
+    static void populateTableStatsSchema(std::vector<voltdb::ValueType>& types,
+                                         std::vector<int32_t>& columnLengths,
+                                         std::vector<bool>& allowNull);
+
+    /**
+     * Return an empty TableStats table
+     */
+    static Table* generateEmptyTableStatsTable();
+
     /*
      * Constructor caches reference to the table that will be generating the statistics
      */
@@ -87,9 +106,16 @@ private:
 
     voltdb::NValue m_tableType;
 
-    int64_t m_lastActiveTupleCount;
-    int64_t m_lastAllocatedTupleCount;
-    int64_t m_lastDeletedTupleCount;
+    int64_t m_lastTupleCount;
+    int64_t m_lastAllocatedTupleMemory;
+    int64_t m_lastOccupiedTupleMemory;
+    int64_t m_lastStringDataMemory;
+    
+    #ifdef ANTICACHE
+    int32_t m_lastTuplesEvicted;
+    int32_t m_lastBlocksEvicted;
+    int64_t m_lastBytesEvicted;
+    #endif
 };
 
 }

@@ -99,7 +99,9 @@ public abstract class HStore {
     
         HStoreSite handle = instance();
         if (handle != null) {
-            handle.getHStoreCoordinator().shutdownCluster();
+            handle.shutdown();
+            System.exit(-1);
+            // FIXME handle.getHStoreCoordinator().shutdownCluster();
         } else {
             System.err.println("H-Store has encountered an unrecoverable error and is exiting.");
             System.err.println("The log may contain additional information.");

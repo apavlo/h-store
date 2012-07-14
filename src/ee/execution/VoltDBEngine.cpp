@@ -1405,14 +1405,19 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize) {
     if (table == NULL) {
         throwFatalException("Invalid table id %d", tableId);
     }
-    
+
     VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
                blockSize, table->name().c_str());
-    if (table->evictBlockToDisk(blockSize) == false) {
-        throwFatalException("Failed to evict tuples from table '%s'", table->name().c_str());
+    size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
+    Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize);
+    if (resultTable != NULL) {
+        resultTable->serializeTo(m_resultOutput);
+        m_resultOutput.writeIntAt(lengthPosition,
+                                  static_cast<int32_t>(m_resultOutput.size() - sizeof(int32_t)));
+        return 1;
+    } else {
+        return 0;
     }
-    
-    return (ENGINE_ERRORCODE_SUCCESS);
 }
 
 /**

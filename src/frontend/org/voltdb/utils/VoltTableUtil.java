@@ -10,8 +10,58 @@ import org.voltdb.catalog.Table;
 import org.voltdb.types.SortDirectionType;
 
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.TableUtil;
 
 public abstract class VoltTableUtil {
+    
+    /**
+     * Pretty-printer for an array of VoltTables
+     * @param results
+     * @return
+     */
+    public static String format(VoltTable...results) {
+        StringBuilder sb = new StringBuilder();
+        final int num_results = results.length;
+        
+        TableUtil.Format f = TableUtil.defaultTableFormat();
+        f.spacing_col = true;
+        f.trim_all = true;
+        f.delimiter_all = " | ";
+        String corners[] = {"┌", "┐", "└", "┘"};
+        
+        // TABLE RESULTS
+        for (int result_idx = 0; result_idx < num_results; result_idx++) {
+            if (result_idx > 0) sb.append("\n\n");
+            
+            VoltTable vt = results[result_idx];
+            String header[] = new String[vt.getColumnCount()];
+            for (int i = 0; i < header.length; i++) {
+                String colName = vt.getColumnName(i);
+                header[i] = (colName.isEmpty() ? "<empty>" : colName);
+            } // FOR
+            
+            Object rows[][] = new Object[vt.getRowCount()][];
+            f.delimiter_rows = new String[rows.length];
+            for (int i = 0; i < rows.length; i++) {
+                rows[i] = new Object[header.length];
+                f.delimiter_rows[i] = "-";
+                
+                boolean adv = vt.advanceRow();
+                assert(adv);
+                for (int j = 0; j < header.length; j++) {
+                    rows[i][j] = vt.get(j);
+                } // FOR (cols)
+                
+            } // FOR (rows)
+            
+            sb.append(String.format("Result #%d / %d\n", result_idx+1, num_results));
+            
+            String resultTable = TableUtil.table(f, header, rows);
+            resultTable = StringUtil.box(resultTable, "─", "│", null, corners);
+            sb.append(StringUtil.prefix(resultTable, "  "));
+        } // FOR
+        return (sb.toString());
+    }
 
     public static VoltTable sort(VoltTable table, Pair<Integer, SortDirectionType>...cols) {
         if (cols.length == 0) return (table);

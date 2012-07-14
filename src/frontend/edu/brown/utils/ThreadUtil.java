@@ -29,12 +29,14 @@ package edu.brown.utils;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 
 import org.apache.log4j.Logger;
@@ -62,6 +64,33 @@ public abstract class ThreadUtil {
                 // IGNORE!
             }
         }
+    }
+    
+    /*
+    * Have shutdown actually means shutdown. Tasks that need to complete should use
+    * futures.
+    */
+    public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
+        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, getThreadFactory(name, handler));
+        ses.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        ses.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        return ses;
+    }
+    
+    public static ThreadFactory getThreadFactory(String name, UncaughtExceptionHandler handler) {
+        return getThreadFactory(name, handler, 1024 * 1024);
+    }
+
+    public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler hander, final int stackSize) {
+        return new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(null, r, name, stackSize);
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(hander);
+                return t;
+            }
+        };
     }
 
     /**

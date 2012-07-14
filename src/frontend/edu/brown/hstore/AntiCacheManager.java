@@ -1,22 +1,40 @@
 package edu.brown.hstore;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
+import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
+import org.voltdb.messaging.FastSerializer;
+import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.utils.VoltTableUtil;
+
+import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.internal.TableStatsRequestMessage;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.AbstractProcessingThread;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.MathUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * A high-level manager for the anti-cache feature
@@ -46,12 +64,89 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         }
     }
     
+    // ----------------------------------------------------------------------------
+    // INSTANCE MEMBERS
+    // ----------------------------------------------------------------------------
+
+    private final long availableMemory;
+    private final double memoryThreshold;
+    private final Collection<Table> evictableTables;
+    
+    /**
+     * 
+     */
+    private final TableStatsRequestMessage statsMessage;
+    
+    /**
+     * The amount of memory used at each partition
+     * PartitionOffset -> Kilobytes
+     */
+    private final long partitionSizes[];
+
+    private final Runnable statsSamplingThread = new Runnable() {
+        @Override
+        public void run() {
+//            for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+//                LOG.info("Requesting table statistics from partition #" + p);
+//                // Queue up a utility work operation at the PartitionExecutor so
+//                // that we can get the total size of the partition
+//                hstore_site.getPartitionExecutor(p.intValue()).queueUtilityWork(statsMessage);
+//            } // FOR
+            
+            // TODO: We could also call checkEviction() in here too
+            try {
+                checkEviction();
+            } catch (Throwable ex) {
+                ex.printStackTrace();
+            }
+        }
+    };
+    
+    private final RpcCallback<ClientResponseImpl> evictionCallback = new RpcCallback<ClientResponseImpl>() {
+        @Override
+        public void run(ClientResponseImpl parameter) {
+            LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
+        }
+    };
+    
+    // ----------------------------------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------------------------------
+    
     protected AntiCacheManager(HStoreSite hstore_site) {
         super(hstore_site,
               HStoreConstants.THREAD_NAME_ANTICACHE,
               new LinkedBlockingQueue<QueueEntry>(),
               false);
+        
+        // XXX: Do we want to use Runtime.getRuntime().maxMemory() instead?
+        // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
+//        this.availableMemory = Runtime.getRuntime().maxMemory();
+        this.availableMemory = hstore_conf.site.memory * 1024l * 1024l;
+        LOG.info("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
+        
+        this.memoryThreshold = hstore_conf.site.anticache_threshold;
+        this.evictableTables = CatalogUtil.getEvictableTables(hstore_site.getDatabase()); 
+                
+        this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
+        Arrays.fill(this.partitionSizes, 0);
+        
+        this.statsMessage = new TableStatsRequestMessage(CatalogUtil.getDataTables(hstore_site.getDatabase()));
+        this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
+            @Override
+            public void update(EventObservable<VoltTable> o, VoltTable vt) {
+                AntiCacheManager.this.updatePartitionStats(vt);
+            }
+        });
     }
+    
+    public Runnable getStatsSamplingThread() {
+        return this.statsSamplingThread;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // TRANSACTION PROCESSING
+    // ----------------------------------------------------------------------------
     
     @Override
     protected void processingCallback(QueueEntry next) {
@@ -106,6 +201,73 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // for these blocks. This will ensure that we don't try to read in blocks twice.
         
         return (this.queue.offer(e));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EVICTION INITIATION
+    // ----------------------------------------------------------------------------
+    
+    protected void checkEviction() {
+//        long currentMemory = MathUtil.sum(this.partitionSizes)/1024;
+        long currentMemory = Runtime.getRuntime().totalMemory();
+        double usage = currentMemory / (double)this.availableMemory;
+        LOG.info(String.format("Current Memory: %s [%.1f%%]",
+                               StringUtil.formatSize(currentMemory), usage*100));
+        
+        if (usage >= this.memoryThreshold) {
+            // Invoke our special sysproc that will tell the EE to evict some blocks
+            // to save us space.
+ 
+            String tableNames[] = new String[this.evictableTables.size()];
+            long evictBytes[] = new long[this.evictableTables.size()];
+            int i = 0;
+            for (Table catalog_tbl : this.evictableTables) {
+                tableNames[i] = catalog_tbl.getName();
+                // TODO: Need to figure out what the optimal solution is for picking the block sizes
+                evictBytes[i] = 1048576; // 1024 * 1024
+                i++;
+            } // FOR
+            Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
+            String procName = "@" + EvictTuples.class.getSimpleName();
+            StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
+             
+            for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+                invocation.getParams().toArray()[0] = p.intValue();
+                ByteBuffer b = null;
+                try {
+                    b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+                this.hstore_site.invocationProcess(b, this.evictionCallback);
+            } // FOR
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // MEMORY MANAGEMENT METHODS
+    // ----------------------------------------------------------------------------
+    
+    protected void updatePartitionStats(VoltTable vt) {
+        long totalSizeKb = 0;
+        int partition = -1;
+        int memory_idx = -1;
+        vt.resetRowPosition();
+        while (vt.advanceRow()) {
+            if (memory_idx == -1) {
+                partition = (int)vt.getLong("PARTITION_ID");
+                memory_idx = vt.getColumnIndex("TUPLE_DATA_MEMORY");
+            }
+            totalSizeKb += vt.getLong(memory_idx);
+        } // WHILE
+        
+        // TODO: If the total size is greater than some threshold, then
+        //       we need to initiate the eviction process
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        if (debug.get())
+            LOG.debug(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
+                                    partition, totalSizeKb, this.partitionSizes[offset])); 
+        this.partitionSizes[offset] = totalSizeKb;
     }
     
     // ----------------------------------------------------------------------------

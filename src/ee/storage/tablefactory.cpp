@@ -50,7 +50,7 @@
 #include "common/tabletuple.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
-#include "storage/evictedtable.h"
+#include "anticache/EvictedTable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"

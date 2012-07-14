@@ -118,7 +118,7 @@ public class ResetProfiling extends VoltSystemProcedure {
     }
 
     public VoltTable[] run() {
-        return this.autoDistribute(SysProcFragmentId.PF_resetProfilingDistribute,
+        return this.executeOncePerSite(SysProcFragmentId.PF_resetProfilingDistribute,
                                    SysProcFragmentId.PF_resetProfilingAggregate);
     }
 }

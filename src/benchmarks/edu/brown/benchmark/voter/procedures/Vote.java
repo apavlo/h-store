@@ -62,10 +62,10 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (phone_number, state, contestant_number) VALUES (?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number) VALUES (?, ?, ?, ?);"
     );
 	
-    public long run(long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
@@ -90,7 +90,7 @@ public class Vote extends VoltProcedure {
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
-        voltQueueSQL(insertVoteStmt, phoneNumber, state, contestantNumber);
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote

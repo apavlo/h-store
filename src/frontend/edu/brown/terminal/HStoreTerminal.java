@@ -1,6 +1,7 @@
 package edu.brown.terminal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,7 +21,10 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
+import org.voltdb.types.TimestampType;
+import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogUtil;
@@ -29,17 +33,31 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
-import edu.brown.utils.TableUtil;
 
 /**
- * MySQL Terminal
+ * H-Store Commandline Client Terminal
  * @author gen
  * @author pavlo
  */
 public class HStoreTerminal implements Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    
+    /**
+     * Special non-standard commands that we can execute
+     * These are to help us mimic MySQL
+     */
+    public enum Command {
+        DESCRIBE("Not Implemented"),
+        EXEC("ProcedureName [OptionalParams]"),
+        SHOW("Not Implemented"),
+        QUIT("");
+        
+        private final String usage;
+        private Command(String usage) {
+            this.usage = usage;
+        }
+    };
     
     private static final String setPlainText = "\033[0;0m";
     private static final String setBoldGreenText = "\033[1;32m"; // 0;1m";
@@ -128,9 +146,10 @@ public class HStoreTerminal implements Runnable {
         
         // We now need to go through the rest of the parameters and convert them
         // to proper type
-        Pattern p = Pattern.compile("^EXEC[ ]+" + procName + "[ ]+(.*?)[;]*", Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile("^" + Command.EXEC.name() + "[ ]+" + procName + "[ ]+(.*?)[;]*", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(query);
-        List<Object> procParams = new ArrayList<Object>(); 
+        List<Object> procParams = new ArrayList<Object>();
+        String procParamsStr = "";
         if (m.matches()) {
             // Extract the parameters and then convert them to their appropriate type
             List<String> params = HStoreTerminal.extractParams(m.group(1));
@@ -142,14 +161,52 @@ public class HStoreTerminal implements Runnable {
             }
             int i = 0;
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+                if (i > 0) procParamsStr += ", ";
                 VoltType vtype = VoltType.get(catalog_param.getType());
-                procParams.add(VoltTypeUtil.getObjectFromString(vtype, params.get(i)));
+                Object value = VoltTypeUtil.getObjectFromString(vtype, params.get(i));
+                
+                // HACK: Allow us to send one-element array parameters
+                if (catalog_param.getIsarray()) {
+                    switch (vtype) {
+                        case BOOLEAN:
+                            value = new boolean[]{ (Boolean)value };
+                            procParamsStr += Arrays.toString((boolean[])value);
+                            break;
+                        case TINYINT:
+                        case SMALLINT:
+                        case INTEGER:
+                            value = new int[]{ (Integer)value };
+                            procParamsStr += Arrays.toString((int[])value);
+                            break;
+                        case BIGINT:
+                            value = new long[]{ (Long)value };
+                            procParamsStr += Arrays.toString((long[])value);
+                            break;
+                        case FLOAT:
+                        case DECIMAL:
+                            value = new double[]{ (Double)value };
+                            procParamsStr += Arrays.toString((double[])value);
+                            break;
+                        case STRING:
+                            value = new String[]{ (String)value };
+                            procParamsStr += Arrays.toString((String[])value);
+                            break;
+                        case TIMESTAMP:
+                            value = new TimestampType[]{ (TimestampType)value };
+                            procParamsStr += Arrays.toString((TimestampType[])value);
+                        default:
+                            assert(false);
+                    } // SWITCH
+                } else {
+                    procParamsStr += value.toString();
+                }
+                procParams.add(value);
                 i++;
             } // FOR
         }
         
         LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
-                 catalog_proc.getName(), StringUtil.join(", ", procParams)));
+                 catalog_proc.getName(), procParamsStr));
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), procParams.toArray());
         return (cresponse);
     }
@@ -209,52 +266,18 @@ public class HStoreTerminal implements Runnable {
         return (params);
     }
     
-    private String formatResult(ClientResponse cr) {
+    private static String formatResult(ClientResponse cr) {
+        final VoltTable results[] = cr.getResults();
+        final int num_results = results.length;
         StringBuilder sb = new StringBuilder();
-        final int num_results = cr.getResults().length;
         
-        TableUtil.Format f = TableUtil.defaultTableFormat();
-        f.spacing_col = true;
-        f.trim_all = true;
-        f.delimiter_all = " | ";
-        String corners[] = {"┌", "┐", "└", "┘"};
-        
-        // TABLE RESULTS
-        for (int result_idx = 0; result_idx < num_results; result_idx++) {
-            if (result_idx > 0) sb.append("\n\n");
-            
-            VoltTable vt = cr.getResults()[result_idx];
-            String header[] = new String[vt.getColumnCount()];
-            for (int i = 0; i < header.length; i++) {
-                String colName = vt.getColumnName(i);
-                header[i] = (colName.isEmpty() ? "<empty>" : colName);
-            } // FOR
-            
-            Object rows[][] = new Object[vt.getRowCount()][];
-            f.delimiter_rows = new String[rows.length];
-            for (int i = 0; i < rows.length; i++) {
-                rows[i] = new Object[header.length];
-                f.delimiter_rows[i] = "-";
-                
-                boolean adv = vt.advanceRow();
-                assert(adv);
-                for (int j = 0; j < header.length; j++) {
-                    rows[i][j] = vt.get(j);
-                } // FOR (cols)
-                
-            } // FOR (rows)
-            
-            sb.append(String.format("Result #%d / %d\n", result_idx+1, num_results));
-            
-            String resultTable = TableUtil.table(f, header, rows);
-            resultTable = StringUtil.box(resultTable, "─", "│", null, corners);
-            sb.append(StringUtil.prefix(resultTable, "  "));
-        }
+        // MAIN BODY
+        sb.append(VoltTableUtil.format(results));
         
         // FOOTER
         String footer = "";
         if (num_results == 1) {
-            int row_count = cr.getResults()[0].getRowCount(); 
+            int row_count = results[0].getRowCount(); 
             footer = String.format("%d row%s in set", row_count, (row_count > 1 ? "s" : ""));
         }
         else if (num_results == 0) {
@@ -264,8 +287,6 @@ public class HStoreTerminal implements Runnable {
             footer = num_results + " tables returned";
         }
         sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
-        
-        
         return (sb.toString());
     }
     
@@ -286,6 +307,7 @@ public class HStoreTerminal implements Runnable {
         String query = "";
         
         ClientResponse cresponse = null;
+        boolean stop = false;
         try {
             do {
                 try {
@@ -297,19 +319,42 @@ public class HStoreTerminal implements Runnable {
                     String tokens[] = SPLITTER.split(query);
                     
                     int retries = 3;
-                    while (retries-- > 0) {
+                    Command targetCmd = null;
+                    boolean usage = false;
+                    while (retries-- > 0 && stop == false) {
+                        // Check whether they want to execute a special command
+                        for (Command c : Command.values()) {
+                            if (tokens[0].equalsIgnoreCase(c.name())) {
+                                targetCmd = c;
+                            }
+                        } // FOR
+                        
                         try {
-                            if (tokens[0].equalsIgnoreCase("EXEC")) {
-                                // The second position should be the name of the procedure
-                                // that they want to execute
-                                cresponse = this.execProcedure(client, tokens[1], query);
-                                
-                            // Otherwise we'll send it to the server to deal with as
-                            // an ad-hoc query
-                            } else {
+                            if (targetCmd != null) {
+                                switch (targetCmd) {
+                                    case EXEC:
+                                        // The second position should be the name of the procedure
+                                        // that they want to execute
+                                        if (tokens.length < 2) {
+                                            usage = true;
+                                        } else {
+                                            cresponse = this.execProcedure(client, tokens[1], query);
+                                        }
+                                        break;
+                                    case QUIT:
+                                        stop = true;
+                                        break;
+                                    case DESCRIBE:
+                                    case SHOW:
+                                        throw new NotImplementedException("The command '" + targetCmd + "' is is not implemented");
+                                    default:
+                                        throw new RuntimeException("Unexpected command '" + targetCmd);
+                                } // SWITCH
+                            }
+                            // Otherwise we'll send it to the server to deal with as an ad-hoc query
+                            else {
                                 cresponse = this.execQuery(client, query);
                             }
-                            break;
                         } catch (NoConnectionsException ex) {
                             LOG.warn("Connection lost. Going to try to connect again...");
                             p = this.getClientConnection();
@@ -317,18 +362,28 @@ public class HStoreTerminal implements Runnable {
                             catalog_site = p.getSecond(); 
                             continue;
                         }
+                        break;
                     } // WHILE
                     
                     // Just print out the result
                     if (cresponse != null) {
                         if (cresponse.getStatus() == Status.OK) {
-                            System.out.println(this.formatResult(cresponse));    
+                            System.out.println(formatResult(cresponse));    
                         } else {
                             System.out.printf("Server Response: %s / %s\n",
                                               cresponse.getStatus(),
                                               cresponse.getStatusString());
                         }
-                    } else {
+                    }
+                    // Print target command usage
+                    else if (usage) {
+                        assert(targetCmd != null);
+                        System.out.print(setBoldText);
+                        System.out.println("USAGE: " + targetCmd.name() + " " + targetCmd.usage);
+                        System.out.print(setPlainText);
+                    }
+                    // Print warning if we're not supposed to stop
+                    else if (stop == false) {
                         LOG.warn("Return result is null");
                     }
                     
@@ -339,7 +394,7 @@ public class HStoreTerminal implements Runnable {
                 } catch (Exception ex) {
                     LOG.error(ex.getMessage());
                 }
-            } while(query != null); //TODO: Note to Andy, should there be an exit sequence or escape character?
+            } while (query != null && stop == false);
         } finally {
             try {
                 client.close();

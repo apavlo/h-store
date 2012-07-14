@@ -142,4 +142,7 @@ public class SysProcFragmentId
     public static final int PF_resetProfilingDistribute = 195;
     public static final int PF_resetProfilingAggregate = 196;
     
+    // @AntiCacheEviction
+    public static final int PF_antiCacheEviction = 200;
+    
 }

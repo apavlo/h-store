@@ -577,7 +577,7 @@ public class PartitionEstimator {
                             }
 
                             if (!entry.getComparisonExp().equals(ExpressionType.COMPARE_EQUAL)) {
-                                LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
+                                if (debug.get()) LOG.warn("Unsupported non-equality join in " + catalog_stmt.fullName() + ": " + entry);
                             } else {
                                 if (!column_joins.containsKey(col0))
                                     column_joins.put(col0, new TreeSet<Column>());

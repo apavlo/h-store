@@ -59,10 +59,12 @@ std::string TableTuple::debug(const std::string& tableName) const {
 
     std::ostringstream buffer;
     if (tableName.empty()) {
-        buffer << "TableTuple(no table) ->";
+        buffer << "TableTuple(no table)";
     } else {
-        buffer << "TableTuple(" << tableName << ") ->";
+        buffer << "TableTuple(" << tableName << ")";
     }
+    if (isEvicted()) buffer << " **EVICTED**";
+    buffer << " ->";
 
     if (isActive() == false) {
         buffer << " <DELETED>";

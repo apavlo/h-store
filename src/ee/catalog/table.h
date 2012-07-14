@@ -51,6 +51,7 @@ protected:
     CatalogType* m_materializer;
     bool m_systable;
     bool m_mapreduce;
+    bool m_evictable;
 
     virtual void update();
 
@@ -81,6 +82,8 @@ public:
     bool systable() const;
     /** GETTER: Is this table a MapReduce transaction table? */
     bool mapreduce() const;
+    /** GETTER: Can contents of this table be evicted by the anti-cache? */
+    bool evictable() const;
 };
 
 } // namespace catalog

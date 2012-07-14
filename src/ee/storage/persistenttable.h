@@ -60,6 +60,7 @@
 #include "storage/CopyOnWriteContext.h"
 #include "storage/RecoveryContext.h"
 
+
 namespace voltdb {
 
 class TableColumn;
@@ -73,7 +74,11 @@ class ReferenceSerializeOutput;
 class ExecutorContext;
 class MaterializedViewMetadata;
 class RecoveryProtoMsg;
+    
+#ifdef ANTICACHE
 class EvictedTable;
+class AntiCacheEvictionManager; 
+#endif
 
 /**
  * Represents a non-temporary table which permanently resides in
@@ -255,6 +260,11 @@ class PersistentTable : public Table {
 #endif
 
 protected:
+    
+    size_t allocatedBlockCount() const {
+        return m_data.size();
+    }
+    
     // ------------------------------------------------------------------
     // FROM PIMPL
     // ------------------------------------------------------------------

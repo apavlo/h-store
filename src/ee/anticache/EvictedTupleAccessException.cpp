@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "common/EvictedTupleAccessException.h"
+#include "anticache/EvictedTupleAccessException.h"
 #include "common/SerializableEEException.h"
 #include "common/serializeio.h"
 #include <iostream>

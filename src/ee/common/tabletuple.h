@@ -57,6 +57,7 @@
 #include <iostream>
 
 class CopyOnWriteTest_TestTableTupleFlags;
+class TableTupleTest_MarkAsEvicted;
 
 namespace voltdb {
 
@@ -79,6 +80,7 @@ class TableTuple {
     friend class CopyOnWriteIterator;
     friend class CopyOnWriteContext;
     friend class ::CopyOnWriteTest_TestTableTupleFlags;
+    friend class ::TableTupleTest_MarkAsEvicted;
     template<std::size_t keySize> friend class IntsKey;
     template<std::size_t keySize> friend class GenericKey;
 

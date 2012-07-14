@@ -29,6 +29,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
 import org.voltdb.TableStreamType;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
@@ -627,7 +628,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         
         // TODO: Switch to LOG.debug
         LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
-        LOG.info(String.format("Partition %d Database Directory: %s",
+        LOG.info(String.format("Partition #%d Database Directory: %s",
                                 this.site.getPartitionId(), dbDir.getAbsolutePath()));
         final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath());
         checkErrorCode(errorCode);
@@ -636,16 +637,38 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     
     @Override
     public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids) {
-        assert(m_anticache);
+        if (m_anticache == false) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
         final int errorCode = nativeAntiCacheReadBlocks(pointer, catalog_tbl.getRelativeIndex(), block_ids);
         checkErrorCode(errorCode);
     }
     
     @Override
-    public void antiCacheEvictBlock(Table catalog_tbl, long block_size) {
-        assert(m_anticache);
-        final int errorCode = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
-        checkErrorCode(errorCode);
+    public VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size) {
+        if (m_anticache == false) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+        
+        final int numResults = nativeAntiCacheEvictBlock(pointer, catalog_tbl.getRelativeIndex(), block_size);
+        if (numResults == -1) {
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
     }
     
     @Override
