@@ -1483,7 +1483,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        return (this.work_queue.offer(work));
+        return (this.work_queue.offer(work, catalog_proc.getSystemproc()));
     }
     
     /**
