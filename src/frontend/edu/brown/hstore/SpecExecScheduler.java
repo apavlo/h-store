@@ -83,11 +83,12 @@ public class SpecExecScheduler {
                 return (null);
             }
             else if (msg instanceof InitializeTxnMessage) {
-                InitializeTxnMessage txn_msg = (InitializeTxnMessage)msg;
-                if (bs.get(txn_msg.getProcedure().getId()) == false) {
-                    next = txn_msg;
-                    break;
-                }
+//                InitializeTxnMessage txn_msg = (InitializeTxnMessage)msg;
+//                if (bs.get(txn_msg.getProcedure().getId()) == false) {
+//                    next = txn_msg;
+//                    break;
+//                }
+                break;
             }
         } // WHILE
         if (debug.get() && next != null) {

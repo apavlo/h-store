@@ -2047,7 +2047,7 @@ DESIGNER
     </java>
 </target>
 
-<target name='markov' description="Generate Markov Graphs" depends="getcpus">
+<target name='markov-generate' description="Generate Markov Graphs" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />

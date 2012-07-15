@@ -208,16 +208,6 @@ public final class HStoreConf {
         public boolean exec_force_undo_logging_all;
         
         @ConfigProperty(
-            description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
-                        "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
-                        "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
-                        "major throughput improvement.",
-            defaultBoolean=true,
-            experimental=false
-        )
-        public boolean exec_avoid_coordinator;
-        
-        @ConfigProperty(
             description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
             		    "Each request will execute as a single-partition transaction at a random partition on the node " +
             		    "that the request originally arrives on. When the transaction makes a query request that needs " +
@@ -648,6 +638,14 @@ public final class HStoreConf {
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
 
+        @ConfigProperty(
+            description="Predict what transactions will do before they execute using " +
+                        "TransactionEstimator's Markov models.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean markov_enable;
+        
         @ConfigProperty(
             description="Recompute a Markov model's execution state probabilities every time a transaction " +
                         "is aborted due to a misprediction. The Markov model is queued in the PartitionExecutorHelper " +
