@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
@@ -257,7 +258,7 @@ public class TransactionEstimator implements Loggable {
          * @return
          */
         public long getExecutionTimeOffset() {
-            return (System.currentTimeMillis() - this.start_time);
+            return (EstTime.currentTimeMillis() - this.start_time);
         }
         
         public long getExecutionTimeOffset(long stop) {
@@ -462,7 +463,7 @@ public class TransactionEstimator implements Loggable {
      */
     public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
-        long start_time = System.currentTimeMillis();
+        long start_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
                                        AbstractTransaction.formatTxnName(catalog_proc, txn_id), base_partition));
 
@@ -689,7 +690,7 @@ public class TransactionEstimator implements Loggable {
             LOG.warn("No state information exists for txn #" + txn_id);
             return (null);
         }
-        long timestamp = System.currentTimeMillis();
+        long timestamp = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Cleaning up state info for txn #%d [type=%s]", txn_id, vtype));
         
         // We need to update the counter information in our MarkovGraph so that we know
