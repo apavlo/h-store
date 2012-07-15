@@ -38,6 +38,8 @@ public class SpecExecScheduler {
         this.catalog_procs = new Procedure[catalog_db.getProcedures().size()+1];
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures().values()) {
+            if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
+            
             int idx = catalog_proc.getId();
             this.catalog_procs[idx] = catalog_proc;
            
@@ -83,6 +85,11 @@ public class SpecExecScheduler {
                 return (null);
             }
             else if (msg instanceof InitializeTxnMessage) {
+
+                // So we have a problem here... We need to be able to know
+                // whether a txn is single-partition or not here because we don't want
+                // to start speculatively executing a distributed txn. Of course
+                // at this point all we have are raw bytes from the client.
 //                InitializeTxnMessage txn_msg = (InitializeTxnMessage)msg;
 //                if (bs.get(txn_msg.getProcedure().getId()) == false) {
 //                    next = txn_msg;
