@@ -12,6 +12,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -19,6 +20,7 @@ import edu.brown.costmodel.MarkovCostModel.Penalty;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovVertex.Type;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator.State;
@@ -26,6 +28,7 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -66,6 +69,8 @@ public class TestMarkovCostModel extends BaseTestCase {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
             
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
+            assertNotNull(file);
+            assert(file.exists()) : "Missing ParameterMappings file '" + file.getAbsolutePath() + "'";
             correlations = new ParameterMappingsSet();
             correlations.load(file, catalog_db);
 
@@ -83,7 +88,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                     .attach(new ProcParameterValueFilter().include(1, new Integer(5))) // D_ID
                     // .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
-                    .attach(new MultiPartitionTxnFilter(p_estimator))
+                    .attach(new MultiPartitionTxnFilter(p_estimator, false))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file, catalog_db, filter);
             
@@ -173,19 +178,37 @@ public class TestMarkovCostModel extends BaseTestCase {
      */
     @Test
     public void testComparePathsFull_Penalty1() throws Exception {
-        // We have to call comparePathsFast first to setup some sets
-        // We don't care what the outcome is here...
-        costmodel.comparePathsFast(this.txn_state.getInitialPath(), this.txn_state.getActualPath());
+        // Grab the actual path in the State and cut it off after the first
+        // invocation of neworder.getCustomer().
+        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "getCustomer");
+        List<MarkovVertex> actual = this.txn_state.getActualPath();
+        List<MarkovVertex> orig = new ArrayList<MarkovVertex>(actual);
+        actual.clear();
+        for (MarkovVertex mv : orig) {
+            actual.add(mv);
+            if (mv.getCatalogItemName().equalsIgnoreCase(catalog_stmt.getName())) {
+                break;
+            }
+        } // FOR
+        assertNotSame(orig.size(), actual.size());
         
         MarkovVertex abort_v = markov.getAbortVertex();
-        List<MarkovVertex> actual = this.txn_state.getActualPath();
-        actual.set(actual.size()-1, abort_v);
+        assertEquals(Type.ABORT, abort_v.getType());
+        actual.add(abort_v);
+        
+        // We have to call comparePathsFast first to setup some sets
+        // We don't care what the outcome is here...
+        costmodel.comparePathsFast(this.txn_state.getInitialPath(), actual);
+        
+        // System.err.println(StringUtil.join("\n", actual));
         double cost = costmodel.comparePathsFull(this.txn_state);
         
         List<Penalty> penalties = costmodel.getLastPenalties();
         assertNotNull(penalties);
         System.err.println(String.format("COST=%.03f PENALTIES=%s", cost, penalties));
-        assert(penalties.contains(Penalty.MISSED_READ_PARTITION) || penalties.contains(Penalty.MISSED_WRITE_PARTITION)); 
+        assert(penalties.contains(Penalty.UNUSED_READ_PARTITION_MULTI) ||
+               penalties.contains(Penalty.UNUSED_WRITE_PARTITION_MULTI)); 
     }
     
     /**

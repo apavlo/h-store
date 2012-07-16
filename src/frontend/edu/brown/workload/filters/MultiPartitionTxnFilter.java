@@ -12,6 +12,10 @@ import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
+/**
+ * Filter TranasctionTraces based on whether they are single-partitioned or not
+ * @author pavlo
+ */
 public class MultiPartitionTxnFilter extends Filter {
     
     private final PartitionEstimator p_estimator;
@@ -28,10 +32,6 @@ public class MultiPartitionTxnFilter extends Filter {
         this.p_estimator = p_estimator;
         this.catalog_db = p_estimator.getDatabase();
         this.singlepartition = singlepartition;
-    }
-    
-    public MultiPartitionTxnFilter(PartitionEstimator p_estimator) {
-        this(p_estimator, false);
     }
 
     @Override

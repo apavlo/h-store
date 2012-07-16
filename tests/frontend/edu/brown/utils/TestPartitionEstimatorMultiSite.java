@@ -119,7 +119,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         // We should see one PlanFragment with no partitions and then all others need something
         boolean internal_flag = false;
         for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
-            Collection<Integer> partitions = p_estimator.getPartitions(catalog_frag, params, base_partition);
+            partitions.clear();
+            p_estimator.getPartitions(partitions, catalog_frag, params, base_partition);
             if (partitions.isEmpty()) {
                 assertFalse(internal_flag);
                 internal_flag = true;

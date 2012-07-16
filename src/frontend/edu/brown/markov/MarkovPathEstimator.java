@@ -76,7 +76,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final int num_partitions;
     private TransactionEstimator t_estimator;
-    private ParameterMappingsSet mappings;
+    private ParameterMappingsSet allMappings;
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
@@ -183,7 +183,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.mappings = this.t_estimator.getCorrelations();
+        this.allMappings = this.t_estimator.getCorrelations();
         this.base_partition = base_partition;
         this.args = args;
         
@@ -214,7 +214,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         this.t_estimator = null;
         this.p_estimator = null;
-        this.mappings = null;
+        this.allMappings = null;
         
         this.estimate.finish();
         this.touched_partitions.clear();
@@ -366,11 +366,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.mappings.get(catalog_stmt, catalog_stmt_index);
-            if (param_correlations == null) {
+            SortedMap<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
+            if (stmtMappings == null) {
                 if (d) {
-                    LOG.warn("No parameter correlations for " + pair);
-                    LOG.trace(this.mappings.debug(catalog_stmt));
+                    LOG.warn("No parameter mappings for " + pair);
+                    LOG.trace(this.allMappings.debug(catalog_stmt));
                 }
                 continue;
             }
@@ -384,12 +384,12 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 assert(catalog_stmt_param != null);
                 if (t) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
-                SortedSet<ParameterMapping> correlations = param_correlations.get(catalog_stmt_param);
-                if (correlations == null || correlations.isEmpty()) {
-                    if (t) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
+                SortedSet<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
+                if (mappings == null || mappings.isEmpty()) {
+                    if (t) LOG.trace("No parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
                 }
-                if (t) LOG.trace("Found " + correlations.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (t) LOG.trace("Found " + mappings.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
         
                 // Special Case:
                 // If the number of possible Statements we could execute next is greater than one,
@@ -399,16 +399,16 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 // TODO: For now we are just going always pick the first Correlation 
                 // that comes back. Is there any choice that we would need to make in order
                 // to have a better prediction about what the transaction might do?
-                if (correlations.size() > 1) {
-                    if (d) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (mappings.size() > 1) {
+                    if (d) LOG.warn("Multiple parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                     if (t) {
                         int ctr = 0;
-                        for (ParameterMapping c : correlations) {
+                        for (ParameterMapping c : mappings) {
                             LOG.trace("[" + (ctr++) + "] Correlation: " + c);
                         } // FOR
                     }
                 }
-                for (ParameterMapping c : correlations) {
+                for (ParameterMapping c : mappings) {
                     if (t) LOG.trace("Correlation: " + c);
                     ProcParameter catalog_proc_param = c.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
@@ -588,7 +588,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
                 LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
-                LOG.debug(StringUtil.repeat("-", 100));
+                LOG.debug(StringUtil.repeat("-", 150));
             }
         } else {
             if (t) LOG.trace("No matching children found. We have to stop...");

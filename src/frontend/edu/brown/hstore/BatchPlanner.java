@@ -769,7 +769,11 @@ public class BatchPlanner implements Loggable {
                         // PARTITION ESTIMATOR
                         if (this.enable_profiling)
                             ProfileMeasurement.swap(this.time_plan, this.time_partitionEstimator);
-                        this.p_estimator.getAllFragmentPartitions(frag_partitions, stmt_all_partitions, fragments.values(), params, base_partition);
+                        this.p_estimator.getAllFragmentPartitions(frag_partitions,
+                                                                  stmt_all_partitions,
+                                                                  fragments.values(),
+                                                                  params,
+                                                                  base_partition);
                         if (this.enable_profiling)
                             ProfileMeasurement.swap(this.time_partitionEstimator, this.time_plan);
 
