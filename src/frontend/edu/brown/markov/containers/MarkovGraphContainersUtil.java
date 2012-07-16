@@ -288,7 +288,7 @@ public abstract class MarkovGraphContainersUtil {
         MarkovGraphsContainer markovs = ClassUtil.newInstance(className, new Object[]{procedures},
                                                                          new Class<?>[]{Collection.class}); 
         assert(markovs != null);
-        if (debug.get()) LOG.debug(String.format("Instantiated new % object", className));
+        if (debug.get()) LOG.debug(String.format("Instantiated new %s object", className));
         markovs.fromJSON(json_object, catalog_db);
         return (markovs);
     }
