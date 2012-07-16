@@ -814,18 +814,18 @@ public class ArgumentsParser {
                 }
             }
             
-            // HACK: Get ParameterMappings embedded in jar...
+            // HACK: Extract the ParameterMappings embedded in jar and write them to a temp file
             // This is terrible, confusing, and a total mess...
             // I have no one to blame but myself...
-//            JarReader reader = new JarReader(jar_file.getAbsolutePath());
-//            for (String file : reader.getContentsFromJarfile()) {
-//                if (file.endsWith(".mappings")) {
-//                    
-//                }
-//                bytes.add(JarReader.readFileFromJarAtURL(jarFileName, file));
-//            }
-//            
-            
+            JarReader reader = new JarReader(jar_file.getAbsolutePath());
+            for (String file : reader.getContentsFromJarfile()) {
+                if (file.endsWith(".mappings")) {
+                    String contents = new String(JarReader.readFileFromJarAtURL(jar_file.getAbsolutePath(), file));
+                    File copy = FileUtil.writeStringToTempFile(contents, "mappings", true);
+                    this.params.put(PARAM_MAPPINGS, copy.toString());
+                    break;
+                }
+            } // FOR
         }
         // Schema File
         else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
