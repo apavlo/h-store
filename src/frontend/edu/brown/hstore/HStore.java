@@ -293,6 +293,6 @@ public abstract class HStore {
         } finally {
             if (buildString == null) buildString = "H-Store";
         }
-        LOG.info("Build: " + versionString + " " + buildString);
+        LOG.debug("Build: " + versionString + " " + buildString);
     }
 }

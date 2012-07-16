@@ -518,7 +518,8 @@ public class TransactionEstimator implements Loggable {
             } // SYNCH
         } else {
             if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
-                                          AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
+                                          AbstractTransaction.formatTxnName(catalog_proc, txn_id),
+                                          estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
             assert(estimator.isCached()) :
                 String.format("The cached MarkovPathEstimator used by %s does not have its cached flag set [hashCode=%d]",
                               AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.hashCode());
