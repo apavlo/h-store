@@ -46,7 +46,7 @@ import edu.brown.workload.Workload;
 public abstract class MarkovGraphContainersUtil {
     public static final Logger LOG = Logger.getLogger(MarkovGraphContainersUtil.class);
     public final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }

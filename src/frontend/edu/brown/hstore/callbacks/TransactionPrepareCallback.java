@@ -17,8 +17,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public class TransactionPrepareCallback extends AbstractTransactionCallback<ClientResponseImpl, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
