@@ -283,7 +283,6 @@ public class TransactionInitializer {
         boolean predict_readOnly = catalog_proc.getReadonly();
         Collection<Integer> predict_touchedPartitions = this.all_partitions;
         TransactionEstimator.State t_state = null; 
-        Object args[] = null; // FIXME
         
         // -------------------------------
         // SYSTEM PROCEDURES
@@ -328,7 +327,7 @@ public class TransactionInitializer {
         else if (hstore_conf.site.markov_fixed) {
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));
             if (this.fixed_estimator != null)
-                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
+                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
             if (predict_touchedPartitions == null)
                 predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
         }    
@@ -352,7 +351,7 @@ public class TransactionInitializer {
             try {
                 // HACK: Convert the array parameters to object arrays...
                 ParameterMangler mangler = this.hstore_site.getParameterMangler(catalog_proc); 
-                Object cast_args[] = mangler.convert(args);
+                Object cast_args[] = mangler.convert(params.toArray());
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, mangler.toString(cast_args)));
                 
                 if (hstore_conf.site.txn_profiling) ts.profiler.startInitEstimation();
