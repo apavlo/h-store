@@ -176,7 +176,7 @@ public abstract class AbstractViewer extends JFrame {
         String dir = args.stats_path.getParent();
         try {
             path = showSaveDialog("Save Workload Statistics File", dir, filter);
-            if (path != null) this.args.stats.save(path);
+            if (path != null) this.args.stats.save(new File(path));
         } catch (Exception ex) {
             ex.printStackTrace();
             showErrorDialog("Failed to save workload stats file", ex.getMessage());

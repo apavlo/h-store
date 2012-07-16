@@ -17,7 +17,7 @@ public class TestDesignerHints extends BaseTestCase {
         
         File temp = FileUtil.getTempFile("hints", true);
         System.err.println(temp);
-        hints.save(temp.getAbsolutePath());
+        hints.save(temp);
 
         DesignerHints clone = new DesignerHints();
         clone.load(temp, null);

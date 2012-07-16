@@ -117,7 +117,7 @@ public abstract class GraphUtil {
      * @param output_path
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> void save(IGraph<V, E> graph, String output_path) throws IOException {
+    public static <V extends AbstractVertex, E extends AbstractEdge> void save(IGraph<V, E> graph, File output_path) throws IOException {
         if (debug.get()) LOG.debug("Writing out graph to '" + output_path + "'");
         
         JSONStringer stringer = new JSONStringer();
@@ -131,7 +131,7 @@ public abstract class GraphUtil {
         
         String json = stringer.toString();
         try {
-            FileUtil.writeStringToFile(new File(output_path), JSONUtil.format(json));
+            FileUtil.writeStringToFile(output_path, JSONUtil.format(json));
         } catch (Exception ex) {
             throw new IOException(ex);
         }

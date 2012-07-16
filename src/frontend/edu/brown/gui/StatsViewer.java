@@ -293,7 +293,7 @@ public class StatsViewer extends AbstractViewer {
                     } // FOR
                     LOG.info("Saving workload stats...");
                     try {
-                        args.stats.save(args.stats_path.getAbsolutePath());
+                        args.stats.save(args.stats_path);
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         showErrorDialog("Failed to save workload stats file", ex.getMessage());

@@ -188,7 +188,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         throw new NotImplementedException("Cannot save a " + this.getClass().getSimpleName() + " to a file");
     }
     

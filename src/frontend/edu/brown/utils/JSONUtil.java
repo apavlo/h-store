@@ -189,16 +189,15 @@ public abstract class JSONUtil {
      * @param output_path
      * @throws IOException
      */
-    public static <T extends JSONSerializable> void save(T object, String output_path) throws IOException {
+    public static <T extends JSONSerializable> void save(T object, File output_path) throws IOException {
         if (debug.get())
             LOG.debug("Writing out contents of " + object.getClass().getSimpleName() + " to '" + output_path + "'");
-        File f = new File(output_path);
         try {
-            FileUtil.makeDirIfNotExists(f.getParent());
+            FileUtil.makeDirIfNotExists(output_path.getParent());
             String json = object.toJSONString();
-            FileUtil.writeStringToFile(f, format(json));
+            FileUtil.writeStringToFile(output_path, format(json));
         } catch (Exception ex) {
-            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + f + "'", ex);
+            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + output_path + "'", ex);
             throw new IOException(ex);
         }
     }

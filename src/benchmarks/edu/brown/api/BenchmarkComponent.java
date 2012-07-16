@@ -1084,7 +1084,7 @@ public abstract class BenchmarkComponent {
             assert(stats != null);
             
             if (m_tableStatsDir.exists() == false) m_tableStatsDir.mkdirs();
-            String path = m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats";
+            File path = new File(m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats");
             LOG.info("Writing table statistics data to '" + path + "'");
             try {
                 stats.save(path);

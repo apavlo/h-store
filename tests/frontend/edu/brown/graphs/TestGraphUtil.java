@@ -87,7 +87,7 @@ public class TestGraphUtil extends BaseTestCase {
     private void writeFile() throws Exception {
         if (this.tempFile == null) {
             this.tempFile = File.createTempFile("graph-", null);
-            GraphUtil.save(graph, tempFile.getAbsolutePath());
+            GraphUtil.save(graph, tempFile);
         }
     }
     

@@ -177,7 +177,7 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
     }
     
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         GraphUtil.save(this, output_path);
     }
     
