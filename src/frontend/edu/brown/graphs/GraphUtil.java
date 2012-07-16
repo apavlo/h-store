@@ -313,6 +313,7 @@ public abstract class GraphUtil {
      * @param <E>
      * @param graph
      */
+    @SuppressWarnings("unchecked")
     public static <V extends AbstractVertex, E extends AbstractEdge> void visualizeGraph(IGraph<V, E> graph) {
         GraphVisualizationPanel.createFrame(graph).setVisible(true);
         ThreadUtil.sleep(10000);
