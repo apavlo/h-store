@@ -110,7 +110,7 @@ public class TestHStoreConf extends BaseTestCase {
      */
     public void testBuildXML() throws Exception {
         for (String prefix : groups) {
-            String contents = HStoreConfUtil.makeBuildXML(hstore_conf, prefix);
+            String contents = HStoreConfUtil.makeBuildCommonXML(hstore_conf, prefix);
             assertNotNull(contents);
             assertFalse(contents.isEmpty());
         } // FOR
