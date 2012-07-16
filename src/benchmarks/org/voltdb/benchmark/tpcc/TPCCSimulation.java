@@ -73,25 +73,6 @@ public class TPCCSimulation {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    
-    // type used by at least VoltDBClient and JDBCClient
-    public static enum Transaction {
-        STOCK_LEVEL("Stock Level", TPCCConstants.FREQUENCY_STOCK_LEVEL),
-        DELIVERY("Delivery", TPCCConstants.FREQUENCY_DELIVERY),
-        ORDER_STATUS("Order Status", TPCCConstants.FREQUENCY_ORDER_STATUS),
-        PAYMENT("Payment", TPCCConstants.FREQUENCY_PAYMENT),
-        NEW_ORDER("New Order", TPCCConstants.FREQUENCY_NEW_ORDER),
-        RESET_WAREHOUSE("Reset Warehouse", 0);
-
-        private Transaction(String displayName, int weight) {
-            this.displayName = displayName;
-            this.weight = weight;
-        }
-        public final String displayName;
-        public final int weight;
-    }
-
-
     public interface ProcCaller {
         public void callResetWarehouse(long w_id, long districtsPerWarehouse,
                 long customersPerDistrict, long newOrdersPerDistrict)
@@ -114,7 +95,6 @@ public class TPCCSimulation {
     public ScaleParameters parameters;
     private final long affineWarehouse;
     private final double skewFactor;
-    private final int[] SAMPLE_TABLE = new int[100];
     private final TPCCConfig config;
     
     private final int max_w_id;
@@ -137,7 +117,6 @@ public class TPCCSimulation {
         this.affineWarehouse = lastAssignedWarehouseId;
         this.skewFactor = skewFactor;
         this.config = config;
-        this.initSampleTable();
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
 
         if (config.neworder_skew_warehouse) {
@@ -160,19 +139,8 @@ public class TPCCSimulation {
         }
     }
     
-    /**
-     * Initialize the sampling table
-     */
-    private void initSampleTable() {
-        int i = 0;
-        int sum = 0;
-        for (Transaction t : Transaction.values()) {
-            for (int ii = 0; ii < t.weight; ii++) {
-                SAMPLE_TABLE[i++] = t.ordinal();
-            }
-            sum += t.weight;
-        }
-        assert (100 == sum);
+    protected Random rng() {
+        return generator.rng();
     }
     
     @Override
@@ -420,17 +388,15 @@ public class TPCCSimulation {
      *
      * @return the transaction that was executed..
      */
-    public int doOne() throws IOException {
+    public int doOne(TPCCClient.Transaction t) throws IOException {
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
        if (config.noop || config.neworder_only) {
            doNewOrder();
-           return Transaction.NEW_ORDER.ordinal();
+           return TPCCClient.Transaction.NEW_ORDER.ordinal();
         }
         
-        int x = generator.number(0, 99);
-        Transaction t = Transaction.values()[this.SAMPLE_TABLE[x]];
         switch (t) {
             case STOCK_LEVEL:
                 doStockLevel();

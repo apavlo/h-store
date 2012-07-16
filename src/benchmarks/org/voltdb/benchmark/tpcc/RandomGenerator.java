@@ -91,6 +91,8 @@ public abstract class RandomGenerator {
         public final int orderLineItemId;
     }
 
+    public abstract Random rng();
+    
     /** @returns a int in the range [minimum, maximum]. Note that this is inclusive. */
     public abstract int number(int minimum, int maximum);
 
@@ -218,6 +220,8 @@ public abstract class RandomGenerator {
         // public Implementation(long seed) { rng = new Random(seed); }
         public Implementation(long seed) { rng = new Random(); }
 
+        public Random rng() { return (rng); }
+        
         public int number(int minimum, int maximum) {
             assert minimum <= maximum;
             int range_size = maximum - minimum + 1;
