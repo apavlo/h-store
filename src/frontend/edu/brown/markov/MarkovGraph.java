@@ -623,7 +623,8 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         
         // -----------QUERY TRACE-VERTEX CREATION--------------
         for (QueryTrace query_trace : txn_trace.getQueries()) {
-            Set<Integer> partitions = pest.getAllPartitions(query_trace, base_partition);
+            Set<Integer> partitions = new HashSet<Integer>();
+            pest.getAllPartitions(partitions, query_trace, base_partition);
             assert(partitions != null);
             assert(!partitions.isEmpty());
             Statement catalog_stmnt = query_trace.getCatalogItem(this.getDatabase());

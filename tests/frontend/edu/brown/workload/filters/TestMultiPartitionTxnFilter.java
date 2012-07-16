@@ -1,5 +1,6 @@
 package edu.brown.workload.filters;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -13,6 +14,8 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
+    
+    final Set<Integer> partitions = new HashSet<Integer>();
     
     /**
      * testSinglePartition
@@ -30,7 +33,8 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Set<Integer> partitions = p_estimator.getAllPartitions(txn);
+                partitions.clear();
+                p_estimator.getAllPartitions(partitions, txn);
                 assertNotNull(partitions);
                 assertEquals(1, partitions.size());
                 count++;
@@ -55,7 +59,8 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Set<Integer> partitions = p_estimator.getAllPartitions(txn);
+                partitions.clear();
+                p_estimator.getAllPartitions(partitions, txn);
                 assertNotNull(partitions);
                 assertNotSame(1, partitions.size());
                 count++;

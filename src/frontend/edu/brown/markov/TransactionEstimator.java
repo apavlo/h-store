@@ -848,7 +848,8 @@ public class TransactionEstimator implements Loggable {
         for (QueryTrace query_trace : queries) {
             assert(query_trace != null);
             catalog_stmts[i] = query_trace.getCatalogItem(catalog_db);
-            partitions[i] = this.p_estimator.getAllPartitions(query_trace, base_partition);
+            partitions[i] = new HashSet<Integer>();
+            this.p_estimator.getAllPartitions(partitions[i], query_trace, base_partition);
             assert(partitions[i].isEmpty() == false) : "No partitions for " + query_trace;
             readOnly = readOnly && catalog_stmts[i].getReadonly();
             i++;

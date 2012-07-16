@@ -40,6 +40,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
     protected static final int num_partitions = 10;
     protected static final int base_partition = 1;
     
+    final Set<Integer> partitions = new HashSet<Integer>();
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
@@ -64,7 +66,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         txn_trace.addQuery(query_trace);
         txn_trace.stop();
         
-        Collection<Integer> partitions = p_estimator.getAllPartitions(txn_trace);
+        p_estimator.getAllPartitions(partitions, txn_trace);
         assertNotNull(partitions);
         assertEquals(partitions.toString(), 1, partitions.size());
     }
@@ -93,7 +95,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         assertNotNull(catalog_stmt);
         
         Object params[] = new Object[] { new String("Doesn't Matter") };
-        Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
         // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertEquals(num_partitions, partitions.size());
     }

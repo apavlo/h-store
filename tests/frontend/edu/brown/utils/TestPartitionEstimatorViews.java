@@ -1,6 +1,7 @@
 package edu.brown.utils;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.voltdb.catalog.Procedure;
@@ -22,6 +23,8 @@ public class TestPartitionEstimatorViews extends BaseTestCase {
     protected static AbstractHasher hasher;
     protected static final int num_partitions = 10;
     protected static final int base_partition = 1;
+    
+    final Set<Integer> partitions = new HashSet<Integer>();
     
     @Override
     protected void setUp() throws Exception {
@@ -51,9 +54,9 @@ public class TestPartitionEstimatorViews extends BaseTestCase {
         
         // Now if we execute this Statement, it should come back with the
         // same partition as where our Procedure is suppose to execute on
-        Set<Integer> stmtPartitions = p_estimator.getAllPartitions(catalog_stmt, stmt_params, procPartition);
-        assertEquals(1, stmtPartitions.size());
-        assertEquals(procPartition, CollectionUtil.first(stmtPartitions).intValue());
+        p_estimator.getAllPartitions(partitions, catalog_stmt, stmt_params, procPartition);
+        assertEquals(1, partitions.size());
+        assertEquals(procPartition, CollectionUtil.first(partitions).intValue());
     }
 
 }

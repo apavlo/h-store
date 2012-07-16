@@ -442,11 +442,14 @@ public class FeatureClusterer {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
         Set<Integer> all_partitions = this.cache_all_partitions.get(txn_id);
         if (all_partitions == null) {
+            all_partitions = new HashSet<Integer>();
             try {
-                all_partitions = Collections.unmodifiableSet(this.p_estimator.getAllPartitions(txn_trace));
+                this.p_estimator.getAllPartitions(all_partitions, txn_trace);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
+            all_partitions = Collections.unmodifiableSet(all_partitions);
+            this.cache_all_partitions.put(txn_id, all_partitions);
         }
         return (all_partitions);
     }
