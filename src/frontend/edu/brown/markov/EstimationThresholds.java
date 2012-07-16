@@ -138,7 +138,7 @@ public class EstimationThresholds implements JSONSerializable {
     }
     
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
     

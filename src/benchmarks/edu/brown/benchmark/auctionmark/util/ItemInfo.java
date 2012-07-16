@@ -106,7 +106,7 @@ public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
         
     }
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         
     }
     @Override

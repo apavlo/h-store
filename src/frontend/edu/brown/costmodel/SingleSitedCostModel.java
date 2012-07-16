@@ -1342,7 +1342,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
             if (output.equals("-"))
                 output = pplan_path.getAbsolutePath();
-            pplan.save(output);
+            pplan.save(new File(output));
             System.out.println("Saved PartitionPlan to '" + output + "'");
         }
 

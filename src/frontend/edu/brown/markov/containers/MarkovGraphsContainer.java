@@ -207,7 +207,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 boolean is_valid = m.isValid();
                 if (is_valid == false) {
                     try {
-                        String dump = "/tmp/" + e.getKey().getName() + ".markovs"; 
+                        File dump = new File("/tmp/" + e.getKey().getName() + ".markovs"); 
                         m.save(dump);
                         System.err.println("DUMP: " + dump);
                         System.err.println("GRAPHVIZ: " + MarkovUtil.exportGraphviz(e.getValue(), false, null).writeToTempFile(e.getKey()));
@@ -299,7 +299,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     }
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
     

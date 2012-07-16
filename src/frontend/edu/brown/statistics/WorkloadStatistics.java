@@ -239,7 +239,7 @@ public class WorkloadStatistics implements JSONSerializable {
     // -----------------------------------------------------------------
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
 
@@ -336,7 +336,7 @@ public class WorkloadStatistics implements JSONSerializable {
         }
         args.stats.process(args.catalog_db, args.workload);
         if (args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT) != null) {
-            args.stats.save(args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT));
+            args.stats.save(args.getFileParam(ArgumentsParser.PARAM_STATS_OUTPUT));
         }
         // System.out.println(args.stats.debug(args.catalog_db));
 

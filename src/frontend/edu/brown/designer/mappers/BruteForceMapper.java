@@ -153,7 +153,7 @@ public class BruteForceMapper extends AbstractMapper {
         System.out.println("--------------------------------\nWorst Solution:");
         System.out.println(this.worst_solution);
 
-        this.best_solution.toHasher().save("histograms/hasher.profile");
+        this.best_solution.toHasher().save(new File("histograms/hasher.profile"));
     }
 
     private List<Solution> createSolutions(int num_nodes, int cores_per_node, List<Integer> partitions) {

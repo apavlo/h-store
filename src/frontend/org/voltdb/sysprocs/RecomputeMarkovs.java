@@ -89,7 +89,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                         File f = FileUtil.getTempFile("markovs-" + this.partitionId, true);
                         LOG.info(String.format("Saving updated MarkovGraphs to '" + f + "'"));
                         try {
-                            markovs.save(f.getAbsolutePath());
+                            markovs.save(f);
                         } catch (Throwable ex) {
                             throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreThreadManager.formatSiteName(this.executor.getSiteId()), ex);
                         }

@@ -463,7 +463,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Save checkpoint
             this.last_checkpoint = new TimestampType();
             if (this.checkpoint != null) {
-                this.save(this.checkpoint.getAbsolutePath());
+                this.save(this.checkpoint);
                 LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getAbsolutePath() + "'");
             }
 
@@ -1081,7 +1081,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     }
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
 

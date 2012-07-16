@@ -32,7 +32,7 @@ public class TestMarkovGraphsContainer extends BaseTestCase {
         // Serialize them out to a file. This will also make a nice little index in the file
         File temp = FileUtil.getTempFile("markovs", false);
         assertNotNull(temp);
-        markovs.save(temp.getAbsolutePath());
+        markovs.save(temp);
         System.err.println("MARKOV FILE: " + temp);
     
         // Now read it back in make sure everything is there

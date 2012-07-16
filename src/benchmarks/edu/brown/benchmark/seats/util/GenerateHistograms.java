@@ -123,7 +123,7 @@ public class GenerateHistograms {
         histograms.put(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT, SEATSHistogramUtil.collapseAirportFlights(gh.flights_per_airport));
         
         for (Entry<String, Histogram<?>> e : histograms.entrySet()) {
-            String output_file = output_path.getAbsolutePath() + "/" + e.getKey() + ".histogram";
+            File output_file = new File(output_path.getAbsolutePath() + "/" + e.getKey() + ".histogram");
             LOG.info(String.format("Writing out %s data to '%s' [samples=%d, values=%d]",
                      e.getKey(), output_file, e.getValue().getSampleCount(), e.getValue().getValueCount()));
             e.getValue().save(output_file);

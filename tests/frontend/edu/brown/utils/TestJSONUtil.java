@@ -143,7 +143,7 @@ public class TestJSONUtil extends BaseTestCase {
             JSONUtil.load(this, catalog_db, input_path);
         }
         @Override
-        public void save(String output_path) throws IOException {
+        public void save(File output_path) throws IOException {
             JSONUtil.save(this, output_path);
         }
         @Override
