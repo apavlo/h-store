@@ -80,7 +80,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
-                    .attach(new MultiPartitionTxnFilter(p_estimator))
+                    .attach(new MultiPartitionTxnFilter(p_estimator, false))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);

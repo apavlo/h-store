@@ -384,6 +384,8 @@ public abstract class MarkovUtil {
     public static void getReadWritePartitions(List<MarkovVertex> path, Set<Integer> read_p, Set<Integer> write_p) {
         for (MarkovVertex v : path) {
             if (v.isQueryVertex() == false) continue;
+            if (trace.get())
+                LOG.trace(String.format("%s - R:%s / W:%s", v, read_p, write_p));
             
             Statement catalog_stmt = v.getCatalogItem();
             QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());

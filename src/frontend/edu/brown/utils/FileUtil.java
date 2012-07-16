@@ -48,6 +48,20 @@ public abstract class FileUtil {
 
     private static final Pattern EXT_SPLIT = Pattern.compile("\\.");
 
+    /**
+     * Join path segments together into a single file
+     * This is meant to mimic Python's os.path.join
+     * @param paths
+     */
+    public static File join(String...paths) {
+        String fullPath = "";
+        for (String p : paths) {
+            if (fullPath.isEmpty() == false) fullPath += File.separator;
+            fullPath += p;
+        } // FOR
+        return new File(fullPath);
+    }
+    
     public static boolean exists(String path) {
         if (path == null) return (false);
         return (new File(path).exists());

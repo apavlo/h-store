@@ -1143,8 +1143,11 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public void getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Set<Integer> frag_all_partitions, PlanFragment fragments[], final Object params[],
-            final Integer base_partition) throws Exception {
+    public void getAllFragmentPartitions(Map<PlanFragment, Set<Integer>> frag_partitions,
+                                         Set<Integer> frag_all_partitions,
+                                         PlanFragment fragments[],
+                                         Object params[],
+                                         Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
             Set<Integer> partitions = null;
@@ -1158,17 +1161,17 @@ public class PartitionEstimator {
                 } else {
                     partitions.clear();
                 }
-                // Otherwise use our AllPartitions set
+            // Otherwise use our AllPartitions set
             } else {
                 partitions = frag_all_partitions;
             }
             assert (partitions != null);
 
             this.calculatePartitionsForFragment(null,
-                                                 partitions,
-                                                 catalog_frag,
-                                                 params,
-                                                 base_partition);
+                                                partitions,
+                                                catalog_frag,
+                                                params,
+                                                base_partition);
 
             // If there were no partitions, then the PlanFragment needs to be
             // execute on the base partition
@@ -1193,8 +1196,10 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Set<Integer> getPartitions(final PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
-        Set<Integer> partitions = new HashSet<Integer>();
+    public Set<Integer> getPartitions(Set<Integer> partitions, 
+                                      PlanFragment catalog_frag,
+                                      Object params[],
+                                      Integer base_partition) throws Exception {
         this.calculatePartitionsForFragment(null, partitions, catalog_frag, params, base_partition);
         return (partitions);
     }
@@ -1210,16 +1215,19 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private void calculatePartitionsForFragment(final Map<String, Set<Integer>> entry_partitions, final Set<Integer> all_partitions, PlanFragment catalog_frag, Object params[], Integer base_partition)
-            throws Exception {
+    private void calculatePartitionsForFragment(Map<String, Set<Integer>> entry_partitions,
+                                                Set<Integer> all_partitions,
+                                                PlanFragment catalog_frag,
+                                                Object params[],
+                                                Integer base_partition) throws Exception {
         if (trace.get())
             LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.fullName());
         PartitionEstimator.CacheEntry cache_entry = this.getFragmentCacheEntry(catalog_frag);
         this.calculatePartitionsForCache(entry_partitions,
-                                          all_partitions,
-                                          cache_entry,
-                                          params,
-                                          base_partition);
+                                         all_partitions,
+                                         cache_entry,
+                                         params,
+                                         base_partition);
         if (debug.get()) {
             if (entry_partitions != null)
                 LOG.debug(String.format("%s Table Partitions: %s", catalog_frag.fullName(), entry_partitions));
@@ -1256,11 +1264,11 @@ public class PartitionEstimator {
      * @param base_partition
      * @return
      */
-    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
-                                             final Collection<Integer> entry_all_partitions,
-                                             final PartitionEstimator.CacheEntry cache_entry,
-                                             final Object params[],
-                                             final Integer base_partition) throws Exception {
+    private void calculatePartitionsForCache(Map<String, Set<Integer>> entry_table_partitions,
+                                             Collection<Integer> entry_all_partitions,
+                                             PartitionEstimator.CacheEntry cache_entry,
+                                             Object params[],
+                                             Integer base_partition) throws Exception {
 
         // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;

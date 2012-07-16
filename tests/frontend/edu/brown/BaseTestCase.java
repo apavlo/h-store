@@ -509,7 +509,14 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @throws IOException
      */
     public File getParameterMappingsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
+        // HACK HACK HACK
+        File srcDir = FileUtil.findDirectory("src");
+        File mappingsFile = FileUtil.join(srcDir.getAbsolutePath(),
+                                         "benchmarks",
+                                         type.getPackageName().replace(".", File.separator),
+                                         type.name().toLowerCase() + ".mappings");
+        return (mappingsFile);
+        // return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
 //    /**
