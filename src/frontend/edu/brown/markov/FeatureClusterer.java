@@ -113,7 +113,7 @@ public class FeatureClusterer {
         private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
         
         @Override
-        public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+        public MarkovGraph getFromParams(Long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
             // Look-up what cluster our TransactionTrace belongs to
             Integer cluster = this.txnid_cluster_xref.get(txn_id);
             assert(cluster != null) : "Failed to initialize TransactionId->Cluster# xref for txn #" + txn_id;

@@ -177,7 +177,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
      * @param catalog_proc
      * @return
      */
-    public MarkovGraph getFromParams(long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
+    public MarkovGraph getFromParams(Long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
         assert(catalog_proc != null);
         MarkovGraph m = this.getOrCreate(base_partition, catalog_proc, true);
         if (m == null) {

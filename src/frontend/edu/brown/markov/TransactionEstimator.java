@@ -104,7 +104,7 @@ public class TransactionEstimator implements Loggable {
         private final List<MarkovEstimate> estimates = new ArrayList<MarkovEstimate>();
         private final int num_partitions;
 
-        private long txn_id = -1;
+        private Long txn_id = null;
         private int base_partition;
         private long start_time;
         private MarkovGraph markov;
@@ -142,7 +142,7 @@ public class TransactionEstimator implements Loggable {
             this.num_partitions = num_partitions;
         }
         
-        public void init(long txn_id, int base_partition, MarkovGraph markov, MarkovPathEstimator initial_estimator, long start_time) {
+        public void init(Long txn_id, int base_partition, MarkovGraph markov, MarkovPathEstimator initial_estimator, long start_time) {
             this.txn_id = txn_id;
             this.base_partition = base_partition;
             this.markov = markov;
@@ -154,7 +154,7 @@ public class TransactionEstimator implements Loggable {
         
         @Override
         public boolean isInitialized() {
-            return (this.txn_id != -1);
+            return (this.txn_id != null);
         }
         
         @Override
@@ -184,7 +184,7 @@ public class TransactionEstimator implements Loggable {
             this.num_estimates = 0;
             
             this.markov.incrementTransasctionCount();
-            this.txn_id = -1;
+            this.txn_id = null;
             this.actual_path.clear();
             this.actual_path_edges.clear();
             this.touched_partitions.clear();
@@ -461,7 +461,7 @@ public class TransactionEstimator implements Loggable {
      * @param args
      * @return
      */
-    public State startTransaction(long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
+    public State startTransaction(Long txn_id, int base_partition, Procedure catalog_proc, Object args[]) {
         assert (catalog_proc != null);
         long start_time = EstTime.currentTimeMillis();
         if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
