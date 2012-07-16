@@ -1,5 +1,6 @@
 package edu.brown.mappings;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.json.JSONException;
@@ -179,7 +180,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
     // ----------------------------------------------------------------------------
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
     

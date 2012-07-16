@@ -3,6 +3,7 @@
  */
 package edu.brown.designer.partitioners;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
@@ -352,7 +353,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Reload the checkpoint file so that we can continue this dirty mess!
         if (hints.enable_checkpoints) {
             if (this.checkpoint != null && this.checkpoint.exists()) {
-                this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
+                this.load(this.checkpoint, info.catalog_db);
                 LOG.info("Loaded checkpoint from '" + this.checkpoint + "'");
 
                 // Important! We need to update the hints based on what's in the
@@ -1075,7 +1076,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     // ----------------------------------------------------------------------------
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 

@@ -3,6 +3,7 @@
  */
 package edu.brown.catalog;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.json.JSONException;
@@ -92,7 +93,7 @@ public class CatalogExporter implements JSONSerializable {
      * org.voltdb.catalog.Database)
      */
     @Override
-    public void load(String inputPath, Database catalogDb) throws IOException {
+    public void load(File inputPath, Database catalogDb) throws IOException {
         throw new NotImplementedException("Cannot import JSON catalog");
     }
 

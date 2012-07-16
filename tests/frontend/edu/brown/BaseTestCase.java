@@ -312,7 +312,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         File correlations_path = this.getParameterMappingsFile(type);
         if (correlations_path != null) {
             ParameterMappingsSet correlations = new ParameterMappingsSet();
-            correlations.load(correlations_path.getAbsolutePath(), catalog_db);
+            correlations.load(correlations_path, catalog_db);
             ParametersUtil.applyParameterMappings(catalog_db, correlations);
         }
     }

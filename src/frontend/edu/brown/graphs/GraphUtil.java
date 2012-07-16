@@ -235,7 +235,7 @@ public abstract class GraphUtil {
      * @param path
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> void load(IGraph<V, E> graph, Database catalog_db, String path) throws IOException {
+    public static <V extends AbstractVertex, E extends AbstractEdge> void load(IGraph<V, E> graph, Database catalog_db, File path) throws IOException {
         if (debug.get()) LOG.debug("Loading in serialized graph from '" + path + "'");
         String contents = FileUtil.readFile(path);
         if (contents.isEmpty()) {

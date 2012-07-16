@@ -374,7 +374,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog
      * @throws Exception (VoltCompilerException DNE?)
      */
-    public static void updateCatalogInJar(String jarFileName, Catalog catalog) throws Exception {
+    public static void updateCatalogInJar(String jarFileName, Catalog catalog, File...additions) throws Exception {
         catalog.serialize();
         // Read the old jar file into memory with JarReader.
         JarReader reader = new JarReader(jarFileName);
@@ -397,6 +397,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 builder.addEntry(file, bytes.get(i));
             }
         }
+        
+        // Add any additions that they want to the root of the the jar structure
+        for (File f : additions) {
+            if (f != null) {
+                builder.addEntry(f.getName(), FileUtil.readBytesFromFile(f.getAbsolutePath()));
+            }
+        } // FOR
+        
         builder.writeJarToDisk(jarFileName);
     }
     

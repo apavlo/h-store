@@ -1,5 +1,6 @@
 package edu.brown.markov.containers;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -293,7 +294,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
     // -----------------------------------------------------------------
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 

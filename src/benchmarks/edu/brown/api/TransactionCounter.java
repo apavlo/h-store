@@ -1,5 +1,6 @@
 package edu.brown.api;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
@@ -76,7 +77,7 @@ public class TransactionCounter implements JSONSerializable {
     // SERIALIZATION METHODS
     // ----------------------------------------------------------------------------
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
     @Override

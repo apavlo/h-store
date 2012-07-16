@@ -334,7 +334,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param catalog_db
      * @throws Exception
      */
-    public void load(String input_path, Database catalog_db) throws Exception {
+    public void load(File input_path, Database catalog_db) throws Exception {
         this.load(input_path, catalog_db, null);
     }
     
@@ -345,9 +345,9 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param limit
      * @throws Exception
      */
-    public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
+    public void load(File input_path, Database catalog_db, Filter filter) throws Exception {
         if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
-        this.input_path = new File(input_path);
+        this.input_path = input_path;
         long start = System.currentTimeMillis();
         
         // HACK: Throw out traces unless they have the procedures that we're looking for

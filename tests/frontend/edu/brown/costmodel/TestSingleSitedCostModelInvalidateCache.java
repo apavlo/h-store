@@ -36,7 +36,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
             workload = new Workload(catalog);
             
-            workload.load(workload_file.getAbsolutePath(), catalog_db, new ProcedureLimitFilter(WORKLOAD_LIMIT));
+            workload.load(workload_file, catalog_db, new ProcedureLimitFilter(WORKLOAD_LIMIT));
             assertEquals(WORKLOAD_LIMIT, workload.getTransactionCount());
             System.err.println(workload.getProcedureHistogram());
         }

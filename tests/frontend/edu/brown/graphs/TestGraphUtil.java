@@ -149,7 +149,7 @@ public class TestGraphUtil extends BaseTestCase {
         AbstractDirectedGraph<DesignerVertex, DesignerEdge> clone = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(catalog_db) {
             private static final long serialVersionUID = 1L;
         };
-        GraphUtil.load(clone, catalog_db, this.tempFile.getAbsolutePath());
+        GraphUtil.load(clone, catalog_db, this.tempFile);
         this.checkGraph(EdgeType.DIRECTED, clone);
     }
     

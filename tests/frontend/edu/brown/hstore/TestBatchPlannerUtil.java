@@ -82,7 +82,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch

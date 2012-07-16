@@ -29,7 +29,7 @@ public class TestMemoryEstimator extends BaseTestCase {
         if (stats == null) {
             File stats_file = this.getStatsFile(ProjectType.TM1);
             stats = new WorkloadStatistics(catalog_db);
-            stats.load(stats_file.getAbsolutePath(), catalog_db);
+            stats.load(stats_file, catalog_db);
         }
         
         hasher = new DefaultHasher(catalog_db, NUM_PARTITIONS);

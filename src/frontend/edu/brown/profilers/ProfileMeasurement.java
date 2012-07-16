@@ -27,6 +27,7 @@
  ***************************************************************************/
 package edu.brown.profilers;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
@@ -405,7 +406,7 @@ public class ProfileMeasurement implements JSONSerializable {
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 

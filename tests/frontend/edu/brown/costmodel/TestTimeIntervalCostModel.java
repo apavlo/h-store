@@ -73,7 +73,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             multi_filter.include(MULTIPARTITION_PROCEDURES);
             multi_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             multip_workload = new Workload(catalog);
-            ((Workload)multip_workload).load(f.getAbsolutePath(), catalog_db, multi_filter);
+            ((Workload)multip_workload).load(f, catalog_db, multi_filter);
             assert(multip_workload.getTransactionCount() > 0);
 
             // All Single-Partition Txn Workload
@@ -81,13 +81,13 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             single_filter.include(SINGLEPARTITION_PROCEDURES);
             single_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             singlep_workload = new Workload(catalog);
-            ((Workload)singlep_workload).load(f.getAbsolutePath(), catalog_db, single_filter);
+            ((Workload)singlep_workload).load(f, catalog_db, single_filter);
             assert(singlep_workload.getTransactionCount() > 0);
             
             // Workload Statistics
             f = this.getStatsFile(ProjectType.TM1);
             stats = new WorkloadStatistics(catalog_db);
-            stats.load(f.getAbsolutePath(), catalog_db);
+            stats.load(f, catalog_db);
         }
         assertNotNull(multip_workload);
         assertNotNull(singlep_workload);
@@ -345,7 +345,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             info.setNumIntervals(NUM_INTERVALS);
             info.setPartitionerClass(BranchAndBoundPartitioner.class);
             info.setCostModel(cm);
-            info.setMappingsFile(this.getParameterMappingsFile(ProjectType.TM1).getAbsolutePath());
+            info.setMappingsFile(this.getParameterMappingsFile(ProjectType.TM1));
             
             Designer designer = new Designer(info, hints, info.getArgs());
             BranchAndBoundPartitioner local_search = (BranchAndBoundPartitioner)designer.getPartitioner();

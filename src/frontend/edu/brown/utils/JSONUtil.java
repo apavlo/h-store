@@ -211,7 +211,7 @@ public abstract class JSONUtil {
      * @param output_path
      * @throws Exception
      */
-    public static <T extends JSONSerializable> void load(T object, Database catalog_db, String input_path) throws IOException {
+    public static <T extends JSONSerializable> void load(T object, Database catalog_db, File input_path) throws IOException {
         if (debug.get())
             LOG.debug("Loading in serialized " + object.getClass().getSimpleName() + " from '" + input_path + "'");
         String contents = FileUtil.readFile(input_path);

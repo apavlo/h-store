@@ -152,7 +152,7 @@ public abstract class BenchmarkComponent {
         return (globalCatalog);
     }
     
-    public static synchronized void applyPartitionPlan(Database catalog_db, String partitionPlanPath) {
+    public static synchronized void applyPartitionPlan(Database catalog_db, File partitionPlanPath) {
         if (globalPartitionPlan == null) {
             if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
             globalPartitionPlan = new PartitionPlan();
@@ -662,7 +662,7 @@ public abstract class BenchmarkComponent {
             boolean exists = FileUtil.exists(partitionPlanPath); 
             if (partitionPlanIgnoreMissing == false)
                 assert(exists) : "Invalid partition plan path '" + partitionPlanPath + "'";
-            if (exists) this.applyPartitionPlan(partitionPlanPath);
+            if (exists) this.applyPartitionPlan(new File(partitionPlanPath));
         }
         
         this.initializeConnection();
@@ -1287,7 +1287,7 @@ public abstract class BenchmarkComponent {
     public void setCatalog(Catalog catalog) {
         m_catalog = catalog;
     }
-    public void applyPartitionPlan(String partitionPlanPath) {
+    public void applyPartitionPlan(File partitionPlanPath) {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         BenchmarkComponent.applyPartitionPlan(catalog_db, partitionPlanPath);
     }

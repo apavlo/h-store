@@ -1316,7 +1316,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
         PartitionPlan pplan = new PartitionPlan();
-        pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+        pplan.load(pplan_path, args.catalog_db);
         if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
             for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
                 pplan.setNullProcParameter(catalog_proc);
