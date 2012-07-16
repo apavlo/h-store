@@ -336,7 +336,7 @@ public class TransactionInitializer {
         // MARKOV ESTIMATORS
         // -------------------------------
         else if (hstore_conf.site.markov_enable) {
-            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
+            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new '%s' request is single-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
             
             // Grab the TransactionEstimator for the destination partition and figure out whether

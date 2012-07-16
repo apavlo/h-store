@@ -2098,16 +2098,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
         // We can do this regardless of whether the transaction has written anything <-- NOT TRUE!
-        if (ts.getEstimatorState() != null &&
-            ts.isPredictSinglePartition() &&
-            ts.isSpeculative() == false && hstore_conf.site.exec_no_undo_logging) {
+        if (ts.getEstimatorState() != null && ts.isPredictSinglePartition() && ts.isSpeculative() == false) {
             
             MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
-            if (est.isAbortable(this.thresholds) || est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
+            if (hstore_conf.site.exec_no_undo_logging == false ||
+                est.isAbortable(this.thresholds) ||
+                est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
-            } else if (d) {
-                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
+            } else { // if (d) {
+                LOG.info(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
         }
@@ -3165,8 +3165,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
             if (ts.isExecReadOnly(this.partitionId) == false && undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
-                    LOG.fatal(ts.debug());
-                    String msg = "TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING";
+                    String msg = "TRYING TO ABORT TRANSACTION ON PARTITION " + this.partitionId + " WITHOUT UNDO LOGGING";
+                    LOG.fatal(msg + "\n" + ts.debug());
                     this.crash(new ServerFaultException(msg, ts.getTransactionId()));
                 }
                 if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
@@ -3389,7 +3389,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.warn(String.format("PartitionExecutor for Partition #%d is crashing", this.partitionId), ex);
+        String msg = String.format("PartitionExecutor for Partition #%d is crashing", this.partitionId);
+        if (ex == null) LOG.warn(msg);
+        else LOG.warn(msg, ex);
+        
         assert(this.hstore_coordinator != null);
         this.hstore_coordinator.shutdownClusterBlocking(ex);
     }

@@ -530,7 +530,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Update our list of partitions touched by this transaction
             Set<Integer> next_partitions = next_vertex.getPartitions();
-            String orig = next_partitions.toString();
+            // String orig = (debug.get() ? next_partitions.toString() : null);
             float inverse_prob = 1.0f - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
             
@@ -542,9 +542,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         try {
                             this.estimate.setReadOnlyProbability(p.intValue(), this.confidence);
                         } catch (AssertionError ex) {
-                            System.err.println("BUSTED: " + next_vertex);
-                            System.err.println("NEXT PARTITIONS: " + next_partitions);
-                            System.err.println("ORIG PARTITIONS: " + orig);
+                            if (debug.get()) {
+                                LOG.debug("BUSTED: " + next_vertex);
+                                LOG.debug("NEXT PARTITIONS: " + next_partitions);
+                                // ??? LOG.debug("ORIG PARTITIONS: " + orig);
+                            }
                             throw ex;
                         }
                         if (this.touched_partitions.contains(p) == false) {
