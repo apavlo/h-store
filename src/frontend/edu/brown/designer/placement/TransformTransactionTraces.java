@@ -59,19 +59,19 @@ public class TransformTransactionTraces {
                 e1.printStackTrace();
             }
             txn_partitions = new TxnPartition(base_partition);
-            int batch = 0;
+            // int batch = 0;
             for (Integer batch_id : trace.getBatchIds()) {
                 // list of query traces
                 Set<Integer> query_partitions = new HashSet<Integer>();
                 for (QueryTrace qt : trace.getBatches().get(batch_id)) {
                     try {
-                        query_partitions.addAll(est.getAllPartitions(qt, base_partition));
+                        est.getAllPartitions(query_partitions, qt, base_partition);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
                 txn_partitions.getPartitions().add(query_partitions);
-                batch++;
+                // batch++;
             }
             if (!hist.contains(txn_partitions.toString())) {
                 hist.put(txn_partitions.toString(), 1);

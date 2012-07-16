@@ -149,6 +149,12 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
         return (this.get("index", index));
     }
     
+    /**
+     * Return an array of the values in this CatalogMap.
+     * This will be generally faster than using an iterator because
+     * we will cache the array locally
+     * @return
+     */
     @SuppressWarnings("unchecked")
     public T[] values() {
         if (m_fastArray != null) return (m_fastArray);

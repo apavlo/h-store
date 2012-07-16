@@ -32,6 +32,8 @@ public class TestPartitionEstimator extends BaseTestCase {
     protected static final int NUM_PARTITIONS = 100;
     protected static final int BASE_PARTITION = 1;
     
+    final Set<Integer> partitions = new HashSet<Integer>();
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
@@ -254,7 +256,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         for (int w_id = 1; w_id < NUM_PARTITIONS; w_id++) {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
-            Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+            partitions.clear();
+            estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
             assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
@@ -274,7 +277,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         for (int w_id = 1; w_id < NUM_PARTITIONS; w_id++) {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
-            Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+            partitions.clear();
+            estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
             assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
@@ -305,7 +309,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             //System.out.print((i != 0 ? ", " : "[") + params[i].toString() + (i + 1 == params.length ? "\n" : "")); 
         } // FOR
         
-        Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+        estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
 //        System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertFalse(partitions.isEmpty());
         assertEquals(1, partitions.size());
@@ -340,7 +344,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(1234) };
-        Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
         assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
@@ -374,7 +378,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // First calculate the partitions for the query using the original catalog
         // We should get back exactly one partition id (base_partition)
         Object params[] = new Object[] { new Long(BASE_PARTITION) };
-        Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
         assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
@@ -386,10 +390,11 @@ public class TestPartitionEstimator extends BaseTestCase {
         catalog_proc = new_database.getProcedures().get(catalog_proc.getName());
         catalog_stmt = catalog_proc.getStatements().get("getWarehouseTaxRate");
         
-        Set<Integer> new_partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
+        partitions.clear();
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
         Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(new_database);
-        assertNotNull(new_partitions);
-        assertEquals(all_partitions.size(), new_partitions.size());
+        assertNotNull(partitions);
+        assertEquals(all_partitions.size(), partitions.size());
     }
     
     /**

@@ -101,6 +101,10 @@ public class PartitionEstimator {
 
     private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
     private final Map<Table, Column> cache_tablePartitionColumns = new HashMap<Table, Column>();
+    
+    /**
+     * Statement -> StmtParameter Offsets
+     */
     private final Map<Statement, Collection<Integer>> cache_stmtPartitionParameters = new HashMap<Statement, Collection<Integer>>();
 
     /**
@@ -948,33 +952,63 @@ public class PartitionEstimator {
     // ----------------------------------------------------------------------------
 
     /**
+     * Populate the given set with all of the partition ids that all of the QueryTraces
+     * in this TransactionTrace will touch based on the current catalog.
+     * Note that this estimate will also include the base partition where the txn's control
+     * code will execute.
+     * @param partitions
      * @param xact
-     * @return
      * @throws Exception
      */
-    public Set<Integer> getAllPartitions(final TransactionTrace xact) throws Exception {
-        Set<Integer> partitions = new HashSet<Integer>();
+    public void getAllPartitions(Set<Integer> partitions, TransactionTrace xact) throws Exception {
         int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
         partitions.add(base_partition);
 
-        Set<Integer> temp = new HashSet<Integer>();
+//        Set<Integer> temp = new HashSet<Integer>(); // XXX: Is this necessary?
         for (QueryTrace query : xact.getQueries()) {
-            partitions.addAll(this.getAllPartitions(temp, query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
-            temp.clear();
+            // partitions.addAll(this.getAllPartitions(temp, query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+            this.getAllPartitions(partitions,
+                                  query.getCatalogItem(this.catalog_db),
+                                  query.getParams(),
+                                  base_partition);
+//            temp.clear();
         } // FOR
-
-        return (partitions);
     }
 
     /**
-     * Return the list of partitions that this QueryTrace object will touch
-     * 
+     * Populate the given set with all of the partition ids that this QueryTrace
+     * will touch based on the current catalog.
+     * @param partitions
      * @param query
-     * @return
+     * @param base_partition
+     * @throws Exception
      */
-    public Set<Integer> getAllPartitions(final QueryTrace query, Integer base_partition) throws Exception {
-        return (this.getAllPartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+    public void getAllPartitions(Set<Integer> partitions, QueryTrace query, Integer base_partition) throws Exception {
+        Statement catalog_stmt = query.getCatalogItem(this.catalog_db);
+        this.getAllPartitions(partitions, catalog_stmt, query.getParams(), base_partition);
     }
+
+    /**
+     * Populate the given set with all of the partition ids that this Statement with the
+     * given parameters will touch based on the current catalog.
+     * @param all_partitions
+     * @param catalog_stmt
+     * @param params
+     * @param base_partition
+     * @throws Exception
+     */
+    public void getAllPartitions(final Set<Integer> all_partitions, final Statement catalog_stmt, final Object params[], final int base_partition) throws Exception {
+        // Note that we will use the single-sited fragments (if available) since they will be
+        // faster for us to figure out what partitions has the data that this statement needs
+        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? 
+                                                    catalog_stmt.getFragments() :
+                                                    catalog_stmt.getMs_fragments());
+        this.getAllFragmentPartitions(null, all_partitions, fragments.values(), params, base_partition);
+    }
+
+    // ----------------------------------------------------------------------------
+    // STATEMENT PARTITION METHODS
+    // ----------------------------------------------------------------------------
 
     /**
      * Return the table -> partitions mapping for the given QueryTrace object
@@ -987,39 +1021,7 @@ public class PartitionEstimator {
     public Map<String, Set<Integer>> getTablePartitions(final QueryTrace query, Integer base_partition) throws Exception {
         return (this.getTablePartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
     }
-
-    /**
-     * @param catalog_stmt
-     * @param params
-     * @return
-     */
-    public Set<Integer> getAllPartitions(final Statement catalog_stmt, Object params[], int base_partition) throws Exception {
-        return (this.getAllPartitions(new HashSet<Integer>(), catalog_stmt, params, base_partition));
-    }
-
-    /**
-     * @param partitions
-     * @param catalog_stmt
-     * @param params
-     * @param base_partition
-     * @throws Exception
-     */
-    public Set<Integer> getAllPartitions(final Set<Integer> partitions, final Statement catalog_stmt, final Object params[], final int base_partition) throws Exception {
-        Set<Integer> all_partitions = new HashSet<Integer>();
-
-        // Note that we will use the single-sited fragments (if available) since
-        // they will be
-        // faster for us to figure out what partitions has the data that this
-        // statement needs
-        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-        this.getAllFragmentPartitions(null, all_partitions, fragments.values(), params, base_partition);
-        return (all_partitions);
-    }
-
-    // ----------------------------------------------------------------------------
-    // STATEMENT PARTITION METHODS
-    // ----------------------------------------------------------------------------
-
+    
     /**
      * Return all of the partitions per table for the given Statement object
      * 
@@ -1029,7 +1031,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<String, Set<Integer>> getTablePartitions(final Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
+    public Map<String, Set<Integer>> getTablePartitions(Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
         Map<String, Set<Integer>> all_partitions = new HashMap<String, Set<Integer>>();
         CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
         for (PlanFragment catalog_frag : fragments) {
@@ -1079,7 +1081,7 @@ public class PartitionEstimator {
                 return (null);
             }
 
-            for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+            for (PlanFragment catalog_frag : catalog_stmt.getFragments().values()) {
                 PartitionEstimator.CacheEntry cache_entry = null;
                 try {
                     cache_entry = this.getFragmentCacheEntry(catalog_frag);

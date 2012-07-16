@@ -49,9 +49,8 @@ public class MultiPartitionTxnFilter extends Filter {
             try {
                 int base_partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
                 partitions.add(base_partition);
-                
                 for (QueryTrace query : xact.getQueries()) {
-                    partitions.addAll(this.p_estimator.getAllPartitions(query, base_partition));
+                    this.p_estimator.getAllPartitions(partitions, query, base_partition);
                 } // FOR
                 
             } catch (Exception ex) {

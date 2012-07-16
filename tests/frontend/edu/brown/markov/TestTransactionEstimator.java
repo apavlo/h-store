@@ -54,6 +54,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
     private Procedure catalog_proc;
+    private final Set<Integer> partitions = new HashSet<Integer>();
     
     @Override
     protected void setUp() throws Exception {
@@ -154,7 +155,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
 //        System.err.println(multip_trace.debug(catalog_db));
 
-        Set<Integer> partitions = p_estimator.getAllPartitions(singlep_trace);
+        p_estimator.getAllPartitions(partitions, singlep_trace);
         assertNotNull(partitions);
 //        assert(partitions.size() > 1) : partitions;
         System.err.println("partitions: " + partitions);

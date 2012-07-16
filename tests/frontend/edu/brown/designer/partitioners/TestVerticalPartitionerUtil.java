@@ -238,7 +238,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             
             // Then get the list of partitions that it will access
             // This should always be *all* partitions
-            Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+            Set<Integer> partitions = new HashSet<Integer>();
+            p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(CatalogUtil.getNumberOfPartitions(clone_db), partitions.size());
         } // FOR
@@ -250,7 +251,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Object params[] = stmt_params.get(catalog_stmt);
             assertNotNull(params);
-            Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+            Set<Integer> partitions = new HashSet<Integer>();
+            p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(1, partitions.size());
         } // FOR
