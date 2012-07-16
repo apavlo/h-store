@@ -52,7 +52,7 @@ public class TestHeuristicPartitioner extends BaseTestCase {
             ProcedureNameFilter filter = new ProcedureNameFilter(false);
             filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file, catalog_db, filter);
         }
         
         // Setup everything else (that's just how we roll up in this ma)

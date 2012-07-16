@@ -68,7 +68,7 @@ public class DesignerInfo {
      * ProcParameter Correlations
      */
     private ParameterMappingsSet mappings;
-    private String correlations_file;
+    private File correlations_file;
 
     /**
      * Designer Components Defaults defined in ArgumentParser
@@ -159,7 +159,7 @@ public class DesignerInfo {
         // Correlations (smoke 'em if you got 'em)
         if (args.param_mappings != null) {
             this.mappings = args.param_mappings;
-            this.correlations_file = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
+            this.correlations_file = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS);
         }
 
         if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalog_db)) {
@@ -218,11 +218,11 @@ public class DesignerInfo {
         return mappings;
     }
 
-    public void setMappingsFile(String file) {
+    public void setMappingsFile(File file) {
         correlations_file = file;
     }
 
-    public String getMappingsFile() {
+    public File getMappingsFile() {
         return correlations_file;
     }
 

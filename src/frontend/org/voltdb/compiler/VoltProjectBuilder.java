@@ -792,7 +792,7 @@ public class VoltProjectBuilder {
         // Load ParameterMappingSet from file
         if (m_paramMappingsFile != null) {
             try {
-                mappings.load(m_paramMappingsFile.getAbsolutePath(), catalog_db);
+                mappings.load(m_paramMappingsFile, catalog_db);
             } catch (IOException ex) {
                 String msg = "Failed to load ParameterMappingsSet file '" + m_paramMappingsFile + "'";
                 throw new RuntimeException(msg, ex);
@@ -838,7 +838,7 @@ public class VoltProjectBuilder {
         
         // Write it out!
         try {
-            CatalogUtil.updateCatalogInJar(jarPath, catalog);
+            CatalogUtil.updateCatalogInJar(jarPath, catalog, m_paramMappingsFile);
         } catch (Exception ex) {
             String msg = "Failed to updated Catalog in jar file '" + jarPath + "'";
             throw new RuntimeException(msg, ex);

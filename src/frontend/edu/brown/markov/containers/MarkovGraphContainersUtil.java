@@ -252,7 +252,7 @@ public abstract class MarkovGraphContainersUtil {
                 try {
                     JSONObject json_object = new JSONObject(FileUtil.readFile(in));
                     MarkovGraphsContainer markov = MarkovGraphContainersUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
-                    markov.load(in.getAbsolutePath(), catalog_db);
+                    markov.load(in, catalog_db);
                     
                     stringer = (JSONStringer)new JSONStringer().object();
                     stringer.key(partition.toString()).object();

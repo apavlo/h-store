@@ -67,7 +67,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
@@ -85,7 +85,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
             
             // Make a copy that doesn't have the first TransactionTrace
             Workload clone = new Workload(workload, new Filter() {

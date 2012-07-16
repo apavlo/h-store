@@ -71,7 +71,6 @@
 <property name='files.workloads.dir'         location='${files.dir}/workloads' />
 <property name='files.markovs.dir'           location='${files.dir}/markovs' />
 <property name='files.hints.dir'             location='${files.dir}/designhints' />
-<property name='files.mappings.dir'          location='${files.dir}/mappings' />
 
 <!-- BerkeleyDB Source -->
 <property name="src.berkeleydb.dir"          location="third_party/cpp/berkeleydb" />

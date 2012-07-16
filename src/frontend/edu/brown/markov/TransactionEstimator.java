@@ -1,5 +1,6 @@
 package edu.brown.markov;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -298,6 +299,17 @@ public class TransactionEstimator implements Loggable {
 
         public MarkovEstimate getLastEstimate() {
             return (this.num_estimates > 0 ? this.estimates.get(this.num_estimates-1) : this.initial_estimate);
+        }
+        
+        /**
+         * Debug method to dump out the Markov graph to a Graphviz file
+         * Returns the path to the file
+         */
+        public File dumpMarkovGraph() {
+            MarkovGraph markov = this.getMarkovGraph();
+            GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(this.getInitialPath()));
+            gv.highlightPath(markov.getPath(this.getActualPath()), "blue");
+            return gv.writeToTempFile(this.markov.getProcedure());
         }
         
         @Override

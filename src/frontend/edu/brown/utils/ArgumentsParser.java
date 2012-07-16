@@ -38,6 +38,7 @@ import org.apache.log4j.Logger;
 
 import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
+import org.voltdb.utils.JarReader;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -244,7 +245,7 @@ public class ArgumentsParser {
      * Workload Trace Attributes
      */
     public Workload workload = null;
-    public String workload_path = null;
+    public File workload_path = null;
     public Long workload_xact_limit = null;
     public Long workload_xact_offset = 0l;
     public Long workload_query_limit = null;
@@ -255,7 +256,7 @@ public class ArgumentsParser {
      * Workload Statistics Attributes
      */
     public WorkloadStatistics stats = null;
-    public String stats_path = null;
+    public File stats_path = null;
 
     /**
      * Transaction Estimation Stuff
@@ -493,7 +494,7 @@ public class ArgumentsParser {
         // Workload Trace
         if (this.params.containsKey(PARAM_WORKLOAD)) {
             assert (this.catalog_db != null) : "Missing catalog!";
-            String path = new File(this.params.get(PARAM_WORKLOAD)).getAbsolutePath();
+            File path = new File(this.params.get(PARAM_WORKLOAD));
 
             boolean weightedTxns = this.getBooleanParam(PARAM_WORKLOAD_XACT_WEIGHTS, false);
             if (debug)
@@ -582,7 +583,7 @@ public class ArgumentsParser {
                             if (proc_histogram == null) {
                                 if (debug)
                                     LOG.debug("Generating procedure histogram from workload file");
-                                proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                                proc_histogram = WorkloadUtil.getProcedureHistogram(path);
                             }
                             limit = (int) proc_histogram.get(proc_name, 0);
                             total_unlimited += limit;
@@ -635,7 +636,7 @@ public class ArgumentsParser {
                     if (debug)
                         LOG.debug("Attaching sampling filter");
                     if (proc_histogram == null)
-                        proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                        proc_histogram = WorkloadUtil.getProcedureHistogram(path);
                     Map<String, Integer> proc_includes = ((ProcedureNameFilter) filter).getProcIncludes();
                     SamplingFilter sampling_filter = new SamplingFilter(proc_includes, proc_histogram);
                     filter = sampling_filter;
@@ -669,7 +670,7 @@ public class ArgumentsParser {
                 LOG.debug("Workload Filters: " + this.workload_filter.toString());
             this.workload = new Workload(this.catalog);
             this.workload.load(path, this.catalog_db, this.workload_filter);
-            this.workload_path = new File(path).getAbsolutePath();
+            this.workload_path = path;
             if (this.workload_filter != null)
                 this.workload_filter.reset();
         }
@@ -681,9 +682,9 @@ public class ArgumentsParser {
                 String path = this.params.get(PARAM_STATS);
                 if (debug)
                     LOG.debug("Loading in workload statistics from '" + path + "'");
-                this.stats_path = new File(path).getAbsolutePath();
+                this.stats_path = new File(path);
                 try {
-                    this.stats.load(path, this.catalog_db);
+                    this.stats.load(this.stats_path, this.catalog_db);
                 } catch (Throwable ex) {
                     throw new RuntimeException("Failed to load stats file '" + this.stats_path + "'", ex);
                 }
@@ -812,6 +813,19 @@ public class ArgumentsParser {
                     }
                 }
             }
+            
+            // HACK: Get ParameterMappings embedded in jar...
+            // This is terrible, confusing, and a total mess...
+            // I have no one to blame but myself...
+//            JarReader reader = new JarReader(jar_file.getAbsolutePath());
+//            for (String file : reader.getContentsFromJarfile()) {
+//                if (file.endsWith(".mappings")) {
+//                    
+//                }
+//                bytes.add(JarReader.readFileFromJarAtURL(jarFileName, file));
+//            }
+//            
+            
         }
         // Schema File
         else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
@@ -856,7 +870,7 @@ public class ArgumentsParser {
                 if (debug)
                     LOG.debug("Loading in partition plan from '" + path + "'");
                 this.pplan = new PartitionPlan();
-                this.pplan.load(path.getAbsolutePath(), this.catalog_db);
+                this.pplan.load(path, this.catalog_db);
 
                 // Apply!
                 if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
@@ -878,7 +892,7 @@ public class ArgumentsParser {
             this.num_intervals = Integer.valueOf(this.params.get(PARAM_DESIGNER_INTERVALS));
         }
         if (this.params.containsKey(PARAM_DESIGNER_HINTS)) {
-            String path = this.params.get(PARAM_DESIGNER_HINTS);
+            File path = this.getFileParam(PARAM_DESIGNER_HINTS);
             if (debug)
                 LOG.debug("Loading in designer hints from '" + path + "'.\nForced Values:\n" + StringUtil.formatMaps(this.hints_params));
             this.designer_hints.load(path, catalog_db, this.hints_params);
@@ -925,7 +939,7 @@ public class ArgumentsParser {
             assert (this.catalog_db != null);
             File path = new File(this.params.get(PARAM_MAPPINGS));
             if (path.exists()) {
-                this.param_mappings.load(path.getAbsolutePath(), this.catalog_db);
+                this.param_mappings.load(path, this.catalog_db);
             } else {
                 LOG.warn("The ParameterMappings file '" + path + "' does not exist");
             }
@@ -942,7 +956,7 @@ public class ArgumentsParser {
             this.thresholds = new EstimationThresholds();
             File path = new File(this.params.get(PARAM_MARKOV_THRESHOLDS));
             if (path.exists()) {
-                this.thresholds.load(path.getAbsolutePath(), this.catalog_db);
+                this.thresholds.load(path, this.catalog_db);
             } else {
                 LOG.warn("The estimation thresholds file '" + path + "' does not exist");
             }
@@ -964,7 +978,7 @@ public class ArgumentsParser {
                 LOG.debug("Loaded hasher " + this.hasher.getClass());
 
             if (this.params.containsKey(PARAM_HASHER_PROFILE)) {
-                this.hasher.load(this.params.get(PARAM_HASHER_PROFILE), null);
+                this.hasher.load(this.getFileParam(PARAM_HASHER_PROFILE), null);
             }
         }
 

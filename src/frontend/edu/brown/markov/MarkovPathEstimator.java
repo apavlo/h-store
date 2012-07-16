@@ -76,7 +76,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final int num_partitions;
     private TransactionEstimator t_estimator;
-    private ParameterMappingsSet correlations;
+    private ParameterMappingsSet mappings;
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
@@ -183,7 +183,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.correlations = this.t_estimator.getCorrelations();
+        this.mappings = this.t_estimator.getCorrelations();
         this.base_partition = base_partition;
         this.args = args;
         
@@ -214,7 +214,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         this.t_estimator = null;
         this.p_estimator = null;
-        this.correlations = null;
+        this.mappings = null;
         
         this.estimate.finish();
         this.touched_partitions.clear();
@@ -366,11 +366,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             
             // Get the correlation objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
+            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.mappings.get(catalog_stmt, catalog_stmt_index);
             if (param_correlations == null) {
-                if (t) {
+                if (d) {
                     LOG.warn("No parameter correlations for " + pair);
-                    LOG.trace(this.correlations.debug(catalog_stmt));
+                    LOG.trace(this.mappings.debug(catalog_stmt));
                 }
                 continue;
             }

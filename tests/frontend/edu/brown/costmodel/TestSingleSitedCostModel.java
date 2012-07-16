@@ -78,7 +78,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
                 filter.include(proc_name, PROC_COUNT);
                 total += PROC_COUNT;
             }
-            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file, catalog_db, filter);
             assertEquals(total, workload.getTransactionCount());
             assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
             // System.err.println(workload.getProcedureHistogram());

@@ -62,7 +62,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
@@ -80,7 +80,7 @@ public class TestFeatureClusterer extends BaseTestCase {
 //                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
 //                    .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Now extract the FeatureSet that we will use in our tests

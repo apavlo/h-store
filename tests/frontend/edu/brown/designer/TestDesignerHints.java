@@ -20,7 +20,7 @@ public class TestDesignerHints extends BaseTestCase {
         hints.save(temp.getAbsolutePath());
 
         DesignerHints clone = new DesignerHints();
-        clone.load(temp.getAbsolutePath(), null);
+        clone.load(temp, null);
         
         for (Field f : hints.getClass().getFields()) {
             Object expected = f.get(hints);

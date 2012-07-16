@@ -69,7 +69,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * The location of the file that we loaded for this DesignerHints
      */
-    private transient String source_file;
+    private transient File source_file;
 
     /**
      * When we started keeping track of time
@@ -227,7 +227,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * new solution equals this plan. If it does, then we will halt. This is
      * used to measure how long it takes us to find the optimal solution.
      */
-    public String target_plan_path = "";
+    public File target_plan_path = null;
     public transient PartitionPlan target_plan = null;
 
     // ----------------------------------------------------------------------------
@@ -291,7 +291,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         return (StringUtil.formatMaps(m));
     }
 
-    public String getSourceFile() {
+    public File getSourceFile() {
         return (this.source_file);
     }
 
@@ -509,7 +509,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * Load with the ability to override values
      */
-    public void load(String input_path, Database catalog_db, Map<String, String> override) throws IOException {
+    public void load(File input_path, Database catalog_db, Map<String, String> override) throws IOException {
         // First call the regular load() method to bring all of our options
         this.load(input_path, catalog_db);
 
@@ -530,7 +530,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     }
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
         this.source_file = input_path;
     }
@@ -582,7 +582,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         }
 
         // Target PartitionPlan
-        if (this.target_plan_path != null && this.target_plan_path.isEmpty() == false) {
+        if (this.target_plan_path != null && this.target_plan_path != null) {
             if (debug.get())
                 LOG.debug("Loading in target PartitionPlan from '" + this.target_plan_path + "'");
             this.target_plan = new PartitionPlan();

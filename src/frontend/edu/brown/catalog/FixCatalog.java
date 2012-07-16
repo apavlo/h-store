@@ -190,10 +190,10 @@ public abstract class FixCatalog {
 
         // Populate Parameter Mappings
         if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
-            File input_path = new File(args.getParam(ArgumentsParser.PARAM_MAPPINGS));
+            File input_path = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS);
             if (input_path.exists()) {
                 ParameterMappingsSet mappings = new ParameterMappingsSet();
-                mappings.load(input_path.getAbsolutePath(), args.catalog_db);
+                mappings.load(input_path, args.catalog_db);
                 ParametersUtil.applyParameterMappings(args.catalog_db, mappings);
                 LOG.debug("Applied ParameterMappings file to '" + input_path + "' catalog parameter mappings...");
             } else {

@@ -390,14 +390,12 @@ public class TransactionInitializer {
                         predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_touchedPartitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                     }
                 }
             } catch (Throwable ex) {
                 if (t_state != null) {
-                    MarkovGraph markov = t_state.getMarkovGraph();
-                    GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
-                    gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
-                    LOG.warn("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
+                    LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
                 predict_touchedPartitions = this.all_partitions;

@@ -66,7 +66,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         if (markovs == null) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
             
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
@@ -78,7 +78,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs

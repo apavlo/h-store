@@ -272,7 +272,7 @@ public class StatsViewer extends AbstractViewer {
                 // OPEN WORKLOAD STATS
                 // --------------------------------------------------------
                 case WORKLOAD_STATS_OPEN: {
-                    Pair<WorkloadStatistics, String> result = openWorkloadStats();
+                    Pair<WorkloadStatistics, File> result = openWorkloadStats();
                     if (result != null) {
                         args.stats = result.getFirst();
                         args.stats_path = result.getSecond();
@@ -293,7 +293,7 @@ public class StatsViewer extends AbstractViewer {
                     } // FOR
                     LOG.info("Saving workload stats...");
                     try {
-                        args.stats.save(args.stats_path);
+                        args.stats.save(args.stats_path.getAbsolutePath());
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         showErrorDialog("Failed to save workload stats file", ex.getMessage());

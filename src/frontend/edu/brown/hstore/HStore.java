@@ -153,7 +153,7 @@ public abstract class HStore {
             if (path.exists()) {
                 Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
-                    mappings.load(path.getAbsolutePath(), catalog_db);
+                    mappings.load(path, catalog_db);
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
