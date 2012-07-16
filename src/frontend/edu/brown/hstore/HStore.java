@@ -128,6 +128,7 @@ public abstract class HStore {
         if (hstore_conf.site.markov_path != null) {
             File path = new File(hstore_conf.site.markov_path);
             if (path.exists()) {
+                long start = System.currentTimeMillis();
                 Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
                     markovs = MarkovGraphContainersUtil.loadIds(catalog_db,
@@ -137,7 +138,9 @@ public abstract class HStore {
                     throw new RuntimeException(ex);
                 }
                 MarkovGraphContainersUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
-                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
+                long load_time = System.currentTimeMillis() - start;
+                LOG.info(String.format("Finished loading MarkovGraphsContainer '%s' in %.1f sec",
+                                       path, (load_time / 1000d)));
             } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
         }
         
