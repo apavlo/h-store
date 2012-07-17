@@ -270,10 +270,6 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.stop(getTime()));
     }
 
-    public boolean isStopped() {
-        return (this.think_marker == null);
-    }
-
     public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.stop_observable == null) {
             this.stop_observable = new EventObservable<ProfileMeasurement>();
@@ -359,7 +355,7 @@ public class ProfileMeasurement implements JSONSerializable {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_stop) {
             synchronized (pm) {
-                if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false))
+                if (ignore_stopped == false || (ignore_stopped && pm.isStarted()))
                     pm.stop(time);
             } // SYNCH
         } // FOR
