@@ -1,6 +1,6 @@
 package edu.brown.profilers;
 
-public class PartitionExecutorProfiler {
+public class PartitionExecutorProfiler extends AbstractProfiler {
 
     /**
      * How much time the PartitionExecutor was idle waiting for

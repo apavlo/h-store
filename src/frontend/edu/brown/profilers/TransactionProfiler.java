@@ -14,7 +14,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
 import edu.brown.utils.StringUtil;
 
-public class TransactionProfiler implements Poolable {
+public class TransactionProfiler extends AbstractProfiler implements Poolable {
     private static final Logger LOG = Logger.getLogger(TransactionProfiler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
