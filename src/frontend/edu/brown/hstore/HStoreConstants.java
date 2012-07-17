@@ -37,6 +37,7 @@ public abstract class HStoreConstants {
     // THREAD NAMES
     // ----------------------------------------------------------------------------
     
+    public static final String THREAD_NAME_PERIODIC = "periodic";
     public static final String THREAD_NAME_LISTEN = "listen";
     public static final String THREAD_NAME_COORDINATOR = "coord";
     public static final String THREAD_NAME_PREPROCESSOR = "pre";

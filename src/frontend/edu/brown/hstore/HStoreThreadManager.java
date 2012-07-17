@@ -8,6 +8,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Partition;
@@ -34,6 +37,7 @@ public class HStoreThreadManager {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     
+    private final ScheduledThreadPoolExecutor m_periodicWorkThread;
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean defaultAffinity[];
@@ -56,6 +60,14 @@ public class HStoreThreadManager {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
+        
+        // Periodic Work Thread
+        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(HStoreConstants.THREAD_NAME_PERIODIC,
+                                                                              hstore_site.getExceptionHandler(),
+                                                                              1,
+                                                                              1024 * 128);
+        
+        
         this.defaultAffinity = new boolean[this.num_cores];
         Arrays.fill(this.defaultAffinity, true);
         
@@ -99,6 +111,53 @@ public class HStoreThreadManager {
             }
         }
     }
+    
+    // ----------------------------------------------------------------------------
+    // PERIODIC WORK EXECUTOR
+    // ----------------------------------------------------------------------------
+    
+    public ScheduledThreadPoolExecutor getPeriodicWorkExecutor() {
+        return (this.m_periodicWorkThread);
+    }
+    
+    /**
+     * From VoltDB
+     * @param work
+     * @param initialDelay
+     * @param delay
+     * @param unit
+     * @return
+     */
+    public ScheduledFuture<?> schedulePeriodicWork(Runnable work, long initialDelay, long delay, TimeUnit unit) {
+        assert(delay > 0);
+        return this.m_periodicWorkThread.scheduleWithFixedDelay(work, initialDelay, delay, unit);
+    }
+
+    /**
+     * Schedule a Runnable to be run once and only once with no initial dealy
+     * @param work
+     * @return
+     */
+    public ScheduledFuture<?> scheduleWork(Runnable work) {
+        return this.m_periodicWorkThread.schedule(work, 0, TimeUnit.MILLISECONDS);
+    }
+    
+    /**
+     * Schedule a Runnable to be run once and only once. The initialDelay specifies
+     * how long the scheduler should wait before invoking the Runnable
+     * @param work
+     * @param initialDelay
+     * @param unit
+     * @return
+     */
+    public ScheduledFuture<?> scheduleWork(Runnable work, long initialDelay, TimeUnit unit) {
+        return this.m_periodicWorkThread.schedule(work, initialDelay, unit);
+    }
+    
+    
+    // ----------------------------------------------------------------------------
+    // THREAD-TO-CPU AFFINITY METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * Set the CPU affinity for the EE thread executing for the given partition

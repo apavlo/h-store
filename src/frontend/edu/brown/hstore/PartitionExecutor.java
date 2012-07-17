@@ -794,7 +794,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 }
             } // WHILE
         } catch (final Throwable ex) {
-            if (this.isShuttingDown() == false) {
+            if (d && this.isShuttingDown() == false) {
                 ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (this.currentTxn != null ? " - " + this.currentTxn : ""), ex), ex);
@@ -817,9 +817,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.shutdown_latch.release();
             
             // Stop HStoreMessenger (because we're nice)
-            if (this.isShuttingDown() == false) {
-                if (this.hstore_coordinator != null) this.hstore_coordinator.shutdown();
-            }
+//            if (this.isShuttingDown() == false) {
+//                if (this.hstore_coordinator != null) this.hstore_coordinator.shutdown();
+//            }
         }
     }
     

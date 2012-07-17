@@ -86,7 +86,6 @@ import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.protorpc.ProtoServer;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * 
@@ -1095,18 +1094,20 @@ public class HStoreCoordinator implements Shutdownable {
     public void shutdownCluster(final Throwable error) {
         if (debug.get())
             LOG.debug(String.format("Invoking shutdown protocol [non-blocking / error=%s]", error));
+        
         // Make this a thread so that we don't block and can continue cleaning up other things
-        Thread shutdownThread = new Thread() {
+        Runnable shutdownRunnable = new Runnable() {
             @Override
             public void run() {
-                LOG.info("HACK: Sleeping for 5 seconds...");
-                ThreadUtil.sleep(5000);
-                HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
+                LOG.debug("Shutting down cluster " + (error != null ? " - " + error : ""));
+                try {
+                    HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
             }
         };
-        shutdownThread.setName(HStoreThreadManager.getThreadName(this.hstore_site, "shutdown"));
-        shutdownThread.setDaemon(true);
-        shutdownThread.start();
+        hstore_site.getThreadManager().scheduleWork(shutdownRunnable, 2500, TimeUnit.MILLISECONDS);
         return;
     }
     
@@ -1133,7 +1134,7 @@ public class HStoreCoordinator implements Shutdownable {
         final CountDownLatch latch = new CountDownLatch(this.num_sites);
         
         try {
-            if (this.num_sites > 0) {
+            if (this.num_sites > 1) {
                 RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                     private final Set<Integer> siteids = new HashSet<Integer>(); 
                     
@@ -1176,19 +1177,21 @@ public class HStoreCoordinator implements Shutdownable {
             this.hstore_site.shutdown();
             
             // Block until the latch releases us
-            if (this.num_sites > 0) {
+            if (this.num_sites > 1) {
                 LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
                 latch.await(5, TimeUnit.SECONDS);
             }
-        } catch (Throwable ex2) {
+        } catch (Throwable ex) {
             // IGNORE
         } finally {
             LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }
+            
+            // XXX: I forget why I had commented these two guys out...
 //            LogManager.shutdown();
-//            System.exit(exit_status);
+            System.exit(exit_status);
         }
     }
 
