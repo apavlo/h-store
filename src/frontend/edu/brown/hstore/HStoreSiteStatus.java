@@ -36,6 +36,7 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.statistics.Histogram;
@@ -526,8 +527,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 txn_id = es.getLastCommittedTxnId();
                 m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
                 
+                PartitionExecutorProfiler profiler = es.getProfiler();
+                
                 // Execution Time
-                pm = es.getWorkExecTime();
+                pm = profiler.work_exec_time;
                 last = lastExecTxnTimes.get(es);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
                 this.lastExecTxnTimes.put(es, new ProfileMeasurement(pm));
@@ -536,24 +539,23 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 
                 // Idle Time
                 last = lastExecIdleTimes.get(es);
-                pm = es.getWorkIdleTime();
+                pm = profiler.work_idle_time;
                 m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
                 this.lastExecIdleTimes.put(es, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
                 // Network Time
                 last = lastExecNetworkTimes.get(es);
-                pm = es.getWorkNetworkTime();
+                pm = profiler.work_network_time;
                 m.put("Network Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecNetworkTimes.put(es, new ProfileMeasurement(pm));
                 totalExecNetworkTime.appendTime(pm);
                 
                 // Utility Time
                 last = lastExecUtilityTimes.get(es);
-                pm = es.getWorkUtilityTime();
+                pm = profiler.work_utility_time;
                 m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecUtilityTimes.put(es, new ProfileMeasurement(pm));
-                                                
             }
             
             String label = "    Partition[" + partitionLabel + "]";

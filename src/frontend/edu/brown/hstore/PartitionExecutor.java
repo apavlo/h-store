@@ -147,6 +147,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.profilers.AbstractProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.CollectionUtil;
@@ -1270,17 +1271,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public int getWorkQueueSize() {
         return (this.work_queue.size());
     }
-    public ProfileMeasurement getWorkIdleTime() {
-        return (this.profiler.work_idle_time);
-    }
-    public ProfileMeasurement getWorkNetworkTime() {
-        return (this.profiler.work_network_time);
-    }
-    public ProfileMeasurement getWorkExecTime() {
-        return (this.profiler.work_exec_time);
-    }
-    public ProfileMeasurement getWorkUtilityTime() {
-        return (this.profiler.work_utility_time);
+    public PartitionExecutorProfiler getProfiler() {
+        return (this.profiler);
     }
     /**
      * Returns the number of txns that have been invoked on this partition

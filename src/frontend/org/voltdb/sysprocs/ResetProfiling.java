@@ -63,10 +63,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                 
                 // EXECUTOR
                 if (hstore_conf.site.exec_profiling) {
-                    this.executor.getWorkExecTime().reset();
-                    this.executor.getWorkIdleTime().reset();
-                    this.executor.getWorkNetworkTime().reset();
-                    this.executor.getWorkUtilityTime().reset();
+                    this.executor.getProfiler().reset();
                 }
                 
                 // The first partition at this HStoreSite will have to reset
