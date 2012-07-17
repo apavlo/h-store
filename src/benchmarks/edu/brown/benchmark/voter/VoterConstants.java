@@ -42,4 +42,8 @@ public abstract class VoterConstants {
     public static final String CONTESTANT_NAMES_CSV = "Edwina Burnam,Tabatha Gehling,Kelly Clauss,Jessie Alloway," +
 											   "Alana Bregman,Jessie Eichman,Allie Rogalski,Nita Coster," +
 											   "Kurt Walser,Ericka Dieter,Loraine NygrenTania Mattioli";
+    // potential return codes
+    public static final long VOTE_SUCCESSFUL = 0;
+    public static final long ERR_INVALID_CONTESTANT = 1;
+    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
 }
