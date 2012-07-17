@@ -838,7 +838,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // There is no more deferred work, so we'll have to wait
         // until something shows up in our queue
         if (work == null) {
-            if (d) LOG.debug("Partition " + this.partitionId + " queue is empty. Waiting...");
+            if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
             if (hstore_conf.site.exec_profiling) this.profiler.work_idle_time.start();
             try {
                 work = this.work_queue.poll(100, TimeUnit.MILLISECONDS);
@@ -1050,7 +1050,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     protected boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.work_utility_time.start();
-        if (d) LOG.debug("Entering utilityWork");
+        if (t) LOG.trace("Entering utilityWork");
         
         // Always invoke tick()
         this.tick();
@@ -2390,6 +2390,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             MispredictionException ex = plan.getMisprediction(); 
             ts.setPendingError(ex, false);
 
+            if (t_state != null) {
+                LOG.warn("GRAPH DUMP: " + t_state.dumpMarkovGraph());
+            }
+            
             MarkovGraph markov = (t_state != null ? t_state.getMarkovGraph() : null); 
             if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
                 if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + ts + " mispredicted");
