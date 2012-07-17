@@ -183,11 +183,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.allMappings = this.t_estimator.getCorrelations();
+        this.allMappings = this.t_estimator.getParameterMappings();
         this.base_partition = base_partition;
         this.args = args;
         
-        assert(this.t_estimator.getCorrelations() != null);
+        assert(this.t_estimator.getParameterMappings() != null);
         assert(this.base_partition >= 0);
 
         if (LOG.isTraceEnabled()) {
@@ -364,7 +364,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             Integer catalog_stmt_index = pair.getSecond();
             if (t) LOG.trace("Examining " + pair);
             
-            // Get the correlation objects (if any) for next
+            // Get the mapping objects (if any) for next
             // This is the only way we can predict what partitions we will touch
             SortedMap<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
             if (stmtMappings == null) {
@@ -389,22 +389,22 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                     if (t) LOG.trace("No parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
                 }
-                if (t) LOG.trace("Found " + mappings.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (t) LOG.trace("Found " + mappings.size() + " mapping(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
         
                 // Special Case:
                 // If the number of possible Statements we could execute next is greater than one,
                 // then we need to prune our list by removing those Statements who have a StmtParameter
                 // that are correlated to a ProcParameter that doesn't exist (such as referencing an
                 // array element that is greater than the size of that current array)
-                // TODO: For now we are just going always pick the first Correlation 
+                // TODO: For now we are just going always pick the first mapping 
                 // that comes back. Is there any choice that we would need to make in order
                 // to have a better prediction about what the transaction might do?
                 if (mappings.size() > 1) {
                     if (d) LOG.warn("Multiple parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                     if (t) {
                         int ctr = 0;
-                        for (ParameterMapping c : mappings) {
-                            LOG.trace("[" + (ctr++) + "] Correlation: " + c);
+                        for (ParameterMapping m : mappings) {
+                            LOG.trace("[" + (ctr++) + "] Mapping: " + m);
                         } // FOR
                     }
                 }
@@ -415,8 +415,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         Object proc_inner_args[] = (Object[])args[m.getProcParameter().getIndex()];
                         if (t) LOG.trace(CatalogUtil.getDisplayName(m.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
                         
-                        // TODO: If this Correlation references an array element that is not available for this
-                        // current transaction, should we just skip this correlation or skip the entire query?
+                        // TODO: If this Mapping references an array element that is not available for this
+                        // current transaction, should we just skip this mapping or skip the entire query?
                         if (proc_inner_args.length <= m.getProcParameterIndex()) {
                             if (t) LOG.trace("Unable to map parameters: " +
                                                  "proc_inner_args.length[" + proc_inner_args.length + "] <= " +
@@ -434,7 +434,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                                              CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]"); 
                     }
                     break;
-                } // FOR (Correlation)
+                } // FOR (Mapping)
             } // FOR (StmtParameter)
                 
             // If we set any of the stmt_args in the previous step, then we can throw it
