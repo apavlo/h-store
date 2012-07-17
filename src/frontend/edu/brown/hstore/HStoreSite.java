@@ -1140,7 +1140,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             public void run() {
                 HStoreSite.this.processPeriodicWork();
             }
-        }, 0, 5, TimeUnit.MILLISECONDS);
+        }, 0, 50, TimeUnit.MILLISECONDS);
         
         // HStoreStatus
         if (this.status_monitor != null) {
@@ -2683,7 +2683,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void checkForFinishedCompilerWork() {
-		if (d) LOG.debug("HStoreSite - Checking for finished compiled work.");
+		if (t) LOG.trace("HStoreSite - Checking for finished compiled work.");
         AsyncCompilerResult result = null;
  
         while ((result = asyncCompilerWork_thread.getPlannedStmt()) != null) {

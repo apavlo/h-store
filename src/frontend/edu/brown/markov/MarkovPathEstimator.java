@@ -408,29 +408,29 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         } // FOR
                     }
                 }
-                for (ParameterMapping c : mappings) {
-                    if (t) LOG.trace("Correlation: " + c);
-                    ProcParameter catalog_proc_param = c.getProcParameter();
+                for (ParameterMapping m : mappings) {
+                    if (t) LOG.trace("Mapping: " + m);
+                    ProcParameter catalog_proc_param = m.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
-                        Object proc_inner_args[] = (Object[])args[c.getProcParameter().getIndex()];
-                        if (t) LOG.trace(CatalogUtil.getDisplayName(c.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
+                        Object proc_inner_args[] = (Object[])args[m.getProcParameter().getIndex()];
+                        if (t) LOG.trace(CatalogUtil.getDisplayName(m.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
                         
                         // TODO: If this Correlation references an array element that is not available for this
                         // current transaction, should we just skip this correlation or skip the entire query?
-                        if (proc_inner_args.length <= c.getProcParameterIndex()) {
+                        if (proc_inner_args.length <= m.getProcParameterIndex()) {
                             if (t) LOG.trace("Unable to map parameters: " +
                                                  "proc_inner_args.length[" + proc_inner_args.length + "] <= " +
-                                                 "c.getProcParameterIndex[" + c.getProcParameterIndex() + "]"); 
+                                                 "c.getProcParameterIndex[" + m.getProcParameterIndex() + "]"); 
                             continue;
                         }
-                        stmt_args[i] = proc_inner_args[c.getProcParameterIndex()];
+                        stmt_args[i] = proc_inner_args[m.getProcParameterIndex()];
                         stmt_args_set = true;
-                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + "[" + c.getProcParameterIndex() + "] to " +
-                                             CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + "[" + m.getProcParameterIndex() + "] to " +
+                                         CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
                     } else {
-                        stmt_args[i] = args[c.getProcParameter().getIndex()];
+                        stmt_args[i] = args[m.getProcParameter().getIndex()];
                         stmt_args_set = true;
-                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + " to " +
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + " to " +
                                              CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]"); 
                     }
                     break;
@@ -455,7 +455,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 
                 // Now for this given list of partitions, find a Vertex in our next set
                 // that has the same partitions
-                if (this.stmt_partitions != null && !this.stmt_partitions.isEmpty()) {
+                if (this.stmt_partitions.isEmpty() == false) {
                     this.candidate_edge = null;
                     for (MarkovVertex next : next_vertices) {
                         if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
