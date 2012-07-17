@@ -40,8 +40,6 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
@@ -112,7 +110,6 @@ import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * 
@@ -201,11 +198,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         new ConcurrentHashMap<Long, AbstractTransaction>();
     
     /**
-     * This manager is used to pin threads to specific CPU cores
-     */
-    private final HStoreThreadManager threadManager;
-    
-    /**
      * Reusable Object Pools
      */
     private final HStoreObjectPools objectPools;
@@ -227,7 +219,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // TRANSACTION COORDINATOR/PROCESSING THREADS
     // ----------------------------------------------------------------------------
-
+    
+    /**
+     * This manager is used to pin threads to specific CPU cores
+     */
+    private final HStoreThreadManager threadManager;
+    
     /**
      * PartitionExecutors
      * These are the single-threaded execution engines that have exclusive
@@ -282,7 +279,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private boolean adhoc_helper_started = false;
     private final AsyncCompilerWorkThread asyncCompilerWork_thread;
-    private ScheduledThreadPoolExecutor m_periodicWorkThread;
     
     /**
      * Anti-Cache Abstraction Layer
@@ -506,7 +502,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         };
         this.exceptionHandler.addObserver(observer);
-        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor("Periodic Work", this.exceptionHandler, 1, 1024 * 128);
         
         // HStoreSite Thread Manager (this always get invoked first)
         this.threadManager = new HStoreThreadManager(this);
@@ -809,6 +804,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // THREAD UTILITY METHODS
     // ----------------------------------------------------------------------------
+    
+    protected final Thread.UncaughtExceptionHandler getExceptionHandler() {
+        return (this.exceptionHandler);
+    }
     
     /**
      * Start the MapReduceHelper Thread
@@ -1135,7 +1134,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void schedulePeriodicWorks() {
         // Internal Updates
-        this.scheduleWork(new Runnable() {
+        this.threadManager.schedulePeriodicWork(new Runnable() {
             @Override
             public void run() {
                 HStoreSite.this.processPeriodicWork();
@@ -1144,16 +1143,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // HStoreStatus
         if (this.status_monitor != null) {
-            this.scheduleWork(this.status_monitor,
-                              hstore_conf.site.status_interval,
-                              hstore_conf.site.status_interval,
-                              TimeUnit.MILLISECONDS);
+            this.threadManager.schedulePeriodicWork(
+                this.status_monitor,
+                hstore_conf.site.status_interval,
+                hstore_conf.site.status_interval,
+                TimeUnit.MILLISECONDS);
         }
         
         // AntiCache Monitor
         if (this.anticacheManager != null) {
-            this.scheduleWork(this.anticacheManager.getStatsSamplingThread(),
-                              0, 30, TimeUnit.SECONDS);
+            this.threadManager.schedulePeriodicWork(
+                this.anticacheManager.getStatsSamplingThread(),
+                0, 30, TimeUnit.SECONDS);
         }
     }
     
@@ -1299,7 +1300,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.anticacheManager.shutdown();
         }
       
-        m_periodicWorkThread.shutdown();
+        // this.threadManager.getPeriodicWorkExecutor().shutdown();
         
         // Stop AdHoc threads
         if (this.adhoc_helper_started) {
@@ -1361,23 +1362,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
     }
     
-    /**
-     * From VoltDB
-     * @param work
-     * @param initialDelay
-     * @param delay
-     * @param unit
-     * @return
-     */
-    public ScheduledFuture<?> scheduleWork(Runnable work, long initialDelay, long delay, TimeUnit unit) {
-        if (delay > 0) {
-            return m_periodicWorkThread.scheduleWithFixedDelay(work,
-                    initialDelay, delay,
-                    unit);
-        } else {
-            return m_periodicWorkThread.schedule(work, initialDelay, unit);
-        }
-    }
     
     // ----------------------------------------------------------------------------
     // INCOMING INVOCATION HANDLER METHODS
@@ -1783,9 +1767,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(ts + " - Dispatching new transaction invocation");
         
         // -------------------------------
-        // SINGLE-PARTITION TRANSACTION
+        // SINGLE-PARTITION or NON-BLOCKING MAPREDUCE TRANSACTION
         // -------------------------------
-        if (ts.isPredictSinglePartition()) {
+        if (ts.isPredictSinglePartition() || (ts.isMapReduce() && hstore_conf.site.mr_map_blocking == false)) {
             if (d) LOG.debug(String.format("%s - Fast path single-partition execution on partition %d [handle=%d]",
                              ts, base_partition, ts.getClientHandle()));
             this.transactionStart(ts, base_partition);
@@ -1794,59 +1778,33 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (ts.isMapReduce() && !hstore_conf.site.mr_map_blocking) {
-                if (d) LOG.debug(String.format("%s - Doing MapReduce Transaction asynchronously, start on partition %d [handle=%d]",
-                                               ts, base_partition, ts.getClientHandle()));
-                this.transactionStart(ts, base_partition);
-            }
-            else {
-                if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
-                        ts, base_partition, ts.getClientHandle()));
-                // Partitions
-                // Figure out what partitions we plan on touching for this transaction
-                Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
-                
-                if (ts.isMapReduce() == false) {
-                    // TransactionEstimator
-                    // If we know we're single-partitioned, then we *don't* want to tell the Dtxn.Coordinator
-                    // that we're done at any partitions because it will throw an error
-                    // Instead, if we're not single-partitioned then that's that only time that 
-                    // we Tell the Dtxn.Coordinator that we are finished with partitions if we have an estimate
-                    TransactionEstimator.State s = ts.getEstimatorState(); 
-                    if (s != null && s.getInitialEstimate() != null) {
-                        MarkovEstimate est = s.getInitialEstimate();
-                        assert(est != null);
-                        predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
+            if (d) LOG.debug(String.format("%s - Queuing distributed transaction to execute at partition %d [handle=%d]",
+                                           ts, base_partition, ts.getClientHandle()));
+            
+            // Check whether our transaction can't run right now because its id is less than
+            // the last seen txnid from the remote partitions that it wants to touch
+            for (Integer partition : ts.getPredictTouchedPartitions()) {
+                Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition.intValue()); 
+                if (txn_id.compareTo(last_txn_id) < 0) {
+                    // If we catch it here, then we can just block ourselves until
+                    // we generate a txn_id with a greater value and then re-add ourselves
+                    if (d) {
+                        LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
+                                       ts, partition, last_txn_id));
+                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
+                                           TransactionIdManager.toString(last_txn_id),
+                                           TransactionIdManager.toString(txn_id)));
                     }
-                    assert(predict_touchedPartitions.isEmpty() == false) : 
-                        "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
+                    if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
+                    this.txnQueueManager.blockTransaction(ts, partition.intValue(), last_txn_id);
+                    return;
                 }
-                
-                // Check whether our transaction can't run right now because its id is less than
-                // the last seen txnid from the remote partitions that it wants to touch
-                for (int partition : predict_touchedPartitions) {
-                    Long last_txn_id = this.txnQueueManager.getLastLockTransaction(partition); 
-                    if (txn_id.compareTo(last_txn_id) < 0) {
-                        // If we catch it here, then we can just block ourselves until
-                        // we generate a txn_id with a greater value and then re-add ourselves
-                        if (d) {
-                            LOG.warn(String.format("%s - Unable to queue transaction because the last txn id at partition %d is %d. Restarting...",
-                                           ts, partition, last_txn_id));
-                            LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
-                                               TransactionIdManager.toString(last_txn_id),
-                                               TransactionIdManager.toString(txn_id)));
-                        }
-                        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
-                        this.txnQueueManager.blockTransaction(ts, partition, last_txn_id);
-                        return;
-                    }
-                } // FOR
-                
-                // This callback prevents us from making additional requests to the Dtxn.Coordinator until
-                // we get hear back about our our initialization request
-                if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
-                this.txnQueueManager.initTransaction(ts);
-            }
+            } // FOR
+            
+            // This callback prevents us from making additional requests to the Dtxn.Coordinator until
+            // we get hear back about our our initialization request
+            if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
+            this.txnQueueManager.initTransaction(ts);
         }
     }
     
