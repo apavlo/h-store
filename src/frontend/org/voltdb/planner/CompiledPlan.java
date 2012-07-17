@@ -64,7 +64,7 @@ public class CompiledPlan {
 
     public String sql = null;
     
-    /** PAVLO: Full Plan JSON before Fragemtizer Gets to it! **/
+    /** PAVLO: Full Plan JSON before Fragmentizer Gets to it! **/
     public String fullplan_json = null;
 
     /** A list of parameter names, indexes and types */
