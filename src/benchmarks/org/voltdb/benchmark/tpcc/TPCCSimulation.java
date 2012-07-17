@@ -327,6 +327,7 @@ public class TPCCSimulation {
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
         boolean allow_rollback = config.neworder_abort;
+        boolean allow_remote = (parameters.warehouses > 1 && config.neworder_multip != false);
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
@@ -349,7 +350,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = (config.neworder_multip != false) && (generator.number(1, 100) == 1);
+            boolean remote = allow_remote && (generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
@@ -362,7 +363,7 @@ public class TPCCSimulation {
             quantity[i] = generator.number(1, TPCCConstants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
-        if (remote_warehouses == 0 && config.neworder_multip) {
+        if (allow_remote && remote_warehouses == 0) {
             if (config.neworder_multip_mix > 0 && (generator.number(1, 100) <= config.neworder_multip_mix)) {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
