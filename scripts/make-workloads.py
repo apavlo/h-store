@@ -59,11 +59,12 @@ HSTORE_OPTS = {
     "client.duration":              360000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.processesperclient":    200,
+    "client.threads_per_host":      200,
     "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
     "client.scalefactor":           1,
+    "killonzero":                   True,
 }
 
 ## ==============================================
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     aparser.add_argument('--config', type=file,
                          help='Path to H-Store configuration file to use')
     aparser.add_argument('--txn-count', type=int, default=100000,
-                         help='The number of transaction records needed')
+                         help='The minimum number of transaction records needed')
     aparser.add_argument('--output-path', type=str, default="traces",
                          help='The output directory to store the traces')
     aparser.add_argument('--overwrite', action='store_true',
@@ -161,7 +162,7 @@ if __name__ == '__main__':
     
     HSTORE_OPTS = {
         "project":              args['benchmark'],
-        "volt.server.memory":   4096,
+        "volt.server.memory":   6144, # 6GB
         "output":               output,
         "workload":             trace_base + "*",
     }
