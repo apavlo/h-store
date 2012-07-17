@@ -84,7 +84,7 @@ import edu.brown.workload.Workload;
  * @author pavlo
  */
 public class PartitionEstimator {
-    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class.getName());
+    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {

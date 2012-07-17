@@ -2672,7 +2672,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    
 	    // poll planner queue
 	    if (asyncCompilerWork_thread != null) {
-	        checkForFinishedCompilerWork();
+	        try {
+	            checkForFinishedCompilerWork();
+	        } catch (Throwable ex) {
+	            ex.printStackTrace();
+	            throw new RuntimeException(ex);
+	        }
 	    }
 
         return;
@@ -2706,6 +2711,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.sendClientResponse(result.ts, errorResponse);
                 
                 // We can just delete the LocalTransaction handle directly
+                result.ts.markAsDeletable();
                 this.deleteTransaction(result.ts, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------

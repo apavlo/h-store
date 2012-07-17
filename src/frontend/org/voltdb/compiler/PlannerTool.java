@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.hsqldb.HSQLInterface.HSQLParseException;
 import org.voltdb.catalog.Catalog;
@@ -49,6 +50,7 @@ import edu.brown.utils.StringUtil;
  * interactively accept SQL and outputs plans on standard out.
  */
 public class PlannerTool {
+    private static final Logger LOG = Logger.getLogger(PlannerTool.class);
 
     Process m_process;
     OutputStreamWriter m_in;
@@ -210,7 +212,9 @@ public class PlannerTool {
         
         // Log Output File
         HStoreConf hstore_conf = HStoreConf.singleton(true);
-        cmd.add(hstore_conf.global.log_dir + File.separatorChar + "plannerlog.txt");
+        String logOutput = hstore_conf.global.log_dir + File.separatorChar + "plannerlog.txt";
+        cmd.add(logOutput);
+        LOG.debug("Planner Log Output: " + logOutput);
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
@@ -361,7 +365,7 @@ public class PlannerTool {
             try {
                 plan = planner.compilePlan(
                         costModel, inputLine, "PlannerTool", "PlannerToolProc", false, null);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log("Error creating planner: " + e.getMessage());
                 String plannerMsg = e.getMessage();
                 if (plannerMsg != null) {

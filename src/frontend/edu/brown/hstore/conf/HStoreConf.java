@@ -48,7 +48,7 @@ public final class HStoreConf {
             defaultString="obj",
             experimental=false
         )
-        public String temp_dir = "obj";
+        public String temp_dir;
         
         @ConfigProperty(
             description="Default log directory for H-Store.",
