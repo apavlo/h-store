@@ -42,6 +42,7 @@ import org.voltdb.utils.Encoder;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Planner tool accepts an already compiled VoltDB catalog and then
@@ -236,12 +237,13 @@ public class PlannerTool {
         return new PlannerTool(process, in);
     }
 
-    static void log(String str) {
+    static synchronized void log(String str) {
         try {
-            FileWriter log = new FileWriter(m_logfile, true);
-            log.write(str + "\n");
-            log.flush();
-            log.close();
+            if (m_logWriter == null) {
+                m_logWriter = new FileWriter(m_logfile, true);
+            }
+            m_logWriter.write(str + "\n");
+            m_logWriter.flush();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -249,6 +251,7 @@ public class PlannerTool {
     }
 
     static File m_logfile;
+    static FileWriter m_logWriter;
 
     /**
      * @param args
@@ -379,7 +382,7 @@ public class PlannerTool {
                 }
                 continue;
             }
-
+            
             log("finished planning stmt");
 
             assert(plan.fragments.size() <= 2);
@@ -407,8 +410,15 @@ public class PlannerTool {
             if (plan.replicatedTableDML) {
                 System.out.println("REPLICATED-DML: true");
             }
+            
+//            AbstractPlanNode root = plan.fullWinnerPlan;
+//            if (plan.fragments.size() == 2) {
+//                CollectionUtil.first(PlanNodeUtil.getLeafPlanNodes(root)).addAndLinkChild(plan.fragments.get(1).planGraph);
+//            }
+//            log("PLAN NODE DUMP:\n" + PlanNodeUtil.debug(root) + "\n");
 
             log("finished loop");
+            log(StringUtil.repeat("-", 150));
 
             // print a newline to delimit
             System.out.println();
