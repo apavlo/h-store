@@ -40,7 +40,7 @@ class EvictedTable : public PersistentTable {
         
         EvictedTable(); 
                         
-        bool insertTuple(TableTuple &source);
+        const void* insertEvictedTuple(TableTuple &source);
         
     protected:
         

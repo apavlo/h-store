@@ -66,6 +66,13 @@
 #include "storage/temptable.h"
 #include "storage/persistenttable.h"
 
+#ifndef ANTICACHE
+#include "anticache/EvictedTupleAccessException.h"
+#include "common/NValue.hpp"
+#include "common/ValuePeeker.hpp"
+#include <set>
+#endif
+
 using namespace voltdb;
 
 bool IndexScanExecutor::p_init(AbstractPlanNode *abstractNode,
@@ -495,6 +502,18 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         VOLT_ERROR("Unexpected SortDirectionType: %s", sortDirectionToString(m_sortDirection).c_str());
         return false;
     }
+    
+#ifndef ANTICACHE
+    // anti-cache variables
+    EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
+	std::Set<int> evicted_block_ids(); 
+	
+	TableTuple m_evicted_tuple(m_targetTable->getEvictedTable()->schema()); 
+	
+	int block_id_index
+	uint16_t block_id; 
+#endif        
+
 
     //
     // We have to different nextValue() methods for different lookup types
@@ -504,6 +523,23 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
+        
+#ifndef ANTICACHE
+        // We are pointing to an entry for an evicted tuple
+		if(m_tuple.isEvicted())
+        {
+			// create an evicted tuple from the current tuple address
+			// NOTE: This is necessary because the original table tuple and the evicted tuple do not have the same schema
+			m_evicted_tuple.move(m_tuple.address()); 
+			
+			// determine the block id using the evicted tuple
+			block_id_index = m_evicted_tuple.getSchema()->columnCount() - 1; 
+			block_id = ValuePeeker.peekSmallInt(m_evicted_tuple.getNValue(block_id_index)); 
+
+			evicted_block_ids.insert(block_id); 
+		}
+#endif        
+        
         //
         // First check whether the end_expression is now false
         //
