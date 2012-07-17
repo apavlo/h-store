@@ -111,7 +111,7 @@ public abstract class RandomGenerator {
 
     /** @returns an int in the range [minimum, maximum], excluding excluding. */
     public int numberExcluding(int minimum, int maximum, int excluding) {
-        assert minimum < maximum;
+        assert minimum < maximum : String.format("%d < %d", minimum, maximum);
         assert minimum <= excluding && excluding <= maximum;
 
         // Generate 1 less number than the range
