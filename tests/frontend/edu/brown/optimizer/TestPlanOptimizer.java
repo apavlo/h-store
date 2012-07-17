@@ -36,9 +36,11 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 
     final Set<String> DEBUG = new HashSet<String>();
     {
-        DEBUG.add("DistinctAggregate");
-        DEBUG.add("MultipleAggregates");
-        DEBUG.add("JoinProjection");
+        // DEBUG.add("DistinctAggregate");
+        // DEBUG.add("MultipleAggregates");
+        // DEBUG.add("JoinProjection");
+        DEBUG.add("LimitNoWhere");
+//        DEBUG.add("LimitOrderBy");
     }
     
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt") {
@@ -70,6 +72,9 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             
             this.addStmtProcedure("AggregateCount",
                                   "SELECT COUNT(TABLEB.B_A_ID) AS cnt, B_VALUE0 FROM TABLEB GROUP BY B_VALUE0");
+            
+            this.addStmtProcedure("LimitNoWhere",
+                                  "SELECT * FROM TABLEA LIMIT 1");
             
             this.addStmtProcedure("Limit",
                                   "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
@@ -133,8 +138,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testMultipleAggregates
-*/
+     * testMultipleAggregates
+     */
     @Test
     public void testMultipleAggregates() throws Exception {
         Procedure catalog_proc = this.getProcedure("MultipleAggregates");
@@ -143,8 +148,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testExtractReferencedColumns
-*/
+     * testExtractReferencedColumns
+     */
     @Test
     public void testExtractReferencedColumns() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctCount");
@@ -176,8 +181,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testDistinctAggregate
-*/
+     * testDistinctAggregate
+     */
     @Test
     public void testDistinctAggregate() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctAggregate");
@@ -186,8 +191,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testDistinctCount
-*/
+     * testDistinctCount
+     */
     @Test
     public void testDistinctCount() throws Exception {
         Procedure catalog_proc = this.getProcedure("DistinctCount");
@@ -196,8 +201,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testMaxGroupPassThrough
-*/
+     * testMaxGroupPassThrough
+     */
     @Test
     public void testMaxGroupPassThrough() throws Exception {
         Procedure catalog_proc = this.getProcedure("MaxGroupPassThrough");
@@ -206,8 +211,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testMaxMultiGroupBy
-*/
+     * testMaxMultiGroupBy
+     */
     @Test
     public void testMaxMultiGroupBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("MaxMultiGroupBy");
@@ -216,8 +221,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testMax
-*/
+     * testMax
+    */
     @Test
     public void testMax() throws Exception {
         Procedure catalog_proc = this.getProcedure("Max");
@@ -226,8 +231,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testMin
-*/
+     * testMin
+    */
     @Test
     public void testMin() throws Exception {
         Procedure catalog_proc = this.getProcedure("Min");
@@ -236,8 +241,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testAggregateCount
-*/
+     * testAggregateCount
+     */
     @Test
     public void testAggregateCount() throws Exception {
         Procedure catalog_proc = this.getProcedure("AggregateCount");
@@ -267,8 +272,48 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testLimit
-*/
+     * testLimitNoWhere
+     */
+    @Test
+    public void testLimitNoWhere() throws Exception {
+        Procedure catalog_proc = this.getProcedure("LimitNoWhere");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        this.check(catalog_stmt);
+
+        // Grab the root node of the multi-partition query plan tree for this Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+        //validateNodeColumnOffsets(root);
+        assertNotNull(root);
+
+        // We should have two LIMIT nodes:
+        // (1) One that is inline on the SeqScan that executes at each partition 
+        // (2) One that executes at the base partition
+        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+        assertEquals(1, limit_nodes.size());
+
+        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+        assertEquals(1, scan_nodes.size());
+        LimitPlanNode inline_node = CollectionUtil.first(scan_nodes).getInlinePlanNode(PlanNodeType.LIMIT);
+        assertNotNull(inline_node);
+        
+        // Get the Limit nodes output columns and make sure their valid
+        for (LimitPlanNode limit_node : limit_nodes) {
+            assertNotNull(limit_node);
+            for (int column_guid : limit_node.getOutputColumnGUIDs()) {
+                PlanColumn column = PlannerContext.singleton().get(column_guid);
+                // System.err.println(String.format("[%02d] %s", column_guid,
+                // column));
+                // System.err.println("==================");
+                // System.err.println(PlannerContext.singleton().debug());
+                assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
+                assertEquals(column_guid, column.guid());
+            } // FOR
+        } // FOR
+    }
+    
+    /**
+     * testLimit
+     */
     @Test
     public void testLimit() throws Exception {
         Procedure catalog_proc = this.getProcedure("Limit");
@@ -302,8 +347,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testLimitJoin
-*/
+     * testLimitJoin
+     */
     @Test
     public void testLimitJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("LimitJoin");
@@ -335,8 +380,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testThreeWayJoin
-*/
+     * testThreeWayJoin
+     */
     @Test
     public void testThreeWayJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("ThreeWayJoin");
@@ -345,8 +390,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testSingleProjection
-*/
+     * testSingleProjection
+     */
     @Test
     public void testSingleProjection() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleProjection");
@@ -394,8 +439,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     
 
     /**
-* testJoinProjection
-*/
+     * testJoinProjection
+     */
     @Test
     public void testJoinProjection() throws Exception {
         Procedure catalog_proc = this.getProcedure("JoinProjection");
@@ -530,8 +575,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testAggregateColumnAddition
-*/
+     * testAggregateColumnAddition
+     */
     @Test
     public void testAggregateColumnAddition() throws Exception {
         Procedure catalog_proc = this.getProcedure("AggregateColumnAddition");
@@ -540,8 +585,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testAggregateOrderBy
-*/
+     * testAggregateOrderBy
+     */
     @Test
     public void testAggregateOrderBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("OrderBy");
@@ -550,8 +595,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
 
     /**
-* testLimitOrderBy
-*/
+     * testLimitOrderBy
+     */
     @Test
     public void testLimitOrderBy() throws Exception {
         Procedure catalog_proc = this.getProcedure("LimitOrderBy");
@@ -579,8 +624,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-* testSingleSelect
-*/
+     * testSingleSelect
+     */
     @Test
     public void testSingleSelect() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleSelect");
@@ -589,8 +634,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
      
     /**
-* testTwoTableJoin
-*/
+     * testTwoTableJoin
+     */
     @Test
     public void testTwoTableJoin() throws Exception {
         Procedure catalog_proc = this.getProcedure("TwoTableJoin");

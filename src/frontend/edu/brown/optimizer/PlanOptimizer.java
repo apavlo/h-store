@@ -15,7 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.AbstractOptimization;
 import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
 import edu.brown.optimizer.optimizations.CombineOptimization;
-import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
+import edu.brown.optimizer.optimizations.LimitPushdownOptimization;
 import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
 import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
 import edu.brown.optimizer.optimizations.RemoveRedundantProjectionsOptimizations;
@@ -67,7 +67,7 @@ public class PlanOptimizer {
             RemoveDistributedReplicatedTableJoinOptimization.class,    
             AggregatePushdownOptimization.class,
             ProjectionPushdownOptimization.class,
-            LimitOrderByPushdownOptimization.class,
+            LimitPushdownOptimization.class,
             RemoveRedundantProjectionsOptimizations.class,
             CombineOptimization.class,
     };
@@ -100,6 +100,15 @@ public class PlanOptimizer {
      * Main entry point for the PlanOptimizer
      */
     public AbstractPlanNode optimize(final String sql, final AbstractPlanNode root) {
+        try {
+            return _optimize(sql, root);
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            throw new RuntimeException(ex);
+        }
+    }
+        
+    public AbstractPlanNode _optimize(final String sql, final AbstractPlanNode root) {
         // HACK
         for (String broken : BROKEN_SQL) {
             if (sql.contains(broken)) {

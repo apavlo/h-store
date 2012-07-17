@@ -646,6 +646,7 @@ public abstract class PlanNodeUtil {
     }
 
     private static String debug(AbstractPlanNode node, String spacer) {
+        if (node == null) return (null);
         String ret = debugNode(node, spacer);
 
         // Print out all of our children
