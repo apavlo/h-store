@@ -40,7 +40,7 @@ import edu.brown.utils.CollectionUtil;
  * @author pavlo
  */
 public class HStoreTerminal implements Runnable {
-    public static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
+    private static final Logger LOG = Logger.getLogger(HStoreTerminal.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
     /**
@@ -78,6 +78,126 @@ public class HStoreTerminal implements Runnable {
         if (debug.get()) LOG.debug("Generating tab-completion keywords");
         this.completer = new TokenCompletor(catalog);
         this.reader.addCompletor(this.completer);
+    }
+    
+    
+    @Override
+    public void run() {
+        this.printHeader();
+        
+        Pair<Client, Site> p = this.getClientConnection();
+        Client client = p.getFirst();
+        Site catalog_site = p.getSecond();
+        System.out.printf("Connected to %s:%d / Server Version: %s\n",
+                          catalog_site.getHost().getIpaddr(),
+                          catalog_site.getProc_port(),
+                          client.getBuildString());
+//        System.out.printf("ClusterId: %s / Build Version: %s\n",
+//                          client.getInstanceId().hashCode(), );
+        
+        String query = "";
+        
+        ClientResponse cresponse = null;
+        boolean stop = false;
+        try {
+            do {
+                try {
+                    query = reader.readLine(PROMPT);
+                    if (query == null || query.isEmpty()) continue;
+                    query = query.trim();
+                    
+                    // Check if the first token is one of our special keywords
+                    String tokens[] = SPLITTER.split(query);
+                    
+                    int retries = 3;
+                    Command targetCmd = null;
+                    boolean usage = false;
+                    while (retries-- > 0 && stop == false) {
+                        // Check whether they want to execute a special command
+                        for (Command c : Command.values()) {
+                            if (tokens[0].equalsIgnoreCase(c.name())) {
+                                targetCmd = c;
+                            }
+                        } // FOR
+                        
+                        try {
+                            if (targetCmd != null) {
+                                switch (targetCmd) {
+                                    case EXEC:
+                                        // The second position should be the name of the procedure
+                                        // that they want to execute
+                                        if (tokens.length < 2) {
+                                            usage = true;
+                                        } else {
+                                            cresponse = this.execProcedure(client, tokens[1], query);
+                                        }
+                                        break;
+                                    case QUIT:
+                                        stop = true;
+                                        break;
+                                    case DESCRIBE:
+                                    case SHOW:
+                                        throw new NotImplementedException("The command '" + targetCmd + "' is is not implemented");
+                                    default:
+                                        throw new RuntimeException("Unexpected command '" + targetCmd);
+                                } // SWITCH
+                            }
+                            // Otherwise we'll send it to the server to deal with as an ad-hoc query
+                            else {
+                                cresponse = this.execQuery(client, query);
+                            }
+                        } catch (NoConnectionsException ex) {
+                            LOG.warn("Connection lost. Going to try to connect again...");
+                            p = this.getClientConnection();
+                            client = p.getFirst();
+                            catalog_site = p.getSecond(); 
+                            continue;
+                        }
+                        break;
+                    } // WHILE
+                    
+                    // Just print out the result
+                    if (cresponse != null) {
+                        if (cresponse.getStatus() == Status.OK) {
+                            System.out.println(formatResult(cresponse));    
+                        } else {
+                            System.out.printf("Server Response: %s / %s\n",
+                                              cresponse.getStatus(),
+                                              cresponse.getStatusString());
+                        }
+                    }
+                    // Print target command usage
+                    else if (usage) {
+                        assert(targetCmd != null);
+                        System.out.print(setBoldText);
+                        System.out.println("USAGE: " + targetCmd.name() + " " + targetCmd.usage);
+                        System.out.print(setPlainText);
+                    }
+                    // Print warning if we're not supposed to stop
+                    else if (stop == false) {
+                        LOG.warn("Return result is null");
+                    }
+                    
+                // Fatal Error
+                } catch (RuntimeException ex) {
+                    throw ex;
+                // Friendly Error
+                } catch (Exception ex) {
+                    LOG.error(ex.getMessage());
+                    Throwable cause = ex.getCause();
+                    if (cause != null) {
+                        LOG.error(cause.getMessage());
+                        if (debug.get()) cause.printStackTrace();
+                    }
+                }
+            } while (query != null && stop == false);
+        } finally {
+            try {
+                client.close();
+            } catch (InterruptedException ex) {
+                // Ignore
+            }
+        }
     }
     
     private void printHeader() {
@@ -288,120 +408,6 @@ public class HStoreTerminal implements Runnable {
         }
         sb.append(String.format("\n%s (%.2f sec)\n", footer, (cr.getClientRoundtrip() / 1000d)));
         return (sb.toString());
-    }
-    
-    @Override
-    public void run() {
-        this.printHeader();
-        
-        Pair<Client, Site> p = this.getClientConnection();
-        Client client = p.getFirst();
-        Site catalog_site = p.getSecond();
-        System.out.printf("Connected to %s:%d / Server Version: %s\n",
-                          catalog_site.getHost().getIpaddr(),
-                          catalog_site.getProc_port(),
-                          client.getBuildString());
-//        System.out.printf("ClusterId: %s / Build Version: %s\n",
-//                          client.getInstanceId().hashCode(), );
-        
-        String query = "";
-        
-        ClientResponse cresponse = null;
-        boolean stop = false;
-        try {
-            do {
-                try {
-                    query = reader.readLine(PROMPT);
-                    if (query == null || query.isEmpty()) continue;
-                    query = query.trim();
-                    
-                    // Check if the first token is one of our special keywords
-                    String tokens[] = SPLITTER.split(query);
-                    
-                    int retries = 3;
-                    Command targetCmd = null;
-                    boolean usage = false;
-                    while (retries-- > 0 && stop == false) {
-                        // Check whether they want to execute a special command
-                        for (Command c : Command.values()) {
-                            if (tokens[0].equalsIgnoreCase(c.name())) {
-                                targetCmd = c;
-                            }
-                        } // FOR
-                        
-                        try {
-                            if (targetCmd != null) {
-                                switch (targetCmd) {
-                                    case EXEC:
-                                        // The second position should be the name of the procedure
-                                        // that they want to execute
-                                        if (tokens.length < 2) {
-                                            usage = true;
-                                        } else {
-                                            cresponse = this.execProcedure(client, tokens[1], query);
-                                        }
-                                        break;
-                                    case QUIT:
-                                        stop = true;
-                                        break;
-                                    case DESCRIBE:
-                                    case SHOW:
-                                        throw new NotImplementedException("The command '" + targetCmd + "' is is not implemented");
-                                    default:
-                                        throw new RuntimeException("Unexpected command '" + targetCmd);
-                                } // SWITCH
-                            }
-                            // Otherwise we'll send it to the server to deal with as an ad-hoc query
-                            else {
-                                cresponse = this.execQuery(client, query);
-                            }
-                        } catch (NoConnectionsException ex) {
-                            LOG.warn("Connection lost. Going to try to connect again...");
-                            p = this.getClientConnection();
-                            client = p.getFirst();
-                            catalog_site = p.getSecond(); 
-                            continue;
-                        }
-                        break;
-                    } // WHILE
-                    
-                    // Just print out the result
-                    if (cresponse != null) {
-                        if (cresponse.getStatus() == Status.OK) {
-                            System.out.println(formatResult(cresponse));    
-                        } else {
-                            System.out.printf("Server Response: %s / %s\n",
-                                              cresponse.getStatus(),
-                                              cresponse.getStatusString());
-                        }
-                    }
-                    // Print target command usage
-                    else if (usage) {
-                        assert(targetCmd != null);
-                        System.out.print(setBoldText);
-                        System.out.println("USAGE: " + targetCmd.name() + " " + targetCmd.usage);
-                        System.out.print(setPlainText);
-                    }
-                    // Print warning if we're not supposed to stop
-                    else if (stop == false) {
-                        LOG.warn("Return result is null");
-                    }
-                    
-                // Fatal Error
-                } catch (RuntimeException ex) {
-                    throw ex;
-                // Friendly Error
-                } catch (Exception ex) {
-                    LOG.error(ex.getMessage());
-                }
-            } while (query != null && stop == false);
-        } finally {
-            try {
-                client.close();
-            } catch (InterruptedException ex) {
-                // Ignore
-            }
-        }
     }
     
     public static void main(String vargs[]) throws Exception {
