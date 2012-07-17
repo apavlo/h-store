@@ -325,6 +325,9 @@ protected:
     char * dataPtrForTuple(const int index) const;
     char * dataPtrForTupleForced(const int index);
     void allocateNextBlock();
+    
+    int getTupleID(char* tuple_address); 
+
 
     /**
      * Normally this will return the tuple storage to the free list.
@@ -437,6 +440,41 @@ inline void Table::allocateNextBlock() {
                                " executing SQL. Aborting.");
         }
     }
+}
+    
+inline int Table::getTupleID(char* tuple_address)
+{    
+    char* addr; 
+    int tuple_id = 0; 
+    
+    int tuple_size = m_schema->tupleLength() + TUPLE_HEADER_SIZE; 
+    
+    for(int i = 0; i < m_data.size(); i++)  // iterate through blocks
+    {
+        addr = m_data[i]; 
+        
+        // tuple cannot be in this block, so increment id and skip to the next block
+        if((tuple_address < addr) || (tuple_address > (addr + (tuple_size*m_tuplesPerBlock)))
+           )
+        {
+            tuple_id += m_tuplesPerBlock; 
+            continue; 
+        }
+        
+        for(int j = 0; j < m_tuplesPerBlock; j++)  // iterate through tuples in a block
+        {
+            if(addr == tuple_address)
+            {
+                return tuple_id; 
+            }
+            
+            addr += tuple_size; // advance pointer to next tuple
+            tuple_id++; 
+        }
+        
+    }
+    
+    return -1; // no matching tuple was found
 }
 
 #ifdef MEMCHECK_NOFREELIST

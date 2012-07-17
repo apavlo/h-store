@@ -78,14 +78,16 @@ bool ArrayUniqueIndex::replaceEntry(const TableTuple *oldTupleValue, const Table
     return true;
 }
     
-bool ArrayUniqueIndex::setEntryToNull(const TableTuple* tuple)
+bool ArrayUniqueIndex::setEntryToNewAddress(const TableTuple *tuple, const void* address)
 {
     int32_t key = ValuePeeker::peekAsInteger(tuple->getNValue(column_indices_[0]));
     
     assert(key < ARRAY_INDEX_INITIAL_SIZE);
     assert(key >= 0);
     
-    entries_[key] = NULL; 
+    memcpy(entries_[key], address, sizeof(void*)); // HACK to get around constness
+    
+    //entries_[key] = address; 
     ++m_updates; 
     
     return true; 
