@@ -391,7 +391,7 @@ public class TransactionEstimator implements Loggable {
        this.enable_recomputes = true;
     }
     
-    public ParameterMappingsSet getCorrelations() {
+    public ParameterMappingsSet getParameterMappings() {
         return this.correlations;
     }
 

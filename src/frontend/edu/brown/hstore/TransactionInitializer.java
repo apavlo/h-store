@@ -390,7 +390,7 @@ public class TransactionInitializer {
                         predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_touchedPartitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
-//                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
+                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                     }
                 }
             } catch (Throwable ex) {
