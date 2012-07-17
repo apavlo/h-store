@@ -1150,6 +1150,7 @@ public class PartitionEstimator {
                                          Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
+            assert(catalog_frag != null);
             Set<Integer> partitions = null;
 
             // If we have a FragPartion map, then use an entry from that
@@ -1165,7 +1166,7 @@ public class PartitionEstimator {
             } else {
                 partitions = frag_all_partitions;
             }
-            assert (partitions != null);
+            assert(partitions != null);
 
             this.calculatePartitionsForFragment(null,
                                                 partitions,
@@ -1241,8 +1242,7 @@ public class PartitionEstimator {
         String frag_key = CatalogKey.createKey(catalog_frag);
         // Check whether we have generate the cache entries for this Statement
         // The CacheEntry object just tells us what input parameter to use for
-        // hashing
-        // to figure out where we need to go for each table.
+        // hashing to figure out where we need to go for each table.
         PartitionEstimator.CacheEntry cache_entry = this.cache_fragmentEntries.get(frag_key);
         if (cache_entry == null) {
             synchronized (this) {
