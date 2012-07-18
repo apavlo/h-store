@@ -449,7 +449,7 @@ public class CommandLogWriter implements Shutdownable {
             int start = buffer.getStart();
             for (int j = 0, size = buffer.getSize(); j < size; j++) {
                 WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                hstore_site.sendClientResponse(entry.cresponse,
+                hstore_site.responseSend(entry.cresponse,
                                                entry.clientCallback,
                                                entry.initiateTime,
                                                entry.restartCounter);

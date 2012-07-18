@@ -45,7 +45,7 @@ public final class TransactionPostProcessor extends AbstractProcessingThread<Pai
         if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                                  ts, ts.getBasePartition(), cr.getStatus()));
         try {
-            hstore_site.sendClientResponse(ts, cr);
+            hstore_site.responseSend(ts, cr);
             ts.markAsDeletable();
             hstore_site.deleteTransaction(ts, cr.getStatus());
         } catch (Throwable ex) {

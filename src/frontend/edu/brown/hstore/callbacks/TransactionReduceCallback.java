@@ -73,7 +73,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
                        this.finalResults, 
                        "",
                        ts.getPendingError()); 
-        hstore_site.sendClientResponse(ts, cresponse);
+        hstore_site.responseSend(ts, cresponse);
 
         if (hstore_site.getHStoreConf().site.mr_map_blocking) {
             // STEP 2

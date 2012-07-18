@@ -276,7 +276,7 @@ public class TransactionInitializer {
         
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
-        Collection<Integer> predict_touchedPartitions = this.all_partitions;
+        Collection<Integer> predict_partitions = null;
         TransactionEstimator.State t_state = null; 
         
         // -------------------------------
@@ -287,9 +287,9 @@ public class TransactionInitializer {
             // TODO: It would be nice if the client could pass us a hint when loading the tables
             // It would be just for the loading, and not regular transactions
             if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
-                predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
             } else {
-                predict_touchedPartitions = this.all_partitions;
+                predict_partitions = this.all_partitions;
             }
         }
         
@@ -300,7 +300,7 @@ public class TransactionInitializer {
             // MapReduceTransactions always need all partitions
             if (d) LOG.debug(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
-            predict_touchedPartitions = this.all_partitions;
+            predict_partitions = this.all_partitions;
         }
         
         // -------------------------------
@@ -310,9 +310,9 @@ public class TransactionInitializer {
             if (d) LOG.debug(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
                                             catalog_proc.getName(), ts.getClientHandle(), catalog_proc.getSinglepartition()));
             if (catalog_proc.getSinglepartition()) {
-                predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
             } else {
-                predict_touchedPartitions = this.all_partitions;
+                predict_partitions = this.all_partitions;
             }
         }
         
@@ -322,9 +322,9 @@ public class TransactionInitializer {
         else if (hstore_conf.site.markov_fixed) {
             if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", ts.getClientHandle()));
             if (this.fixed_estimator != null)
-                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
-            if (predict_touchedPartitions == null)
-                predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
+            if (predict_partitions == null)
+                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
         }    
         
         // -------------------------------
@@ -355,9 +355,8 @@ public class TransactionInitializer {
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned",
+                    if (d) LOG.debug(String.format("%s - No TransactionEstimator.State was returned. Using default estimate.",
                                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    predict_touchedPartitions = this.all_partitions;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
@@ -366,25 +365,25 @@ public class TransactionInitializer {
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned",
+                        if (d) LOG.debug(String.format("%s - No MarkovEstimate was recieved. Using default estimate.",
                                                        AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                         
                     // Invalid MarkovEstimate. Stick with defaults
                     } else if (m_estimate.isValid() == false) {
-                        if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
+                        if (d) LOG.warn(String.format("%s - MarkovEstimate is invalid. Using default estimate.\n%s",
                                                       AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         
                     // Use MarkovEstimate to determine things
                     } else {
                         if (d) {
-                            LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned",
+                            LOG.debug(String.format("%s - Using MarkovEstimate to determine if txn is single-partitioned",
                                                     AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                            LOG.debug(String.format("%s MarkovEstimate:\n%s",
+                            LOG.trace(String.format("%s MarkovEstimate:\n%s",
                                                     AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
-                        predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
+                        predict_partitions = m_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_touchedPartitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        predict_abortable = (predict_partitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
 //                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                     }
                 }
@@ -393,7 +392,7 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_touchedPartitions = this.all_partitions;
+                predict_partitions = this.all_partitions;
                 predict_readOnly = false;
                 predict_abortable = true;
             } finally {
@@ -401,16 +400,24 @@ public class TransactionInitializer {
             }
         }
         
-        // -------------------------------
-        // FORCE SINGLE-PARTITIONED
-        // -------------------------------
-        else if (hstore_conf.site.exec_force_singlepartitioned) {
-            if (d) LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                                           catalog_proc.getName(), base_partition, ts.getClientHandle()));
-            predict_touchedPartitions = this.hstore_site.getSingletonPartitionList(base_partition);
+        if (predict_partitions == null) {
+            // -------------------------------
+            // FORCE SINGLE-PARTITIONED
+            // -------------------------------
+            if (hstore_conf.site.exec_force_singlepartitioned) {
+                if (d) LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
+                                               catalog_proc.getName(), base_partition, ts.getClientHandle()));
+                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
+            }
+            // -------------------------------
+            // FORCE MULTI-PARTITIONED
+            // -------------------------------
+            else {
+                predict_partitions = this.all_partitions;
+            }
         }
         
-        assert(predict_touchedPartitions != null);
+        assert(predict_partitions != null);
         
         // -------------------------------
         // SET EXECUTION PROPERTIES
@@ -419,7 +426,7 @@ public class TransactionInitializer {
         ts.init(txn_id,
                 client_handle,
                 base_partition,
-                predict_touchedPartitions,
+                predict_partitions,
                 predict_readOnly,
                 predict_abortable,
                 catalog_proc,
