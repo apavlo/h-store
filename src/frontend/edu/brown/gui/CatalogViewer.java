@@ -130,7 +130,7 @@ public class CatalogViewer extends AbstractViewer {
     public CatalogViewer(ArgumentsParser args) {
         super(args,
               String.format("%s [%s]", WINDOW_TITLE, args.catalog_path),
-              1000,
+              DEFAULT_WINDOW_WIDTH,
               DEFAULT_WINDOW_HEIGHT);
         this.catalog = args.catalog;
         this.catalog_file_path = args.catalog_path;

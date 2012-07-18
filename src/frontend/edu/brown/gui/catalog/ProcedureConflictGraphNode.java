@@ -1,14 +1,19 @@
 package edu.brown.gui.catalog;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Paint;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.JPanel;
 
 import org.apache.commons.collections15.Transformer;
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
@@ -20,8 +25,16 @@ import edu.brown.graphs.AbstractUndirectedGraph;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.CollectionUtil;
+import edu.uci.ics.jung.graph.util.EdgeType;
 
 public class ProcedureConflictGraphNode {
+    private static final Logger LOG = Logger.getLogger(ProcedureConflictGraphNode.class);
+    
+    static final Map<ConflictType, Paint> CONFLICT_COLORS = new HashMap<ConflictType, Paint>();
+    static {
+        CONFLICT_COLORS.put(ConflictType.READ_WRITE, Color.GREEN.darker());
+        CONFLICT_COLORS.put(ConflictType.WRITE_WRITE, Color.BLUE.darker());
+    }
     
     final Database catalog_db;
     final Collection<Procedure> procs;
@@ -29,21 +42,19 @@ public class ProcedureConflictGraphNode {
     final ConflictGraph graph;
     GraphVisualizationPanel<ConflictVertex, ConflictEdge> vizPanel;
     
-    
     final Transformer<ConflictEdge, Paint> edgeColor = new Transformer<ConflictEdge, Paint>() {
         @Override
         public Paint transform(ConflictEdge e) {
-            switch (e.type) {
-                case READ_WRITE:
-                    return Color.GREEN;
-                case WRITE_WRITE:
-                    return Color.BLUE;
-                default:
-                    return (null);
-            } // SWITCH
+            return CONFLICT_COLORS.get(e.type);
         }
     };
-    
+    final Transformer<ConflictEdge, Stroke> edgeStroke = new Transformer<ConflictEdge, Stroke>() {
+        final Stroke s = new BasicStroke(2.0f);
+        @Override
+        public Stroke transform(ConflictEdge e) {
+            return (s);
+        }
+    };
     
     public ProcedureConflictGraphNode(Collection<Procedure> procs) {
         this.catalog_db = CatalogUtil.getDatabase(CollectionUtil.first(procs));
@@ -58,6 +69,7 @@ public class ProcedureConflictGraphNode {
         for (Procedure proc0 : this.procs) {
             ConflictVertex v0 = this.graph.getVertex(proc0);
             if (v0 == null) v0 = new ConflictVertex(proc0);
+            assert(v0 != null);
             
             // READ-WRITE
             for (Procedure proc1 : CatalogUtil.getReadWriteConflicts(proc0)) {
@@ -65,6 +77,7 @@ public class ProcedureConflictGraphNode {
                 if (v1 == null) v1 = new ConflictVertex(proc1);
                 ConflictEdge e = new ConflictEdge(this.graph, ConflictType.READ_WRITE);
                 this.graph.addEdge(e, v0, v1);
+                LOG.debug(String.format("%s %s [%s/%s]", e.type, e.toStringPath(graph), proc0.getName(), proc1.getName()));
             } // FOR
             
             // WRITE-WRITE
@@ -73,11 +86,15 @@ public class ProcedureConflictGraphNode {
                 if (v1 == null) v1 = new ConflictVertex(proc1);
                 ConflictEdge e = new ConflictEdge(this.graph, ConflictType.WRITE_WRITE);
                 this.graph.addEdge(e, v0, v1);
+                LOG.debug(String.format("%s %s [%s/%s]", e.type, e.toStringPath(graph), proc0.getName(), proc1.getName()));
             } // FOR
         }
         
         this.vizPanel = GraphVisualizationPanel.factory(this.graph);
         this.vizPanel.getRenderContext().setEdgeDrawPaintTransformer(this.edgeColor);
+        this.vizPanel.getRenderContext().setArrowDrawPaintTransformer(this.edgeColor);
+        this.vizPanel.getRenderContext().setArrowFillPaintTransformer(this.edgeColor);
+        this.vizPanel.getRenderContext().setEdgeStrokeTransformer(this.edgeStroke);
         
         this.vizPanel.getRenderContext().setVertexShapeTransformer(
             new Transformer<ConflictVertex, Shape>() {
@@ -132,10 +149,14 @@ public class ProcedureConflictGraphNode {
         }
     }
     
-    protected class ConflictGraph extends AbstractDirectedGraph<ConflictVertex, ConflictEdge> {
+    protected class ConflictGraph extends AbstractUndirectedGraph<ConflictVertex, ConflictEdge> {
         private static final long serialVersionUID = 1L;
         public ConflictGraph(Database catalog_db) {
             super(catalog_db);
+        }
+        @Override
+        public EdgeType getEdgeType(ConflictEdge e) {
+            return EdgeType.DIRECTED;
         }
     }
     
