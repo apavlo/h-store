@@ -46,7 +46,8 @@ public class Procedure extends CatalogType {
     CatalogMap<AuthProgram> m_authPrograms;
     CatalogMap<Statement> m_statements;
     CatalogMap<ProcParameter> m_parameters;
-    CatalogMap<ProcedureRef> m_conflicts;
+    CatalogMap<ProcedureRef> m_readConflicts;
+    CatalogMap<ProcedureRef> m_writeConflicts;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -77,8 +78,10 @@ public class Procedure extends CatalogType {
         m_childCollections.put("statements", m_statements);
         m_parameters = new CatalogMap<ProcParameter>(catalog, this, path + "/" + "parameters", ProcParameter.class);
         m_childCollections.put("parameters", m_parameters);
-        m_conflicts = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "conflicts", ProcedureRef.class);
-        m_childCollections.put("conflicts", m_conflicts);
+        m_readConflicts = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "readConflicts", ProcedureRef.class);
+        m_childCollections.put("readConflicts", m_readConflicts);
+        m_writeConflicts = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "writeConflicts", ProcedureRef.class);
+        m_childCollections.put("writeConflicts", m_writeConflicts);
     }
 
     public void update() {
@@ -225,9 +228,14 @@ public class Procedure extends CatalogType {
         return m_parameters;
     }
 
-    /** GETTER: Procedures whose Statements conflict with this procedure */
-    public CatalogMap<ProcedureRef> getConflicts() {
-        return m_conflicts;
+    /** GETTER: Procedures whose Statements have a read-write conflict with this procedure */
+    public CatalogMap<ProcedureRef> getReadconflicts() {
+        return m_readConflicts;
+    }
+
+    /** GETTER: Procedures whose Statements have a write-write conflict with this procedure */
+    public CatalogMap<ProcedureRef> getWriteconflicts() {
+        return m_writeConflicts;
     }
 
     /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */

@@ -456,18 +456,36 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // ------------------------------------------------------------
 
     /**
-     * Get all the Procedure handles that are marked as conflicting
-     * with the given Procedure
+     * Get the Procedure handles that are marked as Read-Write conflicting for the
+     * given Procedure
      * @param catalog_proc
      * @return
      */
-    public static Collection<Procedure> getConflictProcedures(Procedure catalog_proc) {
+    public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
-        for (ProcedureRef ref : catalog_proc.getConflicts()) {
+        for (ProcedureRef ref : catalog_proc.getReadconflicts()) {
             Procedure ref_proc = ref.getProcedure();
             if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
             assert(ref_proc.equals(catalog_proc) == false) :
-                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getConflicts());
+                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getReadconflicts());
+            conflicts.add(ref_proc);
+        } // FOR
+        return (conflicts);
+    }
+    
+    /**
+     * Get the Procedure handles that are marked as Write-Write conflicting for the
+     * given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        for (ProcedureRef ref : catalog_proc.getReadconflicts()) {
+            Procedure ref_proc = ref.getProcedure();
+            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
+            assert(ref_proc.equals(catalog_proc) == false) :
+                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getReadconflicts());
             conflicts.add(ref_proc);
         } // FOR
         return (conflicts);
@@ -1402,9 +1420,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
             Set<Table> tables = new ListOrderedSet<Table>();
-            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
-                tables.add((Table) catalog_col.getParent());
-            } // FOR
+            tables.addAll(getAllTables(catalog_stmt));
+//            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
+//                tables.add((Table) catalog_col.getParent());
+//            } // FOR
             ret = Collections.unmodifiableSet(tables);
             cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }

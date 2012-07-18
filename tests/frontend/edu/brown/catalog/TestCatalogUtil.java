@@ -60,13 +60,13 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure proc0 = this.getProcedure(neworder.class);
         Procedure proc1 = this.getProcedure(slev.class);
         
-        Collection<Procedure> conflicts = CatalogUtil.getConflictProcedures(proc0);
+        Collection<Procedure> conflicts = CatalogUtil.getWriteWriteConflicts(proc0);
         assertNotNull(conflicts);
         assertFalse(conflicts.contains(proc0));
         assertTrue(conflicts.contains(proc1));
         
         // Make sure it's symmetrical
-        conflicts = CatalogUtil.getConflictProcedures(proc1);
+        conflicts = CatalogUtil.getWriteWriteConflicts(proc1);
         assertNotNull(conflicts);
         assertFalse(conflicts.contains(proc1));
         assertTrue(conflicts.contains(proc0));
@@ -79,10 +79,10 @@ public class TestCatalogUtil extends BaseTestCase {
         // For each Procedure that is marked as conflicting with another,
         // make sure that they each know about each other
         for (Procedure proc0 : catalog_db.getProcedures()) {
-            Collection<Procedure> conflicts0 = CatalogUtil.getConflictProcedures(proc0);
+            Collection<Procedure> conflicts0 = CatalogUtil.getWriteWriteConflicts(proc0);
             for (Procedure proc1 : conflicts0) {
-                Collection<Procedure> conflicts1 = CatalogUtil.getConflictProcedures(proc1);
-                assertTrue(conflicts1.contains(proc0));
+                Collection<Procedure> conflicts1 = CatalogUtil.getWriteWriteConflicts(proc1);
+                assertTrue(proc0 + "<->" + proc1, conflicts1.contains(proc0));
             } // FOR
         } // FOR
     }

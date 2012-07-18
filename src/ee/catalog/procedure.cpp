@@ -36,7 +36,7 @@ using namespace std;
 
 Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name),
-  m_authUsers(catalog, this, path + "/" + "authUsers"), m_authGroups(catalog, this, path + "/" + "authGroups"), m_authPrograms(catalog, this, path + "/" + "authPrograms"), m_statements(catalog, this, path + "/" + "statements"), m_parameters(catalog, this, path + "/" + "parameters"), m_conflicts(catalog, this, path + "/" + "conflicts")
+  m_authUsers(catalog, this, path + "/" + "authUsers"), m_authGroups(catalog, this, path + "/" + "authGroups"), m_authPrograms(catalog, this, path + "/" + "authPrograms"), m_statements(catalog, this, path + "/" + "statements"), m_parameters(catalog, this, path + "/" + "parameters"), m_readConflicts(catalog, this, path + "/" + "readConflicts"), m_writeConflicts(catalog, this, path + "/" + "writeConflicts")
 {
     CatalogValue value;
     m_fields["id"] = value;
@@ -61,7 +61,8 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_childCollections["authPrograms"] = &m_authPrograms;
     m_childCollections["statements"] = &m_statements;
     m_childCollections["parameters"] = &m_parameters;
-    m_childCollections["conflicts"] = &m_conflicts;
+    m_childCollections["readConflicts"] = &m_readConflicts;
+    m_childCollections["writeConflicts"] = &m_writeConflicts;
 }
 
 Procedure::~Procedure() {
@@ -100,12 +101,19 @@ Procedure::~Procedure() {
     }
     m_parameters.clear();
 
-    std::map<std::string, ProcedureRef*>::const_iterator procedureref_iter = m_conflicts.begin();
-    while (procedureref_iter != m_conflicts.end()) {
+    std::map<std::string, ProcedureRef*>::const_iterator procedureref_iter = m_readConflicts.begin();
+    while (procedureref_iter != m_readConflicts.end()) {
         delete procedureref_iter->second;
         procedureref_iter++;
     }
-    m_conflicts.clear();
+    m_readConflicts.clear();
+
+    procedureref_iter = m_writeConflicts.begin();
+    while (procedureref_iter != m_writeConflicts.end()) {
+        delete procedureref_iter->second;
+        procedureref_iter++;
+    }
+    m_writeConflicts.clear();
 
 }
 
@@ -160,11 +168,17 @@ CatalogType * Procedure::addChild(const std::string &collectionName, const std::
             return NULL;
         return m_parameters.add(childName);
     }
-    if (collectionName.compare("conflicts") == 0) {
-        CatalogType *exists = m_conflicts.get(childName);
+    if (collectionName.compare("readConflicts") == 0) {
+        CatalogType *exists = m_readConflicts.get(childName);
         if (exists)
             return NULL;
-        return m_conflicts.add(childName);
+        return m_readConflicts.add(childName);
+    }
+    if (collectionName.compare("writeConflicts") == 0) {
+        CatalogType *exists = m_writeConflicts.get(childName);
+        if (exists)
+            return NULL;
+        return m_writeConflicts.add(childName);
     }
     return NULL;
 }
@@ -180,8 +194,10 @@ CatalogType * Procedure::getChild(const std::string &collectionName, const std::
         return m_statements.get(childName);
     if (collectionName.compare("parameters") == 0)
         return m_parameters.get(childName);
-    if (collectionName.compare("conflicts") == 0)
-        return m_conflicts.get(childName);
+    if (collectionName.compare("readConflicts") == 0)
+        return m_readConflicts.get(childName);
+    if (collectionName.compare("writeConflicts") == 0)
+        return m_writeConflicts.get(childName);
     return NULL;
 }
 
@@ -202,8 +218,11 @@ bool Procedure::removeChild(const std::string &collectionName, const std::string
     if (collectionName.compare("parameters") == 0) {
         return m_parameters.remove(childName);
     }
-    if (collectionName.compare("conflicts") == 0) {
-        return m_conflicts.remove(childName);
+    if (collectionName.compare("readConflicts") == 0) {
+        return m_readConflicts.remove(childName);
+    }
+    if (collectionName.compare("writeConflicts") == 0) {
+        return m_writeConflicts.remove(childName);
     }
     return false;
 }
@@ -296,7 +315,11 @@ const CatalogMap<ProcParameter> & Procedure::parameters() const {
     return m_parameters;
 }
 
-const CatalogMap<ProcedureRef> & Procedure::conflicts() const {
-    return m_conflicts;
+const CatalogMap<ProcedureRef> & Procedure::readConflicts() const {
+    return m_readConflicts;
+}
+
+const CatalogMap<ProcedureRef> & Procedure::writeConflicts() const {
+    return m_writeConflicts;
 }
 

@@ -34,14 +34,18 @@ public class SpecExecScheduler {
     private final PartitionExecutor executor;
     private final Queue<InternalMessage> work_queue;
     private final Procedure catalog_procs[];
-    private final BitSet procConflicts[];
+    private final BitSet rwConflicts[];
+    private final BitSet wwConflicts[];
     
     public SpecExecScheduler(PartitionExecutor executor) {
         this.executor = executor;
         this.work_queue = this.executor.getWorkQueue();
         this.catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
-        this.procConflicts = new BitSet[this.catalog_db.getProcedures().size()+1];
-        this.catalog_procs = new Procedure[catalog_db.getProcedures().size()+1];
+        
+        int size = this.catalog_db.getProcedures().size()+1;
+        this.rwConflicts = new BitSet[size];
+        this.wwConflicts = new BitSet[size];
+        this.catalog_procs = new Procedure[size];
         
         for (Procedure catalog_proc : this.catalog_db.getProcedures().values()) {
             if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
@@ -50,15 +54,20 @@ public class SpecExecScheduler {
             this.catalog_procs[idx] = catalog_proc;
            
             // Precompute bitmaps for the conflicts
-            BitSet bs = new BitSet(this.procConflicts.length);
-            for (Procedure conflict : CatalogUtil.getConflictProcedures(catalog_proc)) {
-                bs.set(conflict.getId());
+            this.rwConflicts[idx] = new BitSet(size);
+            for (Procedure conflict : CatalogUtil.getReadWriteConflicts(catalog_proc)) {
+                this.rwConflicts[idx].set(conflict.getId());
+            } // FOR
+            this.wwConflicts[idx] = new BitSet(size);
+            for (Procedure conflict : CatalogUtil.getWriteWriteConflicts(catalog_proc)) {
+                this.wwConflicts[idx].set(conflict.getId());
             } // FOR
             
             // XXX: Each procedure will conflict with itself if it's not read-only
-            if (catalog_proc.getReadonly() == false) bs.set(catalog_proc.getId());
-            
-            this.procConflicts[idx] = bs;
+            if (catalog_proc.getReadonly() == false) {
+                this.rwConflicts[idx].set(idx);
+                this.wwConflicts[idx].set(idx);
+            }
         } // FOR
     }
 
@@ -73,8 +82,9 @@ public class SpecExecScheduler {
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
         Procedure catalog_proc = this.catalog_procs[dtxn.getProcedureId()];
-        BitSet bs = this.procConflicts[dtxn.getProcedureId()];
-        if (catalog_proc == null || bs == null) {
+        BitSet rwCon = this.rwConflicts[dtxn.getProcedureId()];
+        BitSet wwCon = this.wwConflicts[dtxn.getProcedureId()];
+        if (catalog_proc == null || rwCon == null || wwCon == null) {
             if (trace.get())
                 LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
             return (null);
@@ -105,7 +115,9 @@ public class SpecExecScheduler {
                 
                 // Only release it if it's single-partitioned and does not conflict
                 // with our current dtxn
-                if (ts.isPredictSinglePartition() && bs.get(procId) == false) {
+                // TODO: We need to be more clever about what we allow depending on
+                //       whether it's a read-write conflict or a write-write conflict
+                if (ts.isPredictSinglePartition() && rwCon.get(procId) == false) {
                     next = txn_msg;
                     // Make sure that we remove it from our queue
                     it.remove();
