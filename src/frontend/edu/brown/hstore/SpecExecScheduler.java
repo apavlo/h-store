@@ -54,6 +54,10 @@ public class SpecExecScheduler {
             for (Procedure conflict : CatalogUtil.getConflictProcedures(catalog_proc)) {
                 bs.set(conflict.getId());
             } // FOR
+            
+            // XXX: Each procedure will conflict with itself if it's not read-only
+            if (catalog_proc.getReadonly() == false) bs.set(catalog_proc.getId());
+            
             this.procConflicts[idx] = bs;
         } // FOR
     }
@@ -110,8 +114,7 @@ public class SpecExecScheduler {
             }
         } // WHILE
         if (debug.get() && next != null) {
-            LOG.debug(String.format("NEXT %s - Found next non-conflicting speculative txn %s",
-                                    catalog_proc.getName(), next));
+            LOG.debug("Found next non-conflicting speculative txn " + next + " for " + dtxn);
         }
         
         return (next);
