@@ -1405,6 +1405,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
+    /**
+     * This is the main method that takes in a ByteBuffer request from the client and queues
+     * it up for execution. The clientCallback expects to get back a ClientResponse generated
+     * after the txn is executed. 
+     * @param buffer
+     * @param clientCallback
+     */
     public void invocationProcess(ByteBuffer buffer, RpcCallback<ClientResponseImpl> clientCallback) {
         if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
@@ -1443,11 +1450,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // TODO: This should be an error message back to the client, not an exception
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
-                this.sendErrorResponse(client_handle,
-                                        Status.ABORT_UNEXPECTED,
-                                        msg,
-                                        clientCallback,
-                                        EstTime.currentTimeMillis());
+                this.responseError(client_handle,
+                                       Status.ABORT_UNEXPECTED,
+                                       msg,
+                                       clientCallback,
+                                       EstTime.currentTimeMillis());
                 return;
             }
         } else {
@@ -1514,41 +1521,46 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        // TODO: We should queue the txn at the proper partition
+        PartitionExecutor executor = this.executors[base_partition];
+        boolean success = false;
+        
+        // If we are using the Markov models, then we have to initialize the transaction
+        // right here.
+        // TODO: We need to measure whether it is faster to do it this way (with and without
+        // the models) or whether it is faster to queue things up in the PartitionExecutor
+        // and let it be responsible for sorting things out
+        if (hstore_conf.site.markov_enable) {
+            LocalTransaction ts = this.txnInitializer.initInvocation(buffer,
+                                                                     client_handle,
+                                                                     base_partition,
+                                                                     catalog_proc,
+                                                                     procParams,
+                                                                     clientCallback);
+            this.transactionQueue(ts);
+        }
+        // We should queue the txn at the proper partition
         // The PartitionExecutor thread will be responsible for creating
         // the LocalTransaction handle and figuring out whatever else we need to
         // about this txn...
-        
-        PartitionExecutor executor = this.executors[base_partition];
-        boolean success = executor.queueNewTransaction(buffer,
-                                                       catalog_proc,
-                                                       procParams,
-                                                       clientCallback);
-        if (success == false) {
-            // Depending on what we need to do for this type txn, we will send
-            // either an ABORT_THROTTLED or an ABORT_REJECT in our response
-            // An ABORT_THROTTLED means that the client will back-off of a bit
-            // before sending another txn request, where as an ABORT_REJECT means
-            // that it will just try immediately
-            Status status = Status.ABORT_REJECT;
-            if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
-                                           status, base_partition, executor.getWorkQueueSize()));
-            
-
-            ClientResponseImpl cresponse = new ClientResponseImpl(-1,
-                                                                  client_handle,
-                                                                  -1,
-                                                                  status,
-                                                                  HStoreConstants.EMPTY_RESULT,
-                                                                  this.REJECTION_MESSAGE);
-            this.sendClientResponse(cresponse, clientCallback, EstTime.currentTimeMillis(), 0);
-
-            if (hstore_conf.site.status_show_txn_info) {
-                TxnCounter.REJECTED.inc(catalog_proc);
+        else {
+            success = executor.queueNewTransaction(buffer,
+                                                   catalog_proc,
+                                                   procParams,
+                                                   clientCallback);
+            if (success == false) {
+                Status status = Status.ABORT_REJECT;
+                if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
+                                               status, base_partition, executor.getWorkQueueSize()));
+                this.responseError(client_handle,
+                                       status,
+                                       REJECTION_MESSAGE,
+                                       clientCallback,
+                                       EstTime.currentTimeMillis());
             }
         }
-        else if (hstore_conf.site.status_show_txn_info) {
-            TxnCounter.EXECUTED.inc(catalog_proc);
+
+        if (hstore_conf.site.status_show_txn_info) {
+            (success ? TxnCounter.EXECUTED : TxnCounter.REJECTED).inc(catalog_proc);
         }
         
         if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
@@ -1560,23 +1572,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     
     /**
-     * Special handling for incoming sysproc requests
+     * Special handling for certain incoming sysproc requests. These are just for
+     * specialized sysprocs where we need to do some pre-processing that is separate
+     * from how the regular sysproc txns are executed.
      * @param catalog_proc
      * @param done
      * @param request
      * @return True if this request was handled and the caller does not need to do anything further
      */
     private boolean processSysProc(long client_handle,
-                                     Procedure catalog_proc,
-                                     ParameterSet params,
-                                     RpcCallback<ClientResponseImpl> done) {
+                                   Procedure catalog_proc,
+                                   ParameterSet params,
+                                   RpcCallback<ClientResponseImpl> done) {
         
         // -------------------------------
         // SHUTDOWN
         // TODO: Execute as a regular sysproc transaction
         // -------------------------------
         if (catalog_proc.getName().equals("@Shutdown")) {
-            this.sendErrorResponse(client_handle, Status.OK, "", done, EstTime.currentTimeMillis());
+            this.responseError(client_handle, Status.OK, "", done, EstTime.currentTimeMillis());
 
             // Non-blocking....
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
@@ -1602,7 +1616,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             if (msg != null) {
-                this.sendErrorResponse(client_handle, Status.ABORT_GRACEFUL, msg, done, EstTime.currentTimeMillis());
+                this.responseError(client_handle, Status.ABORT_GRACEFUL, msg, done, EstTime.currentTimeMillis());
                 return (true);
             }
             
@@ -1650,10 +1664,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     public MapReduceTransaction createMapReduceTransaction(Long txn_id,
-                                                            long client_handle,
-                                                            int base_partition,
-                                                            int procId,
-                                                            ByteBuffer paramsBuffer) {
+                                                           long client_handle,
+                                                           int base_partition,
+                                                           int procId,
+                                                           ByteBuffer paramsBuffer) {
         Procedure catalog_proc = this.catalog_procs[procId];
         if (catalog_proc == null) {
             throw new RuntimeException("Unknown procedure id '" + procId + "'");
@@ -2089,7 +2103,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                        HStoreConstants.EMPTY_RESULT,
                        this.REJECTION_MESSAGE,
                        ts.getPendingError());
-        this.sendClientResponse(ts, cresponse);
+        this.responseSend(ts, cresponse);
 
         if (hstore_conf.site.status_show_txn_info) {
             if (status == Status.ABORT_REJECT) {
@@ -2358,7 +2372,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    public void responseSend(LocalTransaction ts, ClientResponseImpl cresponse) {
         Status status = cresponse.getStatus();
         assert(cresponse != null) :
             "Missing ClientResponse for " + ts;
@@ -2375,7 +2389,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (sendResponse) {
             // NO GROUP COMMIT -- SEND OUT AND COMPLETE
             // NO COMMAND LOGGING OR TXN ABORTED -- SEND OUT AND COMPLETE
-            this.sendClientResponse(cresponse,
+            this.responseSend(cresponse,
                                     ts.getClientCallback(),
                                     ts.getInitiateTime(),
                                     ts.getRestartCounter());
@@ -2392,7 +2406,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cr
      */
-    public void queueClientResponse(LocalTransaction ts, ClientResponseImpl cr) {
+    public void responseQueue(LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_threads);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, ts.getBasePartition(), cr.getStatus(), this.postProcessorQueue.size()));
@@ -2407,11 +2421,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param clientCallback
      * @param initiateTime
      */
-    private void sendErrorResponse(long client_handle,
-                                    Status status,
-                                    String message,
-                                    RpcCallback<ClientResponseImpl> clientCallback,
-                                    long initiateTime) {
+    private void responseError(long client_handle,
+                               Status status,
+                               String message,
+                               RpcCallback<ClientResponseImpl> clientCallback,
+                               long initiateTime) {
         
         ClientResponseImpl cresponse = new ClientResponseImpl(
                                             -1,
@@ -2420,7 +2434,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                             status,
                                             HStoreConstants.EMPTY_RESULT,
                                             message);
-        this.sendClientResponse(cresponse, clientCallback, initiateTime, 0);
+        this.responseSend(cresponse, clientCallback, initiateTime, 0);
     }
     
     /**
@@ -2431,7 +2445,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      * @param logTxn
      */
-    public void sendClientResponse(ClientResponseImpl cresponse,
+    public void responseSend(ClientResponseImpl cresponse,
                                    RpcCallback<ClientResponseImpl> clientCallback,
                                    long initiateTime,
                                    int restartCounter) {
@@ -2665,7 +2679,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                Status.ABORT_UNEXPECTED,
                                                HStoreConstants.EMPTY_RESULT,
                                                result.errorMsg);
-                this.sendClientResponse(result.ts, errorResponse);
+                this.responseSend(result.ts, errorResponse);
                 
                 // We can just delete the LocalTransaction handle directly
                 result.ts.markAsDeletable();

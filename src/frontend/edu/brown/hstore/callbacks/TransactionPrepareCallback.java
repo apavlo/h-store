@@ -53,7 +53,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         // send the 2PC COMMIT message to all of our friends.
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
-        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+        this.hstore_site.responseSend(this.ts, this.cresponse);
         return (false);
     }
     
@@ -65,7 +65,7 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         
         // Change the response's status and send back the result to the client
         this.cresponse.setStatus(status);
-        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+        this.hstore_site.responseSend(this.ts, this.cresponse);
         
         return (false);
     }

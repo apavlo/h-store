@@ -1325,7 +1325,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
+                    if (t) LOG.trace(String.format("%s - Retrieved %d INTERNAL VoltTables for DependencyId #%d\n" + deps,
                                                    ts, deps.size(), input_dep_id));
                 }
                 // Otherwise they will be "attached" inputs to the RemoteTransaction handle
@@ -1484,14 +1484,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     public boolean queueNewTransaction(LocalTransaction ts) {
         assert(ts != null) : "Unexpected null transaction handle!";
-        // final InitiateTaskMessage task = ts.getInitiateTaskMessage();
-        // final boolean singlePartitioned = ts.isPredictSinglePartition();
-        // final boolean force = (singlePartitioned == false) || ts.isMapReduce();
+        boolean singlePartitioned = ts.isPredictSinglePartition();
+        boolean force = (singlePartitioned == false) || ts.isMapReduce() || ts.isSysProc();
         
         if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
-        		                       "[currentDtxn=%s, mode=%s]",
+        		                       "[currentDtxn=%s, mode=%s, force=%s]",
                                        ts, this.partitionId,
-                                       this.currentDtxn, this.currentExecMode));
+                                       this.currentDtxn, this.currentExecMode, force));
         
         // UPDATED 2012-07-12
         // We used to have a bunch of checks to determine whether we needed
@@ -1503,7 +1502,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
                                        ts, this.partitionId, this.work_queue.size()));
         StartTxnMessage work = new StartTxnMessage(ts);
-        return (this.work_queue.offer(work, true));
+        return (this.work_queue.offer(work, force));
     }
 
     // ---------------------------------------------------------------
@@ -3074,7 +3073,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             else if (hstore_conf.site.exec_postprocessing_threads) {
                 if (t) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
                                                ts, cresponse.getStatus()));
-                this.hstore_site.queueClientResponse(ts, cresponse);
+                this.hstore_site.responseQueue(ts, cresponse);
             }
             // Send back the result right now!
             else {
@@ -3083,7 +3082,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.work_network_time.start();
-                this.hstore_site.sendClientResponse(ts, cresponse);
+                this.hstore_site.responseSend(ts, cresponse);
                 if (hstore_conf.site.exec_profiling) this.profiler.work_network_time.stop();
                 
                 ts.markAsDeletable();
@@ -3128,7 +3127,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // that we're magically going to be able to recover this and get them a result
             // This has to come before the network messages above because this will clean-up the 
             // LocalTransaction state information
-            this.hstore_site.sendClientResponse(ts, cresponse);
+            this.hstore_site.responseSend(ts, cresponse);
             
             // Then send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the
@@ -3344,7 +3343,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             try {
                 if (hstore_conf.site.exec_postprocessing_threads) {
                     if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
-                    hstore_site.queueClientResponse(ts, cr);
+                    hstore_site.responseQueue(ts, cr);
                 } else {
                     if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
                     this.processClientResponse(ts, cr);
