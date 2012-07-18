@@ -90,7 +90,7 @@ import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
-import org.voltdb.sysprocs.RecomputeMarkovs;
+import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.sysprocs.SnapshotDelete;
@@ -1253,7 +1253,7 @@ public class VoltCompiler {
             // SysProcedure Class                   readonly    everysite
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
-            {RecomputeMarkovs.class,                true,       true},
+            {MarkovUpdate.class,                true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},

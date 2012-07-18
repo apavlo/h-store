@@ -541,7 +541,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         if (this.procParams.length != this.paramTypesLength) {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                 " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
-            LOG.error(msg);
+            if (d) LOG.error(msg);
             status = Status.ABORT_GRACEFUL;
             status_msg = msg;
             response = new ClientResponseImpl(txnState.getTransactionId(),

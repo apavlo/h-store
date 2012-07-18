@@ -28,9 +28,9 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
-public class RecomputeMarkovs extends VoltSystemProcedure {
+public class MarkovUpdate extends VoltSystemProcedure {
     
-    private static final Logger LOG = Logger.getLogger(RecomputeMarkovs.class);
+    private static final Logger LOG = Logger.getLogger(MarkovUpdate.class);
 
     @Override
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
