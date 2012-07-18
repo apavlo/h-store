@@ -190,15 +190,15 @@ public class TransactionInitializer {
      * @param base_partition
      * @param catalog_proc
      * @param procParams
-     * @param done
+     * @param clientCallback
      * @return
      */
     public LocalTransaction initInvocation(ByteBuffer serializedRequest, 
-                                     long client_handle,
-                                     int base_partition,
-                                     Procedure catalog_proc,
-                                     ParameterSet procParams,
-                                     RpcCallback<ClientResponseImpl> done) {
+                                           long client_handle,
+                                           int base_partition,
+                                           Procedure catalog_proc,
+                                           ParameterSet procParams,
+                                           RpcCallback<ClientResponseImpl> clientCallback) {
         
         if (d) LOG.debug(String.format("Incoming %s transaction request " +
         		                       "[handle=%d, partition=%d]",
@@ -237,7 +237,7 @@ public class TransactionInitializer {
                                 base_partition,
                                 catalog_proc,
                                 procParams,
-                                done);
+                                clientCallback);
 
         // Check whether this guy has already been restarted before
         int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
