@@ -75,8 +75,8 @@ public class SpecExecScheduler {
         Procedure catalog_proc = this.catalog_procs[dtxn.getProcedureId()];
         BitSet bs = this.procConflicts[dtxn.getProcedureId()];
         if (catalog_proc == null || bs == null) {
-            if (debug.get())
-                LOG.debug("SKIP - Ignoring current distributed txn because no conflict information exists");
+            if (trace.get())
+                LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
             return (null);
         }
         
@@ -92,8 +92,8 @@ public class SpecExecScheduler {
             // always want to immediately execute that
             if (msg instanceof WorkFragmentMessage) {
                 if (debug.get())
-                    LOG.debug(String.format("SKIP %s - No conflict mapping exists",
-                                            catalog_proc.getName()));
+                    LOG.debug(String.format("%s - Not choosing a txn to speculatively execute because there " +
+                    		                "are still WorkFragments in the queue", dtxn));
                 return (null);
             }
             // A StartTxnMessage will have a fully initialized LocalTransaction handle
@@ -114,7 +114,7 @@ public class SpecExecScheduler {
             }
         } // WHILE
         if (debug.get() && next != null) {
-            LOG.debug("Found next non-conflicting speculative txn " + next + " for " + dtxn);
+            LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
         return (next);
