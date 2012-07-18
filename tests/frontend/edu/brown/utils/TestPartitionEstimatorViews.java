@@ -41,7 +41,7 @@ public class TestPartitionEstimatorViews extends BaseTestCase {
     public void testGetPartitionsStmtView() throws Exception {
         long phoneNumber = 5555555555l;
         Procedure catalog_proc = this.getProcedure(Vote.class);
-        Object txn_params[] = new Object[] { phoneNumber, 1, 100l };
+        Object txn_params[] = new Object[] { 1, phoneNumber, 1, 100l };
         int procPartition = p_estimator.getBasePartition(catalog_proc, txn_params);
         assert(procPartition >= 0 && procPartition < num_partitions);
         

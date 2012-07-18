@@ -869,8 +869,11 @@ public class PartitionEstimator {
      * @throws Exception
      */
     public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
-        assert (catalog_proc != null);
-        assert (params != null);
+        assert(catalog_proc != null);
+        assert(params != null);
+        assert(catalog_proc.getParameters().size() == params.length) :
+            String.format("Invalid number of ProcParameters for %s: %d != %d",
+                          catalog_proc, catalog_proc.getParameters().size(), params.length);
         ProcParameter catalog_param = this.cache_procPartitionParameters.get(catalog_proc);
 
         if (catalog_param == null && force) {
