@@ -664,7 +664,7 @@ public class TransactionEstimator implements Loggable {
      * The transaction with provided txn_id is finished
      * @param txn_id finished transaction
      */
-    public State commit(long txn_id) {
+    public State commit(Long txn_id) {
         return (this.completeTransaction(txn_id, MarkovVertex.Type.COMMIT));
     }
 
@@ -697,7 +697,7 @@ public class TransactionEstimator implements Loggable {
      * @param vtype
      * @return
      */
-    private State completeTransaction(long txn_id, MarkovVertex.Type vtype) {
+    private State completeTransaction(Long txn_id, MarkovVertex.Type vtype) {
         State s = this.txn_states.remove(txn_id);
         if (s == null) {
             LOG.warn("No state information exists for txn #" + txn_id);

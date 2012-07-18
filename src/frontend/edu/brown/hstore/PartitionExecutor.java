@@ -2095,6 +2095,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             MarkovEstimate est = ts.getEstimatorState().getLastEstimate();
             assert(est != null) : "Got back null MarkovEstimate for " + ts;
             if (hstore_conf.site.exec_no_undo_logging == false ||
+                est.isValid() == false ||
                 est.isAbortable(this.thresholds) ||
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();

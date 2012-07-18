@@ -37,7 +37,6 @@ import org.voltdb.catalog.Procedure;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.SEATSEstimator;
@@ -48,11 +47,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
-import edu.brown.markov.MarkovGraph;
-import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
