@@ -38,7 +38,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.voter.VoterConstants;
 
 @ProcInfo (
-partitionInfo = "votes.phone_number:0",
+partitionInfo = "votes.phone_number:1",
 singlePartition = true
 )
 public class Vote extends VoltProcedure {
