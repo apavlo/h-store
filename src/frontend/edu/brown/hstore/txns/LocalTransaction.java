@@ -1370,6 +1370,10 @@ public class LocalTransaction extends AbstractTransaction {
         
         MarkovEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
+        if (estimate.isValid()) {
+            return (false);
+        }
+        
         new_done = estimate.getFinishedPartitions(thresholds);
         
         if (new_done.isEmpty() == false) { 
