@@ -193,17 +193,34 @@ public class CatalogAttributeText {
         // PROCEDURE
         else if (catalog_obj instanceof Procedure) {
             Procedure catalog_proc = (Procedure)catalog_obj;
-            Collection<Procedure> conflicts = CatalogUtil.getConflictProcedures(catalog_proc);
+            Collection<Procedure> rwConflicts = CatalogUtil.getReadWriteConflicts(catalog_proc);
+            Collection<Procedure> wwConflicts = CatalogUtil.getWriteWriteConflicts(catalog_proc);
             
-            if (conflicts.size() > 0) {
+            if (rwConflicts.size() > 0 || wwConflicts.size() > 0) {
                 Map<String, Object> orig_m = m[0];
                 m = (Map<String, Object>[])new Map[2];
                 m[0] = orig_m;
                 
-                List<String> conflictLabels = new ArrayList<String>(CatalogUtil.getDisplayNames(conflicts));
-                Collections.sort(conflictLabels);
                 m[1] = new TreeMap<String, Object>();
-                m[1].put("conflicts", StringUtil.join("\n", conflictLabels));
+                Collection<Procedure> conflicts[] = (Collection<Procedure>[])new Collection<?>[] {
+                    rwConflicts,
+                    wwConflicts
+                };
+                String labels[] = { "Read-Write", "Write-Write" };
+                
+                for (int i = 0; i < labels.length; i++) {
+                    String value = "";
+                    
+                    Collection<Procedure> c = conflicts[i];
+                    if (c.size() > 0) {
+                        List<String> conflictLabels = new ArrayList<String>(CatalogUtil.getDisplayNames(rwConflicts));
+                        Collections.sort(conflictLabels);
+                        value = StringUtil.join("\n", conflictLabels);
+                    } else {
+                        value ="<NONE>";
+                    }
+                    m[1].put(labels[i] + " Conflicts", value + "\n");
+                } // FOR
             }
         }
         

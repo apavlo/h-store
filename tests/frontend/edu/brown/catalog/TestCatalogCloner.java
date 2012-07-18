@@ -167,6 +167,18 @@ public class TestCatalogCloner extends BaseTestCase {
             }
         } // FOR (field)
     }
+    
+    private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ProcedureRef> conflicts0, CatalogMap<ProcedureRef> conflicts1) {
+        assertEquals(catalog_proc.toString(), conflicts0.size(), conflicts1.size());
+        for (ProcedureRef ref : conflicts0) {
+            assertNotNull(ref);
+            assertNotNull(ref.getProcedure());
+            ProcedureRef clone_ref = conflicts1.get(ref.getName());
+            assertNotNull(clone_ref);
+            assertNotNull(clone_ref.getProcedure());
+            assertEquals(ref.getName(), clone_ref.getName());
+        } // FOR
+    }
 
     /**
      * testCloneDatabase
@@ -241,16 +253,8 @@ public class TestCatalogCloner extends BaseTestCase {
             assertEquals(clone_proc.getParameters().toString(), catalog_proc.getParameters().size(), clone_proc.getParameters().size());
 
             // Procedure Conflicts
-            assertEquals(catalog_proc.toString(), catalog_proc.getConflicts().size(), clone_proc.getConflicts().size());
-//            System.err.println(catalog_proc + " CONFLICTS: " + catalog_proc.getConflicts());
-            for (ProcedureRef ref : catalog_proc.getConflicts()) {
-                assertNotNull(ref);
-                assertNotNull(ref.getProcedure());
-                ProcedureRef clone_ref = clone_proc.getConflicts().get(ref.getName());
-                assertNotNull(clone_ref);
-                assertNotNull(clone_ref.getProcedure());
-                assertEquals(ref.getName(), clone_ref.getName());
-            } // FOR
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getReadconflicts(), clone_proc.getReadconflicts());
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getWriteconflicts(), clone_proc.getWriteconflicts());
             
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
                 ProcParameter clone_param = clone_proc.getParameters().get(catalog_param.getIndex());

@@ -32,10 +32,11 @@ public class ConflictCalculator {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private class ProcedureInfo {
+    private static class ProcedureInfo {
         final Set<Statement> readQueries = new HashSet<Statement>();
         final Set<Statement> writeQueries = new HashSet<Statement>();
-        final Set<Procedure> conflicts = new HashSet<Procedure>();
+        final Set<Procedure> readConflicts = new HashSet<Procedure>();
+        final Set<Procedure> writeConflicts = new HashSet<Procedure>();
     }
     
     private final Database catalog_db;
@@ -65,19 +66,29 @@ public class ConflictCalculator {
         for (Procedure proc0 : this.procedures.keySet()) {
             for (Procedure proc1 : this.procedures.keySet()) {
                 if (proc0.equals(proc1)) continue;
-                if (this.computeConflicts(proc0, proc1)) {
+                
+                if (this.checkReadWriteConflict(proc0, proc1)) {
                     if (debug.get()) 
-                        LOG.debug(String.format("**CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
-                    this.procedures.get(proc0).conflicts.add(proc1);
-                    this.procedures.get(proc1).conflicts.add(proc0);
+                        LOG.debug(String.format("**RW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
+                    this.procedures.get(proc0).readConflicts.add(proc1);
+                }
+                
+                if (this.checkWriteWriteConflict(proc0, proc1)) {
+                    if (debug.get()) 
+                        LOG.debug(String.format("**WW-CONFLICT** %s <-> %s", proc0.getName(), proc1.getName()));
+                    this.procedures.get(proc0).writeConflicts.add(proc1);
                 }
             } // FOR
         } // FOR
         
         for (Procedure proc : this.procedures.keySet()) {
             ProcedureInfo pInfo = this.procedures.get(proc);
-            for (Procedure conflict_proc : pInfo.conflicts) {
-                ProcedureRef ref = proc.getConflicts().add(conflict_proc.getName());
+            for (Procedure conflict_proc : pInfo.readConflicts) {
+                ProcedureRef ref = proc.getReadconflicts().add(conflict_proc.getName());
+                ref.setProcedure(conflict_proc);
+            } // FOR
+            for (Procedure conflict_proc : pInfo.writeConflicts) {
+                ProcedureRef ref = proc.getWriteconflicts().add(conflict_proc.getName());
                 ref.setProcedure(conflict_proc);
             } // FOR
         } // FOR
@@ -90,16 +101,14 @@ public class ConflictCalculator {
      * @return
      * @throws Exception
      */
-    protected boolean computeConflicts(Procedure proc0, Procedure proc1) throws Exception {
+    protected boolean checkReadWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
         ProcedureInfo pInfo0 = this.procedures.get(proc0);
         assert(pInfo0 != null);
-        
         ProcedureInfo pInfo1 = this.procedures.get(proc1);
         assert(pInfo1 != null);
         
         boolean conflicts = false;
         Collection<Column> cols0 = new HashSet<Column>();
-        
         
         // Read-Write Conflicts
         for (Statement stmt0 : pInfo0.readQueries) {
@@ -112,7 +121,7 @@ public class ConflictCalculator {
             for (Statement stmt1 : pInfo1.writeQueries) {
                 Collection<Table> tables1 = CatalogUtil.getReferencedTables(stmt1);
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
-                if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Tables %s",
+                if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
@@ -124,17 +133,36 @@ public class ConflictCalculator {
                     Collection<Column> cols1 = CatalogUtil.getModifiedColumns(stmt1);
                     assert(cols1.isEmpty() == false) : "No columns for " + stmt1.fullName();
                     Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                    if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Columns %s",
+                    if (debug.get()) LOG.debug(String.format("RW %s <-> %s - Intersection Columns %s",
                                                stmt0.fullName(), stmt1.fullName(), intersectColumns));
                     if (intersectColumns.isEmpty()) continue;
                 }
                 
                 conflicts = true;
-                if (debug.get()) LOG.debug(String.format("%s <-> %s CONFLICTS",
+                if (debug.get()) LOG.debug(String.format("RW %s <-> %s CONFLICTS",
                                            stmt0.fullName(), stmt1.fullName()));
             } // FOR (proc1)
             if (conflicts) break;
         } // FOR (proc0)
+        
+        return (conflicts);
+    }
+    
+    /**
+     * Calculate whether two Procedures conflict
+     * @param proc0
+     * @param proc1
+     * @return
+     * @throws Exception
+     */
+    protected boolean checkWriteWriteConflict(Procedure proc0, Procedure proc1) throws Exception {
+        ProcedureInfo pInfo0 = this.procedures.get(proc0);
+        assert(pInfo0 != null);
+        ProcedureInfo pInfo1 = this.procedures.get(proc1);
+        assert(pInfo1 != null);
+        
+        boolean conflicts = false;
+        Collection<Column> cols0 = new HashSet<Column>();
         
         // Write-Write Conflicts
         // Any INSERT or DELETE is always a conflict
@@ -152,7 +180,7 @@ public class ConflictCalculator {
                 QueryType type1 = QueryType.get(stmt1.getQuerytype());
                 
                 Collection<Table> intersectTables = CollectionUtils.intersection(tables0, tables1);
-                if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Tables %s",
+                if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Tables %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectTables));
                 if (intersectTables.isEmpty()) continue;
                 
@@ -165,7 +193,7 @@ public class ConflictCalculator {
                 Collection<Column> cols1 = CatalogUtil.getReferencedColumns(stmt1);
                 assert(cols1.isEmpty() == false) : "No columns for " + stmt0.fullName();
                 Collection<Column> intersectColumns = CollectionUtils.intersection(cols0, cols1);
-                if (debug.get()) LOG.debug(String.format("%s <-> %s - Intersection Columns %s",
+                if (debug.get()) LOG.debug(String.format("WW %s <-> %s - Intersection Columns %s",
                                            stmt0.fullName(), stmt1.fullName(), intersectColumns));
                 if (intersectColumns.isEmpty()) continue;
                 

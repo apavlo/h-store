@@ -370,8 +370,12 @@ public abstract class CatalogCloner {
         for (Procedure src_proc : src_db.getProcedures()) {
             Procedure dest_proc = dest_db.getProcedures().get(src_proc.getName());
             if (dest_proc != null) {
-                for (ProcedureRef src_ref : src_proc.getConflicts()) {
-                    ProcedureRef dest_ref = dest_proc.getConflicts().add(src_ref.getName());
+                for (ProcedureRef src_ref : src_proc.getReadconflicts()) {
+                    ProcedureRef dest_ref = dest_proc.getReadconflicts().add(src_ref.getName());
+                    dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
+                } // FOR
+                for (ProcedureRef src_ref : src_proc.getWriteconflicts()) {
+                    ProcedureRef dest_ref = dest_proc.getWriteconflicts().add(src_ref.getName());
                     dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
                 } // FOR
             }
