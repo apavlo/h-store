@@ -736,6 +736,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.profiler.work_exec_time.resetOnEventObservable(observable);
         }
         
+        // Make sure that we call tick() every 1 sec
+        Runnable tickRunnable = new Runnable() {
+            @Override
+            public void run() { PartitionExecutor.this.tick(); }
+        };
+        hstore_site.getThreadManager().schedulePeriodicWork(tickRunnable, 0, 1100, TimeUnit.MILLISECONDS);
+        
+        // Initialize all of our VoltProcedures handles
+        // We will need one per stored procedure at this partition
         this.initializeVoltProcedures();
     }
     
@@ -1050,9 +1059,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.work_utility_time.start();
         if (t) LOG.trace("Entering utilityWork");
-        
-        // Always invoke tick()
-        this.tick();
         
         // Try to free some memory
         // TODO(pavlo): Is this really safe to do?
