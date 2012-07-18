@@ -925,7 +925,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ByteBuffer serializedRequest = work.getSerializedRequest(); 
         Procedure catalog_proc = work.getProcedure();
         ParameterSet procParams = work.getProcParams();
-        RpcCallback<ClientResponseImpl> done = work.getClientCallback(); 
+        RpcCallback<ClientResponseImpl> clientCallback = work.getClientCallback(); 
         long client_handle = work.getClientHandle();
         
         LocalTransaction ts = this.txnInitializer.initInvocation(
@@ -934,7 +934,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                this.partitionId,
                                                catalog_proc,
                                                procParams,
-                                               done);
+                                               clientCallback);
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
