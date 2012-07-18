@@ -392,8 +392,7 @@ public abstract class CatalogCloner {
             Table dest_tbl = dest_db.getTables().get(src_tbl.getName());
             if (dest_tbl != null) {
                 for (Constraint src_cons : src_tbl.getConstraints()) {
-                    // Only clone a FKEY constraint if the other table is in the
-                    // catalog
+                    // Only clone FKEY constraint if the other table is in the catalog
                     ConstraintType cons_type = ConstraintType.get(src_cons.getType());
                     if (cons_type != ConstraintType.FOREIGN_KEY || (cons_type == ConstraintType.FOREIGN_KEY && dest_db.getTables().get(src_cons.getForeignkeytable().getName()) != null)) {
                         Constraint dest_cons = clone(src_cons, dest_catalog);

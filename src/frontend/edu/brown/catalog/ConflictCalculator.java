@@ -83,14 +83,23 @@ public class ConflictCalculator {
         
         for (Procedure proc : this.procedures.keySet()) {
             ProcedureInfo pInfo = this.procedures.get(proc);
+            boolean hasConflict = false;
             for (Procedure conflict_proc : pInfo.readConflicts) {
                 ProcedureRef ref = proc.getReadconflicts().add(conflict_proc.getName());
                 ref.setProcedure(conflict_proc);
+                hasConflict = true;
             } // FOR
             for (Procedure conflict_proc : pInfo.writeConflicts) {
                 ProcedureRef ref = proc.getWriteconflicts().add(conflict_proc.getName());
                 ref.setProcedure(conflict_proc);
+                hasConflict = true;
             } // FOR
+            if (hasConflict && debug.get())
+                LOG.debug(String.format(
+                          "%s Conflicts:\n" +
+                          "  R-W: %s\n" +
+                          "  W-W: %s",
+                          proc.getName(), proc.getReadconflicts(), proc.getWriteconflicts()));
         } // FOR
     }
     
