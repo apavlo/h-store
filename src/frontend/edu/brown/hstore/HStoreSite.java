@@ -98,7 +98,6 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
-import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.ProfileMeasurement;

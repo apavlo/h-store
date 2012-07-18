@@ -282,9 +282,6 @@ public class TransactionEstimator implements Loggable {
         public Set<Integer> getTouchedPartitions() {
             return (this.touched_partitions);
         }
-        public void addTouchedPartitions(Collection<Integer> partitions) {
-            this.touched_partitions.addAll(partitions);
-        }
         public List<MarkovVertex> getActualPath() {
             return (this.actual_path);
         }
@@ -454,7 +451,7 @@ public class TransactionEstimator implements Loggable {
      * @param BASE_PARTITION
      * @return an estimate for the transaction's future
      */
-    public State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
+    protected State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
         Integer base_partition = null; 
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
@@ -499,7 +496,7 @@ public class TransactionEstimator implements Loggable {
             estimator = this.cached_estimators.get(markov);
         }
             
-        // Otherwise we have to recalculate everything from scatch again
+        // Otherwise we have to recalculate everything from scratch again
         if (estimator == null) {
             if (d) LOG.debug("Recalculating initial path estimate for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id)); 
             try {
@@ -591,12 +588,10 @@ public class TransactionEstimator implements Loggable {
         int stmt_idxs[] = null;
         boolean attempt_cache_lookup = false;
 
-        if (allow_cache_lookup && batch_size >= hstore_conf.site.markov_batch_caching_min) {
-//            CACHE.start();
+        if (attempt_cache_lookup && batch_size >= hstore_conf.site.markov_batch_caching_min) {
             assert(current != null);
             if (d) LOG.debug("Attempting cache look-up for last statement in batch: " + Arrays.toString(catalog_stmts));
             attempt_cache_lookup = true;
-//            batch_cache_attempts.incrementAndGet();
             
             state.cache_last_partitions.clear();
             state.cache_past_partitions.clear();
@@ -626,9 +621,7 @@ public class TransactionEstimator implements Loggable {
                 state.setCurrent(next_v, next_e);
                 state.touched_partitions.addAll(state.cache_last_partitions);
                 state.touched_partitions.addAll(state.cache_past_partitions);
-//                batch_cache_success.incrementAndGet();
             }
-//            CACHE.stop();
         }
         
         // Roll through the Statements in this batch and move the current vertex
@@ -650,7 +643,8 @@ public class TransactionEstimator implements Loggable {
         MarkovEstimate estimate = state.createNextEstimate(state.current);
         assert(estimate != null);
         if (d) LOG.debug(String.format("Next MarkovEstimate for txn #%d\n%s", state.txn_id, estimate));
-        assert(estimate.isValid()) : String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
+        assert(estimate.isValid()) :
+            String.format("Invalid MarkovEstimate for txn #%d\n%s", state.txn_id, estimate);
         
         // Once the workload shifts we detect it and trigger this method. Recomputes
         // the graph with the data we collected with the current workload method.
@@ -768,7 +762,7 @@ public class TransactionEstimator implements Loggable {
         assert(current != null);
         MarkovVertex next_v = null;
         MarkovEdge next_e = null;
-
+        
         // Synchronize on the single vertex so that it's more fine-grained than the entire graph
         synchronized (current) {
             Collection<MarkovEdge> edges = markov.getOutEdges(current); 
@@ -794,7 +788,9 @@ public class TransactionEstimator implements Loggable {
                                     state.touched_partitions);
                 markov.addVertex(next_v);
                 next_e = markov.addToEdge(current, next_v);
-                if (t) LOG.trace("Created new edge/vertex from " + state.getCurrent() + " for Txn #" + state.txn_id);
+                if (t) LOG.trace(String.format("Created new edge from %s to new %s for txn #%d", 
+                                 state.getCurrent(), next_v, state.txn_id));
+                assert(state.getCurrent().getPartitions().size() <= state.touched_partitions.size());
             }
         } // SYNCH
 

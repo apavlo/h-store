@@ -70,8 +70,8 @@ import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
-import org.voltdb.SysProcSelector;
 import org.voltdb.SnapshotSiteProcessor.SnapshotTableTask;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.VoltSystemProcedure;
@@ -147,9 +147,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.profilers.AbstractProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
-import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
@@ -2383,9 +2381,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             MispredictionException ex = plan.getMisprediction(); 
             ts.setPendingError(ex, false);
 
-            if (t_state != null) {
-                LOG.warn("GRAPH DUMP: " + t_state.dumpMarkovGraph());
-            }
+//            if (t_state != null) {
+//                LOG.warn("GRAPH DUMP: " + t_state.dumpMarkovGraph());
+//            }
             
             MarkovGraph markov = (t_state != null ? t_state.getMarkovGraph() : null); 
             if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
