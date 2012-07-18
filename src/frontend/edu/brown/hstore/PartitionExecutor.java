@@ -172,6 +172,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         t = trace.get();
     }
 
+    private static final int WORK_QUEUE_POLL_TIME = 5; // milliseconds
+    
     // ----------------------------------------------------------------------------
     // INTERNAL EXECUTION STATE
     // ----------------------------------------------------------------------------
@@ -858,7 +860,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
             if (hstore_conf.site.exec_profiling) this.profiler.work_idle_time.start();
             try {
-                work = this.work_queue.poll(100, TimeUnit.MILLISECONDS);
+                work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
                 if (d && this.isShuttingDown() == false)
                     LOG.debug("Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
@@ -1130,21 +1132,31 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Null transaction handle???";
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
-        if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+//        if (d)
+            LOG.info(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
                                        ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
         
+        ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
+            
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
         if (ts.isExecReadOnly(this.partitionId)) {
-            ExecutionMode newMode = ExecutionMode.COMMIT_READONLY;
-            if (d) LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
-                                           ts, newMode, partitionId, this.currentExecMode));
+            newMode = ExecutionMode.COMMIT_READONLY;
+        }
+        
+        if (newMode != null) {
+//            if (d)
+                LOG.info(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
+                                           ts, newMode, this.partitionId, this.currentExecMode));
             exec_lock.lock();
             try {
+                // Make sure that our txn is still the current dtxn and that the 
+                // execution isn't disabled at this partition at this partition
                 if (this.currentDtxn == ts && this.currentExecMode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, newMode);
-                    this.releaseBlockedTransactions(ts, true);
-                    if (d) LOG.debug(String.format("%s - Enabled %s speculative execution at partition %d",
+                    this.releaseBlockedTransactions(ts);
+//                    if (d)
+                        LOG.info(String.format("%s - Enabled %s speculative execution at partition %d",
                                                    ts, this.currentExecMode, partitionId));
                     return (true);
                 }
@@ -1161,8 +1173,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param txn_id
      */
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
-        if (d && this.currentExecMode != newMode) {
-            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
+        // if (d && this.currentExecMode != newMode) {
+        if (this.currentExecMode != newMode) {
+            LOG.info(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
                                     this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
         }
         assert(newMode != ExecutionMode.COMMIT_READONLY ||
@@ -2709,7 +2722,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
-        LinkedBlockingDeque<Collection<WorkFragment>> queue = execState.getUnblockedWorkFragmentsQueue();
+        final LinkedBlockingDeque<Collection<WorkFragment>> queue = execState.getUnblockedWorkFragmentsQueue();
 
         boolean first = true;
         boolean serializedParams = false;
@@ -2747,28 +2760,32 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 total = 0;
                 
                 if (t) LOG.trace(String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
-                if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
                 fragments = queue.poll(); // NON-BLOCKING
-                if (fragments == null) {
-                    boolean hasdeferredwork = true;
-                    do {
-                        hasdeferredwork = this.utilityWork();
-                        fragments = queue.poll();
-                    } while (fragments == null && hasdeferredwork == true);
-                }
-                if (fragments == null) {
-                    try {
-                        fragments = queue.takeFirst(); // BLOCKING
-                    } catch (InterruptedException ex) {
-                        if (this.hstore_site.isShuttingDown() == false) {
-                            LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
+                
+                // If we didn't get back a list of fragments here, then we will spin through
+                // and invoke utilityWork() to try to do something useful until what we need shows up
+                if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
+                try {
+                    while (fragments == null) {
+                        // If there is more work that we could do, then we'll just poll the queue
+                        // without waiting so that we can go back and execute it again if we have
+                        // more time.
+                        if (this.utilityWork()) {
+                            fragments = queue.poll();
                         }
-                        return (null);
-                    } finally {
-                        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                        // Otherwise we will wait a little so that we don't spin the CPU
+                        else {
+                            fragments = queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
+                        }
+                    } // WHILE
+                } catch (InterruptedException ex) {
+                    if (this.hstore_site.isShuttingDown() == false) {
+                        LOG.error(String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
                     }
+                    return (null);
+                } finally {
+                    if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
                 }
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             }
             assert(fragments != null);
             
@@ -2964,14 +2981,22 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                         ts, latch.getCount()));
                 if (t) LOG.trace(ts.toString());
             }
-            if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
             boolean timeout = false;
-            while (latch.getCount() > 0) {
-                if (this.utilityWork() == false) break;
-            } // WHILE
+            long startTime = System.nanoTime();
+            long waitTime = hstore_conf.site.exec_response_timeout*1000000;
             
+            if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
             try {
-                timeout = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
+                while (latch.getCount() > 0) {
+                    if (this.utilityWork() == false) {
+                        timeout = latch.await(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
+                        if (timeout == false) break;
+                    }
+                    if ((System.nanoTime() - startTime) > waitTime) {
+                        timeout = true;
+                        break;
+                    }
+                } // WHILE
             } catch (InterruptedException ex) {
                 if (this.hstore_site.isShuttingDown() == false) {
                     LOG.error(String.format("%s - We were interrupted while waiting for results", ts), ex);
@@ -3248,7 +3273,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 this.releaseQueuedResponses(ts.isExecReadOnly(this.partitionId) ? true : commit);
             }
             // Release blocked transactions
-            this.releaseBlockedTransactions(ts, false);
+            this.releaseBlockedTransactions(ts);
         } catch (Throwable ex) {
             String msg = String.format("Failed to finish %s at partition %d", ts, this.partitionId);
             throw new ServerFaultException(msg, ex);
@@ -3271,12 +3296,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
     }    
+
     /**
-     * 
-     * @param txn_id
-     * @param p
+     * Release all the transactions that are currently in this partition's blocked queue 
+     * into the work queue.
+     * @param ts
      */
-    private void releaseBlockedTransactions(AbstractTransaction ts, boolean speculative) {
+    private void releaseBlockedTransactions(AbstractTransaction ts) {
         if (this.currentBlockedTxns.isEmpty() == false) {
             if (d) LOG.debug(String.format("Attempting to release %d blocked transactions at partition %d because of %s",
                                            this.currentBlockedTxns.size(), this.partitionId, ts));
@@ -3284,7 +3310,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             int released = this.currentBlockedTxns.size();
             this.currentBlockedTxns.clear();
             if (d) LOG.debug(String.format("Released %d blocked transactions at partition %d because of %s",
-                                         released, this.partitionId, ts));
+                                           released, this.partitionId, ts));
         }
         assert(this.currentBlockedTxns.isEmpty());
     }
