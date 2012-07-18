@@ -9,13 +9,19 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.internal.InitializeTxnMessage;
 import edu.brown.hstore.internal.InternalMessage;
+import edu.brown.hstore.internal.StartTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
 import edu.brown.hstore.txns.AbstractTransaction;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
+/**
+ * Special scheduler that can figure out what the next best single-partition
+ * to speculatively execute at a partition based on the current distributed transaction 
+ * @author pavlo
+ */
 public class SpecExecScheduler {
     private static final Logger LOG = Logger.getLogger(SpecExecScheduler.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -51,26 +57,28 @@ public class SpecExecScheduler {
             this.procConflicts[idx] = bs;
         } // FOR
     }
-    
+
     /**
-     * Find the next non-conflicting txn that we can speculatively execute
+     * Find the next non-conflicting txn that we can speculatively execute.
+     * Note that if we find one, it will be immediately removed from the queue
+     * and returned. If you do this and then find out for some reason that you
+     * can't execute the StartTxnMessage that is returned, you must be sure
+     * to requeue it back.
+     * @param dtxn The current distributed txn at this partition.
      * @return
      */
-    public InitializeTxnMessage next(AbstractTransaction dtxn) {
-        int proc_id = dtxn.getProcedureId();
-        Procedure catalog_proc = this.catalog_procs[proc_id];
-        
-        BitSet bs = this.procConflicts[proc_id];
-        if (bs == null) {
+    public StartTxnMessage next(AbstractTransaction dtxn) {
+        Procedure catalog_proc = this.catalog_procs[dtxn.getProcedureId()];
+        BitSet bs = this.procConflicts[dtxn.getProcedureId()];
+        if (catalog_proc == null || bs == null) {
             if (debug.get())
-                LOG.debug(String.format("SKIP %s - No conflict mapping exists",
-                                        catalog_proc.getName()));
+                LOG.debug("SKIP - Ignoring current distributed txn because no conflict information exists");
             return (null);
         }
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
-        InitializeTxnMessage next = null;
+        StartTxnMessage next = null;
         Iterator<InternalMessage> it = this.work_queue.iterator();
         while (it.hasNext()) {
             InternalMessage msg = it.next();
@@ -84,18 +92,21 @@ public class SpecExecScheduler {
                                             catalog_proc.getName()));
                 return (null);
             }
-            else if (msg instanceof InitializeTxnMessage) {
-
-                // So we have a problem here... We need to be able to know
-                // whether a txn is single-partition or not here because we don't want
-                // to start speculatively executing a distributed txn. Of course
-                // at this point all we have are raw bytes from the client.
-//                InitializeTxnMessage txn_msg = (InitializeTxnMessage)msg;
-//                if (bs.get(txn_msg.getProcedure().getId()) == false) {
-//                    next = txn_msg;
-//                    break;
-//                }
-                break;
+            // A StartTxnMessage will have a fully initialized LocalTransaction handle
+            // that we can examine and execute right away if necessary
+            else if (msg instanceof StartTxnMessage) {
+                StartTxnMessage txn_msg = (StartTxnMessage)msg;
+                LocalTransaction ts = txn_msg.getTransaction();
+                int procId = ts.getProcedureId();
+                
+                // Only release it if it's single-partitioned and does not conflict
+                // with our current dtxn
+                if (ts.isPredictSinglePartition() && bs.get(procId) == false) {
+                    next = txn_msg;
+                    // Make sure that we remove it from our queue
+                    it.remove();
+                    break;
+                }
             }
         } // WHILE
         if (debug.get() && next != null) {
