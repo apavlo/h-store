@@ -54,6 +54,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -345,10 +346,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
 
     /**
-     * This is the execution state for the current transaction.
-     * There is only one of these per partition, so it must be cleared out for each new txn
+     * This is the execution state for a running transaction.
+     * We have a circular queue so that we can reuse them for speculatively execute txns
      */
-    private final ExecutionState execState;
+    private final Queue<ExecutionState> execStates = new LinkedList<ExecutionState>();
     
     /**
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
@@ -544,7 +545,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.backend_target = BackendTarget.HSQLDB_BACKEND;
         this.siteId = 0;
         this.partitionId = 0;
-        this.execState = null;
         this.procParameterSets = null;
         this.tmp_fragmentParams = null;
         this.tmp_transactionRequestBuilders = null;
@@ -583,7 +583,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.siteId = this.site.getId();
         
         this.specExecScheduler = new SpecExecScheduler(this);
-        this.execState = new ExecutionState(this);
         
         this.backend_target = target;
         this.cluster = CatalogUtil.getCluster(catalog);
@@ -746,6 +745,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Initialize all of our VoltProcedures handles
         // We will need one per stored procedure at this partition
         this.initializeVoltProcedures();
+    }
+    
+    protected ExecutionState initExecutionState() {
+        ExecutionState state = this.execStates.poll();
+        if (state == null) {
+            state = new ExecutionState(this);
+        } else {
+            state.clear();
+        }
+        return (state);
     }
     
     // ----------------------------------------------------------------------------
@@ -1657,10 +1666,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             exec_lock.unlock();
         } // SYNCH
         
-        // Always clear+set the ExecutionState
-        this.execState.clear();
-        ts.setExecutionState(this.execState);
-        
+        // Grab a new ExecutionState for this txn
+        ExecutionState execState = this.initExecutionState(); 
+        ts.setExecutionState(execState);
         VoltProcedure volt_proc = this.procedures.get(ts.getProcedureName());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
@@ -1687,6 +1695,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         } finally {
             ts.resetExecutionState();
+            this.execStates.add(execState);
         }
         
         // If this is a MapReduce job, then we can just ignore the ClientResponse
@@ -2690,6 +2699,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ts.initRound(this.partitionId, this.getNextUndoToken());
         ts.setBatchSize(batchSize);
         
+        final ExecutionState execState = ts.getExecutionState();
         final boolean prefetch = ts.hasPrefetchQueries();
         final boolean predict_singlePartition = ts.isPredictSinglePartition();
         
@@ -2699,7 +2709,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
-        LinkedBlockingDeque<Collection<WorkFragment>> queue = this.execState.getUnblockedWorkFragmentsQueue();
+        LinkedBlockingDeque<Collection<WorkFragment>> queue = execState.getUnblockedWorkFragmentsQueue();
 
         boolean first = true;
         boolean serializedParams = false;

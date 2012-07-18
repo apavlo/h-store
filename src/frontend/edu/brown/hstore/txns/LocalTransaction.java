@@ -401,6 +401,9 @@ public class LocalTransaction extends AbstractTransaction {
 //        } // FOR
     }
     
+    public ExecutionState getExecutionState() {
+        return (this.state);
+    }
     public void resetExecutionState() {
         if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
                                        this, (this.state == null)));
