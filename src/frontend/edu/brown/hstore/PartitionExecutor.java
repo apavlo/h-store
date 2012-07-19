@@ -2245,9 +2245,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             ee.stashWorkUnitDependencies(input_deps);
         }
         
+        // Read-Write Sets for Tables
+        boolean readonly = true;
+        int tableIds[] = null;
+        for (int i = 0; i < batchSize; i++) {
+            boolean fragReadOnly = PlanFragmentIdGenerator.isPlanFragmentReadOnly(fragmentIds[i]);
+            if (fragReadOnly) {
+                tableIds = catalogContext.getReadTableIds(Long.valueOf(fragmentIds[i]));
+                ts.markTableIdsAsRead(this.partitionId, tableIds);
+            } else {
+                tableIds = catalogContext.getWriteTableIds(Long.valueOf(fragmentIds[i]));
+                ts.markTableIdsAsWritten(this.partitionId, tableIds);
+            }
+            readonly = readonly && fragReadOnly;
+        }
+        
         // Check whether this fragments are read-only
         if (ts.isExecReadOnly(this.partitionId)) {
-            boolean readonly = PlanFragmentIdGenerator.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
                 if (d) LOG.debug(String.format("%s - Marking txn as not read-only %s", ts, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly(this.partitionId);
