@@ -914,30 +914,20 @@ public class PartitionEstimator {
                 int mpp_param_idx = mpp.get(i).getIndex();
                 assert (mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
                 assert (mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
-                Integer hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
-                if (hash == null)
-                    hash = 0;
-                hashes[i] = hash.intValue();
+                int hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                hashes[i] = (hash == HStoreConstants.NULL_PARTITION_ID ? 0 : hash);
                 if (debug.get())
                     LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
             if (debug.get())
                 LOG.debug(Arrays.toString(hashes) + " => " + partition);
-            // Single ProcParameter
-        } else {
+        }
+        // Single ProcParameter
+        else {
             if (debug.get())
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
-            // try {
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
-            // } catch (NullPointerException ex) {
-            // LOG.error("catalog_proc = " + catalog_proc);
-            // LOG.error("catalog_param = " + CatalogUtil.debug(catalog_param));
-            // LOG.error("params = " + Arrays.toString(params));
-            // LOG.error("is_array = " + is_array);
-            // LOG.error("Busted!", ex);
-            // System.exit(1);
-            // }
         }
         return (partition);
     }
