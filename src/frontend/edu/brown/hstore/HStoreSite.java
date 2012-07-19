@@ -33,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -406,7 +405,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
-    @SuppressWarnings("unchecked")
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
     	
         assert(catalog_site != null);
