@@ -201,7 +201,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.singlesited = singlesited;
         }
 
-        public Integer getExecutionPartition() {
+        public int getExecutionPartition() {
             return (this.base_partition);
         }
 

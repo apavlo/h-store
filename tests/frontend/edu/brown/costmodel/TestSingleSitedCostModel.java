@@ -25,6 +25,7 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -667,7 +668,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNull(entry.getExecutionPartition());
+        assertEquals(HStoreConstants.NULL_PARTITION_ID, entry.getExecutionPartition());
         assert(entry.isSinglePartitioned());
         
         // Make something else the ProcParameter
@@ -677,7 +678,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNotNull(entry.getExecutionPartition());
+        assert(entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID);
         // assertFalse(entry.isSingleSited());
         
         // Now let's put S_ID back in as the ProcParameter
@@ -687,7 +688,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNotNull(entry.getExecutionPartition());
+        assert(entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID);
         if (!entry.isSinglePartitioned()) System.err.println(entry.debug());
         assert(entry.isSinglePartitioned());
     }
