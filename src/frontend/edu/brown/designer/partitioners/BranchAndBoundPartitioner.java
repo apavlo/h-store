@@ -7,13 +7,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.collections15.CollectionUtils;
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -83,8 +83,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      * 
      */
     protected static class StateVertex {
-        private static final long serialVersionUID = 1L;
-
         private static final String START_VERTEX_NAME = "*START*";
         private static final String UPPERBOUND_NAME = "*UPPERBOUND*";
 
@@ -178,7 +176,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public Map<String, String> getCatalogKeyMap() {
-            return (this.buildCatalogKeyMap(new ListOrderedMap<String, String>()));
+            return (this.buildCatalogKeyMap(new LinkedHashMap<String, String>()));
         }
 
         private Map<String, String> buildCatalogKeyMap(Map<String, String> map) {
@@ -190,7 +188,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         }
 
         public Map<CatalogType, CatalogType> getCatalogMap(Database catalog_db) {
-            Map<CatalogType, CatalogType> m = new ListOrderedMap<CatalogType, CatalogType>();
+            Map<CatalogType, CatalogType> m = new LinkedHashMap<CatalogType, CatalogType>();
 
             // // First insert all of the entries from the catalog
             // for (Table catalog_tbl : catalog_db.getTables()) {
@@ -226,12 +224,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 
         @Override
         public String toString() {
-            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            Map<String, Object> m0 = new LinkedHashMap<String, Object>();
             m0.put(String.format("StateVertex[%s]", this.catalog_key), null);
             m0.put("Cost", this.cost);
             m0.put("Memory", this.memory);
 
-            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            Map<String, Object> m1 = new LinkedHashMap<String, Object>();
             for (Entry<String, String> e : this.getCatalogKeyMap().entrySet()) {
                 m1.put(CatalogKey.getNameFromKey(e.getKey()), CatalogKey.getNameFromKey(e.getValue()));
             }
@@ -554,7 +552,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.init(hints);
 
         if (debug.get()) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Exhaustive Search", hints.exhaustive_search);
             m.put("Greedy Search", hints.greedy_search);
             m.put("Local Search Time", hints.limit_local_time);
@@ -854,7 +852,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             final int num_attributes = current_attributes.size();
             assert (current_attributes != null);
             if (trace.get()) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
                 m.put("Traversal Level", traverse_ctr);
                 m.put("Item Index", idx);
                 m.put("Current", current);
@@ -1058,12 +1056,12 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     boolean is_valid = MathUtil.greaterThanEquals(cost.floatValue(), parent.cost.floatValue(), 0.001f);
 
                     if (!is_valid) { // && debug.get()) {
-                        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+                        Map<String, Object> m0 = new LinkedHashMap<String, Object>();
                         m0.put("Parent State", parent.toString());
                         m0.put("Parent CostModel", parent.debug);
                         m0.put("Parent Catalog", createPartitionPlan(hints, parent, false, false));
 
-                        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+                        Map<String, Object> m1 = new LinkedHashMap<String, Object>();
                         m1.put("Current Attribute", current_attribute.fullName());
                         m1.put("Current State", state.toString());
                         m1.put("Current CostModel", cost_model.debugHistograms(info.catalog_db));
