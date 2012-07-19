@@ -21,10 +21,13 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.utils.JarClassLoader;
+
+import edu.brown.catalog.CatalogUtil;
 
 public class CatalogContext {
 
@@ -52,6 +55,8 @@ public class CatalogContext {
     // PRIVATE
     private final String m_path;
     private final JarClassLoader m_catalogClassLoader;
+    
+    private final Partition partitions[];
 
     public CatalogContext(Catalog catalog, String pathToCatalogJar) {
         // check the heck out of the given params in this immutable class
@@ -83,6 +88,10 @@ public class CatalogContext {
 
         // count partitions
         numberOfPartitions = cluster.getNum_partitions();
+        this.partitions = new Partition[numberOfPartitions];
+        for (Partition p : CatalogUtil.getAllPartitions(catalog)) {
+            this.partitions[p.getId()] = p;
+        }
     }
 
     public CatalogContext deepCopy() {
@@ -113,5 +122,16 @@ public class CatalogContext {
 
         // look in the catalog for the file
         return m_catalogClassLoader.loadClass(procedureClassName);
+    }
+    
+    /**
+     * Return the Partition catalog object for the given PartitionId
+     * 
+     * @param catalog_item
+     * @param id
+     * @return
+     */
+    public Partition getPartitionById(int id) {
+        return (this.partitions[id]);
     }
 }

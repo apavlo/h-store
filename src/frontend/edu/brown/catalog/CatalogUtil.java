@@ -760,6 +760,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param id
      * @return
      */
+    @Deprecated
     public static Partition getPartitionById(CatalogType catalog_item, Integer id) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())

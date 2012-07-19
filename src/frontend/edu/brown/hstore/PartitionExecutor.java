@@ -65,6 +65,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
@@ -210,6 +211,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Catalog objects
      */
+    protected final CatalogContext catalogContext;
     protected Catalog catalog;
     protected Cluster cluster;
     protected Database database;
@@ -531,6 +533,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Dummy constructor...
      */
     protected PartitionExecutor() {
+        this.catalogContext = null;
         this.work_queue = null;
         this.utility_queue = null;
         this.ee = null;
@@ -562,7 +565,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * newlines that, when executed, reconstruct the complete m_catalog.
      */
     public PartitionExecutor(final int partitionId,
-                             final Catalog catalog,
+                             final CatalogContext catalogContext,
                              final BackendTarget target,
                              final PartitionEstimator p_estimator,
                              final TransactionEstimator t_estimator) {
@@ -575,8 +578,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 hstore_conf.site.queue_incoming_increase,
                 hstore_conf.site.queue_incoming_increase_max
         );
-        this.catalog = catalog;
-        this.partition = CatalogUtil.getPartitionById(this.catalog, partitionId);
+        this.catalogContext = catalogContext;
+        this.catalog = catalogContext.catalog;
+        this.partition = catalogContext.getPartitionById(partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
         this.partitionId = this.partition.getId();
         this.partitionIdObj = Integer.valueOf(this.partitionId);
@@ -587,8 +591,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.specExecScheduler = new SpecExecScheduler(this);
         
         this.backend_target = target;
-        this.cluster = CatalogUtil.getCluster(catalog);
-        this.database = CatalogUtil.getDatabase(cluster);
+        this.cluster = catalogContext.cluster;
+        this.database = catalogContext.database;
 
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
         this.p_estimator = p_estimator;
