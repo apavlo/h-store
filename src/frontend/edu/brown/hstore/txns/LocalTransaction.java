@@ -218,7 +218,7 @@ public class LocalTransaction extends AbstractTransaction {
         HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
         this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
       
-        int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
+        int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.done_partitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
@@ -323,10 +323,10 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction testInit(Long txn_id,
-                                      int base_partition,
-                                      PartitionSet predict_touchedPartitions,
-                                      Procedure catalog_proc,
-                                      Object... proc_params) {
+                                     int base_partition,
+                                     PartitionSet predict_touchedPartitions,
+                                     Procedure catalog_proc,
+                                     Object... proc_params) {
         this.parameters = new ParameterSet(proc_params);
         this.client_callback = new RpcCallback<ClientResponseImpl>() {
             public void run(ClientResponseImpl parameter) {}

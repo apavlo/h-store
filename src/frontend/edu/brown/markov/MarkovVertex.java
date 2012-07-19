@@ -4,10 +4,8 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +31,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -136,12 +135,12 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     /**
      * The partitions this query touches
      */
-    public Set<Integer> partitions = new HashSet<Integer>();
+    public PartitionSet partitions = new PartitionSet();
     
     /**
      * The partitions that the txn has touched in the past
      */
-    public Set<Integer> past_partitions = new HashSet<Integer>();
+    public PartitionSet past_partitions = new PartitionSet();
 
     // ----------------------------------------------------------------------------
     // ADDITIONAL NON-STATE DATA MEMBERS
@@ -367,7 +366,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * Return the set of partitions that the query represented by this vertex touches
      * @return
      */
-    public Set<Integer> getPartitions() {
+    public PartitionSet getPartitions() {
         return partitions;
     }
     
@@ -375,7 +374,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * Return the set of partitions that the txn has touched in the past
      * @return
      */
-    public Set<Integer> getPastPartitions() {
+    public PartitionSet getPastPartitions() {
         return past_partitions;
     }
 
@@ -811,14 +810,26 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
     @SuppressWarnings("unchecked")
     public void fromJSONObjectImpl(JSONObject object, Database catalog_db) throws JSONException {
         // Lists in Java suck. We want to let fieldsFromJSONObject handle all our fields except for TYPE
-        Set<Members> members_set = CollectionUtil.getAllExcluding(Members.values(), Members.TYPE, Members.PROBABILITIES);
+        Set<Members> members_set = CollectionUtil.getAllExcluding(Members.values(),
+                Members.TYPE,
+                Members.PROBABILITIES,
+                Members.PARTITIONS,
+                Members.PAST_PARTITIONS);
         Members members[] = new Members[members_set.size()];
         members_set.toArray(members);
         super.fieldsFromJSONObject(object, catalog_db, MarkovVertex.class, members);
         
         // HACK
-        this.partitions = Collections.unmodifiableSet(this.partitions);
-        this.past_partitions = Collections.unmodifiableSet(this.past_partitions);
+        this.partitions.clear();
+        JSONArray json_arr = object.getJSONArray(Members.PARTITIONS.name());
+        for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
+            this.partitions.add(Integer.valueOf(json_arr.getInt(i)));
+        }
+        this.past_partitions.clear();
+        json_arr = object.getJSONArray(Members.PAST_PARTITIONS.name());
+        for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
+            this.past_partitions.add(Integer.valueOf(json_arr.getInt(i)));
+        }
 
         // Probabilities Map
         JSONObject json_probabilities = object.getJSONObject(Members.PROBABILITIES.name());
@@ -829,7 +840,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
             assert(type != null) : "Invalid name '" + key + "'";
             int i = type.ordinal();
             
-            JSONArray json_arr = json_probabilities.getJSONArray(key);
+            json_arr = json_probabilities.getJSONArray(key);
             this.probabilities[i] = new float[json_arr.length()];
             for (int j = 0, cnt = this.probabilities[i].length; j < cnt; j++) {
                 this.probabilities[i][j] = (float)json_arr.getDouble(j);
