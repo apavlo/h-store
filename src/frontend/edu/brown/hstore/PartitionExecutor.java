@@ -1136,8 +1136,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Null transaction handle???";
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
-//        if (d)
-            LOG.info(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+        if (d)
+            LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
                                        ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
         
         ExecutionMode newMode = ExecutionMode.COMMIT_NONE;
@@ -1149,8 +1149,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         if (newMode != null) {
-//            if (d)
-                LOG.info(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
+            if (d)
+                LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
                                            ts, newMode, this.partitionId, this.currentExecMode));
             exec_lock.lock();
             try {
@@ -1159,8 +1159,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (this.currentDtxn == ts && this.currentExecMode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, newMode);
                     this.releaseBlockedTransactions(ts);
-//                    if (d)
-                        LOG.info(String.format("%s - Enabled %s speculative execution at partition %d",
+                    if (d)
+                        LOG.debug(String.format("%s - Enabled %s speculative execution at partition %d",
                                                    ts, this.currentExecMode, partitionId));
                     return (true);
                 }
@@ -1177,9 +1177,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param txn_id
      */
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
-        // if (d && this.currentExecMode != newMode) {
-        if (this.currentExecMode != newMode) {
-            LOG.info(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
+        if (d && this.currentExecMode != newMode) {
+//        if (this.currentExecMode != newMode) {
+            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
                                     this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
         }
         assert(newMode != ExecutionMode.COMMIT_READONLY ||
@@ -2128,8 +2128,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 est.isAbortable(this.thresholds) ||
                 est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
-            } else { // if (d) {
-                LOG.info(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
+            } else if (d) {
+                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
         }
