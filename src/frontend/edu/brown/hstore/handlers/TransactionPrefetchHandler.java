@@ -1,7 +1,6 @@
 package edu.brown.hstore.handlers;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -23,6 +22,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Process TransactionPrefetchResult sent from remote sites for prefetched queries
@@ -43,7 +43,7 @@ public class TransactionPrefetchHandler extends AbstractTransactionHandler<Trans
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionPrefetchResult request, Collection<Integer> partitions, RpcCallback<TransactionPrefetchAcknowledgement> callback) {
+    public void sendLocal(Long txn_id, TransactionPrefetchResult request, PartitionSet partitions, RpcCallback<TransactionPrefetchAcknowledgement> callback) {
         // TODO
     }
     @Override

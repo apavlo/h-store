@@ -1,6 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +27,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
@@ -325,7 +325,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param callback
      * @return
      */
-    public boolean lockInsert(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
+    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
                                        txn_id, partitions));
         

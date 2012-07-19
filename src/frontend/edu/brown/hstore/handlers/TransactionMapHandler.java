@@ -1,7 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
@@ -17,6 +15,7 @@ import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionMapHandler extends AbstractTransactionHandler<TransactionMapRequest, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapHandler.class);
@@ -33,7 +32,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionMapRequest request, Collection<Integer> partitions, RpcCallback<TransactionMapResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionMapRequest request, PartitionSet partitions, RpcCallback<TransactionMapResponse> callback) {
         // This is for MapReduce Transaction, the local task is still passed to the remoteHandler to be invoked the TransactionStart
         // as the a LocalTransaction. This LocalTransaction in this partition is the base partition for MR transaction.
         if (debug.get()) LOG.debug("Send to remoteHandler from sendLocal");

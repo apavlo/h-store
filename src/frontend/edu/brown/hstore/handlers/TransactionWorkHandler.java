@@ -1,7 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
@@ -24,6 +22,7 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionWorkHandler extends AbstractTransactionHandler<TransactionWorkRequest, TransactionWorkResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkHandler.class);
@@ -38,7 +37,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionWorkRequest request, Collection<Integer> partitions, RpcCallback<TransactionWorkResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionWorkRequest request, PartitionSet partitions, RpcCallback<TransactionWorkResponse> callback) {
         // TODO
     }
     @Override
@@ -127,10 +126,10 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // TODO: The base information of a set of FragmentTaskMessages should be moved into
         // the message wrapper (e.g., base partition, client handle)
         boolean first = true;
-        for (WorkFragment fragment : request.getFragmentsList()) {
+        for (WorkFragment work : request.getFragmentsList()) {
             // Always initialize the TransactionWorkCallback for the first callback 
             if (first) {
-                TransactionWorkCallback work_callback = ts.getFragmentTaskCallback();
+                TransactionWorkCallback work_callback = ts.getWorkCallback();
                 if (work_callback.isInitialized()) work_callback.finish();
                 work_callback.init(txn_id, request.getFragmentsCount(), callback);
                 if (debug.get())
@@ -140,7 +139,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             
             if (debug.get())
                 LOG.debug(String.format("Invoking transactionWork for %s [first=%s]", ts, first));
-            hstore_site.transactionWork(ts, fragment);
+            hstore_site.transactionWork(ts, work);
             first = false;
         } // FOR
         assert(ts != null);

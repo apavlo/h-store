@@ -17,6 +17,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.ExecutionState;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.MockPartitionExecutor;
@@ -97,7 +98,7 @@ public class TestLocalTransaction extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.testInit(TXN_ID, BASE_PARTITION, Collections.singleton(BASE_PARTITION), this.catalog_proc);
+        this.ts.testInit(TXN_ID, BASE_PARTITION, new PartitionSet(BASE_PARTITION), this.catalog_proc);
         ExecutionState state = new ExecutionState(this.executor);
         this.ts.setExecutionState(state);
         this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);

@@ -34,6 +34,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -104,7 +105,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             
             TransactionInitQueueCallback wrapper = new TransactionInitQueueCallback(hstore_site);
             wrapper.init(request.getTransactionId(), request.getPartitionsList(), done);
-            txnQueueManager.lockInsert(request.getTransactionId(), request.getPartitionsList(), wrapper);
+            txnQueueManager.lockInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), wrapper);
         }
 
         @Override

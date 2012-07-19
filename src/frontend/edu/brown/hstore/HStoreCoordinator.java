@@ -85,6 +85,7 @@ import edu.brown.protorpc.ProtoRpcChannel;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.protorpc.ProtoServer;
 import edu.brown.utils.EventObservable;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -406,7 +407,7 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.transactionFinish_handler);
     }
     
-//    private int getNumLocalPartitions(Collection<Integer> partitions) {
+//    private int getNumLocalPartitions(PartitionSet partitions) {
 //        int ctr = 0;
 //        int size = partitions.size();
 //        for (Integer p : this.local_partitions) {
@@ -525,7 +526,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     // Shutdown
 //    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
-//        protected void sendLocal(long txn_id, ShutdownRequest request, Collection<Integer> partitions, RpcCallback<ShutdownResponse> callback) {
+//        protected void sendLocal(long txn_id, ShutdownRequest request, PartitionSet partitions, RpcCallback<ShutdownResponse> callback) {
 //            
 //        }
 //        protected void sendRemote(HStoreService channel, ProtoRpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> callback) {
@@ -751,8 +752,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                 .setBasePartition(ts.getBasePartition())
                                                 .addAllPartitions(ts.getPredictTouchedPartitions())
                                                 .build();
-
-            this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
+            this.transactionInit_handler.sendMessages(ts, request, callback, ts.getPredictTouchedPartitions());
         }
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
@@ -804,7 +804,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      * @param partitions
      */
-    public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, Collection<Integer> partitions) {
+    public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, PartitionSet partitions) {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
@@ -825,7 +825,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionFinish(LocalTransaction ts, Status status, TransactionFinishCallback callback) {
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
                                     partitions, ts, status));
@@ -885,7 +885,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                      .setParams(paramBytes)
                                                      .build();
         
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
              LOG.debug(String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
         //assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
@@ -905,7 +905,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                      .setTransactionId(ts.getTransactionId())
                                                      .build();
         
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
              LOG.debug(String.format("Notifying partitions %s that %s is in Reduce Phase", partitions, ts));
                

@@ -153,6 +153,7 @@ import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -406,7 +407,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * List of PartitionIds that need to be notified that the transaction is preparing to commit
      */
-    private final List<Integer> tmp_preparePartitions = new ArrayList<Integer>();
+    private final PartitionSet tmp_preparePartitions = new PartitionSet();
     /**
      * Reusable ParameterSet array cache for WorkFragments
      */
@@ -877,7 +878,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (work);
     }
     
-    protected void processInternalMessage(InternalMessage work) {
+    private void processInternalMessage(InternalMessage work) {
         // -------------------------------
         // TRANSACTIONAL WORK
         // -------------------------------
@@ -1994,7 +1995,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                     this.partitionId, ts.getBasePartition(),
                                                     status));
             
-            RpcCallback<WorkResult> callback = ((RemoteTransaction)ts).getFragmentTaskCallback();
+            RpcCallback<WorkResult> callback = ((RemoteTransaction)ts).getWorkCallback();
             if (callback == null) {
                 LOG.fatal("Unable to send FragmentResponseMessage for " + ts);
                 LOG.fatal("Orignal FragmentTaskMessage:\n" + fragment);
@@ -2004,6 +2005,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             WorkResult response = this.buildWorkResult((RemoteTransaction)ts, result, status, error);
             assert(response != null);
             callback.run(response);
+            
+            // TODO: Check whether this is the last query that we're going to get
+            // from this transaction. If it is, then we can go ahead and prepare the txn
             
         }
     }

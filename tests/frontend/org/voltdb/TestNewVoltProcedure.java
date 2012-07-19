@@ -1,6 +1,5 @@
 package org.voltdb;
 
-import java.util.Collections;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,18 +12,19 @@ import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.BatchPlanner;
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockPartitionExecutor;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.MockPartitionExecutor;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.txns.LocalTransaction;
 
 /**
  * @author pavlo
@@ -87,7 +87,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), catalog_proc);
+        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), catalog_proc);
         // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
@@ -122,7 +122,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, args);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), true, this.touched_partitions, args);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE

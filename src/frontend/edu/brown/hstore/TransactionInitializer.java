@@ -26,7 +26,6 @@
 package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -52,6 +51,7 @@ import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -277,7 +277,7 @@ public class TransactionInitializer {
         
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
-        Collection<Integer> predict_partitions = null;
+        PartitionSet predict_partitions = null;
         TransactionEstimator.State t_state = null; 
         
         // -------------------------------

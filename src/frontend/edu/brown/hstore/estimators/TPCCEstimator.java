@@ -1,9 +1,7 @@
 package edu.brown.hstore.estimators;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -12,6 +10,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 public class TPCCEstimator extends AbstractEstimator {
     private static final Logger LOG = Logger.getLogger(TPCCEstimator.class);
@@ -45,9 +44,9 @@ public class TPCCEstimator extends AbstractEstimator {
     }
     
     @Override
-    protected Collection<Integer> initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]) {
+    protected PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]) {
         String procName = catalog_proc.getName();
-        Collection<Integer> ret = null;
+        PartitionSet ret = null;
         
         if (procName.equalsIgnoreCase("neworder")) {
             ret = this.newOrder(args, mangled);
@@ -57,7 +56,7 @@ public class TPCCEstimator extends AbstractEstimator {
             if (hash_w_id.equals(hash_c_w_id)) {
                 ret = this.singlePartitionSets.get(hash_w_id);
             } else {
-                ret = new HashSet<Integer>();
+                ret = new PartitionSet();
                 ret.add(hash_w_id);
                 ret.add(hash_c_w_id);
             }
@@ -65,18 +64,18 @@ public class TPCCEstimator extends AbstractEstimator {
         return (ret);
     }
     
-    private Collection<Integer> newOrder(Object args[], Object mangled[]) {
+    private PartitionSet newOrder(Object args[], Object mangled[]) {
         final Short w_id = (Short)mangled[0];
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
         
         Integer base_partition = this.getPartition(w_id);
-        Collection<Integer> touchedPartitions = this.singlePartitionSets.get(base_partition);
+        PartitionSet touchedPartitions = this.singlePartitionSets.get(base_partition);
         assert(touchedPartitions != null) : "base_partition = " + base_partition;
         for (short s_w_id : s_w_ids) {
             if (s_w_id != w_id) {
                 if (touchedPartitions.size() == 1) {
-                    touchedPartitions = new HashSet<Integer>(touchedPartitions);
+                    touchedPartitions = new PartitionSet(touchedPartitions);
                 }
                 touchedPartitions.add(this.getPartition(s_w_id));
             }

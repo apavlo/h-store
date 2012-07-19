@@ -86,6 +86,7 @@ import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -817,11 +818,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * 
      * @return
      */
-    public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
+    public static PartitionSet getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())
             cache.buildPartitionCache(catalog_item);
-        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
+        return (new PartitionSet(cache.PARTITION_XREF.asList()));
     }
 
     /**

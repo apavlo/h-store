@@ -1,7 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
@@ -18,6 +16,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionFinishHandler extends AbstractTransactionHandler<TransactionFinishRequest, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishHandler.class);
@@ -27,7 +26,8 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    final AbstractDispatcher<Object[]> finishDispatcher; 
+    final PartitionSet finishPartitions = new PartitionSet();
+    final AbstractDispatcher<Object[]> finishDispatcher;
     
     public TransactionFinishHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> finishDispatcher) {
         super(hstore_site, hstore_coord);
@@ -35,7 +35,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionFinishRequest request, PartitionSet partitions, RpcCallback<TransactionFinishResponse> callback) {
         hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
     }
     @Override
@@ -67,7 +67,9 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
             LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [status=%s]",
                                     request.getClass().getSimpleName(), txn_id, request.getStatus()));
         
-        hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
+        this.finishPartitions.clear();
+        this.finishPartitions.addAll(request.getPartitionsList());
+        hstore_site.transactionFinish(txn_id, request.getStatus(), finishPartitions);
         
         // Send back a FinishResponse to let them know we're cool with everything...
         TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()

@@ -4,7 +4,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -86,7 +85,11 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         
         // If any TransactionPrepareResponse comes back with anything but an OK,
         // then the we need to abort the transaction immediately
-        if (response.getStatus() != Hstoreservice.Status.OK) {
+        // TODO: Instead of OK, we should have different status types for what the
+        //       remote partition did. It should be PREPARE_OK or PREPARE_COMMIT
+        //       If it's a PREPARE_COMMIT then we know that we don't need to send
+        //       a COMMIT message to it in the next round.
+        if (response.getStatus() != Status.OK) {
             this.abort(response.getStatus());
         }
         // Otherwise we need to update our counter to keep track of how many OKs that we got

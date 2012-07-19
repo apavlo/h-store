@@ -38,6 +38,7 @@ import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.utils.JarClassLoader;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.PartitionSet;
 
 public class CatalogContext {
 
@@ -67,7 +68,7 @@ public class CatalogContext {
     private final JarClassLoader m_catalogClassLoader;
     
     private final Partition partitions[];
-    private final Collection<Integer> partitionIdCollection = new ArrayList<Integer>();
+    private final PartitionSet partitionIdCollection = new PartitionSet();
     private final Integer partitionIdArray[];
     
     // ------------------------------------------------------------
@@ -227,7 +228,7 @@ public class CatalogContext {
     /**
      * Return  of all the partition ids in this H-Store database cluster
      */
-    public Collection<Integer> getAllPartitionIdCollection() {
+    public PartitionSet getAllPartitionIdCollection() {
         return (this.partitionIdCollection);
     }
     

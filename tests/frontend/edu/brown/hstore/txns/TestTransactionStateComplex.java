@@ -35,6 +35,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
@@ -115,7 +116,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             plan.getWorkFragments(TXN_ID, ftasks);
             assertFalse(ftasks.isEmpty());
@@ -123,7 +124,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), catalog_proc);
+        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, new PartitionSet(LOCAL_PARTITION), catalog_proc);
         this.ts.setExecutionState(this.execState);
     }
 
