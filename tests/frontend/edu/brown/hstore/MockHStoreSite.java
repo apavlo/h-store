@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
@@ -37,8 +38,10 @@ public class MockHStoreSite extends HStoreSite {
     static LocalTransaction makeLocalTransaction(HStoreSite hstore_site) {
         long txnId = hstore_site.getTransactionIdManager(0).getNextUniqueTransactionId();
         long clientHandle = -1;
+        
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
         int base_partition = CollectionUtil.random(hstore_site.getLocalPartitionIds());
-        Collection<Integer> predict_touchedPartitions = hstore_site.getAllPartitionIds();
+        Collection<Integer> predict_touchedPartitions = catalogContext.getAllPartitionIdCollection();
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");

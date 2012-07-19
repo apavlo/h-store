@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
@@ -80,7 +81,7 @@ public class TransactionInitializer {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
-    private final Collection<Integer> all_partitions;
+    private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final TransactionEstimator t_estimators[];
     private final AbstractEstimator fixed_estimator;
@@ -94,11 +95,11 @@ public class TransactionInitializer {
     public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.catalogContext = hstore_site.getCatalogContext();
         
-        this.all_partitions = hstore_site.getAllPartitionIds();
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
-        this.t_estimators = new TransactionEstimator[this.all_partitions.size()];
+        this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
         
         // HACK
         if (hstore_conf.site.markov_fixed) {
@@ -289,7 +290,7 @@ public class TransactionInitializer {
             if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
                 predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
             } else {
-                predict_partitions = this.all_partitions;
+                predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
         }
         
@@ -300,7 +301,7 @@ public class TransactionInitializer {
             // MapReduceTransactions always need all partitions
             if (d) LOG.debug(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
-            predict_partitions = this.all_partitions;
+            predict_partitions = catalogContext.getAllPartitionIdCollection();
         }
         
         // -------------------------------
@@ -312,7 +313,7 @@ public class TransactionInitializer {
             if (catalog_proc.getSinglepartition()) {
                 predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
             } else {
-                predict_partitions = this.all_partitions;
+                predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
         }
         
@@ -392,7 +393,7 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_partitions = this.all_partitions;
+                predict_partitions = catalogContext.getAllPartitionIdCollection();
                 predict_readOnly = false;
                 predict_abortable = true;
             } finally {
@@ -413,7 +414,7 @@ public class TransactionInitializer {
             // FORCE MULTI-PARTITIONED
             // -------------------------------
             else {
-                predict_partitions = this.all_partitions;
+                predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
         }
         

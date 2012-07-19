@@ -1041,7 +1041,6 @@ public abstract class PlanNodeUtil {
      * 
      * @param catalog_frag
      * @return
-     * @throws Exception
      */
     public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frag) {
         String id = catalog_frag.getName();

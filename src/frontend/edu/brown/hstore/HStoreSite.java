@@ -139,7 +139,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /** Catalog Stuff **/
     private long instanceId;
     private final CatalogContext catalogContext;
-    private final Database catalog_db;
     private final Host catalog_host;
     private final Site catalog_site;
     private final int site_id;
@@ -414,19 +413,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.hstore_conf = hstore_conf;
         this.catalogContext = new CatalogContext(catalog_site.getCatalog(), CatalogContext.NO_PATH);
         this.catalog_site = catalog_site;
-        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.catalog_host = this.catalog_site.getHost(); 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
         // Mapping from ProcIds to Procedures
         // TODO: This should be moved in CatalogContext
-        this.catalog_procs = new Procedure[catalog_db.getProcedures().size()+1];
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+        this.catalog_procs = new Procedure[catalogContext.database.getProcedures().size()+1];
+        for (Procedure catalog_proc : catalogContext.database.getProcedures()) {
             this.catalog_procs[catalog_proc.getId()] = catalog_proc;
         } // FOR
         
-        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
+        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalogContext.database);
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
@@ -440,14 +438,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Get the hasher we will use for this HStoreSite
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
-                                             new Object[]{ this.catalog_db, num_partitions },
+                                             new Object[]{ this.catalogContext.database, num_partitions },
                                              new Class<?>[]{ Database.class, int.class });
-        this.p_estimator = new PartitionEstimator(this.catalog_db, this.hasher);
+        this.p_estimator = new PartitionEstimator(this.catalogContext.database, this.hasher);
 
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite
         // TODO: Move this cache information into CatalogContext
-        CatalogUtil.clearCache(this.catalog_db);
+        CatalogUtil.clearCache(this.catalogContext.database);
         BatchPlanner.clear(this.all_partitions.size());
 
         // Only preload stuff if we were asked to
@@ -455,10 +453,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug("Preloading cached objects");
             try {
                 // Don't forget our CatalogUtil friend!
-                CatalogUtil.preload(this.catalog_db);
+                CatalogUtil.preload(this.catalogContext.database);
                 
                 // Load up everything the QueryPlanUtil
-                PlanNodeUtil.preload(this.catalog_db);
+                PlanNodeUtil.preload(this.catalogContext.database);
                 
                 // Then load up everything in the PartitionEstimator
                 this.p_estimator.preload();
@@ -509,7 +507,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // MapReduce Transaction helper thread
-        if (CatalogUtil.getMapReduceProcedures(this.catalog_db).isEmpty() == false) { 
+        if (CatalogUtil.getMapReduceProcedures(this.catalogContext.database).isEmpty() == false) { 
             this.mr_helper = new MapReduceHelperThread(this);
         } else {
             this.mr_helper = null;
@@ -660,7 +658,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnInitializer = new TransactionInitializer(this);
         
         // Create all of our parameter manglers
-        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
@@ -727,11 +725,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     public Catalog getCatalog() {
-        return (this.catalog_db.getCatalog());
+        return (this.catalogContext.catalog);
     }
     
     public Database getDatabase() {
-        return (this.catalog_db);
+        return (this.catalogContext.database);
     }
     
     /**
@@ -755,6 +753,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Return the list of all the partition ids in this H-Store database cluster
      * TODO: Moved to CatalogContext
      */
+    @Deprecated
     public Collection<Integer> getAllPartitionIds() {
         return (this.all_partitions);
     }
@@ -929,7 +928,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.param_manglers.get(catalog_proc));
     }
     public ParameterMangler getParameterMangler(String proc_name) {
-        Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
+        Procedure catalog_proc = catalogContext.database.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
         return (this.param_manglers.get(catalog_proc));
     }
@@ -1446,9 +1445,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (catalog_proc == null) {
             incomingDeserializer.setBuffer(buffer);
             procName = StoredProcedureInvocation.getProcedureName(incomingDeserializer);
-            this.catalog_db.getProcedures().get(procName);
+            this.catalogContext.database.getProcedures().get(procName);
             if (catalog_proc == null) {
-                catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
+                catalog_proc = this.catalogContext.database.getProcedures().getIgnoreCase(procName);
             }
             
             // TODO: This should be an error message back to the client, not an exception
@@ -2333,7 +2332,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
 
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
-            Table catalog_tbl = error.getTableId(this.catalog_db);
+            Table catalog_tbl = error.getTableId(this.catalogContext.database);
             short block_ids[] = error.getBlockIds();
             this.anticacheManager.queue(new_ts, base_partition, catalog_tbl, block_ids);
         }

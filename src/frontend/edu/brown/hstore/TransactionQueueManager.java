@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
@@ -148,8 +149,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         
-        Collection<Integer> allPartitions = hstore_site.getAllPartitionIds();
-        int num_ids = allPartitions.size();
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        
+        Integer allPartitions[] = catalogContext.getAllPartitionIdArray();
+        int num_ids = allPartitions.length;
         this.lockQueues = new TransactionInitPriorityQueue[num_ids];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
