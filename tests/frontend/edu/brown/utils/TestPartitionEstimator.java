@@ -130,6 +130,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition0 < NUM_PARTITIONS);
         
         // Case #2: The second parameter is null
+        params = new Long[catalog_proc.getParameters().size()];
         params[0] = new Long(NUM_PARTITIONS-1); // W_ID
         params[1] = null; // D_ID
         int partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
@@ -140,6 +141,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertFalse(partition0 == partition1);
         
         // Case #3: The first parameter is null
+        params = new Long[catalog_proc.getParameters().size()];
         params[0] = null; // W_ID
         params[1] = new Long(BASE_PARTITION);   // D_ID
         int partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
@@ -147,7 +149,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition2 >= 0);
         assert(partition2 < NUM_PARTITIONS);
 //        System.err.println("partition2=" + partition2);
-        assertFalse(partition0 == partition2);
+        assertNotSame(partition0, partition2);
     }
     
     
