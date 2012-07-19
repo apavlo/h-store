@@ -26,6 +26,7 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -82,7 +83,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             0l,                 // DATA_A
             0l,                 // SF_TYPE
         };
-        assertNotNull(p_estimator.getBasePartition(catalog_proc, params));
+        assert(p_estimator.getBasePartition(catalog_proc, params) != HStoreConstants.NULL_PARTITION_ID);
     }
     
     /**

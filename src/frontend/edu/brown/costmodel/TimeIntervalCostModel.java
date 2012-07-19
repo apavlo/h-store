@@ -29,6 +29,7 @@ import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -672,7 +673,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // multi-partition queries
                 } else {
                     assert (!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
-                    if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
+                    if (partitions.size() == 1 && txn_entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID) {
                         assert (CollectionUtil.first(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
                         exec_mismatch_ctrs[i] += txn_weight;
                         partitions_touched[i] += txn_weight;
