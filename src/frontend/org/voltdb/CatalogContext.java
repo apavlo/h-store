@@ -88,8 +88,8 @@ public class CatalogContext {
     /**
      * PlanFragmentId -> TableIds Read/Written
      */
-    private final Map<Integer, int[]> fragmentReadTables = new HashMap<Integer, int[]>(); 
-    private final Map<Integer, int[]> fragmentWriteTables = new HashMap<Integer, int[]>();
+    private final Map<Long, int[]> fragmentReadTables = new HashMap<Long, int[]>(); 
+    private final Map<Long, int[]> fragmentWriteTables = new HashMap<Long, int[]>();
     
 
     public CatalogContext(Catalog catalog, String pathToCatalogJar) {
@@ -173,9 +173,9 @@ public class CatalogContext {
                         tableIds[i++] = tbl.getRelativeIndex();
                     } // FOR
                     if (frag.getReadonly()) {
-                        this.fragmentReadTables.put(frag.getId(), tableIds);
+                        this.fragmentReadTables.put(Long.valueOf(frag.getId()), tableIds);
                     } else {
-                        this.fragmentWriteTables.put(frag.getId(), tableIds);
+                        this.fragmentWriteTables.put(Long.valueOf(frag.getId()), tableIds);
                     }
                 } // FOR (frag)
             } // FOR (stmt)
@@ -293,7 +293,7 @@ public class CatalogContext {
      * @param planFragmentId
      * @return
      */
-    public int[] getReadTableIds(Integer planFragmentId) {
+    public int[] getReadTableIds(Long planFragmentId) {
         return (this.fragmentReadTables.get(planFragmentId));
     }
 
@@ -302,7 +302,7 @@ public class CatalogContext {
      * @param planFragmentId
      * @return
      */
-    public int[] getWriteTableIds(Integer planFragmentId) {
+    public int[] getWriteTableIds(Long planFragmentId) {
         return (this.fragmentWriteTables.get(planFragmentId));
     }
 }
