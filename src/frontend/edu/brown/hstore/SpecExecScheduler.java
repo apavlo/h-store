@@ -32,6 +32,7 @@ public class SpecExecScheduler {
     
     private final Database catalog_db;
     private final PartitionExecutor executor;
+    private final int partitionId;
     private final Queue<InternalMessage> work_queue;
     private final Procedure catalog_procs[];
     private final BitSet rwConflicts[];
@@ -39,6 +40,7 @@ public class SpecExecScheduler {
     
     public SpecExecScheduler(PartitionExecutor executor) {
         this.executor = executor;
+        this.partitionId = this.executor.getPartitionId();
         this.work_queue = this.executor.getWorkQueue();
         this.catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
         
@@ -89,6 +91,8 @@ public class SpecExecScheduler {
                 LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
             return (null);
         }
+        
+        boolean readOnly = dtxn.isExecReadOnly(this.partitionId);
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
