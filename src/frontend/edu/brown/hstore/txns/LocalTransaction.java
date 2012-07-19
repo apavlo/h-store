@@ -31,6 +31,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
@@ -495,10 +497,8 @@ public class LocalTransaction extends AbstractTransaction {
             // Release any queued responses/results
             if (this.state.queued_results.isEmpty() == false) {
                 if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
-                int key[] = new int[2];
-                for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
-                    this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                    this.addResult(key[0], key[1], e.getKey().intValue(), true, e.getValue());
+                for (Entry<Pair<Integer, Integer>, VoltTable> e : this.state.queued_results.entrySet()) {
+                    this.addResult(e.getKey(), e.getValue(), true);
                 } // FOR
                 this.state.queued_results.clear();
             }
@@ -1096,11 +1096,11 @@ public class LocalTransaction extends AbstractTransaction {
                 this.state.dependency_ctr++;
                 
                 // Store the stmt_index of when this dependency will show up
-                Integer key_idx = this.state.createPartitionDependencyKey(partition, output_dep_id);
-                Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
+                Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
+                Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key);
                 if (rest_stmt_ctr == null) {
                     rest_stmt_ctr = new LinkedList<Integer>();
-                    this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
+                    this.state.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
                 }
                 rest_stmt_ctr.add(stmt_index);
                 if (t) LOG.trace(String.format("%s - Set Dependency Statement Counters for <%d %d>: %s",
@@ -1179,25 +1179,27 @@ public class LocalTransaction extends AbstractTransaction {
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
         if (this.state != null) {
-            int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-            this.addResult(partition, dependency_id, key, false, result);
+            this.addResult(Pair.of(partition, dependency_id), result, false);
         }
     }
 
     /**
      * Store a VoltTable result that this transaction is waiting for.
+     * @param key The hackish partition+dependency key
+     * @param result The actual data for the result
+     * @param force If false, then we will check to make sure the result isn't a duplicate
      * @param partition The partition id that generated the result
      * @param dependency_id The dependency id that this result corresponds to
-     * @param key The hackish partition+dependency key
-     * @param force If false, then we will check to make sure the result isn't a duplicate
-     * @param result The actual data for the result
      */
-    private void addResult(final int partition, final int dependency_id, final int key, final boolean force, VoltTable result) {
+    private void addResult(final Pair<Integer, Integer> key, VoltTable result, final boolean force) {
         final int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
             String.format("Invalid round state %s for %s at partition %d",
                           this.round_state[base_offset], this, this.base_partition);
+        
+        final int partition = key.getFirst().intValue();
+        final int dependency_id = key.getSecond().intValue();
         
         if (d) LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
                                        this, debugPartDep(partition, dependency_id), result.getRowCount()));
@@ -1210,11 +1212,11 @@ public class LocalTransaction extends AbstractTransaction {
             try {
                 if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                     assert(this.state.queued_results.containsKey(key) == false) : 
-                        String.format("%s - Duplicate result %s [key=%d]",
-                                      this, debugPartDep(partition, dependency_id), key);
+                        String.format("%s - Duplicate result %s",
+                                      this, debugPartDep(partition, dependency_id));
                     this.state.queued_results.put(key, result);
-                    if (d) LOG.debug(String.format("%s - Queued result %s until the round is started [key=%s]",
-                                                            this, debugPartDep(partition, dependency_id), key));
+                    if (d) LOG.debug(String.format("%s - Queued result %s until the round is started",
+                                                   this, debugPartDep(partition, dependency_id)));
                     return;
                 }
                 if (d) {
@@ -1231,11 +1233,13 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyInfo dinfo = null;
         Queue<Integer> queue = this.state.results_dependency_stmt_ctr.get(key);
         assert(queue != null) :
-            String.format("Unexpected %s in %s",
-                          debugPartDep(partition, dependency_id), this);
+            String.format("Unexpected %s in %s / %s\n%s",
+                          debugPartDep(partition, dependency_id), this,
+                          key, this.state.results_dependency_stmt_ctr);
         assert(queue.isEmpty() == false) :
-            String.format("No more statements for %s in %s [key=%d]\nresults_dependency_stmt_ctr = %s",
-                          debugPartDep(partition, dependency_id), this, key, this.state.results_dependency_stmt_ctr);
+            String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
+                          debugPartDep(partition, dependency_id), this,
+                          this.state.results_dependency_stmt_ctr);
 
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(dependency_id);
@@ -1288,7 +1292,7 @@ public class LocalTransaction extends AbstractTransaction {
         } // SYNCH
         
         if (d) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Blocked Tasks", (this.state != null ? this.state.blocked_tasks.size() : null));
             m.put("DependencyInfo", dinfo.toString());
             m.put("hasTasksReady", dinfo.hasTasksReady());
