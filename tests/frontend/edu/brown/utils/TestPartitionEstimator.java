@@ -20,6 +20,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.*;
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * 
@@ -79,8 +80,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         Long proc_params[] = new Long[catalog_proc.getParameters().size()];
         proc_params[0] = new Long(NUM_PARTITIONS-1); // W_ID
         proc_params[1] = new Long(BASE_PARTITION);   // D_ID
-        Integer proc_partition = p_estimator.getBasePartition(catalog_proc, proc_params, true);
-        assertNotNull(proc_partition);
+        int proc_partition = p_estimator.getBasePartition(catalog_proc, proc_params, true);
+        assert(proc_partition != HStoreConstants.NULL_DEPENDENCY_ID);
         assert(proc_partition >= 0);
         assert(proc_partition < NUM_PARTITIONS);
         
@@ -96,7 +97,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertEquals(1, stmt_partitions.size());
         assert(stmt_partitions.containsKey(table_key));
         assertEquals(1, stmt_partitions.get(table_key).size());
-        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.first(stmt_partitions.get(table_key)));
+        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.first(stmt_partitions.get(table_key)).intValue());
     }
     
     /**
@@ -122,8 +123,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         Long params[] = new Long[catalog_proc.getParameters().size()];
         params[0] = new Long(NUM_PARTITIONS-1); // W_ID
         params[1] = new Long(BASE_PARTITION);   // D_ID
-        Integer partition0 = p_estimator.getBasePartition(catalog_proc, params, true);
-        assertNotNull(partition0);
+        int partition0 = p_estimator.getBasePartition(catalog_proc, params, true);
+        assert(partition0 != HStoreConstants.NULL_DEPENDENCY_ID);
         assert(partition0 >= 0);
 //        System.err.println("partition0=" + partition0);
         assert(partition0 < NUM_PARTITIONS);
@@ -131,22 +132,22 @@ public class TestPartitionEstimator extends BaseTestCase {
         // Case #2: The second parameter is null
         params[0] = new Long(NUM_PARTITIONS-1); // W_ID
         params[1] = null; // D_ID
-        Integer partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
-        assertNotNull(partition1);
+        int partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
+        assert(partition1 != HStoreConstants.NULL_DEPENDENCY_ID);
         assert(partition1 >= 0);
         assert(partition1 < NUM_PARTITIONS);
 //        System.err.println("partition1=" + partition1);
-        assert(partition0.equals(partition1) == false);
+        assertFalse(partition0 == partition1);
         
         // Case #3: The first parameter is null
         params[0] = null; // W_ID
         params[1] = new Long(BASE_PARTITION);   // D_ID
-        Integer partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
-        assertNotNull(partition2);
+        int partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
+        assert(partition2 != HStoreConstants.NULL_DEPENDENCY_ID);
         assert(partition2 >= 0);
         assert(partition2 < NUM_PARTITIONS);
 //        System.err.println("partition2=" + partition2);
-        assert(partition0.equals(partition2) == false);
+        assertFalse(partition0 == partition2);
     }
     
     

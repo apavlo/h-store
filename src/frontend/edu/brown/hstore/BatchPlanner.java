@@ -58,7 +58,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
@@ -495,10 +494,7 @@ public class BatchPlanner implements Loggable {
             // the parameter offsets on how to determine whether a Statement is
             // multi-partition or not
             if (this.enable_caching) {
-                Collection<Integer> param_idxs = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
-                if (param_idxs != null && param_idxs.isEmpty() == false) {
-                    this.cache_fastLookups[i] = CollectionUtil.toIntArray(param_idxs);
-                }
+                this.cache_fastLookups[i] = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
             }
         } // FOR
 

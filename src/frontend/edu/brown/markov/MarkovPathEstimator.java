@@ -25,6 +25,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
@@ -718,7 +719,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             Procedure catalog_proc = xact.getCatalogItem(args.catalog_db);
             if (skip.contains(catalog_proc.getName())) continue;
             
-            int partition = -1;
+            int partition = HStoreConstants.NULL_PARTITION_ID;
             try {
                 partition = p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
             } catch (Exception ex) {

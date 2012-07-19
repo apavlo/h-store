@@ -133,9 +133,9 @@ public class TransactionInitializer {
      * @return
      */
     public int calculateBasePartition(long client_handle,
-                                       Procedure catalog_proc,
-                                       ParameterSet procParams,
-                                       int base_partition) {
+                                      Procedure catalog_proc,
+                                      ParameterSet procParams,
+                                      int base_partition) {
         
         // Simple sanity check to make sure that we're not being told a bad partition
         if (base_partition < 0 || base_partition >= hstore_site.local_partitions_arr.length) {
@@ -164,8 +164,7 @@ public class TransactionInitializer {
         else if (hstore_conf.site.exec_force_localexecution == false) {
             if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", catalog_proc.getName()));
             try {
-                Integer p = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
-                if (p != null) base_partition = p.intValue(); 
+                base_partition = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }

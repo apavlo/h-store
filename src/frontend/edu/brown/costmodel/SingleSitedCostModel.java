@@ -44,6 +44,7 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
@@ -125,7 +126,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private final short weight;
         private final int total_queries;
         private boolean singlesited = true;
-        private Integer base_partition = null;
+        private int base_partition = HStoreConstants.NULL_PARTITION_ID;
         private int examined_queries = 0;
         private int singlesite_queries = 0;
         private int multisite_queries = 0;
@@ -169,7 +170,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         public Collection<Integer> getAllTouchedPartitions() {
             Collection<Integer> partitions = this.touched_partitions.values();
-            if (this.base_partition != null && !partitions.contains(this.base_partition)) {
+            if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !partitions.contains(this.base_partition)) {
                 partitions = new HashSet<Integer>();
                 for (Object o : this.touched_partitions.values())
                     partitions.add((Integer) o);
@@ -182,7 +183,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             Histogram<Integer> copy = new Histogram<Integer>(this.touched_partitions);
             assert (this.touched_partitions.getValueCount() == copy.getValueCount());
             assert (this.touched_partitions.getSampleCount() == copy.getSampleCount());
-            if (this.base_partition != null && !copy.contains(this.base_partition)) {
+            if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !copy.contains(this.base_partition)) {
                 copy.put(this.base_partition);
             }
             return (copy);
@@ -635,7 +636,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If we have a base partition value, then we have to remove an entry
         // from the
         // histogram that keeps track of where the java executes
-        if (txn_entry.base_partition != null) {
+        if (txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
             if (trace.get())
                 LOG.trace("Resetting base partition [" + txn_entry.base_partition + "] and updating histograms");
             // NOTE: We have to remove the base_partition from these histograms
@@ -741,7 +742,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // We just need to unset the base partition
             for (TransactionCacheEntry txn_entry : this.cache_procXref.get(catalog_key)) {
                 assert (txn_entry != null);
-                if (txn_entry.base_partition != null) {
+                if (txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
                     if (trace.get())
                         LOG.trace("Unset base_partition for " + txn_entry);
                     txn_entry.touched_partitions.setKeepZeroEntries(true);
@@ -749,7 +750,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     if (this.isJavaExecutionWeightEnabled()) {
                         txn_entry.touched_partitions.remove(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
                     }
-                    txn_entry.base_partition = null;
+                    txn_entry.base_partition = HStoreConstants.NULL_PARTITION_ID;
                     invalidate_modifiedTxns.add(txn_entry);
                     txn_ctr++;
                 }
@@ -910,13 +911,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @param catalog_proc
      * @param proc_param_idx
      */
-    protected void setBasePartition(TransactionCacheEntry txn_entry, Integer base_partition) {
+    protected void setBasePartition(TransactionCacheEntry txn_entry, int base_partition) {
         txn_entry.base_partition = base_partition;
 
         // If the partition is null, then there's nothing we can do here other
         // than just pick a random one
         // For now we'll always pick zero to keep things consistent
-        if (txn_entry.base_partition == null)
+        if (txn_entry.base_partition == HStoreConstants.NULL_PARTITION_ID)
             txn_entry.base_partition = 0;
 
         // Record what partition the VoltProcedure executed on
@@ -954,7 +955,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // If we have a TransactionCacheEntry then we need to check that:
             // (1) It has a base partition
             // (2) All of its queries have been examined
-            if (txn_entry != null && txn_entry.base_partition != null && txn_entry.examined_queries == txn_trace.getQueries().size()) {
+            if (txn_entry != null && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID && txn_entry.examined_queries == txn_trace.getQueries().size()) {
                 if (trace.get())
                     LOG.trace("Using complete cached entry " + txn_entry);
                 return (txn_entry);
@@ -986,11 +987,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // base partition (where the java executes), then yeah let's do that
         // part here
         int proc_param_idx = catalog_proc.getPartitionparameter();
-        if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == null) {
+        if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == HStoreConstants.NULL_PARTITION_ID) {
             assert (proc_param_idx == RandomProcParameter.PARAM_IDX || proc_param_idx >= 0) : "Invalid ProcParameter Index " + proc_param_idx;
             assert (proc_param_idx < catalog_proc.getParameters().size()) : "Invalid ProcParameter Index " + proc_param_idx;
 
-            Integer base_partition = null;
+            int base_partition = HStoreConstants.NULL_DEPENDENCY_ID;
             try {
                 base_partition = this.p_estimator.getBasePartition(catalog_proc, txn_trace.getParams(), true);
             } catch (Exception ex) {
@@ -1233,7 +1234,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
                 // Make sure that the partitioning ProcParameter hashes to the same 
                 // site as the value used on the partitioning column for this table
-                } else if (!hashes.isEmpty() && txn_entry.base_partition != null) {
+                } else if (!hashes.isEmpty() && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
                     int tbl_partition = CollectionUtil.first(hashes);
                     if (txn_entry.base_partition != tbl_partition) {
                         if (trace.get())
