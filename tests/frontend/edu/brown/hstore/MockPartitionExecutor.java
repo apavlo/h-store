@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.voltdb.BackendTarget;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
@@ -28,7 +29,7 @@ public class MockPartitionExecutor extends PartitionExecutor {
     private final Map<Long, CountDownLatch> latches = new HashMap<Long, CountDownLatch>();
     
     public MockPartitionExecutor(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
-        super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
+        super(partition_id, new CatalogContext(catalog, null), BACKEND_TARGET, p_estimator, null);
         this.initializeVoltProcedures();
     }
 

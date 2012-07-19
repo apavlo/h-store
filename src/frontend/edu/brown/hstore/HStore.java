@@ -186,7 +186,7 @@ public abstract class HStore {
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
             PartitionExecutor executor = new PartitionExecutor(
                     local_partition,
-                    catalog_site.getCatalog(),
+                    singleton.getCatalogContext(),
                     BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
                     p_estimator,
                     t_estimator);

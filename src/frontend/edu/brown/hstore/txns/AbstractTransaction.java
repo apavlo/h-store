@@ -27,6 +27,7 @@ package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,12 +36,15 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -88,6 +92,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Status status;
     protected boolean sysproc;
     protected SerializableException pending_error;
+    
+    protected final BitSet readTables;
+    protected final BitSet writeTables;
 
     // ----------------------------------------------------------------------------
     // Attached Data Structures
@@ -187,6 +194,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.finish_task = new FinishTxnMessage(this, Status.OK);
         this.work_task = new WorkFragmentMessage[cnt];
         
+        int num_tables = hstore_site.getDatabase().getTables().size();
+        this.readTables = new BitSet(num_tables);
+        this.writeTables = new BitSet(num_tables);
+        
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
     }
@@ -244,6 +255,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
+        
+        this.readTables.clear();
+        this.writeTables.clear();
         
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
@@ -590,6 +604,35 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public boolean hasSubmittedEE(int partition) {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
+    
+    // ----------------------------------------------------------------------------
+    // READ/WRITE TABLE TRACKING
+    // ----------------------------------------------------------------------------
+    
+    public void markTableAsRead(Table catalog_tbl) {
+        this.readTables.set(catalog_tbl.getRelativeIndex());
+    }
+    public void markTableIdsAsRead(int...tableIds) {
+        for (int id : tableIds) {
+            this.readTables.set(id);
+        } // FOR
+    }
+    public boolean isTableRead(Table catalog_tbl) {
+        return (this.readTables.get(catalog_tbl.getRelativeIndex()));
+    }
+    
+    public void markTableAsWritten(Table catalog_tbl) {
+        this.writeTables.set(catalog_tbl.getRelativeIndex());
+    }
+    public void markTableIdsAsWritten(int...tableIds) {
+        for (int id : tableIds) {
+            this.writeTables.set(id);
+        } // FOR
+    }
+    public boolean isTableWritten(Table catalog_tbl) {
+        return (this.writeTables.get(catalog_tbl.getRelativeIndex()));
+    }
+    
     
     // ----------------------------------------------------------------------------
     // Whether the ExecutionSite is finished with the transaction

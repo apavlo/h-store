@@ -46,7 +46,12 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
     }
 
     protected PartitionExecutor initPartitionExecutor() {
-        PartitionExecutor executor = new PartitionExecutor(0, this.hstore_site.getDatabase().getCatalog(), BackendTarget.NATIVE_EE_JNI, this.p_estimator, null);
+        PartitionExecutor executor = new PartitionExecutor(
+                0,
+                this.hstore_site.getCatalogContext(),
+                BackendTarget.NATIVE_EE_JNI,
+                this.p_estimator,
+                null);
         executor.initHStoreSite(this.hstore_site);
         
         return (executor);

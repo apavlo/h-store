@@ -721,6 +721,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     // CATALOG METHODS
     // ----------------------------------------------------------------------------
+
+    public CatalogContext getCatalogContext() {
+        return (this.catalogContext);
+    }
     
     public Catalog getCatalog() {
         return (this.catalog_db.getCatalog());
