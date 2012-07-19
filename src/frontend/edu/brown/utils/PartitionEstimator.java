@@ -68,6 +68,7 @@ import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -105,7 +106,7 @@ public class PartitionEstimator {
     /**
      * Statement -> StmtParameter Offsets
      */
-    private final Map<Statement, Collection<Integer>> cache_stmtPartitionParameters = new HashMap<Statement, Collection<Integer>>();
+    private final Map<Statement, int[]> cache_stmtPartitionParameters = new HashMap<Statement, int[]>();
 
     /**
      * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
@@ -257,41 +258,35 @@ public class PartitionEstimator {
     /**
      * Set<Integer> pool used by calculatePartitionsForCache
      */
-    private final FastObjectPool<Set<Integer>> partitionSetPool = new FastObjectPool<Set<Integer>>(new BasePoolableObjectFactory() {
+    private final FastObjectPool<PartitionSet> partitionSetPool = new FastObjectPool<PartitionSet>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
-            return (new HashSet<Integer>());
+            return (new PartitionSet());
         }
 
         public void passivateObject(Object obj) throws Exception {
-            @SuppressWarnings("unchecked")
-            Set<Integer> set = (Set<Integer>) obj;
-            set.clear();
+            ((PartitionSet)obj).clear();
         };
     }, 100);
 
     /**
      * Set<Integer>[4] pool used by calculatePartitionsForCache
      */
-    private final FastObjectPool<HashSet<Integer>[]> mcPartitionSetPool = new FastObjectPool<HashSet<Integer>[]>(new BasePoolableObjectFactory() {
+    private final FastObjectPool<PartitionSet[]> mcPartitionSetPool = new FastObjectPool<PartitionSet[]>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             // XXX: Why is this hardcoded?
-            return (new HashSet[] {
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>()
+            return (new PartitionSet[] {
+                    new PartitionSet(),
+                    new PartitionSet(),
+                    new PartitionSet(),
+                    new PartitionSet()
              });
         }
 
         public void passivateObject(Object obj) throws Exception {
-            @SuppressWarnings("unchecked")
-            HashSet<Integer> sets[] = (HashSet<Integer>[]) obj;
-            for (HashSet<Integer> s : sets) {
-                s.clear();
-            } // FOR
-
+            PartitionSet sets[] = (PartitionSet[])obj;
+            for (PartitionSet s : sets) s.clear();
         };
     }, 1000);
 
@@ -819,12 +814,11 @@ public class PartitionEstimator {
 
     /**
      * Returns the target partition for a StoredProcedureInvocation instance
-     * 
      * @param invocation
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(StoredProcedureInvocation invocation) throws Exception {
+    public int getBasePartition(StoredProcedureInvocation invocation) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
         if (catalog_proc == null) {
             catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(invocation.getProcName());
@@ -836,19 +830,17 @@ public class PartitionEstimator {
 
     /**
      * Returns the target partition for a stored procedure + parameters
-     * 
      * @param catalog_proc
      * @param params
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(Procedure catalog_proc, Object params[]) throws Exception {
+    public int getBasePartition(Procedure catalog_proc, Object params[]) throws Exception {
         return (this.getBasePartition(catalog_proc, params, false));
     }
 
     /**
      * Return the target partition for a TransactionTrace
-     * 
      * @param txn_trace
      * @return
      * @throws Exception
@@ -868,7 +860,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
+    public int getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
         assert(catalog_proc != null);
         assert(params != null);
 //        assert(catalog_proc.getParameters().size() == params.length) :
@@ -892,20 +884,20 @@ public class PartitionEstimator {
             } else {
                 if (debug.get())
                     LOG.debug(catalog_proc + " has no parameters. No base partition for you!");
-                return (null);
+                return (HStoreConstants.NULL_PARTITION_ID);
             }
         }
 
         if (force == false && (catalog_param == null || catalog_param instanceof NullProcParameter)) {
             if (debug.get())
                 LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
-            return (null);
+            return (HStoreConstants.NULL_PARTITION_ID);
             // } else if (!force && !catalog_proc.getSinglepartition()) {
             // if (debug.get()) LOG.debug(catalog_proc +
             // " is not marked as single-partitioned. Executing as multi-partition");
             // return (null);
         }
-        Integer partition = null;
+        int partition = HStoreConstants.NULL_PARTITION_ID;
         boolean is_array = catalog_param.getIsarray();
 
         // Special Case: RandomProcParameter
@@ -1072,10 +1064,10 @@ public class PartitionEstimator {
      * @param catalog_stmt
      * @return
      */
-    public Collection<Integer> getStatementEstimationParameters(Statement catalog_stmt) {
-        Collection<Integer> all_param_idxs = this.cache_stmtPartitionParameters.get(catalog_stmt);
+    public int[] getStatementEstimationParameters(Statement catalog_stmt) {
+        int[] all_param_idxs = this.cache_stmtPartitionParameters.get(catalog_stmt);
         if (all_param_idxs == null) {
-            all_param_idxs = new HashSet<Integer>();
+            List<Integer> idxs = new ArrayList<Integer>();
 
             // Assume single-partition
             if (catalog_stmt.getHas_singlesited() == false) {
@@ -1109,10 +1101,11 @@ public class PartitionEstimator {
                         return (null);
                     } else if (partition_col != null && cache_entry.containsKey(partition_col)) {
                         for (int idx : cache_entry.get(partition_col)) {
-                            all_param_idxs.add(Integer.valueOf(idx));
+                            idxs.add(Integer.valueOf(idx));
                         } // FOR
                     }
                 } // FOR
+                if (idxs.isEmpty() == false) all_param_idxs = CollectionUtil.toIntArray(idxs);
             } // FOR
             this.cache_stmtPartitionParameters.put(catalog_stmt, all_param_idxs);
         }
@@ -1481,21 +1474,21 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private Integer calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
+    private int calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
         // If the parameter is an array, then just use the first value
         if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
                 if (debug.get())
                     LOG.warn("Empty partitioning parameter array for " + catalog_proc);
-                return (null);
+                return (HStoreConstants.NULL_PARTITION_ID);
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
         } else if (partition_param_val == null) {
             if (debug.get())
                 LOG.warn("Null ProcParameter value: " + catalog_proc);
-            return (null);
+            return (HStoreConstants.NULL_PARTITION_ID);
         }
         return (this.hasher.hash(partition_param_val, catalog_proc));
     }
