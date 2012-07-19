@@ -36,7 +36,6 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
@@ -44,7 +43,6 @@ import org.voltdb.utils.NotImplementedException;
 
 import com.google.protobuf.ByteString;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
@@ -764,11 +762,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.prefetch.partitions.set(offset);
     }
     
-    // ----------------------------------------------------------------------------
-    // PREFETCH QUERIES
-    // ----------------------------------------------------------------------------
-    
-
 
     @Override
     public String toString() {

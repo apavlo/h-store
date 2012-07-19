@@ -1036,6 +1036,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the internal system tables for the database
      */
+    @Deprecated
     public static Collection<Table> getSysTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1048,6 +1049,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the user-defined data tables for the database
      */
+    @Deprecated
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1062,6 +1064,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the materialized view tables for the database
      */
+    @Deprecated
     public static Collection<Table> getViewTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1074,6 +1077,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the MapReduce input data tables for the database
      */
+    @Deprecated
     public static Collection<Table> getMapReduceTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1086,6 +1090,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the replicated tables for the database
      */
+    @Deprecated
     public static Collection<Table> getReplicatedTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1097,6 +1102,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the evictable tables for the database
      */
+    @Deprecated
     public static Collection<Table> getEvictableTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1438,9 +1444,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<Table> getAllTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getAllTables(Statement catalog_stmt) {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         AbstractPlanNode node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
+    }
+    
+    /**
+     * Get all the tables referenced in this PlanFragment
+     * @param catalog_fag
+     */
+    public static Collection<Table> getReferencedTables(PlanFragment catalog_frag) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_frag);
+        AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
         return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
     }
 
