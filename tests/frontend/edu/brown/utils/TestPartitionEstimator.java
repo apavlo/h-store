@@ -76,10 +76,9 @@ public class TestPartitionEstimator extends BaseTestCase {
         p_estimator.initCatalog(clone_db);
         
         // Procedure Partition
-        Long proc_params[] = new Long[] {
-            new Long(NUM_PARTITIONS-1), // W_ID
-            new Long(BASE_PARTITION),   // D_ID
-        };
+        Long proc_params[] = new Long[catalog_proc.getParameters().size()];
+        proc_params[0] = new Long(NUM_PARTITIONS-1); // W_ID
+        proc_params[1] = new Long(BASE_PARTITION);   // D_ID
         Integer proc_partition = p_estimator.getBasePartition(catalog_proc, proc_params, true);
         assertNotNull(proc_partition);
         assert(proc_partition >= 0);
@@ -120,10 +119,9 @@ public class TestPartitionEstimator extends BaseTestCase {
         p_estimator.initCatalog(clone_db);
         
         // Case #1: Both parameters have values in the input
-        Long params[] = new Long[] {
-            new Long(NUM_PARTITIONS-1), // W_ID
-            new Long(BASE_PARTITION),   // D_ID
-        };
+        Long params[] = new Long[catalog_proc.getParameters().size()];
+        params[0] = new Long(NUM_PARTITIONS-1); // W_ID
+        params[1] = new Long(BASE_PARTITION);   // D_ID
         Integer partition0 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition0);
         assert(partition0 >= 0);
@@ -131,10 +129,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition0 < NUM_PARTITIONS);
         
         // Case #2: The second parameter is null
-        params = new Long[] {
-            new Long(NUM_PARTITIONS-1), // W_ID
-            null,                       // D_ID
-        };
+        params[0] = new Long(NUM_PARTITIONS-1); // W_ID
+        params[1] = null; // D_ID
         Integer partition1 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition1);
         assert(partition1 >= 0);
@@ -143,10 +139,8 @@ public class TestPartitionEstimator extends BaseTestCase {
         assert(partition0.equals(partition1) == false);
         
         // Case #3: The first parameter is null
-        params = new Long[] {
-            null,                       // W_ID
-            new Long(BASE_PARTITION),   // D_ID
-        };
+        params[0] = null; // W_ID
+        params[1] = new Long(BASE_PARTITION);   // D_ID
         Integer partition2 = p_estimator.getBasePartition(catalog_proc, params, true);
         assertNotNull(partition2);
         assert(partition2 >= 0);
