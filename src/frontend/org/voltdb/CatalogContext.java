@@ -95,14 +95,14 @@ public class CatalogContext {
     public CatalogContext(Catalog catalog, String pathToCatalogJar) {
         // check the heck out of the given params in this immutable class
         assert(catalog != null);
-        assert(pathToCatalogJar != null);
+//        assert(pathToCatalogJar != null);
         if (catalog == null)
             throw new RuntimeException("Can't create CatalogContext with null catalog.");
-        if (pathToCatalogJar == null)
-            throw new RuntimeException("Can't create CatalogContext with null jar path.");
+//        if (pathToCatalogJar == null)
+//            throw new RuntimeException("Can't create CatalogContext with null jar path.");
 
         m_path = pathToCatalogJar;
-        if (pathToCatalogJar.startsWith(NO_PATH) == false)
+        if (pathToCatalogJar != null && pathToCatalogJar.startsWith(NO_PATH) == false)
             m_catalogClassLoader = new JarClassLoader(pathToCatalogJar);
         else
             m_catalogClassLoader = null;
