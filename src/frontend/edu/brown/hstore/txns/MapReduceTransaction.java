@@ -1,8 +1,5 @@
 package edu.brown.hstore.txns;
 
-import java.util.Collection;
-import java.util.Collections;
-
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
@@ -27,6 +24,7 @@ import edu.brown.hstore.callbacks.TransactionReduceCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionSet;
 
 /**
  * Special transaction state object for MapReduce jobs
@@ -132,7 +130,7 @@ public class MapReduceTransaction extends LocalTransaction {
     public LocalTransaction init(Long txn_id,
                                   long clientHandle,
                                   int base_partition,
-                                  Collection<Integer> predict_touchedPartitions,
+                                  PartitionSet predict_touchedPartitions,
                                   boolean predict_readOnly,
                                   boolean predict_canAbort,
                                   Procedure catalog_proc, ParameterSet params,
@@ -162,7 +160,7 @@ public class MapReduceTransaction extends LocalTransaction {
             this.local_txns[offset].init(this.txn_id,
                                          this.client_handle,
                                          partition,
-                                         Collections.singleton(partition),
+                                         hstore_site.getSingletonPartitionList(partition),
                                          this.predict_readOnly,
                                          this.predict_abortable,
                                          catalog_proc,
@@ -381,7 +379,7 @@ public class MapReduceTransaction extends LocalTransaction {
         return this.reduceOutput;
     }
     
-    public Collection<Integer> getPredictTouchedPartitions() {
+    public PartitionSet getPredictTouchedPartitions() {
         return (this.hstore_site.getAllPartitionIds());
     }
 

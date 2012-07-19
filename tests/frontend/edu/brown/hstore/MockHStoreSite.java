@@ -1,6 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
@@ -21,6 +20,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ThreadUtil;
 
 public class MockHStoreSite extends HStoreSite {
@@ -41,7 +41,7 @@ public class MockHStoreSite extends HStoreSite {
         
         CatalogContext catalogContext = hstore_site.getCatalogContext();
         int base_partition = CollectionUtil.random(hstore_site.getLocalPartitionIds());
-        Collection<Integer> predict_touchedPartitions = catalogContext.getAllPartitionIdCollection();
+        PartitionSet predict_touchedPartitions = catalogContext.getAllPartitionIdCollection();
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");

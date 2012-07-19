@@ -1,10 +1,9 @@
 package edu.brown.hstore.estimators;
 
-import java.util.Collection;
-
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
+import edu.brown.utils.PartitionSet;
 
 public class TM1Estimator extends AbstractEstimator {
 
@@ -13,9 +12,9 @@ public class TM1Estimator extends AbstractEstimator {
     }
     
     @Override
-    protected Collection<Integer> initializeTransactionImpl(Procedure catalog_proc, Object[] args, Object[] mangled) {
+    protected PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object[] args, Object[] mangled) {
         String procName = catalog_proc.getName();
-        Collection<Integer> ret = null;
+        PartitionSet ret = null;
         
         if (procName.equalsIgnoreCase("UpdateLocation")) {
             

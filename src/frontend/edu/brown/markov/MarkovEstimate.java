@@ -1,6 +1,5 @@
 package edu.brown.markov;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -10,6 +9,7 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -40,11 +40,11 @@ public class MarkovEstimate implements Poolable, Estimation {
     private final float read[];
     private final float write[];
     
-    private Set<Integer> finished_partitions;
-    private Set<Integer> touched_partitions;
-    private Set<Integer> most_touched_partitions;
-    private Set<Integer> read_partitions;
-    private Set<Integer> write_partitions;
+    private PartitionSet finished_partitions;
+    private PartitionSet touched_partitions;
+    private PartitionSet most_touched_partitions;
+    private PartitionSet read_partitions;
+    private PartitionSet write_partitions;
 
     private transient MarkovVertex vertex;
     private transient int batch;
@@ -386,7 +386,7 @@ public class MarkovEstimate implements Poolable, Estimation {
         return time;
     }
     
-    private void getPartitions(Set<Integer> partitions, float values[], float limit, boolean inverse) {
+    private void getPartitions(PartitionSet partitions, float values[], float limit, boolean inverse) {
         partitions.clear();
         for (int i = 0; i < values.length; i++) {
             if (inverse) {
@@ -402,9 +402,9 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
-    public Set<Integer> getReadOnlyPartitions(EstimationThresholds t) {
+    public PartitionSet getReadOnlyPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.read_partitions == null) this.read_partitions = new HashSet<Integer>();
+        if (this.read_partitions == null) this.read_partitions = new PartitionSet();
         this.getPartitions(this.read_partitions, this.read, (float)t.getReadThreshold(), false);
         return (this.read_partitions);
     }
@@ -415,7 +415,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      */
     public Set<Integer> getWritePartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.write_partitions == null) this.write_partitions = new HashSet<Integer>();
+        if (this.write_partitions == null) this.write_partitions = new PartitionSet();
         this.getPartitions(this.write_partitions, this.write, (float)t.getWriteThreshold(), false);
         return (this.write_partitions);
     }
@@ -426,7 +426,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      */
     public Set<Integer> getFinishedPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.finished_partitions == null) this.finished_partitions = new HashSet<Integer>();
+        if (this.finished_partitions == null) this.finished_partitions = new PartitionSet();
         this.getPartitions(this.finished_partitions, this.finished, (float)t.getFinishedThreshold(), false);
         return (this.finished_partitions);
     }
@@ -435,19 +435,19 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
-    public Set<Integer> getTouchedPartitions(EstimationThresholds t) {
+    public PartitionSet getTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.touched_partitions == null) this.touched_partitions = new HashSet<Integer>();
+        if (this.touched_partitions == null) this.touched_partitions = new PartitionSet();
         this.getPartitions(this.touched_partitions, this.finished, t.getFinishedThreshold(), true);
         return (this.touched_partitions);
     }
     
     public Set<Integer> getMostTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
-        if (this.touched_partitions == null) this.touched_partitions = new HashSet<Integer>();
+        if (this.touched_partitions == null) this.touched_partitions = new PartitionSet();
         this.getPartitions(this.touched_partitions, this.finished, t.getFinishedThreshold(), true);
         
-        if (this.most_touched_partitions == null) this.most_touched_partitions = new HashSet<Integer>();
+        if (this.most_touched_partitions == null) this.most_touched_partitions = new PartitionSet();
         int max_ctr = 0;
         for (Integer p : this.touched_partitions) {
             if (this.touched[p.intValue()] > 0 && max_ctr <= this.touched[p.intValue()]) {

@@ -1,7 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
@@ -19,6 +17,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionInitHandler extends AbstractTransactionHandler<TransactionInitRequest, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionInitHandler.class);
@@ -29,6 +28,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     private final AbstractDispatcher<Object[]> initDispatcher;
+    private final PartitionSet partitions = new PartitionSet();
     
     public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> initDispatcher) {
         super(hstore_site, hstore_coord);
@@ -36,7 +36,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionInitRequest request, PartitionSet partitions, RpcCallback<TransactionInitResponse> callback) {
         this.remoteQueue(null, request, callback);
     }
     @Override
@@ -99,8 +99,9 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                      request.getPrefetchParamsList());
         }
         
-        
-        hstore_site.transactionInit(txn_id, request.getPartitionsList(), wrapper);
+        this.partitions.clear();
+        this.partitions.addAll(request.getPartitionsList());
+        hstore_site.transactionInit(txn_id, this.partitions, wrapper);
         
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 

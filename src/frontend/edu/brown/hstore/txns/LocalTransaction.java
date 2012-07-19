@@ -75,6 +75,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -149,7 +150,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The set of partitions that we expected this partition to touch.
      */
-    private Collection<Integer> predict_touchedPartitions;
+    private PartitionSet predict_touchedPartitions;
   
     /**
      * TransctionEstimator State Handle
@@ -238,7 +239,7 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction init(Long txn_id,
                                  long clientHandle,
                                  int base_partition,
-                                 Collection<Integer> predict_touchedPartitions,
+                                 PartitionSet predict_touchedPartitions,
                                  boolean predict_readOnly,
                                  boolean predict_abortable,
                                  Procedure catalog_proc,
@@ -293,7 +294,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction testInit(Long txn_id,
                                       int base_partition,
-                                      Collection<Integer> predict_touchedPartitions,
+                                      PartitionSet predict_touchedPartitions,
                                       Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
@@ -323,7 +324,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction testInit(Long txn_id,
                                       int base_partition,
-                                      Collection<Integer> predict_touchedPartitions,
+                                      PartitionSet predict_touchedPartitions,
                                       Procedure catalog_proc,
                                       Object... proc_params) {
         this.parameters = new ParameterSet(proc_params);
@@ -913,7 +914,7 @@ public class LocalTransaction extends AbstractTransaction {
      * to need during its execution. The transaction may choose to not use all of
      * these but it is not allowed to use more.
      */
-    public Collection<Integer> getPredictTouchedPartitions() {
+    public PartitionSet getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
     }
     

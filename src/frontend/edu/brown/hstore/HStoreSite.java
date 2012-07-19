@@ -109,6 +109,7 @@ import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 
 /**
  * 
@@ -187,7 +188,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * All of the partitions in the cluster
      */
-    private final Collection<Integer> all_partitions;
+    private final PartitionSet all_partitions;
 
     /**
      * Keep track of which txns that we have in-flight right now
@@ -321,7 +322,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Collection of local partitions managed at this HStoreSite
      */
-    private final Collection<Integer> local_partitions = new ArrayList<Integer>();
+    private final PartitionSet local_partitions = new PartitionSet();
     
     /**
      * Integer list of all local partitions managed at this HStoreSite
@@ -348,7 +349,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * PartitionId -> Singleton set of that PartitionId
      */
-    private final Collection<Integer> single_partition_sets[];
+    private final PartitionSet single_partition_sets[];
     
     // ----------------------------------------------------------------------------
     // TRANSACTION ESTIMATION
@@ -424,7 +425,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.catalog_procs[catalog_proc.getId()] = catalog_proc;
         } // FOR
         
-        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalogContext.database);
+        this.all_partitions = new PartitionSet(CatalogUtil.getAllPartitionIds(this.catalogContext.database));
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
@@ -434,7 +435,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.single_partition_sets = new Collection[num_partitions];
+        this.single_partition_sets = new PartitionSet[num_partitions];
         
         // Get the hasher we will use for this HStoreSite
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
@@ -474,7 +475,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.local_partition_offsets[partition] = offset;
             this.local_partition_reverse[offset] = partition; 
             this.local_partitions_arr[offset] = partition;
-            this.single_partition_sets[partition] = Collections.singleton(partition);
+            this.single_partition_sets[partition] = new PartitionSet(Collections.singleton(partition));
             offset++;
         } // FOR
         this.partition_site_xref = new int[num_partitions];
@@ -754,7 +755,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * TODO: Moved to CatalogContext
      */
     @Deprecated
-    public Collection<Integer> getAllPartitionIds() {
+    public PartitionSet getAllPartitionIds() {
         return (this.all_partitions);
     }
     
@@ -762,12 +763,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Return the list of partition ids managed by this HStoreSite
      * TODO: Moved to CatalogContext 
      */
-    public Collection<Integer> getLocalPartitionIds() {
+    public PartitionSet getLocalPartitionIds() {
         return (this.local_partitions);
     }
     /**
      * Return an immutable array of the local partition ids managed by this HStoreSite
-     * Use this array is prefable to the Collection<Integer> if you must iterate of over them.
+     * Use this array is prefable to the PartitionSet if you must iterate of over them.
      * This avoids having to create a new Iterator instance each time.
      * TODO: Moved to CatalogContext
      */
@@ -799,7 +800,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partition
      * TODO: Moved to CatalogContext
      */
-    public Collection<Integer> getSingletonPartitionList(int partition) {
+    public PartitionSet getSingletonPartitionList(int partition) {
         return (this.single_partition_sets[partition]);
     }
     
@@ -1833,7 +1834,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
+    public void transactionInit(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
         this.txnQueueManager.lockInsert(txn_id, partitions, callback);
     }
@@ -1913,7 +1914,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      * @param updated
      */
-    public void transactionPrepare(Long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
+    public void transactionPrepare(Long txn_id, PartitionSet partitions, PartitionSet updated) {
         if (d) LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
         // We could have been asked to participate in a distributed transaction but
@@ -1932,6 +1933,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Always tell the queue stuff that the transaction is finished at this partition
             if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
             this.txnQueueManager.lockFinished(txn_id, Status.OK, p.intValue());
+            
+            // TODO: If this txn is read-only, then we should invoke finish right here
+            // Because this txn didn't change anything at this partition, we should
+            // release all of its locks and immediately allow the partition to execute
+            // transactions without speculative execution. We sort of already do that
+            // because we will allow spec exec read-only txns to commit immediately 
+            // but it would reduce the number of messages that the base partition needs
+            // to wait for when it does the 2PC:FINISH
+            // Berstein's book says that most systems don't actually do this because a txn may 
+            // need to execute triggers... but since we don't have any triggers we can do it!
+            // More Info: https://github.com/apavlo/h-store/issues/31
             
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
@@ -1960,7 +1972,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param status
      * @param partitions
      */
-    public void transactionFinish(Long txn_id, Status status, Collection<Integer> partitions) {
+    public void transactionFinish(Long txn_id, Status status, PartitionSet partitions) {
         if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
                                        txn_id, status, partitions));
         boolean commit = (status == Status.OK);
@@ -2253,14 +2265,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Figure out what partitions they tried to touch so that we can make sure to lock
         // those when the txn is restarted
         boolean malloc = false;
-        Collection<Integer> predict_touchedPartitions = null;
+        PartitionSet predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART || status == Status.ABORT_EVICTEDACCESS) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
         } else if (orig_ts.getRestartCounter() == 0) {
             // HACK: Ignore ConcurrentModificationException
             // This can occur if we are trying to requeue the transactions but there are still
             // pieces of it floating around at this site that modify the TouchedPartitions histogram
-            predict_touchedPartitions = new HashSet<Integer>();
+            predict_touchedPartitions = new PartitionSet();
             malloc = true;
             Collection<Integer> orig_touchedPartitions = orig_ts.getTouchedPartitions().values();
             while (true) {
@@ -2283,7 +2295,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Collection<Integer> partitions = ex.getPartitions().values();
             if (predict_touchedPartitions.containsAll(partitions) == false) {
                 if (malloc == false) {
-                    predict_touchedPartitions = new HashSet<Integer>(predict_touchedPartitions);
+                    predict_touchedPartitions = new PartitionSet(predict_touchedPartitions);
                     malloc = true;
                 }
                 predict_touchedPartitions.addAll(partitions);
@@ -2293,7 +2305,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (predict_touchedPartitions.contains(base_partition) == false) {
             if (malloc == false) {
-                predict_touchedPartitions = new HashSet<Integer>(predict_touchedPartitions);
+                predict_touchedPartitions = new PartitionSet(predict_touchedPartitions);
                 malloc = true;
             }
             predict_touchedPartitions.add(base_partition);

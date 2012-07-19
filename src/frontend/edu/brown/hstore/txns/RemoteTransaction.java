@@ -49,13 +49,13 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final TransactionWorkCallback fragment_callback;
+    private final TransactionWorkCallback work_callback;
     private final TransactionCleanupCallback cleanup_callback;
     private final ProtoRpcController rpc_transactionPrefetch[];
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        this.fragment_callback = new TransactionWorkCallback(hstore_site);
+        this.work_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
         int num_localPartitions = hstore_site.getLocalPartitionIds().size();
@@ -100,17 +100,17 @@ public class RemoteTransaction extends AbstractTransaction {
     public void startRound(int partition) {
         // If the stored procedure is not executing locally then we need at least
         // one FragmentTaskMessage callback
-        assert(this.fragment_callback != null) :
+        assert(this.work_callback != null) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
         super.startRound(partition);
     }
     
     /**
-     * Return the previously stored callback for a FragmentTaskMessage
+     * Return the previously stored callback for a WorkFragment
      * @return
      */
-    public TransactionWorkCallback getFragmentTaskCallback() {
-        return (this.fragment_callback);
+    public TransactionWorkCallback getWorkCallback() {
+        return (this.work_callback);
     }
     
     public TransactionCleanupCallback getCleanupCallback() {
