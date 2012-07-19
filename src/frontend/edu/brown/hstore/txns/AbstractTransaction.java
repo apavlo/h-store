@@ -90,9 +90,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected Status status;
     protected boolean sysproc;
     protected SerializableException pending_error;
-    
-    protected final BitSet readTables;
-    protected final BitSet writeTables;
 
     // ----------------------------------------------------------------------------
     // Attached Data Structures
@@ -169,6 +166,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /** This is set to true if the transaction did some work without an undo buffer **/
     private final boolean exec_noUndoBuffer[];
     
+    protected final BitSet readTables[];
+    protected final BitSet writeTables[];
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -180,21 +180,25 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int cnt = hstore_site.getLocalPartitionIdArray().length;
-        this.finished = new boolean[cnt];
-        this.last_undo_token = new long[cnt];
-        this.round_state = new RoundState[cnt];
-        this.round_ctr = new int[cnt];
-        this.exec_readOnly = new boolean[cnt];
-        this.exec_eeWork = new boolean[cnt];
-        this.exec_noUndoBuffer = new boolean[cnt];
+        int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        this.finished = new boolean[numLocalPartitions];
+        this.last_undo_token = new long[numLocalPartitions];
+        this.round_state = new RoundState[numLocalPartitions];
+        this.round_ctr = new int[numLocalPartitions];
+        this.exec_readOnly = new boolean[numLocalPartitions];
+        this.exec_eeWork = new boolean[numLocalPartitions];
+        this.exec_noUndoBuffer = new boolean[numLocalPartitions];
         
         this.finish_task = new FinishTxnMessage(this, Status.OK);
-        this.work_task = new WorkFragmentMessage[cnt];
+        this.work_task = new WorkFragmentMessage[numLocalPartitions];
         
+        this.readTables = new BitSet[numLocalPartitions];
+        this.writeTables = new BitSet[numLocalPartitions];
         int num_tables = hstore_site.getDatabase().getTables().size();
-        this.readTables = new BitSet(num_tables);
-        this.writeTables = new BitSet(num_tables);
+        for (int i = 0; i < numLocalPartitions; i++) {
+            this.readTables[i] = new BitSet(num_tables);
+            this.writeTables[i] = new BitSet(num_tables);
+        } // FOR
         
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
@@ -254,9 +258,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
         
-        this.readTables.clear();
-        this.writeTables.clear();
-        
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
@@ -272,6 +273,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
             this.exec_noUndoBuffer[i] = false;
+            
+            this.readTables[i].clear();
+            this.writeTables[i].clear();
         } // FOR
 
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
@@ -607,28 +611,34 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // READ/WRITE TABLE TRACKING
     // ----------------------------------------------------------------------------
     
-    public void markTableAsRead(Table catalog_tbl) {
-        this.readTables.set(catalog_tbl.getRelativeIndex());
+    public void markTableAsRead(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.readTables[offset].set(catalog_tbl.getRelativeIndex());
     }
-    public void markTableIdsAsRead(int...tableIds) {
+    public void markTableIdsAsRead(int partition, int...tableIds) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         for (int id : tableIds) {
-            this.readTables.set(id);
+            this.readTables[offset].set(id);
         } // FOR
     }
-    public boolean isTableRead(Table catalog_tbl) {
-        return (this.readTables.get(catalog_tbl.getRelativeIndex()));
+    public boolean isTableRead(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.readTables[offset].get(catalog_tbl.getRelativeIndex()));
     }
     
-    public void markTableAsWritten(Table catalog_tbl) {
-        this.writeTables.set(catalog_tbl.getRelativeIndex());
+    public void markTableAsWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.writeTables[offset].set(catalog_tbl.getRelativeIndex());
     }
-    public void markTableIdsAsWritten(int...tableIds) {
+    public void markTableIdsAsWritten(int partition, int...tableIds) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         for (int id : tableIds) {
-            this.writeTables.set(id);
+            this.writeTables[offset].set(id);
         } // FOR
     }
-    public boolean isTableWritten(Table catalog_tbl) {
-        return (this.writeTables.get(catalog_tbl.getRelativeIndex()));
+    public boolean isTableWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.writeTables[offset].get(catalog_tbl.getRelativeIndex()));
     }
     
     
