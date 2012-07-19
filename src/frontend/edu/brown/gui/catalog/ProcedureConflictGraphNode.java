@@ -19,13 +19,14 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.types.ConflictType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractUndirectedGraph;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.CollectionUtil;
 import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.picking.PickedState;
+import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
 
 public class ProcedureConflictGraphNode {
     private static final Logger LOG = Logger.getLogger(ProcedureConflictGraphNode.class);
@@ -49,10 +50,19 @@ public class ProcedureConflictGraphNode {
         }
     };
     final Transformer<ConflictEdge, Stroke> edgeStroke = new Transformer<ConflictEdge, Stroke>() {
-        final Stroke s = new BasicStroke(2.0f);
+        final Stroke s = new BasicStroke(3.0f);
         @Override
         public Stroke transform(ConflictEdge e) {
             return (s);
+        }
+    };
+    final Transformer<ConflictVertex, Paint> vertexColor = new Transformer<ConflictVertex, Paint>() {
+        final Paint picked = new Color(225, 225, 225);
+        final Paint unpicked = new Color(175, 175, 175);
+        @Override
+        public Paint transform(ConflictVertex v) {
+            PickedState<ConflictVertex> pickedState = vizPanel.getPickedVertexState();
+            return (pickedState.isPicked(v) ? picked : unpicked);
         }
     };
     
@@ -94,13 +104,18 @@ public class ProcedureConflictGraphNode {
         this.vizPanel.getRenderContext().setEdgeDrawPaintTransformer(this.edgeColor);
         this.vizPanel.getRenderContext().setArrowDrawPaintTransformer(this.edgeColor);
         this.vizPanel.getRenderContext().setArrowFillPaintTransformer(this.edgeColor);
+        this.vizPanel.getRenderContext().setVertexFillPaintTransformer(this.vertexColor);
         this.vizPanel.getRenderContext().setEdgeStrokeTransformer(this.edgeStroke);
+        this.vizPanel.getRenderContext().setVertexFontTransformer(new GraphVisualizationPanel.VertexFontTransformer<ProcedureConflictGraphNode.ConflictVertex>(true));
+        this.vizPanel.getRenderer().getVertexLabelRenderer().setPosition(Position.CNTR);
         
         this.vizPanel.getRenderContext().setVertexShapeTransformer(
             new Transformer<ConflictVertex, Shape>() {
+                int width = 160;  int height = 40;
+                int x = width/-2; int y = height/-2;
                 @Override
                 public Shape transform(ConflictVertex v) {
-                    return new Rectangle(-20, -10, 40, 20);
+                    return new Rectangle(x, y, width, height);
                 }
             }
         );
