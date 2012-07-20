@@ -314,6 +314,26 @@ bool PersistentTable::mergeUnevictedTuples() {
     
     return true; 
 }
+    
+void PersistentTable::setNewestTupleID(uint32_t id)
+{
+    m_newest_tuple_id = id; 
+}
+
+void PersistentTable::setOldestTupleID(uint32_t id)
+{
+    m_oldest_tuple_id = id; 
+}
+
+uint32_t PersistentTable::getNewestTupleID()
+{
+    return m_newest_tuple_id; 
+}
+
+uint32_t PersistentTable::getOldestTupleID()
+{
+    return m_oldest_tuple_id; 
+}
 
 #endif
 

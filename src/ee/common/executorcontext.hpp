@@ -27,186 +27,186 @@
 #endif
 
 namespace voltdb {
-
+    
 #ifdef ANTICACHE
-class AntiCacheDB;
-class AntiCacheEvictionManager; 
+    class AntiCacheDB;
+    class AntiCacheEvictionManager; 
 #endif
-
-/*
- * EE site global data required by executors at runtime.
- *
- * This data is factored into common to avoid creating dependencies on
- * execution/VoltDBEngine throughout the storage and executor code.
- * This facilitates easier test case writing and breaks circular
- * dependencies between ee component directories.
- *
- * A better implementation that meets these goals is always welcome if
- * you see a preferable refactoring.
- */
-class ExecutorContext {
-  public:
-    ~ExecutorContext() {
-
+    
+    /*
+     * EE site global data required by executors at runtime.
+     *
+     * This data is factored into common to avoid creating dependencies on
+     * execution/VoltDBEngine throughout the storage and executor code.
+     * This facilitates easier test case writing and breaks circular
+     * dependencies between ee component directories.
+     *
+     * A better implementation that meets these goals is always welcome if
+     * you see a preferable refactoring.
+     */
+    class ExecutorContext {
+    public:
+        ~ExecutorContext() {
+            
 #ifdef ANTICACHE
-        if (m_antiCacheEnabled) {
-            delete m_antiCacheDB;
-            delete m_antiCacheEvictionManager; 
+            if (m_antiCacheEnabled) {
+                delete m_antiCacheDB;
+                delete m_antiCacheEvictionManager; 
+            }
+#endif
         }
-#endif
-    }
-
-    ExecutorContext(CatalogId siteId,
-                    CatalogId partitionId,
-                    UndoQuantum *undoQuantum,
-                    Topend* topend,
-                    bool exportEnabled,
-                    int64_t epoch,
-                    std::string hostname,
-                    CatalogId hostId) :
+        
+        ExecutorContext(CatalogId siteId,
+                        CatalogId partitionId,
+                        UndoQuantum *undoQuantum,
+                        Topend* topend,
+                        bool exportEnabled,
+                        int64_t epoch,
+                        std::string hostname,
+                        CatalogId hostId) :
         m_topEnd(topend), m_undoQuantum(undoQuantum),
         m_txnId(0),
         m_siteId(siteId), m_partitionId(partitionId),
         m_hostname(hostname), m_hostId(hostId),
         m_exportEnabled(exportEnabled),
         m_epoch(epoch)
-    {
-        m_lastCommittedTxnId = 0;
-        m_lastTickTime = 0;
+        {
+            m_lastCommittedTxnId = 0;
+            m_lastTickTime = 0;
+            
+#ifdef ANTICACHE
+            m_antiCacheEnabled = false;
+#endif
+        }
+        
+        // not always known at initial construction
+        void setPartitionId(CatalogId partitionId) {
+            m_partitionId = partitionId;
+        }
+        
+        // not always known at initial construction
+        void setEpoch(int64_t epoch) {
+            m_epoch = epoch;
+        }
+        
+        // helper to configure the context for a new jni call
+        void setupForPlanFragments(UndoQuantum *undoQuantum,
+                                   int64_t txnId,
+                                   int64_t lastCommittedTxnId)
+        {
+            m_undoQuantum = undoQuantum;
+            m_txnId = txnId;
+            m_lastCommittedTxnId = lastCommittedTxnId;
+        }
+        
+        // data available via tick()
+        void setupForTick(int64_t lastCommittedTxnId,
+                          int64_t lastTickTime)
+        {
+            m_lastCommittedTxnId = lastCommittedTxnId;
+            m_lastTickTime = lastTickTime;
+        }
+        
+        // data available via quiesce()
+        void setupForQuiesce(int64_t lastCommittedTxnId) {
+            m_lastCommittedTxnId = lastCommittedTxnId;
+        }
+        
+        // for test (VoltDBEngine::getExecutorContext())
+        void setupForPlanFragments(UndoQuantum *undoQuantum) {
+            m_undoQuantum = undoQuantum;
+        }
+        
+        UndoQuantum *getCurrentUndoQuantum() {
+            return m_undoQuantum;
+        }
+        
+        Topend* getTopend() {
+            return m_topEnd;
+        }
+        
+        /** Current or most recently executed transaction id. */
+        int64_t currentTxnId() {
+            return m_txnId;
+        }
+        
+        /** Current or most recently executed transaction id. */
+        int64_t currentTxnTimestamp() {
+            return (m_txnId >> 23) + m_epoch;
+        }
+        
+        /** Last committed transaction known to this EE */
+        int64_t lastCommittedTxnId() {
+            return m_lastCommittedTxnId;
+        }
+        
+        /** Time of the last tick() invocation. */
+        int64_t lastTickTime() {
+            return m_lastTickTime;
+        }
+        
+        // ------------------------------------------------------------------
+        // ANTI-CACHE
+        // ------------------------------------------------------------------ 
         
 #ifdef ANTICACHE
-        m_antiCacheEnabled = false;
-#endif
-    }
-    
-    // not always known at initial construction
-    void setPartitionId(CatalogId partitionId) {
-        m_partitionId = partitionId;
-    }
-
-    // not always known at initial construction
-    void setEpoch(int64_t epoch) {
-        m_epoch = epoch;
-    }
-
-    // helper to configure the context for a new jni call
-    void setupForPlanFragments(UndoQuantum *undoQuantum,
-                               int64_t txnId,
-                               int64_t lastCommittedTxnId)
-    {
-        m_undoQuantum = undoQuantum;
-        m_txnId = txnId;
-        m_lastCommittedTxnId = lastCommittedTxnId;
-    }
-
-    // data available via tick()
-    void setupForTick(int64_t lastCommittedTxnId,
-                      int64_t lastTickTime)
-    {
-        m_lastCommittedTxnId = lastCommittedTxnId;
-        m_lastTickTime = lastTickTime;
-    }
-
-    // data available via quiesce()
-    void setupForQuiesce(int64_t lastCommittedTxnId) {
-        m_lastCommittedTxnId = lastCommittedTxnId;
-    }
-
-    // for test (VoltDBEngine::getExecutorContext())
-    void setupForPlanFragments(UndoQuantum *undoQuantum) {
-        m_undoQuantum = undoQuantum;
-    }
-
-    UndoQuantum *getCurrentUndoQuantum() {
-        return m_undoQuantum;
-    }
-
-    Topend* getTopend() {
-        return m_topEnd;
-    }
-
-    /** Current or most recently executed transaction id. */
-    int64_t currentTxnId() {
-        return m_txnId;
-    }
-
-    /** Current or most recently executed transaction id. */
-    int64_t currentTxnTimestamp() {
-        return (m_txnId >> 23) + m_epoch;
-    }
-
-    /** Last committed transaction known to this EE */
-    int64_t lastCommittedTxnId() {
-        return m_lastCommittedTxnId;
-    }
-
-    /** Time of the last tick() invocation. */
-    int64_t lastTickTime() {
-        return m_lastTickTime;
-    }
+        /**
+         * Return the handle to disk-based storage object that we
+         * can use to read and write tuples to
+         */
+        AntiCacheDB* getAntiCacheDB() const {
+            return m_antiCacheDB; 
+        }
         
-    // ------------------------------------------------------------------
-    // ANTI-CACHE
-    // ------------------------------------------------------------------ 
-    
-#ifdef ANTICACHE
-    /**
-     * Return the handle to disk-based storage object that we
-     * can use to read and write tuples to
-     */
-    AntiCacheDB* getAntiCacheDB() const {
-        return m_antiCacheDB; 
-    }
-    
-    /**
-     * Return the handle to the anti-cache manager that will update tuple timestamps
-     * and can select tuples for eviction. 
-     */
-    AntiCacheEvictionManager* getAntiCacheEvictionManager() const {
-        return m_antiCacheEvictionManager; 
-    }
-    
-    /**
-     * Enable the anti-caching feature in the EE.
-     * The input parameter is the directory where our disk-based storage
-     * will write out evicted blocks of tuples for this partition
-     */
-    void enableAntiCache(std::string &dbDir) {
-        assert(m_antiCacheEnabled == false);
-        m_antiCacheEnabled = true;
-        m_antiCacheDB = new AntiCacheDB(this, dbDir);
-        m_antiCacheEvictionManager = new AntiCacheEvictionManager(); 
-    }
+        /**
+         * Return the handle to the anti-cache manager that will update tuple timestamps
+         * and can select tuples for eviction. 
+         */
+        AntiCacheEvictionManager* getAntiCacheEvictionManager() const {
+            return m_antiCacheEvictionManager; 
+        }
+        
+        /**
+         * Enable the anti-caching feature in the EE.
+         * The input parameter is the directory where our disk-based storage
+         * will write out evicted blocks of tuples for this partition
+         */
+        void enableAntiCache(std::string &dbDir) {
+            assert(m_antiCacheEnabled == false);
+            m_antiCacheEnabled = true;
+            m_antiCacheDB = new AntiCacheDB(this, dbDir);
+            m_antiCacheEvictionManager = new AntiCacheEvictionManager(); 
+        }
 #endif
-
-  private:
-    Topend *m_topEnd;
-    UndoQuantum *m_undoQuantum;
-    int64_t m_txnId;
-
+        
+    private:
+        Topend *m_topEnd;
+        UndoQuantum *m_undoQuantum;
+        int64_t m_txnId;
+        
 #ifdef ANTICACHE
-    AntiCacheDB *m_antiCacheDB;
-    
-    AntiCacheEvictionManager *m_antiCacheEvictionManager; 
+        AntiCacheDB *m_antiCacheDB;
+        
+        AntiCacheEvictionManager *m_antiCacheEvictionManager; 
 #endif
-
-  public:
-    int64_t m_lastCommittedTxnId;
-    int64_t m_lastTickTime;
-    CatalogId m_siteId;
-    CatalogId m_partitionId;
-    std::string m_hostname;
-    CatalogId m_hostId;
-    bool m_exportEnabled;
-    
+        
+    public:
+        int64_t m_lastCommittedTxnId;
+        int64_t m_lastTickTime;
+        CatalogId m_siteId;
+        CatalogId m_partitionId;
+        std::string m_hostname;
+        CatalogId m_hostId;
+        bool m_exportEnabled;
+        
 #ifdef ANTICACHE
-    bool m_antiCacheEnabled;
+        bool m_antiCacheEnabled;
 #endif
-
-    /** local epoch for voltdb, somtime around 2008, pulled from catalog */
-    int64_t m_epoch;
-};
-
+        
+        /** local epoch for voltdb, somtime around 2008, pulled from catalog */
+        int64_t m_epoch;
+    };
+    
 }
 
 #endif

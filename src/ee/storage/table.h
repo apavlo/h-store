@@ -202,6 +202,8 @@ public:
     inline int32_t getBlocksEvicted() const { return (m_blocksEvicted); }
     inline int64_t getBytesEvicted()  const { return (m_bytesEvicted); }
     #endif
+    
+    int getTupleID(const char* tuple_address); 
 
     // ------------------------------------------------------------------
     // COLUMNS
@@ -331,9 +333,6 @@ protected:
     char * dataPtrForTuple(const int index) const;
     char * dataPtrForTupleForced(const int index);
     void allocateNextBlock();
-    
-    int getTupleID(char* tuple_address); 
-
 
     /**
      * Normally this will return the tuple storage to the free list.
@@ -454,7 +453,7 @@ inline void Table::allocateNextBlock() {
     }
 }
     
-inline int Table::getTupleID(char* tuple_address)
+inline int Table::getTupleID(const char* tuple_address)
 {    
     char* addr; 
     int tuple_id = 0; 
