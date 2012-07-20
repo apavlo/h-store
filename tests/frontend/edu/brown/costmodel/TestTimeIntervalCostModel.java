@@ -2,6 +2,7 @@ package edu.brown.costmodel;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -21,6 +22,7 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.WorkloadStatistics;
@@ -196,7 +198,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     public void testSinglePartitionedUniformWorkload() throws Exception {
         // This workload should will only consist of single-partition txns and 
         // is evenly spread out across all partitions
-        final Map<Integer, Boolean> txn_for_partition = new HashMap<Integer, Boolean>();
+        final BitSet txn_for_partition = new BitSet(NUM_PARTITIONS);
         Filter filter = new Filter() {
             @Override
             protected void resetImpl() {
@@ -208,14 +210,14 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 if (element instanceof TransactionTrace) {
                     TransactionTrace xact = (TransactionTrace)element;
                     try {
-                        Integer partition = p_estimator.getBasePartition(xact.getCatalogItem(catalog_db), xact.getParams());
-                        if (partition == null) System.err.println(xact.debug(catalog_db));
-                        assertNotNull(partition);
+                        int partition = p_estimator.getBasePartition(xact);
+                        if (partition == HStoreConstants.NULL_PARTITION_ID) System.err.println(xact.debug(catalog_db));
+                        assert(partition != HStoreConstants.NULL_PARTITION_ID);
                         
-                        if (txn_for_partition.containsKey(partition)) {
+                        if (txn_for_partition.get(partition)) {
                             return (FilterResult.SKIP);    
                         }
-                        txn_for_partition.put(partition, true);
+                        txn_for_partition.set(partition);
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         assert(false);
@@ -233,7 +235,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         double cost = this.cost_model.estimateWorkloadCost(catalog_db, singlep_workload, filter, null);
 //        System.err.println(txn_for_partition);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            assert(txn_for_partition.containsKey(i)) : "No txn in workload for partition #" + i;
+            assert(txn_for_partition.get(i)) : "No txn in workload for partition #" + i;
         } // FOR
         assert(cost >= 0.0d) : "Invalid cost: " + cost;
         assert(cost <= 2.0d) : "Invalid cost: " + cost;
@@ -271,9 +273,9 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 if (element instanceof TransactionTrace) {
                     TransactionTrace xact = (TransactionTrace)element;
                     try {
-                        Integer partition = p_estimator.getBasePartition(xact.getCatalogItem(catalog_db), xact.getParams());
-                        if (partition == null) System.err.println(xact.debug(catalog_db));
-                        assertNotNull(partition);
+                        int partition = p_estimator.getBasePartition(xact);
+                        if (partition == HStoreConstants.NULL_PARTITION_ID) System.err.println(xact.debug(catalog_db));
+                        assert(partition != HStoreConstants.NULL_PARTITION_ID);
                         
                         double next = rand.nextDouble();
                         double prob = probs.get(partition);
