@@ -111,6 +111,10 @@ class PersistentTable : public Table {
     friend class TableIndex;
     friend class TableIterator;
     friend class PersistentTableStats;
+    
+#ifdef ANTICACHE
+    friend class AntiCacheEvictionManager; 
+#endif
 
   private:
     // no default ctor, no copy, no assignment
@@ -258,6 +262,12 @@ class PersistentTable : public Table {
     bool evictBlockToDisk(const long block_size);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();
+    
+    // needed for LRU chain eviction
+    void setNewestTupleID(uint32_t id); 
+    void setOldestTupleID(uint32_t id); 
+    uint32_t getNewestTupleID(); 
+    uint32_t getOldestTupleID(); 
 #endif
 
 protected:
@@ -321,6 +331,9 @@ protected:
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     int m_unevictedTuplesLength; 
+    
+    uint32_t m_oldest_tuple_id; 
+    uint32_t m_newest_tuple_id; 
 #endif
     
     // partition key

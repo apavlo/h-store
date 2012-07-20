@@ -35,9 +35,7 @@ namespace voltdb {
 
 class Table;
 class PersistentTable;
-class EvictionIterator;
-class TupleIterator;  // ???
-    
+class EvictionIterator;    
     
 class AntiCacheEvictionManager {
         
@@ -45,8 +43,8 @@ public:
     AntiCacheEvictionManager();
     ~AntiCacheEvictionManager();
     
-    bool updateTuple(TableTuple& tuple); 
-            
+    bool updateTuple(Table* table, TableTuple* tuple);
+    
     Table* evictBlock(PersistentTable *table, long blockSize);
     Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);
     

@@ -53,7 +53,6 @@
 #include "boost/shared_array.hpp"
 #include "boost/unordered_set.hpp"
 #include "boost/pool/pool_alloc.hpp"
-#include <set>
 #include <memory>
 
 namespace voltdb {

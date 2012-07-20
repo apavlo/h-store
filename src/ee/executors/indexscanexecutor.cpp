@@ -504,14 +504,16 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     }
     
 #ifdef ANTICACHE
+    /*
     // anti-cache variables
-    EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
-	std::Set<int> evicted_block_ids(); 
+    //EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
+	std::set<uint16_t> evicted_block_ids(); 
 	
 	TableTuple m_evicted_tuple(m_targetTable->getEvictedTable()->schema()); 
 	
-	int block_id_index
-	uint16_t block_id; 
+	int block_id_index; 
+	uint16_t block_id;
+     */
 #endif        
 
 
@@ -525,6 +527,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     {
         
 #ifdef ANTICACHE
+        /*
         // We are pointing to an entry for an evicted tuple
 		if(m_tuple.isEvicted())
         {
@@ -538,6 +541,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
 
 			evicted_block_ids.insert(block_id); 
 		}
+         */
 #endif        
         
         //
@@ -676,6 +680,23 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             m_outputTable->insertTupleNonVirtual(m_tuple);
         }
     }
+    
+#ifdef ANTICACHE
+    /*
+    // throw exception indicating evicted blocks are needed
+    if(evicted_block_ids.size() > 0)
+    {
+        uint16_t* block_ids = new uint16_t[evicted_block_ids.size()]; 
+        for(std::set<uint16_t>::iterator itr = evicted_block_ids.begin(), int i = 0; itr != evicted_block_ids.end(); ++itr, ++i)
+        {
+            block_ids[i] = *itr; 
+        }
+        throw new EvictedTupleAccessException(0, evicted_block_ids.size(), block_ids); 
+    }
+     */
+#endif
+    
+    
     VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
     return true;
 }
