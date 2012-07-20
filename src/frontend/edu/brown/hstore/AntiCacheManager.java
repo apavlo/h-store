@@ -9,7 +9,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
@@ -33,7 +32,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -95,7 +93,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
             
             // TODO: We could also call checkEviction() in here too
             try {
-                checkEviction();
+                if (checkEviction()) executeEviction();
             } catch (Throwable ex) {
                 ex.printStackTrace();
             }
@@ -207,41 +205,47 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
     // EVICTION INITIATION
     // ----------------------------------------------------------------------------
     
-    protected void checkEviction() {
+    /**
+     * Check whether the amount of memory used by this HStoreSite is above
+     * the eviction threshold.
+     */
+    protected boolean checkEviction() {
 //        long currentMemory = MathUtil.sum(this.partitionSizes)/1024;
         long currentMemory = Runtime.getRuntime().totalMemory();
         double usage = currentMemory / (double)this.availableMemory;
         LOG.info(String.format("Current Memory: %s [%.1f%%]",
                                StringUtil.formatSize(currentMemory), usage*100));
         
-        if (usage >= this.memoryThreshold) {
-            // Invoke our special sysproc that will tell the EE to evict some blocks
-            // to save us space.
- 
-            String tableNames[] = new String[this.evictableTables.size()];
-            long evictBytes[] = new long[this.evictableTables.size()];
-            int i = 0;
-            for (Table catalog_tbl : this.evictableTables) {
-                tableNames[i] = catalog_tbl.getName();
-                // TODO: Need to figure out what the optimal solution is for picking the block sizes
-                evictBytes[i] = 1048576; // 1024 * 1024
-                i++;
-            } // FOR
-            Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
-            String procName = "@" + EvictTuples.class.getSimpleName();
-            StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
-             
-            for (Integer p : hstore_site.getLocalPartitionIdArray()) {
-                invocation.getParams().toArray()[0] = p.intValue();
-                ByteBuffer b = null;
-                try {
-                    b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-                this.hstore_site.invocationProcess(b, this.evictionCallback);
-            } // FOR
-        }
+        return (usage >= this.memoryThreshold);
+    }
+    
+    protected void executeEviction() {
+        // Invoke our special sysproc that will tell the EE to evict some blocks
+        // to save us space.
+
+        String tableNames[] = new String[this.evictableTables.size()];
+        long evictBytes[] = new long[this.evictableTables.size()];
+        int i = 0;
+        for (Table catalog_tbl : this.evictableTables) {
+            tableNames[i] = catalog_tbl.getName();
+            // TODO: Need to figure out what the optimal solution is for picking the block sizes
+            evictBytes[i] = 1048576; // 1024 * 1024
+            i++;
+        } // FOR
+        Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
+        String procName = "@" + EvictTuples.class.getSimpleName();
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
+         
+        for (Integer p : hstore_site.getLocalPartitionIdArray()) {
+            invocation.getParams().toArray()[0] = p.intValue();
+            ByteBuffer b = null;
+            try {
+                b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+            this.hstore_site.invocationProcess(b, this.evictionCallback);
+        } // FOR
     }
     
     // ----------------------------------------------------------------------------
