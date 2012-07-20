@@ -1150,10 +1150,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               TimeUnit.MILLISECONDS);
         }
         
-        // AntiCache Monitor
+        // AntiCache Memory Monitor
         if (this.anticacheManager != null) {
-            this.scheduleWork(this.anticacheManager.getStatsSamplingThread(),
-                              0, 30, TimeUnit.SECONDS);
+            this.scheduleWork(
+                this.anticacheManager.getMemoryMonitorThread(),
+                0, hstore_conf.site.anticache_check_interval, TimeUnit.MILLISECONDS);
         }
     }
     
