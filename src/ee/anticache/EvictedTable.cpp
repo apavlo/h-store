@@ -36,9 +36,10 @@ EvictedTable::EvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false)
 
     
 /*
- Insert a tuple into the evicted table but don't create any UNDO action. 
+ Insert a tuple into the evicted table but don't create any UNDO action. Return the address
+ of the newly inserted tuple. 
  */
-bool EvictedTable::insertTuple(TableTuple &source) {
+const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     // not null checks at first
     if (!checkNulls(source)) {
         throwFatalException("Failed to insert tuple into table %s for undo:"
@@ -55,8 +56,9 @@ bool EvictedTable::insertTuple(TableTuple &source) {
     // Then copy the source into the target
     m_tmpTarget1.copy(source);
     m_tmpTarget1.setDeletedFalse();
+    m_tmpTarget1.setEvictedTrue(); 
     
-    return (true); // FIXME
+    return m_tmpTarget1.address(); 
 }
     
 }
