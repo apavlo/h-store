@@ -61,7 +61,7 @@ class TableTupleTest_MarkAsEvicted;
 
 namespace voltdb {
 
-#ifndef ANTICACHE
+#ifdef ANTICACHE
     
 #define TUPLE_HEADER_SIZE 5
 
