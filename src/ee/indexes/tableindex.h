@@ -144,11 +144,8 @@ public:
     virtual bool replaceEntry(const TableTuple *oldTupleValue,
                               const TableTuple *newTupleValue) = 0;
     
-    bool setEntryToNull(const TableTuple *tupleValue)
-    {
-        throwFatalException("Invoked TableIndex virtual method setEntryToNull which has no implementation");
-        return false; 
-    }
+    virtual bool setEntryToNewAddress(const TableTuple *tuple, const void* address) = 0; 
+    
     
     /**
      * just returns whether the value is already stored. no
