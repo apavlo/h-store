@@ -19,7 +19,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestVoterSuite extends RegressionSuite {
 
-    private static long voteId = 1;
+    private static int voteId = 1;
     private static final long phoneNumber = 8675309; // Jenny
     private static final int contestantNumber = 1;
     private static final long maxVotesPerPhoneNumber = 5;
@@ -74,7 +74,7 @@ public class TestVoterSuite extends RegressionSuite {
         assertEquals(Status.OK, cresponse.getStatus());
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
-        assertEquals(Vote.VOTE_SUCCESSFUL, results[0].asScalarLong());
+        assertEquals(VoterConstants.VOTE_SUCCESSFUL, results[0].asScalarLong());
         
         // Make sure that our vote is actually in the real table and materialized views
         String query = "SELECT COUNT(*) FROM votes";
@@ -106,8 +106,8 @@ public class TestVoterSuite extends RegressionSuite {
         // the limit and not anymore after that
         ClientResponse cresponse = null;
         for (int i = 0, cnt = (int)(maxVotesPerPhoneNumber*2); i < cnt; i++) {
-            long expected = (i < maxVotesPerPhoneNumber ? Vote.VOTE_SUCCESSFUL :
-                                                          Vote.ERR_VOTER_OVER_VOTE_LIMIT);
+            long expected = (i < maxVotesPerPhoneNumber ? VoterConstants.VOTE_SUCCESSFUL :
+                                                          VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT);
             cresponse = client.callProcedure(Vote.class.getSimpleName(),
                                              voteId++,
                                              phoneNumber,
