@@ -23,6 +23,7 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -773,7 +774,7 @@ public class MarkovCostModel extends AbstractCostModel {
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV, ArgumentsParser.PARAM_WORKLOAD, ArgumentsParser.PARAM_MAPPINGS, ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
         HStoreConf.initArgumentsParser(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
-        final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : null);
+        final int base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : HStoreConstants.NULL_PARTITION_ID);
         final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;
         final boolean force_fullpath = true;
@@ -799,9 +800,8 @@ public class MarkovCostModel extends AbstractCostModel {
         final int marker = Math.max(1, (int) (num_transactions * 0.10));
         final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
         Collection<Integer> partitions = null;
-        if (base_partition != null) {
-            partitions = new PartitionSet();
-            partitions.add(base_partition);
+        if (base_partition != HStoreConstants.NULL_PARTITION_ID) {
+            partitions = new PartitionSet(base_partition);
         } else {
             partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
         }
@@ -862,14 +862,14 @@ public class MarkovCostModel extends AbstractCostModel {
                 int ctr = 0;
                 for (TransactionTrace txn_trace : all_txns) {
                     // Make sure it goes to the right base partition
-                    Integer partition = null;
+                    int partition = HStoreConstants.NULL_PARTITION_ID;
                     try {
                         partition = p_estimator.getBasePartition(txn_trace);
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                    assert (partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(args.catalog_db);
-                    if (base_partition != null && base_partition.equals(partition) == false)
+                    assert(partition != HStoreConstants.NULL_PARTITION_ID) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(args.catalog_db);
+                    if (base_partition != HStoreConstants.NULL_PARTITION_ID && base_partition != partition)
                         continue;
 
                     int queue_idx = (global ? ctr : partition) % num_threads;

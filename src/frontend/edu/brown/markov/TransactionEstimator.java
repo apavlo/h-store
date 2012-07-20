@@ -22,6 +22,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.interfaces.Loggable;
@@ -450,14 +451,14 @@ public class TransactionEstimator implements Loggable {
      * @return an estimate for the transaction's future
      */
     protected State startTransaction(long txn_id, Procedure catalog_proc, Object args[]) {
-        Integer base_partition = null; 
+        int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = this.p_estimator.getBasePartition(catalog_proc, args);
-            assert(base_partition != null);
+            assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         } catch (Throwable ex) {
             throw new RuntimeException(String.format("Failed to calculate base partition for <%s, %s>", catalog_proc.getName(), Arrays.toString(args)), ex);
         }
-        return (this.startTransaction(txn_id, base_partition.intValue(), catalog_proc, args));
+        return (this.startTransaction(txn_id, base_partition, catalog_proc, args));
     }
         
     /**

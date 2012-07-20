@@ -289,8 +289,8 @@ public class BatchPlanner implements Loggable {
 
             // Batch Data
             this.frag_list = (List<PlanFragment>[]) new List<?>[batch_size];
-            this.stmt_partitions = (PartitionSet[]) new Set<?>[batch_size];
-            this.stmt_partitions_swap = (PartitionSet[]) new Set<?>[batch_size];
+            this.stmt_partitions = new PartitionSet[batch_size];
+            this.stmt_partitions_swap = new PartitionSet[batch_size];
             this.frag_partitions = (Map<PlanFragment, PartitionSet>[]) new HashMap<?, ?>[batch_size];
             this.frag_partitions_swap = (Map<PlanFragment, PartitionSet>[]) new HashMap<?, ?>[batch_size];
             this.singlepartition_bitmap = new boolean[batch_size];
@@ -576,7 +576,7 @@ public class BatchPlanner implements Loggable {
      */
     @SuppressWarnings("unchecked")
     public static synchronized void clear(int num_partitions) {
-        CACHED_SINGLE_PARTITION_SETS = (PartitionSet[]) new Set<?>[num_partitions];
+        CACHED_SINGLE_PARTITION_SETS = new PartitionSet[num_partitions];
         CACHED_FRAGMENT_PARTITION_MAPS = (Map<Statement, Map<PlanFragment, PartitionSet>>[]) new Map<?, ?>[num_partitions];
 
         for (int i = 0; i < num_partitions; i++) {

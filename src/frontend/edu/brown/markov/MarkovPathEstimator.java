@@ -660,14 +660,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @return
      */
     public static MarkovPathEstimator predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
-        Integer base_partition = null; 
+        int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
         } catch (Exception ex) {
             LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
             System.exit(1);
         }
-        assert(base_partition != null);
+        assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         
         MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
         estimator.updateLogging();
