@@ -27,7 +27,6 @@ import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.costmodel.SingleSitedCostModel;

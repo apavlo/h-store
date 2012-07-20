@@ -907,8 +907,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
             txn_entry.base_partition = 0;
             if (trace.get())
                 LOG.trace("Base partition for " + txn_entry + " is null. Setting to default '" + txn_entry.base_partition + "'");
-        } else
-            txn_entry.base_partition = base_partition;    
+        } else {
+            txn_entry.base_partition = base_partition;
+        }
 
         // Record what partition the VoltProcedure executed on
         // We'll throw the base_partition into the txn_entry's touched
