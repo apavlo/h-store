@@ -39,6 +39,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.Consumer;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.Producer;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -63,7 +64,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     private final int num_intervals;
     private final T cost_models[];
 
-    private Collection<Integer> all_partitions;
+    private PartitionSet all_partitions;
 
     /**
      * For testing

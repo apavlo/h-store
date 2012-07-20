@@ -2,9 +2,7 @@ package edu.brown.designer.placement;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
@@ -12,6 +10,7 @@ import org.voltdb.catalog.Database;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -21,20 +20,20 @@ public class TransformTransactionTraces {
 
     static class TxnPartition {
         int basePartition;
-        List<Set<Integer>> partitions = new ArrayList<Set<Integer>>();
+        List<PartitionSet> partitions = new ArrayList<PartitionSet>();
 
         public TxnPartition(int basePartition) {
             this.basePartition = basePartition;
         }
 
-        public List<Set<Integer>> getPartitions() {
+        public List<PartitionSet> getPartitions() {
             return partitions;
         }
 
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("base partition: " + String.valueOf(basePartition) + " ");
-            for (Set<Integer> batch : partitions) {
+            for (PartitionSet batch : partitions) {
                 for (Integer partition_id : batch) {
                     sb.append(String.valueOf(partition_id) + " ");
                 }
@@ -62,7 +61,7 @@ public class TransformTransactionTraces {
             // int batch = 0;
             for (Integer batch_id : trace.getBatchIds()) {
                 // list of query traces
-                Set<Integer> query_partitions = new HashSet<Integer>();
+                PartitionSet query_partitions = new PartitionSet();
                 for (QueryTrace qt : trace.getBatches().get(batch_id)) {
                     try {
                         est.getAllPartitions(query_partitions, qt, base_partition);
@@ -104,7 +103,7 @@ public class TransformTransactionTraces {
         sb.append(xact_partition.getPartitions().size() + " " + xact_partitions.size() + "\n");
         for (TxnPartition txn_partition : xact_partitions) {
             sb.append(txn_partition.basePartition + "\n");
-            for (Set<Integer> partition_set : txn_partition.getPartitions()) {
+            for (PartitionSet partition_set : txn_partition.getPartitions()) {
                 for (Integer p_id : partition_set) {
                     sb.append(p_id + " ");
                 }

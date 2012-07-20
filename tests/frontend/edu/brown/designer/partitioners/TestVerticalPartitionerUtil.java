@@ -40,6 +40,7 @@ import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.TestAbstractPartitioner.MockPartitioner;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -238,7 +239,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             
             // Then get the list of partitions that it will access
             // This should always be *all* partitions
-            Set<Integer> partitions = new HashSet<Integer>();
+            PartitionSet partitions = new PartitionSet();
             p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(CatalogUtil.getNumberOfPartitions(clone_db), partitions.size());
@@ -251,7 +252,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Object params[] = stmt_params.get(catalog_stmt);
             assertNotNull(params);
-            Set<Integer> partitions = new HashSet<Integer>();
+            PartitionSet partitions = new PartitionSet();
             p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(1, partitions.size());

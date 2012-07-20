@@ -54,7 +54,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
     private Procedure catalog_proc;
-    private final Set<Integer> partitions = new HashSet<Integer>();
+    private final PartitionSet partitions = new PartitionSet();
     
     @Override
     protected void setUp() throws Exception {

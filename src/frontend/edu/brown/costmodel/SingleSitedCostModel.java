@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -52,6 +51,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
@@ -171,7 +171,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public Collection<Integer> getAllTouchedPartitions() {
             Collection<Integer> partitions = this.touched_partitions.values();
             if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !partitions.contains(this.base_partition)) {
-                partitions = new HashSet<Integer>();
+                partitions = new PartitionSet();
                 for (Object o : this.touched_partitions.values())
                     partitions.add((Integer) o);
                 partitions.add(this.base_partition);
@@ -263,7 +263,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         public String debug() {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("HashCode", this.hashCode());
             m.put("Weight", this.weight);
             m.put("Base Partition", this.base_partition);
@@ -290,10 +290,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public boolean unknown = false;
 
         /** Table Key -> Set[PartitionId] **/
-        private Map<String, Set<Integer>> partitions = new HashMap<String, Set<Integer>>(SingleSitedCostModel.this.num_tables);
+        private Map<String, PartitionSet> partitions = new HashMap<String, PartitionSet>(SingleSitedCostModel.this.num_tables);
 
         /** All partitions **/
-        private Set<Integer> all_partitions = new HashSet<Integer>(SingleSitedCostModel.this.num_partitions);
+        private PartitionSet all_partitions = new PartitionSet();
 
         /**
          * Constructor
@@ -342,7 +342,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // Check whether any other table references this partition
             // If not, then remove it from the all_partitions set
             boolean found = false;
-            for (Entry<String, Set<Integer>> e : this.partitions.entrySet()) {
+            for (Entry<String, PartitionSet> e : this.partitions.entrySet()) {
                 if (e.getKey().equals(table_key))
                     continue;
                 if (e.getValue().contains(partition)) {
@@ -359,16 +359,16 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.all_partitions.addAll(partitions);
         }
 
-        private Set<Integer> getPartitions(String table_key) {
-            Set<Integer> p = this.partitions.get(table_key);
+        private PartitionSet getPartitions(String table_key) {
+            PartitionSet p = this.partitions.get(table_key);
             if (p == null) {
-                p = new HashSet<Integer>();
+                p = new PartitionSet();
                 this.partitions.put(table_key, p);
             }
             return (p);
         }
 
-        public Set<Integer> getAllPartitions() {
+        public PartitionSet getAllPartitions() {
             return (this.all_partitions);
         }
 
@@ -376,17 +376,17 @@ public class SingleSitedCostModel extends AbstractCostModel {
             return (this.partitions.keySet());
         }
 
-        public Map<String, Set<Integer>> getPartitionValues() {
+        public Map<String, PartitionSet> getPartitionValues() {
             return (this.partitions);
         }
 
         @Override
         public Object clone() throws CloneNotSupportedException {
             QueryCacheEntry clone = (QueryCacheEntry) super.clone();
-            clone.all_partitions = new HashSet<Integer>(this.all_partitions);
-            clone.partitions = new HashMap<String, Set<Integer>>();
+            clone.all_partitions = new PartitionSet(this.all_partitions);
+            clone.partitions = new HashMap<String, PartitionSet>();
             for (String key : this.partitions.keySet()) {
-                clone.partitions.put(key, new HashSet<Integer>(this.partitions.get(key)));
+                clone.partitions.put(key, new PartitionSet(this.partitions.get(key)));
             } // FOR
             return (clone);
         }
@@ -394,7 +394,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         @Override
         public String toString() {
             // You know you just love this!
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Txn Id#", this.txn_id);
             m.put("Weight", this.weight);
             m.put("Query Trace Idx#", this.query_trace_idx);
@@ -615,7 +615,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         query_entry.invalid = true;
         query_entry.singlesited = true;
         query_entry.unknown = true;
-        for (Set<Integer> q_partitions : query_entry.partitions.values()) {
+        for (PartitionSet q_partitions : query_entry.partitions.values()) {
             q_partitions.clear();
         } // FOR
         query_entry.all_partitions.clear();
@@ -774,10 +774,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (trace.get() && !invalidate_modifiedTxns.isEmpty())
             LOG.trace("Updating partition information for " + invalidate_modifiedTxns.size() + " TransactionCacheEntries");
         for (TransactionCacheEntry txn_entry : invalidate_modifiedTxns) {
-            // Get the list of partitions that are no longer being touched by
-            // this txn
+            // Get the list of partitions that are no longer being touched by this txn
             // We remove these from the costmodel's global txn touched histogram
-            Set<Integer> zero_partitions = txn_entry.touched_partitions.getValuesForCount(0);
+            Collection<Integer> zero_partitions = txn_entry.touched_partitions.getValuesForCount(0);
             if (!zero_partitions.isEmpty()) {
                 if (trace.get())
                     LOG.trace("Removing " + zero_partitions.size() + " partitions for " + txn_entry);
@@ -842,9 +841,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
     // ESTIMATION METHODS
     // --------------------------------------------------------------------------------------------
 
-    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
-    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
-    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
+    private final Map<String, PartitionSet> temp_stmtPartitions = new HashMap<String, PartitionSet>();
+    private final PartitionSet temp_txnOrigPartitions = new PartitionSet();
+    private final PartitionSet temp_txnNewPartitions = new PartitionSet();
 
     @Override
     public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
@@ -1068,7 +1067,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // the QueryCacheEntry is created
                 for (String table_key : query_entry.getTableKeys()) {
                     if (!temp_stmtPartitions.containsKey(table_key)) {
-                        temp_stmtPartitions.put(table_key, new HashSet<Integer>());
+                        temp_stmtPartitions.put(table_key, new PartitionSet());
                     }
                     temp_stmtPartitions.get(table_key).addAll(query_entry.getPartitions(table_key));
                 } // FOR
@@ -1103,14 +1102,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // XXX: What should we do if the TransactionCacheEntry's base
                 // partition hasn't been calculated yet?
                 // Let's just throw it at the PartitionEstimator and let it figure out what to do...
-                Map<String, Set<Integer>> table_partitions = this.p_estimator.getTablePartitions(query_trace, txn_entry.base_partition);
+                Map<String, PartitionSet> table_partitions = this.p_estimator.getTablePartitions(query_trace, txn_entry.base_partition);
                 StringBuilder sb = null;
                 if (trace.get()) {
                     sb = new StringBuilder();
                     sb.append("\n" + StringUtil.SINGLE_LINE + query_trace + " Table Partitions:");
                 }
                 assert (!table_partitions.isEmpty()) : "Failed to get back table partitions for " + query_trace;
-                for (Entry<String, Set<Integer>> e : table_partitions.entrySet()) {
+                for (Entry<String, PartitionSet> e : table_partitions.entrySet()) {
                     assert (e.getValue() != null) : "Null table partitions for '" + e.getKey() + "'";
 
                     // If we didn't get anything back, then that means that we
@@ -1213,7 +1212,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // column of each table all hash to the same value. If they don't, then we know we can't
             // be single-partition
         } else {
-            for (Entry<String, Set<Integer>> entry : temp_stmtPartitions.entrySet()) {
+            for (Entry<String, PartitionSet> entry : temp_stmtPartitions.entrySet()) {
                 String table_key = entry.getKey();
                 Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
@@ -1423,10 +1422,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         Map<String, Object> maps[] = new Map[2];
         int idx = 0;
-        ListOrderedMap<String, Object> m = null;
+        LinkedHashMap<String, Object> m = null;
 
         // Execution Cost
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
@@ -1435,7 +1434,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         maps[idx++] = m;
 
         // Utilization
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         costmodel.getJavaExecutionHistogram().setKeepZeroEntries(false);
         int active_partitions = costmodel.getJavaExecutionHistogram().getValueCount();
         m.put("ACTIVE PARTITIONS", active_partitions);

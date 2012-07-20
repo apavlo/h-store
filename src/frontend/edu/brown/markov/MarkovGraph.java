@@ -36,6 +36,7 @@ import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -193,7 +194,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      */
     private final Map<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>> cache_batchEnd = new HashMap<MarkovVertex, ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>>>(); 
     
-    public Pair<MarkovEdge, MarkovVertex> getCachedBatchEnd(MarkovVertex start, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+    public Pair<MarkovEdge, MarkovVertex> getCachedBatchEnd(MarkovVertex start, Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
         Map<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
         Pair<MarkovEdge, MarkovVertex> found = null;
         if (m != null) {
@@ -206,7 +207,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         return (found);
     }
     
-    public void addCachedBatchEnd(MarkovVertex start, MarkovEdge e, MarkovVertex v, Statement catalog_stmt, int idx, Set<Integer> partitions, Set<Integer> past_partitions) {
+    public void addCachedBatchEnd(MarkovVertex start, MarkovEdge e, MarkovVertex v, Statement catalog_stmt, int idx, PartitionSet partitions, PartitionSet past_partitions) {
         ConcurrentHashMap<MultiKey<String>, Pair<MarkovEdge, MarkovVertex>> m = cache_batchEnd.get(start);
         if (m == null) {
             synchronized (cache_batchEnd) {
@@ -342,7 +343,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
      *            query's location in transactiontrace
      * @return
      */
-    protected MarkovVertex getVertex(Statement a, Set<Integer> partitions, Set<Integer> past_partitions, int queryInstanceIndex) {
+    protected MarkovVertex getVertex(Statement a, PartitionSet partitions, PartitionSet past_partitions, int queryInstanceIndex) {
         Set<MarkovVertex> stmt_vertices = this.cache_stmtVertices.get(a);
         if (stmt_vertices == null) {
             synchronized (this) {
@@ -497,7 +498,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         
         // Validate Vertices
         Set<MarkovVertex> seen_vertices = new HashSet<MarkovVertex>();
-        Set<Integer> all_partitions = new HashSet<Integer>();
+        PartitionSet all_partitions = new PartitionSet();
         for (MarkovVertex v0 : this.getVertices()) {
             float total_prob = 0.0f;
             long total_edgehits = 0;
@@ -618,12 +619,12 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
         
         // The past partitions is all of the partitions that this txn has touched,
         // included the base partition where the java executes
-        Set<Integer> past_partitions = new HashSet<Integer>();
+        PartitionSet past_partitions = new PartitionSet();
         // XXX past_partitions.add(this.getBasePartition());
         
         // -----------QUERY TRACE-VERTEX CREATION--------------
         for (QueryTrace query_trace : txn_trace.getQueries()) {
-            Set<Integer> partitions = new HashSet<Integer>();
+            PartitionSet partitions = new PartitionSet();
             pest.getAllPartitions(partitions, query_trace, base_partition);
             assert(partitions != null);
             assert(!partitions.isEmpty());
@@ -635,7 +636,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
                 v = this.getVertex(catalog_stmnt, partitions, past_partitions, queryInstanceIndex);
                 if (v == null) {
                     // If no such vertex exists we simply create one
-                    v = new MarkovVertex(catalog_stmnt, MarkovVertex.Type.QUERY, queryInstanceIndex, partitions, new HashSet<Integer>(past_partitions));
+                    v = new MarkovVertex(catalog_stmnt, MarkovVertex.Type.QUERY, queryInstanceIndex, partitions, new PartitionSet(past_partitions));
                     this.addVertex(v);
                 }
                 assert(v.isQueryVertex());
