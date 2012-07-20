@@ -1,0 +1,56 @@
+{"MAPPINGS": [
+ {
+  "STATEMENT": "{'Vote':'insertVoteStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'Vote.insertVoteStmt':'3'}",
+  "STATEMENT_COLUMN": "{'VOTES':'CONTESTANT_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Vote':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'Vote':'insertVoteStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'Vote.insertVoteStmt':'1'}",
+  "STATEMENT_COLUMN": "{'VOTES':'PHONE_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Vote':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'Vote':'insertVoteStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'Vote.insertVoteStmt':'0'}",
+  "STATEMENT_COLUMN": "{'VOTES':'VOTE_ID'}",
+  "PROCEDURE_PARAMETER": "{'Vote':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'Vote':'checkVoterStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'Vote.checkVoterStmt':'0'}",
+  "STATEMENT_COLUMN": "{'V_VOTES_BY_PHONE_NUMBER':'PHONE_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Vote':'1'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'Vote':'checkContestantStmt'}",
+  "STATEMENT_INDEX": 0,
+  "STATEMENT_PARAMETER": "{'Vote.checkContestantStmt':'0'}",
+  "STATEMENT_COLUMN": "{'CONTESTANTS':'CONTESTANT_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Vote':'2'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ },
+ {
+  "STATEMENT": "{'Initialize':'insertContestantStmt'}",
+  "STATEMENT_INDEX": 5,
+  "STATEMENT_PARAMETER": "{'Initialize.insertContestantStmt':'1'}",
+  "STATEMENT_COLUMN": "{'CONTESTANTS':'CONTESTANT_NUMBER'}",
+  "PROCEDURE_PARAMETER": "{'Initialize':'0'}",
+  "PROCEDURE_PARAMETER_INDEX": 0,
+  "COEFFICIENT": 1.0
+ }
+]}

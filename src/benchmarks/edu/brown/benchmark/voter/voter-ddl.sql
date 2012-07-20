@@ -25,10 +25,11 @@ CREATE TABLE area_code_state
 --   voters are not allowed to submit more than <x> votes, x is passed to client application
 CREATE TABLE votes
 (
-  vote_id			 bigint     NOT NULL,
+  vote_id			 integer    NOT NULL,
   phone_number       bigint     NOT NULL
 , state              varchar(2) NOT NULL -- REFERENCES area_code_state (state)
 , contestant_number  integer    NOT NULL REFERENCES contestants (contestant_number)
+, created            timestamp  NOT NULL
 , CONSTRAINT PK_votes PRIMARY KEY
   (
     vote_id

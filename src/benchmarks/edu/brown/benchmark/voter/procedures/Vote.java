@@ -33,17 +33,15 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.voter.VoterConstants;
 
 @ProcInfo (
-partitionInfo = "votes.phone_number:0",
+partitionInfo = "votes.phone_number:1",
 singlePartition = true
 )
 public class Vote extends VoltProcedure {
-	
-    // potential return codes
-    public static final long VOTE_SUCCESSFUL = 0;
-    public static final long ERR_INVALID_CONTESTANT = 1;
-    public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;
 	
     // Checks if the vote is for a valid contestant
     public final SQLStmt checkContestantStmt = new SQLStmt(
@@ -62,10 +60,10 @@ public class Vote extends VoltProcedure {
 	
     // Records a vote
     public final SQLStmt insertVoteStmt = new SQLStmt(
-		"INSERT INTO votes (vote_id, phone_number, state, contestant_number) VALUES (?, ?, ?, ?);"
+		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
 	
-    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(int voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
@@ -74,12 +72,12 @@ public class Vote extends VoltProcedure {
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
-            return ERR_INVALID_CONTESTANT;
+            return VoterConstants.ERR_INVALID_CONTESTANT;
         }
 		
         if ((validation[1].getRowCount() == 1) &&
 			(validation[1].asScalarLong() >= maxVotesPerPhoneNumber)) {
-            return ERR_VOTER_OVER_VOTE_LIMIT;
+            return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
         // Some sample client libraries use the legacy random phone generation that mostly
@@ -90,10 +88,11 @@ public class Vote extends VoltProcedure {
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
 		 		
         // Post the vote
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber);
+        TimestampType timestamp = new TimestampType();
+        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
         voltExecuteSQL(true);
 		
         // Set the return value to 0: successful vote
-        return VOTE_SUCCESSFUL;
+        return VoterConstants.VOTE_SUCCESSFUL;
     }
 }

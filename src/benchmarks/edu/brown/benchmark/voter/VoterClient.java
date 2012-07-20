@@ -31,26 +31,23 @@
 package edu.brown.benchmark.voter;
 
 import java.io.IOException;
-import java.util.Timer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
+import weka.classifiers.meta.Vote;
+
 import edu.brown.api.BenchmarkComponent;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class VoterClient extends BenchmarkComponent {
 
     // Phone number generator
     PhoneCallGenerator switchboard;
-
-    // Timer for periodic stats printing
-    Timer timer;
-
-    // Benchmark start time
-    long benchmarkStartTS;
 
     // Flags to tell the worker threads to stop or go
     AtomicBoolean warmupComplete = new AtomicBoolean(false);
@@ -122,8 +119,9 @@ public class VoterClient extends BenchmarkComponent {
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
-        String procNames[] = new String[1];
-        procNames[0] = "Vote";
+        String procNames[] = new String[]{
+            Vote.class.getSimpleName()
+        };
         return (procNames);
     }
 
@@ -134,6 +132,22 @@ public class VoterClient extends BenchmarkComponent {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
             incrementTransactionCounter(clientResponse, 0);
+            
+            // Keep track of state (optional)
+            if (clientResponse.getStatus() == Status.OK) {
+                VoltTable results[] = clientResponse.getResults();
+                assert(results.length == 1);
+                long status = results[0].asScalarLong();
+                if (status == VoterConstants.VOTE_SUCCESSFUL) {
+                    acceptedVotes.incrementAndGet();
+                }
+                else if (status == VoterConstants.ERR_INVALID_CONTESTANT) {
+                    badContestantVotes.incrementAndGet();
+                }
+                else if (status == VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT) {
+                    badVoteCountVotes.incrementAndGet();
+                }
+            }
         }
     } // END CLASS
 }
