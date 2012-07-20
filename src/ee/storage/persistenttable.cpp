@@ -230,7 +230,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         } // FOR
         VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
         
-        // make sure this tuple is marked as evicted, so that we know it is an evicted tuple as we iterate through the index
+        // Make sure this tuple is marked as evicted, so that we know it is an evicted tuple
+        // as we iterate through the index
         evicted_tuple.setEvictedTrue(); 
 
         // Then add it to this table's EvictedTable
@@ -243,7 +244,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         serialized_data_length += tuple_length; 
         
         // At this point it's safe for us to delete this mofo
-        deleteTuple(tuple, true);
+        deleteTupleStorage(tuple);
         num_tuples_evicted++;
         VOLT_DEBUG("Added new evicted %s tuple to block #%d [numEvicted=%d]",
                   name().c_str(), block_id, num_tuples_evicted);
@@ -746,7 +747,8 @@ void PersistentTable::insertIntoAllIndexes(TableTuple *tuple) {
 void PersistentTable::deleteFromAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0;--i) {
         if (!m_indexes[i]->deleteEntry(tuple)) {
-            throwFatalException("Failed to delete tuple from index");
+            throwFatalException("Failed to delete tuple from index %s.%s",
+                                name().c_str(), m_indexes[i]->getName().c_str());
         }
     }
 }

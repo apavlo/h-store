@@ -7,8 +7,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.benchmark.tpcc.TPCCConstants;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.UnknownBlockAccessException;
@@ -17,6 +15,8 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.voter.VoterConstants;
+import edu.brown.benchmark.voter.VoterProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
@@ -29,7 +29,8 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 100;
-    private static final String TARGET_TABLE = TPCCConstants.TABLENAME_WAREHOUSE;
+    // private static final String TARGET_TABLE = TPCCConstants.TABLENAME_WAREHOUSE;
+    private static final String TARGET_TABLE = VoterConstants.TABLENAME_VOTES;
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -48,7 +49,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         }
     };
     
-    private final AbstractProjectBuilder builder = new TPCCProjectBuilder() {
+    private final AbstractProjectBuilder builder = new VoterProjectBuilder() {
         {
             this.markTableEvictable(TARGET_TABLE);
             this.addAllDefaults();
@@ -111,7 +112,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertNotNull(vt);
         for (int i = 0; i < NUM_TUPLES; i++) {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
-            row[0] = Long.valueOf(i);
+            row[0] = Integer.valueOf(i);
             vt.addRow(row);
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
