@@ -60,17 +60,36 @@ public class EvictTuples extends VoltSystemProcedure {
     public VoltTable[] run(int partition, String tableNames[], long blockSizes[]) {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
+
+        // Check Input
+        if (tableNames.length == 0) {
+            throw new VoltAbortException("No tables to evict were given");
+        }
+        Table tables[] = new Table[tableNames.length];
+        for (int i = 0; i < tableNames.length; i++) {
+            tables[i] = database.getTables().getIgnoreCase(tableNames[i]);
+            if (tables[i] == null) {
+                String msg = String.format("Unknown table '%s'", tableNames[i]);
+                throw new VoltAbortException(msg);
+            }
+            else if (tables[i].getEvictable() == false) {
+                String msg = String.format("Trying to evict tuples from table '%s' but it is not marked as evictable", tables[i].getName());
+                throw new VoltAbortException(msg);
+            }
+            else if (blockSizes[i] <= 0) {
+                String msg = String.format("Invalid block eviction size '%d' for table '%s'", blockSizes[i], tables[i].getName());
+                throw new VoltAbortException(msg);
+            }
+        } // FOR
         
         // TODO: Instead of sending down requests one at a time per table, it will
         //       be much faster if we just send down the entire batch
         VoltTable allResults = null;
         for (int i = 0; i < tableNames.length; i++) {
-            Table catalog_tbl = database.getTables().getIgnoreCase(tableNames[i]);
-            VoltTable vt = ee.antiCacheEvictBlock(catalog_tbl, blockSizes[i]);
+            VoltTable vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i]);
             if (allResults == null) {
                 allResults = new VoltTable(vt);
             }
-            
             boolean adv = vt.advanceRow();
             assert(adv);
             allResults.add(vt);

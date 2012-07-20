@@ -1631,9 +1631,16 @@ public class BenchmarkController {
                 noSites = Boolean.parseBoolean(parts[1]);
             /* Disable Sites Starting */ 
             } else if (parts[0].equalsIgnoreCase("NOSTART")) {
-                for (String s : parts[1].split(",")) {
-                    profileSiteIds.add(Integer.valueOf(s));
-                } // FOR
+                // HACK: If they stay "nostart=true", then we'll allow that
+                if (parts[1].equalsIgnoreCase("true")) {
+                    noSites = true;
+                }
+                // Otherwise we expect a list of siteIds
+                else {
+                    for (String s : parts[1].split(",")) {
+                        profileSiteIds.add(Integer.valueOf(s));
+                    } // FOR
+                }
             /* Disable executing the data loader */
             } else if (parts[0].equalsIgnoreCase("NOLOADER")) {
                 noLoader = Boolean.parseBoolean(parts[1]);

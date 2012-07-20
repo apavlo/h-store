@@ -1152,9 +1152,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // AntiCache Memory Monitor
         if (this.anticacheManager != null) {
-            this.scheduleWork(
-                this.anticacheManager.getMemoryMonitorThread(),
-                0, hstore_conf.site.anticache_check_interval, TimeUnit.MILLISECONDS);
+            if (this.anticacheManager.getEvictableTables().isEmpty() == false) {
+                this.scheduleWork(
+                    this.anticacheManager.getMemoryMonitorThread(),
+                    hstore_conf.site.anticache_check_interval,
+                    hstore_conf.site.anticache_check_interval,
+                    TimeUnit.MILLISECONDS);
+            } else {
+                LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
+            }
         }
     }
     
