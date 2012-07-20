@@ -102,7 +102,6 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_evictedTable = NULL;
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0; 
-    m_unevictedTuplesLength = 0; 
 #endif
     
     if (exportEnabled) {
@@ -167,6 +166,8 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         throwFatalException("Trying to evict block from table '%s' before its "\
                             "EvictedTable has been initialized", this->name().c_str());
     }
+    
+    assert(block); 
     
 #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
@@ -282,35 +283,57 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 bool PersistentTable::readEvictedBlock(uint16_t block_id) {
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB(); 
     AntiCacheBlock value = antiCacheDB->readBlock(this->name(), block_id);
-
-    if (m_unevictedTuplesLength > 0) {
-        // allocate a new array to accomodate the old unevicted block as well as the new one
-        char* temp_ptr = new char[value.getSize() + m_unevictedTuplesLength]; 
-        
-        // copy into new array and delete old
-        memcpy(temp_ptr, m_unevictedTuples, m_unevictedTuplesLength); 
-        delete [] m_unevictedTuples; 
-        m_unevictedTuples = temp_ptr; 
-    }
-    else // no previous unevicted block, so just allocate memory for new block
-    {
-        m_unevictedTuples = new char[value.getSize()]; 
-    }
     
-    // copy newly un-evicted block into unevicted block array
-    memcpy(m_unevictedTuples + m_unevictedTuplesLength, value.getData(), value.getSize()); 
-    m_unevictedTuplesLength += value.getSize(); 
+    // allocate the memory for this block
+    char* unevicted_tuples = new char[value.getSize()]; 
+    memcpy(unevicted_tuples, value.getData(), value.getSize()); 
+    
+    m_unevictedBlocks.push_back(unevicted_tuples); 
     
     return true; 
 }
     
-bool PersistentTable::mergeUnevictedTuples() {
-    // TODO: Copy evicted tuple blocks back to the data table
+/*
+ * Merges the unevicted block into the regular data table
+ * NOTE: We are assuming there are m_tuplePerBlock tuples in each evicted block
+ */
+bool PersistentTable::mergeUnevictedTuples() 
+{    
+    char* tuple_ptr = NULL; 
+    int tuple_size_in_bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE; 
     
-    // Update Stats
-    // FIXME m_tuplesEvicted -= num_tuples_evicted;
-    // FIXME m_blocksEvicted -= 1;
-    // FIXME m_bytesEvicted -= serialized_data_length;
+    for(int i = 0; i < m_unevictedBlocks.size(); i++)
+    {
+        tuple_ptr = m_unevictedBlocks[i]; 
+        for(int j = 0; j < m_tuplesPerBlock; j++)   
+        {
+            // get a free tuple and increment the count of tuples current used
+            nextFreeTuple(&m_tmpTarget1);
+            m_tupleCount++;
+            
+            m_tmpTarget1.setEvictedFalse(); 
+            
+            // copy the data from the unevicted tuple into the newly acquired tuple slot
+            memcpy(m_tmpTarget1.address(), tuple_ptr, tuple_size_in_bytes); 
+            
+            // update all the indexes
+            setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+            
+            // TODO: remove the evicted table entry
+    
+            // increment pointer to next tuple in block
+            tuple_ptr += tuple_size_in_bytes; 
+        }  
+        
+        delete [] m_unevictedBlocks[i];
+    }
+    
+    // Update eviction stats
+    m_blocksEvicted -= m_unevictedBlocks.size(); 
+    m_tuplesEvicted -= (m_unevictedBlocks.size() * m_tuplesPerBlock); 
+    m_bytesEvicted -= (m_unevictedBlocks.size() * m_tuplesPerBlock * tuple_size_in_bytes); 
+    
+    m_unevictedBlocks.clear(); 
     
     return true; 
 }
