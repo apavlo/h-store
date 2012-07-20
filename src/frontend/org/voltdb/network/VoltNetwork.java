@@ -479,7 +479,7 @@ import org.voltdb.utils.VoltLoggerFactory;
     /** Set the selected interest set on the port and run it. */
     protected void invokeCallbacks() {
         final Set<SelectionKey> selectedKeys = m_selector.selectedKeys();
-        final ArrayList<Runnable> generatedTasks = new ArrayList<Runnable>();
+        ArrayList<Runnable> generatedTasks = null;
         for(SelectionKey key : selectedKeys) {
             final VoltPort port = (VoltPort) key.attachment();
             if (port == null) {
@@ -492,6 +492,7 @@ import org.voltdb.utils.VoltLoggerFactory;
                 final Runnable runner = getPortCallRunnable(port);
 
                 if (m_useExecutorService) {
+                    if (generatedTasks == null) generatedTasks = new ArrayList<Runnable>();
                     generatedTasks.add(runner);
                 } else {
                     runner.run();
@@ -504,7 +505,7 @@ import org.voltdb.utils.VoltLoggerFactory;
             }
         }
 
-        if (!generatedTasks.isEmpty()) {
+        if (generatedTasks != null && !generatedTasks.isEmpty()) {
             synchronized (m_tasks) {
                 m_tasks.addAll(generatedTasks);
                 if (m_tasks.size() > 1) {
