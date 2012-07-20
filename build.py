@@ -378,6 +378,7 @@ if ENABLE_ANTICACHE:
     CTX.TESTS['anticache'] = """
         anticachedb_test
         berkeleydb_test
+        anticache_eviction_manager_test
     """
 
 ###############################################################################
