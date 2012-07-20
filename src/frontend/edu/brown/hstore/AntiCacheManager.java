@@ -126,7 +126,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         // XXX: We could also use Runtime.getRuntime().totalMemory() instead of getting table stats
 //        this.availableMemory = Runtime.getRuntime().maxMemory();
         this.availableMemory = hstore_conf.site.memory * 1024l * 1024l;
-        LOG.info("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
+        if (debug.get())
+            LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
         
         this.memoryThreshold = hstore_conf.site.anticache_threshold;
         this.evictableTables = CatalogUtil.getEvictableTables(hstore_site.getDatabase()); 

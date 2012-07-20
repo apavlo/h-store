@@ -249,25 +249,30 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                   name().c_str(), block_id, num_tuples_evicted);
     } // WHILE
     // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
-     
-    antiCacheDB->writeBlock(name(),
-                            block_id,
-                            num_tuples_evicted,
-                            serialized_data,
-                            serialized_data_length);
     
-    // Update Stats
-    m_tuplesEvicted += num_tuples_evicted;
-    m_blocksEvicted += 1;
-    m_bytesEvicted += serialized_data_length;
+    // Don't write out a bock if there are no tuples in it
+    if (num_tuples_evicted > 0) {
+        antiCacheDB->writeBlock(name(),
+                                block_id,
+                                num_tuples_evicted,
+                                serialized_data,
+                                serialized_data_length);
+        
+        // Update Stats
+        m_tuplesEvicted += num_tuples_evicted;
+        m_blocksEvicted += 1;
+        m_bytesEvicted += serialized_data_length;
     
-#ifdef VOLT_INFO_ENABLED
-    VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
-              block_id, this->name().c_str(),
-              num_tuples_evicted, serialized_data_length, tuple_length);
-    VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
-              this->name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
-#endif
+        #ifdef VOLT_INFO_ENABLED
+        VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+                block_id, name().c_str(),
+                num_tuples_evicted, serialized_data_length, tuple_length);
+        VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
+                name().c_str(), origEvictedTableSize, m_evictedTable->activeTupleCount());
+        #endif
+    } else {
+        VOLT_WARN("No tuples were evicted from %s", name().c_str());
+    }
     
     delete [] evicted_data;
     
