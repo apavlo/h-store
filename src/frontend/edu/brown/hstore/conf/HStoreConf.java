@@ -454,6 +454,14 @@ public final class HStoreConf {
         public String anticache_dir;
         
         @ConfigProperty(
+            description="How often in milliseconds should the AntiCacheManager check whether " +
+            		    "the HStoreSite is using too much memory and should start evicting tuples.",
+            defaultInt=30000,
+            experimental=true
+        )
+        public int anticache_check_interval;
+        
+        @ConfigProperty(
             description="", // TODO
             defaultDouble=0.75,
             experimental=true

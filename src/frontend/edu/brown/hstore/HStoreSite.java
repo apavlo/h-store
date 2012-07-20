@@ -1151,11 +1151,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 TimeUnit.MILLISECONDS);
         }
         
-        // AntiCache Monitor
+        // AntiCache Memory Monitor
         if (this.anticacheManager != null) {
-            this.threadManager.schedulePeriodicWork(
-                this.anticacheManager.getStatsSamplingThread(),
-                0, 30, TimeUnit.SECONDS);
+            if (this.anticacheManager.getEvictableTables().isEmpty() == false) {
+                this.threadManager.schedulePeriodicWork(
+                        this.anticacheManager.getMemoryMonitorThread(),
+                        hstore_conf.site.anticache_check_interval,
+                        hstore_conf.site.anticache_check_interval,
+                        TimeUnit.MILLISECONDS);
+            } else {
+                LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
+            }
         }
     }
     

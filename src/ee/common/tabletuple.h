@@ -61,8 +61,16 @@ class TableTupleTest_MarkAsEvicted;
 
 namespace voltdb {
 
-#define TUPLE_HEADER_SIZE 1
+#ifndef ANTICACHE
+    
+#define TUPLE_HEADER_SIZE 5
 
+#else
+
+#define TUPLE_HEADER_SIZE 1
+    
+#endif
+    
 #define DELETED_MASK 1
 #define DIRTY_MASK 2
 #define EVICTED_MASK 4
@@ -224,6 +232,19 @@ public:
     /** Get the type of a particular column in the tuple */
     inline ValueType getType(int idx) const {
         return m_schema->columnType(idx);
+    }
+    
+    inline uint32_t getTupleID()
+    {
+        uint32_t tuple_id; 
+        memcpy(&tuple_id, m_data+1, 4);  
+        
+        return tuple_id; 
+    }
+    
+    inline void setTupleID(uint32_t tuple_id)
+    {
+        memcpy(m_data+1, &tuple_id, 4); 
     }
 
     /** Get the value of a specified column (const) */
