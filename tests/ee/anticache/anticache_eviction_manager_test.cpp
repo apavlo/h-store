@@ -81,7 +81,6 @@ public:
         
         m_primaryKeyIndexColumns.push_back(0);
         
-        m_undoToken = 0;
     };
     
     ~AntiCacheEvictionManagerTest() {
@@ -115,15 +114,6 @@ public:
                                                           false, false));
     }
     
-    void addRandomUniqueTuples(Table *table, int numTuples) {
-        TableTuple tuple = table->tempTuple();
-        for (int ii = 0; ii < numTuples; ii++) {
-            tuple.setNValue(0, ValueFactory::getIntegerValue(m_primaryKeyIndex++));
-            tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
-            table->insertTuple(tuple);
-        }
-    }
-    
     voltdb::VoltDBEngine *m_engine;
     voltdb::TupleSchema *m_tableSchema;
     voltdb::TupleSchema *m_primaryKeyIndexSchema;
@@ -147,14 +137,14 @@ TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
 {
     initTable(true); 
     
-    TableTuple tuple = table->tempTuple();
+    TableTuple tuple = m_table->tempTuple();
     
-    tuple.setNValue(0, ValueFactory::getIntegerValue(m_primaryKeyIndex++));
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
     tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
-    table->insertTuple(tuple);
+    m_table->insertTuple(tuple);
     
     // get the tuple that was just inserted
-    tuple = lookupTuple(tuple); 
+    tuple = m_table->lookupTuple(tuple); 
     
     int tuple_id = m_table->getTupleID(tuple.address()); 
 
@@ -165,11 +155,11 @@ TEST_F(AntiCacheEvictionManagerTest, InsertTuple)
 {
     initTable(true); 
     
-    TableTuple tuple = table->tempTuple();
+    TableTuple tuple = m_table->tempTuple();
     
-    tuple.setNValue(0, ValueFactory::getIntegerValue(m_primaryKeyIndex++));
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
     tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
-    table->insertTuple(tuple);
+    m_table->insertTuple(tuple);
 
 }
 
