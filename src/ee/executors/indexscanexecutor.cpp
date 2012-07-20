@@ -66,7 +66,7 @@
 #include "storage/temptable.h"
 #include "storage/persistenttable.h"
 
-#ifndef ANTICACHE
+#ifdef ANTICACHE
 #include "anticache/EvictedTupleAccessException.h"
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
@@ -503,7 +503,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         return false;
     }
     
-#ifndef ANTICACHE
+#ifdef ANTICACHE
     // anti-cache variables
     EvictedTable* m_evictedTable = static_cast<EvictedTable*> (m_targetTable->getEvictedTable()); 
 	std::Set<int> evicted_block_ids(); 
@@ -524,7 +524,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
         
-#ifndef ANTICACHE
+#ifdef ANTICACHE
         // We are pointing to an entry for an evicted tuple
 		if(m_tuple.isEvicted())
         {
