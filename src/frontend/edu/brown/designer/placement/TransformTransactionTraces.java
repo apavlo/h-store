@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -50,7 +51,7 @@ public class TransformTransactionTraces {
         TxnPartition txn_partitions;
 
         for (TransactionTrace trace : txn_traces) {
-            int base_partition = 0;
+            int base_partition = HStoreConstants.NULL_PARTITION_ID;
             try {
                 base_partition = est.getBasePartition(trace);
             } catch (Exception e1) {

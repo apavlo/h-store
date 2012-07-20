@@ -425,7 +425,7 @@ public class FeatureClusterer {
     // CACHING METHODS
     // ----------------------------------------------------------------------------
     
-    private Integer getBasePartition(TransactionTrace txn_trace) {
+    private int getBasePartition(TransactionTrace txn_trace) {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
         Integer base_partition = this.cache_base_partition.get(txn_id);
         if (base_partition == null) {
@@ -436,7 +436,7 @@ public class FeatureClusterer {
             }
             this.cache_base_partition.put(txn_id, base_partition);
         }
-        return (base_partition);
+        return (base_partition.intValue());
     }
     
     private PartitionSet getAllPartitions(TransactionTrace txn_trace) {
@@ -865,11 +865,11 @@ public class FeatureClusterer {
 
             // Figure out which base partition this txn would execute on
             // because we want divide the MarkovGraphContainers by the base partition
-            Integer base_partition = this.p_estimator.getBasePartition(txn_trace);
+            int base_partition = this.p_estimator.getBasePartition(txn_trace);
             partition_h.put(base_partition);
 
             // Build up the MarkovGraph for this specific cluster
-            MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition.intValue()];
+            MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition];
             MarkovGraph markov = markovs.get(c, this.catalog_proc);
             if (markov == null) {
                 markov = markovs.getOrCreate(c, this.catalog_proc).initialize();
@@ -877,7 +877,7 @@ public class FeatureClusterer {
             }
             markov.processTransaction(txn_trace, this.p_estimator);
             
-            state.clusters_per_partition[base_partition.intValue()].put(c);
+            state.clusters_per_partition[base_partition].put(c);
         } // FOR
         // if (trace.get()) LOG.trace("Clusters per Partition:\n" + StringUtil.formatMaps(state.clusters_per_partition));
     }

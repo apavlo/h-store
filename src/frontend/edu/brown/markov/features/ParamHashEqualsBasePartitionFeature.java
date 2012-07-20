@@ -4,6 +4,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.utils.Pair;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.markov.FeatureSet;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
@@ -21,7 +22,7 @@ public class ParamHashEqualsBasePartitionFeature extends AbstractFeature {
     
     @Override
     public void extract(FeatureSet fset, TransactionTrace txn_trace) throws Exception {
-        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
+        int base_partition = this.p_estimator.getBasePartition(this.catalog_proc, txn_trace.getParams());
         for (ProcParameter catalog_param : this.catalog_proc.getParameters()) {
             Object param = txn_trace.getParam(catalog_param.getIndex());
             if (catalog_param.getIsarray()) {
@@ -41,8 +42,8 @@ public class ParamHashEqualsBasePartitionFeature extends AbstractFeature {
     @Override
     public Object calculate(String key, Object params[]) throws Exception {
         Pair<ProcParameter, Integer> p = this.getProcParameterWithIndex(key);
-        Integer base_partition = this.p_estimator.getBasePartition(this.catalog_proc, params);
-        assert(base_partition != null);
+        int base_partition = this.p_estimator.getBasePartition(this.catalog_proc, params);
+        assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         
         Object param = params[p.getFirst().getIndex()];
         Integer param_hash = null; 
@@ -52,7 +53,7 @@ public class ParamHashEqualsBasePartitionFeature extends AbstractFeature {
         } else {
             param_hash = this.p_estimator.getHasher().hash(param);
         }
-        return (base_partition.equals(param_hash));
+        return (base_partition == param_hash);
     }
 
 }

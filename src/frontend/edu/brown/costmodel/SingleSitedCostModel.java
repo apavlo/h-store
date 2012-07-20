@@ -168,17 +168,6 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.touched_partitions.put(partition);
         }
 
-        public Collection<Integer> getAllTouchedPartitions() {
-            Collection<Integer> partitions = this.touched_partitions.values();
-            if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !partitions.contains(this.base_partition)) {
-                partitions = new PartitionSet();
-                for (Object o : this.touched_partitions.values())
-                    partitions.add((Integer) o);
-                partitions.add(this.base_partition);
-            }
-            return (partitions);
-        }
-
         public Histogram<Integer> getAllTouchedPartitionsHistogram() {
             Histogram<Integer> copy = new Histogram<Integer>(this.touched_partitions);
             assert (this.touched_partitions.getValueCount() == copy.getValueCount());
@@ -911,13 +900,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @param proc_param_idx
      */
     protected void setBasePartition(TransactionCacheEntry txn_entry, int base_partition) {
-        txn_entry.base_partition = base_partition;
-
         // If the partition is null, then there's nothing we can do here other
         // than just pick a random one
         // For now we'll always pick zero to keep things consistent
         if (txn_entry.base_partition == HStoreConstants.NULL_PARTITION_ID)
             txn_entry.base_partition = 0;
+        else
+            txn_entry.base_partition = base_partition;    
 
         // Record what partition the VoltProcedure executed on
         // We'll throw the base_partition into the txn_entry's touched
