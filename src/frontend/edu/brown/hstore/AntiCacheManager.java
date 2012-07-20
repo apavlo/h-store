@@ -48,6 +48,12 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    protected static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL QUEUE ENTRY
+    // ----------------------------------------------------------------------------
+    
     protected class QueueEntry {
         final LocalTransaction ts;
         final int partition;
@@ -81,17 +87,13 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      */
     private final long partitionSizes[];
 
-    private final Runnable statsSamplingThread = new Runnable() {
+    /**
+     * Thread that is periodically executed to check whether the amount of
+     * memory used by this HStoreSite is over the threshold
+     */
+    private final Runnable memoryMonitor = new Runnable() {
         @Override
         public void run() {
-//            for (Integer p : hstore_site.getLocalPartitionIdArray()) {
-//                LOG.info("Requesting table statistics from partition #" + p);
-//                // Queue up a utility work operation at the PartitionExecutor so
-//                // that we can get the total size of the partition
-//                hstore_site.getPartitionExecutor(p.intValue()).queueUtilityWork(statsMessage);
-//            } // FOR
-            
-            // TODO: We could also call checkEviction() in here too
             try {
                 if (checkEviction()) executeEviction();
             } catch (Throwable ex) {
@@ -100,6 +102,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         }
     };
     
+    /**
+     * Local RpcCallback that will notify us when one of our eviction sysprocs is finished
+     */
     private final RpcCallback<ClientResponseImpl> evictionCallback = new RpcCallback<ClientResponseImpl>() {
         @Override
         public void run(ClientResponseImpl parameter) {
@@ -138,8 +143,8 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         });
     }
     
-    public Runnable getStatsSamplingThread() {
-        return this.statsSamplingThread;
+    public Runnable getMemoryMonitorThread() {
+        return this.memoryMonitor;
     }
     
     // ----------------------------------------------------------------------------
@@ -186,11 +191,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * Queue a transaction that needs to wait until the evicted blocks at the target Table 
      * are read back in at the given partition. This is a non-blocking call.
      * The AntiCacheManager will figure out when it's ready to get these blocks back in
-     * <B>Note:</B> The given LocalTransaction handle must have been already started. 
-     * @param ts
-     * @param partition
-     * @param catalog_tbl
-     * @param block_ids
+     * <B>Note:</B> The given LocalTransaction handle must not have been already started. 
+     * @param ts - A new LocalTransaction handle created from an aborted transaction
+     * @param partition - The partitionId that we need to read evicted tuples from
+     * @param catalog_tbl - The table catalog
+     * @param block_ids - The list of blockIds that need to be read in for the table
      */
     public boolean queue(LocalTransaction ts, int partition, Table catalog_tbl, short block_ids[]) {
         QueueEntry e = new QueueEntry(ts, partition, catalog_tbl, block_ids);
@@ -229,7 +234,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         for (Table catalog_tbl : this.evictableTables) {
             tableNames[i] = catalog_tbl.getName();
             // TODO: Need to figure out what the optimal solution is for picking the block sizes
-            evictBytes[i] = 1048576; // 1024 * 1024
+            evictBytes[i] = DEFAULT_EVICTED_BLOCK_SIZE;
             i++;
         } // FOR
         Object params[] = new Object[]{ HStoreConstants.NULL_PARTITION_ID, tableNames, evictBytes };
