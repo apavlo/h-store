@@ -567,14 +567,6 @@ JAVA COMPILATION
 
     <javac includeantruntime="false"
         target="${javac.version}"
-        srcdir="${src.protorpc.dir}"
-        destdir='${build.prod.dir}'
-        debug='true'>
-        <classpath refid="project.classpath" />
-    </javac>
-
-    <javac includeantruntime="false"
-        target="${javac.version}"
         srcdir="${src.hsqldb.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
