@@ -903,9 +903,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If the partition is null, then there's nothing we can do here other
         // than just pick a random one
         // For now we'll always pick zero to keep things consistent
-        if (txn_entry.base_partition == HStoreConstants.NULL_PARTITION_ID)
+        if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             txn_entry.base_partition = 0;
-        else
+            if (trace.get())
+                LOG.trace("Base partition for " + txn_entry + " is null. Setting to default '" + txn_entry.base_partition + "'");
+        } else
             txn_entry.base_partition = base_partition;    
 
         // Record what partition the VoltProcedure executed on
@@ -913,7 +915,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // partitions histogram, but notice
         // that we can weight how much the java execution costs
         if (this.isJavaExecutionWeightEnabled()) {
-            txn_entry.touched_partitions.put(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+            int weight = (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight());
+            txn_entry.touched_partitions.put(txn_entry.base_partition, weight);
         }
         this.histogram_java_partitions.put(txn_entry.base_partition, txn_entry.weight);
     }
@@ -1004,12 +1007,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // -----------------------------------------------
         // Dear Andy of the future,
         //
-        // The reason why we have a cost model here instead of just using
+        // The reason why we have a cost model here instead of just using the 
         // PartitionEstimator is because the PartitionEstimator only gives you
-        // back information for
-        // single queries, whereas in this code we are trying figure out
-        // partitioning
-        // information for all of the queries in a transaction.
+        // back information for single queries, whereas in this code we are trying 
+        // figure out partitioning information for all of the queries in a transaction.
         //
         // Sincerely,
         // Andy of 04/22/2010
@@ -1201,29 +1202,29 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // column of each table all hash to the same value. If they don't, then we know we can't
             // be single-partition
         } else {
-            for (Entry<String, PartitionSet> entry : temp_stmtPartitions.entrySet()) {
-                String table_key = entry.getKey();
+            for (Entry<String, PartitionSet> e : temp_stmtPartitions.entrySet()) {
+                String table_key = e.getKey();
                 Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
                     continue;
                 }
 
                 Column table_partition_col = catalog_tbl.getPartitioncolumn();
-                Set<Integer> hashes = entry.getValue();
+                PartitionSet partitions = e.getValue();
 
                 // If there is more than one partition, then we'll never be multi-partition 
                 // so we can stop our search right here.
-                if (hashes.size() > 1) {
+                if (partitions.size() > 1) {
                     if (trace.get())
                         LOG.trace(String.format("%s references %s's partitioning attribute %s on %d different partitions -- VALUES %s", catalog_proc.getName(), catalog_tbl.getName(),
-                                table_partition_col.fullName(), hashes.size(), hashes));
+                                table_partition_col.fullName(), partitions.size(), partitions));
                     txn_entry.singlesited = false;
                     break;
 
                 // Make sure that the partitioning ProcParameter hashes to the same 
                 // site as the value used on the partitioning column for this table
-                } else if (!hashes.isEmpty() && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
-                    int tbl_partition = CollectionUtil.first(hashes);
+                } else if (!partitions.isEmpty() && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
+                    int tbl_partition = CollectionUtil.first(partitions);
                     if (txn_entry.base_partition != tbl_partition) {
                         if (trace.get())
                             LOG.trace(txn_trace + " executes on Partition #" + txn_entry.base_partition + " " + "but partitioning column " + CatalogUtil.getDisplayName(table_partition_col) + " "
@@ -1248,10 +1249,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.histogram_mp_procs.put(proc_key, txn_weight);
         }
 
-        // IMPORTANT: If the number of partitions touched in this txn have
-        // changed since before we examined
-        // a bunch of queries, then we need to update the various histograms and
-        // counters
+        // IMPORTANT: If the number of partitions touched in this txn have changed 
+        // since before we examined a bunch of queries, then we need to update the
+        // various histograms and counters.
         // This ensures that we do not double count partitions
         if (txn_entry.touched_partitions.getValueCount() != temp_txnOrigPartitions.size()) {
             assert (txn_entry.touched_partitions.getValueCount() > temp_txnOrigPartitions.size());
