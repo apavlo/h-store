@@ -661,17 +661,29 @@ public abstract class AbstractCostModel {
     public String debugHistograms(Database catalog_db) {
         int num_histograms = 6;
         Map<String, Object> maps[] = new Map[num_histograms];
-
         Map<Object, String> debugMap = CatalogKey.getDebugMap(catalog_db, Table.class, Procedure.class);
 
-        String labels[] = { "Procedures", "Single Partition Txns", "Multi Partition Txns", "Java Execution Partitions", "Txn Partition Access", "Query Partition Access", };
-        Histogram histograms[] = { this.histogram_procs, this.histogram_sp_procs, this.histogram_mp_procs, this.histogram_java_partitions, this.histogram_txn_partitions,
-                this.histogram_query_partitions, };
+        String labels[] = {
+            "Procedures",
+            "Single Partition Txns",
+            "Multi Partition Txns",
+            "Java Execution Partitions",
+            "Txn Partition Access",
+            "Query Partition Access",
+        };
+        Histogram<?> histograms[] = {
+            this.histogram_procs,
+            this.histogram_sp_procs,
+            this.histogram_mp_procs,
+            this.histogram_java_partitions,
+            this.histogram_txn_partitions,
+            this.histogram_query_partitions,
+        };
 
         for (int i = 0; i < labels.length; i++) {
             String l = String.format("%s\n  + SampleCount=%d\n  + ValueCount=%d", labels[i], histograms[i].getSampleCount(), histograms[i].getValueCount());
             maps[i] = new HashMap<String, Object>();
-            maps[i].put(l, histograms[i].setDebugLabels(debugMap));
+            maps[i].put(l, histograms[i].setDebugLabels(debugMap).toString());
         } // FOR
 
         return (StringUtil.formatMaps(maps));

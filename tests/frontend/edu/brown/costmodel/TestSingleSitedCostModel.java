@@ -39,6 +39,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
 
     private static final int PROC_COUNT = 3;
     
+    @SuppressWarnings("unchecked")
     private static final Class<? extends VoltProcedure> PROCEDURES[] = new Class[]{
         DeleteCallForwarding.class,
         GetAccessData.class,
