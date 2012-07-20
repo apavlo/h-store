@@ -171,7 +171,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
 #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
                block_size, this->name().c_str());
-    VOLT_INFO("%s Table Schema:\n%s",
+    VOLT_DEBUG("%s Table Schema:\n%s",
               m_evictedTable->name().c_str(), m_evictedTable->schema()->debug().c_str());
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
 #endif
