@@ -24,14 +24,12 @@
  */
 
 
-#ifdef ANTICACHEEVICTIONMANAGER_H
+#ifndef ANTICACHEEVICTIONMANAGER_H
 #define ANTICACHEEVICTIONMANAGER_H
 
 #include "storage/TupleIterator.h"
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
-
-using namespace voltdb; 
 
 namespace voltdb {
 
