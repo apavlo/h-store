@@ -254,6 +254,7 @@ class PersistentTable : public Table {
     // ------------------------------------------------------------------
 #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
+    voltdb::Table* getEvictedTable(); 
     bool evictBlockToDisk(const long block_size);
     bool readEvictedBlock(uint16_t block_id);
     bool mergeUnevictedTuples();
@@ -271,7 +272,7 @@ protected:
     void insertIntoAllIndexes(TableTuple *tuple);
     void deleteFromAllIndexes(TableTuple *tuple);
     void updateFromAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);
-    void setNullForAllIndexes(TableTuple &tuple);
+    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address); 
 
     bool tryInsertOnAllIndexes(TableTuple *tuple);
     bool tryUpdateOnAllIndexes(TableTuple &targetTuple, const TableTuple &sourceTuple);

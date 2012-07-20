@@ -109,7 +109,7 @@ public:
         return (deleted && inserted);
     }
 	
-	bool setEntryToNull(const TableTuple *tuple)
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address)
     {
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
 		
@@ -124,10 +124,12 @@ public:
             {
                 m_entries.erase(key_iter.first);
 				
-				std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, NULL));
-				return retval.second;
+				//std::pair<typename MapType::iterator, bool> retval = m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
+                //return retval.second;
+
+                m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
+                return true; 
 				
-                return true;
             }
         }
         
