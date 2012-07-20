@@ -1,6 +1,5 @@
 package edu.brown.markov;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,6 +36,7 @@ import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 
@@ -83,10 +83,10 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     private Object args[];
     private float greatest_abort = MarkovUtil.NULL_MARKER;
 
-    private final Collection<Integer> all_partitions;
-    private final Set<Integer> touched_partitions = new HashSet<Integer>();
-    private final Set<Integer> read_partitions = new HashSet<Integer>();
-    private final Set<Integer> write_partitions = new HashSet<Integer>();
+    private final PartitionSet all_partitions;
+    private final PartitionSet touched_partitions = new PartitionSet();
+    private final PartitionSet read_partitions = new PartitionSet();
+    private final PartitionSet write_partitions = new PartitionSet();
     
     
     /**
@@ -122,7 +122,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // TEMPORARY TRAVERSAL MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final transient Set<Integer> past_partitions = new HashSet<Integer>();
+    private final transient PartitionSet past_partitions = new PartitionSet();
     
     private final transient SortedSet<MarkovEdge> candidates = new TreeSet<MarkovEdge>();
     
@@ -130,7 +130,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
     
-    private final transient Set<Integer> stmt_partitions = new HashSet<Integer>();
+    private final transient PartitionSet stmt_partitions = new PartitionSet();
     
     private final transient Map<Statement, StmtParameter[]> stmt_params = new HashMap<Statement, StmtParameter[]>();
     
@@ -148,7 +148,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.num_partitions = num_partitions;
         this.estimate = new MarkovEstimate(this.num_partitions);
         
-        this.all_partitions = new ArrayList<Integer>();
+        this.all_partitions = new PartitionSet();
         for (int p = 0; p < this.num_partitions; p++) {
             this.all_partitions.add(p);
         } // FOR
@@ -250,13 +250,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.force_traversal = flag;
     }
     
-    public Set<Integer> getTouchedPartitions() {
+    public PartitionSet getTouchedPartitions() {
         return this.touched_partitions;
     }
-    public Set<Integer> getReadPartitions() {
+    public PartitionSet getReadPartitions() {
         return this.read_partitions;
     }
-    public Set<Integer> getWritePartitions() {
+    public PartitionSet getWritePartitions() {
         return this.write_partitions;
     }
     
@@ -530,7 +530,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             this.confidence *= next_edge.getProbability() / total_probability;
             
             // Update our list of partitions touched by this transaction
-            Set<Integer> next_partitions = next_vertex.getPartitions();
+            PartitionSet next_partitions = next_vertex.getPartitions();
             // String orig = (debug.get() ? next_partitions.toString() : null);
             float inverse_prob = 1.0f - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
@@ -745,8 +745,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             LOG.info("MarkovEstimate:\n" + m_estimator.getEstimate());
             
             // Check whether we predict the same partitions
-            Set<Integer> actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 
-            Set<Integer> predicted_partitions = MarkovUtil.getTouchedPartitions(predicted_path);
+            PartitionSet actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 
+            PartitionSet predicted_partitions = MarkovUtil.getTouchedPartitions(predicted_path);
             if (actual_partitions.equals(predicted_partitions)) correct_partitions_txns.get(catalog_proc).incrementAndGet();
             if (actual_partitions.size() > 1) multip_txns.get(catalog_proc).incrementAndGet();
             

@@ -1,8 +1,6 @@
 package edu.brown.utils;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -24,7 +22,7 @@ public class TestPartitionEstimatorViews extends BaseTestCase {
     protected static final int num_partitions = 10;
     protected static final int base_partition = 1;
     
-    final Set<Integer> partitions = new HashSet<Integer>();
+    private final PartitionSet partitions = new PartitionSet();
     
     @Override
     protected void setUp() throws Exception {

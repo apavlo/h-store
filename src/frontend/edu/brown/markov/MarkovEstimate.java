@@ -2,7 +2,6 @@ package edu.brown.markov;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -413,7 +412,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
-    public Set<Integer> getWritePartitions(EstimationThresholds t) {
+    public PartitionSet getWritePartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.write_partitions == null) this.write_partitions = new PartitionSet();
         this.getPartitions(this.write_partitions, this.write, (float)t.getWriteThreshold(), false);
@@ -424,7 +423,7 @@ public class MarkovEstimate implements Poolable, Estimation {
      * @param t
      * @return
      */
-    public Set<Integer> getFinishedPartitions(EstimationThresholds t) {
+    public PartitionSet getFinishedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.finished_partitions == null) this.finished_partitions = new PartitionSet();
         this.getPartitions(this.finished_partitions, this.finished, (float)t.getFinishedThreshold(), false);
@@ -442,7 +441,7 @@ public class MarkovEstimate implements Poolable, Estimation {
         return (this.touched_partitions);
     }
     
-    public Set<Integer> getMostTouchedPartitions(EstimationThresholds t) {
+    public PartitionSet getMostTouchedPartitions(EstimationThresholds t) {
         assert(t != null);
         if (this.touched_partitions == null) this.touched_partitions = new PartitionSet();
         this.getPartitions(this.touched_partitions, this.finished, t.getFinishedThreshold(), true);

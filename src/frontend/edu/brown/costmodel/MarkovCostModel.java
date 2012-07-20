@@ -41,6 +41,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.TransactionTrace;
@@ -187,16 +188,16 @@ public class MarkovCostModel extends AbstractCostModel {
      */
     private transient final List<Penalty> penalties = new ArrayList<Penalty>();
 
-    private transient final Set<Integer> done_partitions = new HashSet<Integer>();
+    private transient final PartitionSet done_partitions = new PartitionSet();
     private transient final Histogram<Integer> idle_partition_ctrs = new Histogram<Integer>();
 
-    private transient final Set<Integer> e_all_partitions = new HashSet<Integer>();
-    private transient final Set<Integer> e_read_partitions = new HashSet<Integer>();
-    private transient final Set<Integer> e_write_partitions = new HashSet<Integer>();
+    private transient final PartitionSet e_all_partitions = new PartitionSet();
+    private transient final PartitionSet e_read_partitions = new PartitionSet();
+    private transient final PartitionSet e_write_partitions = new PartitionSet();
 
-    private transient final Set<Integer> a_all_partitions = new HashSet<Integer>();
-    private transient final Set<Integer> a_read_partitions = new HashSet<Integer>();
-    private transient final Set<Integer> a_write_partitions = new HashSet<Integer>();
+    private transient final PartitionSet a_all_partitions = new PartitionSet();
+    private transient final PartitionSet a_read_partitions = new PartitionSet();
+    private transient final PartitionSet a_write_partitions = new PartitionSet();
 
     /**
      * Constructor
@@ -222,27 +223,27 @@ public class MarkovCostModel extends AbstractCostModel {
         return this.penalties;
     }
 
-    protected Set<Integer> getLastEstimatedAllPartitions() {
+    protected PartitionSet getLastEstimatedAllPartitions() {
         return (this.e_all_partitions);
     }
 
-    protected Set<Integer> getLastEstimatedReadPartitions() {
+    protected PartitionSet getLastEstimatedReadPartitions() {
         return (this.e_read_partitions);
     }
 
-    protected Set<Integer> getLastEstimatedWritePartitions() {
+    protected PartitionSet getLastEstimatedWritePartitions() {
         return (this.e_write_partitions);
     }
 
-    protected Set<Integer> getLastActualAllPartitions() {
+    protected PartitionSet getLastActualAllPartitions() {
         return (this.a_all_partitions);
     }
 
-    protected Set<Integer> getLastActualReadPartitions() {
+    protected PartitionSet getLastActualReadPartitions() {
         return (this.a_read_partitions);
     }
 
-    protected Set<Integer> getLastActualWritePartitions() {
+    protected PartitionSet getLastActualWritePartitions() {
         return (this.a_write_partitions);
     }
 
@@ -466,7 +467,7 @@ public class MarkovCostModel extends AbstractCostModel {
         // ----------------------------------------------------------------------------
         // BASE PARTITION
         // ----------------------------------------------------------------------------
-        Set<Integer> most_touched = initial_est.getMostTouchedPartitions(this.thresholds);
+        PartitionSet most_touched = initial_est.getMostTouchedPartitions(this.thresholds);
         Integer e_base_partition = null;
         if (most_touched.size() > 1) {
             e_base_partition = CollectionUtil.random(most_touched);
@@ -609,8 +610,8 @@ public class MarkovCostModel extends AbstractCostModel {
 
         this.done_partitions.clear();
         int last_est_idx = 0;
-        Set<Integer> touched_partitions = new HashSet<Integer>();
-        Set<Integer> new_touched_partitions = new HashSet<Integer>();
+        PartitionSet touched_partitions = new PartitionSet();
+        PartitionSet new_touched_partitions = new PartitionSet();
 
         // Reset the idle counters
         this.idle_partition_ctrs.clear();
@@ -799,7 +800,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
         Collection<Integer> partitions = null;
         if (base_partition != null) {
-            partitions = new HashSet<Integer>();
+            partitions = new PartitionSet();
             partitions.add(base_partition);
         } else {
             partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);

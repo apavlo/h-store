@@ -33,7 +33,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     protected static final int NUM_PARTITIONS = 100;
     protected static final int BASE_PARTITION = 1;
     
-    final Set<Integer> partitions = new HashSet<Integer>();
+    private final PartitionSet partitions = new PartitionSet();
     
     @Override
     protected void setUp() throws Exception {
@@ -91,7 +91,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(proc_params[0].longValue()), // W_ID
             new Long(proc_params[1].longValue()), // D_ID
         };
-        Map<String, Set<Integer>> stmt_partitions = p_estimator.getTablePartitions(catalog_stmt, stmt_params, proc_partition);
+        Map<String, PartitionSet> stmt_partitions = p_estimator.getTablePartitions(catalog_stmt, stmt_params, proc_partition);
         System.err.println(StringUtil.formatMaps(stmt_partitions));
         assertNotNull(stmt_partitions);
         assertEquals(1, stmt_partitions.size());
@@ -177,7 +177,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             new Long(NUM_PARTITIONS - 1), // D_W_ID
         };
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
-        Map<String, Set<Integer>> p = p_estimator.getTablePartitions(catalog_stmt, params, BASE_PARTITION);
+        Map<String, PartitionSet> p = p_estimator.getTablePartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(p);
         
         // Just check to make sure that we get back exactly one partition
@@ -212,7 +212,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         int num_warehouses = 5;
         Long params_object[] = new Long[num_warehouses];
         long params_primitive[] = new long[num_warehouses];
-        Set<Integer> expected = new HashSet<Integer>();
+        PartitionSet expected = new PartitionSet();
         for (int i = 0; i < num_warehouses; i++) {
             long w_id = NUM_PARTITIONS - i - 1;
             params_object[i] =  new Long(w_id);
@@ -224,7 +224,7 @@ public class TestPartitionEstimator extends BaseTestCase {
 //        System.err.println("EXPECTED: " + expected);
         
         // OBJECT
-        Map<String, Set<Integer>> p = p_estimator.getTablePartitions(catalog_stmt, new Object[]{ params_object }, BASE_PARTITION);
+        Map<String, PartitionSet> p = p_estimator.getTablePartitions(catalog_stmt, new Object[]{ params_object }, BASE_PARTITION);
         assertNotNull(p);
         assert(p.containsKey(table_key));
 //        System.err.println("OBJECT: " + p.get(table_key));

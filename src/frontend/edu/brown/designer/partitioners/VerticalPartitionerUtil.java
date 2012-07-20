@@ -167,19 +167,22 @@ public abstract class VerticalPartitionerUtil {
                         // assert(foundAll) : mc + "\n" + all_cols;
                     }
                 }
-                MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
-                assert (partition_col.equals(vp_col) == false) : vp_col;
-                VerticalPartitionColumn vpc = VerticalPartitionColumn.get(partition_col, vp_col);
-                assert (vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", partition_col, vp_col);
-                candidates.add(vpc);
-
-                if (debug.get()) {
-                    Map<String, Object> m = new ListOrderedMap<String, Object>();
-                    m.put("Output Columns", output_cols);
-                    m.put("Predicate Columns", stmt_cols);
-                    m.put("Horizontal Partitioning", partition_col.fullName());
-                    m.put("Vertical Partitioning", vp_col.fullName());
-                    LOG.debug("Vertical Partition Candidate: " + catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));
+                
+                if (all_cols.size() > 1) {
+                    MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
+                    assert (partition_col.equals(vp_col) == false) : vp_col;
+                    VerticalPartitionColumn vpc = VerticalPartitionColumn.get(partition_col, vp_col);
+                    assert (vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", partition_col, vp_col);
+                    candidates.add(vpc);
+    
+                    if (debug.get()) {
+                        Map<String, Object> m = new ListOrderedMap<String, Object>();
+                        m.put("Output Columns", output_cols);
+                        m.put("Predicate Columns", stmt_cols);
+                        m.put("Horizontal Partitioning", partition_col.fullName());
+                        m.put("Vertical Partitioning", vp_col.fullName());
+                        LOG.debug("Vertical Partition Candidate: " + catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));
+                    }
                 }
             } // FOR (stmt)
         } // FOR (proc)

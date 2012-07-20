@@ -1,12 +1,11 @@
 package edu.brown.workload.filters;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.CatalogType;
 
+import edu.brown.utils.PartitionSet;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
@@ -15,7 +14,7 @@ import edu.brown.workload.TransactionTrace;
  */
 public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
     
-    final Set<Integer> partitions = new HashSet<Integer>();
+    private final PartitionSet partitions = new PartitionSet();
     
     /**
      * testSinglePartition

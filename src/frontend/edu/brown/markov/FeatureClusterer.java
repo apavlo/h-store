@@ -51,6 +51,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
@@ -306,7 +307,7 @@ public class FeatureClusterer {
     private double round_topk = DEFAULT_ATTRIBUTESET_TOP_K;
     private int num_rounds = DEFAULT_NUM_ROUNDS;
     
-    private final Map<Long, Set<Integer>> cache_all_partitions = new HashMap<Long, Set<Integer>>();
+    private final Map<Long, PartitionSet> cache_all_partitions = new HashMap<Long, PartitionSet>();
     private final Map<Long, Integer> cache_base_partition = new HashMap<Long, Integer>();
 
     /**
@@ -438,17 +439,16 @@ public class FeatureClusterer {
         return (base_partition);
     }
     
-    private Set<Integer> getAllPartitions(TransactionTrace txn_trace) {
+    private PartitionSet getAllPartitions(TransactionTrace txn_trace) {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
-        Set<Integer> all_partitions = this.cache_all_partitions.get(txn_id);
+        PartitionSet all_partitions = this.cache_all_partitions.get(txn_id);
         if (all_partitions == null) {
-            all_partitions = new HashSet<Integer>();
+            all_partitions = new PartitionSet();
             try {
                 this.p_estimator.getAllPartitions(all_partitions, txn_trace);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            all_partitions = Collections.unmodifiableSet(all_partitions);
             this.cache_all_partitions.put(txn_id, all_partitions);
         }
         return (all_partitions);
@@ -666,7 +666,7 @@ public class FeatureClusterer {
             if (this.all_partitions.contains(base_partition) == false) continue;
 
             // Ok so now let's figure out what this mofo is going to do...
-            Set<Integer> partitions = this.getAllPartitions(txn_trace);
+            PartitionSet partitions = this.getAllPartitions(txn_trace);
             boolean singlepartitioned = (partitions.size() == 1);
             
             // Estimate Global MarkovGraph Cost
@@ -765,7 +765,7 @@ public class FeatureClusterer {
             
 
             // Ok so now let's figure out what this mofo is going to do...
-            Set<Integer> partitions = this.getAllPartitions(txn_trace);
+            PartitionSet partitions = this.getAllPartitions(txn_trace);
             boolean singlepartitioned = (partitions.size() == 1);
             t_counters[singlepartitioned ? 0 : 1]++;
             t_counters[2]++; // Total # of Txns
