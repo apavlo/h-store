@@ -628,7 +628,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         
         // TODO: Switch to LOG.debug
         LOG.info("Intializing anti-cache feature at partition " + this.site.getPartitionId());
-        LOG.info(String.format("Partition #%d Database Directory: %s",
+        LOG.info(String.format("Partition #%d AntiCache Directory: %s",
                                 this.site.getPartitionId(), dbDir.getAbsolutePath()));
         final int errorCode = nativeAntiCacheInitialize(pointer, dbDir.getAbsolutePath());
         checkErrorCode(errorCode);

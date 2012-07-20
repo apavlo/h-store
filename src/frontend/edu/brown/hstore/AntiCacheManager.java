@@ -143,6 +143,10 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         });
     }
     
+    public Collection<Table> getEvictableTables() {
+        return (this.evictableTables);
+    }
+    
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
     }
