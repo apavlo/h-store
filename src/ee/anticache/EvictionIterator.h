@@ -44,7 +44,7 @@
  */
 
 
-#ifndef ANTICACHEEVICTIONMANAGER_H
+#ifdef ANTICACHEEVICTIONMANAGER_H
 #define ANTICACHEEVICTIONMANAGER_H
 
 #include "storage/TupleIterator.h"
