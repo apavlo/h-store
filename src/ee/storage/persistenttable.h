@@ -328,9 +328,11 @@ protected:
     // ANTI-CACHE VARIABLES
 #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
+    
+    std::vector<char*> m_unevictedBlocks; 
+    
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
-    int m_unevictedTuplesLength; 
     
     uint32_t m_oldest_tuple_id; 
     uint32_t m_newest_tuple_id; 
