@@ -300,9 +300,11 @@ bool PersistentTable::readEvictedBlock(uint16_t block_id) {
 bool PersistentTable::mergeUnevictedTuples() 
 {    
     char* tuple_ptr = NULL; 
-    int tuple_size_in_bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE; 
+    int tuple_size_in_bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     
-    for(int i = 0; i < m_unevictedBlocks.size(); i++)
+    int num_blocks = static_cast<int> (m_unevictedBlocks.size()); 
+    
+    for(int i = 0; i < num_blocks; i++)
     {
         tuple_ptr = m_unevictedBlocks[i]; 
         for(int j = 0; j < m_tuplesPerBlock; j++)   
@@ -329,9 +331,9 @@ bool PersistentTable::mergeUnevictedTuples()
     }
     
     // Update eviction stats
-    m_blocksEvicted -= m_unevictedBlocks.size(); 
-    m_tuplesEvicted -= (m_unevictedBlocks.size() * m_tuplesPerBlock); 
-    m_bytesEvicted -= (m_unevictedBlocks.size() * m_tuplesPerBlock * tuple_size_in_bytes); 
+    m_blocksEvicted -= num_blocks; 
+    m_tuplesEvicted -= (num_blocks * m_tuplesPerBlock); 
+    m_bytesEvicted -= (num_blocks * m_tuplesPerBlock * tuple_size_in_bytes); 
     
     m_unevictedBlocks.clear(); 
     
