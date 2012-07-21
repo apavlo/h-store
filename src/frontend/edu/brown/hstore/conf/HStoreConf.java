@@ -1963,23 +1963,31 @@ public final class HStoreConf {
         return (conf != null);
     }
     
-    private static HStoreConf confHelper;
-    public static boolean isConfParameter(String name) {
+    /**
+     * Returns true if the given string is a valid HStoreConf parameter
+     * @param name
+     * @return
+     */
+    public boolean hasParameter(String name) {
         Matcher m = REGEX_PARSE.matcher(name);
         if (m.find()) {
-            if (confHelper == null) {
-                synchronized (HStoreConf.class) {
-                    if (confHelper == null) {
-                        confHelper = new HStoreConf();
-                    }
-                } // SYNCH
-            }
-
-            Conf c = confHelper.confHandles.get(m.group(1));
+            Conf c = this.confHandles.get(m.group(1));
             assert(c != null) : "Unexpected null Conf for '" + m.group(1) + "'";
             return (c.hasParameter(m.group(2)));
         }
         return (false);
+    }
+    
+    private static HStoreConf confHelper;
+    public static boolean isConfParameter(String name) {
+        if (confHelper == null) {
+            synchronized (HStoreConf.class) {
+                if (confHelper == null) {
+                    confHelper = new HStoreConf();
+                }
+            } // SYNCH
+        }
+        return confHelper.hasParameter(name);
     }
 
 }
