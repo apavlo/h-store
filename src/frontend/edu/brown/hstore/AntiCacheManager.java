@@ -313,10 +313,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                                                                        executor.getPartitionId());
 
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        if (hstore_conf.site.anticache_reset) {
+            LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
         FileUtil.makeDirIfNotExists(dbDirPath);
-        
-        // TODO: What do we do if the directory already exists?
-        //       There should be an HStoreConf that says we should delete it first
         
         return (dbDirPath);
     }
