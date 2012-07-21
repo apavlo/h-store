@@ -90,6 +90,9 @@ import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
+import edu.brown.api.results.BenchmarkResults;
+import edu.brown.api.results.JSONResultsPrinter;
+import edu.brown.api.results.ResultsPrinter;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;

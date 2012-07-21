@@ -26,6 +26,7 @@ package edu.brown.api;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
+import edu.brown.api.results.BenchmarkResults;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;

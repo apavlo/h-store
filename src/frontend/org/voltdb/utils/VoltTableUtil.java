@@ -1,5 +1,6 @@
 package org.voltdb.utils;
 
+import java.io.Writer;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -9,10 +10,46 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.SortDirectionType;
 
+import au.com.bytecode.opencsv.CSVWriter;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
 public abstract class VoltTableUtil {
+
+    /**
+     * Dump out a VoltTable
+     * @param out
+     * @param vt
+     * @param write_header
+     */
+    public static void csv(Writer out, VoltTable vt) {
+        VoltTableUtil.csv(out, vt, true);
+    }
+    
+    /**
+     * Dump out a VoltTable
+     * @param out
+     * @param vt
+     * @param write_header
+     */
+    public static void csv(Writer out, VoltTable vt, boolean write_header) {
+        CSVWriter writer = new CSVWriter(out);
+        
+        if (write_header) {
+            String cols[] = new String[vt.getColumnCount()];
+            for (int i = 0; i < cols.length; i++) {
+                cols[i] = vt.getColumnName(i);
+            } // FOR
+            writer.writeNext(cols);
+        }
+        vt.resetRowPosition();
+        while (vt.advanceRow()) {
+            String row[] = vt.getRowStringArray();
+            assert(row != null);
+            assert(row.length == vt.getColumnCount());
+            writer.writeNext(row);
+        } // WHILE
+    }
     
     /**
      * Pretty-printer for an array of VoltTables

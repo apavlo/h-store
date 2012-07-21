@@ -13,6 +13,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.processtools.ProcessSetManager;
 
 import edu.brown.api.BenchmarkController.BenchmarkInterest;
+import edu.brown.api.results.BenchmarkResults;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

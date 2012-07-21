@@ -21,17 +21,18 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package edu.brown.api;
+package edu.brown.api.results;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.BenchmarkResults.EntityResult;
-import edu.brown.api.BenchmarkResults.FinalResult;
+import edu.brown.api.BenchmarkController;
+import edu.brown.api.results.BenchmarkResults.EntityResult;
+import edu.brown.api.results.BenchmarkResults.FinalResult;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
@@ -79,7 +80,7 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
              .append(String.format("stddev:" + RESULT_FORMAT, fr.getStandardDeviationTxnPerSecond()))
              .append("]\n\n");
         
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
         m.put("Total Transactions", fr.getTotalTxnCount());
         m.put("Throughput", inner.toString()); 
