@@ -32,7 +32,8 @@ import java.util.Map.Entry;
 
 import org.voltdb.processtools.SSHTools;
 
-import edu.brown.api.BenchmarkResults.Result;
+import edu.brown.api.results.BenchmarkResults;
+import edu.brown.api.results.BenchmarkResults.Result;
 import edu.brown.hstore.conf.HStoreConf;
 
 

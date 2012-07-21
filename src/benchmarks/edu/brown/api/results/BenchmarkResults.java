@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package edu.brown.api;
+package edu.brown.api.results;
 
 import java.io.IOException;
 import java.util.*;
@@ -35,6 +35,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
+import edu.brown.api.TransactionCounter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;

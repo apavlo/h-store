@@ -1360,6 +1360,13 @@ public final class HStoreConf {
         public boolean output_json;
         
         @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_csv;
+        
+        @ConfigProperty(
             description="", // TODO
             defaultBoolean=false,
             experimental=false

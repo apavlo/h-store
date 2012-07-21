@@ -1,9 +1,9 @@
-package edu.brown.api;
+package edu.brown.api.results;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import edu.brown.api.BenchmarkResults.FinalResult;
+import edu.brown.api.results.BenchmarkResults.FinalResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
