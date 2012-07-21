@@ -151,6 +151,42 @@ TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
     ASSERT_NE(tuple_id, -1); 
 }
 
+TEST_F(AntiCacheEvictionManagerTest, NewestTupleIDTest)
+{
+    int inserted_tuple_id, newest_tuple_id; 
+    
+    initTable(true); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    inserted_tuple_id = m_table->getTupleID(tuple.address()); 
+    newest_tuple_id = m_table->getNewestTupleID(); 
+    
+    ASSERT_EQ(inserted_tuple_id, newest_tuple_id); 
+}
+
+TEST_F(AntiCacheEvictionManagerTest, OldestTupleIDTest)
+{
+    int inserted_tuple_id, oldest_tuple_id; 
+    
+    initTable(true); 
+    
+    TableTuple tuple = m_table->tempTuple();
+    
+    tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+    tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
+    m_table->insertTuple(tuple);
+    
+    inserted_tuple_id = m_table->getTupleID(tuple.address()); 
+    oldest_tuple_id = m_table->getOldestTupleID(); 
+    
+    ASSERT_EQ(inserted_tuple_id, oldest_tuple_id); 
+}
+
 TEST_F(AntiCacheEvictionManagerTest, InsertTuple)
 {
     initTable(true); 
