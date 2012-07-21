@@ -479,14 +479,24 @@ public class DDLCompiler {
         if (attrs.getNamedItem("index") != null) {
             String indexName = attrs.getNamedItem("index") .getNodeValue();
             Index catalog_index = indexMap.get(indexName);
-
-            // if the constraint name contains index type hints, exercise them (giant hack)
+            
             if (catalog_index != null) {
-                String constraintNameNoCase = name.toLowerCase();
-                if (constraintNameNoCase.contains("tree"))
-                    catalog_index.setType(IndexType.BALANCED_TREE.getValue());
-                if (constraintNameNoCase.contains("array"))
-                    catalog_index.setType(IndexType.ARRAY.getValue());
+                // If this is a foreign key, then we *do not* want to include an index for it
+                // since we don't actually do anything to enforce these constraints
+                if (type == ConstraintType.FOREIGN_KEY) {
+                    boolean ret = table.getIndexes().remove(catalog_index);
+                    LOG.debug("Removing foreign key index " + catalog_index.fullName() + " [" + ret + "]");
+                    indexMap.remove(indexName);
+                    catalog_index = null;
+                }
+                else {
+                    // if the constraint name contains index type hints, exercise them (giant hack)
+                    String constraintNameNoCase = name.toLowerCase();
+                    if (constraintNameNoCase.contains("tree"))
+                        catalog_index.setType(IndexType.BALANCED_TREE.getValue());
+                    if (constraintNameNoCase.contains("array"))
+                        catalog_index.setType(IndexType.ARRAY.getValue());
+                }
             }
 
             catalog_const = table.getConstraints().add(name);
