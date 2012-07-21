@@ -98,23 +98,18 @@ public:
         return (deleted && inserted);
     }
     
-    bool setEntryToNewAddress(const TableTuple *tuple, const void* address)
-    {
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
-		
-		++m_updates; 
-		
+        ++m_updates; 
+        
         std::pair<MMIter,MMIter> key_iter;
         for (key_iter = m_entries.equal_range(m_tmp1);
              key_iter.first != key_iter.second;
-             ++(key_iter.first))
-        {
-            if (key_iter.first->second == tuple->address())
-            {
+             ++(key_iter.first)) {
+            if (key_iter.first->second == tuple->address()) {
+                // XXX key_iter.first->second = address;
                 m_entries.erase(key_iter.first);
-				
-				m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
-				
+                m_entries.insert(std::pair<KeyType, const void*>(m_tmp1, address));
                 return true;
             }
         }

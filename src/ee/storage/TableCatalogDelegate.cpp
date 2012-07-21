@@ -114,8 +114,7 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         vector<int> index_columns;
         vector<ValueType> column_types;
 
-        // The catalog::Index object now has a list of columns that are to be
-        // used
+        // The catalog::Index object now has a list of columns that are to be used
         if (catalog_index->columns().size() == (size_t)0) {
             VOLT_ERROR("Index '%s' in table '%s' does not declare any columns"
                        " to use",

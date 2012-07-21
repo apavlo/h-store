@@ -75,6 +75,7 @@
 #include "storage/CopyOnWriteContext.h"
 
 #ifdef ANTICACHE
+#include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
 #include "anticache/AntiCacheDB.h"
 #endif
@@ -168,13 +169,12 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
                             "EvictedTable has been initialized", this->name().c_str());
     }
     
-#ifdef VOLT_INFO_ENABLED
+    #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Evicting a block of size %ld bytes from table '%s'",
                block_size, this->name().c_str());
     VOLT_DEBUG("%s Table Schema:\n%s",
               m_evictedTable->name().c_str(), m_evictedTable->schema()->debug().c_str());
-    int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
-#endif
+    #endif
     
     // get the AntiCacheDB instance from the executorContext
     AntiCacheDB* antiCacheDB = m_executorContext->getAntiCacheDB();
@@ -186,8 +186,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     // Get the columns in the source tuple are part of the primary key
     // The last entry will always be the block id for this new evicted tuple
     VOLT_INFO("Getting %s tuple", m_evictedTable->name().c_str());
-    char* evicted_data = new char[m_evictedTable->schema()->tupleLength()]; 
-    TableTuple evicted_tuple(evicted_data, m_evictedTable->schema());
+    TableTuple evicted_tuple = m_evictedTable->tempTuple();
     int evicted_offset = m_pkeyIndex->getColumnCount();
     VOLT_INFO("Setting %s tuple blockId at offset %d", m_evictedTable->name().c_str(), evicted_offset);
     evicted_tuple.setNValue(evicted_offset, ValueFactory::getSmallIntValue(block_id)); // BROKEN!
@@ -209,7 +208,12 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     TableTuple tuple(m_schema);
     TableIterator table_itr(this);
     
-    VOLT_INFO("Starting TableIterator for %s", name().c_str());
+    #ifdef VOLT_INFO_ENABLED
+    VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
+    boost::timer timer;
+    int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
+    #endif
+    
     while (table_itr.hasNext() && serialized_data_length <= block_size) {
         table_itr.next(tuple);
         VOLT_DEBUG("Next Tuple: %s", tuple.debug(name()).c_str());
@@ -221,7 +225,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         }
         assert(tuple_length > 0);
         assert(tuple.isEvicted() == false);
-        tuple.setEvictedTrue(); 
         
         // Populate the evicted_tuple with the source tuple's primary key values
         evicted_offset = 0;
@@ -229,14 +232,11 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
             evicted_tuple.setNValue(evicted_offset++, tuple.getNValue(*it)); 
         } // FOR
         VOLT_DEBUG("EvictedTuple: %s", evicted_tuple.debug(m_evictedTable->name()).c_str());
-        
-        // Make sure this tuple is marked as evicted, so that we know it is an evicted tuple
-        // as we iterate through the index
-        evicted_tuple.setEvictedTrue(); 
 
         // Then add it to this table's EvictedTable
         const void* evicted_tuple_address = static_cast<EvictedTable*>(m_evictedTable)->insertEvictedTuple(evicted_tuple); 
         
+        // Change all of the indexes to point to our new evicted tuple
         setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address); 
         
         // Now copy the raw bytes for this tuple into the serialized buffer
@@ -247,11 +247,14 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         deleteTupleStorage(tuple);
         num_tuples_evicted++;
         VOLT_DEBUG("Added new evicted %s tuple to block #%d [numEvicted=%d]",
-                  name().c_str(), block_id, num_tuples_evicted);
+                   name().c_str(), block_id, num_tuples_evicted);
     } // WHILE
-    // FIXME assert(num_tuples_evicted * tuple_length == serialized_data_length); 
+    #ifdef VOLT_INFO_ENABLED
+    VOLT_INFO("EvictedTable Time: %.2f sec", timer.elapsed());
+    timer.restart();
+    #endif
     
-    // Don't write out a bock if there are no tuples in it
+    // Only write out a bock if there are tuples in it
     if (num_tuples_evicted > 0) {
         antiCacheDB->writeBlock(name(),
                                 block_id,
@@ -265,6 +268,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         m_bytesEvicted += serialized_data_length;
     
         #ifdef VOLT_INFO_ENABLED
+        VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
         VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
                 block_id, name().c_str(),
                 num_tuples_evicted, serialized_data_length, tuple_length);
@@ -274,8 +278,6 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     } else {
         VOLT_WARN("No tuples were evicted from %s", name().c_str());
     }
-    
-    delete [] evicted_data;
     
     return true;
 }
@@ -747,8 +749,9 @@ void PersistentTable::insertIntoAllIndexes(TableTuple *tuple) {
 void PersistentTable::deleteFromAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0;--i) {
         if (!m_indexes[i]->deleteEntry(tuple)) {
-            throwFatalException("Failed to delete tuple from index %s.%s",
-                                name().c_str(), m_indexes[i]->getName().c_str());
+            throwFatalException("Failed to delete tuple from index %s.%s [%s]",
+                                name().c_str(), m_indexes[i]->getName().c_str(),
+                                m_indexes[i]->getTypeName().c_str());
         }
     }
 }
@@ -761,15 +764,17 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
     }
 }
     
-void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address)
-{
+void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
+        VOLT_TRACE("Updating tuple address in index %s.%s [%s]",
+                   name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
-            throwFatalException("Failed to update tuple in index to new address");
+            throwFatalException("Failed to update tuple to new address in index %s.%s [%s]",
+                                name().c_str(), m_indexes[i]->getName().c_str(),
+                                m_indexes[i]->getTypeName().c_str());
         }
     }
 }
-
 
 bool PersistentTable::tryInsertOnAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
