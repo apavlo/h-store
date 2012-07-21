@@ -441,13 +441,20 @@ public final class HStoreConf {
         )
         public boolean anticache_enable;
         
-        
         @ConfigProperty(
             description="The directory to use to store the evicted tuples.",
             defaultString="${global.temp_dir}/anticache",
             experimental=true
         )
         public String anticache_dir;
+        
+        @ConfigProperty(
+            description="Reset the anti-cache database directory for each partition when " +
+            		    "the HStoreSite is started.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_reset;
         
         @ConfigProperty(
             description="How often in milliseconds should the AntiCacheManager check whether " +
