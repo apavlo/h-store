@@ -322,6 +322,7 @@ bool PersistentTable::mergeUnevictedTuples()
             setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
             
             // TODO: remove the evicted table entry
+            //m_evictedTable->deleteTuple(); 
     
             // increment pointer to next tuple in block
             tuple_ptr += tuple_size_in_bytes; 
