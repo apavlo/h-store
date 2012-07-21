@@ -1816,6 +1816,7 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
+            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type", v, k));
             
             if (f_class.equals(int.class)) {
                 value = Integer.parseInt(v);
