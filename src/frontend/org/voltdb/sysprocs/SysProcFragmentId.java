@@ -145,4 +145,8 @@ public class SysProcFragmentId
     // @AntiCacheEviction
     public static final int PF_antiCacheEviction = 200;
     
+    // @SetConfiguration
+    public static final int PF_setConfDistribute = 205;
+    public static final int PF_setConfAggregate = 206;
+    
 }
