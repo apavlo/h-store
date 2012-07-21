@@ -66,7 +66,7 @@ public class SetConfiguration extends VoltSystemProcedure {
         DependencySet result = null;
         assert(params.size() == 2);
         String confNames[] = (String[])params.toArray()[0];
-        String confValues[] = (String[])params.toArray()[0];
+        String confValues[] = (String[])params.toArray()[1];
         
         switch (fragmentId) {
             case DISTRIBUTE_ID: {
