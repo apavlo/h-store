@@ -214,7 +214,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
     #endif
     
-    while (table_itr.hasNext() && serialized_data_length <= block_size) {
+    while (table_itr.hasNext()) {
         table_itr.next(tuple);
         VOLT_DEBUG("Next Tuple: %s", tuple.debug(name()).c_str());
         
@@ -225,6 +225,9 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
         }
         assert(tuple_length > 0);
         assert(tuple.isEvicted() == false);
+        
+        // Check whether we have more space for one more tuple
+        if ((serialized_data_length+tuple_length) > block_size) break;
         
         // Populate the evicted_tuple with the source tuple's primary key values
         evicted_offset = 0;

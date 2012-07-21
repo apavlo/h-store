@@ -23,14 +23,21 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestAntiCacheManager extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
-    private static final int NUM_TUPLES = 100;
+    private static final int NUM_TUPLES = 1000;
     // private static final String TARGET_TABLE = TPCCConstants.TABLENAME_WAREHOUSE;
     private static final String TARGET_TABLE = VoterConstants.TABLENAME_VOTES;
+    
+    private static final String statsFields[] = {
+        "TUPLES_EVICTED",
+        "BLOCKS_EVICTED",
+        "BYTES_EVICTED"
+    };
     
     private HStoreSite hstore_site;
     private HStoreConf hstore_conf;
@@ -72,6 +79,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = true;
+        this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
         this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
         
         this.hstore_site = HStore.initialize(catalog_site, hstore_conf);
@@ -101,12 +109,6 @@ public class TestAntiCacheManager extends BaseTestCase {
      */
     @Test
     public void testEvictTuples() throws Exception {
-        String statsFields[] = {
-            "TUPLES_EVICTED",
-            "BLOCKS_EVICTED",
-            "BYTES_EVICTED"
-        };
-        
         // Load in a bunch of dummy data for this table
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
@@ -150,6 +152,52 @@ public class TestAntiCacheManager extends BaseTestCase {
             } else {
                 assertNotSame(col, 0, results[0].getLong(col));
             }
+        } // FOR
+    }
+    
+    /**
+     * testMultipleEvictions
+     */
+    @Test
+    public void testEvictTuplesMultiple() throws Exception {
+        // Just checks whether we can call evictBlock multiple times
+        
+        // Load in a bunch of dummy data for this table
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        assertNotNull(vt);
+        for (int i = 0; i < NUM_TUPLES; i++) {
+            Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
+            row[0] = Integer.valueOf(i);
+            vt.addRow(row);
+        } // FOR
+        this.executor.loadTable(1000l, catalog_tbl, vt, false);
+
+        int locators[] = new int[] { catalog_tbl.getRelativeIndex() };
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
+        System.err.println(StringUtil.repeat("=", 100));
+        
+        
+        // Now force the EE to evict our boys out in multiple rounds
+        VoltTable evictResult = null;
+        for (int i = 0; i < 5; i++) {
+            if (i > 0) {
+                System.err.println(StringUtil.repeat("-", 100));
+                ThreadUtil.sleep(1000);
+            }
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512);
+            System.err.println(VoltTableUtil.format(evictResult));
+            assertNotNull(evictResult);
+            assertEquals(1, evictResult.getRowCount());
+            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+            evictResult.resetRowPosition();
+            boolean adv = evictResult.advanceRow();
+            assertTrue(adv);
         } // FOR
     }
 
