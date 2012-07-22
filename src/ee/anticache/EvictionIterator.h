@@ -44,30 +44,29 @@
  */
 
 
-#ifndef ANTICACHEEVICTIONMANAGER_H
-#define ANTICACHEEVICTIONMANAGER_H
+#ifndef EVICTIONITERATOR_H
+#define EVICTIONITERATOR_H
 
 #include "storage/TupleIterator.h"
-#include "storage/tableiterator.h"
+#include "storage/table.h"
 
 namespace voltdb {
-    
-
+ 
 class EvictionIterator : public TupleIterator
 {
     
 public: 
     
-    EvictionIterator(const Table *table); 
+    EvictionIterator(Table* t); 
     ~EvictionIterator(); 
     
+    bool hasNext(); 
     bool next(TableTuple &out);
     
 private: 
     
-    int next_tuple_id; 
-    TableIterator *table_itr; 
-    
+    Table *table;     
+    int current_tuple_id; 
 }; 
 
 }

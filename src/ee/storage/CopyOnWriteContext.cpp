@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cassert>
 #include <boost/crc.hpp>
+#include "common/tabletuple.h"
 
 /**
  * Matches the allocations size in persistenttable.cpp. It's a terrible idea to cut and paste
@@ -30,16 +31,6 @@
  */
 #ifndef MEMCHECK
 #define TABLE_BLOCKSIZE 2097152
-#endif
-
-#ifdef ANTICACHE
-
-#define TUPLE_HEADER_SIZE 5
-
-#else
-
-#define TUPLE_HEADER_SIZE 1
-
 #endif
 
 
