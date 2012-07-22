@@ -21,12 +21,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package edu.brown.api;
+package edu.brown.api.results;
 
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.results.BenchmarkResults;
+import edu.brown.api.BenchmarkController;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
