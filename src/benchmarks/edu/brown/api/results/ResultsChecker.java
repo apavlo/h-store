@@ -69,4 +69,16 @@ public class ResultsChecker extends EventObservable<String> implements Benchmark
         }
         this.lastDelta = txnDelta;
     }
+
+    @Override
+    public void markEvictionStart() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void markEvictionStop() {
+        // TODO Auto-generated method stub
+        
+    }
 }

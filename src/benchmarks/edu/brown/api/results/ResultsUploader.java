@@ -322,4 +322,16 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
 
         return username;
     }
+
+    @Override
+    public void markEvictionStart() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void markEvictionStop() {
+        // TODO Auto-generated method stub
+        
+    }
 }
