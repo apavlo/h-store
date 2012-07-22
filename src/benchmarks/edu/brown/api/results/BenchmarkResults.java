@@ -296,7 +296,7 @@ public class BenchmarkResults {
     
     private Pair<Long, Long> CACHE_computeTotalAndDelta = null;
 
-    BenchmarkResults(long pollIntervalInMillis, long durationInMillis, int clientCount) {
+    public BenchmarkResults(long pollIntervalInMillis, long durationInMillis, int clientCount) {
         assert((durationInMillis % pollIntervalInMillis) == 0) : "duration does not comprise an integral number of polling intervals.";
 
         m_durationInMillis = durationInMillis;
@@ -506,7 +506,7 @@ public class BenchmarkResults {
         return (finishedIntervalClone);
     }
 
-    BenchmarkResults copy() {
+    public BenchmarkResults copy() {
         BenchmarkResults clone = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
         if (this.enableBasePartitions) {

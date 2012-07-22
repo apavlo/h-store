@@ -107,8 +107,6 @@ public class BenchmarkConfig {
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
     
-    public boolean jsonOutput;
-    
     public final Map<String, String> clientParameters = new TreeMap<String, String>();
     public final Map<String, String> siteParameters = new TreeMap<String, String>();
 
@@ -294,8 +292,6 @@ public class BenchmarkConfig {
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
-        
-        this.jsonOutput = jsonOutput;
         
         this.hstore_conf = hstore_conf;
         this.hstore_conf_path = hstore_conf_path;

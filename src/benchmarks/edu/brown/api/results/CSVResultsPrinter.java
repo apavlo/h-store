@@ -1,26 +1,3 @@
-/* This file is part of VoltDB.
- * Copyright (C) 2008-2010 VoltDB L.L.C.
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
-
 package edu.brown.api.results;
 
 import java.io.File;
@@ -30,7 +7,6 @@ import java.io.IOException;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -40,10 +16,10 @@ public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest 
 
     public static final ColumnInfo COLUMNS[] = {
         new ColumnInfo("INTERVAL", VoltType.INTEGER),
-        new ColumnInfo("TRANSACTIONS", VoltType.INTEGER),
-        new ColumnInfo("THROUGHPUT", VoltType.DECIMAL),
-        new ColumnInfo("LATENCY", VoltType.DECIMAL),
-        new ColumnInfo("CREATED", VoltType.TIMESTAMP),
+        new ColumnInfo("TRANSACTIONS", VoltType.BIGINT),
+        new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
+        new ColumnInfo("LATENCY", VoltType.FLOAT),
+        new ColumnInfo("CREATED", VoltType.BIGINT),
     };
 
     private final VoltTable results;
@@ -73,14 +49,14 @@ public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest 
         assert(p != null);
         
         long txnDelta = p.getSecond();
-        double tps = (txnDelta / (double)(br.getIntervalDuration()) * 1000.0);
+        double tps = txnDelta / (double)(br.getIntervalDuration()) * 1000.0;
         
         this.results.addRow(
             br.getCompletedIntervalCount(),
             txnDelta,
             tps,
-            null,
-            new TimestampType()
+            0,
+            System.currentTimeMillis()/1000
         );
     }
 }
