@@ -30,14 +30,15 @@ import java.util.Map;
 
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.BenchmarkController;
+import edu.brown.api.BenchmarkInterest;
 import edu.brown.api.results.BenchmarkResults.EntityResult;
 import edu.brown.api.results.BenchmarkResults.FinalResult;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
-public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
+public class ResultsPrinter implements BenchmarkInterest {
 
     private static final String COL_FORMATS[] = {
         "%23s:",
@@ -49,14 +50,16 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
     
     private static final String RESULT_FORMAT = "%.2f";
     
+    protected final boolean output_interval;
     protected final boolean output_clients;
     protected final boolean output_basepartitions;
     protected final boolean output_responses;
     
-    public ResultsPrinter(boolean output_clients, boolean output_basepartitions, boolean output_responses) {
-        this.output_clients = output_clients;
-        this.output_basepartitions = output_basepartitions;
-        this.output_responses = output_responses;
+    public ResultsPrinter(HStoreConf hstore_conf) {
+        this.output_interval = hstore_conf.client.output_interval;
+        this.output_clients = hstore_conf.client.output_clients;
+        this.output_basepartitions = hstore_conf.client.output_basepartitions;
+        this.output_responses = hstore_conf.client.output_basepartitions;
     }
     
     @Override
@@ -166,6 +169,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
+        if (this.output_interval == false) return;
+        
         Pair<Long, Long> p = results.computeTotalAndDelta();
         assert(p != null);
         long totalTxnCount = p.getFirst();
@@ -186,24 +191,16 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 totalTxnCount,
                 totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
 
-
-//        if ((pollIndex * results.getIntervalDuration()) >= duration) {
-//            // print the final results
-//            System.out.println(this.formatFinalResults(results));
-//        }
-
         System.out.flush();
     }
 
     @Override
     public void markEvictionStart() {
         // TODO Auto-generated method stub
-        
     }
 
     @Override
     public void markEvictionStop() {
         // TODO Auto-generated method stub
-        
     }
 }

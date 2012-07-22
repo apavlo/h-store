@@ -45,12 +45,16 @@
 <arg value="client.codespeed_executable=${client.codespeed_executable}" />
 <arg value="client.codespeed_commitid=${client.codespeed_commitid}" />
 <arg value="client.codespeed_branch=${client.codespeed_branch}" />
+<arg value="client.output_interval=${client.output_interval}" />
 <arg value="client.output_clients=${client.output_clients}" />
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.profiling=${client.profiling}" />
+<arg value="client.anticache_enable=${client.anticache_enable}" />
+<arg value="client.anticache_evict_interval=${client.anticache_evict_interval}" />
+<arg value="client.anticache_evict_size=${client.anticache_evict_size}" />
 
 <!-- SITE -->
 <arg value="site.log_dir=${site.log_dir}" />

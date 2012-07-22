@@ -229,13 +229,6 @@ public class BenchmarkController {
         }
     };
     
-    public static interface BenchmarkInterest {
-        public String formatFinalResults(BenchmarkResults results);
-        public void benchmarkHasUpdated(BenchmarkResults currentResults);
-        public void markEvictionStart();
-        public void markEvictionStop();
-    }
-
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
         m_config = config;
@@ -880,34 +873,45 @@ public class BenchmarkController {
         // Let 'er rip!
         ThreadUtil.runGlobalPool(runnables);
 
-        BenchmarkInterest rp = null;
-        if (hstore_conf.client.output_json) {
-            rp = new JSONResultsPrinter(hstore_conf.client.output_clients,
-                                        hstore_conf.client.output_basepartitions,
-                                        hstore_conf.client.output_response_status);
-        }
-        else if (hstore_conf.client.output_csv) {
-            File f = new File(this.getProjectName() + ".csv");
-            rp = new CSVResultsPrinter(f);
-        }
-        else {
-            rp = new ResultsPrinter(hstore_conf.client.output_clients,
-                                    hstore_conf.client.output_basepartitions,
-                                    hstore_conf.client.output_response_status);
-        }
-        this.registerInterest(rp);
+        // ----------------------------------------------------------------------------
+        // RESULT PRINTING SETUP
+        // ----------------------------------------------------------------------------
         
+        // JSON Output
+        if (hstore_conf.client.output_json) {
+            this.registerInterest(new JSONResultsPrinter(hstore_conf));
+        }
+        // Default Table Output
+        else {
+            this.registerInterest(new ResultsPrinter(hstore_conf));
+        }
+        
+        // CSV Output
+        if (hstore_conf.client.output_csv) {
+            File f = new File(this.getProjectName() + ".csv");
+            this.registerInterest(new CSVResultsPrinter(f));
+        }
+
+        // Kill Benchmark on Zero Results
         if (m_config.killOnZeroResults) {
             if (debug.get()) LOG.debug("Will kill benchmark if results are zero for two poll intervals");
             ResultsChecker checker = new ResultsChecker(this.failure_observer);
             this.registerInterest(checker);
         }
         
+        // ----------------------------------------------------------------------------
+        // RESULT PRINTING SETUP
+        // ----------------------------------------------------------------------------
+        
         Database catalog_db = CatalogUtil.getDatabase(this.catalog); 
-        if (CatalogUtil.getEvictableTables(catalog_db).isEmpty() == false) {
+        if (hstore_conf.client.anticache_enable &&
+            CatalogUtil.getEvictableTables(catalog_db).isEmpty() == false) {
             this.evictorThread = new PeriodicEvictionThread(
-                                        catalog_db, getClientConnection(), rp);
-            this.threadPool.scheduleWithFixedDelay(this.evictorThread, 0, 30, TimeUnit.SECONDS);
+                                        catalog_db, getClientConnection(),
+                                        hstore_conf.client.anticache_evict_size, m_interested);
+            int interval = hstore_conf.client.anticache_evict_interval;
+            this.threadPool.scheduleWithFixedDelay(this.evictorThread,
+                                                   interval, interval, TimeUnit.MILLISECONDS);
         }
         
     }

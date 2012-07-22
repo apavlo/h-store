@@ -14,9 +14,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.EvictTuples;
 
-import edu.brown.api.BenchmarkController.BenchmarkInterest;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.AntiCacheManager;
 
 /**
  * Special thread to execute the @EvictTuples sysproc and update
@@ -32,13 +30,13 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     private final String procName = "@" + EvictTuples.class.getSimpleName();
     private final String tableNames[];
     private final long evictionSize[];
-    private final BenchmarkInterest results[];
+    private final Collection<BenchmarkInterest> printers;
     private final AtomicInteger callbacks = new AtomicInteger();
     
-    public PeriodicEvictionThread(Database database, Client client, BenchmarkInterest...results) {
+    public PeriodicEvictionThread(Database database, Client client, long blockSize, Collection<BenchmarkInterest> printers) {
         this.database = database;
         this.client = client;
-        this.results = results;
+        this.printers = printers;
         
         Collection<Table> evictables = CatalogUtil.getEvictableTables(this.database);
         this.tableNames = new String[evictables.size()];
@@ -46,7 +44,7 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
         int i = 0;
         for (Table catalog_tbl : evictables) {
             this.tableNames[i] = catalog_tbl.getName();
-            this.evictionSize[i] = AntiCacheManager.DEFAULT_EVICTED_BLOCK_SIZE;
+            this.evictionSize[i] = blockSize;
             i++;
         } // FOR
     }
@@ -60,7 +58,7 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
         LOG.info("Invoking " + this.procName + " on " + num_partitions + " partitions");
         
         // Let all our BenchmarkInterests know that we are doing an eviction now
-        for (BenchmarkInterest b : this.results) {
+        for (BenchmarkInterest b : this.printers) {
             b.markEvictionStart();
         } // FOR
         for (int p = 0; p < num_partitions; p++) {
@@ -80,7 +78,7 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
         if (LOG.isDebugEnabled())
             LOG.debug(clientResponse); 
         if (this.callbacks.decrementAndGet() == 0) {
-            for (BenchmarkInterest b : this.results) {
+            for (BenchmarkInterest b : this.printers) {
                 b.markEvictionStop();
             } // FOR
         }

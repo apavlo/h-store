@@ -4,24 +4,25 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import edu.brown.api.results.BenchmarkResults.FinalResult;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
 public class JSONResultsPrinter extends ResultsPrinter {
    
-    public JSONResultsPrinter(boolean output_clients, boolean output_basepartitions, boolean output_responses) {
-        super(output_clients, output_basepartitions, output_responses);
+    public JSONResultsPrinter(HStoreConf hstore_conf) {
+        super(hstore_conf);
     }
     
     @Override
     public String formatFinalResults(BenchmarkResults results) {
-        if (output_basepartitions) {
+        if (this.output_basepartitions) {
             System.out.print(StringUtil.SINGLE_LINE);
             System.out.println("Base Partition Distribution:\n" + results.getBasePartitions());
             System.out.print(StringUtil.SINGLE_LINE);
         }
-        if (output_responses) {
+        if (this.output_responses) {
             System.out.print(StringUtil.SINGLE_LINE);
             System.out.println("Client Response Statuses:\n" + results.getResponseStatuses());
             System.out.print(StringUtil.SINGLE_LINE);
