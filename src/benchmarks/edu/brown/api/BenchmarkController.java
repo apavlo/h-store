@@ -91,6 +91,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.results.BenchmarkResults;
+import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
 import edu.brown.api.results.ResultsPrinter;
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -867,12 +868,17 @@ public class BenchmarkController {
         // Let 'er rip!
         ThreadUtil.runGlobalPool(runnables);
 
-        ResultsPrinter rp = null;
-        if (m_config.jsonOutput) {
+        BenchmarkInterest rp = null;
+        if (hstore_conf.client.output_json) {
             rp = new JSONResultsPrinter(hstore_conf.client.output_clients,
                                         hstore_conf.client.output_basepartitions,
                                         hstore_conf.client.output_response_status);
-        } else {
+        }
+        else if (hstore_conf.client.output_csv) {
+            File f = new File(this.getProjectName() + ".csv");
+            rp = new CSVResultsPrinter(f);
+        }
+        else {
             rp = new ResultsPrinter(hstore_conf.client.output_clients,
                                     hstore_conf.client.output_basepartitions,
                                     hstore_conf.client.output_response_status);
