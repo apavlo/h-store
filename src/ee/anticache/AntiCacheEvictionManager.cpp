@@ -152,6 +152,7 @@ bool AntiCacheEvictionManager::removeTupleFromChain(PersistentTable* table, int 
     
     uint32_t newest_tuple_id = table->getNewestTupleID(); 
 
+    previous_tuple_id = 0; 
     current_tuple_id = table->getOldestTupleID(); 
     TableTuple tuple = table->tempTuple();
     tuple.move(table->dataPtrForTuple(current_tuple_id)); 

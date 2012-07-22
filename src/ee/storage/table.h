@@ -111,6 +111,7 @@ class Table {
     friend class ExecutionEngine;
     friend class TableStats;
     friend class StatsSource;
+    friend class EvictionIterator; 
 
   private:
     // no default constructor, no copy

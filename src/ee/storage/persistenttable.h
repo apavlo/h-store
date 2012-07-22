@@ -78,6 +78,7 @@ class RecoveryProtoMsg;
 #ifdef ANTICACHE
 class EvictedTable;
 class AntiCacheEvictionManager; 
+class EvictionIterator;
 #endif
 
 /**

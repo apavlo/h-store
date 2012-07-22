@@ -78,6 +78,7 @@
 #include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
 #include "anticache/AntiCacheDB.h"
+#include "anticache/EvictionIterator.h"
 #endif
 
 #include <map>
@@ -210,6 +211,7 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     //       shove them out to our new block.
     TableTuple tuple(m_schema);
     TableIterator table_itr(this);
+    EvictionIterator evict_itr(this); 
     
     #ifdef VOLT_INFO_ENABLED
     VOLT_INFO("Starting evictable tuple iterator for %s", name().c_str());
@@ -217,8 +219,10 @@ bool PersistentTable::evictBlockToDisk(const long block_size) {
     int64_t origEvictedTableSize = m_evictedTable->activeTupleCount();
     #endif
     
-    while (table_itr.hasNext()) {
-        table_itr.next(tuple);
+    //while (table_itr.hasNext()) {
+    while (evict_itr.hasNext()) {
+        //table_itr.next(tuple);
+        evict_itr.next(tuple); 
         VOLT_DEBUG("Next Tuple: %s", tuple.debug(name()).c_str());
         
         // If this is the first tuple, then we need to allocate all of the memory and
