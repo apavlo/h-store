@@ -659,6 +659,10 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                         // equivalent types of input and column
 
                         switch (columnType) {
+                        case BOOLEAN:
+                            byte val = (((Boolean)value).booleanValue() ? (byte)1 : (byte)0);
+                            m_buffer.put(val);
+                            break;
                         case TINYINT:
                             if (value instanceof BigDecimal)
                                 throw new ClassCastException();
@@ -777,6 +781,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
                     throw vte;
                 }
                 catch (ClassCastException cce) {
+                    cce.printStackTrace();
                     // revert any added tuples and strings
                     m_buffer.position(pos);
                     throw new VoltTypeException("Value for column " + col + " (" +

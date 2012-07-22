@@ -66,6 +66,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -179,6 +181,9 @@ public class BenchmarkController {
     private int totalNumClients;
     protected CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
+    protected PeriodicEvictionThread evictorThread;
+    private final EventObservableExceptionHandler exceptionHandler = new EventObservableExceptionHandler();
+    private final ScheduledThreadPoolExecutor threadPool;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
@@ -200,8 +205,6 @@ public class BenchmarkController {
      */
     private final BenchmarkClientFileUploader m_clientFileUploader = new BenchmarkClientFileUploader();
     private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
-
-    
     
     // ProcessSetManager Failure Callback
     final EventObserver<String> failure_observer = new EventObserver<String>() {
@@ -317,6 +320,11 @@ public class BenchmarkController {
                     config.snapshotPath,
                     config.snapshotPrefix);
         }
+        
+        this.threadPool = ThreadUtil.getScheduledThreadPoolExecutor(
+                "benchmark",
+                this.exceptionHandler,
+                2, 1024 * 128);
     }
     
     public String getProjectName() {
@@ -894,6 +902,14 @@ public class BenchmarkController {
             ResultsChecker checker = new ResultsChecker(this.failure_observer);
             this.registerInterest(checker);
         }
+        
+        Database catalog_db = CatalogUtil.getDatabase(this.catalog); 
+        if (CatalogUtil.getEvictableTables(catalog_db).isEmpty() == false) {
+            this.evictorThread = new PeriodicEvictionThread(
+                                        catalog_db, getClientConnection(), rp);
+            this.threadPool.scheduleWithFixedDelay(this.evictorThread, 0, 30, TimeUnit.SECONDS);
+        }
+        
     }
     
     private void addHostConnections(Collection<String> params) {

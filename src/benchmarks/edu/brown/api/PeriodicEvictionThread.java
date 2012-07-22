@@ -6,6 +6,7 @@ package edu.brown.api;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
@@ -23,6 +24,8 @@ import edu.brown.hstore.AntiCacheManager;
  * @author pavlo
  */
 public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
+    private static final Logger LOG = Logger.getLogger(PeriodicEvictionThread.class);
+    
     private final Database database;
     private final Client client;
     
@@ -51,7 +54,10 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     @Override
     public void run() {
         int num_partitions = CatalogUtil.getNumberOfPartitions(database);
+        if (this.callbacks.get() != 0) return;
         this.callbacks.set(num_partitions);
+        
+        LOG.info("Invoking " + this.procName + " on " + num_partitions + " partitions");
         
         // Let all our BenchmarkInterests know that we are doing an eviction now
         for (BenchmarkInterest b : this.results) {
@@ -71,6 +77,8 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
 
     @Override
     public void clientCallback(ClientResponse clientResponse) {
+        if (LOG.isDebugEnabled())
+            LOG.debug(clientResponse); 
         if (this.callbacks.decrementAndGet() == 0) {
             for (BenchmarkInterest b : this.results) {
                 b.markEvictionStop();
