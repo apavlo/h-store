@@ -56,6 +56,9 @@ const void* EvictedTable::insertEvictedTuple(TableTuple &source) {
     // Then copy the source into the target
     m_tmpTarget1.copy(source);
     m_tmpTarget1.setDeletedFalse();
+    
+    // Make sure this tuple is marked as evicted, so that we know it is an
+    // evicted tuple as we iterate through the index
     m_tmpTarget1.setEvictedTrue(); 
     
     return m_tmpTarget1.address(); 

@@ -441,13 +441,20 @@ public final class HStoreConf {
         )
         public boolean anticache_enable;
         
-        
         @ConfigProperty(
             description="The directory to use to store the evicted tuples.",
             defaultString="${global.temp_dir}/anticache",
             experimental=true
         )
         public String anticache_dir;
+        
+        @ConfigProperty(
+            description="Reset the anti-cache database directory for each partition when " +
+            		    "the HStoreSite is started.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_reset;
         
         @ConfigProperty(
             description="How often in milliseconds should the AntiCacheManager check whether " +
@@ -1816,6 +1823,7 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
+            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type", v, k));
             
             if (f_class.equals(int.class)) {
                 value = Integer.parseInt(v);
@@ -1963,23 +1971,31 @@ public final class HStoreConf {
         return (conf != null);
     }
     
-    private static HStoreConf confHelper;
-    public static boolean isConfParameter(String name) {
+    /**
+     * Returns true if the given string is a valid HStoreConf parameter
+     * @param name
+     * @return
+     */
+    public boolean hasParameter(String name) {
         Matcher m = REGEX_PARSE.matcher(name);
         if (m.find()) {
-            if (confHelper == null) {
-                synchronized (HStoreConf.class) {
-                    if (confHelper == null) {
-                        confHelper = new HStoreConf();
-                    }
-                } // SYNCH
-            }
-
-            Conf c = confHelper.confHandles.get(m.group(1));
+            Conf c = this.confHandles.get(m.group(1));
             assert(c != null) : "Unexpected null Conf for '" + m.group(1) + "'";
             return (c.hasParameter(m.group(2)));
         }
         return (false);
+    }
+    
+    private static HStoreConf confHelper;
+    public static boolean isConfParameter(String name) {
+        if (confHelper == null) {
+            synchronized (HStoreConf.class) {
+                if (confHelper == null) {
+                    confHelper = new HStoreConf();
+                }
+            } // SYNCH
+        }
+        return confHelper.hasParameter(name);
     }
 
 }

@@ -65,6 +65,7 @@ public:
     
 private: 
     
+    int next_tuple_id; 
     TableIterator *table_itr; 
     
 }; 

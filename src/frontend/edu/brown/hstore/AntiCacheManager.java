@@ -95,7 +95,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void run() {
             try {
-                if (checkEviction()) executeEviction();
+                if (hstore_conf.site.anticache_enable && checkEviction()) {
+                    executeEviction();
+                }
             } catch (Throwable ex) {
                 ex.printStackTrace();
             }
@@ -109,6 +111,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         @Override
         public void run(ClientResponseImpl parameter) {
             LOG.info("Eviction Response:\n" + VoltTableUtil.format(parameter.getResults()));
+            LOG.info(String.format("Execution Time: %.1f sec", parameter.getClusterRoundtrip() / 1000d));
         }
     };
     
@@ -310,10 +313,11 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
                                                                        executor.getPartitionId());
 
         File dbDirPath = new File(base_dir + File.separatorChar + partitionName);
+        if (hstore_conf.site.anticache_reset) {
+            LOG.warn(String.format("Deleting anti-cache directory '%s'", dbDirPath));
+            FileUtil.deleteDirectory(dbDirPath);
+        }
         FileUtil.makeDirIfNotExists(dbDirPath);
-        
-        // TODO: What do we do if the directory already exists?
-        //       There should be an HStoreConf that says we should delete it first
         
         return (dbDirPath);
     }

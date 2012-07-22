@@ -97,15 +97,18 @@ void AntiCacheEvictionManager::initEvictResultTable() {
                                                         NULL));
 }
     
-bool AntiCacheEvictionManager::updateTuple(Table* table, TableTuple* tuple)
-{
-    // TODO: Implement mechanism to determine least recently used tuples
-    
+bool AntiCacheEvictionManager::updateTuple(Table* table, TableTuple* tuple, bool new_tuple)
+{    
     PersistentTable* ptable = static_cast<PersistentTable*> (table); 
     
     int current_tuple_id = table->getTupleID(tuple->address()); 
     
     assert(current_tuple_id > 0); 
+    
+    if(!new_tuple)
+    {
+        removeTupleFromChain(table, current_tuple_id); 
+    }
     
     // get the newest tuple in the LRU chain
     TableTuple newest_tuple(ptable->dataPtrForTuple(ptable->getNewestTupleID()), ptable->m_schema); 
@@ -114,9 +117,14 @@ bool AntiCacheEvictionManager::updateTuple(Table* table, TableTuple* tuple)
     newest_tuple.setTupleID(ptable->getNewestTupleID()); 
     
     // insert the tuple we're updating to be the newest (i.e. the back of the lru chain) for this table
-    ptable->setNewestTupleID(current_tuple_id); 
-    
+    ptable->setNewestTupleID(current_tuple_id);
+        
     return true; 
+}
+    
+void AntiCacheEvictionManager::removeTupleFromChain(Table* table, int tuple_id)
+{
+    // TODO: remove the tuple from the chain
 }
 
 Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize) {

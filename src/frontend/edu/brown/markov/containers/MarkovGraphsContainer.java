@@ -46,9 +46,6 @@ public class MarkovGraphsContainer implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(MarkovGraphsContainer.class);
     private static final boolean debug = LOG.isDebugEnabled();
     
-    private static final long serialVersionUID = 1L;
-    
-
     public enum Members {
         MARKOVS,
         CLASSNAME,
