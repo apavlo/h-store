@@ -51,9 +51,9 @@ if not os.path.exists(realpath):
     basename = os.path.basename(realpath)
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
-sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python")))
+sys.path.append(os.path.realpath(os.path.join(basedir, "../../tools")))
 import codespeed
-import argparse
 from fabric.api import *
 from fabric.network import *
 from fabric.contrib.files import *
