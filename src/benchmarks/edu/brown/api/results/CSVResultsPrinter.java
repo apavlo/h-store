@@ -3,6 +3,8 @@ package edu.brown.api.results;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.VoltTable;
@@ -20,24 +22,29 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         new ColumnInfo("TRANSACTIONS", VoltType.BIGINT),
         new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
         new ColumnInfo("LATENCY", VoltType.FLOAT),
-        new ColumnInfo("EVICTING", VoltType.BOOLEAN),
+        new ColumnInfo("EVICTING", VoltType.INTEGER),
         new ColumnInfo("CREATED", VoltType.BIGINT),
     };
 
-    private final VoltTable results;
+    private final List<Object[]> results = new ArrayList<Object[]>(); 
     private final File outputPath;
     private final AtomicBoolean evicting = new AtomicBoolean(false);
+    private Object last_eviction_row[] = null;
     
     public CSVResultsPrinter(File outputPath) {
-        this.results = new VoltTable(COLUMNS);
         this.outputPath = outputPath;
     }
     
     @Override
     public String formatFinalResults(BenchmarkResults br) {
+        VoltTable vt = new VoltTable(COLUMNS);
+        for (Object row[] : this.results) {
+            vt.addRow(row);
+        }
+        
         try {
             FileWriter writer = new FileWriter(this.outputPath);
-            VoltTableUtil.csv(writer, this.results, true);
+            VoltTableUtil.csv(writer, vt, true);
             writer.close();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -51,17 +58,25 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         Pair<Long, Long> p = br.computeTotalAndDelta();
         assert(p != null);
         
+        long time = br.getElapsedTime() / 1000;
         long txnDelta = p.getSecond();
         double tps = txnDelta / (double)(br.getIntervalDuration()) * 1000.0;
+        boolean new_eviction = this.evicting.compareAndSet(true, false);
         
-        this.results.addRow(
-            br.getCompletedIntervalCount(),
+        Object row[] = {
+            time,
             txnDelta,
             tps,
             0,
-            this.evicting.compareAndSet(true, false),
-            System.currentTimeMillis()/1000
-        );
+            0,
+            Long.valueOf(System.currentTimeMillis())
+        };
+        this.results.add(row);
+        
+        if (new_eviction) {
+            assert(this.last_eviction_row == null);
+            this.last_eviction_row = row;
+        }
     }
     
     @Override
@@ -71,6 +86,9 @@ public class CSVResultsPrinter implements BenchmarkInterest {
 
     @Override
     public void markEvictionStop() {
-        // Do nothing...
+        assert(this.last_eviction_row != null);
+        Object row[] = this.last_eviction_row;
+        this.last_eviction_row = null;
+        row[4] = System.currentTimeMillis() - (Long)row[5];
     }
 }

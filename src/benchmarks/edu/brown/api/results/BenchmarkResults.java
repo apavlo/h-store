@@ -337,6 +337,14 @@ public class BenchmarkResults {
         return (this.completedIntervals);
     }
 
+    /**
+     * Return the total elapsed time of the benchmark in milliseconds
+     */
+    public long getElapsedTime() {
+        return (this.completedIntervals * this.m_pollIntervalInMillis);
+    }
+    
+    
     public long getIntervalDuration() {
         return m_pollIntervalInMillis;
     }
