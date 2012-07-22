@@ -1738,6 +1738,10 @@ public class BenchmarkController {
             LOG.error("Duration is specified in milliseconds");
             System.exit(-1);
         }
+        else if (hstore_conf.client.threads_per_host <= 0) {
+            LOG.error("Invalid number of threads per host '" + hstore_conf.client.threads_per_host + "'");
+            System.exit(-1);
+        }
         
         // The number of client hosts to place client processes on
         int clientCount = hstore_conf.client.count;
