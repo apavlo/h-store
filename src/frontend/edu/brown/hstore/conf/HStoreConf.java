@@ -1328,6 +1328,14 @@ public final class HStoreConf {
         public String codespeed_branch;
         
         @ConfigProperty(
+            description="Output a status update about the benchmark run at the end of each interval defined "+
+                        "by ${client.interval}.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_interval;
+        
+        @ConfigProperty(
             description="Output a breakdown at the end of a benchmark run of the number of transactions " +
             		    "that each unique client thread executed successfully.",
             defaultBoolean=false,
@@ -1372,6 +1380,32 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean profiling;
+        
+        @ConfigProperty(
+            description="If set to true, then the BenchmarkController will periodically send requests to " +
+                        "the H-Store cluster to evict tuples into the anti-cache database. Note that " + 
+                        "${site.anticache_enable} must be set to true when the cluster is started.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_enable;
+        
+        @ConfigProperty(
+            description="This parameter defines how often in milliseconds the BenchmarkController will " +
+                        "send request to evict tuples from all of the tables marked as evictable. " +
+                        "Both ${site.anticache_enable} and ${client.anticache_enable} must be set to true.",
+            defaultInt=30000,
+            experimental=true
+        )
+        public int anticache_evict_interval;
+        
+        @ConfigProperty(
+            description="Defines the block size in bytes that will be evicted for each eviction request" +
+                        "Both ${site.anticache_enable} and ${client.anticache_enable} must be set to true.",
+            defaultInt=2097152,
+            experimental=true
+        )
+        public int anticache_evict_size;
     }
     
     /**

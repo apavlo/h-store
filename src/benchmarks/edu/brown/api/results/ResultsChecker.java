@@ -26,13 +26,13 @@ package edu.brown.api.results;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.BenchmarkController;
+import edu.brown.api.BenchmarkInterest;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 
-public class ResultsChecker extends EventObservable<String> implements BenchmarkController.BenchmarkInterest {
+public class ResultsChecker extends EventObservable<String> implements BenchmarkInterest {
     private static final Logger LOG = Logger.getLogger(ResultsChecker.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());

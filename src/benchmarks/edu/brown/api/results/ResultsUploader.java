@@ -33,11 +33,11 @@ import java.util.Map.Entry;
 import org.voltdb.processtools.SSHTools;
 
 import edu.brown.api.BenchmarkConfig;
-import edu.brown.api.BenchmarkController;
+import edu.brown.api.BenchmarkInterest;
 import edu.brown.hstore.conf.HStoreConf;
 
 
-public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
+public class ResultsUploader implements BenchmarkInterest {
 
     Connection m_conn = null;
     Statement m_stmt = null;

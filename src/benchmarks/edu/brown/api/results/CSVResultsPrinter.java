@@ -11,9 +11,9 @@ import org.voltdb.VoltType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.api.BenchmarkController;
+import edu.brown.api.BenchmarkInterest;
 
-public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest {
+public class CSVResultsPrinter implements BenchmarkInterest {
 
     public static final ColumnInfo COLUMNS[] = {
         new ColumnInfo("INTERVAL", VoltType.INTEGER),
