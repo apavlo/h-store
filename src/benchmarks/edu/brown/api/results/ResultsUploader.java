@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package edu.brown.api;
+package edu.brown.api.results;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -32,8 +32,8 @@ import java.util.Map.Entry;
 
 import org.voltdb.processtools.SSHTools;
 
-import edu.brown.api.results.BenchmarkResults;
-import edu.brown.api.results.BenchmarkResults.Result;
+import edu.brown.api.BenchmarkConfig;
+import edu.brown.api.BenchmarkController;
 import edu.brown.hstore.conf.HStoreConf;
 
 
@@ -50,7 +50,7 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
     final HashMap<String, String> m_clientArgs = new HashMap<String, String>();
     final HashMap<String, String> m_hostArgs = new HashMap<String, String>();
 
-    ResultsUploader(String benchmarkName, BenchmarkConfig config) {
+    public ResultsUploader(String benchmarkName, BenchmarkConfig config) {
         assert(config != null);
         m_config = config;
         hstore_conf = config.hstore_conf; // XXX
@@ -195,10 +195,10 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
                 m_stmt.executeUpdate(sql.toString());
 
                 for (String txnName : results.getTransactionNames()) {
-                    Result[] rset = results.getResultsForClientAndTransaction(clientName, txnName);
+                    BenchmarkResults.Result[] rset = results.getResultsForClientAndTransaction(clientName, txnName);
 
                     for (int i = 0; i < rset.length; i++) {
-                        Result r = rset[i];
+                        BenchmarkResults.Result r = rset[i];
 
                         sql = new StringBuilder();
                         sql.append("INSERT INTO resultparts (`resultid`, `clienthost`, `processindex`, `transaction`, `interval`, `count`) values (");
