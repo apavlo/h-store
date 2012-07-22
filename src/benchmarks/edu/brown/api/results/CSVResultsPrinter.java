@@ -3,6 +3,7 @@ package edu.brown.api.results;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
@@ -19,11 +20,13 @@ public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest 
         new ColumnInfo("TRANSACTIONS", VoltType.BIGINT),
         new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
         new ColumnInfo("LATENCY", VoltType.FLOAT),
+        new ColumnInfo("EVICTING", VoltType.BOOLEAN),
         new ColumnInfo("CREATED", VoltType.BIGINT),
     };
 
     private final VoltTable results;
     private final File outputPath;
+    private final AtomicBoolean evicting = new AtomicBoolean(false);
     
     public CSVResultsPrinter(File outputPath) {
         this.results = new VoltTable(COLUMNS);
@@ -56,19 +59,18 @@ public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest 
             txnDelta,
             tps,
             0,
+            this.evicting.compareAndSet(true, false),
             System.currentTimeMillis()/1000
         );
     }
     
     @Override
     public void markEvictionStart() {
-        // TODO Auto-generated method stub
-        
+        this.evicting.set(true);
     }
 
     @Override
     public void markEvictionStop() {
-        // TODO Auto-generated method stub
-        
+        // Do nothing...
     }
 }
