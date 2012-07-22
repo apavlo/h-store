@@ -909,9 +909,6 @@ public class BenchmarkController {
             this.evictorThread = new PeriodicEvictionThread(
                                         catalog_db, getClientConnection(),
                                         hstore_conf.client.anticache_evict_size, m_interested);
-            int interval = hstore_conf.client.anticache_evict_interval;
-            this.threadPool.scheduleWithFixedDelay(this.evictorThread,
-                                                   interval, interval, TimeUnit.MILLISECONDS);
         }
         
     }
@@ -1105,6 +1102,13 @@ public class BenchmarkController {
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to recompute Markov models", ex);
                     }
+                }
+                
+                // Schedule PeriodicEvictionThread
+                if (this.evictorThread != null) {
+                    int interval = hstore_conf.client.anticache_evict_interval;
+                    this.threadPool.scheduleWithFixedDelay(this.evictorThread,
+                                                           interval, interval, TimeUnit.MILLISECONDS);
                 }
                 
                 // Reset the counters
