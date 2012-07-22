@@ -48,7 +48,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    protected static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
+    public static final long DEFAULT_EVICTED_BLOCK_SIZE = 2097152; // 2MB
     
     // ----------------------------------------------------------------------------
     // INTERNAL QUEUE ENTRY

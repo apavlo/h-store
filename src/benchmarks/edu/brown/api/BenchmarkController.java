@@ -229,6 +229,8 @@ public class BenchmarkController {
     public static interface BenchmarkInterest {
         public String formatFinalResults(BenchmarkResults results);
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
+        public void markEvictionStart();
+        public void markEvictionStop();
     }
 
     @SuppressWarnings("unchecked")

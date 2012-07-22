@@ -59,4 +59,16 @@ public class CSVResultsPrinter implements BenchmarkController.BenchmarkInterest 
             System.currentTimeMillis()/1000
         );
     }
+    
+    @Override
+    public void markEvictionStart() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void markEvictionStop() {
+        // TODO Auto-generated method stub
+        
+    }
 }
