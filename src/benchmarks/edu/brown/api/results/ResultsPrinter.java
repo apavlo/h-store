@@ -59,7 +59,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         this.output_interval = hstore_conf.client.output_interval;
         this.output_clients = hstore_conf.client.output_clients;
         this.output_basepartitions = hstore_conf.client.output_basepartitions;
-        this.output_responses = hstore_conf.client.output_basepartitions;
+        this.output_responses = hstore_conf.client.output_response_status;
     }
     
     @Override
