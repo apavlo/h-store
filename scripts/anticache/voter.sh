@@ -1,20 +1,22 @@
 #!/bin/bash -x
 
+# ---------------------------------------------------------------------
+
+trap onexit 1 2 3 15
+function onexit() {
+    local exit_status=${1:-$?}
+    pkill -f hstore.tag
+    exit $exit_status
+}
+
+# ---------------------------------------------------------------------
+
 SITE_HOST="modis"
 
 CLIENT_HOSTS=( \
-    "saw" \
-    "saw" \
-    "saw" \
-    "vise" \
-    "vise" \
-    "vise" \
-#     "modis" \
-#     "modis" \
-#     "modis" \
-    "vise5" \
-    "vise5" \
-    "vise5" \
+    "modis" \
+    # "saw" \
+    # "saw" \
 )
 
 BASE_CLIENT_THREADS=3
@@ -24,16 +26,16 @@ BASE_PROJECT="voter"
 BASE_DIR=`pwd`
 
 BASE_ARGS=( \
-#     "-Dsite.status_enable=false" \
+    "-Dsite.status_enable=false" \
     
     # SITE DEBUG
-    "-Dsite.status_enable=true" \
-    "-Dsite.status_interval=10000" \
-    "-Dsite.status_show_executor_info=true" \
-    "-Dsite.exec_profiling=true" \
-    "-Dsite.status_show_txn_info=true" \
-    "-Dsite.network_profiling=true" \
-    "-Dsite.log_backup=true"\
+#     "-Dsite.status_enable=true" \
+#     "-Dsite.status_interval=10000" \
+#     "-Dsite.status_show_executor_info=true" \
+#     "-Dsite.exec_profiling=true" \
+#     "-Dsite.status_show_txn_info=true" \
+#     "-Dsite.network_profiling=true" \
+#     "-Dsite.log_backup=true"\
     
     # Site Params
     "-Dsite.cpu_affinity_one_partition_per_core=true" \
@@ -55,23 +57,33 @@ BASE_ARGS=( \
     "-Dclient.throttle_backoff=100" \
     "-Dclient.profiling=true" \
 
+    # Anti-Caching Experiments
+    "-Dsite.anticache_enable=true" \
+    "-Dsite.anticache_check_interval=99999999" \
+    "-Dclient.interval=500" \
+    "-Dclient.output_csv=true" \
+    "-Dclient.anticache_enable=true" \
+    "-Dclient.anticache_evict_interval=30000" \
+    "-Dclient.anticache_evict_size=4194304" \
+    "-Dclient.output_csv=true" \
+
     # CLIENT DEBUG
 #     "-Dclient.output_response_status=true" \
 #     "-Dclient.output_basepartitions=true" \
 #     "-Dclient.jvm_args=\"-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:-TraceClassUnloading\"" \
 )
 
-trap onexit 1 2 3 15
-
-function onexit() {
-    local exit_status=${1:-$?}
-    pkill -f hstore.tag
-    exit $exit_status
-}
+EVICTABLE_TABLES=( \
+    "votes" \
+)
+EVICTABLES=""
+for t in ${EVICTABLE_TABLES[@]}; do
+    EVICTABLES="${t},${EVICTABLES}"
+done
 
 # ant compile
 # for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
-for i in `seq 10 11` ; do
+for i in 8; do
 
     HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
 #     NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
@@ -83,13 +95,20 @@ for i in `seq 10 11` ; do
 #     fi
     SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
     
-    ant hstore-prepare -Dproject=${BASE_PROJECT} -Dhosts=${HSTORE_HOSTS} 
+    # BUILD PROJECT JAR
+    ant hstore-prepare \
+        -Dproject=${BASE_PROJECT} \
+        -Dhosts=${HSTORE_HOSTS} \
+        -Devictable=${EVICTABLES}
     test -f ${BASE_PROJECT}.jar || exit -1
     
+    # UPDATE CLIENTS
     CLIENT_COUNT=0
     CLIENT_HOSTS_STR=""
     for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
-        scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR}
+        if [ $CLIENT_HOST != $SITE_HOST ]; then
+            scp -r ${BASE_PROJECT}.jar ${CLIENT_HOST}:${BASE_DIR}
+        fi
         CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
         if [ ! -z "$CLIENT_HOSTS_STR" ]; then
             CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR},"
@@ -97,6 +116,7 @@ for i in `seq 10 11` ; do
         CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}${CLIENT_HOST}"
     done
     
+    # EXECUTE BENCHMARK
     ant hstore-benchmark ${BASE_ARGS[@]} \
         -Dproject=${BASE_PROJECT} \
         -Dkillonzero=true \
