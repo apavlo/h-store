@@ -334,8 +334,8 @@ protected:
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
     
-    uint32_t m_oldest_tuple_id; 
-    uint32_t m_newest_tuple_id; 
+    uint32_t m_oldestTupleID; 
+    uint32_t m_newestTupleID; 
 #endif
     
     // partition key

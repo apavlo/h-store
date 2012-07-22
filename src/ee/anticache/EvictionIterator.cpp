@@ -54,6 +54,7 @@ namespace voltdb {
 EvictionIterator::EvictionIterator(const Table *table)
 {
     table_itr = new TableIterator(table); 
+    //next_tuple_id = table->getOldestTupleID(); 
 }
 
 EvictionIterator::~EvictionIterator()

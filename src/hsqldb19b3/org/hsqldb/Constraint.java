@@ -1046,7 +1046,7 @@ public final class Constraint implements SchemaObject {
             sb.append(indent).append("<constraint");
             sb.append(" name='").append(getName().name).append("'");
             sb.append(" type='").append(getTypeName()).append("'");
-
+            
             // Foreign Keys
             if (this.constType == FOREIGN_KEY) {
                 Table our_table = this.getRef();
@@ -1054,6 +1054,11 @@ public final class Constraint implements SchemaObject {
 
                 Table fkey_table = this.getMain();
                 int fkey_cols[] = this.getMainColumns();
+                
+                if (core.refIndex != null)
+                    sb.append(" index='").append(core.refIndex.getName().name).append("'");
+                else
+                    sb.append(" index=''");
 
                 sb.append(" foreignkeytable='").append(fkey_table.getName().statementName).append("'");
                 sb.append(" >\n");
@@ -1070,14 +1075,12 @@ public final class Constraint implements SchemaObject {
                     sb.append(" />\n");
                 }
                 sb.append(indent).append("</constraint>\n");
-
             // All other constraints...
             } else {
                 if (core.mainIndex != null)
                     sb.append(" index='").append(core.mainIndex.getName().name).append("'");
                 else
                     sb.append(" index=''");
-
                 sb.append(" />\n");
             }
         }

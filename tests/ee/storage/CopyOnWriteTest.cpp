@@ -267,9 +267,11 @@ TEST_F(CopyOnWriteTest, TestTableTupleFlags) {
     ASSERT_TRUE(tuple.isActive());
     ASSERT_FALSE(tuple.isDirty());
     
+#ifdef ANTICACHE
     ASSERT_FALSE(tuple.isEvicted());
     tuple.setEvictedTrue();
     ASSERT_TRUE(tuple.isEvicted());
+#endif ANTICACHE
 }
 
 TEST_F(CopyOnWriteTest, BigTest) {
@@ -281,9 +283,10 @@ TEST_F(CopyOnWriteTest, BigTest) {
         voltdb::TableIterator iterator(m_table);
         TableTuple tuple(m_table->schema());
         while (iterator.next(tuple)) {
-            const std::pair<std::set<int64_t>::iterator, bool> p =
-                    originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + 1));
+            
+            const std::pair<std::set<int64_t>::iterator, bool> p = originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + TUPLE_HEADER_SIZE));
             const bool inserted = p.second;
+            
             if (!inserted) {
                     int32_t primaryKey = ValuePeeker::peekAsInteger(tuple.getNValue(0));
                     printf("Failed to insert %d\n", primaryKey);
@@ -367,7 +370,7 @@ TEST_F(CopyOnWriteTest, BigTestWithUndo) {
         TableTuple tuple(m_table->schema());
         while (iterator.next(tuple)) {
             const std::pair<std::set<int64_t>::iterator, bool> p =
-                    originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + 1));
+                    originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + TUPLE_HEADER_SIZE));
             const bool inserted = p.second;
             if (!inserted) {
                     int32_t primaryKey = ValuePeeker::peekAsInteger(tuple.getNValue(0));
@@ -456,7 +459,7 @@ TEST_F(CopyOnWriteTest, BigTestUndoEverything) {
         TableTuple tuple(m_table->schema());
         while (iterator.next(tuple)) {
             const std::pair<std::set<int64_t>::iterator, bool> p =
-                    originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + 1));
+                    originalTuples.insert(*reinterpret_cast<int64_t*>(tuple.address() + TUPLE_HEADER_SIZE));
             const bool inserted = p.second;
             if (!inserted) {
                     int32_t primaryKey = ValuePeeker::peekAsInteger(tuple.getNValue(0));

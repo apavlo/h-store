@@ -31,8 +31,6 @@
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
 
-using namespace voltdb; 
-
 namespace voltdb {
 
 class Table;
@@ -45,7 +43,8 @@ public:
     AntiCacheEvictionManager();
     ~AntiCacheEvictionManager();
     
-    bool updateTuple(Table* table, TableTuple* tuple);
+    bool updateTuple(Table* table, TableTuple* tuple, bool new_tuple);
+    void removeTupleFromChain(Table* table, int tuple_id); 
     
     Table* evictBlock(PersistentTable *table, long blockSize);
     Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);

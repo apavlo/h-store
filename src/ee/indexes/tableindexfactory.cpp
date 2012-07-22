@@ -175,8 +175,6 @@ TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
         } else if (keySize <= 512) {
             return new BinaryTreeUniqueIndex<GenericKey<512>, GenericComparator<512>, GenericEqualityChecker<512> >(schemeCopy);
         } else {
-            
-
             throwFatalException( "We currently only support keys of up to 512 bytes when anti-caching is enabled..." );
             
             //return new BinaryTreeUniqueIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);
@@ -215,7 +213,6 @@ TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
         } else if (keySize <= 512) {
             return new BinaryTreeMultiMapIndex<GenericKey<512>, GenericComparator<512>, GenericEqualityChecker<512> >(schemeCopy);
         } else {
-            
             throwFatalException( "We currently only support keys of up to 512 bytes when anti-caching is enabled..." );
             
             //return new BinaryTreeMultiMapIndex<TupleKey, TupleKeyComparator, TupleKeyEqualityChecker>(schemeCopy);

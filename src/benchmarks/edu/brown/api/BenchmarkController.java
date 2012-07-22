@@ -1627,10 +1627,7 @@ public class BenchmarkController {
                 deferrable = parts[1].split(",");
             
             /* Disable starting the database cluster  */
-            } else if (parts[0].equalsIgnoreCase("NOSITES")) {
-                noSites = Boolean.parseBoolean(parts[1]);
-            /* Disable Sites Starting */ 
-            } else if (parts[0].equalsIgnoreCase("NOSTART")) {
+            } else if (parts[0].equalsIgnoreCase("NOSITES") || parts[0].equalsIgnoreCase("NOSTART")) {
                 // HACK: If they stay "nostart=true", then we'll allow that
                 if (parts[1].equalsIgnoreCase("true")) {
                     noSites = true;

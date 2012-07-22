@@ -58,7 +58,7 @@ public class ResetProfiling extends VoltSystemProcedure {
         switch (fragmentId) {
             // Reset Stats
             case SysProcFragmentId.PF_resetProfilingDistribute: {
-                LOG.info("Resetting internal profiling counters");
+                LOG.debug("Resetting internal profiling counters");
                 HStoreConf hstore_conf = hstore_site.getHStoreConf();
                 
                 // EXECUTOR

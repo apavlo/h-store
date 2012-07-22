@@ -55,7 +55,7 @@ public class GarbageCollection extends VoltSystemProcedure {
         switch (fragmentId) {
             // Perform Garbage Collection
             case SysProcFragmentId.PF_gcDistribute: {
-                LOG.info("Invoking garbage collector");
+                LOG.debug("Invoking garbage collector");
                 this.gcTime.clear();
                 this.gcTime.start();
                 System.gc();
