@@ -105,6 +105,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numUnevictedTuples = 0; 
     m_newestTupleID = 0; 
     m_oldestTupleID = 0;
+    m_numTuplesInEvictionChain = 0; 
 #endif
     
     if (exportEnabled) {
@@ -352,6 +353,16 @@ bool PersistentTable::mergeUnevictedTuples()
     return true; 
 }
     
+void PersistentTable::setNumTuplesInEvictionChain(int num_tuples)
+{
+    m_numTuplesInEvictionChain = num_tuples; 
+}
+    
+int PersistentTable::getNumTuplesInEvictionChain()
+{
+    return m_numTuplesInEvictionChain;  
+}
+    
 void PersistentTable::setNewestTupleID(uint32_t id)
 {
     m_newestTupleID = id; 
@@ -413,14 +424,10 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
 
-    /*
 #ifdef ANTICACHE
-    
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
-    
 #endif
-     */
 
     //
     // Then copy the source into the target

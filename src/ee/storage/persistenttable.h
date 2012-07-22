@@ -268,6 +268,8 @@ class PersistentTable : public Table {
     void setOldestTupleID(uint32_t id); 
     uint32_t getNewestTupleID(); 
     uint32_t getOldestTupleID(); 
+    void setNumTuplesInEvictionChain(int num_tuples);
+    int getNumTuplesInEvictionChain(); 
 #endif
 
 protected:
@@ -336,6 +338,8 @@ protected:
     
     uint32_t m_oldestTupleID; 
     uint32_t m_newestTupleID; 
+    
+    int m_numTuplesInEvictionChain; 
 #endif
     
     // partition key
