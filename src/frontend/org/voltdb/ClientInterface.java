@@ -67,7 +67,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.
@@ -785,7 +785,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                 if (!handler.m_user.hasAdhocPermission()) {
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1, task.clientHandle, -1,
-                                               Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], "User does not have @AdHoc permission");
+                                               Status.ABORT_UNEXPECTED, new VoltTable[0], "User does not have @AdHoc permission");
                     authLog.l7dlog(Level.INFO,
                                    LogKeys.auth_ClientInterface_LackingPermissionForAdhoc.name(),
                                    new String[] {handler.m_user.m_name}, null);
@@ -796,7 +796,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                 if (task.params.toArray().length != 1) {
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1, task.clientHandle, -1,
-                                               Hstoreservice.Status.ABORT_UNEXPECTED,
+                                               Status.ABORT_UNEXPECTED,
                                                new VoltTable[0],
                                                "Adhoc system procedure requires exactly one parameter, the SQL statement to execute.");
                     c.writeStream().enqueue(errorResponse);
@@ -821,7 +821,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                                null);
                 final ClientResponseImpl errorResponse =
                     new ClientResponseImpl(-1, task.clientHandle, -1,
-                                           Hstoreservice.Status.ABORT_UNEXPECTED,
+                                           Status.ABORT_UNEXPECTED,
                                            new VoltTable[0],
                                            "User " + handler.m_user.m_name + " does not have sysproc permission");
                 c.writeStream().enqueue(errorResponse);
@@ -835,7 +835,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                 if (task.params.size() != 1) {
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1,task.clientHandle, -1,
-                                               Hstoreservice.Status.ABORT_UNEXPECTED,
+                                               Status.ABORT_UNEXPECTED,
                                                new VoltTable[0],
                                                "UpdateApplicationCatalog system procedure requires exactly " +
                                                "one parameter, the URL of the catalog to load");
@@ -857,7 +857,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                            new String[] { handler.m_user.m_name, task.procName }, null);
             final ClientResponseImpl errorResponse =
                 new ClientResponseImpl(-1, task.clientHandle, -1,
-                                       Hstoreservice.Status.ABORT_UNEXPECTED,
+                                       Status.ABORT_UNEXPECTED,
                                        new VoltTable[0],
                                        "User does not have permission to invoke " + catProc.getTypeName());
             c.writeStream().enqueue(errorResponse);
@@ -888,7 +888,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                             new Object[] { task.procName }, null);
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1, task.clientHandle, -1,
-                                             Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
+                                             Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
                     c.writeStream().enqueue(errorResponse);
                 }
             }
@@ -910,7 +910,7 @@ public class ClientInterface implements DumpManager.Dumpable {
             authLog.l7dlog( Level.WARN, LogKeys.auth_ClientInterface_ProcedureNotFound.name(), new Object[] { task.procName }, null);
             final ClientResponseImpl errorResponse =
                 new ClientResponseImpl(-1, task.clientHandle, -1,
-                        Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
+                        Status.ABORT_UNEXPECTED, new VoltTable[0], errorMessage);
             c.writeStream().enqueue(errorResponse);
         }
     }
@@ -963,7 +963,7 @@ public class ClientInterface implements DumpManager.Dumpable {
             else {
                 ClientResponseImpl errorResponse =
                     new ClientResponseImpl(-1, result.clientHandle, -1,
-                            Hstoreservice.Status.ABORT_UNEXPECTED, new VoltTable[0],
+                            Status.ABORT_UNEXPECTED, new VoltTable[0],
                             result.errorMsg);
                 final Connection c = (Connection) result.clientData;
                 c.writeStream().enqueue(errorResponse);

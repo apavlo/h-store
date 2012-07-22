@@ -148,6 +148,10 @@ public class VoterClient extends BenchmarkComponent {
                     badVoteCountVotes.incrementAndGet();
                 }
             }
+            else if (clientResponse.getStatus() == Status.ABORT_UNEXPECTED) {
+                System.err.println(clientResponse);
+                System.exit(1);
+            }
         }
     } // END CLASS
 }

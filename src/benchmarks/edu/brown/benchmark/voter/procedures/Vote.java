@@ -63,7 +63,7 @@ public class Vote extends VoltProcedure {
 		"INSERT INTO votes (vote_id, phone_number, state, contestant_number, created) VALUES (?, ?, ?, ?, ?);"
     );
 	
-    public long run(int voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
