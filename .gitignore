@@ -1,6 +1,7 @@
 ## -------------------------------
 ## Development + Testing Artifacts
 ## -------------------------------
+files/
 *.trace
 *.trace.gz
 *.jar
@@ -12,6 +13,7 @@
 *.pyc
 *.png
 junitvmwatcher*
+*.hprof
 buildstring.txt
 debugoutput
 .depcache
@@ -23,6 +25,7 @@ keepalive
 obj
 conf-*.html
 .DS_Store
+SourceJars
 
 ## -------------------------------
 ## JNI Compiler Artifacts
