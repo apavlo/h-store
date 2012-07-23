@@ -30,6 +30,8 @@ public class CSVResultsPrinter implements BenchmarkInterest {
     private final File outputPath;
     private final AtomicBoolean evicting = new AtomicBoolean(false);
     private Object last_eviction_row[] = null;
+    private long last_eviction_start = -1;
+    private long last_eviction_stop = -1;
     
     public CSVResultsPrinter(File outputPath) {
         this.outputPath = outputPath;
@@ -74,21 +76,39 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         this.results.add(row);
         
         if (new_eviction) {
-            assert(this.last_eviction_row == null);
-            this.last_eviction_row = row;
+            synchronized (CSVResultsPrinter.class) {
+                if (this.last_eviction_stop == -1) {
+                    this.last_eviction_row = row;    
+                } else {
+                    this.updateLastEviction(row);
+                    this.last_eviction_row = null;
+                }
+            } // SYNCH
         }
+    }
+    
+    private void updateLastEviction(Object row[]) {
+        row[4] = this.last_eviction_stop - this.last_eviction_start;
+        this.last_eviction_start = -1;
+        this.last_eviction_stop = -1;
     }
     
     @Override
     public void markEvictionStart() {
         this.evicting.set(true);
+        this.last_eviction_start = System.currentTimeMillis();
+        this.last_eviction_stop = -1;
     }
 
     @Override
     public void markEvictionStop() {
-        assert(this.last_eviction_row != null);
-        Object row[] = this.last_eviction_row;
-        this.last_eviction_row = null;
-        row[4] = System.currentTimeMillis() - (Long)row[5];
+        this.last_eviction_stop = System.currentTimeMillis();
+        synchronized (CSVResultsPrinter.class) {
+            if (this.last_eviction_row != null) {
+                Object row[] = this.last_eviction_row;
+                this.last_eviction_row = null;
+                this.updateLastEviction(row);
+            }
+        } // SYNCH
     }
 }
