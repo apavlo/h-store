@@ -2765,9 +2765,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (4) If we know that there are still unblocked messages that we need to process
         //  (5) The latch for this round is still greater than zero
         while (ts.hasPendingError() == false && 
-               (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
+               (first == true || execState.stillHasWorkFragments() || (latch != null && latch.getCount() > 0))) {
             if (t) LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                                           ts, first, ts.stillHasWorkFragments(), queue.size(), latch));
+                                           ts, first, execState.stillHasWorkFragments(), queue.size(), latch));
             
             // If this is the not first time through the loop, then poll the queue
             // to get our list of fragments
@@ -2842,7 +2842,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // FragmentTasks for execution, since they might start executing locally!
                 if (first) {
                     ts.startRound(this.partitionId);
-                    latch = ts.getDependencyLatch();
+                    latch = execState.getDependencyLatch();
                 }
                 
                 // Execute all of our WorkFragments quickly at our local ExecutionEngine
@@ -2927,7 +2927,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // FragmentTasks for execution, since they might start executing locally!
                 if (first) {
                     ts.startRound(this.partitionId);
-                    latch = ts.getDependencyLatch();
+                    latch = execState.getDependencyLatch();
                 }
         
                 // Now request the fragments that aren't local
@@ -2987,7 +2987,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.fs.getBBContainer().discard();
         
         if (t) LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                                       ts, first, ts.stillHasWorkFragments(), latch));
+                                       ts, first, execState.stillHasWorkFragments(), latch));
 //        assert(ts.stillHasWorkFragments() == false) :
 //            String.format("Trying to block %s before all of its WorkFragments have been dispatched!\n%s\n%s",
 //                          ts,
@@ -2996,7 +2996,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 
         // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
         // wait for all of the results to come back in.
-        if (latch == null) latch = ts.getDependencyLatch();
+        if (latch == null) latch = execState.getDependencyLatch();
         if (latch.getCount() > 0) {
             if (d) {
                 LOG.debug(String.format("%s - All blocked messages dispatched. Waiting for %d dependencies",

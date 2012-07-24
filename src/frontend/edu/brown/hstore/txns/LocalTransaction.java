@@ -110,6 +110,11 @@ public class LocalTransaction extends AbstractTransaction {
     protected Procedure catalog_proc;
     
     /**
+     * Final RpcCallback to the client
+     */
+    private RpcCallback<ClientResponseImpl> client_callback;
+    
+    /**
      * The number of times that this transaction has been restarted 
      */
     private int restart_ctr = 0;
@@ -135,6 +140,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private long initiateTime;
     
+    /**
+     * This is where we will store all of the special state information for distributed txns
+     */
     private DistributedState dtxnState;
     
     /**
@@ -142,6 +150,11 @@ public class LocalTransaction extends AbstractTransaction {
      * before it starts executing
      */
     private Table anticache_table = null;
+    
+    /**
+     * 
+     */
+    public final TransactionProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -155,7 +168,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * TransctionEstimator State Handle
      */
-    private TransactionEstimator.State estimator_state;
+    private TransactionEstimator.State predict_tState;
     
     // ----------------------------------------------------------------------------
     // RUN TIME DATA MEMBERS
@@ -172,7 +185,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    private final BitSet done_partitions;
+    private final BitSet exec_donePartitions;
     
     /**
      * Whether this txn is being executed specutatively
@@ -188,20 +201,10 @@ public class LocalTransaction extends AbstractTransaction {
 //    private final FastIntHistogram exec_touchedPartitions;
     
     /**
-     * 
-     */
-    public final TransactionProfiler profiler;
-
-    /**
      * Whether this transaction's control code was executed on
      * its base partition.
      */
-    private boolean executed = false;
-    
-    /**
-     * Final RpcCallback to the client
-     */
-    private RpcCallback<ClientResponseImpl> client_callback;
+    private boolean exec_controlCode = false;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -219,7 +222,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
       
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
-        this.done_partitions = new BitSet(num_partitions);
+        this.exec_donePartitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
 
@@ -354,9 +357,9 @@ public class LocalTransaction extends AbstractTransaction {
             this.dtxnState = null;
         }
         // Return our TransactionEstimator.State handle
-        if (this.estimator_state != null) {
-            TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
-            this.estimator_state = null;
+        if (this.predict_tState != null) {
+            TransactionEstimator.POOL_STATES.returnObject(this.predict_tState);
+            this.predict_tState = null;
         }
         
         this.resetExecutionState();
@@ -366,11 +369,11 @@ public class LocalTransaction extends AbstractTransaction {
         this.client_callback = null;
         this.initiateTime = 0;
         
-        this.executed = false;
+        this.exec_controlCode = false;
         this.exec_speculative = false;
         this.exec_touchedPartitions.clear();
         this.predict_touchedPartitions = null;
-        this.done_partitions.clear();
+        this.exec_donePartitions.clear();
         this.restart_ctr = 0;
 
         this.anticache_table = null;
@@ -417,7 +420,7 @@ public class LocalTransaction extends AbstractTransaction {
      * Marks that this transaction's control code was executed at its base partition 
      */
     public void markAsExecuted() {
-        this.executed = true;
+        this.exec_controlCode = true;
     }
     
     // ----------------------------------------------------------------------------
@@ -663,13 +666,13 @@ public class LocalTransaction extends AbstractTransaction {
      * in the PartitionExecutor
      */
     public boolean wasExecuted() {
-        return (this.executed);
+        return (this.exec_controlCode);
     }
     
     @Override
     public boolean needsFinish(int partition) {
         if (this.base_partition == partition) {
-            return (this.executed);
+            return (this.exec_controlCode);
         }
         return super.needsFinish(partition);
     }
@@ -773,10 +776,10 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public boolean hasDonePartitions() {
-        return (this.done_partitions.cardinality() > 0);
+        return (this.exec_donePartitions.cardinality() > 0);
     }
     public BitSet getDonePartitions() {
-        return (this.done_partitions);
+        return (this.exec_donePartitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
@@ -808,44 +811,11 @@ public class LocalTransaction extends AbstractTransaction {
         this.parameters = null;
     }
     
-    public int getDependencyCount() { 
-        return (this.state.dependency_ctr);
-    }
-    
-    /**
-     * Returns true if this transaction still has WorkFragments
-     * that need to be dispatched to the appropriate PartitionExecutor 
-     * @return
-     */
-    public boolean stillHasWorkFragments() {
-        return (this.state.still_has_tasks);
-//        this.state.lock.lock();
-//        try {
-//            return (this.state.blocked_tasks.isEmpty() == false ||
-//                    this.state.unblocked_tasks.isEmpty() == false);
-//        } finally {
-//            this.state.lock.unlock();
-//        }
-    }
-    
-    protected Collection<WorkFragment> getBlockedWorkFragments() {
-        return (this.state.blocked_tasks);
-    }
-    
     public TransactionEstimator.State getEstimatorState() {
-        return (this.estimator_state);
+        return (this.predict_tState);
     }
     public void setEstimatorState(TransactionEstimator.State state) {
-        this.estimator_state = state;
-    }
-    
-    /**
-     * Return the latch that will block the PartitionExecutor's thread until
-     * all of the query results have been retrieved for this transaction's
-     * current SQLStmt batch
-     */
-    public CountDownLatch getDependencyLatch() {
-        return this.state.dependency_latch;
+        this.predict_tState = state;
     }
     
     /**
@@ -866,11 +836,6 @@ public class LocalTransaction extends AbstractTransaction {
     protected DependencyInfo getDependencyInfo(int d_id) {
         return (this.state.dependencies.get(d_id));
         // return (this.state.dependencies[stmt_index].get(d_id));
-    }
-    
-    
-    protected List<Integer> getOutputOrder() {
-        return (this.state.output_order);
     }
 
     /**
@@ -1365,7 +1330,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ts
      */
     public boolean calculateDonePartitions(EstimationThresholds thresholds) {
-        final int ts_done_partitions_size = this.done_partitions.size();
+        final int ts_done_partitions_size = this.exec_donePartitions.size();
         Set<Integer> new_done = null;
 
         TransactionEstimator.State t_state = this.getEstimatorState();
@@ -1397,13 +1362,13 @@ public class LocalTransaction extends AbstractTransaction {
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
-                if (this.done_partitions.get(p.intValue()) == false && ts_touched.contains(p)) {
+                if (this.exec_donePartitions.get(p.intValue()) == false && ts_touched.contains(p)) {
                     if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, this));
-                    this.done_partitions.set(p.intValue());
+                    this.exec_donePartitions.set(p.intValue());
                 }
             } // FOR
         }
-        return (this.done_partitions.cardinality() != ts_done_partitions_size);
+        return (this.exec_donePartitions.cardinality() != ts_done_partitions_size);
     }
     
     // ----------------------------------------------------------------------------
@@ -1443,7 +1408,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
-        m.put("Estimator State", this.estimator_state);
+        m.put("Estimator State", this.predict_tState);
         maps.add(m);
 
         m = new ListOrderedMap<String, Object>();
