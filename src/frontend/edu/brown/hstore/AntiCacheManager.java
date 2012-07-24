@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
@@ -132,13 +133,14 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
         if (debug.get())
             LOG.debug("AVAILABLE MEMORY: " + StringUtil.formatSize(this.availableMemory));
         
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
         this.memoryThreshold = hstore_conf.site.anticache_threshold;
-        this.evictableTables = CatalogUtil.getEvictableTables(hstore_site.getDatabase()); 
+        this.evictableTables = catalogContext.getEvictableTables(); 
                 
         this.partitionSizes = new long[hstore_site.getLocalPartitionIds().size()];
         Arrays.fill(this.partitionSizes, 0);
         
-        this.statsMessage = new TableStatsRequestMessage(CatalogUtil.getDataTables(hstore_site.getDatabase()));
+        this.statsMessage = new TableStatsRequestMessage(catalogContext.getDataTables());
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
