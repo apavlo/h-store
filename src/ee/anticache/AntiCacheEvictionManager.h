@@ -43,7 +43,8 @@ public:
     AntiCacheEvictionManager();
     ~AntiCacheEvictionManager();
     
-    bool updateTuple(Table* table, TableTuple* tuple);
+    bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
+    bool removeTupleFromChain(PersistentTable* table, int removal_id); 
     
     Table* evictBlock(PersistentTable *table, long blockSize);
     Table* readBlocks(PersistentTable *table, int numBlocks, uint16_t blockIds[]);
