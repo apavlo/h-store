@@ -34,6 +34,7 @@ import java.util.Map;
 import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -97,12 +98,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * There is always a static catalog that gets created for each project type
      * This is so that for each test case invocation we don't have to recompile the catalog every time
      */
+    protected static CatalogContext catalogContext;
     protected static Catalog catalog;
-    private static final Map<ProjectType, Catalog> project_catalogs = new HashMap<ProjectType, Catalog>();
-    
     protected static Database catalog_db;
-    private static final Map<ProjectType, Database> project_databases = new HashMap<ProjectType, Database>();
-
+    private static final Map<ProjectType, CatalogContext> project_catalogs = new HashMap<ProjectType, CatalogContext>();
+    
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
@@ -139,11 +139,9 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         is_first = (is_first == null ? true : false);
         this.last_type = ProjectType.TEST;
         if (force == false) {
-            catalog = project_catalogs.get(this.last_type);
-            catalog_db = project_databases.get(this.last_type);
-            p_estimator = project_p_estimators.get(this.last_type);
+            catalogContext = project_catalogs.get(this.last_type);
         }
-        if (catalog == null || force) {
+        if (catalogContext == null || force) {
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
@@ -152,18 +150,23 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 throw new RuntimeException("Failed to create " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
             }
     
-            catalog = new Catalog();
+            Catalog c = new Catalog();
             try {
                 // read in the catalog
                 String serializedCatalog = JarReader.readFileFromJarfile(catalogJar, CatalogUtil.CATALOG_FILENAME);
                 // create the catalog (that will be passed to the ClientInterface
-                catalog.execute(serializedCatalog);
+                c.execute(serializedCatalog);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to load " + projectBuilder.getProjectName() + " catalog [" + catalogJar + "]", ex);
             }
             
-            this.init(this.last_type, catalog);
+            CatalogContext cc = new CatalogContext(c, catalogJar);
+            this.init(this.last_type, cc);
         }
+        
+        catalog = catalogContext.catalog;
+        catalog_db = catalogContext.database;
+        p_estimator = project_p_estimators.get(this.last_type);
     }
     
     /**
@@ -178,40 +181,43 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         super.setUp();
         is_first = (is_first == null ? true : false);
         this.last_type = type;
-        catalog = project_catalogs.get(type);
-        catalog_db = project_databases.get(type);
-        p_estimator = project_p_estimators.get(type);
-        if (catalog == null) {
+        catalogContext = project_catalogs.get(type);
+        
+        if (catalogContext == null) {
+            CatalogContext cc = null;
             AbstractProjectBuilder projectBuilder = AbstractProjectBuilder.getProjectBuilder(type);
             if (ENABLE_JAR_REUSE) {
                 File jar_path = projectBuilder.getJarPath(true);
                 if (jar_path.exists()) {
                     LOG.debug("LOAD CACHE JAR: " + jar_path.getAbsolutePath());
-                    catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+                    Catalog c = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+                    cc = new CatalogContext(c, jar_path.getAbsolutePath());
                 } else {
                     LOG.debug("MISSING JAR: " + jar_path.getAbsolutePath());
                 }
             }
-            if (catalog == null) {
+            if (cc == null) {
+                Catalog c = null;
                 switch (type) {
-//                    case TPCC:
-//                        catalog = TPCCProjectBuilder.getTPCCSchemaCatalog(true);
-//                        // Update the ProcParameter mapping used in the catalogs
-////                        ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
-//                        break;
                     case TPCE:
-                        catalog = projectBuilder.createCatalog(fkeys, full_catalog);
+                        c = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
                     default:
-                        catalog = projectBuilder.getFullCatalog(fkeys);
+                        c = projectBuilder.getFullCatalog(fkeys);
                         if (LOG.isDebugEnabled()) 
                             LOG.debug(type + " Catalog JAR: " + projectBuilder.getJarPath(true).getAbsolutePath());
                         break;
                 } // SWITCH
+                assert(c != null);
+                cc = new CatalogContext(c, CatalogContext.NO_PATH);
             }
+            assert(cc != null) : "Unexpected null catalog for " + type;
             //if (type == ProjectType.TPCC) ParametersUtil.populateCatalog(CatalogUtil.getDatabase(catalog), ParametersUtil.getParameterMapping(type));
-            this.init(type, catalog);
+            this.init(type, cc);
         }
+        catalog = catalogContext.catalog;
+        catalog_db = catalogContext.database;
+        p_estimator = project_p_estimators.get(type);
     }
     
     /**
@@ -219,13 +225,12 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @param type
      * @param catalog
      */
-    private void init(ProjectType type, Catalog catalog) {
-        assertNotNull(catalog);
-        project_catalogs.put(type, catalog);
-        
-        catalog_db = CatalogUtil.getDatabase(catalog);
-        assertNotNull(catalog_db);
-        project_databases.put(type, catalog_db);
+    private void init(ProjectType type, CatalogContext cc) {
+        assertNotNull(cc);
+        project_catalogs.put(type, cc);
+        catalogContext = cc;
+        catalog = catalogContext.catalog;
+        catalog_db = catalogContext.database;
         
         p_estimator = new PartitionEstimator(catalog_db);
         assertNotNull(p_estimator);
@@ -320,6 +325,11 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     // --------------------------------------------------------------------------------------
     // CONVENIENCE METHODS
     // --------------------------------------------------------------------------------------
+    
+    protected final CatalogContext getCatalogContext() {
+        assertNotNull(catalogContext);
+        return (catalogContext);
+    }
     
     protected final Catalog getCatalog() {
         assertNotNull(catalog);
@@ -437,8 +447,8 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 cc.addPartition("localhost", 0, i);
                 // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
-            catalog = FixCatalog.cloneCatalog(catalog, cc);
-            this.init(this.last_type, catalog);
+            Catalog c = FixCatalog.cloneCatalog(catalog, cc);
+            this.init(this.last_type, new CatalogContext(c, CatalogContext.NO_PATH));
             
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
@@ -452,8 +462,8 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
             CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
             CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
-            catalog = FixCatalog.cloneCatalog(catalog, "localhost", num_hosts, num_sites, num_partitions);
-            this.init(this.last_type, catalog);
+            Catalog c = FixCatalog.cloneCatalog(catalog, "localhost", num_hosts, num_sites, num_partitions);
+            this.init(this.last_type, new CatalogContext(c, CatalogContext.NO_PATH));
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
         assertEquals(num_hosts, CatalogUtil.getNumberOfHosts(catalog_db));

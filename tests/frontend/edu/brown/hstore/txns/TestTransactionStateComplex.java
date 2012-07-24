@@ -243,7 +243,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
         this.ts.startRound(LOCAL_PARTITION);
-        CountDownLatch latch = this.ts.getDependencyLatch(); 
+        CountDownLatch latch = this.execState.getDependencyLatch(); 
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
     }

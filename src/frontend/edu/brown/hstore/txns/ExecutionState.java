@@ -149,6 +149,42 @@ public class ExecutionState {
         return (this.unblocked_tasks);
     }
     
+    
+    /**
+     * Return the latch that will block the PartitionExecutor's thread until
+     * all of the query results have been retrieved for this transaction's
+     * current SQLStmt batch
+     */
+    public CountDownLatch getDependencyLatch() {
+        return this.dependency_latch;
+    }
+    
+    public int getDependencyCount() { 
+        return (this.dependency_ctr);
+    }
+    
+    /**
+     * Returns true if this transaction still has WorkFragments
+     * that need to be dispatched to the appropriate PartitionExecutor 
+     * @return
+     */
+    public boolean stillHasWorkFragments() {
+        return (this.still_has_tasks);
+    }
+
+    // ----------------------------------------------------------------------------
+    // TESTING STUFF
+    // ----------------------------------------------------------------------------
+    
+    protected Collection<WorkFragment> getBlockedWorkFragments() {
+        return (this.blocked_tasks);
+    }
+    
+    
+    protected List<Integer> getOutputOrder() {
+        return (this.output_order);
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------
