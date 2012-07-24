@@ -85,6 +85,10 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
     }
 
+    protected final void registerPlanFragment(long fragId) {
+        this.executor.registerPlanFragment(fragId, this);
+    }
+    
     /**
      * Utility to aggregate a list of tables sharing a schema. Common for
      * sysprocs to do this, to aggregate results.
