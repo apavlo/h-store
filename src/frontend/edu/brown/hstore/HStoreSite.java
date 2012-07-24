@@ -48,6 +48,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
+import org.voltdb.StatsAgent;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Catalog;
@@ -209,6 +210,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Reusable Object Pools
      */
     private final HStoreObjectPools objectPools;
+    
+    /**
+     * Stats Agent
+     */
+    private final StatsAgent statsAgent = new StatsAgent();
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -751,6 +757,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public ClientInterface getClientInterface() {
         return (this.clientInterface);
+    }
+    public StatsAgent getStatsAgent() {
+        return (this.statsAgent);
     }
     
     /**
