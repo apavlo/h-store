@@ -121,12 +121,12 @@ public class SpecExecScheduler {
                 // with our current dtxn
                 // TODO: We need to be more clever about what we allow depending on
                 //       whether it's a read-write conflict or a write-write conflict
-                if (ts.isPredictSinglePartition() && rwCon.get(procId) == false) {
-                    next = txn_msg;
-                    // Make sure that we remove it from our queue
-                    it.remove();
-                    break;
-                }
+//                if (ts.isPredictSinglePartition() && rwCon.get(procId) == false) {
+//                    next = txn_msg;
+//                    // Make sure that we remove it from our queue
+//                    it.remove();
+//                    break;
+//                }
             }
         } // WHILE
         if (debug.get() && next != null) {
