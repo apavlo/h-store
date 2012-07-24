@@ -19,7 +19,7 @@ import edu.brown.hstore.Hstoreservice.Status;
  */
 public class TestVoterSuite extends RegressionSuite {
 
-    private static int voteId = 1;
+    private static long voteId = 1;
     private static final long phoneNumber = 8675309; // Jenny
     private static final int contestantNumber = 1;
     private static final long maxVotesPerPhoneNumber = 5;
