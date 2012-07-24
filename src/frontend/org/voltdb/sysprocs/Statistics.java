@@ -36,6 +36,7 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
@@ -53,6 +54,10 @@ public class Statistics extends VoltSystemProcedure {
 
     private static final Logger HOST_LOG = Logger.getLogger(Statistics.class);
 
+    static final int DEP_nodeMemory = (int)
+            SysProcFragmentId.PF_nodeMemory | DtxnConstants.MULTIPARTITION_DEPENDENCY;
+        static final int DEP_nodeMemoryAggregator = (int) SysProcFragmentId.PF_nodeMemoryAggregator;
+    
     static final int DEP_tableData = (int)
         SysProcFragmentId.PF_tableData | DtxnConstants.MULTIPARTITION_DEPENDENCY;
     static final int DEP_tableAggregator = (int) SysProcFragmentId.PF_tableAggregator;
@@ -82,6 +87,8 @@ public class Statistics extends VoltSystemProcedure {
     
         registerPlanFragment(SysProcFragmentId.PF_tableData);
         registerPlanFragment(SysProcFragmentId.PF_tableAggregator);
+        registerPlanFragment(SysProcFragmentId.PF_nodeMemory);
+        registerPlanFragment(SysProcFragmentId.PF_nodeMemoryAggregator);
         registerPlanFragment(SysProcFragmentId.PF_procedureData);
         registerPlanFragment(SysProcFragmentId.PF_procedureAggregator);
         registerPlanFragment(SysProcFragmentId.PF_initiatorData);
@@ -120,10 +127,40 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(DEP_tableData, result);
         }
         else if (fragmentId == SysProcFragmentId.PF_tableAggregator) {
-            VoltTable result = unionTables(dependencies.get(DEP_tableData));
+            VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_tableData));
             return new DependencySet(DEP_tableAggregator, result);
         }
+        
+        // MEMROY statistics
+        else if (fragmentId == SysProcFragmentId.PF_nodeMemory) {
+            assert(params.toArray().length == 2);
+            final boolean interval =
+                ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+            final Long now = (Long)params.toArray()[1];
+            ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+            catalogIds.add(0);
+            VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
+                            SysProcSelector.MEMORY,
+                            catalogIds,
+                            interval,
+                            now);
 
+            // Choose the lowest site ID on this host to do the scan
+            // All other sites should just return empty results tables.
+            if (isFirstLocalPartition()) {
+                assert(result.getRowCount() == 1);
+            }
+            else {
+                // Hacky way to generate an empty table with the correct schema
+                result.clearRowData();
+                assert(result.getRowCount() == 0);
+            }
+            return new DependencySet(fragmentId, result);
+        }
+        else if (fragmentId == SysProcFragmentId.PF_nodeMemoryAggregator) {
+            VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_nodeMemory));
+            return new DependencySet(fragmentId, result);
+        }
 
         //  PROCEDURE statistics
         else if (fragmentId == SysProcFragmentId.PF_procedureData) {
@@ -135,8 +172,7 @@ public class Statistics extends VoltSystemProcedure {
             final Long now = (Long)params.toArray()[1];
             ArrayList<Integer> catalogIds = new ArrayList<Integer>();
             catalogIds.add(context.getSite().getId());
-            VoltTable result = executor.getHStoreSite().
-                    getStatsAgent().getStats(
+            VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
                             SysProcSelector.PROCEDURE,
                             catalogIds,
                             interval,
@@ -144,7 +180,7 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(DEP_procedureData, result);
         }
         else if (fragmentId == SysProcFragmentId.PF_procedureAggregator) {
-            VoltTable result = unionTables(dependencies.get(DEP_procedureData));
+            VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_procedureData));
             return new DependencySet(DEP_procedureAggregator, result);
         }
         
@@ -181,12 +217,15 @@ public class Statistics extends VoltSystemProcedure {
      * @return             The returned schema is specific to the selector.
      * @throws VoltAbortException
      */
-    public VoltTable[] run(SystemProcedureExecutionContext ctx,
-            String selector, long interval) throws VoltAbortException
-    {
+    public VoltTable[] run(String selector, long interval) throws VoltAbortException {
         VoltTable[] results;
         final long now = System.currentTimeMillis();
-        if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
+        if ((selector.toUpperCase().equals(SysProcSelector.MEMORY.name())) ||
+                (selector.toUpperCase().equals("NODEMEMORY"))) {
+                results = getMemoryData(interval, now);
+                assert(results.length == 1);
+            }
+        else if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
         }
         else if (selector.toUpperCase().equals(SysProcSelector.PROCEDURE.name())) {
@@ -202,14 +241,14 @@ public class Statistics extends VoltSystemProcedure {
             results = getIOStatsData(interval, now);
         }
         else if (selector.toUpperCase().equals(SysProcSelector.MANAGEMENT.name())) {
-//            VoltTable[] memoryResults = getMemoryData(interval, now);
+            VoltTable[] memoryResults = getMemoryData(interval, now);
             VoltTable[] tableResults = getTableData(interval, now);
             VoltTable[] procedureResults = getProcedureData(interval, now);
             VoltTable[] initiatorResults = getInitiatorData(interval, now);
             VoltTable[] ioResults = getIOStatsData(interval, now);
             VoltTable[] starvationResults = getIOStatsData(interval, now);
             results = new VoltTable[] {
-//                    memoryResults[0],
+                    memoryResults[0],
                     initiatorResults[0],
                     procedureResults[0],
                     ioResults[0],
@@ -293,6 +332,16 @@ public class Statistics extends VoltSystemProcedure {
         // aggregator's output dependency table.
         results = executeSysProcPlanFragments(pfs, DEP_initiatorAggregator);
         return results;
+    }
+    
+    private VoltTable[] getMemoryData(long interval, final long now) {
+        // create a work fragment to gather node memory data
+        ParameterSet parameters = new ParameterSet();
+        parameters.setParameters((byte)interval, now);
+        
+        return this.executeOncePerSite(SysProcFragmentId.PF_nodeMemory,
+                                       SysProcFragmentId.PF_nodeMemoryAggregator,
+                                       parameters);
     }
 
     private VoltTable[] getProcedureData(long interval, final long now) {

@@ -89,31 +89,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         this.executor.registerPlanFragment(fragId, this);
     }
     
-    /**
-     * Utility to aggregate a list of tables sharing a schema. Common for
-     * sysprocs to do this, to aggregate results.
-     */
-    protected VoltTable unionTables(List<VoltTable> operands) {
-        VoltTable result = null;
-        VoltTable vt = operands.get(0);
-        if (vt != null) {
-            VoltTable.ColumnInfo[] columns = new VoltTable.ColumnInfo[vt
-                                                                        .getColumnCount()];
-            for (int ii = 0; ii < vt.getColumnCount(); ii++) {
-                columns[ii] = new VoltTable.ColumnInfo(vt.getColumnName(ii),
-                                                       vt.getColumnType(ii));
-            }
-            result = new VoltTable(columns);
-            for (Object table : operands) {
-                vt = (VoltTable) (table);
-                while (vt.advanceRow()) {
-                    result.add(vt);
-                }
-            }
-        }
-        return result;
-    }
-
     /** Bundles the data needed to describe a plan fragment. */
     public static class SynthesizedPlanFragment {
         public int destPartitionId = -1;

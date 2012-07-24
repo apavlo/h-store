@@ -3,8 +3,10 @@ package org.voltdb.utils;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -161,5 +163,4 @@ public abstract class VoltTableUtil {
         } // FOR
         return (row);
     }
-    
 }
