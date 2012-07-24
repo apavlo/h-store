@@ -271,7 +271,7 @@ TEST_F(CopyOnWriteTest, TestTableTupleFlags) {
     ASSERT_FALSE(tuple.isEvicted());
     tuple.setEvictedTrue();
     ASSERT_TRUE(tuple.isEvicted());
-#endif ANTICACHE
+#endif
 }
 
 TEST_F(CopyOnWriteTest, BigTest) {
