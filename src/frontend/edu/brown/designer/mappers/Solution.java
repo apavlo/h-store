@@ -6,13 +6,7 @@ import java.util.TreeSet;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.HardwareCPU;
-import org.voltdb.catalog.HardwareCore;
-import org.voltdb.catalog.HardwareThread;
-import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Partition;
 
-import edu.brown.catalog.HardwareCatalogUtil;
 import edu.brown.graphs.AbstractDirectedTree;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
@@ -37,8 +31,7 @@ public class Solution extends AbstractDirectedTree<Solution.Vertex, Solution.Edg
      * Vertex
      */
     public class Vertex extends AbstractVertex {
-        private static final long serialVersionUID = 1L;
-        private final int num_children;
+        private int num_children;
 
         public Vertex(CatalogType catalog_item) {
             super();
@@ -47,18 +40,18 @@ public class Solution extends AbstractDirectedTree<Solution.Vertex, Solution.Edg
             // Based on the object type, get the number of children elements
             // that this object is allowed to have in the tree
             //
-            if (catalog_item instanceof HardwareCPU) {
-                this.num_children = HardwareCatalogUtil.getCoresPerCPU(catalog_item);
-            } else if (catalog_item instanceof HardwareCore) {
-                this.num_children = HardwareCatalogUtil.getThreadsPerCore(catalog_item);
-            } else if (catalog_item instanceof HardwareCore) {
-                this.num_children = Integer.MAX_VALUE;
-            } else if (catalog_item instanceof Host) {
-                this.num_children = ((Host) catalog_item).getNum_cpus();
-            } else {
-                this.num_children = 0;
-                assert (false) : "Unexpected catalog item " + catalog_item;
-            }
+//            if (catalog_item instanceof HardwareCPU) {
+//                this.num_children = HardwareCatalogUtil.getCoresPerCPU(catalog_item);
+//            } else if (catalog_item instanceof HardwareCore) {
+//                this.num_children = HardwareCatalogUtil.getThreadsPerCore(catalog_item);
+//            } else if (catalog_item instanceof HardwareCore) {
+//                this.num_children = Integer.MAX_VALUE;
+//            } else if (catalog_item instanceof Host) {
+//                this.num_children = ((Host) catalog_item).getNum_cpus();
+//            } else {
+//                this.num_children = 0;
+//                assert (false) : "Unexpected catalog item " + catalog_item;
+//            }
         }
 
         public int getFreeSlots() {
@@ -90,46 +83,46 @@ public class Solution extends AbstractDirectedTree<Solution.Vertex, Solution.Edg
     private void init() {
         Cluster catalog_cluster = (Cluster) this.getDatabase().getParent();
 
-        // Hosts
-        for (Host catalog_host : catalog_cluster.getHosts()) {
-            Solution.Vertex v_host = new Solution.Vertex(catalog_host);
-            // CPUS
-            for (HardwareCPU catalog_cpu : catalog_host.getCpus()) {
-                Solution.Vertex v_cpu = new Solution.Vertex(catalog_cpu);
-                this.addEdge(new Solution.Edge(), v_host, v_cpu);
-                // Cores
-                for (HardwareCore catalog_core : catalog_cpu.getCores()) {
-                    Solution.Vertex v_core = new Solution.Vertex(catalog_core);
-                    this.addEdge(new Solution.Edge(), v_cpu, v_core);
-                    // Threads
-                    for (HardwareThread catalog_thread : catalog_core.getThreads()) {
-                        Solution.Vertex v_thread = new Solution.Vertex(catalog_thread);
-                        this.addEdge(new Solution.Edge(), v_core, v_thread);
-                    } // FOR
-                } // FOR
-            } // FOR
-        } // FOR
+//        // Hosts
+//        for (Host catalog_host : catalog_cluster.getHosts()) {
+//            Solution.Vertex v_host = new Solution.Vertex(catalog_host);
+//            // CPUS
+//            for (HardwareCPU catalog_cpu : catalog_host.getCpus()) {
+//                Solution.Vertex v_cpu = new Solution.Vertex(catalog_cpu);
+//                this.addEdge(new Solution.Edge(), v_host, v_cpu);
+//                // Cores
+//                for (HardwareCore catalog_core : catalog_cpu.getCores()) {
+//                    Solution.Vertex v_core = new Solution.Vertex(catalog_core);
+//                    this.addEdge(new Solution.Edge(), v_cpu, v_core);
+//                    // Threads
+//                    for (HardwareThread catalog_thread : catalog_core.getThreads()) {
+//                        Solution.Vertex v_thread = new Solution.Vertex(catalog_thread);
+//                        this.addEdge(new Solution.Edge(), v_core, v_thread);
+//                    } // FOR
+//                } // FOR
+//            } // FOR
+//        } // FOR
         return;
     }
 
     @Override
     public boolean addEdge(Edge e, Vertex v1, Vertex v2) {
-        // Host -> HardwareCPU
-        if (v1.getCatalogItem() instanceof Host) {
-            assert (v2.getCatalogItem() instanceof HardwareCPU);
-            // HardwareCPU -> HardwareCore
-        } else if (v1.getCatalogItem() instanceof HardwareCPU) {
-            assert (v2.getCatalogItem() instanceof HardwareCore);
-            // HardwareCore -> HardwareThread
-        } else if (v1.getCatalogItem() instanceof HardwareCore) {
-            assert (v2.getCatalogItem() instanceof HardwareThread);
-            // HardwareThread -> Partition
-        } else if (v1.getCatalogItem() instanceof HardwareThread) {
-            assert (v2.getCatalogItem() instanceof Partition);
-            // Bad mojo!
-        } else {
-            assert (false) : "Unexpected catalog item for first vertex " + v1.getCatalogItem();
-        }
+//        // Host -> HardwareCPU
+//        if (v1.getCatalogItem() instanceof Host) {
+//            assert (v2.getCatalogItem() instanceof HardwareCPU);
+//            // HardwareCPU -> HardwareCore
+//        } else if (v1.getCatalogItem() instanceof HardwareCPU) {
+//            assert (v2.getCatalogItem() instanceof HardwareCore);
+//            // HardwareCore -> HardwareThread
+//        } else if (v1.getCatalogItem() instanceof HardwareCore) {
+//            assert (v2.getCatalogItem() instanceof HardwareThread);
+//            // HardwareThread -> Partition
+//        } else if (v1.getCatalogItem() instanceof HardwareThread) {
+//            assert (v2.getCatalogItem() instanceof Partition);
+//            // Bad mojo!
+//        } else {
+//            assert (false) : "Unexpected catalog item for first vertex " + v1.getCatalogItem();
+//        }
         return super.addEdge(e, v1, v2);
     }
 
@@ -141,20 +134,20 @@ public class Solution extends AbstractDirectedTree<Solution.Vertex, Solution.Edg
         this.cost = cost;
     }
 
-    public void addPartition(HardwareThread catalog_thread, Integer part_id) {
-        assert (catalog_thread.getPartitions().get(part_id.toString()) == null);
-
-        Partition catalog_part = catalog_thread.getPartitions().add(part_id.toString());
-        assert (catalog_part != null);
-
-        Solution.Vertex v_thread = this.getVertex(catalog_thread);
-        assert (v_thread != null);
-        Solution.Vertex v_part = new Solution.Vertex(catalog_part);
-        assert (v_part != null);
-
-        this.addEdge(new Solution.Edge(), v_thread, v_part);
-        this.partitions.add(part_id);
-    }
+//    public void addPartition(HardwareThread catalog_thread, Integer part_id) {
+//        assert (catalog_thread.getPartitions().get(part_id.toString()) == null);
+//
+//        Partition catalog_part = catalog_thread.getPartitions().add(part_id.toString());
+//        assert (catalog_part != null);
+//
+//        Solution.Vertex v_thread = this.getVertex(catalog_thread);
+//        assert (v_thread != null);
+//        Solution.Vertex v_part = new Solution.Vertex(catalog_part);
+//        assert (v_part != null);
+//
+//        this.addEdge(new Solution.Edge(), v_thread, v_part);
+//        this.partitions.add(part_id);
+//    }
 
     public boolean hasPartition(int part_id) {
         return (this.partitions.contains(part_id));

@@ -28,7 +28,6 @@
 
 namespace catalog {
 
-class HardwareCPU;
 /**
  * A single host participating in the cluster
  */
@@ -44,7 +43,6 @@ protected:
     int32_t m_corespercpu;
     int32_t m_threadspercore;
     int32_t m_memory;
-    CatalogMap<HardwareCPU> m_cpus;
 
     virtual void update();
 
@@ -67,8 +65,6 @@ public:
     int32_t threadspercore() const;
     /** GETTER: The amount of memory in bytes that this host has */
     int32_t memory() const;
-    /** GETTER: The representation of a physical CPU on this Host */
-    const CatalogMap<HardwareCPU> & cpus() const;
 };
 
 } // namespace catalog

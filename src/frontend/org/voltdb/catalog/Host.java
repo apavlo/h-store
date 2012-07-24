@@ -32,7 +32,6 @@ public class Host extends CatalogType {
     int m_corespercpu;
     int m_threadspercore;
     int m_memory;
-    CatalogMap<HardwareCPU> m_cpus;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -42,8 +41,6 @@ public class Host extends CatalogType {
         m_fields.put("corespercpu", m_corespercpu);
         m_fields.put("threadspercore", m_threadspercore);
         m_fields.put("memory", m_memory);
-        m_cpus = new CatalogMap<HardwareCPU>(catalog, this, path + "/" + "cpus", HardwareCPU.class);
-        m_childCollections.put("cpus", m_cpus);
     }
 
     public void update() {
@@ -83,11 +80,6 @@ public class Host extends CatalogType {
     /** GETTER: The amount of memory in bytes that this host has */
     public int getMemory() {
         return m_memory;
-    }
-
-    /** GETTER: The representation of a physical CPU on this Host */
-    public CatalogMap<HardwareCPU> getCpus() {
-        return m_cpus;
     }
 
     /** SETTER: Unique host id */
