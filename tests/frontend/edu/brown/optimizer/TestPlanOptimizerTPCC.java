@@ -89,13 +89,6 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
         Procedure catalog_proc = this.getProcedure(slev.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
         
-        Table catalog_tbl = this.getTable("STOCK");
-        Map<String, Integer> col_offset_xref = new HashMap<String, Integer>();
-        for (String colName : new String[]{ "S_I_ID", "S_W_ID", "S_QUANTITY"}) {
-            Column catalog_col = this.getColumn(catalog_tbl, colName);
-            col_offset_xref.put(colName, catalog_col.getIndex());
-        }
-
         AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
@@ -108,6 +101,31 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
         assertEquals(0, scan_node.getChildPlanNodeCount());
         System.err.println(PlanNodeUtil.debug(root));
         assertEquals(1, scan_node.getInlinePlanNodeCount());
+        
+        final Map<String, Integer> col_offset_xref = new HashMap<String, Integer>();
+        Table catalog_tbl = null;
+        
+        // STOCK
+        if (scan_node.getTargetTableName().equals("STOCK")) {
+            catalog_tbl = this.getTable("STOCK");
+            for (String colName : new String[]{ "S_I_ID", "S_W_ID", "S_QUANTITY"}) {
+                Column catalog_col = this.getColumn(catalog_tbl, colName);
+                col_offset_xref.put(colName, catalog_col.getIndex());
+            } // FOR
+        }
+        // ORDER_LINE
+        else if (scan_node.getTargetTableName().equals("ORDER_LINE")) {
+            catalog_tbl = this.getTable("ORDER_LINE");
+            for (String colName : new String[]{ "OL_I_ID" }) {
+                Column catalog_col = this.getColumn(catalog_tbl, colName);
+                col_offset_xref.put(colName, catalog_col.getIndex());
+            } // FOR
+        }
+        else {
+            assert(false) : "Unexpected table '" + scan_node.getTargetTableName() + "'";
+        }
+        assertNotNull(catalog_tbl);
+        assertFalse(col_offset_xref.isEmpty());
         assertEquals(catalog_tbl.getName(), scan_node.getTargetTableName());
         
         // The inline projection in the leaf ScanPlanNode should only output a 
@@ -118,6 +136,7 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
         
         System.err.println(PlanNodeUtil.debug(scan_node));
         checkExpressionOffsets(proj_node, col_offset_xref);
+        
     }
     
     /**
