@@ -13,6 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
@@ -26,17 +27,11 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
-    // ----------------------------------------------------------------------------
-    // INTERNAL PARTITION+DEPENDENCY KEY
-    // ----------------------------------------------------------------------------
-
-    private static final int KEY_MAX_VALUE = 65535; // 2^16 - 1
     
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
@@ -78,17 +73,17 @@ public class ExecutionState {
     /**
      * As information come back to us, we need to keep track of what SQLStmt we are storing 
      * the data for. Note that we have to maintain two separate lists for results and responses
-     * Partition-DependencyId Key -> Next SQLStmt Index
+     * PartitionId -> DependencyId -> Next SQLStmt Index
      */
-    protected final Map<Integer, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Integer, Queue<Integer>>();
-
+    protected final Map<Pair<Integer, Integer>, Queue<Integer>> results_dependency_stmt_ctr = new HashMap<Pair<Integer,Integer>, Queue<Integer>>();
+    
     /**
      * Sometimes we will get results back while we are still queuing up the rest of the tasks and
      * haven't started the next round. So we need a temporary space where we can put these guys until 
      * we start the round. Otherwise calculating the proper latch count is tricky
      * Partition-DependencyId Key -> VoltTable
      */
-    protected final Map<Integer, VoltTable> queued_results = new LinkedHashMap<Integer, VoltTable>();
+    protected final Map<Pair<Integer, Integer>, VoltTable> queued_results = new LinkedHashMap<Pair<Integer,Integer>, VoltTable>();
     
     /**
      * Blocked FragmentTaskMessages
@@ -144,29 +139,6 @@ public class ExecutionState {
         if (debug.get()) LOG.debug("Clearing ExecutionState at partition " + this.executor.getPartitionId());
         this.dependency_latch = null;
         this.clearRound();
-    }
-    
-    /**
-     * Return a single key that encodes the partition id and dependency id
-     * @param partition_id
-     * @param dependency_id
-     * @return
-     */
-    protected int createPartitionDependencyKey(int partition_id, int dependency_id) {
-        int key = partition_id | dependency_id<<16;
-        return (key);
-    }
-    
-    /**
-     * For the given encoded Partition+DependencyInfo key, populate the given array
-     * with the partitionId first, then the dependencyId second
-     * @param key
-     * @param values
-     */
-    protected void getPartitionDependencyFromKey(int key, int values[]) {
-        assert(values.length == 2);
-        values[0] = key>>0 & KEY_MAX_VALUE;     // PartitionId
-        values[1] = key>>16 & KEY_MAX_VALUE;    // DependencyId
     }
     
     // ----------------------------------------------------------------------------

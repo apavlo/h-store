@@ -25,9 +25,8 @@
  ***************************************************************************/
 package edu.brown.hstore.txns;
 
-import java.util.BitSet;
-
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
@@ -50,22 +49,37 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final TransactionWorkCallback fragment_callback;
+    private final TransactionWorkCallback work_callback;
     private final TransactionCleanupCallback cleanup_callback;
     private final ProtoRpcController rpc_transactionPrefetch[];
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        this.fragment_callback = new TransactionWorkCallback(hstore_site);
+        this.work_callback = new TransactionWorkCallback(hstore_site);
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
         
         int num_localPartitions = hstore_site.getLocalPartitionIds().size();
         this.rpc_transactionPrefetch = new ProtoRpcController[num_localPartitions];
     }
     
-    public RemoteTransaction init(long txnId, int source_partition, boolean sysproc, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, -1, source_partition, sysproc,
-                                              false, true, predict_abortable, false));
+    public RemoteTransaction init(long txnId,
+                                  int base_partition,
+                                  Procedure catalog_proc,
+                                  boolean predict_abortable) {
+        int proc_id = catalog_proc.getId();
+        boolean sysproc = catalog_proc.getSystemproc();
+        
+        return ((RemoteTransaction)super.init(
+                            txnId,              // TxnId
+                            -1,                 // ClientHandle
+                            base_partition,     // BasePartition
+                            proc_id,            // ProcedureId
+                            sysproc,            // SysProc
+                            false,              // SinglePartition 
+                            true,               // ReadOnly (???)
+                            predict_abortable,  // Abortable
+                            false               // ExecLocal
+        ));
     }
     
     @Override
@@ -86,17 +100,17 @@ public class RemoteTransaction extends AbstractTransaction {
     public void startRound(int partition) {
         // If the stored procedure is not executing locally then we need at least
         // one FragmentTaskMessage callback
-        assert(this.fragment_callback != null) :
+        assert(this.work_callback != null) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
         super.startRound(partition);
     }
     
     /**
-     * Return the previously stored callback for a FragmentTaskMessage
+     * Return the previously stored callback for a WorkFragment
      * @return
      */
-    public TransactionWorkCallback getFragmentTaskCallback() {
-        return (this.fragment_callback);
+    public TransactionWorkCallback getWorkCallback() {
+        return (this.work_callback);
     }
     
     public TransactionCleanupCallback getCleanupCallback() {

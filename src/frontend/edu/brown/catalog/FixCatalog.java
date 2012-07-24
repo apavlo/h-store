@@ -49,10 +49,20 @@ public abstract class FixCatalog {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static Catalog addHostInfo(Catalog orig_catalog, ClusterConfiguration cc) {
+    public static Catalog cloneCatalog(Catalog orig_catalog, ClusterConfiguration cc) {
         Catalog catalog = CatalogCloner.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
-        return FixCatalog.writeHostInfo(catalog, cc);
+        return FixCatalog.updateCatalog(catalog, cc);
     }
+    
+    public static Catalog cloneCatalog(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        return (FixCatalog.cloneCatalog(orig_catalog, "node-%02d", num_hosts, num_sites_per_host, num_partitions_per_site));
+    }
+
+    public static Catalog cloneCatalog(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        ClusterConfiguration cc = new ClusterConfiguration(hostname_format, num_hosts, num_sites_per_host, num_partitions_per_site);
+        return (FixCatalog.cloneCatalog(orig_catalog, cc));
+    }
+    
 
     /**
      * Write the host/sites/partitions directly to the given catalog
@@ -61,7 +71,7 @@ public abstract class FixCatalog {
      * @param cc
      * @return
      */
-    public static Catalog writeHostInfo(Catalog catalog, ClusterConfiguration cc) {
+    public static Catalog updateCatalog(Catalog catalog, ClusterConfiguration cc) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
 
         // Add a bunch of hosts and partitions to this mofo
@@ -120,28 +130,16 @@ public abstract class FixCatalog {
                                catalog_clus.getHosts().size(), partition_ctr));
         return (catalog);
     }
-
-    public static Catalog addHostInfo(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
-        return (FixCatalog.addHostInfo(orig_catalog, "node-%02d", num_hosts, num_sites_per_host, num_partitions_per_site));
+    
+    public static Catalog updateCatalog(Catalog orig_catalog, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        return (FixCatalog.updateCatalog(orig_catalog, "node-%02d", num_hosts, num_sites_per_host, num_partitions_per_site));
     }
 
-    public static Catalog addHostInfo(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
-        ClusterConfiguration cc = new ClusterConfiguration();
-        int siteid = 0;
-        int partitionid = 0;
-
-        final boolean use_format = hostname_format.contains("%");
-        for (int host = 0; host < num_hosts; host++) {
-            String hostname = (use_format ? String.format(hostname_format, host) : hostname_format);
-            for (int site = 0; site < num_sites_per_host; site++) {
-                for (int partition = 0; partition < num_partitions_per_site; partition++) {
-                    cc.addPartition(hostname, siteid, partitionid++);
-                } // FOR (partitions)
-                siteid++;
-            } // FOR (sites)
-        } // FOR (hosts)
-        return (FixCatalog.addHostInfo(orig_catalog, cc));
+    public static Catalog updateCatalog(Catalog orig_catalog, String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        ClusterConfiguration cc = new ClusterConfiguration(hostname_format, num_hosts, num_sites_per_host, num_partitions_per_site);
+        return (FixCatalog.updateCatalog(orig_catalog, cc));
     }
+
 
     /**
      * @param catalog_db
@@ -192,10 +190,10 @@ public abstract class FixCatalog {
 
         // Populate Parameter Mappings
         if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
-            File input_path = new File(args.getParam(ArgumentsParser.PARAM_MAPPINGS));
+            File input_path = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS);
             if (input_path.exists()) {
                 ParameterMappingsSet mappings = new ParameterMappingsSet();
-                mappings.load(input_path.getAbsolutePath(), args.catalog_db);
+                mappings.load(input_path, args.catalog_db);
                 ParametersUtil.applyParameterMappings(args.catalog_db, mappings);
                 LOG.debug("Applied ParameterMappings file to '" + input_path + "' catalog parameter mappings...");
             } else {
@@ -216,16 +214,16 @@ public abstract class FixCatalog {
             int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_CATALOG_PARTITIONS_PER_SITE) ? args.getIntParam(ArgumentsParser.PARAM_CATALOG_PARTITIONS_PER_SITE) : 2);
 
             if (host_format == null) {
-                new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
+                FixCatalog.updateCatalog(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
             } else {
-                new_catalog = FixCatalog.addHostInfo(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);
+                FixCatalog.updateCatalog(new_catalog, host_format, num_hosts, num_sites_per_host, num_partitions_per_site);
             }
 
         // Use host list
         } else {
             String hostsInfo = args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS);
             ClusterConfiguration cc = new ClusterConfiguration(hostsInfo);
-            new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
+            FixCatalog.updateCatalog(new_catalog, cc);
         }
 
         // Now construct the new Dtxn.Coordinator configuration

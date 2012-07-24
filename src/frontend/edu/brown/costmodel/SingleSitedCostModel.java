@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -44,13 +43,15 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
@@ -63,8 +64,8 @@ import edu.brown.workload.filters.Filter;
  */
 public class SingleSitedCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(SingleSitedCostModel.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -125,7 +126,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private final short weight;
         private final int total_queries;
         private boolean singlesited = true;
-        private Integer base_partition = null;
+        private int base_partition = HStoreConstants.NULL_PARTITION_ID;
         private int examined_queries = 0;
         private int singlesite_queries = 0;
         private int multisite_queries = 0;
@@ -167,22 +168,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.touched_partitions.put(partition);
         }
 
-        public Collection<Integer> getAllTouchedPartitions() {
-            Collection<Integer> partitions = this.touched_partitions.values();
-            if (this.base_partition != null && !partitions.contains(this.base_partition)) {
-                partitions = new HashSet<Integer>();
-                for (Object o : this.touched_partitions.values())
-                    partitions.add((Integer) o);
-                partitions.add(this.base_partition);
-            }
-            return (partitions);
-        }
-
         public Histogram<Integer> getAllTouchedPartitionsHistogram() {
             Histogram<Integer> copy = new Histogram<Integer>(this.touched_partitions);
             assert (this.touched_partitions.getValueCount() == copy.getValueCount());
             assert (this.touched_partitions.getSampleCount() == copy.getSampleCount());
-            if (this.base_partition != null && !copy.contains(this.base_partition)) {
+            if (this.base_partition != HStoreConstants.NULL_PARTITION_ID && !copy.contains(this.base_partition)) {
                 copy.put(this.base_partition);
             }
             return (copy);
@@ -200,7 +190,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.singlesited = singlesited;
         }
 
-        public Integer getExecutionPartition() {
+        public int getExecutionPartition() {
             return (this.base_partition);
         }
 
@@ -262,7 +252,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         public String debug() {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("HashCode", this.hashCode());
             m.put("Weight", this.weight);
             m.put("Base Partition", this.base_partition);
@@ -289,10 +279,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public boolean unknown = false;
 
         /** Table Key -> Set[PartitionId] **/
-        private Map<String, Set<Integer>> partitions = new HashMap<String, Set<Integer>>(SingleSitedCostModel.this.num_tables);
+        private Map<String, PartitionSet> partitions = new HashMap<String, PartitionSet>(SingleSitedCostModel.this.num_tables);
 
         /** All partitions **/
-        private Set<Integer> all_partitions = new HashSet<Integer>(SingleSitedCostModel.this.num_partitions);
+        private PartitionSet all_partitions = new PartitionSet();
 
         /**
          * Constructor
@@ -341,7 +331,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // Check whether any other table references this partition
             // If not, then remove it from the all_partitions set
             boolean found = false;
-            for (Entry<String, Set<Integer>> e : this.partitions.entrySet()) {
+            for (Entry<String, PartitionSet> e : this.partitions.entrySet()) {
                 if (e.getKey().equals(table_key))
                     continue;
                 if (e.getValue().contains(partition)) {
@@ -358,16 +348,16 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.all_partitions.addAll(partitions);
         }
 
-        private Set<Integer> getPartitions(String table_key) {
-            Set<Integer> p = this.partitions.get(table_key);
+        private PartitionSet getPartitions(String table_key) {
+            PartitionSet p = this.partitions.get(table_key);
             if (p == null) {
-                p = new HashSet<Integer>();
+                p = new PartitionSet();
                 this.partitions.put(table_key, p);
             }
             return (p);
         }
 
-        public Set<Integer> getAllPartitions() {
+        public PartitionSet getAllPartitions() {
             return (this.all_partitions);
         }
 
@@ -375,17 +365,17 @@ public class SingleSitedCostModel extends AbstractCostModel {
             return (this.partitions.keySet());
         }
 
-        public Map<String, Set<Integer>> getPartitionValues() {
+        public Map<String, PartitionSet> getPartitionValues() {
             return (this.partitions);
         }
 
         @Override
         public Object clone() throws CloneNotSupportedException {
             QueryCacheEntry clone = (QueryCacheEntry) super.clone();
-            clone.all_partitions = new HashSet<Integer>(this.all_partitions);
-            clone.partitions = new HashMap<String, Set<Integer>>();
+            clone.all_partitions = new PartitionSet(this.all_partitions);
+            clone.partitions = new HashMap<String, PartitionSet>();
             for (String key : this.partitions.keySet()) {
-                clone.partitions.put(key, new HashSet<Integer>(this.partitions.get(key)));
+                clone.partitions.put(key, new PartitionSet(this.partitions.get(key)));
             } // FOR
             return (clone);
         }
@@ -393,7 +383,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         @Override
         public String toString() {
             // You know you just love this!
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Txn Id#", this.txn_id);
             m.put("Weight", this.weight);
             m.put("Query Trace Idx#", this.query_trace_idx);
@@ -614,7 +604,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         query_entry.invalid = true;
         query_entry.singlesited = true;
         query_entry.unknown = true;
-        for (Set<Integer> q_partitions : query_entry.partitions.values()) {
+        for (PartitionSet q_partitions : query_entry.partitions.values()) {
             q_partitions.clear();
         } // FOR
         query_entry.all_partitions.clear();
@@ -635,7 +625,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If we have a base partition value, then we have to remove an entry
         // from the
         // histogram that keeps track of where the java executes
-        if (txn_entry.base_partition != null) {
+        if (txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
             if (trace.get())
                 LOG.trace("Resetting base partition [" + txn_entry.base_partition + "] and updating histograms");
             // NOTE: We have to remove the base_partition from these histograms
@@ -741,7 +731,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // We just need to unset the base partition
             for (TransactionCacheEntry txn_entry : this.cache_procXref.get(catalog_key)) {
                 assert (txn_entry != null);
-                if (txn_entry.base_partition != null) {
+                if (txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
                     if (trace.get())
                         LOG.trace("Unset base_partition for " + txn_entry);
                     txn_entry.touched_partitions.setKeepZeroEntries(true);
@@ -749,7 +739,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     if (this.isJavaExecutionWeightEnabled()) {
                         txn_entry.touched_partitions.remove(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
                     }
-                    txn_entry.base_partition = null;
+                    txn_entry.base_partition = HStoreConstants.NULL_PARTITION_ID;
                     invalidate_modifiedTxns.add(txn_entry);
                     txn_ctr++;
                 }
@@ -773,10 +763,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (trace.get() && !invalidate_modifiedTxns.isEmpty())
             LOG.trace("Updating partition information for " + invalidate_modifiedTxns.size() + " TransactionCacheEntries");
         for (TransactionCacheEntry txn_entry : invalidate_modifiedTxns) {
-            // Get the list of partitions that are no longer being touched by
-            // this txn
+            // Get the list of partitions that are no longer being touched by this txn
             // We remove these from the costmodel's global txn touched histogram
-            Set<Integer> zero_partitions = txn_entry.touched_partitions.getValuesForCount(0);
+            Collection<Integer> zero_partitions = txn_entry.touched_partitions.getValuesForCount(0);
             if (!zero_partitions.isEmpty()) {
                 if (trace.get())
                     LOG.trace("Removing " + zero_partitions.size() + " partitions for " + txn_entry);
@@ -841,9 +830,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
     // ESTIMATION METHODS
     // --------------------------------------------------------------------------------------------
 
-    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
-    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
-    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
+    private final Map<String, PartitionSet> temp_stmtPartitions = new HashMap<String, PartitionSet>();
+    private final PartitionSet temp_txnOrigPartitions = new PartitionSet();
+    private final PartitionSet temp_txnNewPartitions = new PartitionSet();
 
     @Override
     public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
@@ -910,21 +899,25 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @param catalog_proc
      * @param proc_param_idx
      */
-    protected void setBasePartition(TransactionCacheEntry txn_entry, Integer base_partition) {
-        txn_entry.base_partition = base_partition;
-
+    protected void setBasePartition(TransactionCacheEntry txn_entry, int base_partition) {
         // If the partition is null, then there's nothing we can do here other
         // than just pick a random one
         // For now we'll always pick zero to keep things consistent
-        if (txn_entry.base_partition == null)
+        if (base_partition == HStoreConstants.NULL_PARTITION_ID) {
             txn_entry.base_partition = 0;
+            if (trace.get())
+                LOG.trace("Base partition for " + txn_entry + " is null. Setting to default '" + txn_entry.base_partition + "'");
+        } else {
+            txn_entry.base_partition = base_partition;
+        }
 
         // Record what partition the VoltProcedure executed on
         // We'll throw the base_partition into the txn_entry's touched
         // partitions histogram, but notice
         // that we can weight how much the java execution costs
         if (this.isJavaExecutionWeightEnabled()) {
-            txn_entry.touched_partitions.put(txn_entry.base_partition, (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+            int weight = (int)Math.round(txn_entry.weight * this.getJavaExecutionWeight());
+            txn_entry.touched_partitions.put(txn_entry.base_partition, weight);
         }
         this.histogram_java_partitions.put(txn_entry.base_partition, txn_entry.weight);
     }
@@ -954,7 +947,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // If we have a TransactionCacheEntry then we need to check that:
             // (1) It has a base partition
             // (2) All of its queries have been examined
-            if (txn_entry != null && txn_entry.base_partition != null && txn_entry.examined_queries == txn_trace.getQueries().size()) {
+            if (txn_entry != null && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID && txn_entry.examined_queries == txn_trace.getQueries().size()) {
                 if (trace.get())
                     LOG.trace("Using complete cached entry " + txn_entry);
                 return (txn_entry);
@@ -986,11 +979,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // base partition (where the java executes), then yeah let's do that
         // part here
         int proc_param_idx = catalog_proc.getPartitionparameter();
-        if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == null) {
+        if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == HStoreConstants.NULL_PARTITION_ID) {
             assert (proc_param_idx == RandomProcParameter.PARAM_IDX || proc_param_idx >= 0) : "Invalid ProcParameter Index " + proc_param_idx;
             assert (proc_param_idx < catalog_proc.getParameters().size()) : "Invalid ProcParameter Index " + proc_param_idx;
 
-            Integer base_partition = null;
+            int base_partition = HStoreConstants.NULL_DEPENDENCY_ID;
             try {
                 base_partition = this.p_estimator.getBasePartition(catalog_proc, txn_trace.getParams(), true);
             } catch (Exception ex) {
@@ -1015,12 +1008,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // -----------------------------------------------
         // Dear Andy of the future,
         //
-        // The reason why we have a cost model here instead of just using
+        // The reason why we have a cost model here instead of just using the 
         // PartitionEstimator is because the PartitionEstimator only gives you
-        // back information for
-        // single queries, whereas in this code we are trying figure out
-        // partitioning
-        // information for all of the queries in a transaction.
+        // back information for single queries, whereas in this code we are trying 
+        // figure out partitioning information for all of the queries in a transaction.
         //
         // Sincerely,
         // Andy of 04/22/2010
@@ -1067,7 +1058,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // the QueryCacheEntry is created
                 for (String table_key : query_entry.getTableKeys()) {
                     if (!temp_stmtPartitions.containsKey(table_key)) {
-                        temp_stmtPartitions.put(table_key, new HashSet<Integer>());
+                        temp_stmtPartitions.put(table_key, new PartitionSet());
                     }
                     temp_stmtPartitions.get(table_key).addAll(query_entry.getPartitions(table_key));
                 } // FOR
@@ -1102,14 +1093,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // XXX: What should we do if the TransactionCacheEntry's base
                 // partition hasn't been calculated yet?
                 // Let's just throw it at the PartitionEstimator and let it figure out what to do...
-                Map<String, Set<Integer>> table_partitions = this.p_estimator.getTablePartitions(query_trace, txn_entry.base_partition);
+                Map<String, PartitionSet> table_partitions = this.p_estimator.getTablePartitions(query_trace, txn_entry.base_partition);
                 StringBuilder sb = null;
                 if (trace.get()) {
                     sb = new StringBuilder();
                     sb.append("\n" + StringUtil.SINGLE_LINE + query_trace + " Table Partitions:");
                 }
                 assert (!table_partitions.isEmpty()) : "Failed to get back table partitions for " + query_trace;
-                for (Entry<String, Set<Integer>> e : table_partitions.entrySet()) {
+                for (Entry<String, PartitionSet> e : table_partitions.entrySet()) {
                     assert (e.getValue() != null) : "Null table partitions for '" + e.getKey() + "'";
 
                     // If we didn't get anything back, then that means that we
@@ -1212,29 +1203,29 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // column of each table all hash to the same value. If they don't, then we know we can't
             // be single-partition
         } else {
-            for (Entry<String, Set<Integer>> entry : temp_stmtPartitions.entrySet()) {
-                String table_key = entry.getKey();
+            for (Entry<String, PartitionSet> e : temp_stmtPartitions.entrySet()) {
+                String table_key = e.getKey();
                 Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
                     continue;
                 }
 
                 Column table_partition_col = catalog_tbl.getPartitioncolumn();
-                Set<Integer> hashes = entry.getValue();
+                PartitionSet partitions = e.getValue();
 
                 // If there is more than one partition, then we'll never be multi-partition 
                 // so we can stop our search right here.
-                if (hashes.size() > 1) {
+                if (partitions.size() > 1) {
                     if (trace.get())
                         LOG.trace(String.format("%s references %s's partitioning attribute %s on %d different partitions -- VALUES %s", catalog_proc.getName(), catalog_tbl.getName(),
-                                table_partition_col.fullName(), hashes.size(), hashes));
+                                table_partition_col.fullName(), partitions.size(), partitions));
                     txn_entry.singlesited = false;
                     break;
 
                 // Make sure that the partitioning ProcParameter hashes to the same 
                 // site as the value used on the partitioning column for this table
-                } else if (!hashes.isEmpty() && txn_entry.base_partition != null) {
-                    int tbl_partition = CollectionUtil.first(hashes);
+                } else if (!partitions.isEmpty() && txn_entry.base_partition != HStoreConstants.NULL_PARTITION_ID) {
+                    int tbl_partition = CollectionUtil.first(partitions);
                     if (txn_entry.base_partition != tbl_partition) {
                         if (trace.get())
                             LOG.trace(txn_trace + " executes on Partition #" + txn_entry.base_partition + " " + "but partitioning column " + CatalogUtil.getDisplayName(table_partition_col) + " "
@@ -1259,10 +1250,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.histogram_mp_procs.put(proc_key, txn_weight);
         }
 
-        // IMPORTANT: If the number of partitions touched in this txn have
-        // changed since before we examined
-        // a bunch of queries, then we need to update the various histograms and
-        // counters
+        // IMPORTANT: If the number of partitions touched in this txn have changed 
+        // since before we examined a bunch of queries, then we need to update the
+        // various histograms and counters.
         // This ensures that we do not double count partitions
         if (txn_entry.touched_partitions.getValueCount() != temp_txnOrigPartitions.size()) {
             assert (txn_entry.touched_partitions.getValueCount() > temp_txnOrigPartitions.size());
@@ -1307,7 +1297,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+            args.updateCatalog(FixCatalog.cloneCatalog(args.catalog, cc), null);
         }
 
         // Enable compact output
@@ -1316,7 +1306,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
         PartitionPlan pplan = new PartitionPlan();
-        pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+        pplan.load(pplan_path, args.catalog_db);
         if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
             for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
                 pplan.setNullProcParameter(catalog_proc);
@@ -1342,7 +1332,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
             if (output.equals("-"))
                 output = pplan_path.getAbsolutePath();
-            pplan.save(output);
+            pplan.save(new File(output));
             System.out.println("Saved PartitionPlan to '" + output + "'");
         }
 
@@ -1422,10 +1412,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         Map<String, Object> maps[] = new Map[2];
         int idx = 0;
-        ListOrderedMap<String, Object> m = null;
+        LinkedHashMap<String, Object> m = null;
 
         // Execution Cost
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
@@ -1434,7 +1424,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         maps[idx++] = m;
 
         // Utilization
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         costmodel.getJavaExecutionHistogram().setKeepZeroEntries(false);
         int active_partitions = costmodel.getJavaExecutionHistogram().getValueCount();
         m.put("ACTIVE PARTITIONS", active_partitions);

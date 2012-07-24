@@ -3,6 +3,7 @@
  */
 package edu.brown.catalog;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.json.JSONException;
@@ -92,7 +93,7 @@ public class CatalogExporter implements JSONSerializable {
      * org.voltdb.catalog.Database)
      */
     @Override
-    public void load(String inputPath, Database catalogDb) throws IOException {
+    public void load(File inputPath, Database catalogDb) throws IOException {
         throw new NotImplementedException("Cannot import JSON catalog");
     }
 
@@ -101,7 +102,7 @@ public class CatalogExporter implements JSONSerializable {
      * @see edu.brown.utils.JSONSerializable#save(java.lang.String)
      */
     @Override
-    public void save(String outputPath) throws IOException {
+    public void save(File outputPath) throws IOException {
         JSONUtil.save(this, outputPath);
     }
 
@@ -123,8 +124,7 @@ public class CatalogExporter implements JSONSerializable {
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_CATALOG_OUTPUT);
 
         Catalog catalog = args.catalog;
-        String output = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
-
+        File output = args.getFileParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
         new CatalogExporter(catalog).save(output);
     }
 

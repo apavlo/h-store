@@ -128,6 +128,7 @@ public abstract class HStore {
         if (hstore_conf.site.markov_path != null) {
             File path = new File(hstore_conf.site.markov_path);
             if (path.exists()) {
+                long start = System.currentTimeMillis();
                 Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
                     markovs = MarkovGraphContainersUtil.loadIds(catalog_db,
@@ -137,7 +138,9 @@ public abstract class HStore {
                     throw new RuntimeException(ex);
                 }
                 MarkovGraphContainersUtil.setHasher(markovs, singleton.getPartitionEstimator().getHasher());
-                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
+                long load_time = System.currentTimeMillis() - start;
+                LOG.info(String.format("Finished loading MarkovGraphsContainer '%s' in %.1f sec",
+                                       path, (load_time / 1000d)));
             } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
         }
         
@@ -150,7 +153,7 @@ public abstract class HStore {
             if (path.exists()) {
                 Database catalog_db = CatalogUtil.getDatabase(catalog_site);
                 try {
-                    mappings.load(path.getAbsolutePath(), catalog_db);
+                    mappings.load(path, catalog_db);
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
@@ -183,7 +186,7 @@ public abstract class HStore {
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
             PartitionExecutor executor = new PartitionExecutor(
                     local_partition,
-                    catalog_site.getCatalog(),
+                    singleton.getCatalogContext(),
                     BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
                     p_estimator,
                     t_estimator);
@@ -290,6 +293,6 @@ public abstract class HStore {
         } finally {
             if (buildString == null) buildString = "H-Store";
         }
-        LOG.info("Build: " + versionString + " " + buildString);
+        LOG.debug("Build: " + versionString + " " + buildString);
     }
 }

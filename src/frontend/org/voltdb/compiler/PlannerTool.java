@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.hsqldb.HSQLInterface.HSQLParseException;
 import org.voltdb.catalog.Catalog;
@@ -42,12 +43,14 @@ import org.voltdb.utils.Encoder;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * Planner tool accepts an already compiled VoltDB catalog and then
  * interactively accept SQL and outputs plans on standard out.
  */
 public class PlannerTool {
+    private static final Logger LOG = Logger.getLogger(PlannerTool.class);
 
     Process m_process;
     OutputStreamWriter m_in;
@@ -209,7 +212,9 @@ public class PlannerTool {
         
         // Log Output File
         HStoreConf hstore_conf = HStoreConf.singleton(true);
-        cmd.add(hstore_conf.global.log_dir + File.separatorChar + "plannerlog.txt");
+        String logOutput = hstore_conf.global.log_dir + File.separatorChar + "plannerlog.txt";
+        cmd.add(logOutput);
+        LOG.debug("Planner Log Output: " + logOutput);
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
@@ -236,12 +241,13 @@ public class PlannerTool {
         return new PlannerTool(process, in);
     }
 
-    static void log(String str) {
+    static synchronized void log(String str) {
         try {
-            FileWriter log = new FileWriter(m_logfile, true);
-            log.write(str + "\n");
-            log.flush();
-            log.close();
+            if (m_logWriter == null) {
+                m_logWriter = new FileWriter(m_logfile, true);
+            }
+            m_logWriter.write(str + "\n");
+            m_logWriter.flush();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -249,6 +255,7 @@ public class PlannerTool {
     }
 
     static File m_logfile;
+    static FileWriter m_logWriter;
 
     /**
      * @param args
@@ -358,7 +365,7 @@ public class PlannerTool {
             try {
                 plan = planner.compilePlan(
                         costModel, inputLine, "PlannerTool", "PlannerToolProc", false, null);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log("Error creating planner: " + e.getMessage());
                 String plannerMsg = e.getMessage();
                 if (plannerMsg != null) {
@@ -379,7 +386,7 @@ public class PlannerTool {
                 }
                 continue;
             }
-
+            
             log("finished planning stmt");
 
             assert(plan.fragments.size() <= 2);
@@ -407,8 +414,15 @@ public class PlannerTool {
             if (plan.replicatedTableDML) {
                 System.out.println("REPLICATED-DML: true");
             }
+            
+//            AbstractPlanNode root = plan.fullWinnerPlan;
+//            if (plan.fragments.size() == 2) {
+//                CollectionUtil.first(PlanNodeUtil.getLeafPlanNodes(root)).addAndLinkChild(plan.fragments.get(1).planGraph);
+//            }
+//            log("PLAN NODE DUMP:\n" + PlanNodeUtil.debug(root) + "\n");
 
             log("finished loop");
+            log(StringUtil.repeat("-", 150));
 
             // print a newline to delimit
             System.out.println();

@@ -38,7 +38,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
             assertNotNull(correlations_file);
             assert(correlations_file.exists());
             correlations = new ParameterMappingsSet();
-            correlations.load(correlations_file.getAbsolutePath(), catalog_db);
+            correlations.load(correlations_file, catalog_db);
         }
         
         // Setup everything else (that's just how we roll up in this ma)
@@ -46,7 +46,7 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
         this.info = new DesignerInfo(catalog_db, this.workload);
         this.info.setPartitionerClass(PrimaryKeyPartitioner.class);
         this.info.setMappings(correlations);
-        this.info.setMappingsFile(correlations_file.getAbsolutePath());
+        this.info.setMappingsFile(correlations_file);
         this.hints = new DesignerHints();
 
         this.designer = new Designer(this.info, this.hints, this.info.getArgs());

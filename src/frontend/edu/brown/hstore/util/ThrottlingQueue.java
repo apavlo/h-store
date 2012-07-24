@@ -10,7 +10,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /**
  * Creates a wrapper around a queue that provides a dynamic limit on the

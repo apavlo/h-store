@@ -2,9 +2,7 @@ package edu.brown.utils;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
@@ -26,6 +24,7 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
@@ -39,6 +38,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
     protected static AbstractHasher hasher;
     protected static final int num_partitions = 10;
     protected static final int base_partition = 1;
+    
+    private final PartitionSet partitions = new PartitionSet();
     
     @Override
     protected void setUp() throws Exception {
@@ -64,7 +65,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         txn_trace.addQuery(query_trace);
         txn_trace.stop();
         
-        Collection<Integer> partitions = p_estimator.getAllPartitions(txn_trace);
+        p_estimator.getAllPartitions(partitions, txn_trace);
         assertNotNull(partitions);
         assertEquals(partitions.toString(), 1, partitions.size());
     }
@@ -80,7 +81,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             0l,                 // DATA_A
             0l,                 // SF_TYPE
         };
-        assertNotNull(p_estimator.getBasePartition(catalog_proc, params));
+        assert(p_estimator.getBasePartition(catalog_proc, params) != HStoreConstants.NULL_PARTITION_ID);
     }
     
     /**
@@ -93,7 +94,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         assertNotNull(catalog_stmt);
         
         Object params[] = new Object[] { new String("Doesn't Matter") };
-        Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
         // System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertEquals(num_partitions, partitions.size());
     }
@@ -117,7 +118,8 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
         // We should see one PlanFragment with no partitions and then all others need something
         boolean internal_flag = false;
         for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
-            Collection<Integer> partitions = p_estimator.getPartitions(catalog_frag, params, base_partition);
+            partitions.clear();
+            p_estimator.getPartitions(partitions, catalog_frag, params, base_partition);
             if (partitions.isEmpty()) {
                 assertFalse(internal_flag);
                 internal_flag = true;
@@ -142,7 +144,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             new Long(22),   // END_TIME
         };
 
-        Map<PlanFragment, Set<Integer>> all_partitions = new HashMap<PlanFragment, Set<Integer>>();
+        Map<PlanFragment, PartitionSet> all_partitions = new HashMap<PlanFragment, PartitionSet>();
         CatalogMap<PlanFragment> fragments = catalog_stmt.getMs_fragments();
         p_estimator.getAllFragmentPartitions(all_partitions, fragments.values(), params, base_partition);
         
@@ -197,11 +199,11 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             new Long(3333), // START_TIME
             new Long(4444), // END_TIME
         };
-        Map<String, Set<Integer>> partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
+        Map<String, PartitionSet> partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
         assertNotNull(partitions);
         assertFalse(partitions.isEmpty());
         
-        Set<Integer> touched = new HashSet<Integer>();
+        PartitionSet touched = new PartitionSet();
         for (String table_key : partitions.keySet()) {
             assertFalse(table_key, partitions.get(table_key).isEmpty());
             touched.addAll(partitions.get(table_key));
@@ -266,12 +268,12 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
             new Long(1111), // S_ID
             new Long(2222), // AI_TYPE
         };
-        Map<String, Set<Integer>> partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
+        Map<String, PartitionSet> partitions = p_estimator.getTablePartitions(catalog_stmt, params, base_partition);
         assertNotNull(partitions);
         assertFalse(partitions.isEmpty());
         // System.err.println("partition = " + partitions);
         
-        Set<Integer> touched = new HashSet<Integer>();
+        PartitionSet touched = new PartitionSet();
         for (String table_key : partitions.keySet()) {
             assertFalse(table_key, partitions.get(table_key).isEmpty());
             touched.addAll(partitions.get(table_key));

@@ -1,5 +1,6 @@
 package edu.brown.graphs;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -182,12 +183,12 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         throw new NotImplementedException("Cannot load a " + this.getClass().getSimpleName() + " from a file");
     }
     
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         throw new NotImplementedException("Cannot save a " + this.getClass().getSimpleName() + " to a file");
     }
     

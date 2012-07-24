@@ -34,12 +34,14 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
         this.base_class = base_class;
         this.attributes.addAll(attributes);
         assert (this.attributes.isEmpty() == false);
-        assert (new HashSet<T>(this.attributes).size() == this.attributes.size()) : "Duplicate Attributes: " + this.attributes;
+        assert (new HashSet<T>(this.attributes).size() == this.attributes.size()) :
+            "Duplicate Attributes: " + this.attributes;
 
         CatalogType last_parent = null;
         for (T c : this.attributes) {
             if (last_parent != null)
-                assert (c.getParent().equals(last_parent)) : "Catalog items do not have the same parent: " + CatalogUtil.debug(this.attributes);
+                assert (c.getParent().equals(last_parent)) :
+                    "Catalog items do not have the same parent: " + CatalogUtil.debug(this.attributes);
             last_parent = c.getParent();
         } // FOR
     }
@@ -54,6 +56,17 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
      */
     @SuppressWarnings("unchecked")
     protected static <T extends CatalogType, U extends MultiAttributeCatalogType<T>> U get(Class<U> clazz, T... attrs) {
+        assert(attrs.length > 1) : String.format("Trying to create a %s with %d attributes %s",
+                                                 clazz.getSimpleName(), attrs.length, Arrays.toString(attrs));
+        for (int i = 0; i < attrs.length; i++) {
+            assert(attrs[i] != null) :
+                String.format("The catalog attribute at offset %d is null - %s", i, Arrays.toString(attrs));
+            // Make sure that they don't try to nest a MultiAttributeCatalogType inside of each other
+            assert(attrs[i].getClass().equals(clazz) == false) :
+                String.format("Trying to nest a %s inside of another at offset %d %s",
+                              clazz.getSimpleName(), i, Arrays.toString(attrs));
+        } // FOR
+        
         List<T> attributes = (List<T>) CollectionUtil.addAll(new ArrayList<T>(), attrs);
         CatalogFieldComparator<T> comparator = (CatalogFieldComparator<T>) COMPARATORS.get(clazz);
         if (comparator == null) {
@@ -61,9 +74,6 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
             COMPARATORS.put((Class<? extends CatalogType>) clazz, (CatalogFieldComparator<CatalogType>) comparator);
         }
         // Collections.sort(attributes, comparator);
-        for (int i = 0; i < attrs.length; i++) {
-            assert (attrs[i] != null) : String.format("The catalog attribute at offset %d is null - %s", i, Arrays.toString(attrs));
-        } // FOR
 
         Database catalog_db = CatalogUtil.getDatabase(attrs[0]);
         if (!SINGLETONS.containsKey(catalog_db)) {
@@ -120,12 +130,11 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
         return this.attributes.hashCode();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof InnerMultiAttributeCatalogType))
             return (false);
-        return (this.attributes.equals(((InnerMultiAttributeCatalogType) obj).attributes));
+        return (this.attributes.equals(((InnerMultiAttributeCatalogType<?>) obj).attributes));
     }
 
     @Override

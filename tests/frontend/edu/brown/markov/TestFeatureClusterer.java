@@ -62,7 +62,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
@@ -80,7 +80,7 @@ public class TestFeatureClusterer extends BaseTestCase {
 //                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
 //                    .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Now extract the FeatureSet that we will use in our tests
@@ -177,7 +177,7 @@ public class TestFeatureClusterer extends BaseTestCase {
         assertNotNull(clusterer);
         
         // Make sure that each Txn gets mapped to the same cluster as its base partition
-        Map<Integer, Histogram> p_c_xref = new HashMap<Integer, Histogram>();
+        Map<Integer, Histogram<Integer>> p_c_xref = new HashMap<Integer, Histogram<Integer>>();
         for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
             Instance inst = data.instance(i);
             assertNotNull(inst);
@@ -190,9 +190,9 @@ public class TestFeatureClusterer extends BaseTestCase {
             assertEquals(base_partition.intValue(), (int)inst.value(base_partition_idx));
 
             int c = clusterer.clusterInstance(inst);
-            Histogram h = p_c_xref.get(base_partition);
+            Histogram<Integer> h = p_c_xref.get(base_partition);
             if (h == null) {
-                h = new Histogram();
+                h = new Histogram<Integer>();
                 p_c_xref.put(base_partition, h);
             }
             h.put(c);
@@ -242,7 +242,7 @@ public class TestFeatureClusterer extends BaseTestCase {
         MarkovAttributeSet aset = new MarkovAttributeSet(attributes);
         assertNotNull(aset);
 
-        Histogram key_h = new Histogram();
+        Histogram<String> key_h = new Histogram<String>();
         int key_len = aset.size();
         for (int i = 0, cnt = data.numInstances(); i < cnt; i++) {
             Instance inst = data.instance(i);

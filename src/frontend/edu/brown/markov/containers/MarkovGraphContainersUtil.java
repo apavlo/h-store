@@ -46,7 +46,7 @@ import edu.brown.workload.Workload;
 public abstract class MarkovGraphContainersUtil {
     public static final Logger LOG = Logger.getLogger(MarkovGraphContainersUtil.class);
     public final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -252,7 +252,7 @@ public abstract class MarkovGraphContainersUtil {
                 try {
                     JSONObject json_object = new JSONObject(FileUtil.readFile(in));
                     MarkovGraphsContainer markov = MarkovGraphContainersUtil.createMarkovGraphsContainer(json_object, procedures, catalog_db);
-                    markov.load(in.getAbsolutePath(), catalog_db);
+                    markov.load(in, catalog_db);
                     
                     stringer = (JSONStringer)new JSONStringer().object();
                     stringer.key(partition.toString()).object();
@@ -288,7 +288,7 @@ public abstract class MarkovGraphContainersUtil {
         MarkovGraphsContainer markovs = ClassUtil.newInstance(className, new Object[]{procedures},
                                                                          new Class<?>[]{Collection.class}); 
         assert(markovs != null);
-        if (debug.get()) LOG.debug(String.format("Instantiated new % object", className));
+        if (debug.get()) LOG.debug(String.format("Instantiated new %s object", markovs.getClass().getSimpleName()));
         markovs.fromJSON(json_object, catalog_db);
         return (markovs);
     }

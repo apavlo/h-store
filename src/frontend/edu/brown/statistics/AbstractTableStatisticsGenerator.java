@@ -1,5 +1,6 @@
 package edu.brown.statistics;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -345,7 +346,7 @@ public abstract class AbstractTableStatisticsGenerator {
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE, ArgumentsParser.PARAM_STATS_SCALE_FACTOR, ArgumentsParser.PARAM_STATS_OUTPUT);
 
         double scale_factor = args.getDoubleParam(ArgumentsParser.PARAM_STATS_SCALE_FACTOR);
-        String output = args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT);
+        File output = args.getFileParam(ArgumentsParser.PARAM_STATS_OUTPUT);
 
         AbstractTableStatisticsGenerator generator = factory(args.catalog_db, args.catalog_type, scale_factor);
         Map<Table, TableStatistics> table_stats = generator.generate();

@@ -13,14 +13,14 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
     private static final boolean d = LOG.isDebugEnabled();
     private static final boolean t = LOG.isTraceEnabled();
 
-    private boolean neworder_useLong = false;
+    private boolean neworder_useInt = false;
 
     public TPCCMarkovGraphsContainer(Collection<Procedure> procedures) {
         super(procedures);
     }
 
     @Override
-    public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+    public MarkovGraph getFromParams(Long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
         MarkovGraph ret = null;
         
         String proc_name = catalog_proc.getName();
@@ -30,7 +30,7 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         if (proc_name.equals("neworder")) {
             if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
             assert(this.hasher != null) : "Missing hasher!";
-            id = this.processNeworder(txn_id, base_partition, params, catalog_proc);
+            id = this.processNeworder(txn_id, base_partition, params, catalog_proc, 0);
         // PAYMENT
         } else if (proc_name.startsWith("payment")) {
             if (d) LOG.debug(String.format("Selecting MarkovGraph using decision tree for %s txn #%d", proc_name, txn_id));
@@ -47,18 +47,21 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
         return (ret);
     }
     
-    public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+    public int processNeworder(long txn_id, int base_partition, Object[] params, Procedure catalog_proc, int ctr) {
         // VALUE(D_ID) 
         int d_id = -1;
         try {
-            if (this.neworder_useLong) {
-                d_id = ((Long)params[1]).intValue();
+            if (this.neworder_useInt) {
+                d_id = ((Integer)params[1]).intValue();
             } else {
                 d_id = ((Byte)params[1]).intValue();
             }
         } catch (ClassCastException e) {
-            this.neworder_useLong = (this.neworder_useLong == false);
-            return (this.processNeworder(txn_id, base_partition, params, catalog_proc));
+            if (ctr > 10) {
+                throw e;
+            }
+            this.neworder_useInt = (this.neworder_useInt == false);
+            return (this.processNeworder(txn_id, base_partition, params, catalog_proc, ++ctr));
         }
         
         // ARRAYLENGTH[S_W_IDS]

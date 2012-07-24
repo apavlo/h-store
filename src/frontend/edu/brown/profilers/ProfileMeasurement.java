@@ -25,8 +25,9 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-package edu.brown.utils;
+package edu.brown.profilers;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
@@ -37,14 +38,18 @@ import org.voltdb.catalog.Database;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
 /**
  * @author pavlo
  */
 public class ProfileMeasurement implements JSONSerializable {
     public static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -265,10 +270,6 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.stop(getTime()));
     }
 
-    public boolean isStopped() {
-        return (this.think_marker == null);
-    }
-
     public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
         if (this.stop_observable == null) {
             this.stop_observable = new EventObservable<ProfileMeasurement>();
@@ -354,7 +355,7 @@ public class ProfileMeasurement implements JSONSerializable {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_stop) {
             synchronized (pm) {
-                if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false))
+                if (ignore_stopped == false || (ignore_stopped && pm.isStarted()))
                     pm.stop(time);
             } // SYNCH
         } // FOR
@@ -401,12 +402,12 @@ public class ProfileMeasurement implements JSONSerializable {
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
 

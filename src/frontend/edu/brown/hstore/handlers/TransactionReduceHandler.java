@@ -17,6 +17,7 @@ import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionReduceHandler extends AbstractTransactionHandler<TransactionReduceRequest, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceHandler.class);
@@ -32,9 +33,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
     }
 
     @Override
-    public void sendLocal(Long txn_id, TransactionReduceRequest request,
-            Collection<Integer> partitions,
-            RpcCallback<TransactionReduceResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionReduceRequest request, PartitionSet partitions, RpcCallback<TransactionReduceResponse> callback) {
         // this should think about where to send it 
         // handler.transactionReduce(null, request, callback);
         this.remoteHandler(null, request, callback);

@@ -79,7 +79,7 @@ public abstract class SEATSHistogramUtil {
         
         File file = getHistogramFile(data_path, SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
         Histogram<String> h = new Histogram<String>();
-        h.load(file.getAbsolutePath());
+        h.load(file);
         
         Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         Pattern pattern = Pattern.compile("-");
@@ -111,7 +111,7 @@ public abstract class SEATSHistogramUtil {
         Histogram<String> histogram = cached_Histograms.get(file);
         if (histogram == null) {
             histogram = new Histogram<String>();
-            histogram.load(file.getAbsolutePath());
+            histogram.load(file);
             cached_Histograms.put(file, histogram);
         }
         if (LOG.isDebugEnabled()) 

@@ -5,6 +5,7 @@ import java.util.Iterator;
 import org.junit.Test;
 import org.voltdb.catalog.CatalogType;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
@@ -29,9 +30,9 @@ public class TestBasePartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Integer base_partition = p_estimator.getBasePartition(txn.getCatalogItem(catalog_db), txn.getParams(), true);
-                assertNotNull(base_partition);
-                assertEquals(BASE_PARTITION, base_partition.intValue());
+                int base_partition = p_estimator.getBasePartition(txn.getCatalogItem(catalog_db), txn.getParams(), true);
+                assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
+                assertEquals(BASE_PARTITION, base_partition);
                 count++;
             }
         } // WHILE

@@ -71,7 +71,6 @@
 <property name='files.workloads.dir'         location='${files.dir}/workloads' />
 <property name='files.markovs.dir'           location='${files.dir}/markovs' />
 <property name='files.hints.dir'             location='${files.dir}/designhints' />
-<property name='files.mappings.dir'          location='${files.dir}/mappings' />
 
 <!-- BerkeleyDB Source -->
 <property name="src.berkeleydb.dir"          location="third_party/cpp/berkeleydb" />
@@ -89,7 +88,7 @@
 <property name='jprofiler.port'                 value='8849' />
 
 <!--
-***************************************
+******************************************************************************
 ** H-STORE CONFIGURATION
 **************************************
 -->
@@ -106,7 +105,7 @@
 </condition>
 
 <!--
-***************************************
+******************************************************************************
 ** BENCHMARK CONFIGURATION
 **************************************
 -->
@@ -123,7 +122,7 @@
 </condition>
 
 <!--
-***************************************
+******************************************************************************
 ** ADDITIONAL CONFIGURATION
 **************************************
 -->
@@ -177,9 +176,9 @@
 </condition>
 
 <!--
-***************************************
+******************************************************************************
 PRIMARY ENTRY POINTS
-***************************************
+******************************************************************************
 -->
 
 <target name="build"
@@ -235,9 +234,9 @@ PRIMARY ENTRY POINTS
 
 
 <!--
-***************************************
+******************************************************************************
 ENVIRONMENT SETUP
-***************************************
+******************************************************************************
 -->
 
 <target name="getcpus" description="Get the number of CPUs on this machine"
@@ -256,9 +255,9 @@ ENVIRONMENT SETUP
 
 
 <!--
-***************************************
+******************************************************************************
 DISTRIBUTION
-***************************************
+******************************************************************************
 -->
 
 <target name="dist_internal" depends="compile, ee, hstore.jar">
@@ -387,9 +386,9 @@ DISTRIBUTION
 </target>
 
 <!--
-***************************************
+******************************************************************************
 CLEANING
-***************************************
+******************************************************************************
 -->
 
 <target name="clean" depends="clean-all" />
@@ -423,9 +422,9 @@ CLEANING
 </target>
 
 <!--
-***************************************
+******************************************************************************
 JAR BUILDING
-***************************************
+******************************************************************************
 -->
 
 <target name="buildinfo">
@@ -485,9 +484,9 @@ JAR BUILDING
 </target>
 
 <!--
-***************************************
+******************************************************************************
 JAVA COMPILATION
-***************************************
+******************************************************************************
 -->
 
 <target name="compile">
@@ -558,14 +557,6 @@ JAVA COMPILATION
         todir='${build.test.dir}/org/voltdb/catalog'/>
 
     <!-- compile the individual source directories -->
-    <javac includeantruntime="false"
-        target="${javac.version}"
-        srcdir="${src.protorpc.dir}"
-        destdir='${build.prod.dir}'
-        debug='true'>
-        <classpath refid="project.classpath" />
-    </javac>
-
     <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${src.protorpc.dir}"
@@ -647,9 +638,9 @@ JAVA COMPILATION
 </target>-->
 
 <!--
-***************************************
+******************************************************************************
 DOCUMENTATION
-***************************************
+******************************************************************************
 -->
 
 <target name="doc" description="Create Java doc files.">
@@ -677,9 +668,9 @@ DOCUMENTATION
 </target>
 
 <!--
-***************************************
+******************************************************************************
 BERKELEYDB LIBRARY
-***************************************
+******************************************************************************
 -->
 
 <target name="clean-berkeleydb">
@@ -720,9 +711,9 @@ BERKELEYDB LIBRARY
 </target>
 
 <!--
-***************************************
+******************************************************************************
 NATIVE EE STUFF
-***************************************
+******************************************************************************
 -->
 
 <target name='jnicompile'
@@ -832,9 +823,9 @@ NATIVE EE STUFF
 </target>
 
 <!--
-***************************************
+******************************************************************************
 TEST CASES
-***************************************
+******************************************************************************
 -->
 
 <target name="pythonfser" description="run python fastserializer tests">
@@ -988,6 +979,8 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
 
+                <exclude name='edu/brown/hstore/TestAntiCacheManager*'/>
+                
                 <!-- Busted tests because of hacking -->
                 <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
@@ -1505,10 +1498,26 @@ TEST CASES
     </exec>
 </target>
 
+<target name='mock-site' description="EC2 Coordinator Tests">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.MockHStoreSite">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="${site}" />
+        &common;
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable/>
+        </assertions>
+    </java>
+</target>
+
+
 <!--
-***************************************
-PROTOCOL BUFFERS
-***************************************
+******************************************************************************
+* PROTOCOL BUFFERS
+******************************************************************************
 -->
 
 <!-- Common macro for compiling Java source -->
@@ -1587,12 +1596,6 @@ PROTOCOL BUFFERS
     </ProtobufGenerateJava>
 </target>
 
-<!--
-***************************************
-PROTORPC
-***************************************
--->
-
 <target name="protorpc.java.check">
     <uptodate property="protorpc.built"
               targetfile="${src.protorpc.dir}/edu/brown/hstore/Hstore.java">
@@ -1618,9 +1621,9 @@ PROTORPC
 </target>
 
 <!--
-***************************************
-BENCHMARKS
-***************************************
+******************************************************************************
+* BENCHMARKS
+******************************************************************************
 -->
 
 <target name='benchmark'
@@ -1788,39 +1791,10 @@ BENCHMARKS
     </java>
 </target>
 
-<target name='tcp_throughput_sender' depends='compile'
-    description="Open a TCP connection and send fixed sized packets for a specified duration.">
-    <java fork="true" failonerror="true"
-        classname="org.voltdb.TCPThroughputSender" >
-        <jvmarg value="-server" />
-        <jvmarg value="-Xmx512m" />
-        <arg value='${address}' />
-        <arg value='${packetsize}' />
-        <arg value='${seconds}' />
-        <arg value='${numsockets}' />
-        <classpath refid='project.classpath' />
-        <assertions><enable /></assertions>
-    </java>
-</target>
-
-<target name='tcp_throughput_receiver' depends='compile'
-  description="Accept a TCP connection and log how many messages and bytes are received.">
-    <java fork="true" failonerror="true"
-        classname="org.voltdb.TCPThroughputReceiver" >
-        <jvmarg value="-server" />
-        <jvmarg value="-Xmx512m" />
-        <arg value="${respond}" />
-        <arg value="${responsesize}" />
-        <arg value="${packetsize}" />
-        <classpath refid='project.classpath' />
-        <assertions><enable /></assertions>
-    </java>
-</target>
-
 <!--
-***************************************
-HUDSON-SPECIFIC TARGETS
-***************************************
+******************************************************************************
+* HUDSON-SPECIFIC TARGETS
+******************************************************************************
 -->
 
 <target name='copy-coverage-files'
@@ -1834,9 +1808,9 @@ HUDSON-SPECIFIC TARGETS
 </target>
 
 <!--
-***************************************
+******************************************************************************
 UTILITIES
-***************************************
+******************************************************************************
 -->
 
 <target name='dumper' description="Ask a running voltdb to dump state.">
@@ -1860,23 +1834,24 @@ UTILITIES
     </java>
 </target>
 
-<!--
-***************************************
-DESIGNER
-***************************************
--->
-
-<!--<target name='makecatalog' description="Construct the project jar for a benchmark">
-   <java fork="yes" failonerror="true" classname="edu.brown.workload.FixWorkload">
-      <arg value="catalog.jar=${jar}" />
-      <arg value="workload=${workload}" />
-      <arg value="workload.xactlimit=${limit}" />
-      <arg value="workload.output=${output}" />
-      <arg value="${sigma}" />
-      <classpath refid='project.classpath' />
-      <assertions><enable /></assertions>
+<target name="javaexec" description="Execute a Java class from the cmd line">
+    <java fork="yes" classname="${javafile}">
+        <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
+        <jvmarg value="-server" />
+        <jvmarg value="-Xmx2048m" />
+        <arg value="${javaargs}" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable />
+        </assertions>
    </java>
-</target>-->
+</target>
+
+<!--
+******************************************************************************
+* CATALOG OPERATIONS
+******************************************************************************
+-->
 
 <target name='catalog-fix'
         description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
@@ -1954,6 +1929,27 @@ DESIGNER
     </java>
 </target>
 
+<target name='graphviz' description="GraphViz Schema Export">
+    <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
+        <jvmarg value="-Xmx512m" />
+        <arg value="catalog.jar=${jar}" />
+        <arg line="${ignore}" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable />
+        </assertions>
+    </java>
+    <!--    <exec dir="${basedir}" executable="dot">
+       <arg line="-Tpng ${project}.dot > ${project}.png"/>
+    </exec>-->
+</target>
+
+<!--
+******************************************************************************
+* WORKLOAD OPERATIONS
+******************************************************************************
+-->
+
 <target name='workload-fix'>
    <java fork="yes" failonerror="true" classname="edu.brown.workload.FixWorkload">
       <arg value="catalog.jar=${jar}" />
@@ -2021,30 +2017,13 @@ DESIGNER
     </java>
 </target>
 
+<!--
+******************************************************************************
+* MARKOV MODELS
+******************************************************************************
+-->
 
-<target name='graphviz' description="GraphViz Schema Export">
-    <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
-        <jvmarg value="-Xmx512m" />
-        <arg value="catalog.jar=${jar}" />
-        <arg line="${ignore}" />
-        <classpath refid='project.classpath' />
-        <assertions><enable /></assertions>
-    </java>
-
-<!--    <exec dir="${basedir}" executable="dot">
-        <arg line="-Tpng ${project}.dot > ${project}.png"/>
-    </exec>-->
-</target>
-
-<target name='weka' description="Launch Weka GUI">
-    <java fork="yes" classname="weka.gui.GUIChooser">
-        <jvmarg value="-Xmx${volt.client.memory}m" />
-        <classpath refid='project.classpath' />
-<!--         <assertions><enable /></assertions> -->
-    </java>
-</target>
-
-<target name='markov' description="Generate Markov Graphs" depends="getcpus">
+<target name='markov-generate' description="Generate Markov Graphs" depends="getcpus">
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
@@ -2081,7 +2060,6 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>
 </target>
-
 
 <target name='markov-graphviz' description="Create MarkovGraphs Graphviz files">
     <java fork="yes" classname="edu.brown.markov.MarkovGraphvizExport" failonerror='true'>
@@ -2143,6 +2121,20 @@ DESIGNER
     </java>
 </target>
 
+<target name='weka' description="Launch Weka GUI">
+    <java fork="yes" classname="weka.gui.GUIChooser">
+        <jvmarg value="-Xmx${volt.client.memory}m" />
+        <classpath refid='project.classpath' />
+        <!-- <assertions><enable /></assertions> -->
+    </java>
+</target>
+
+<!--
+******************************************************************************
+* PARAMETER MAPPINGS
+******************************************************************************
+-->
+
 <target name='mappings-generate'
         description="Generate Parameter Mappings">
     <java fork="yes" classname="edu.brown.mappings.MappingCalculator" failonerror='true'>
@@ -2161,6 +2153,12 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>
 </target>
+
+<!--
+******************************************************************************
+* AUTOMATIC DATABASE DESIGNER
+******************************************************************************
+-->
 
 <target name='designer-prepare'
         description="Prepare various files needed by designer components">
@@ -2318,9 +2316,9 @@ DESIGNER
 </target>
 
 <!--
-***************************************
-OLTP Generator
-***************************************
+******************************************************************************
+* OLTP Generator
+******************************************************************************
 -->
 
 <target name="oltpgen.clean">
@@ -2354,21 +2352,10 @@ OLTP Generator
 </target>
 
 <!--
-***************************************
-H-STORE REMIX
-***************************************
+******************************************************************************
+* H-STORE SYSTEM
+******************************************************************************
 -->
-
-<target name="javaexec" description="Execute a Java class from the cmd line">
-   <java fork="yes" classname="${javafile}">
-      <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
-      <jvmarg value="-server" />
-      <jvmarg value="-Xmx2048m" />
-      <arg value="${javaargs}" />
-      <classpath refid='project.classpath' />
-      <assertions><enable /></assertions>
-   </java>
-</target>
 
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
     <!-- Compile + create benchmark project jar -->
@@ -2382,13 +2369,36 @@ H-STORE REMIX
     <antcall target="hstore-jar" />
 </target>
 
+<target name="hstore-jar" description="H-Store JAR Setup">
+    <antcall target="catalog-fix">
+        <param name="jar" value="${benchmark.jar}" />
+        <param name="mappings" value="${files.mappings.dir}/${project}.mappings" />
+        
+        <!-- FORMAT: <hostname>:<site#>:<partition#> -->
+        <!-- Default is two sites, each with one partition -->
+        <param name="hosts" value="${global.defaulthost}:0:0;${global.defaulthost}:1:1" />
+    </antcall>
+</target>
+
+<target name='hstore-dist' description="Prepare Repository for New Release">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.conf.HStoreConfUtil">
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="${basedir}/build-common.xml" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable/>
+        </assertions>
+    </java>
+</target>
+
 <target name="hstore-site" description="H-Store Execution Site">
     <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
-    <condition property="mappings" value="${files.mappings.dir}/${project}.mappings">
+<!--    <condition property="mappings" value="${files.mappings.dir}/${project}.mappings">
         <not><isset property="mappings"/></not>
-    </condition>
+    </condition>-->
 
     <java fork="yes" classname="edu.brown.hstore.HStore">
         <!-- Use to identify what process this for killing -->
@@ -2497,45 +2507,6 @@ H-STORE REMIX
         <assertions><enable/></assertions>
     </java>
 </target>
-
-<target name="hstore-jar" description="H-Store JAR Setup">
-    <antcall target="catalog-fix">
-        <param name="jar" value="${benchmark.jar}" />
-        <param name="mappings" value="${files.mappings.dir}/${project}.mappings" />
-
-        <!-- FORMAT: <hostname>:<site#>:<partition#> -->
-<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:1:1" /> -->
-<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:0:2,${global.defaulthost}:0:3,${global.defaulthost}:0:4" /> -->
-<!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1" /> -->
-        <param name="hosts" value="${global.defaulthost}:0:0;${global.defaulthost}:0:1;${global.defaulthost}:1:2;${global.defaulthost}:1:3" />
-    </antcall>
-</target>
-
-<target name='hstore-dist' description="Prepare Repository for New Release">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.conf.HStoreConfUtil">
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="${basedir}/build-common.xml" />
-        <classpath refid='project.classpath' />
-        <assertions>
-            <enable/>
-        </assertions>
-    </java>
-</target>
-
-<target name='mock-site' description="EC2 Coordinator Tests">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.MockHStoreSite">
-        <jvmarg value="-client" />
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="${site}" />
-        &common;
-        <classpath refid='project.classpath' />
-        <assertions><enable/></assertions>
-    </java>
-</target>
-
 
 <!-- END PROJECT -->
 </project>

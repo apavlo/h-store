@@ -1,5 +1,6 @@
 package edu.brown.workload;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.util.*;
 import java.util.Map.Entry;
@@ -388,7 +389,7 @@ public abstract class FixWorkload {
             Histogram hist = histograms.get(w_id);
             buffer.append("Partition: " + w_id + " [" + distributions.get(w_id).getMin() + "]\n");
             buffer.append(hist).append("\n");
-            hist.save("histograms/" + w_id + ".hist");
+            hist.save(new File("histograms/" + w_id + ".hist"));
         } // FOR
         LOG.info(buffer.toString());
         

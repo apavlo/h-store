@@ -1,8 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-import java.util.HashSet;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
@@ -18,6 +15,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 public class TransactionPrepareHandler extends AbstractTransactionHandler<TransactionPrepareRequest, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareHandler.class);
@@ -30,14 +28,15 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     /**
      * XXX: I think this is thread safe
      */
-    private final Collection<Integer> updatedPartitions = new HashSet<Integer>();
+    private final PartitionSet targetPartitions = new PartitionSet();
+    private final PartitionSet updatedPartitions = new PartitionSet();
     
     public TransactionPrepareHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         super(hstore_site, hstore_coord);
     }
     
     @Override
-    public void sendLocal(Long txn_id, TransactionPrepareRequest request, Collection<Integer> partitions, RpcCallback<TransactionPrepareResponse> callback) {
+    public void sendLocal(Long txn_id, TransactionPrepareRequest request, PartitionSet partitions, RpcCallback<TransactionPrepareResponse> callback) {
         // We don't care whether we actually updated anybody locally, so we don't need to
         // pass in a set to get the partitions that were updated here.
         hstore_site.transactionPrepare(txn_id, partitions, null);
@@ -63,8 +62,10 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
         // XXX: Check whether this thread safe. I think it is
+        this.targetPartitions.clear();
+        this.targetPartitions.addAll(request.getPartitionsList());
         this.updatedPartitions.clear();
-        hstore_site.transactionPrepare(txn_id, request.getPartitionsList(), this.updatedPartitions);
+        hstore_site.transactionPrepare(txn_id, this.targetPartitions, this.updatedPartitions);
         assert(this.updatedPartitions.isEmpty() == false) :
             "Unexpected empty list of updated partitions for txn #" + txn_id;
         

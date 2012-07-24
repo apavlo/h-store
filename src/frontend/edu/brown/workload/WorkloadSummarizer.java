@@ -1,5 +1,6 @@
 package edu.brown.workload;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -409,7 +410,7 @@ public class WorkloadSummarizer {
         assert(new_workload != null);
         LOG.info("AFTER:\n" + new_workload.getProcedureHistogram());
         
-        String output_path = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
+        File output_path = args.getFileParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
         LOG.info("Saving compressed workload '" + output_path + "'");
         new_workload.save(output_path, args.catalog_db);
     }

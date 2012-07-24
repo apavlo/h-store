@@ -10,7 +10,9 @@ import java.util.Set;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.voltdb.benchmark.tpcc.procedures.GetTableCounts;
 import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
+import org.voltdb.benchmark.tpcc.procedures.SelectAll;
 import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
@@ -50,6 +52,48 @@ public class TestCatalogUtil extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+    }
+    
+    /**
+     * testGetReadWriteConflicts
+     */
+    public void testGetConflictProcedures() throws Exception {
+        // We expect there to be a conflict between slev and neworder
+        Procedure proc0 = this.getProcedure(neworder.class);
+        Procedure proc1 = this.getProcedure(slev.class);
+        
+        // slev doesn't write anything, so there should be no READ-WRITE conflict
+        Collection<Procedure> conflicts = CatalogUtil.getReadWriteConflicts(proc0);
+        assertNotNull(conflicts);
+        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc0));
+        assertFalse(proc0+": "+conflicts.toString(), conflicts.contains(proc0));
+        
+        // But it's not symmetrical, because neworder writes some stuff out
+        conflicts = CatalogUtil.getReadWriteConflicts(proc1);
+        assertNotNull(conflicts);
+        assertFalse(conflicts.contains(proc1));
+        assertTrue(conflicts.contains(proc0));
+    }
+    
+    /**
+     * testGetWriteWriteConflicts
+     */
+    public void testGetWriteWriteConflicts() throws Exception {
+        // For each Procedure that is marked as conflicting with another,
+        // make sure that they each know about each other
+        for (Procedure proc0 : catalog_db.getProcedures()) {
+            Collection<Procedure> conflicts0 = CatalogUtil.getWriteWriteConflicts(proc0);
+            
+            // If the proc is read-only, then it should never have a write-write conflict
+            if (proc0.getReadonly()) {
+                assertEquals(proc0.getName(), 0, conflicts0.size());
+            }
+            
+            for (Procedure proc1 : conflicts0) {
+                Collection<Procedure> conflicts1 = CatalogUtil.getWriteWriteConflicts(proc1);
+                assertTrue(proc0 + "<->" + proc1, conflicts1.contains(proc0));
+            } // FOR
+        } // FOR
     }
 
     /**
@@ -347,7 +391,14 @@ public class TestCatalogUtil extends BaseTestCase {
      * GetReferencingProcedures
      */
     public void testGetReferencingProcedures() throws Exception {
-        Procedure expected[] = { this.getProcedure(delivery.class), this.getProcedure(neworder.class), this.getProcedure(ResetWarehouse.class), };
+        Procedure expected[] = {
+            this.getProcedure(delivery.class),
+            this.getProcedure(neworder.class),
+            this.getProcedure(ResetWarehouse.class),
+            this.getProcedure(GetTableCounts.class),
+            this.getProcedure(SelectAll.class),
+            
+        };
         Table catalog_tbl = this.getTable("NEW_ORDER");
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
         assertNotNull(procedures);

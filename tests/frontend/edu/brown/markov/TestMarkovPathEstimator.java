@@ -59,7 +59,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         if (markovs == null) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
             
             // Workload Filter:
             //  (1) Only include TARGET_PROCEDURE traces
@@ -76,7 +76,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(file, catalog_db, filter);
 //             for (TransactionTrace xact : workload.getTransactions()) {
 //                 System.err.println(xact.debug(catalog_db));
 //                 System.err.println(StringUtil.repeat("+", 100));

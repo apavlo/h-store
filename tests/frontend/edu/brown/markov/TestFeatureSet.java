@@ -49,7 +49,7 @@ public class TestFeatureSet extends BaseTestCase {
             workload = new Workload(catalog);
             Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE.getSimpleName())
                                          .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
         }
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);

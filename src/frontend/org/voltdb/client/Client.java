@@ -22,7 +22,7 @@ import java.net.UnknownHostException;
 
 import org.voltdb.VoltTable;
 
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /**
  *  <p>

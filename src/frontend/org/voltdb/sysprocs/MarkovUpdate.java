@@ -28,9 +28,9 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
-public class RecomputeMarkovs extends VoltSystemProcedure {
+public class MarkovUpdate extends VoltSystemProcedure {
     
-    private static final Logger LOG = Logger.getLogger(RecomputeMarkovs.class);
+    private static final Logger LOG = Logger.getLogger(MarkovUpdate.class);
 
     @Override
     public void globalInit(PartitionExecutor site, Procedure catalog_proc,
@@ -89,7 +89,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                         File f = FileUtil.getTempFile("markovs-" + this.partitionId, true);
                         LOG.info(String.format("Saving updated MarkovGraphs to '" + f + "'"));
                         try {
-                            markovs.save(f.getAbsolutePath());
+                            markovs.save(f);
                         } catch (Throwable ex) {
                             throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreThreadManager.formatSiteName(this.executor.getSiteId()), ex);
                         }

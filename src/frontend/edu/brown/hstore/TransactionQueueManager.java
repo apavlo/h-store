@@ -1,6 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,22 +10,24 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Loggable;
-import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.interfaces.Loggable;
+import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public class TransactionQueueManager implements Runnable, Loggable, Shutdownable {
@@ -148,8 +149,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
         
-        Collection<Integer> allPartitions = hstore_site.getAllPartitionIds();
-        int num_ids = allPartitions.size();
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+        
+        Integer allPartitions[] = catalogContext.getAllPartitionIdArray();
+        int num_ids = allPartitions.length;
         this.lockQueues = new TransactionInitPriorityQueue[num_ids];
         this.lockQueuesBlocked = new boolean[this.lockQueues.length];
         this.lockQueuesLastTxn = new Long[this.lockQueues.length];
@@ -322,7 +325,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param callback
      * @return
      */
-    public boolean lockInsert(Long txn_id, Collection<Integer> partitions, TransactionInitQueueCallback callback) {
+    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
                                        txn_id, partitions));
         

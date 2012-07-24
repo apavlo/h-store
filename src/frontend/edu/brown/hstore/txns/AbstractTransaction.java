@@ -27,6 +27,7 @@ package edu.brown.hstore.txns;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.NotImplementedException;
 
@@ -46,9 +48,9 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
-import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.internal.FinishTxnMessage;
 import edu.brown.hstore.internal.WorkFragmentMessage;
+import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
@@ -58,8 +60,8 @@ import edu.brown.pools.Poolable;
  */
 public abstract class AbstractTransaction implements Poolable, Loggable {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -83,6 +85,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     protected Long txn_id = null;
     protected long client_handle;
+    protected int proc_id;
     protected int base_partition;
     protected Status status;
     protected boolean sysproc;
@@ -111,7 +114,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected PrefetchState prefetch;
     
     // ----------------------------------------------------------------------------
-    // VoltMessage Wrappers
+    // Internal Message Wrappers
     // ----------------------------------------------------------------------------
     
     private final FinishTxnMessage finish_task;
@@ -163,6 +166,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     /** This is set to true if the transaction did some work without an undo buffer **/
     private final boolean exec_noUndoBuffer[];
     
+    protected final BitSet readTables[];
+    protected final BitSet writeTables[];
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -174,17 +180,25 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public AbstractTransaction(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         
-        int cnt = hstore_site.getLocalPartitionIdArray().length;
-        this.finished = new boolean[cnt];
-        this.last_undo_token = new long[cnt];
-        this.round_state = new RoundState[cnt];
-        this.round_ctr = new int[cnt];
-        this.exec_readOnly = new boolean[cnt];
-        this.exec_eeWork = new boolean[cnt];
-        this.exec_noUndoBuffer = new boolean[cnt];
+        int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        this.finished = new boolean[numLocalPartitions];
+        this.last_undo_token = new long[numLocalPartitions];
+        this.round_state = new RoundState[numLocalPartitions];
+        this.round_ctr = new int[numLocalPartitions];
+        this.exec_readOnly = new boolean[numLocalPartitions];
+        this.exec_eeWork = new boolean[numLocalPartitions];
+        this.exec_noUndoBuffer = new boolean[numLocalPartitions];
         
         this.finish_task = new FinishTxnMessage(this, Status.OK);
-        this.work_task = new WorkFragmentMessage[cnt];
+        this.work_task = new WorkFragmentMessage[numLocalPartitions];
+        
+        this.readTables = new BitSet[numLocalPartitions];
+        this.writeTables = new BitSet[numLocalPartitions];
+        int num_tables = hstore_site.getDatabase().getTables().size();
+        for (int i = 0; i < numLocalPartitions; i++) {
+            this.readTables[i] = new BitSet(num_tables);
+            this.writeTables[i] = new BitSet(num_tables);
+        } // FOR
         
         Arrays.fill(this.last_undo_token, HStoreConstants.NULL_UNDO_LOGGING_TOKEN);
         Arrays.fill(this.exec_readOnly, true);
@@ -203,16 +217,18 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * @return
      */
     protected final AbstractTransaction init(Long txn_id,
-                                               long client_handle,
-                                               int base_partition,
-                                               boolean sysproc,
-                                               boolean predict_singlePartition,
-                                               boolean predict_readOnly,
-                                               boolean predict_abortable,
-                                               boolean exec_local) {
+                                             long client_handle,
+                                             int base_partition,
+                                             int proc_id,
+                                             boolean sysproc,
+                                             boolean predict_singlePartition,
+                                             boolean predict_readOnly,
+                                             boolean predict_abortable,
+                                             boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
+        this.proc_id = proc_id;
         this.sysproc = sysproc;
         this.predict_singlePartition = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
@@ -257,11 +273,15 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
             this.exec_noUndoBuffer[i] = false;
+            
+            this.readTables[i].clear();
+            this.writeTables[i].clear();
         } // FOR
 
         if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                        this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         
+        this.proc_id = -1;
         this.base_partition = -1;
         this.txn_id = null;
     }
@@ -447,6 +467,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return base_partition;
     }
     /**
+     * Get the Procedure catalog id for this txn
+     */
+    public final int getProcedureId() {
+        return this.proc_id;
+    }
+    /**
      * Returns true if this transaction is for a system procedure
      */
     public final boolean isSysProc() {
@@ -582,6 +608,41 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     }
     
     // ----------------------------------------------------------------------------
+    // READ/WRITE TABLE TRACKING
+    // ----------------------------------------------------------------------------
+    
+    public void markTableAsRead(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.readTables[offset].set(catalog_tbl.getRelativeIndex());
+    }
+    public void markTableIdsAsRead(int partition, int...tableIds) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        for (int id : tableIds) {
+            this.readTables[offset].set(id);
+        } // FOR
+    }
+    public boolean isTableRead(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.readTables[offset].get(catalog_tbl.getRelativeIndex()));
+    }
+    
+    public void markTableAsWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        this.writeTables[offset].set(catalog_tbl.getRelativeIndex());
+    }
+    public void markTableIdsAsWritten(int partition, int...tableIds) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        for (int id : tableIds) {
+            this.writeTables[offset].set(id);
+        } // FOR
+    }
+    public boolean isTableWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.writeTables[offset].get(catalog_tbl.getRelativeIndex()));
+    }
+    
+    
+    // ----------------------------------------------------------------------------
     // Whether the ExecutionSite is finished with the transaction
     // ----------------------------------------------------------------------------
     
@@ -711,11 +772,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.prefetch.partitions.set(offset);
     }
     
-    // ----------------------------------------------------------------------------
-    // PREFETCH QUERIES
-    // ----------------------------------------------------------------------------
-    
-
 
     @Override
     public String toString() {
@@ -737,6 +793,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("Last UndoToken", Arrays.toString(this.last_undo_token));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
+        m.put("Executed Work", Arrays.toString(this.exec_eeWork));
         if (this.pending_error != null)
             m.put("Pending Error", this.pending_error);
         return (m);

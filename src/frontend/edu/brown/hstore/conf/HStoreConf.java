@@ -22,12 +22,11 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
     private static final Logger LOG = Logger.getLogger(HStoreConf.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -49,7 +48,7 @@ public final class HStoreConf {
             defaultString="obj",
             experimental=false
         )
-        public String temp_dir = "obj";
+        public String temp_dir;
         
         @ConfigProperty(
             description="Default log directory for H-Store.",
@@ -180,8 +179,10 @@ public final class HStoreConf {
                         "single-partition transactions whenever it completes a work request for a multi-partition " +
                         "transaction running on a different node.",
             defaultBoolean=true,
+            replacedBy="site.specexec_enable",
             experimental=true
         )
+        @Deprecated
         public boolean exec_speculative_execution;
         
         @ConfigProperty(
@@ -205,16 +206,6 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_force_undo_logging_all;
-        
-        @ConfigProperty(
-            description="If this parameter is set to true, then each HStoreSite will not send every transaction request " +
-                        "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
-                        "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
-                        "major throughput improvement.",
-            defaultBoolean=true,
-            experimental=false
-        )
-        public boolean exec_avoid_coordinator;
         
         @ConfigProperty(
             description="If this configuration parameter is true, then H-Store will use DB2-style transaction redirects. " +
@@ -396,6 +387,19 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_deferrable_queries;
+
+        // ----------------------------------------------------------------------------
+        // Speculative Execution Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If this feature is enabled, then each HStoreSite will attempt to speculatively execute " +
+                        "single-partition transactions whenever it completes a work request for a multi-partition " +
+                        "transaction running on a different node.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean specexec_enable;
         
         // ----------------------------------------------------------------------------
         // Command Logging Options
@@ -649,6 +653,14 @@ public final class HStoreConf {
         // Markov Transaction Estimator Options
         // ----------------------------------------------------------------------------
 
+        @ConfigProperty(
+            description="Predict what transactions will do before they execute using " +
+                        "TransactionEstimator's Markov models.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean markov_enable;
+        
         @ConfigProperty(
             description="Recompute a Markov model's execution state probabilities every time a transaction " +
                         "is aborted due to a misprediction. The Markov model is queued in the PartitionExecutorHelper " +

@@ -47,8 +47,8 @@ import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.interfaces.Prefetchable;
-import edu.brown.hstore.interfaces.Deferrable;
+import edu.brown.interfaces.Deferrable;
+import edu.brown.interfaces.Prefetchable;
 import edu.brown.utils.ClassUtil;
 
 /**

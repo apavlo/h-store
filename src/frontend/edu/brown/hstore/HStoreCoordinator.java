@@ -3,7 +3,6 @@ package edu.brown.hstore;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,10 +73,10 @@ import edu.brown.hstore.handlers.TransactionPrefetchHandler;
 import edu.brown.hstore.handlers.TransactionPrepareHandler;
 import edu.brown.hstore.handlers.TransactionReduceHandler;
 import edu.brown.hstore.handlers.TransactionWorkHandler;
-import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.PrefetchQueryPlanner;
+import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.NIOEventLoop;
@@ -85,8 +84,8 @@ import edu.brown.protorpc.ProtoRpcChannel;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.protorpc.ProtoServer;
 import edu.brown.utils.EventObservable;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
 
 /**
  * 
@@ -94,8 +93,8 @@ import edu.brown.utils.ThreadUtil;
  */
 public class HStoreCoordinator implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreCoordinator.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -407,7 +406,7 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.transactionFinish_handler);
     }
     
-//    private int getNumLocalPartitions(Collection<Integer> partitions) {
+//    private int getNumLocalPartitions(PartitionSet partitions) {
 //        int ctr = 0;
 //        int size = partitions.size();
 //        for (Integer p : this.local_partitions) {
@@ -526,7 +525,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     // Shutdown
 //    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
-//        protected void sendLocal(long txn_id, ShutdownRequest request, Collection<Integer> partitions, RpcCallback<ShutdownResponse> callback) {
+//        protected void sendLocal(long txn_id, ShutdownRequest request, PartitionSet partitions, RpcCallback<ShutdownResponse> callback) {
 //            
 //        }
 //        protected void sendRemote(HStoreService channel, ProtoRpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> callback) {
@@ -752,8 +751,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                 .setBasePartition(ts.getBasePartition())
                                                 .addAllPartitions(ts.getPredictTouchedPartitions())
                                                 .build();
-
-            this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
+            this.transactionInit_handler.sendMessages(ts, request, callback, ts.getPredictTouchedPartitions());
         }
         
         // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
@@ -805,7 +803,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      * @param partitions
      */
-    public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, Collection<Integer> partitions) {
+    public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, PartitionSet partitions) {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
@@ -826,7 +824,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionFinish(LocalTransaction ts, Status status, TransactionFinishCallback callback) {
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
                                     partitions, ts, status));
@@ -886,7 +884,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                      .setParams(paramBytes)
                                                      .build();
         
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
              LOG.debug(String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
         //assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
@@ -906,7 +904,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                      .setTransactionId(ts.getTransactionId())
                                                      .build();
         
-        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        PartitionSet partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
              LOG.debug(String.format("Notifying partitions %s that %s is in Reduce Phase", partitions, ts));
                
@@ -1095,18 +1093,20 @@ public class HStoreCoordinator implements Shutdownable {
     public void shutdownCluster(final Throwable error) {
         if (debug.get())
             LOG.debug(String.format("Invoking shutdown protocol [non-blocking / error=%s]", error));
+        
         // Make this a thread so that we don't block and can continue cleaning up other things
-        Thread shutdownThread = new Thread() {
+        Runnable shutdownRunnable = new Runnable() {
             @Override
             public void run() {
-                LOG.info("HACK: Sleeping for 5 seconds...");
-                ThreadUtil.sleep(5000);
-                HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
+                LOG.debug("Shutting down cluster " + (error != null ? " - " + error : ""));
+                try {
+                    HStoreCoordinator.this.shutdownClusterBlocking(error); // Never returns!
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
             }
         };
-        shutdownThread.setName(HStoreThreadManager.getThreadName(this.hstore_site, "shutdown"));
-        shutdownThread.setDaemon(true);
-        shutdownThread.start();
+        hstore_site.getThreadManager().scheduleWork(shutdownRunnable, 2500, TimeUnit.MILLISECONDS);
         return;
     }
     
@@ -1133,7 +1133,7 @@ public class HStoreCoordinator implements Shutdownable {
         final CountDownLatch latch = new CountDownLatch(this.num_sites);
         
         try {
-            if (this.num_sites > 0) {
+            if (this.num_sites > 1) {
                 RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                     private final Set<Integer> siteids = new HashSet<Integer>(); 
                     
@@ -1176,19 +1176,21 @@ public class HStoreCoordinator implements Shutdownable {
             this.hstore_site.shutdown();
             
             // Block until the latch releases us
-            if (this.num_sites > 0) {
+            if (this.num_sites > 1) {
                 LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
                 latch.await(5, TimeUnit.SECONDS);
             }
-        } catch (Throwable ex2) {
+        } catch (Throwable ex) {
             // IGNORE
         } finally {
             LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
             if (error != null) {
                 LOG.fatal("A fatal error caused this shutdown", error);
             }
+            
+            // XXX: I forget why I had commented these two guys out...
 //            LogManager.shutdown();
-//            System.exit(exit_status);
+            System.exit(exit_status);
         }
     }
 

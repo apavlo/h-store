@@ -56,15 +56,31 @@ logging.basicConfig(level = logging.INFO,
                     stream = sys.stdout)
 
 HSTORE_OPTS = {
-    "client.duration":              360000,
+    "site.specexec_enable":         False,
+    "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.processesperclient":    200,
+    "client.threads_per_host":      200,
     "client.txnrate":               1000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1,
-    "client.scalefactor":           1,
+    "client.scalefactor":           2.0,
+    "killonzero":                   True,
 }
+
+## ==============================================
+## getBenchmarks
+## ==============================================
+def getBenchmarks():
+    """Return a list of the valid benchmark handles that can be used in the framework"""
+    global basedir
+    
+    benchmarksDir = os.path.join(basedir, "../properties/benchmarks")
+    print benchmarksDir
+    
+    benchmarks = [ os.path.basename(f).split(".")[0] for f in glob.glob(benchmarksDir + "/*.properties") ]
+    return (benchmarks)
+## DEF
 
 ## ==============================================
 ## txnCount
@@ -83,13 +99,15 @@ def txnCount(path):
 ## main
 ## ==============================================
 if __name__ == '__main__':
+    allBenchmarks = getBenchmarks()
+    
     aparser = argparse.ArgumentParser(description='Create H-Store transaction trace files')
-    aparser.add_argument('benchmark', choices=[ 'tpcc', 'tm1', 'auctionmark', 'locality', 'seats' ],
-                         help='Target benchmark')
+    aparser.add_argument('benchmark', choices=allBenchmarks,
+                         help='Target benchmark identifier')
     aparser.add_argument('--config', type=file,
                          help='Path to H-Store configuration file to use')
     aparser.add_argument('--txn-count', type=int, default=100000,
-                         help='The number of transaction records needed')
+                         help='The minimum number of transaction records needed')
     aparser.add_argument('--output-path', type=str, default="traces",
                          help='The output directory to store the traces')
     aparser.add_argument('--overwrite', action='store_true',
@@ -97,7 +115,7 @@ if __name__ == '__main__':
     aparser.add_argument('--debug', action='store_true',
                          help='Enable debug log messages')
     args = vars(aparser.parse_args())
-
+    
     if args['debug']: logging.getLogger().setLevel(logging.DEBUG)
     if not os.path.exists(args['output_path']): os.makedirs(args['output_path'])
     
@@ -145,7 +163,7 @@ if __name__ == '__main__':
     
     HSTORE_OPTS = {
         "project":              args['benchmark'],
-        "volt.server.memory":   4096,
+        "volt.server.memory":   6144, # 6GB
         "output":               output,
         "workload":             trace_base + "*",
     }

@@ -1,9 +1,7 @@
 package edu.brown.hstore.util;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltProcedure;
@@ -23,6 +21,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.MockHStoreSite;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
@@ -106,7 +105,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
         };
 
         // Generate the minimum set of partitions that we need to touch
-        Set<Integer> partitions = new HashSet<Integer>();
+        PartitionSet partitions = new PartitionSet();
         for (int idx : new int[] { 2, 1 }) {
             Object val = this.proc_params[idx];
             int p = p_estimator.getHasher().hash(val);

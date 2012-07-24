@@ -312,7 +312,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         File correlations_path = this.getParameterMappingsFile(type);
         if (correlations_path != null) {
             ParameterMappingsSet correlations = new ParameterMappingsSet();
-            correlations.load(correlations_path.getAbsolutePath(), catalog_db);
+            correlations.load(correlations_path, catalog_db);
             ParametersUtil.applyParameterMappings(catalog_db, correlations);
         }
     }
@@ -437,7 +437,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
                 cc.addPartition("localhost", 0, i);
                 // System.err.println("[" + i + "] " + Arrays.toString(triplets.lastElement()));
             } // FOR
-            catalog = FixCatalog.addHostInfo(catalog, cc);
+            catalog = FixCatalog.cloneCatalog(catalog, cc);
             this.init(this.last_type, catalog);
             
         }
@@ -452,7 +452,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
             CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
             CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
-            catalog = FixCatalog.addHostInfo(catalog, "localhost", num_hosts, num_sites, num_partitions);
+            catalog = FixCatalog.cloneCatalog(catalog, "localhost", num_hosts, num_sites, num_partitions);
             this.init(this.last_type, catalog);
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
@@ -509,7 +509,14 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * @throws IOException
      */
     public File getParameterMappingsFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
+        // HACK HACK HACK
+        File srcDir = FileUtil.findDirectory("src");
+        File mappingsFile = FileUtil.join(srcDir.getAbsolutePath(),
+                                         "benchmarks",
+                                         type.getPackageName().replace(".", File.separator),
+                                         type.name().toLowerCase() + ".mappings");
+        return (mappingsFile);
+        // return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
 //    /**

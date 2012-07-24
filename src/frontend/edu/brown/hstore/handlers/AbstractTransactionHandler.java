@@ -1,7 +1,5 @@
 package edu.brown.hstore.handlers;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.GeneratedMessage;
@@ -17,6 +15,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 
 /**
  * AbstractTransactionHandler is a wrapper around the invocation methods for some action
@@ -58,7 +57,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
      * @param callback
      * @param partitions
      */
-    public void sendMessages(LocalTransaction ts, T request, RpcCallback<U> callback, Collection<Integer> partitions) {
+    public void sendMessages(LocalTransaction ts, T request, RpcCallback<U> callback, PartitionSet partitions) {
         // If this flag is true, then we'll invoke the local method
         // We want to do this *after* we send out all the messages to the remote sites
         // so that we don't have to wait as long for the responses to come back over the network
@@ -106,7 +105,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
      * @param partitions
      * @param callback
      */
-    public abstract void sendLocal(Long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
+    public abstract void sendLocal(Long txn_id, T request, PartitionSet partitions, RpcCallback<U> callback);
     
     /**
      * The processing method that is invoked if the outgoing message needs

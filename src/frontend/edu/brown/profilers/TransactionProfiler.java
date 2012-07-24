@@ -1,4 +1,4 @@
-package edu.brown.hstore.txns;
+package edu.brown.profilers;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -12,13 +12,12 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.pools.Poolable;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
-public class TransactionProfile implements Poolable {
-    private static final Logger LOG = Logger.getLogger(TransactionProfile.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+public class TransactionProfiler extends AbstractProfiler implements Poolable {
+    private static final Logger LOG = Logger.getLogger(TransactionProfiler.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -30,7 +29,7 @@ public class TransactionProfile implements Poolable {
     public static final Field PROFILE_FIELDS[];
     static {
         // Get all of the ProfileMeasurement fields
-        Class<TransactionProfile> tsClass = TransactionProfile.class;
+        Class<TransactionProfiler> tsClass = TransactionProfiler.class;
         List<Field> fields = new ArrayList<Field>();
         for (Field f : tsClass.getDeclaredFields()) {
             if (f.getType().equals(ProfileMeasurement.class)) {
@@ -128,7 +127,7 @@ public class TransactionProfile implements Poolable {
             if (debug.get()) LOG.debug("STOP " + pm.getType());
             assert(pm.isStarted()) : pm.debug(true);
             pm.stop(timestamp);
-            assert(pm.isStopped()) : pm.debug(true);
+            assert(pm.isStarted() == false) : pm.debug(true);
         } // WHILE
         assert(this.stack.isEmpty());
         assert(this.isStopped());
@@ -350,7 +349,7 @@ public class TransactionProfile implements Poolable {
         } // WHILE
         assert(current == this.pm_exec_total) : "Unexpected " + current;
         if (trace.get()) LOG.trace("STATUS: " + current.debug(true) + "[" + current.hashCode() + "]");
-        if (current.isStopped()) {
+        if (current.isStarted() == false) {
             this.pm_post_total.start();
         } else {
             ProfileMeasurement.swap(current, this.pm_post_total);
@@ -419,7 +418,7 @@ public class TransactionProfile implements Poolable {
     }
     
     public boolean isStopped() {
-        return (this.pm_total.isStopped());
+        return (this.pm_total.isStarted() == false);
     }
     
     @Override
@@ -443,7 +442,7 @@ public class TransactionProfile implements Poolable {
         return (tuple);
     }
     
-    protected Map<String, Object> debugMap() {
+    public Map<String, Object> debugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         for (Field f : PROFILE_FIELDS) {
             ProfileMeasurement val = null;

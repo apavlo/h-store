@@ -46,14 +46,14 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
             assert(workload_file.exists());
             workload = new Workload(catalog);
             Filter filter = new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT);
-            ((Workload) workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(workload_file, catalog_db, filter);
             
             File stats_file = this.getStatsFile(type);
             assertNotNull(stats_file);
             assert(stats_file.exists());
             stats = new WorkloadStatistics(catalog_db);
             try {
-                stats.load(stats_file.getAbsolutePath(), catalog_db);
+                stats.load(stats_file, catalog_db);
             } catch (AssertionError ex) {
                 System.err.println("Failed to load " + stats_file.getAbsolutePath());
                 throw ex;
@@ -63,7 +63,7 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
             assertNotNull(mappings_file);
             assert(mappings_file.exists());
             mappings = new ParameterMappingsSet();
-            mappings.load(mappings_file.getAbsolutePath(), catalog_db);
+            mappings.load(mappings_file, catalog_db);
         }
         
         // Setup everything else (that's just how we roll up in this ma)
@@ -75,7 +75,7 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
         DesignerInfo info = new DesignerInfo(catalog_db, workload);
         info.setStats(stats);
         info.setMappings(mappings);
-        info.setMappingsFile(mappings_file.getAbsolutePath());
+        info.setMappingsFile(mappings_file);
         info.setNumThreads(NUM_THREADS);
         info.setNumIntervals(NUM_INTERVALS);
         return (info);

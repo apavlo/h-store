@@ -35,6 +35,7 @@ class Column;
 class AuthProgram;
 class Statement;
 class ProcParameter;
+class ProcedureRef;
 /**
  * A stored procedure (transaction) in the system
  */
@@ -66,6 +67,8 @@ protected:
     CatalogMap<AuthProgram> m_authPrograms;
     CatalogMap<Statement> m_statements;
     CatalogMap<ProcParameter> m_parameters;
+    CatalogMap<ProcedureRef> m_readConflicts;
+    CatalogMap<ProcedureRef> m_writeConflicts;
 
     virtual void update();
 
@@ -120,6 +123,10 @@ public:
     const CatalogMap<Statement> & statements() const;
     /** GETTER: The set of parameters to this stored procedure */
     const CatalogMap<ProcParameter> & parameters() const;
+    /** GETTER: Procedures whose Statements have a read-write conflict with this procedure */
+    const CatalogMap<ProcedureRef> & readConflicts() const;
+    /** GETTER: Procedures whose Statements have a write-write conflict with this procedure */
+    const CatalogMap<ProcedureRef> & writeConflicts() const;
 };
 
 } // namespace catalog

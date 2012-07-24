@@ -272,7 +272,7 @@ public class StatsViewer extends AbstractViewer {
                 // OPEN WORKLOAD STATS
                 // --------------------------------------------------------
                 case WORKLOAD_STATS_OPEN: {
-                    Pair<WorkloadStatistics, String> result = openWorkloadStats();
+                    Pair<WorkloadStatistics, File> result = openWorkloadStats();
                     if (result != null) {
                         args.stats = result.getFirst();
                         args.stats_path = result.getSecond();
