@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cassert>
 #include <boost/crc.hpp>
+#include "common/tabletuple.h"
 
 /**
  * Matches the allocations size in persistenttable.cpp. It's a terrible idea to cut and paste
@@ -31,6 +32,8 @@
 #ifndef MEMCHECK
 #define TABLE_BLOCKSIZE 2097152
 #endif
+
+
 namespace voltdb {
 
 // These next two methods here do some Ariel-foo that probably merits a comment.
@@ -95,7 +98,8 @@ bool CopyOnWriteContext::serializeMore(ReferenceSerializeOutput *out) {
     int rowsSerialized = 0;
 
     TableTuple tuple(m_table->schema());
-    if (out->remaining() < (m_maxTupleLength + sizeof(int32_t))) {
+    //if (out->remaining() < (m_maxTupleLength + sizeof(int32_t))) {
+    if (out->remaining() < (m_maxTupleLength + TUPLE_HEADER_SIZE)) {
         throwFatalException("Serialize more should never be called "
                 "a 2nd time after return indicating there is no more data");
 //        out->writeInt(0);
@@ -103,7 +107,8 @@ bool CopyOnWriteContext::serializeMore(ReferenceSerializeOutput *out) {
 //        return false;
     }
 
-    while (out->remaining() >= (m_maxTupleLength + sizeof(int32_t))) {
+    //while (out->remaining() >= (m_maxTupleLength + sizeof(int32_t))) {
+    while (out->remaining() >= (m_maxTupleLength + TUPLE_HEADER_SIZE)) {
         const bool hadMore = m_iterator->next(tuple);
 
         /**

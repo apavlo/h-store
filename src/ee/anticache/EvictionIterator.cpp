@@ -43,36 +43,62 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EVICTIONITERATOR_H
-#define EVICTIONITERATOR_H
 
 #include "anticache/EvictionIterator.h"
+#include "storage/persistenttable.h"
 
 namespace voltdb {
     
 
-EvictionIterator::EvictionIterator(const Table *table)
+EvictionIterator::EvictionIterator(Table *t)
 {
-    table_itr = new TableIterator(table); 
+    //ptable = static_cast<PersistentTable*>(table); 
+    table = t; 
+    current_tuple_id = -1;
 }
 
 EvictionIterator::~EvictionIterator()
 {
-    delete table_itr; 
+}
+    
+bool EvictionIterator::hasNext()
+{
+    PersistentTable* ptable = static_cast<PersistentTable*>(table);
+    
+    if(current_tuple_id == ptable->getNewestTupleID())
+        return false; 
+    
+    return true; 
 }
 
 bool EvictionIterator::next(TableTuple &tuple)
-{
-    // TODO: This simply iterates through all tuples, must implement LRU iteration policy
+{    
+    PersistentTable* ptable = static_cast<PersistentTable*>(table);
     
-    if(table_itr->hasNext())
+    if(current_tuple_id == -1) // this is the first call to next
+    {
+        if(ptable->getNumTuplesInEvictionChain() == 0)  // there are no tuples in the chain
+        {
+            return false; 
+        }
+
+        current_tuple_id = ptable->getOldestTupleID(); 
+            
+    }
+    else if(current_tuple_id == ptable->getNewestTupleID()) // we've already returned the last tuple in the chain
+    {
         return false; 
+    }
+    else  // advance the iterator to the next tuple in the chain
+    {
+        TableTuple temp = ptable->tempTuple(); 
+        temp.move(ptable->dataPtrForTuple(current_tuple_id));
+        
+        current_tuple_id = temp.getTupleID(); 
+    }
     
-    table_itr->next(tuple); 
-    
+    tuple.move(ptable->dataPtrForTuple(current_tuple_id)); 
     return true; 
 }
     
 }
-
-#endif

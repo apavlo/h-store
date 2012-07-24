@@ -78,6 +78,7 @@ class RecoveryProtoMsg;
 #ifdef ANTICACHE
 class EvictedTable;
 class AntiCacheEvictionManager; 
+class EvictionIterator;
 #endif
 
 /**
@@ -268,6 +269,8 @@ class PersistentTable : public Table {
     void setOldestTupleID(uint32_t id); 
     uint32_t getNewestTupleID(); 
     uint32_t getOldestTupleID(); 
+    void setNumTuplesInEvictionChain(int num_tuples);
+    int getNumTuplesInEvictionChain(); 
 #endif
 
 protected:
@@ -328,12 +331,16 @@ protected:
     // ANTI-CACHE VARIABLES
 #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
+    
+    std::vector<char*> m_unevictedBlocks; 
+    
     char* m_unevictedTuples; 
     int m_numUnevictedTuples; 
-    int m_unevictedTuplesLength; 
     
-    uint32_t m_oldest_tuple_id; 
-    uint32_t m_newest_tuple_id; 
+    uint32_t m_oldestTupleID; 
+    uint32_t m_newestTupleID; 
+    
+    int m_numTuplesInEvictionChain; 
 #endif
     
     // partition key
