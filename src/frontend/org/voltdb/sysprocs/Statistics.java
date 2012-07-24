@@ -36,6 +36,7 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
+import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
@@ -182,6 +183,53 @@ public class Statistics extends VoltSystemProcedure {
         else if (fragmentId == SysProcFragmentId.PF_procedureAggregator) {
             VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_procedureData));
             return new DependencySet(DEP_procedureAggregator, result);
+        }
+        
+        // IO statistics
+        else if (fragmentId == SysProcFragmentId.PF_ioData) {
+            final VoltTable result = new VoltTable(ioColumnInfo);
+            // Choose the lowest site ID on this host to do the scan
+            // All other sites should just return empty results tables.
+            if (isFirstLocalPartition()) {
+                assert(params.toArray() != null);
+                assert(params.toArray().length == 2);
+                final boolean interval =
+                    ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+                final Long now = (Long)params.toArray()[1];
+                try {
+                    final Map<Long, Pair<String,long[]>> stats = executor.getHStoreSite().getVoltNetwork().getIOStats(interval);
+
+                    final Integer hostId = executor.getHStoreSite().getSiteId();
+                    final String hostname = executor.getHStoreSite().getSiteName();
+                    for (Map.Entry<Long, Pair<String, long[]>> e : stats.entrySet()) {
+                        final Long connectionId = e.getKey();
+                        final String remoteHostname = e.getValue().getFirst();
+                        final long counters[] = e.getValue().getSecond();
+                        result.addRow(
+                                      now,
+                                      hostId,
+                                      hostname,
+                                      connectionId,
+                                      remoteHostname,
+                                      counters[0],
+                                      counters[1],
+                                      counters[2],
+                                      counters[3]);
+                    }
+                } catch (Exception e) {
+                    HOST_LOG.warn("Error retrieving stats", e);
+                }
+            }
+            return new DependencySet(DEP_ioData, result);
+        } else if (fragmentId == SysProcFragmentId.PF_ioDataAggregator) {
+            final VoltTable result = new VoltTable(ioColumnInfo);
+            List<VoltTable> dep = dependencies.get(DEP_ioData);
+            for (VoltTable t : dep) {
+                while (t.advanceRow()) {
+                    result.add(t);
+                }
+            }
+            return new DependencySet(DEP_ioDataAggregator, result);
         }
         
         else if (fragmentId == SysProcFragmentId.PF_partitionCount) {

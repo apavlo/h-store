@@ -760,13 +760,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.site_name);
     }
     
-    public ClientInterface getClientInterface() {
-        return (this.clientInterface);
-    }
-    public StatsAgent getStatsAgent() {
-        return (this.statsAgent);
-    }
-    
     /**
      * Return the list of all the partition ids in this H-Store database cluster
      * TODO: Moved to CatalogContext
@@ -894,6 +887,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public AntiCacheManager getAntiCacheManager() {
         return (this.anticacheManager);
+    }
+    public ClientInterface getClientInterface() {
+        return (this.clientInterface);
+    }
+    public StatsAgent getStatsAgent() {
+        return (this.statsAgent);
+    }
+    public VoltNetwork getVoltNetwork() {
+        return (this.voltNetwork);
     }
     
     public DBBPool getBufferPool() {
