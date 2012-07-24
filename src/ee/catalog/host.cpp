@@ -22,14 +22,12 @@
 #include <cassert>
 #include "host.h"
 #include "catalog.h"
-#include "hardwarecpu.h"
 
 using namespace catalog;
 using namespace std;
 
 Host::Host(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
-: CatalogType(catalog, parent, path, name),
-  m_cpus(catalog, this, path + "/" + "cpus")
+: CatalogType(catalog, parent, path, name)
 {
     CatalogValue value;
     m_fields["id"] = value;
@@ -38,17 +36,9 @@ Host::Host(Catalog *catalog, CatalogType *parent, const string &path, const stri
     m_fields["corespercpu"] = value;
     m_fields["threadspercore"] = value;
     m_fields["memory"] = value;
-    m_childCollections["cpus"] = &m_cpus;
 }
 
 Host::~Host() {
-    std::map<std::string, HardwareCPU*>::const_iterator hardwarecpu_iter = m_cpus.begin();
-    while (hardwarecpu_iter != m_cpus.end()) {
-        delete hardwarecpu_iter->second;
-        hardwarecpu_iter++;
-    }
-    m_cpus.clear();
-
 }
 
 void Host::update() {
@@ -61,26 +51,15 @@ void Host::update() {
 }
 
 CatalogType * Host::addChild(const std::string &collectionName, const std::string &childName) {
-    if (collectionName.compare("cpus") == 0) {
-        CatalogType *exists = m_cpus.get(childName);
-        if (exists)
-            return NULL;
-        return m_cpus.add(childName);
-    }
     return NULL;
 }
 
 CatalogType * Host::getChild(const std::string &collectionName, const std::string &childName) const {
-    if (collectionName.compare("cpus") == 0)
-        return m_cpus.get(childName);
     return NULL;
 }
 
 bool Host::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
-    if (collectionName.compare("cpus") == 0) {
-        return m_cpus.remove(childName);
-    }
     return false;
 }
 
@@ -106,9 +85,5 @@ int32_t Host::threadspercore() const {
 
 int32_t Host::memory() const {
     return m_memory;
-}
-
-const CatalogMap<HardwareCPU> & Host::cpus() const {
-    return m_cpus;
 }
 

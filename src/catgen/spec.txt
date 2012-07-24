@@ -25,19 +25,6 @@ begin Host      "A single host participating in the cluster"
     int corespercpu "The number of cores per CPU on this host"
     int threadspercore "The number of threads per cores on this host"
     int memory    "The amount of memory in bytes that this host has"
-    HardwareCPU* cpus     "The representation of a physical CPU on this Host"
-end
-
-begin HardwareCPU       "A single CPU part of a host"
-    HardwareCore* cores "The hardware cores for this CPU"
-end
-
-begin HardwareCore      "A single hardware core that is part of a CPU"
-   HardwareThread* threads "The hardware threads for this core"
-end
-
-begin HardwareThread "A single hardware thread that is part of a core"
-   Partition* partitions "The partitions assigned to this hardware thread"
 end
 
 begin Partition       "A logical, replicate-able partition"
