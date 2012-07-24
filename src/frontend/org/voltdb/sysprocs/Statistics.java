@@ -131,7 +131,7 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(DEP_tableAggregator, result);
         }
         
-        // MEMROY statistics
+        // MEMORY statistics
         else if (fragmentId == SysProcFragmentId.PF_nodeMemory) {
             assert(params.toArray().length == 2);
             final boolean interval =
@@ -158,7 +158,7 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(fragmentId, result);
         }
         else if (fragmentId == SysProcFragmentId.PF_nodeMemoryAggregator) {
-            VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_nodeMemory));
+            VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_nodeMemory));
             return new DependencySet(fragmentId, result);
         }
 
@@ -210,7 +210,6 @@ public class Statistics extends VoltSystemProcedure {
     /**
      * Returns a table stats.
      * requested.
-     * @param ctx          Internal. Not exposed to the end-user.
      * @param selector     Selector requested TABLE, PROCEDURE, INITIATOR,
      *                     PARTITIONCOUNT, IOSTATS, MANAGEMENT, INDEX
      * @param interval     1 for interval statistics. 0 for full statistics.

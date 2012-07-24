@@ -51,6 +51,10 @@ public abstract class ThreadUtil {
     private static final int DEFAULT_NUM_THREADS = Runtime.getRuntime().availableProcessors();
     private static Integer OVERRIDE_NUM_THREADS = null;
 
+    public static int availableProcessors() {
+        return Math.max(1, Runtime.getRuntime().availableProcessors());
+    }
+    
     /**
      * Convenience wrapper around Thread.sleep() for when we don't care about
      * exceptions

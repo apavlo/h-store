@@ -99,6 +99,7 @@ import org.voltdb.sysprocs.SnapshotRestore;
 import org.voltdb.sysprocs.SnapshotSave;
 import org.voltdb.sysprocs.SnapshotScan;
 import org.voltdb.sysprocs.SnapshotStatus;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
@@ -1256,7 +1257,7 @@ public class VoltCompiler {
             // SysProcedure Class                   readonly    everysite
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
-            {MarkovUpdate.class,                true,       true},
+            {MarkovUpdate.class,                    true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
@@ -1270,13 +1271,14 @@ public class VoltCompiler {
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},
+         
+            {Statistics.class,                      true,       false},
             
             // Anti-Cache Operations
             {EvictTuples.class,               false,      false},
          
 //       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
-//         {"org.voltdb.sysprocs.Statistics",                   true,     false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
 //         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     false,    true},
 //         {"org.voltdb.sysprocs.UpdateLogging",                false,    true}

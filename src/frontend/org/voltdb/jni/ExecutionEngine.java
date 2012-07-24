@@ -764,4 +764,11 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return
      */
     protected native int nativeAntiCacheMergeBlocks(long pointer, int tableId);
+    
+    /**
+     * This code only does anything useful on MACOSX.
+     * On LINUX, procfs is read to get RSS
+     * @return Returns the RSS size in bytes or -1 on error (or wrong platform).
+     */
+    public native static long nativeGetRSS();
 }

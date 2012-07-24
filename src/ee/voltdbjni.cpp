@@ -66,6 +66,10 @@
 #endif
 #include <sched.h>
 #endif
+#ifdef MACOSX
+#include <mach/task.h>
+#include <mach/mach.h>
+#endif // MACOSX
 
 #ifdef LINUX
 #if __SIZEOF_POINTER__ == 4
@@ -1343,6 +1347,34 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     return (retval);
 }
 #endif
+
+/*
+ * Class:     org_voltdb_jni_ExecutionEngine
+ * Method:    nativeGetRSS
+ * Signature: ()J
+ */
+SHAREDLIB_JNIEXPORT jlong JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeGetRSS
+(JNIEnv *, jclass) {
+    
+    // This code only does anything useful on MACOSX.
+    // It returns the RSS size in bytes.
+    // On linux, procfs is read to get RSS
+    
+    #ifdef MACOSX
+    // inspired by http://blog.kuriositaet.de/?p=257
+    struct task_basic_info t_info;
+    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+    
+    if (KERN_SUCCESS != task_info(mach_task_self(),
+        TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count))
+    {
+        return -1;
+    }
+    return t_info.resident_size;
+    #else
+    return -1;
+    #endif // MACOSX
+}
 
 #endif
 

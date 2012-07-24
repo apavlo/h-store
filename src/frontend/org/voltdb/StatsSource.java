@@ -16,6 +16,9 @@
  */
 package org.voltdb;
 import org.voltdb.VoltTable.ColumnInfo;
+
+import edu.brown.hstore.HStore;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,8 +33,8 @@ public abstract class StatsSource {
      */
     private final String name;
 
-    private final Integer m_hostId;
-    private final String m_hostname;
+    private Integer m_hostId;
+    private String m_hostname;
 
     /**
      * Statistics from ee are already formatted in VoltTable
@@ -63,13 +66,11 @@ public abstract class StatsSource {
             columnNameToIndex.put(columns.get(ii).name, ii);
         }
 
-        String hostname = "";
+        String hostname = null;
         int hostId = 0;
-        if (VoltDB.instance() != null) {
-            if (VoltDB.instance().getHostMessenger() != null) {
-                hostname = VoltDB.instance().getHostMessenger().getHostname();
-                hostId = VoltDB.instance().getHostMessenger().getHostId();
-            }
+        if (HStore.instance() != null) {
+            hostname = HStore.instance().getSiteName();
+            hostId = HStore.instance().getSiteId();
         }
         m_hostname = hostname;
         m_hostId = hostId;
@@ -170,6 +171,11 @@ public abstract class StatsSource {
      * @param rowValues Output parameter. Array of values to be updated.
      */
     protected void updateStatsRow(Object rowKey, Object rowValues[]) {
+        if (m_hostname == null && HStore.instance() != null) {
+            m_hostname = HStore.instance().getSiteName();
+            m_hostId = HStore.instance().getSiteId();
+        }
+        
         rowValues[0] = now;
         rowValues[1] = m_hostId;
         rowValues[2] = m_hostname;

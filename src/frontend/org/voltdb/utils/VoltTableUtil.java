@@ -3,10 +3,8 @@ package org.voltdb.utils;
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -132,16 +130,18 @@ public abstract class VoltTableUtil {
      */
     public static VoltTable combine(Collection<VoltTable> tables) {
         VoltTable result = null;
-        for (VoltTable vt : tables) {
-            if (vt == null) continue;
-            if (result == null) {
-                result = new VoltTable(vt);
-            }
-            vt.resetRowPosition();
-            while (vt.advanceRow()) {
-                result.add(vt);
-            } // WHILE
-        } // FOR
+        if (tables != null) {
+            for (VoltTable vt : tables) {
+                if (vt == null) continue;
+                if (result == null) {
+                    result = new VoltTable(vt);
+                }
+                vt.resetRowPosition();
+                while (vt.advanceRow()) {
+                    result.add(vt);
+                } // WHILE
+            } // FOR
+        }
         return (result);
     }
     

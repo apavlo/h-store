@@ -44,9 +44,11 @@ import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.MemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.StatsAgent;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.SysProcSelector;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
@@ -71,6 +73,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.SystemStatsCollector;
 
 import com.google.protobuf.RpcCallback;
 
@@ -201,10 +204,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final HStoreObjectPools objectPools;
     
-    /**
-     * Stats Agent
-     */
+    // ----------------------------------------------------------------------------
+    // STATS STUFF
+    // ----------------------------------------------------------------------------
+    
     private final StatsAgent statsAgent = new StatsAgent();
+    private final MemoryStats memoryStats = new MemoryStats();
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -559,6 +564,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.anticacheManager = null;
         }
+        
+        // -------------------------------
+        // STATS SETUP
+        // -------------------------------
+        this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
         
         // -------------------------------
         // NETWORK SETUP
@@ -1172,6 +1182,30 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
             }
         }
+        
+        // small stats samples
+        this.threadManager.schedulePeriodicWork(new Runnable() {
+            @Override
+            public void run() {
+                SystemStatsCollector.asyncSampleSystemNow(false, false);
+            }
+        }, 0, 5, TimeUnit.SECONDS);
+
+        // medium stats samples
+        this.threadManager.schedulePeriodicWork(new Runnable() {
+            @Override
+            public void run() {
+                SystemStatsCollector.asyncSampleSystemNow(true, false);
+            }
+        }, 0, 1, TimeUnit.MINUTES);
+
+        // large stats samples
+        this.threadManager.schedulePeriodicWork(new Runnable() {
+            @Override
+            public void run() {
+                SystemStatsCollector.asyncSampleSystemNow(true, true);
+            }
+        }, 0, 6, TimeUnit.MINUTES);
     }
     
     /**
