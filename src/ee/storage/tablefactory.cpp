@@ -50,11 +50,14 @@
 #include "common/tabletuple.h"
 #include "storage/table.h"
 #include "storage/persistenttable.h"
-#include "anticache/EvictedTable.h"
 #include "storage/streamedtable.h"
 #include "storage/temptable.h"
 #include "indexes/tableindexfactory.h"
 #include "common/Pool.hpp"
+
+#ifdef ANTICACHE
+#include "anticache/EvictedTable.h"
+#endif
 
 namespace voltdb {
 
@@ -175,7 +178,8 @@ Table* TableFactory::getPersistentTable(
                                       databaseId);
     return dynamic_cast<Table*>(table);
 }
-    
+
+#ifdef ANTICACHE
 Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
                                     ExecutorContext *ctx,
                                     const std::string &name,
@@ -199,6 +203,7 @@ Table* TableFactory::getEvictedTable(voltdb::CatalogId databaseId,
      
     return dynamic_cast<Table*>(table);
 }
+#endif
 
 TempTable* TableFactory::getTempTable(
             const voltdb::CatalogId databaseId,
