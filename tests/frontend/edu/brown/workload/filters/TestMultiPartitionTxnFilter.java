@@ -1,11 +1,11 @@
 package edu.brown.workload.filters;
 
 import java.util.Iterator;
-import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.CatalogType;
 
+import edu.brown.utils.PartitionSet;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.TransactionTrace;
 
@@ -13,6 +13,8 @@ import edu.brown.workload.TransactionTrace;
  * @author pavlo
  */
 public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
+    
+    private final PartitionSet partitions = new PartitionSet();
     
     /**
      * testSinglePartition
@@ -30,7 +32,8 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Set<Integer> partitions = p_estimator.getAllPartitions(txn);
+                partitions.clear();
+                p_estimator.getAllPartitions(partitions, txn);
                 assertNotNull(partitions);
                 assertEquals(1, partitions.size());
                 count++;
@@ -55,7 +58,8 @@ public class TestMultiPartitionTxnFilter extends AbstractTestFilter {
             if (element instanceof TransactionTrace) {
                 // Make sure that this txn's base partition is what we expect it to be
                 TransactionTrace txn = (TransactionTrace)element;
-                Set<Integer> partitions = p_estimator.getAllPartitions(txn);
+                partitions.clear();
+                p_estimator.getAllPartitions(partitions, txn);
                 assertNotNull(partitions);
                 assertNotSame(1, partitions.size());
                 count++;

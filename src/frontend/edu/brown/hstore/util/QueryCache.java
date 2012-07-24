@@ -169,11 +169,11 @@ public class QueryCache {
      * @param params
      * @param result
      */
-    public void addTransactionResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
+    public void addResult(Long txnId, int fragmentId, int partitionId, ParameterSet params, VoltTable result) {
         if (debug.get())
             LOG.debug(String.format("#%d - Storing query result for FragmentId %d - %s",
                                     txnId, fragmentId, params));
-        this.addTransactionResult(txnId, fragmentId, partitionId, params.hashCode(), result);
+        this.addResult(txnId, fragmentId, partitionId, params.hashCode(), result);
     }
     
     /**
@@ -185,7 +185,7 @@ public class QueryCache {
      * @param paramsHash
      * @param result
      */
-    public void addTransactionResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
+    public void addResult(Long txnId, int fragmentId, int partitionId, int paramsHash, VoltTable result) {
         if (debug.get())
             LOG.debug(String.format("#%d - Storing query result for FragmentId %d / paramsHash:%d",
                                     txnId, fragmentId, paramsHash));
@@ -219,10 +219,7 @@ public class QueryCache {
      * @param params
      * @return
      */
-    public VoltTable getTransactionCachedResult(Long txnId,
-                                                int fragmentId,
-                                                int partitionId,
-                                                ParameterSet params) {
+    public VoltTable getResult(Long txnId, int fragmentId, int partitionId, ParameterSet params) {
         
         if (debug.get()) LOG.debug(String.format("#%d - Retrieving query cache for FragmentId %d - %s",
                                                  txnId, fragmentId, params));

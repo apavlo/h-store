@@ -31,6 +31,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
 
@@ -70,8 +72,10 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.profilers.TransactionProfiler;
 import edu.brown.protorpc.ProtoRpcController;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -80,8 +84,8 @@ import edu.brown.utils.StringUtil;
  */
 public class LocalTransaction extends AbstractTransaction {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -146,7 +150,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The set of partitions that we expected this partition to touch.
      */
-    private Collection<Integer> predict_touchedPartitions;
+    private PartitionSet predict_touchedPartitions;
   
     /**
      * TransctionEstimator State Handle
@@ -186,7 +190,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * 
      */
-    public final TransactionProfile profiler;
+    public final TransactionProfiler profiler;
 
     /**
      * Whether this transaction's control code was executed on
@@ -212,9 +216,9 @@ public class LocalTransaction extends AbstractTransaction {
         super(hstore_site);
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
-        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfile() : null);
+        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
       
-        int num_partitions = CatalogUtil.getNumberOfPartitions(hstore_site.getSite());
+        int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.done_partitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
@@ -233,14 +237,14 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction init(Long txn_id,
-                                  long clientHandle,
-                                  int base_partition,
-                                  Collection<Integer> predict_touchedPartitions,
-                                  boolean predict_readOnly,
-                                  boolean predict_abortable,
-                                  Procedure catalog_proc,
-                                  ParameterSet params,
-                                  RpcCallback<ClientResponseImpl> client_callback) {
+                                 long clientHandle,
+                                 int base_partition,
+                                 PartitionSet predict_touchedPartitions,
+                                 boolean predict_readOnly,
+                                 boolean predict_abortable,
+                                 Procedure catalog_proc,
+                                 ParameterSet params,
+                                 RpcCallback<ClientResponseImpl> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
@@ -258,6 +262,7 @@ public class LocalTransaction extends AbstractTransaction {
         super.init(txn_id,
                    clientHandle,
                    base_partition,
+                   catalog_proc.getId(),
                    catalog_proc.getSystemproc(),
                    (this.predict_touchedPartitions.size() == 1),
                    predict_readOnly,
@@ -289,7 +294,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction testInit(Long txn_id,
                                       int base_partition,
-                                      Collection<Integer> predict_touchedPartitions,
+                                      PartitionSet predict_touchedPartitions,
                                       Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
@@ -299,6 +304,7 @@ public class LocalTransaction extends AbstractTransaction {
                           txn_id,                       // TxnId
                           Integer.MAX_VALUE,            // ClientHandle
                           base_partition,               // BasePartition
+                          catalog_proc.getId(),         // ProcedureId
                           catalog_proc.getSystemproc(), // SysProc
                           predict_singlePartition,      // SinglePartition
                           catalog_proc.getReadonly(),   // ReadOnly
@@ -317,10 +323,10 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction testInit(Long txn_id,
-                                      int base_partition,
-                                      Collection<Integer> predict_touchedPartitions,
-                                      Procedure catalog_proc,
-                                      Object... proc_params) {
+                                     int base_partition,
+                                     PartitionSet predict_touchedPartitions,
+                                     Procedure catalog_proc,
+                                     Object... proc_params) {
         this.parameters = new ParameterSet(proc_params);
         this.client_callback = new RpcCallback<ClientResponseImpl>() {
             public void run(ClientResponseImpl parameter) {}
@@ -398,6 +404,9 @@ public class LocalTransaction extends AbstractTransaction {
 //        } // FOR
     }
     
+    public ExecutionState getExecutionState() {
+        return (this.state);
+    }
     public void resetExecutionState() {
         if (d) LOG.debug(String.format("%s - Resetting ExecutionState handle [isNull=%s]",
                                        this, (this.state == null)));
@@ -489,10 +498,8 @@ public class LocalTransaction extends AbstractTransaction {
             // Release any queued responses/results
             if (this.state.queued_results.isEmpty() == false) {
                 if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
-                int key[] = new int[2];
-                for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
-                    this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                    this.addResult(key[0], key[1], e.getKey().intValue(), true, e.getValue());
+                for (Entry<Pair<Integer, Integer>, VoltTable> e : this.state.queued_results.entrySet()) {
+                    this.addResult(e.getKey(), e.getValue(), true);
                 } // FOR
                 this.state.queued_results.clear();
             }
@@ -907,7 +914,7 @@ public class LocalTransaction extends AbstractTransaction {
      * to need during its execution. The transaction may choose to not use all of
      * these but it is not allowed to use more.
      */
-    public Collection<Integer> getPredictTouchedPartitions() {
+    public PartitionSet getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
     }
     
@@ -1090,11 +1097,11 @@ public class LocalTransaction extends AbstractTransaction {
                 this.state.dependency_ctr++;
                 
                 // Store the stmt_index of when this dependency will show up
-                Integer key_idx = this.state.createPartitionDependencyKey(partition, output_dep_id);
-                Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
+                Pair<Integer, Integer> key = Pair.of(partition, output_dep_id);
+                Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key);
                 if (rest_stmt_ctr == null) {
                     rest_stmt_ctr = new LinkedList<Integer>();
-                    this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
+                    this.state.results_dependency_stmt_ctr.put(key, rest_stmt_ctr);
                 }
                 rest_stmt_ctr.add(stmt_index);
                 if (t) LOG.trace(String.format("%s - Set Dependency Statement Counters for <%d %d>: %s",
@@ -1173,25 +1180,27 @@ public class LocalTransaction extends AbstractTransaction {
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
         if (this.state != null) {
-            int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-            this.addResult(partition, dependency_id, key, false, result);
+            this.addResult(Pair.of(partition, dependency_id), result, false);
         }
     }
 
     /**
      * Store a VoltTable result that this transaction is waiting for.
+     * @param key The hackish partition+dependency key
+     * @param result The actual data for the result
+     * @param force If false, then we will check to make sure the result isn't a duplicate
      * @param partition The partition id that generated the result
      * @param dependency_id The dependency id that this result corresponds to
-     * @param key The hackish partition+dependency key
-     * @param force If false, then we will check to make sure the result isn't a duplicate
-     * @param result The actual data for the result
      */
-    private void addResult(final int partition, final int dependency_id, final int key, final boolean force, VoltTable result) {
+    private void addResult(final Pair<Integer, Integer> key, VoltTable result, final boolean force) {
         final int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
             String.format("Invalid round state %s for %s at partition %d",
                           this.round_state[base_offset], this, this.base_partition);
+        
+        final int partition = key.getFirst().intValue();
+        final int dependency_id = key.getSecond().intValue();
         
         if (d) LOG.debug(String.format("%s - Attemping to add new result for %s [numRows=%d]",
                                        this, debugPartDep(partition, dependency_id), result.getRowCount()));
@@ -1204,11 +1213,11 @@ public class LocalTransaction extends AbstractTransaction {
             try {
                 if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                     assert(this.state.queued_results.containsKey(key) == false) : 
-                        String.format("%s - Duplicate result %s [key=%d]",
-                                      this, debugPartDep(partition, dependency_id), key);
+                        String.format("%s - Duplicate result %s",
+                                      this, debugPartDep(partition, dependency_id));
                     this.state.queued_results.put(key, result);
-                    if (d) LOG.debug(String.format("%s - Queued result %s until the round is started [key=%s]",
-                                                            this, debugPartDep(partition, dependency_id), key));
+                    if (d) LOG.debug(String.format("%s - Queued result %s until the round is started",
+                                                   this, debugPartDep(partition, dependency_id)));
                     return;
                 }
                 if (d) {
@@ -1225,11 +1234,13 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyInfo dinfo = null;
         Queue<Integer> queue = this.state.results_dependency_stmt_ctr.get(key);
         assert(queue != null) :
-            String.format("Unexpected %s in %s",
-                          debugPartDep(partition, dependency_id), this);
+            String.format("Unexpected %s in %s / %s\n%s",
+                          debugPartDep(partition, dependency_id), this,
+                          key, this.state.results_dependency_stmt_ctr);
         assert(queue.isEmpty() == false) :
-            String.format("No more statements for %s in %s [key=%d]\nresults_dependency_stmt_ctr = %s",
-                          debugPartDep(partition, dependency_id), this, key, this.state.results_dependency_stmt_ctr);
+            String.format("No more statements for %s in %s\nresults_dependency_stmt_ctr = %s",
+                          debugPartDep(partition, dependency_id), this,
+                          this.state.results_dependency_stmt_ctr);
 
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(dependency_id);
@@ -1282,7 +1293,7 @@ public class LocalTransaction extends AbstractTransaction {
         } // SYNCH
         
         if (d) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Blocked Tasks", (this.state != null ? this.state.blocked_tasks.size() : null));
             m.put("DependencyInfo", dinfo.toString());
             m.put("hasTasksReady", dinfo.hasTasksReady());
@@ -1367,6 +1378,10 @@ public class LocalTransaction extends AbstractTransaction {
         
         MarkovEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
+        if (estimate.isValid()) {
+            return (false);
+        }
+        
         new_done = estimate.getFinishedPartitions(thresholds);
         
         if (new_done.isEmpty() == false) { 

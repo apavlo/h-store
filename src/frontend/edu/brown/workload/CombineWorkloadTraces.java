@@ -128,7 +128,7 @@ public class CombineWorkloadTraces {
             File input_path = workload_files.get(i);
             LOG.debug("Loading workload '" + input_path + "'");
             workloads[i] = new Workload(args.catalog);
-            workloads[i].load(input_path.getAbsolutePath(), args.catalog_db);
+            workloads[i].load(input_path, args.catalog_db);
         } // FOR
 
         FileOutputStream output = new FileOutputStream(output_path);

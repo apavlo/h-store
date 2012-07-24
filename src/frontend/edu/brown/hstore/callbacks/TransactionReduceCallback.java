@@ -23,8 +23,8 @@ import edu.brown.utils.StringUtil;
  */
 public class TransactionReduceCallback extends AbstractTransactionCallback<TransactionReduceResponse, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceCallback.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -73,7 +73,7 @@ public class TransactionReduceCallback extends AbstractTransactionCallback<Trans
                        this.finalResults, 
                        "",
                        ts.getPendingError()); 
-        hstore_site.sendClientResponse(ts, cresponse);
+        hstore_site.responseSend(ts, cresponse);
 
         if (hstore_site.getHStoreConf().site.mr_map_blocking) {
             // STEP 2

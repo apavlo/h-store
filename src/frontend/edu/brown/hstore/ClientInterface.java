@@ -52,12 +52,12 @@ import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DumpManager;
 
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.ProfileMeasurement;
 
 /**
  * Represents VoltDB's connection to client libraries outside the cluster.

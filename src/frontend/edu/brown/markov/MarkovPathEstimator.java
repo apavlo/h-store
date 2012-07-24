@@ -1,6 +1,5 @@
 package edu.brown.markov;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -25,8 +24,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
@@ -36,6 +36,7 @@ import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 
@@ -45,8 +46,8 @@ import edu.brown.workload.TransactionTrace;
  */
 public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEdge> implements Loggable {
     private static final Logger LOG = Logger.getLogger(MarkovPathEstimator.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -76,16 +77,16 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final int num_partitions;
     private TransactionEstimator t_estimator;
-    private ParameterMappingsSet correlations;
+    private ParameterMappingsSet allMappings;
     private PartitionEstimator p_estimator;
     private int base_partition;
     private Object args[];
     private float greatest_abort = MarkovUtil.NULL_MARKER;
 
-    private final Collection<Integer> all_partitions;
-    private final Set<Integer> touched_partitions = new HashSet<Integer>();
-    private final Set<Integer> read_partitions = new HashSet<Integer>();
-    private final Set<Integer> write_partitions = new HashSet<Integer>();
+    private final PartitionSet all_partitions;
+    private final PartitionSet touched_partitions = new PartitionSet();
+    private final PartitionSet read_partitions = new PartitionSet();
+    private final PartitionSet write_partitions = new PartitionSet();
     
     
     /**
@@ -121,7 +122,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     // TEMPORARY TRAVERSAL MEMBERS
     // ----------------------------------------------------------------------------
     
-    private final transient Set<Integer> past_partitions = new HashSet<Integer>();
+    private final transient PartitionSet past_partitions = new PartitionSet();
     
     private final transient SortedSet<MarkovEdge> candidates = new TreeSet<MarkovEdge>();
     
@@ -129,7 +130,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
     
     private final transient Set<Pair<Statement, Integer>> next_statements = new HashSet<Pair<Statement, Integer>>();
     
-    private final transient Set<Integer> stmt_partitions = new HashSet<Integer>();
+    private final transient PartitionSet stmt_partitions = new PartitionSet();
     
     private final transient Map<Statement, StmtParameter[]> stmt_params = new HashMap<Statement, StmtParameter[]>();
     
@@ -147,7 +148,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.num_partitions = num_partitions;
         this.estimate = new MarkovEstimate(this.num_partitions);
         
-        this.all_partitions = new ArrayList<Integer>();
+        this.all_partitions = new PartitionSet();
         for (int p = 0; p < this.num_partitions; p++) {
             this.all_partitions.add(p);
         } // FOR
@@ -183,11 +184,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.confidence = 1.0f;
         this.t_estimator = t_estimator;
         this.p_estimator = this.t_estimator.getPartitionEstimator();
-        this.correlations = this.t_estimator.getCorrelations();
+        this.allMappings = this.t_estimator.getParameterMappings();
         this.base_partition = base_partition;
         this.args = args;
         
-        assert(this.t_estimator.getCorrelations() != null);
+        assert(this.t_estimator.getParameterMappings() != null);
         assert(this.base_partition >= 0);
 
         if (LOG.isTraceEnabled()) {
@@ -214,7 +215,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         this.t_estimator = null;
         this.p_estimator = null;
-        this.correlations = null;
+        this.allMappings = null;
         
         this.estimate.finish();
         this.touched_partitions.clear();
@@ -249,13 +250,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         this.force_traversal = flag;
     }
     
-    public Set<Integer> getTouchedPartitions() {
+    public PartitionSet getTouchedPartitions() {
         return this.touched_partitions;
     }
-    public Set<Integer> getReadPartitions() {
+    public PartitionSet getReadPartitions() {
         return this.read_partitions;
     }
-    public Set<Integer> getWritePartitions() {
+    public PartitionSet getWritePartitions() {
         return this.write_partitions;
     }
     
@@ -364,13 +365,13 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             Integer catalog_stmt_index = pair.getSecond();
             if (t) LOG.trace("Examining " + pair);
             
-            // Get the correlation objects (if any) for next
+            // Get the mapping objects (if any) for next
             // This is the only way we can predict what partitions we will touch
-            SortedMap<StmtParameter, SortedSet<ParameterMapping>> param_correlations = this.correlations.get(catalog_stmt, catalog_stmt_index);
-            if (param_correlations == null) {
-                if (t) {
-                    LOG.warn("No parameter correlations for " + pair);
-                    LOG.trace(this.correlations.debug(catalog_stmt));
+            SortedMap<StmtParameter, SortedSet<ParameterMapping>> stmtMappings = this.allMappings.get(catalog_stmt, catalog_stmt_index);
+            if (stmtMappings == null) {
+                if (d) {
+                    LOG.warn("No parameter mappings for " + pair);
+                    LOG.trace(this.allMappings.debug(catalog_stmt));
                 }
                 continue;
             }
@@ -384,57 +385,57 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 assert(catalog_stmt_param != null);
                 if (t) LOG.trace("Examining " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                 
-                SortedSet<ParameterMapping> correlations = param_correlations.get(catalog_stmt_param);
-                if (correlations == null || correlations.isEmpty()) {
-                    if (t) LOG.trace("No parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
+                SortedSet<ParameterMapping> mappings = stmtMappings.get(catalog_stmt_param);
+                if (mappings == null || mappings.isEmpty()) {
+                    if (t) LOG.trace("No parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true) + " from " + pair);
                     continue;
                 }
-                if (t) LOG.trace("Found " + correlations.size() + " correlation(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (t) LOG.trace("Found " + mappings.size() + " mapping(s) for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
         
                 // Special Case:
                 // If the number of possible Statements we could execute next is greater than one,
                 // then we need to prune our list by removing those Statements who have a StmtParameter
                 // that are correlated to a ProcParameter that doesn't exist (such as referencing an
                 // array element that is greater than the size of that current array)
-                // TODO: For now we are just going always pick the first Correlation 
+                // TODO: For now we are just going always pick the first mapping 
                 // that comes back. Is there any choice that we would need to make in order
                 // to have a better prediction about what the transaction might do?
-                if (correlations.size() > 1) {
-                    if (d) LOG.warn("Multiple parameter correlations for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
+                if (mappings.size() > 1) {
+                    if (d) LOG.warn("Multiple parameter mappings for " + CatalogUtil.getDisplayName(catalog_stmt_param, true));
                     if (t) {
                         int ctr = 0;
-                        for (ParameterMapping c : correlations) {
-                            LOG.trace("[" + (ctr++) + "] Correlation: " + c);
+                        for (ParameterMapping m : mappings) {
+                            LOG.trace("[" + (ctr++) + "] Mapping: " + m);
                         } // FOR
                     }
                 }
-                for (ParameterMapping c : correlations) {
-                    if (t) LOG.trace("Correlation: " + c);
-                    ProcParameter catalog_proc_param = c.getProcParameter();
+                for (ParameterMapping m : mappings) {
+                    if (t) LOG.trace("Mapping: " + m);
+                    ProcParameter catalog_proc_param = m.getProcParameter();
                     if (catalog_proc_param.getIsarray()) {
-                        Object proc_inner_args[] = (Object[])args[c.getProcParameter().getIndex()];
-                        if (t) LOG.trace(CatalogUtil.getDisplayName(c.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
+                        Object proc_inner_args[] = (Object[])args[m.getProcParameter().getIndex()];
+                        if (t) LOG.trace(CatalogUtil.getDisplayName(m.getProcParameter(), true) + " is an array: " + Arrays.toString(proc_inner_args));
                         
-                        // TODO: If this Correlation references an array element that is not available for this
-                        // current transaction, should we just skip this correlation or skip the entire query?
-                        if (proc_inner_args.length <= c.getProcParameterIndex()) {
+                        // TODO: If this Mapping references an array element that is not available for this
+                        // current transaction, should we just skip this mapping or skip the entire query?
+                        if (proc_inner_args.length <= m.getProcParameterIndex()) {
                             if (t) LOG.trace("Unable to map parameters: " +
                                                  "proc_inner_args.length[" + proc_inner_args.length + "] <= " +
-                                                 "c.getProcParameterIndex[" + c.getProcParameterIndex() + "]"); 
+                                                 "c.getProcParameterIndex[" + m.getProcParameterIndex() + "]"); 
                             continue;
                         }
-                        stmt_args[i] = proc_inner_args[c.getProcParameterIndex()];
+                        stmt_args[i] = proc_inner_args[m.getProcParameterIndex()];
                         stmt_args_set = true;
-                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + "[" + c.getProcParameterIndex() + "] to " +
-                                             CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + "[" + m.getProcParameterIndex() + "] to " +
+                                         CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]");
                     } else {
-                        stmt_args[i] = args[c.getProcParameter().getIndex()];
+                        stmt_args[i] = args[m.getProcParameter().getIndex()];
                         stmt_args_set = true;
-                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(c.getProcParameter()) + " to " +
+                        if (t) LOG.trace("Mapped " + CatalogUtil.getDisplayName(m.getProcParameter()) + " to " +
                                              CatalogUtil.getDisplayName(catalog_stmt_param) + " [value=" + stmt_args[i] + "]"); 
                     }
                     break;
-                } // FOR (Correlation)
+                } // FOR (Mapping)
             } // FOR (StmtParameter)
                 
             // If we set any of the stmt_args in the previous step, then we can throw it
@@ -455,7 +456,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                 
                 // Now for this given list of partitions, find a Vertex in our next set
                 // that has the same partitions
-                if (this.stmt_partitions != null && !this.stmt_partitions.isEmpty()) {
+                if (this.stmt_partitions.isEmpty() == false) {
                     this.candidate_edge = null;
                     for (MarkovVertex next : next_vertices) {
                         if (next.isEqual(catalog_stmt, this.stmt_partitions, this.past_partitions, catalog_stmt_index)) {
@@ -529,8 +530,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             this.confidence *= next_edge.getProbability() / total_probability;
             
             // Update our list of partitions touched by this transaction
-            Set<Integer> next_partitions = next_vertex.getPartitions();
-            String orig = next_partitions.toString();
+            PartitionSet next_partitions = next_vertex.getPartitions();
+            // String orig = (debug.get() ? next_partitions.toString() : null);
             float inverse_prob = 1.0f - this.confidence;
             Statement catalog_stmt = next_vertex.getCatalogItem();
             
@@ -542,9 +543,11 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
                         try {
                             this.estimate.setReadOnlyProbability(p.intValue(), this.confidence);
                         } catch (AssertionError ex) {
-                            System.err.println("BUSTED: " + next_vertex);
-                            System.err.println("NEXT PARTITIONS: " + next_partitions);
-                            System.err.println("ORIG PARTITIONS: " + orig);
+                            if (debug.get()) {
+                                LOG.debug("BUSTED: " + next_vertex);
+                                LOG.debug("NEXT PARTITIONS: " + next_partitions);
+                                // ??? LOG.debug("ORIG PARTITIONS: " + orig);
+                            }
                             throw ex;
                         }
                         if (this.touched_partitions.contains(p) == false) {
@@ -586,7 +589,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             if (d) {
                 LOG.debug("TOTAL:    " + total_probability);
                 LOG.debug("SELECTED: " + next_vertex + " [confidence=" + this.confidence + "]");
-                LOG.debug(StringUtil.repeat("-", 100));
+                LOG.debug(StringUtil.repeat("-", 150));
             }
         } else {
             if (t) LOG.trace("No matching children found. We have to stop...");
@@ -657,14 +660,14 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * @return
      */
     public static MarkovPathEstimator predictPath(MarkovGraph markov, TransactionEstimator t_estimator, Object args[]) {
-        Integer base_partition = null; 
+        int base_partition = HStoreConstants.NULL_PARTITION_ID;
         try {
             base_partition = t_estimator.getPartitionEstimator().getBasePartition(markov.getProcedure(), args);
         } catch (Exception ex) {
             LOG.fatal(String.format("Failed to calculate base partition for <%s, %s>", markov.getProcedure().getName(), Arrays.toString(args)), ex);
             System.exit(1);
         }
-        assert(base_partition != null);
+        assert(base_partition != HStoreConstants.NULL_PARTITION_ID);
         
         MarkovPathEstimator estimator = new MarkovPathEstimator(markov, t_estimator, base_partition, args);
         estimator.updateLogging();
@@ -716,7 +719,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             Procedure catalog_proc = xact.getCatalogItem(args.catalog_db);
             if (skip.contains(catalog_proc.getName())) continue;
             
-            int partition = -1;
+            int partition = HStoreConstants.NULL_PARTITION_ID;
             try {
                 partition = p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
             } catch (Exception ex) {
@@ -742,8 +745,8 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
             LOG.info("MarkovEstimate:\n" + m_estimator.getEstimate());
             
             // Check whether we predict the same partitions
-            Set<Integer> actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 
-            Set<Integer> predicted_partitions = MarkovUtil.getTouchedPartitions(predicted_path);
+            PartitionSet actual_partitions = MarkovUtil.getTouchedPartitions(actual_path); 
+            PartitionSet predicted_partitions = MarkovUtil.getTouchedPartitions(predicted_path);
             if (actual_partitions.equals(predicted_partitions)) correct_partitions_txns.get(catalog_proc).incrementAndGet();
             if (actual_partitions.size() > 1) multip_txns.get(catalog_proc).incrementAndGet();
             

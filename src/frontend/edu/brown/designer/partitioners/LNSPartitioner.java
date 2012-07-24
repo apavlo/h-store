@@ -3,6 +3,7 @@
  */
 package edu.brown.designer.partitioners;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
@@ -50,6 +51,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
@@ -57,7 +59,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -67,8 +68,8 @@ import edu.brown.utils.StringUtil;
  */
 public class LNSPartitioner extends AbstractPartitioner implements JSONSerializable {
     protected static final Logger LOG = Logger.getLogger(LNSPartitioner.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -352,7 +353,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Reload the checkpoint file so that we can continue this dirty mess!
         if (hints.enable_checkpoints) {
             if (this.checkpoint != null && this.checkpoint.exists()) {
-                this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
+                this.load(this.checkpoint, info.catalog_db);
                 LOG.info("Loaded checkpoint from '" + this.checkpoint + "'");
 
                 // Important! We need to update the hints based on what's in the
@@ -462,7 +463,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Save checkpoint
             this.last_checkpoint = new TimestampType();
             if (this.checkpoint != null) {
-                this.save(this.checkpoint.getAbsolutePath());
+                this.save(this.checkpoint);
                 LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getAbsolutePath() + "'");
             }
 
@@ -1075,12 +1076,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     // ----------------------------------------------------------------------------
 
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
 

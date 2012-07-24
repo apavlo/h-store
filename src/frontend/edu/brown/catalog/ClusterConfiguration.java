@@ -26,8 +26,8 @@ import edu.brown.utils.StringUtil;
  */
 public class ClusterConfiguration extends ClusterConfig {
     private static final Logger LOG = Logger.getLogger(ClusterConfiguration.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -62,6 +62,24 @@ public class ClusterConfiguration extends ClusterConfig {
             return String.format("%s - %s", this.host,
                                             HStoreThreadManager.getThreadName(this.site, this.partition));
         }
+    }
+    
+    public ClusterConfiguration(String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
+        super();
+        
+        int siteid = 0;
+        int partitionid = 0;
+        
+        final boolean use_format = hostname_format.contains("%");
+        for (int host = 0; host < num_hosts; host++) {
+            String hostname = (use_format ? String.format(hostname_format, host) : hostname_format);
+            for (int site = 0; site < num_sites_per_host; site++) {
+                for (int partition = 0; partition < num_partitions_per_site; partition++) {
+                    this.addPartition(hostname, siteid, partitionid++);
+                } // FOR (partitions)
+                siteid++;
+            } // FOR (sites)
+        } // FOR (hosts)
     }
 
     public ClusterConfiguration() {

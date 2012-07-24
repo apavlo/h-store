@@ -2,6 +2,7 @@ package edu.brown.markov.features;
 
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.markov.FeatureSet;
 import edu.brown.markov.FeatureSet.Type;
 import edu.brown.utils.PartitionEstimator;
@@ -26,7 +27,8 @@ public class BasePartitionFeature extends AbstractFeature {
     
     @Override
     public Object calculate(String key, Object params[]) throws Exception {
-        return (this.p_estimator.getBasePartition(this.catalog_proc, params));
+        int partition = this.p_estimator.getBasePartition(this.catalog_proc, params);
+        return (partition != HStoreConstants.NULL_PARTITION_ID ? partition : null);
     }
 
 }

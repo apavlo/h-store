@@ -21,6 +21,7 @@ import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -36,8 +37,8 @@ import edu.brown.utils.AbstractTreeWalker;
 
 public abstract class CatalogCloner {
     private static final Logger LOG = Logger.getLogger(CatalogCloner.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -100,15 +101,15 @@ public abstract class CatalogCloner {
     }
 
     /**
-     * Clones the base components of a catalog. All underlying objects are
-     * recreated
-     * 
+     * Clones the base components of a catalog. All underlying objects are recreated
      * @param catalog
      * @return
      */
     public static Catalog cloneBaseCatalog(Catalog catalog) {
         HashSet<Class<? extends CatalogType>> skip_types = new HashSet<Class<? extends CatalogType>>();
         skip_types.add(Table.class);
+        
+        // XXX: I don't remember why I did this instead of just re-executing Catalog.serialize()?
         return (CatalogCloner.cloneBaseCatalog(catalog, skip_types));
     }
 
@@ -161,18 +162,28 @@ public abstract class CatalogCloner {
                     CatalogCloner.clone(element, new_catalog);
             }
         }.traverse(catalog);
+        
+        Database orig_database = CatalogUtil.getDatabase(catalog);
+        Database new_database = CatalogUtil.getDatabase(new_catalog);
 
         if (skip_types.contains(Table.class) == false && skip_types.contains(Column.class) == false) {
             // Clone constraints if they were not skipped
             if (skip_types.contains(Constraint.class) == false) {
-                CatalogCloner.cloneConstraints(CatalogUtil.getDatabase(catalog), CatalogUtil.getDatabase(new_catalog));
+                CatalogCloner.cloneConstraints(orig_database, new_database);
             }
+            
             // Clone MaterializedViewes if they were not skipped
             // if (skip_types.contains(MaterializedViewInfo.class) == false) {
             // CatalogCloner.cloneViews(CatalogUtil.getDatabase(catalog),
             // CatalogUtil.getDatabase(new_catalog));
             // }
         }
+            
+        // Clone Procedure conflicts if they were not skipped
+        if (skip_types.contains(Procedure.class) == false) {
+            CatalogCloner.cloneConflicts(orig_database, new_database);
+        }
+            
         return (new_catalog);
     }
 
@@ -210,11 +221,11 @@ public abstract class CatalogCloner {
                 if (!(src_col instanceof MultiColumn))
                     CatalogCloner.clone(src_col, dest_catalog);
             } // FOR
-              // Indexes
+            // Indexes
             for (Index src_idx : src_tbl.getIndexes()) {
                 CatalogCloner.clone(src_idx, dest_catalog);
             } // FOR
-            // // MaterializedViews
+            // MaterializedViews
             for (MaterializedViewInfo src_view : src_tbl.getViews()) {
                 CatalogCloner.clone(src_view, dest_catalog);
             } // FOR
@@ -232,7 +243,7 @@ public abstract class CatalogCloner {
                 // Special Case: Replicated Column Marker
                 if (src_part_col instanceof ReplicatedColumn) {
                     dest_part_col = ReplicatedColumn.get(dest_tbl);
-                    // Special Case: MultiColumn
+                // Special Case: MultiColumn
                 } else if (src_part_col instanceof MultiColumn) {
                     MultiColumn mc = (MultiColumn) src_part_col;
                     Column dest_cols[] = new Column[mc.size()];
@@ -247,21 +258,21 @@ public abstract class CatalogCloner {
                 assert (dest_part_col != null) : "Missing partitioning column " + CatalogUtil.getDisplayName(src_part_col);
                 dest_tbl.setPartitioncolumn(dest_part_col);
             }
-            // MaterilizedViewInfo
+        // MaterializedViewInfo
         } else if (src_item instanceof MaterializedViewInfo) {
             // ColumnRefs
             MaterializedViewInfo src_view = (MaterializedViewInfo) src_item;
             MaterializedViewInfo dest_view = (MaterializedViewInfo) clone;
             updateColumnsRefs((Table) src_view.getParent(), src_view.getGroupbycols(), (Table) dest_view.getParent(), dest_view.getGroupbycols());
 
-            // Index
+        // Index
         } else if (src_item instanceof Index) {
             // ColumnRefs
             Index src_idx = (Index) src_item;
             Index dest_idx = (Index) clone;
             updateColumnsRefs((Table) src_idx.getParent(), src_idx.getColumns(), (Table) dest_idx.getParent(), dest_idx.getColumns());
 
-            // Constraint
+        // Constraint
         } else if (src_item instanceof Constraint) {
             // ColumnRefs
             Constraint src_cons = (Constraint) src_item;
@@ -284,8 +295,7 @@ public abstract class CatalogCloner {
                 }
             }
 
-            // Important: We have to add ConstraintRefs to Columns *after* we
-            // add the columns
+            // Important: We have to add ConstraintRefs to Columns *after* we add the columns
             Table src_tbl = (Table) src_cons.getParent();
             Table dest_tbl = (Table) dest_cons.getParent();
             for (Column src_col : src_tbl.getColumns()) {
@@ -315,7 +325,7 @@ public abstract class CatalogCloner {
                 dest_cons.setIndex(dest_index);
             }
 
-            // StmtParameter
+        // StmtParameter
         } else if (src_item instanceof StmtParameter) {
             // We need to fix the reference to the ProcParameter (if one exists)
             StmtParameter src_stmt_param = (StmtParameter) src_item;
@@ -350,6 +360,27 @@ public abstract class CatalogCloner {
             dest_colref.setColumn(dest_tbl.getColumns().get(src_colref.getColumn().getName()));
         } // FOR
     }
+    
+    /**
+     * Clone Procedure conflicts
+     * @param src_db
+     * @param dest_db
+     */
+    public static void cloneConflicts(Database src_db, Database dest_db) {
+        for (Procedure src_proc : src_db.getProcedures()) {
+            Procedure dest_proc = dest_db.getProcedures().get(src_proc.getName());
+            if (dest_proc != null) {
+                for (ProcedureRef src_ref : src_proc.getReadconflicts()) {
+                    ProcedureRef dest_ref = dest_proc.getReadconflicts().add(src_ref.getName());
+                    dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
+                } // FOR
+                for (ProcedureRef src_ref : src_proc.getWriteconflicts()) {
+                    ProcedureRef dest_ref = dest_proc.getWriteconflicts().add(src_ref.getName());
+                    dest_ref.setProcedure(dest_db.getProcedures().get(src_ref.getProcedure().getName()));
+                } // FOR
+            }
+        } // FOR
+    }
 
     /**
      * @param src_db
@@ -361,8 +392,7 @@ public abstract class CatalogCloner {
             Table dest_tbl = dest_db.getTables().get(src_tbl.getName());
             if (dest_tbl != null) {
                 for (Constraint src_cons : src_tbl.getConstraints()) {
-                    // Only clone a FKEY constraint if the other table is in the
-                    // catalog
+                    // Only clone FKEY constraint if the other table is in the catalog
                     ConstraintType cons_type = ConstraintType.get(src_cons.getType());
                     if (cons_type != ConstraintType.FOREIGN_KEY || (cons_type == ConstraintType.FOREIGN_KEY && dest_db.getTables().get(src_cons.getForeignkeytable().getName()) != null)) {
                         Constraint dest_cons = clone(src_cons, dest_catalog);

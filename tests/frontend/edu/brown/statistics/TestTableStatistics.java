@@ -40,7 +40,7 @@ public class TestTableStatistics extends BaseTestCase {
         File f = this.getStatsFile(ProjectType.TM1);
         assertNotNull(f);
         WorkloadStatistics wstats = new WorkloadStatistics(catalog_db);
-        wstats.load(f.getAbsolutePath(), catalog_db);
+        wstats.load(f, catalog_db);
         
         for (Table catalog_tbl : catalog_db.getTables()) {
             TableStatistics tstats = wstats.getTableStatistics(catalog_tbl);

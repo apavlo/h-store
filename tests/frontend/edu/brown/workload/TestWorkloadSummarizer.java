@@ -40,7 +40,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
         if (mappings == null) {
             File f = this.getParameterMappingsFile(ProjectType.TM1);
             mappings = new ParameterMappingsSet();
-            mappings.load(f.getAbsolutePath(), catalog_db);
+            mappings.load(f, catalog_db);
         }
         
         summarizer = new WorkloadSummarizer(catalog_db, p_estimator, mappings); 

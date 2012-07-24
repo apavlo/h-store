@@ -151,8 +151,8 @@ message TransactionWorkRequest {
     // The work for a partition can appear only once in this list.
     repeated WorkFragment fragments = 3;
     
-    // Is this request for a sysproc?
-    required bool sysproc = 4 [default = false];
+    // Procedure Id
+    required int32 procedure_id = 4;
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match WorkFragment.paramIndex

@@ -27,7 +27,6 @@ import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.costmodel.SingleSitedCostModel;
@@ -40,6 +39,7 @@ import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.TestAbstractPartitioner.MockPartitioner;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -238,7 +238,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             
             // Then get the list of partitions that it will access
             // This should always be *all* partitions
-            Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+            PartitionSet partitions = new PartitionSet();
+            p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(CatalogUtil.getNumberOfPartitions(clone_db), partitions.size());
         } // FOR
@@ -250,7 +251,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Object params[] = stmt_params.get(catalog_stmt);
             assertNotNull(params);
-            Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+            PartitionSet partitions = new PartitionSet();
+            p_estimator.getAllPartitions(partitions, catalog_stmt, params, base_partition);
             assertNotNull(partitions);
             assertEquals(1, partitions.size());
         } // FOR
@@ -345,8 +347,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         };
         Set<VerticalPartitionColumn> candidates = new HashSet<VerticalPartitionColumn>();
         for (Column catalog_col : catalog_cols) {
-            MultiColumn hp_col = MultiColumn.get(catalog_col);
-            Collection<VerticalPartitionColumn> col_candidates = VerticalPartitionerUtil.generateCandidates(hp_col, info.stats);
+            Collection<VerticalPartitionColumn> col_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
             assertNotNull(col_candidates);
             candidates.addAll(col_candidates);
         } // FOR
@@ -379,7 +380,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testGenerateCandidates() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        MultiColumn target_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
+        Column target_col = this.getColumn(catalog_tbl, "S_ID");
         
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
@@ -409,7 +410,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         assertNotNull(target_col);
         
         for (Column catalog_col : catalog_tbl.getColumns()) {
-            Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(MultiColumn.get(catalog_col), info.stats);
+            Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
             assertEquals(candidates.toString(), catalog_col.equals(target_col), candidates.size() > 0);
         } // FOR
     }

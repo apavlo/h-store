@@ -62,8 +62,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  */
 public abstract class JSONUtil {
     private static final Logger LOG = Logger.getLogger(JSONUtil.class.getName());
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -189,16 +189,15 @@ public abstract class JSONUtil {
      * @param output_path
      * @throws IOException
      */
-    public static <T extends JSONSerializable> void save(T object, String output_path) throws IOException {
+    public static <T extends JSONSerializable> void save(T object, File output_path) throws IOException {
         if (debug.get())
             LOG.debug("Writing out contents of " + object.getClass().getSimpleName() + " to '" + output_path + "'");
-        File f = new File(output_path);
         try {
-            FileUtil.makeDirIfNotExists(f.getParent());
+            FileUtil.makeDirIfNotExists(output_path.getParent());
             String json = object.toJSONString();
-            FileUtil.writeStringToFile(f, format(json));
+            FileUtil.writeStringToFile(output_path, format(json));
         } catch (Exception ex) {
-            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + f + "'", ex);
+            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + output_path + "'", ex);
             throw new IOException(ex);
         }
     }
@@ -211,7 +210,7 @@ public abstract class JSONUtil {
      * @param output_path
      * @throws Exception
      */
-    public static <T extends JSONSerializable> void load(T object, Database catalog_db, String input_path) throws IOException {
+    public static <T extends JSONSerializable> void load(T object, Database catalog_db, File input_path) throws IOException {
         if (debug.get())
             LOG.debug("Loading in serialized " + object.getClass().getSimpleName() + " from '" + input_path + "'");
         String contents = FileUtil.readFile(input_path);

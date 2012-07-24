@@ -188,7 +188,7 @@ public class TestCatalogKey extends BaseTestCase {
      */
     public void testVerticalPartitionColumn() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        MultiColumn orig_hp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
+        Column orig_hp_col = this.getColumn(catalog_tbl, "S_ID");
         MultiColumn orig_vp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"), this.getColumn(catalog_tbl, "SUB_NBR"), this.getColumn(catalog_tbl, "VLR_LOCATION"));
 
         VerticalPartitionColumn item0 = VerticalPartitionColumn.get(orig_hp_col, orig_vp_col);

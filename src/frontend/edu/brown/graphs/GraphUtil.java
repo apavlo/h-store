@@ -25,8 +25,8 @@ import edu.brown.utils.ThreadUtil;
 
 public abstract class GraphUtil {
     private static final Logger LOG = Logger.getLogger(GraphUtil.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -117,7 +117,7 @@ public abstract class GraphUtil {
      * @param output_path
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> void save(IGraph<V, E> graph, String output_path) throws IOException {
+    public static <V extends AbstractVertex, E extends AbstractEdge> void save(IGraph<V, E> graph, File output_path) throws IOException {
         if (debug.get()) LOG.debug("Writing out graph to '" + output_path + "'");
         
         JSONStringer stringer = new JSONStringer();
@@ -131,7 +131,7 @@ public abstract class GraphUtil {
         
         String json = stringer.toString();
         try {
-            FileUtil.writeStringToFile(new File(output_path), JSONUtil.format(json));
+            FileUtil.writeStringToFile(output_path, JSONUtil.format(json));
         } catch (Exception ex) {
             throw new IOException(ex);
         }
@@ -235,7 +235,7 @@ public abstract class GraphUtil {
      * @param path
      * @throws Exception
      */
-    public static <V extends AbstractVertex, E extends AbstractEdge> void load(IGraph<V, E> graph, Database catalog_db, String path) throws IOException {
+    public static <V extends AbstractVertex, E extends AbstractEdge> void load(IGraph<V, E> graph, Database catalog_db, File path) throws IOException {
         if (debug.get()) LOG.debug("Loading in serialized graph from '" + path + "'");
         String contents = FileUtil.readFile(path);
         if (contents.isEmpty()) {
@@ -313,6 +313,7 @@ public abstract class GraphUtil {
      * @param <E>
      * @param graph
      */
+    @SuppressWarnings("unchecked")
     public static <V extends AbstractVertex, E extends AbstractEdge> void visualizeGraph(IGraph<V, E> graph) {
         GraphVisualizationPanel.createFrame(graph).setVisible(true);
         ThreadUtil.sleep(10000);

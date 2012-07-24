@@ -25,7 +25,7 @@ public abstract class AbstractTestFilter extends BaseTestCase {
             workload_file = this.getWorkloadFile(ProjectType.TPCC); 
             workload = new Workload(catalog);
             
-            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+            ((Workload)workload).load(workload_file, catalog_db, new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             assert(workload.getTransactionCount() > 0) : "No transaction loaded from workload";
             assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
         }

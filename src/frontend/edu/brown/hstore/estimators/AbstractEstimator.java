@@ -1,7 +1,5 @@
 package edu.brown.hstore.estimators;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +11,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionSet;
 
 public abstract class AbstractEstimator {
     private static final Logger LOG = Logger.getLogger(AbstractEstimator.class);
@@ -29,7 +28,7 @@ public abstract class AbstractEstimator {
     /**
      * PartitionId -> PartitionId Singleton Sets
      */
-    protected final Map<Integer, Collection<Integer>> singlePartitionSets = new HashMap<Integer, Collection<Integer>>();
+    protected final Map<Integer, PartitionSet> singlePartitionSets = new HashMap<Integer, PartitionSet>();
     
     public AbstractEstimator(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
@@ -37,14 +36,14 @@ public abstract class AbstractEstimator {
         this.manglers = hstore_site.getParameterManglers();
         
         for (Integer p : this.hstore_site.getLocalPartitionIds()) {
-            this.singlePartitionSets.put(p, Collections.singleton(p));
+            this.singlePartitionSets.put(p, new PartitionSet(p));
         } // FOR
         
         if (debug.get())
             LOG.debug("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());
     }
     
-    public final Collection<Integer> initializeTransaction(Procedure catalog_proc, Object args[]) {
+    public final PartitionSet initializeTransaction(Procedure catalog_proc, Object args[]) {
         ParameterMangler mangler = this.manglers.get(catalog_proc);
         if (mangler == null) return (null);
         
@@ -54,6 +53,14 @@ public abstract class AbstractEstimator {
         return this.initializeTransactionImpl(catalog_proc, args, mangled);
     }
     
-    protected abstract Collection<Integer> initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]);
+    /**
+     * Returns the list of partitions that we think that this txn is going to
+     * need to access.
+     * @param catalog_proc
+     * @param args
+     * @param mangled
+     * @return
+     */
+    protected abstract PartitionSet initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]);
     
 }

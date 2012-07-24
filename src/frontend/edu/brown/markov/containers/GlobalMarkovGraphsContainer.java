@@ -14,7 +14,7 @@ public class GlobalMarkovGraphsContainer extends MarkovGraphsContainer {
     }
     
     @Override
-    public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+    public MarkovGraph getFromParams(Long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
         return (this.getOrCreate(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID, catalog_proc, true));
     }
     

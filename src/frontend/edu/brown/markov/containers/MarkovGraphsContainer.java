@@ -1,5 +1,6 @@
 package edu.brown.markov.containers;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +28,8 @@ import org.voltdb.utils.Encoder;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.graphs.exceptions.InvalidGraphElementException;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.utils.ArgumentsParser;
@@ -44,7 +47,11 @@ import edu.brown.utils.ThreadUtil;
  */
 public class MarkovGraphsContainer implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(MarkovGraphsContainer.class);
-    private static final boolean debug = LOG.isDebugEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public enum Members {
         MARKOVS,
@@ -177,7 +184,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
      * @param catalog_proc
      * @return
      */
-    public MarkovGraph getFromParams(long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
+    public MarkovGraph getFromParams(Long txn_id, int base_partition, Object params[], Procedure catalog_proc) {
         assert(catalog_proc != null);
         MarkovGraph m = this.getOrCreate(base_partition, catalog_proc, true);
         if (m == null) {
@@ -200,7 +207,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 boolean is_valid = m.isValid();
                 if (is_valid == false) {
                     try {
-                        String dump = "/tmp/" + e.getKey().getName() + ".markovs"; 
+                        File dump = new File("/tmp/" + e.getKey().getName() + ".markovs"); 
                         m.save(dump);
                         System.err.println("DUMP: " + dump);
                         System.err.println("GRAPHVIZ: " + MarkovUtil.exportGraphviz(e.getValue(), false, null).writeToTempFile(e.getKey()));
@@ -287,12 +294,12 @@ public class MarkovGraphsContainer implements JSONSerializable {
     // -----------------------------------------------------------------
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
 
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
     
@@ -345,14 +352,15 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
                 assert(catalog_proc != null);
                 if (this.load_procedures != null && this.load_procedures.contains(catalog_proc) == false) {
-                    if (debug) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                    if (debug.get()) LOG.debug(String.format("Skipping MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
                     continue;
                 }
                 
                 runnables.add(new Runnable() {
                     @Override
                     public void run() {
-                        if (debug) LOG.debug(String.format("Loading MarkovGraph [id=%d, proc=%s]", id, catalog_proc.getName()));
+                        if (trace.get()) LOG.trace(String.format("Loading MarkovGraph [id=%d, proc=%s]",
+                                                                 id, catalog_proc.getName()));
                         JSONObject json_graph = null;
                         try {
                             json_graph = new JSONObject(Encoder.hexDecodeToString(json_procs.getString(proc_key)));
@@ -367,7 +375,7 @@ public class MarkovGraphsContainer implements JSONSerializable {
                 });
             } // FOR (proc key)
         } // FOR (id key)
-        if (debug) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
+        if (debug.get()) LOG.debug(String.format("Going to wait for %d MarkovGraphs to load", runnables.size())); 
         ThreadUtil.runGlobalPool(runnables);
     }
     
@@ -394,20 +402,20 @@ public class MarkovGraphsContainer implements JSONSerializable {
                         if (markov.getGraphId() == 10014) dump = true;
                     } catch (InvalidGraphElementException ex) {
                         cnt_invalid++;
-                        System.out.println(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
+                        LOG.error(String.format("[%d] %-16s - %s", markov.getGraphId(), markov.getProcedure().getName(), ex.getMessage()));
                         dump = true;
                         throw ex;
                     } finally {
                         if (dump) {
-                            System.out.println("BEFORE DUMPED: " + FileUtil.writeStringToFile("/tmp/before.dot", before));
-                            System.out.println("AFTER DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.getProcedure()));
+                            LOG.warn("BEFORE DUMPED: " + FileUtil.writeStringToFile("/tmp/before.dot", before));
+                            LOG.warn("AFTER DUMPED: " + MarkovUtil.exportGraphviz(markov, true, false, true, null).writeToTempFile(markov.getProcedure()));
                         }
                     }
                     cnt_total++;
                 }
             } // FOR
         }
-        System.out.println("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
+        LOG.info("VALID: " + (cnt_total - cnt_invalid) + " / "+ cnt_total);
         if (save && cnt_invalid == 0) {
             MarkovGraphContainersUtil.save(all_markovs, args.getParam(ArgumentsParser.PARAM_MARKOV));
         }

@@ -48,11 +48,11 @@ import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /**
  * Transaction Command Log Writer
@@ -449,7 +449,7 @@ public class CommandLogWriter implements Shutdownable {
             int start = buffer.getStart();
             for (int j = 0, size = buffer.getSize(); j < size; j++) {
                 WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
-                hstore_site.sendClientResponse(entry.cresponse,
+                hstore_site.responseSend(entry.cresponse,
                                                entry.clientCallback,
                                                entry.initiateTime,
                                                entry.restartCounter);

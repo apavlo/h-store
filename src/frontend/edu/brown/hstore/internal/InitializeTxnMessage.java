@@ -18,9 +18,9 @@ public class InitializeTxnMessage extends InternalMessage {
     
     
     public InitializeTxnMessage(ByteBuffer serializedRequest, 
-                                 Procedure catalog_proc,
-                                 ParameterSet procParams,
-                                 RpcCallback<ClientResponseImpl> clientCallback) {
+                                Procedure catalog_proc,
+                                ParameterSet procParams,
+                                RpcCallback<ClientResponseImpl> clientCallback) {
         
         assert(serializedRequest != null);
         assert(catalog_proc != null);

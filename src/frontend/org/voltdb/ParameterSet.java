@@ -29,6 +29,7 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.types.VoltDecimalHelper;
 
 import edu.brown.pools.Poolable;
+import edu.brown.utils.ClassUtil;
 
 /**
  * The ordered set of parameters of the proper types that is passed into
@@ -258,8 +259,16 @@ public class ParameterSet implements FastSerializable, Poolable {
             b.append("NULL");
         } else {
             for (int i = 0; i < m_params.length; ++i) {
-                b.append((i > 0 ? ", " : "") + "param[" + i + "]=" + (m_params[i] == null ? "NULL"
-                        : m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")"));
+                b.append(i > 0 ? ", " : "")
+                 .append("param[" + i + "]=");
+                 if (m_params[i] == null) {
+                     b.append("NULL");    
+                 } else if (ClassUtil.isArray(m_params[i])) {
+                     // FIXME
+                     b.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
+                 } else {
+                     b.append(m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")");
+                 }
             }
         }
         return new String(b);

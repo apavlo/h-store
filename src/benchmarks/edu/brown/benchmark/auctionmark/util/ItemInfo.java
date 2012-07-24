@@ -27,6 +27,7 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark.util;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.json.JSONException;
@@ -101,11 +102,11 @@ public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
     // -----------------------------------------------------------------
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         
     }
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         
     }
     @Override

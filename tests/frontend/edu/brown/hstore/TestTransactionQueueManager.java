@@ -1,7 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
@@ -11,13 +9,12 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.TransactionQueueManager;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -59,7 +56,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     @Test
     public void testSingleTransaction() throws InterruptedException {
         long txn_id = 1000;
-        Collection<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         MockCallback inner_callback = new MockCallback();
         TransactionInitQueueCallback outer_callback = new TransactionInitQueueCallback(hstore_site);
@@ -89,8 +86,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
     public void testTwoTransactions() throws InterruptedException {
         final long txn_id0 = 1000;
         final long txn_id1 = 2000;
-        Collection<Integer> partitions0 = CatalogUtil.getAllPartitionIds(catalog_db);
-        Collection<Integer> partitions1 = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions0 = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions1 = CatalogUtil.getAllPartitionIds(catalog_db);
         
         final MockCallback inner_callback0 = new MockCallback();
         TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
@@ -144,13 +141,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
         final long txn_id0 = 1000;
         final long txn_id1 = 2000;
         final long txn_id2 = 3000;
-        Collection<Integer> partitions0 = new HashSet<Integer>();
+        PartitionSet partitions0 = new PartitionSet();
         partitions0.add(0);
         partitions0.add(2);
-        Collection<Integer> partitions1 = new HashSet<Integer>();
+        PartitionSet partitions1 = new PartitionSet();
         partitions1.add(1);
         partitions1.add(3);
-        Collection<Integer> partitions2 = CatalogUtil.getAllPartitionIds(catalog_db);
+        PartitionSet partitions2 = CatalogUtil.getAllPartitionIds(catalog_db);
         
         final MockCallback inner_callback0 = new MockCallback();
         TransactionInitQueueCallback outer_callback0 = new TransactionInitQueueCallback(hstore_site);
@@ -220,11 +217,11 @@ public class TestTransactionQueueManager extends BaseTestCase {
     public void testOverlappingTransactions() throws InterruptedException {
         final long txn_id0 = 1000;
         final long txn_id1 = 2000;
-        Collection<Integer> partitions0 = new HashSet<Integer>();
+        PartitionSet partitions0 = new PartitionSet();
         partitions0.add(0);
         partitions0.add(1);
         partitions0.add(2);
-        Collection<Integer> partitions1 = new HashSet<Integer>();
+        PartitionSet partitions1 = new PartitionSet();
         partitions1.add(2);
         partitions1.add(3);
         

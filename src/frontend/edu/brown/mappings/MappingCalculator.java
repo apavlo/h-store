@@ -1,5 +1,6 @@
 package edu.brown.mappings;
 
+import java.io.File;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -564,7 +565,7 @@ public class MappingCalculator {
             threshold = args.getDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD);
         }
         ParameterMappingsSet pc = cc.getParameterCorrelations(threshold);
-        String output_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
+        File output_path = args.getFileParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
         assert(!pc.isEmpty());
         if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
         pc.save(output_path);

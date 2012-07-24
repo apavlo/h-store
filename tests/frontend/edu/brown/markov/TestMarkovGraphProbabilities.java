@@ -45,7 +45,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             
             File file = this.getParameterMappingsFile(ProjectType.TM1);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
 
             file = this.getWorkloadFile(ProjectType.TM1);
             workload = new Workload(catalog);
@@ -60,7 +60,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
+            workload.load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             markov = new MarkovGraph(catalog_proc).initialize();

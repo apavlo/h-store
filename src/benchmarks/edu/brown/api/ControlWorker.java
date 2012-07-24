@@ -7,7 +7,7 @@ import org.voltdb.client.Client;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /**
  * Thread that executes the derives classes run loop which invokes stored

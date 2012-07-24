@@ -1,7 +1,6 @@
 package edu.brown.hstore.handlers;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -21,6 +20,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest, SendDataResponse> {
@@ -38,7 +38,7 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
     }
     
     @Override
-    public void sendLocal(Long txn_id, SendDataRequest request, Collection<Integer> partitions, RpcCallback<SendDataResponse> callback) {
+    public void sendLocal(Long txn_id, SendDataRequest request, PartitionSet partitions, RpcCallback<SendDataResponse> callback) {
         // We should never be called because we never want to have serialize/deserialize data
         // within our own process
         assert(false): this.getClass().getSimpleName() + ".sendLocal should never be called!";

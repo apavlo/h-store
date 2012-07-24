@@ -321,7 +321,7 @@ public class ProcedureProfiler {
             if (tracePath != null && !tracePath.isEmpty()) {
                 File f = new File(tracePath);
                 FileUtil.makeDirIfNotExists(f.getParent());
-                ProcedureProfiler.workloadTrace.setOutputPath(tracePath);
+                ProcedureProfiler.workloadTrace.setOutputPath(f);
             }
 
             // Ignore certain procedures in the workload trace

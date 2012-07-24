@@ -17,6 +17,8 @@
 
 package org.voltdb;
 
+import java.io.File;
+
 import org.voltdb.catalog.*;
 
 /**
@@ -96,7 +98,7 @@ public interface WorkloadTrace {
      *
      * @param path - the path to a file for where the trace manager should store traces
      */
-    public void setOutputPath(String path);
+    public void setOutputPath(File path);
 
     /**
      * Adds a stored procedure to a list of procedures to ignore.

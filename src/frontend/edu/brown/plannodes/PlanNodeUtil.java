@@ -69,8 +69,8 @@ import edu.brown.utils.CollectionUtil;
  */
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -646,6 +646,7 @@ public abstract class PlanNodeUtil {
     }
 
     private static String debug(AbstractPlanNode node, String spacer) {
+        if (node == null) return (null);
         String ret = debugNode(node, spacer);
 
         // Print out all of our children
@@ -1040,7 +1041,6 @@ public abstract class PlanNodeUtil {
      * 
      * @param catalog_frag
      * @return
-     * @throws Exception
      */
     public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frag) {
         String id = catalog_frag.getName();

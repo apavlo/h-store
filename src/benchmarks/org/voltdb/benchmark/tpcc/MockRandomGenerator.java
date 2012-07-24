@@ -50,6 +50,8 @@
 
 package org.voltdb.benchmark.tpcc;
 
+import java.util.Random;
+
 public class MockRandomGenerator extends RandomGenerator {
     public int number(int minimum, int maximum) {
         assert minimum <= maximum;
@@ -63,4 +65,9 @@ public class MockRandomGenerator extends RandomGenerator {
     }
 
     public boolean minimum = true;
+
+    @Override
+    public Random rng() {
+        return null;
+    }
 }

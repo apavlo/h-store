@@ -1,17 +1,19 @@
 package edu.brown.workload.filters;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.workload.AbstractTraceElement;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
+/**
+ * Filter TranasctionTraces based on whether they are single-partitioned or not
+ * @author pavlo
+ */
 public class MultiPartitionTxnFilter extends Filter {
     
     private final PartitionEstimator p_estimator;
@@ -29,10 +31,6 @@ public class MultiPartitionTxnFilter extends Filter {
         this.catalog_db = p_estimator.getDatabase();
         this.singlepartition = singlepartition;
     }
-    
-    public MultiPartitionTxnFilter(PartitionEstimator p_estimator) {
-        this(p_estimator, false);
-    }
 
     @Override
     protected void resetImpl() {
@@ -45,13 +43,12 @@ public class MultiPartitionTxnFilter extends Filter {
             TransactionTrace xact = (TransactionTrace)element;
             Procedure catalog_proc = xact.getCatalogItem(this.catalog_db);
             
-            Set<Integer> partitions = new HashSet<Integer>();
+            PartitionSet partitions = new PartitionSet();
             try {
                 int base_partition = this.p_estimator.getBasePartition(catalog_proc, xact.getParams(), true);
                 partitions.add(base_partition);
-                
                 for (QueryTrace query : xact.getQueries()) {
-                    partitions.addAll(this.p_estimator.getAllPartitions(query, base_partition));
+                    this.p_estimator.getAllPartitions(partitions, query, base_partition);
                 } // FOR
                 
             } catch (Exception ex) {

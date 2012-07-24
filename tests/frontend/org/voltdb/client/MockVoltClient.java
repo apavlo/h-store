@@ -61,7 +61,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.utils.ProfileMeasurement;
+import edu.brown.profilers.ProfileMeasurement;
 
 /** Hack subclass of VoltClient that fakes callProcedure. */
 public class MockVoltClient implements Client {

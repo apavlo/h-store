@@ -51,6 +51,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.UniqueCombinationIterator;
 import edu.brown.workload.TransactionTrace;
@@ -62,8 +63,8 @@ import edu.brown.workload.Workload;
  */
 public class FeatureClusterer {
     private static final Logger LOG = Logger.getLogger(FeatureClusterer.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -113,7 +114,7 @@ public class FeatureClusterer {
         private final Map<Long, Integer> txnid_cluster_xref = new HashMap<Long, Integer>();
         
         @Override
-        public MarkovGraph getFromParams(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
+        public MarkovGraph getFromParams(Long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
             // Look-up what cluster our TransactionTrace belongs to
             Integer cluster = this.txnid_cluster_xref.get(txn_id);
             assert(cluster != null) : "Failed to initialize TransactionId->Cluster# xref for txn #" + txn_id;
@@ -306,7 +307,7 @@ public class FeatureClusterer {
     private double round_topk = DEFAULT_ATTRIBUTESET_TOP_K;
     private int num_rounds = DEFAULT_NUM_ROUNDS;
     
-    private final Map<Long, Set<Integer>> cache_all_partitions = new HashMap<Long, Set<Integer>>();
+    private final Map<Long, PartitionSet> cache_all_partitions = new HashMap<Long, PartitionSet>();
     private final Map<Long, Integer> cache_base_partition = new HashMap<Long, Integer>();
 
     /**
@@ -424,7 +425,7 @@ public class FeatureClusterer {
     // CACHING METHODS
     // ----------------------------------------------------------------------------
     
-    private Integer getBasePartition(TransactionTrace txn_trace) {
+    private int getBasePartition(TransactionTrace txn_trace) {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
         Integer base_partition = this.cache_base_partition.get(txn_id);
         if (base_partition == null) {
@@ -435,18 +436,20 @@ public class FeatureClusterer {
             }
             this.cache_base_partition.put(txn_id, base_partition);
         }
-        return (base_partition);
+        return (base_partition.intValue());
     }
     
-    private Set<Integer> getAllPartitions(TransactionTrace txn_trace) {
+    private PartitionSet getAllPartitions(TransactionTrace txn_trace) {
         Long txn_id = Long.valueOf(txn_trace.getTransactionId());
-        Set<Integer> all_partitions = this.cache_all_partitions.get(txn_id);
+        PartitionSet all_partitions = this.cache_all_partitions.get(txn_id);
         if (all_partitions == null) {
+            all_partitions = new PartitionSet();
             try {
-                all_partitions = Collections.unmodifiableSet(this.p_estimator.getAllPartitions(txn_trace));
+                this.p_estimator.getAllPartitions(all_partitions, txn_trace);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
+            this.cache_all_partitions.put(txn_id, all_partitions);
         }
         return (all_partitions);
     }
@@ -663,7 +666,7 @@ public class FeatureClusterer {
             if (this.all_partitions.contains(base_partition) == false) continue;
 
             // Ok so now let's figure out what this mofo is going to do...
-            Set<Integer> partitions = this.getAllPartitions(txn_trace);
+            PartitionSet partitions = this.getAllPartitions(txn_trace);
             boolean singlepartitioned = (partitions.size() == 1);
             
             // Estimate Global MarkovGraph Cost
@@ -762,7 +765,7 @@ public class FeatureClusterer {
             
 
             // Ok so now let's figure out what this mofo is going to do...
-            Set<Integer> partitions = this.getAllPartitions(txn_trace);
+            PartitionSet partitions = this.getAllPartitions(txn_trace);
             boolean singlepartitioned = (partitions.size() == 1);
             t_counters[singlepartitioned ? 0 : 1]++;
             t_counters[2]++; // Total # of Txns
@@ -862,11 +865,11 @@ public class FeatureClusterer {
 
             // Figure out which base partition this txn would execute on
             // because we want divide the MarkovGraphContainers by the base partition
-            Integer base_partition = this.p_estimator.getBasePartition(txn_trace);
+            int base_partition = this.p_estimator.getBasePartition(txn_trace);
             partition_h.put(base_partition);
 
             // Build up the MarkovGraph for this specific cluster
-            MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition.intValue()];
+            MarkovGraphsContainer markovs = state.markovs_per_partition[base_partition];
             MarkovGraph markov = markovs.get(c, this.catalog_proc);
             if (markov == null) {
                 markov = markovs.getOrCreate(c, this.catalog_proc).initialize();
@@ -874,7 +877,7 @@ public class FeatureClusterer {
             }
             markov.processTransaction(txn_trace, this.p_estimator);
             
-            state.clusters_per_partition[base_partition.intValue()].put(c);
+            state.clusters_per_partition[base_partition].put(c);
         } // FOR
         // if (trace.get()) LOG.trace("Clusters per Partition:\n" + StringUtil.formatMaps(state.clusters_per_partition));
     }

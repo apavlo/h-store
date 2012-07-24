@@ -89,7 +89,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     private File output_path;
     
     /** Stats Path **/
-    protected String stats_output;
+    protected File stats_output;
     protected boolean saved_stats = false;
      
     /** Basic data members **/
@@ -299,8 +299,8 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * 
      */
     @Override
-    public void setOutputPath(String path) {
-        this.output_path = new File(path);
+    public void setOutputPath(File path) {
+        this.output_path = path;
         try {
             this.out = new FileOutputStream(path);
             if (debug.get()) LOG.debug("Opened file '" + path + "' for logging workload trace");
@@ -311,7 +311,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         }
     }
 
-    public void setStatsOutputPath(String path) {
+    public void setStatsOutputPath(File path) {
         this.stats_output = path;
     }
     
@@ -334,7 +334,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param catalog_db
      * @throws Exception
      */
-    public void load(String input_path, Database catalog_db) throws Exception {
+    public void load(File input_path, Database catalog_db) throws Exception {
         this.load(input_path, catalog_db, null);
     }
     
@@ -345,9 +345,9 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param limit
      * @throws Exception
      */
-    public void load(String input_path, Database catalog_db, Filter filter) throws Exception {
+    public void load(File input_path, Database catalog_db, Filter filter) throws Exception {
         if (debug.get()) LOG.debug("Reading workload trace from file '" + input_path + "'");
-        this.input_path = new File(input_path);
+        this.input_path = input_path;
         long start = System.currentTimeMillis();
         
         // HACK: Throw out traces unless they have the procedures that we're looking for
@@ -984,7 +984,7 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         return;
     }
 
-    public void save(String path, Database catalog_db) {
+    public void save(File path, Database catalog_db) {
         this.setOutputPath(path);
         this.save(catalog_db);
     }

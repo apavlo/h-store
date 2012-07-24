@@ -127,11 +127,13 @@ namespace voltdb {
                                          bool exportEnabled,
                                          bool exportOnly);
         
+        #ifdef ANTICACHE
         static Table* getEvictedTable(voltdb::CatalogId databaseId,
                                       ExecutorContext *ctx,
                                       const std::string &name,
                                       TupleSchema* schema,
                                       const std::string* columnNames);
+        #endif
         
         
         /**

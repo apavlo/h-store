@@ -25,6 +25,7 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -38,6 +39,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
 
     private static final int PROC_COUNT = 3;
     
+    @SuppressWarnings("unchecked")
     private static final Class<? extends VoltProcedure> PROCEDURES[] = new Class[]{
         DeleteCallForwarding.class,
         GetAccessData.class,
@@ -78,7 +80,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
                 filter.include(proc_name, PROC_COUNT);
                 total += PROC_COUNT;
             }
-            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
+            ((Workload)workload).load(workload_file, catalog_db, filter);
             assertEquals(total, workload.getTransactionCount());
             assertEquals(TARGET_PROCEDURES.length, workload.getProcedureHistogram().getValueCount());
             // System.err.println(workload.getProcedureHistogram());
@@ -137,7 +139,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         final SingleSitedCostModel orig_costModel = new SingleSitedCostModel(catalog_db);
         final double orig_cost = orig_costModel.estimateWorkloadCost(catalog_db, new_workload);
         assert(orig_cost > 0);
-        if (orig_costModel.getMultiPartitionProcedureHistogram().isEmpty()) System.err.println(orig_costModel.getTransactionCacheEntry(0).debug());
+        // if (orig_costModel.getMultiPartitionProcedureHistogram().isEmpty()) System.err.println(orig_costModel.getTransactionCacheEntry(0).debug());
         assertEquals(num_txns, orig_costModel.getMultiPartitionProcedureHistogram().getSampleCount());
         assertEquals(0, orig_costModel.getSinglePartitionProcedureHistogram().getSampleCount());
         
@@ -211,8 +213,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         TransactionCacheEntry orig_txnEntry = orig_costModel.getTransactionCacheEntry(orig_txn);
         assertNotNull(orig_txnEntry);
         assertEquals(orig_txn.getQueryCount(), orig_txnEntry.getExaminedQueryCount());
-        System.err.println(orig_txnEntry.debug());
-        System.err.println("=========================================");
+//        System.err.println(orig_txnEntry.debug());
+//        System.err.println("=========================================");
         
         // Now change make a new workload that has the same multi-partition transaction
         // but this time it only has one but with a transaction weight
@@ -253,7 +255,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         TransactionCacheEntry new_txnEntry = new_costModel.getTransactionCacheEntry(new_txn);
         assertNotNull(new_txnEntry);
-        System.err.println(new_txnEntry.debug());
+//        System.err.println(new_txnEntry.debug());
         
         assertEquals(orig_txnEntry.getExaminedQueryCount(), new_txnEntry.getExaminedQueryCount());
         assertEquals(orig_txnEntry.getSingleSiteQueryCount(), new_txnEntry.getSingleSiteQueryCount());
@@ -295,8 +297,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         } // FOR
         
         
-        System.err.println(cost_model.debugHistograms(catalog_db));
-        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
+//        System.err.println(cost_model.debugHistograms(catalog_db));
+//        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
         
         // Now invalidate the cache for the first query in the procedure
         Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
@@ -667,7 +669,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNull(entry.getExecutionPartition());
+        assertEquals(HStoreConstants.NULL_PARTITION_ID, entry.getExecutionPartition());
         assert(entry.isSinglePartitioned());
         
         // Make something else the ProcParameter
@@ -677,7 +679,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNotNull(entry.getExecutionPartition());
+        assert(entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID);
         // assertFalse(entry.isSingleSited());
         
         // Now let's put S_ID back in as the ProcParameter
@@ -687,7 +689,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         cost_model.estimateTransactionCost(clone_db, target_txn);
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
-        assertNotNull(entry.getExecutionPartition());
+        assert(entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID);
         if (!entry.isSinglePartitioned()) System.err.println(entry.debug());
         assert(entry.isSinglePartitioned());
     }
@@ -706,6 +708,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
             }
         } // FOR
         assertNotNull(target_txn);
+        System.err.println(target_txn.debug(catalog_db));
         
         // Now change partitioning
         MultiProcParameter catalog_param = MultiProcParameter.get(catalog_proc.getParameters().get(0), catalog_proc.getParameters().get(1));

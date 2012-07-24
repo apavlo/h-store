@@ -26,7 +26,6 @@
 package edu.brown.hstore.wal;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
@@ -47,6 +46,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -102,7 +102,7 @@ public class TestCommandLogger extends BaseTestCase {
             txnId[i] = TXN_ID.incrementAndGet(); 
             ts.testInit(new Long(txnId[i]),
                         BASE_PARTITION,
-                        Collections.singleton(BASE_PARTITION),
+                        new PartitionSet(BASE_PARTITION),
                         catalog_proc[i],
                         TARGET_PARAMS[i]);
             

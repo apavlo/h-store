@@ -1,5 +1,6 @@
 package edu.brown.graphs;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -180,12 +181,12 @@ public abstract class AbstractDirectedGraph<V extends AbstractVertex, E extends 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         GraphUtil.load(this, catalog_db, input_path);
     }
     
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         GraphUtil.save(this, output_path);
     }
     

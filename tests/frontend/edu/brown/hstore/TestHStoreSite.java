@@ -1,8 +1,5 @@
 package edu.brown.hstore;
 
-import java.util.Collection;
-import java.util.Collections;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.ClientResponseImpl;
@@ -10,7 +7,6 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.messaging.FastDeserializer;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -20,6 +16,7 @@ import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 public class TestHStoreSite extends BaseTestCase {
@@ -54,7 +51,7 @@ public class TestHStoreSite extends BaseTestCase {
         
         this.ts = new LocalTransaction(hstore_site);
         this.callback = new MockClientCallback();
-        Collection<Integer> predict_touchedPartitions = Collections.singleton(BASE_PARTITION);
+        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
         boolean predict_readOnly = true;
         boolean predict_canAbort = true;
         
@@ -80,7 +77,7 @@ public class TestHStoreSite extends BaseTestCase {
                                                               Status.OK,
                                                               HStoreConstants.EMPTY_RESULT,
                                                               "");
-        hstore_site.sendClientResponse(ts, cresponse);
+        hstore_site.responseSend(ts, cresponse);
         
         // Check to make sure our callback got the ClientResponse
         // And just make sure that they're the same

@@ -68,6 +68,7 @@ import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -84,7 +85,7 @@ import edu.brown.workload.Workload;
  * @author pavlo
  */
 public class PartitionEstimator {
-    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class.getName());
+    private static final Logger LOG = Logger.getLogger(PartitionEstimator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -96,12 +97,16 @@ public class PartitionEstimator {
     // ----------------------------------------------------------------------------
     private Database catalog_db;
     private final AbstractHasher hasher;
-    private final Set<Integer> all_partitions = new HashSet<Integer>();
+    private final PartitionSet all_partitions = new PartitionSet();
     private int num_partitions;
 
     private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
     private final Map<Table, Column> cache_tablePartitionColumns = new HashMap<Table, Column>();
-    private final Map<Statement, Collection<Integer>> cache_stmtPartitionParameters = new HashMap<Statement, Collection<Integer>>();
+    
+    /**
+     * Statement -> StmtParameter Offsets
+     */
+    private final Map<Statement, int[]> cache_stmtPartitionParameters = new HashMap<Statement, int[]>();
 
     /**
      * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
@@ -251,43 +256,37 @@ public class PartitionEstimator {
     }; // END CLASS
 
     /**
-     * Set<Integer> pool used by calculatePartitionsForCache
+     * PartitionSet pool used by calculatePartitionsForCache
      */
-    private final FastObjectPool<Set<Integer>> partitionSetPool = new FastObjectPool<Set<Integer>>(new BasePoolableObjectFactory() {
+    private final FastObjectPool<PartitionSet> partitionSetPool = new FastObjectPool<PartitionSet>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
-            return (new HashSet<Integer>());
+            return (new PartitionSet());
         }
 
         public void passivateObject(Object obj) throws Exception {
-            @SuppressWarnings("unchecked")
-            Set<Integer> set = (Set<Integer>) obj;
-            set.clear();
+            ((PartitionSet)obj).clear();
         };
     }, 100);
 
     /**
-     * Set<Integer>[4] pool used by calculatePartitionsForCache
+     * PartitionSet[4] pool used by calculatePartitionsForCache
      */
-    private final FastObjectPool<HashSet<Integer>[]> mcPartitionSetPool = new FastObjectPool<HashSet<Integer>[]>(new BasePoolableObjectFactory() {
+    private final FastObjectPool<PartitionSet[]> mcPartitionSetPool = new FastObjectPool<PartitionSet[]>(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
             // XXX: Why is this hardcoded?
-            return (new HashSet[] {
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>(),
-                    new HashSet<Integer>()
+            return (new PartitionSet[] {
+                    new PartitionSet(),
+                    new PartitionSet(),
+                    new PartitionSet(),
+                    new PartitionSet()
              });
         }
 
         public void passivateObject(Object obj) throws Exception {
-            @SuppressWarnings("unchecked")
-            HashSet<Integer> sets[] = (HashSet<Integer>[]) obj;
-            for (HashSet<Integer> s : sets) {
-                s.clear();
-            } // FOR
-
+            PartitionSet sets[] = (PartitionSet[])obj;
+            for (PartitionSet s : sets) s.clear();
         };
     }, 1000);
 
@@ -815,12 +814,11 @@ public class PartitionEstimator {
 
     /**
      * Returns the target partition for a StoredProcedureInvocation instance
-     * 
      * @param invocation
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(StoredProcedureInvocation invocation) throws Exception {
+    public int getBasePartition(StoredProcedureInvocation invocation) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
         if (catalog_proc == null) {
             catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(invocation.getProcName());
@@ -832,19 +830,17 @@ public class PartitionEstimator {
 
     /**
      * Returns the target partition for a stored procedure + parameters
-     * 
      * @param catalog_proc
      * @param params
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(Procedure catalog_proc, Object params[]) throws Exception {
+    public int getBasePartition(Procedure catalog_proc, Object params[]) throws Exception {
         return (this.getBasePartition(catalog_proc, params, false));
     }
 
     /**
      * Return the target partition for a TransactionTrace
-     * 
      * @param txn_trace
      * @return
      * @throws Exception
@@ -864,9 +860,12 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
-        assert (catalog_proc != null);
-        assert (params != null);
+    public int getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
+        assert(catalog_proc != null);
+        assert(params != null);
+//        assert(catalog_proc.getParameters().size() == params.length) :
+//            String.format("Invalid number of ProcParameters for %s: %d != %d",
+//                          catalog_proc, catalog_proc.getParameters().size(), params.length);
         ProcParameter catalog_param = this.cache_procPartitionParameters.get(catalog_proc);
 
         if (catalog_param == null && force) {
@@ -885,20 +884,20 @@ public class PartitionEstimator {
             } else {
                 if (debug.get())
                     LOG.debug(catalog_proc + " has no parameters. No base partition for you!");
-                return (null);
+                return (HStoreConstants.NULL_PARTITION_ID);
             }
         }
 
         if (force == false && (catalog_param == null || catalog_param instanceof NullProcParameter)) {
             if (debug.get())
                 LOG.debug(catalog_proc + " does not have a pre-defined partition parameter. No base partition!");
-            return (null);
+            return (HStoreConstants.NULL_PARTITION_ID);
             // } else if (!force && !catalog_proc.getSinglepartition()) {
             // if (debug.get()) LOG.debug(catalog_proc +
             // " is not marked as single-partitioned. Executing as multi-partition");
             // return (null);
         }
-        Integer partition = null;
+        int partition = HStoreConstants.NULL_PARTITION_ID;
         boolean is_array = catalog_param.getIsarray();
 
         // Special Case: RandomProcParameter
@@ -915,30 +914,20 @@ public class PartitionEstimator {
                 int mpp_param_idx = mpp.get(i).getIndex();
                 assert (mpp_param_idx >= 0) : "Invalid Partitioning MultiProcParameter #" + mpp_param_idx;
                 assert (mpp_param_idx < params.length) : CatalogUtil.getDisplayName(mpp) + " < " + params.length;
-                Integer hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
-                if (hash == null)
-                    hash = 0;
-                hashes[i] = hash.intValue();
+                int hash = this.calculatePartition(catalog_proc, params[mpp_param_idx], is_array);
+                hashes[i] = (hash == HStoreConstants.NULL_PARTITION_ID ? 0 : hash);
                 if (debug.get())
                     LOG.debug(mpp.get(i) + " value[" + params[mpp_param_idx] + "] => hash[" + hashes[i] + "]");
             } // FOR
             partition = this.hasher.multiValueHash(hashes);
             if (debug.get())
                 LOG.debug(Arrays.toString(hashes) + " => " + partition);
-            // Single ProcParameter
-        } else {
+        }
+        // Single ProcParameter
+        else {
             if (debug.get())
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
-            // try {
             partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
-            // } catch (NullPointerException ex) {
-            // LOG.error("catalog_proc = " + catalog_proc);
-            // LOG.error("catalog_param = " + CatalogUtil.debug(catalog_param));
-            // LOG.error("params = " + Arrays.toString(params));
-            // LOG.error("is_array = " + is_array);
-            // LOG.error("Busted!", ex);
-            // System.exit(1);
-            // }
         }
         return (partition);
     }
@@ -948,33 +937,59 @@ public class PartitionEstimator {
     // ----------------------------------------------------------------------------
 
     /**
+     * Populate the given set with all of the partition ids that all of the QueryTraces
+     * in this TransactionTrace will touch based on the current catalog.
+     * Note that this estimate will also include the base partition where the txn's control
+     * code will execute.
+     * @param partitions
      * @param xact
-     * @return
      * @throws Exception
      */
-    public Set<Integer> getAllPartitions(final TransactionTrace xact) throws Exception {
-        Set<Integer> partitions = new HashSet<Integer>();
+    public void getAllPartitions(PartitionSet partitions, TransactionTrace xact) throws Exception {
         int base_partition = this.getBasePartition(xact.getCatalogItem(this.catalog_db), xact.getParams(), true);
         partitions.add(base_partition);
-
-        Set<Integer> temp = new HashSet<Integer>();
         for (QueryTrace query : xact.getQueries()) {
-            partitions.addAll(this.getAllPartitions(temp, query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
-            temp.clear();
+            this.getAllPartitions(partitions,
+                                  query.getCatalogItem(this.catalog_db),
+                                  query.getParams(),
+                                  base_partition);
         } // FOR
-
-        return (partitions);
     }
 
     /**
-     * Return the list of partitions that this QueryTrace object will touch
-     * 
+     * Populate the given set with all of the partition ids that this QueryTrace
+     * will touch based on the current catalog.
+     * @param partitions
      * @param query
-     * @return
+     * @param base_partition
+     * @throws Exception
      */
-    public Set<Integer> getAllPartitions(final QueryTrace query, Integer base_partition) throws Exception {
-        return (this.getAllPartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
+    public void getAllPartitions(PartitionSet partitions, QueryTrace query, Integer base_partition) throws Exception {
+        Statement catalog_stmt = query.getCatalogItem(this.catalog_db);
+        this.getAllPartitions(partitions, catalog_stmt, query.getParams(), base_partition);
     }
+
+    /**
+     * Populate the given set with all of the partition ids that this Statement with the
+     * given parameters will touch based on the current catalog.
+     * @param all_partitions
+     * @param catalog_stmt
+     * @param params
+     * @param base_partition
+     * @throws Exception
+     */
+    public void getAllPartitions(final PartitionSet all_partitions, final Statement catalog_stmt, final Object params[], final int base_partition) throws Exception {
+        // Note that we will use the single-sited fragments (if available) since they will be
+        // faster for us to figure out what partitions has the data that this statement needs
+        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? 
+                                                    catalog_stmt.getFragments() :
+                                                    catalog_stmt.getMs_fragments());
+        this.getAllFragmentPartitions(null, all_partitions, fragments.values(), params, base_partition);
+    }
+
+    // ----------------------------------------------------------------------------
+    // STATEMENT PARTITION METHODS
+    // ----------------------------------------------------------------------------
 
     /**
      * Return the table -> partitions mapping for the given QueryTrace object
@@ -984,42 +999,10 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<String, Set<Integer>> getTablePartitions(final QueryTrace query, Integer base_partition) throws Exception {
+    public Map<String, PartitionSet> getTablePartitions(final QueryTrace query, Integer base_partition) throws Exception {
         return (this.getTablePartitions(query.getCatalogItem(this.catalog_db), query.getParams(), base_partition));
     }
-
-    /**
-     * @param catalog_stmt
-     * @param params
-     * @return
-     */
-    public Set<Integer> getAllPartitions(final Statement catalog_stmt, Object params[], int base_partition) throws Exception {
-        return (this.getAllPartitions(new HashSet<Integer>(), catalog_stmt, params, base_partition));
-    }
-
-    /**
-     * @param partitions
-     * @param catalog_stmt
-     * @param params
-     * @param base_partition
-     * @throws Exception
-     */
-    public Set<Integer> getAllPartitions(final Set<Integer> partitions, final Statement catalog_stmt, final Object params[], final int base_partition) throws Exception {
-        Set<Integer> all_partitions = new HashSet<Integer>();
-
-        // Note that we will use the single-sited fragments (if available) since
-        // they will be
-        // faster for us to figure out what partitions has the data that this
-        // statement needs
-        CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-        this.getAllFragmentPartitions(null, all_partitions, fragments.values(), params, base_partition);
-        return (all_partitions);
-    }
-
-    // ----------------------------------------------------------------------------
-    // STATEMENT PARTITION METHODS
-    // ----------------------------------------------------------------------------
-
+    
     /**
      * Return all of the partitions per table for the given Statement object
      * 
@@ -1029,12 +1012,12 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<String, Set<Integer>> getTablePartitions(final Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
-        Map<String, Set<Integer>> all_partitions = new HashMap<String, Set<Integer>>();
+    public Map<String, PartitionSet> getTablePartitions(Statement catalog_stmt, Object params[], Integer base_partition) throws Exception {
+        Map<String, PartitionSet> all_partitions = new HashMap<String, PartitionSet>();
         CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
         for (PlanFragment catalog_frag : fragments) {
             try {
-                Map<String, Set<Integer>> frag_partitions = new HashMap<String, Set<Integer>>();
+                Map<String, PartitionSet> frag_partitions = new HashMap<String, PartitionSet>();
                 this.calculatePartitionsForFragment(frag_partitions, null, catalog_frag, params, base_partition);
                 for (String table_key : frag_partitions.keySet()) {
                     if (!all_partitions.containsKey(table_key)) {
@@ -1067,10 +1050,10 @@ public class PartitionEstimator {
      * @param catalog_stmt
      * @return
      */
-    public Collection<Integer> getStatementEstimationParameters(Statement catalog_stmt) {
-        Collection<Integer> all_param_idxs = this.cache_stmtPartitionParameters.get(catalog_stmt);
+    public int[] getStatementEstimationParameters(Statement catalog_stmt) {
+        int[] all_param_idxs = this.cache_stmtPartitionParameters.get(catalog_stmt);
         if (all_param_idxs == null) {
-            all_param_idxs = new HashSet<Integer>();
+            List<Integer> idxs = new ArrayList<Integer>();
 
             // Assume single-partition
             if (catalog_stmt.getHas_singlesited() == false) {
@@ -1079,7 +1062,7 @@ public class PartitionEstimator {
                 return (null);
             }
 
-            for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+            for (PlanFragment catalog_frag : catalog_stmt.getFragments().values()) {
                 PartitionEstimator.CacheEntry cache_entry = null;
                 try {
                     cache_entry = this.getFragmentCacheEntry(catalog_frag);
@@ -1104,10 +1087,11 @@ public class PartitionEstimator {
                         return (null);
                     } else if (partition_col != null && cache_entry.containsKey(partition_col)) {
                         for (int idx : cache_entry.get(partition_col)) {
-                            all_param_idxs.add(Integer.valueOf(idx));
+                            idxs.add(Integer.valueOf(idx));
                         } // FOR
                     }
                 } // FOR
+                if (idxs.isEmpty() == false) all_param_idxs = CollectionUtil.toIntArray(idxs);
             } // FOR
             this.cache_stmtPartitionParameters.put(catalog_stmt, all_param_idxs);
         }
@@ -1122,7 +1106,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final PlanFragment fragments[], final Object params[],
+    public Map<PlanFragment, PartitionSet> getAllFragmentPartitions(final Map<PlanFragment, PartitionSet> frag_partitions, final PlanFragment fragments[], final Object params[],
             final Integer base_partition) throws Exception {
         this.getAllFragmentPartitions(frag_partitions, null, fragments, params, base_partition);
         return (frag_partitions);
@@ -1141,32 +1125,36 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public void getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Set<Integer> frag_all_partitions, PlanFragment fragments[], final Object params[],
-            final Integer base_partition) throws Exception {
+    public void getAllFragmentPartitions(Map<PlanFragment, PartitionSet> frag_partitions,
+                                         PartitionSet frag_all_partitions,
+                                         PlanFragment fragments[],
+                                         Object params[],
+                                         Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
-            Set<Integer> partitions = null;
+            assert(catalog_frag != null);
+            PartitionSet partitions = null;
 
             // If we have a FragPartion map, then use an entry from that
             if (frag_partitions != null) {
                 partitions = frag_partitions.get(catalog_frag);
                 if (partitions == null) {
-                    partitions = new HashSet<Integer>();
+                    partitions = new PartitionSet();
                     frag_partitions.put(catalog_frag, partitions);
                 } else {
                     partitions.clear();
                 }
-                // Otherwise use our AllPartitions set
+            // Otherwise use our AllPartitions set
             } else {
                 partitions = frag_all_partitions;
             }
-            assert (partitions != null);
+            assert(partitions != null);
 
             this.calculatePartitionsForFragment(null,
-                                                 partitions,
-                                                 catalog_frag,
-                                                 params,
-                                                 base_partition);
+                                                partitions,
+                                                catalog_frag,
+                                                params,
+                                                base_partition);
 
             // If there were no partitions, then the PlanFragment needs to be
             // execute on the base partition
@@ -1191,8 +1179,10 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Set<Integer> getPartitions(final PlanFragment catalog_frag, Object params[], Integer base_partition) throws Exception {
-        Set<Integer> partitions = new HashSet<Integer>();
+    public PartitionSet getPartitions(PartitionSet partitions, 
+                                      PlanFragment catalog_frag,
+                                      Object params[],
+                                      Integer base_partition) throws Exception {
         this.calculatePartitionsForFragment(null, partitions, catalog_frag, params, base_partition);
         return (partitions);
     }
@@ -1208,16 +1198,19 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private void calculatePartitionsForFragment(final Map<String, Set<Integer>> entry_partitions, final Set<Integer> all_partitions, PlanFragment catalog_frag, Object params[], Integer base_partition)
-            throws Exception {
+    private void calculatePartitionsForFragment(Map<String, PartitionSet> entry_partitions,
+                                                PartitionSet all_partitions,
+                                                PlanFragment catalog_frag,
+                                                Object params[],
+                                                Integer base_partition) throws Exception {
         if (trace.get())
             LOG.trace("Estimating partitions for PlanFragment #" + catalog_frag.fullName());
         PartitionEstimator.CacheEntry cache_entry = this.getFragmentCacheEntry(catalog_frag);
         this.calculatePartitionsForCache(entry_partitions,
-                                          all_partitions,
-                                          cache_entry,
-                                          params,
-                                          base_partition);
+                                         all_partitions,
+                                         cache_entry,
+                                         params,
+                                         base_partition);
         if (debug.get()) {
             if (entry_partitions != null)
                 LOG.debug(String.format("%s Table Partitions: %s", catalog_frag.fullName(), entry_partitions));
@@ -1231,8 +1224,7 @@ public class PartitionEstimator {
         String frag_key = CatalogKey.createKey(catalog_frag);
         // Check whether we have generate the cache entries for this Statement
         // The CacheEntry object just tells us what input parameter to use for
-        // hashing
-        // to figure out where we need to go for each table.
+        // hashing to figure out where we need to go for each table.
         PartitionEstimator.CacheEntry cache_entry = this.cache_fragmentEntries.get(frag_key);
         if (cache_entry == null) {
             synchronized (this) {
@@ -1254,11 +1246,11 @@ public class PartitionEstimator {
      * @param base_partition
      * @return
      */
-    private void calculatePartitionsForCache(final Map<String, Set<Integer>> entry_table_partitions,
-                                             final Collection<Integer> entry_all_partitions,
-                                             final PartitionEstimator.CacheEntry cache_entry,
-                                             final Object params[],
-                                             final Integer base_partition) throws Exception {
+    private void calculatePartitionsForCache(Map<String, PartitionSet> entry_table_partitions,
+                                             Collection<Integer> entry_all_partitions,
+                                             PartitionEstimator.CacheEntry cache_entry,
+                                             Object params[],
+                                             Integer base_partition) throws Exception {
 
         // Hash the input parameters to determine what partitions we're headed to
         QueryType stmt_type = cache_entry.query_type;
@@ -1271,7 +1263,7 @@ public class PartitionEstimator {
             } // FOR
         }
 
-        final Set<Integer> table_partitions = this.partitionSetPool.borrowObject();
+        final PartitionSet table_partitions = this.partitionSetPool.borrowObject();
         assert (table_partitions != null);
         table_partitions.clear();
 
@@ -1331,7 +1323,7 @@ public class PartitionEstimator {
                         table_partitions.addAll(this.all_partitions);
                     } else {
                         MultiColumn mc = (MultiColumn) catalog_col;
-                        HashSet<Integer> mc_partitions[] = this.mcPartitionSetPool.borrowObject();
+                        PartitionSet mc_partitions[] = this.mcPartitionSetPool.borrowObject();
 
                         if (trace.get())
                             LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
@@ -1403,9 +1395,9 @@ public class PartitionEstimator {
 
             if (entry_table_partitions != null) {
                 String table_key = CatalogKey.createKey(catalog_tbl);
-                Set<Integer> table_p = entry_table_partitions.get(table_key);
+                PartitionSet table_p = entry_table_partitions.get(table_key);
                 if (table_p == null) {
-                    entry_table_partitions.put(table_key, new HashSet<Integer>(table_partitions));
+                    entry_table_partitions.put(table_key, new PartitionSet(table_partitions));
                 } else {
                     table_p.clear();
                     table_p.addAll(table_partitions);
@@ -1429,7 +1421,7 @@ public class PartitionEstimator {
      * @param param_idxs
      * @param catalog_col
      */
-    private Set<Integer> calculatePartitions(final Set<Integer> partitions, Object params[], boolean is_array[], int param_idxs[], Column catalog_col) {
+    private PartitionSet calculatePartitions(final PartitionSet partitions, Object params[], boolean is_array[], int param_idxs[], Column catalog_col) {
         // Note that we have to go through all of the mappings from the
         // partitioning column
         // to parameters. This can occur when the partitioning column is
@@ -1468,21 +1460,21 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    private Integer calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
+    private int calculatePartition(Procedure catalog_proc, Object partition_param_val, boolean is_array) throws Exception {
         // If the parameter is an array, then just use the first value
         if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
                 if (debug.get())
                     LOG.warn("Empty partitioning parameter array for " + catalog_proc);
-                return (null);
+                return (HStoreConstants.NULL_PARTITION_ID);
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
         } else if (partition_param_val == null) {
             if (debug.get())
                 LOG.warn("Null ProcParameter value: " + catalog_proc);
-            return (null);
+            return (HStoreConstants.NULL_PARTITION_ID);
         }
         return (this.hasher.hash(partition_param_val, catalog_proc));
     }

@@ -54,6 +54,7 @@ public class TestTransactionEstimator extends BaseTestCase {
     private TransactionEstimator t_estimator;
     private EstimationThresholds thresholds;
     private Procedure catalog_proc;
+    private final PartitionSet partitions = new PartitionSet();
     
     @Override
     protected void setUp() throws Exception {
@@ -66,7 +67,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         if (markovs == null) {
             File file = this.getParameterMappingsFile(ProjectType.TPCC);
             correlations = new ParameterMappingsSet();
-            correlations.load(file.getAbsolutePath(), catalog_db);
+            correlations.load(file, catalog_db);
             
             Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
@@ -78,7 +79,7 @@ public class TestTransactionEstimator extends BaseTestCase {
 
             file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            ((Workload) workload).load(file.getAbsolutePath(), catalog_db, filter);
+            ((Workload) workload).load(file, catalog_db, filter);
             assert(workload.getTransactionCount() > 0);
             
             // Generate MarkovGraphs
@@ -154,7 +155,7 @@ public class TestTransactionEstimator extends BaseTestCase {
         System.err.println("\nINITIAL PATH:\n" + StringUtil.join("\n", initial_path));
 //        System.err.println(multip_trace.debug(catalog_db));
 
-        Set<Integer> partitions = p_estimator.getAllPartitions(singlep_trace);
+        p_estimator.getAllPartitions(partitions, singlep_trace);
         assertNotNull(partitions);
 //        assert(partitions.size() > 1) : partitions;
         System.err.println("partitions: " + partitions);

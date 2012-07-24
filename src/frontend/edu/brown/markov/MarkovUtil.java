@@ -25,6 +25,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -40,8 +41,8 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class MarkovUtil {
     private static final Logger LOG = Logger.getLogger(MarkovUtil.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -355,8 +356,8 @@ public abstract class MarkovUtil {
      * @param path
      * @return
      */
-    public static Set<Integer> getTouchedPartitions(List<MarkovVertex> path) {
-        Set<Integer> partitions = new HashSet<Integer>();
+    public static PartitionSet getTouchedPartitions(List<MarkovVertex> path) {
+        PartitionSet partitions = new PartitionSet();
         for (MarkovVertex v : path) {
             partitions.addAll(v.getPartitions());
         } // FOR
@@ -368,9 +369,9 @@ public abstract class MarkovUtil {
      * @param path
      * @return Set<ReadPartitions>, Set<WritePartitions>
      */
-    public static Pair<Set<Integer>, Set<Integer>> getReadWritePartitions(List<MarkovVertex> path) {
-        Set<Integer> read_p = new HashSet<Integer>();
-        Set<Integer> write_p = new HashSet<Integer>();
+    public static Pair<PartitionSet, PartitionSet> getReadWritePartitions(List<MarkovVertex> path) {
+        PartitionSet read_p = new PartitionSet();
+        PartitionSet write_p = new PartitionSet();
         MarkovUtil.getReadWritePartitions(path, read_p, write_p);
         return (Pair.of(read_p, write_p));
     }
@@ -381,9 +382,11 @@ public abstract class MarkovUtil {
      * @param read_p
      * @param write_p
      */
-    public static void getReadWritePartitions(List<MarkovVertex> path, Set<Integer> read_p, Set<Integer> write_p) {
+    public static void getReadWritePartitions(List<MarkovVertex> path, PartitionSet read_p, PartitionSet write_p) {
         for (MarkovVertex v : path) {
             if (v.isQueryVertex() == false) continue;
+            if (trace.get())
+                LOG.trace(String.format("%s - R:%s / W:%s", v, read_p, write_p));
             
             Statement catalog_stmt = v.getCatalogItem();
             QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());

@@ -3,11 +3,11 @@ package edu.brown.catalog.special;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -62,7 +62,7 @@ public class VerticalPartitionColumn extends MultiColumn {
 
     @Override
     public String toString() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
         m.put("Horizontal", CatalogUtil.debug(this.getHorizontalColumn()));
         m.put("Vertical", CatalogUtil.debug(this.getVerticalPartitionColumns()));
 

@@ -1,4 +1,4 @@
-package edu.brown.hstore.interfaces;
+package edu.brown.interfaces;
 
 public interface Loggable {
 

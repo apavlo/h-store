@@ -37,6 +37,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -85,6 +86,7 @@ import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -92,8 +94,8 @@ import edu.brown.utils.StringUtil;
  */
 public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     private static final Logger LOG = Logger.getLogger(CatalogUtil.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -373,7 +375,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog
      * @throws Exception (VoltCompilerException DNE?)
      */
-    public static void updateCatalogInJar(String jarFileName, Catalog catalog) throws Exception {
+    public static void updateCatalogInJar(String jarFileName, Catalog catalog, File...additions) throws Exception {
         catalog.serialize();
         // Read the old jar file into memory with JarReader.
         JarReader reader = new JarReader(jarFileName);
@@ -396,6 +398,14 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 builder.addEntry(file, bytes.get(i));
             }
         }
+        
+        // Add any additions that they want to the root of the the jar structure
+        for (File f : additions) {
+            if (f != null) {
+                builder.addEntry(f.getName(), FileUtil.readBytesFromFile(f.getAbsolutePath()));
+            }
+        } // FOR
+        
         builder.writeJarToDisk(jarFileName);
     }
     
@@ -446,6 +456,42 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // PROCEDURES + STATEMENTS + PARAMETERS
     // ------------------------------------------------------------
 
+    /**
+     * Get the Procedure handles that are marked as Read-Write conflicting for the
+     * given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        for (ProcedureRef ref : catalog_proc.getReadconflicts()) {
+            Procedure ref_proc = ref.getProcedure();
+            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
+            assert(ref_proc.equals(catalog_proc) == false) :
+                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getReadconflicts());
+            conflicts.add(ref_proc);
+        } // FOR
+        return (conflicts);
+    }
+    
+    /**
+     * Get the Procedure handles that are marked as Write-Write conflicting for the
+     * given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        for (ProcedureRef ref : catalog_proc.getWriteconflicts()) {
+            Procedure ref_proc = ref.getProcedure();
+            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
+            assert(ref_proc.equals(catalog_proc) == false) :
+                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getWriteconflicts());
+            conflicts.add(ref_proc);
+        } // FOR
+        return (conflicts);
+    }
+    
     /**
      * Return all of the internal system Procedures for the database
      */
@@ -715,6 +761,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param id
      * @return
      */
+    @Deprecated
     public static Partition getPartitionById(CatalogType catalog_item, Integer id) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())
@@ -771,11 +818,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * 
      * @return
      */
-    public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
+    public static PartitionSet getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())
             cache.buildPartitionCache(catalog_item);
-        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
+        return (new PartitionSet(cache.PARTITION_XREF.asList()));
     }
 
     /**
@@ -990,6 +1037,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the internal system tables for the database
      */
+    @Deprecated
     public static Collection<Table> getSysTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1002,6 +1050,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the user-defined data tables for the database
      */
+    @Deprecated
     public static Collection<Table> getDataTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1016,6 +1065,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the materialized view tables for the database
      */
+    @Deprecated
     public static Collection<Table> getViewTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1028,6 +1078,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the MapReduce input data tables for the database
      */
+    @Deprecated
     public static Collection<Table> getMapReduceTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1040,6 +1091,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the replicated tables for the database
      */
+    @Deprecated
     public static Collection<Table> getReplicatedTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1051,6 +1103,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     /**
      * Return all of the evictable tables for the database
      */
+    @Deprecated
     public static Collection<Table> getEvictableTables(Database catalog_db) {
         List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
@@ -1375,9 +1428,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
             Set<Table> tables = new ListOrderedSet<Table>();
-            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
-                tables.add((Table) catalog_col.getParent());
-            } // FOR
+            tables.addAll(getAllTables(catalog_stmt));
+//            for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
+//                tables.add((Table) catalog_col.getParent());
+//            } // FOR
             ret = Collections.unmodifiableSet(tables);
             cache.STATEMENT_TABLES.put(catalog_stmt, ret);
         }
@@ -1391,9 +1445,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<Table> getAllTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getAllTables(Statement catalog_stmt) {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         AbstractPlanNode node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
+    }
+    
+    /**
+     * Get all the tables referenced in this PlanFragment
+     * @param catalog_fag
+     */
+    public static Collection<Table> getReferencedTables(PlanFragment catalog_frag) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_frag);
+        AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
         return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
     }
 

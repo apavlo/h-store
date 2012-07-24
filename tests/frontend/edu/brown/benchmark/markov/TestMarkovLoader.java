@@ -22,7 +22,10 @@ public class TestMarkovLoader extends BaseTestCase {
     protected Long current_batchsize;
     protected Long total_rows = 0l;
 
-    protected static final String LOADER_ARGS[] = { "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, "NUMCLIENTS=1", "NOCONNECTIONS=true", };
+    protected static final String LOADER_ARGS[] = {
+        "CLIENT.SCALEFACTOR=" + SCALE_FACTOR,
+        "NUMCLIENTS=1", "NOCONNECTIONS=true",
+    };
 
     @Override
     protected void setUp() throws Exception {

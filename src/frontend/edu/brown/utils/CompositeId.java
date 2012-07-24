@@ -27,6 +27,7 @@
  ***************************************************************************/
 package edu.brown.utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -106,11 +107,11 @@ public abstract class CompositeId implements Comparable<CompositeId>, JSONSerial
     // -----------------------------------------------------------------
     
     @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
+    public void load(File input_path, Database catalog_db) throws IOException {
         JSONUtil.load(this, catalog_db, input_path);
     }
     @Override
-    public void save(String output_path) throws IOException {
+    public void save(File output_path) throws IOException {
         JSONUtil.save(this, output_path);
     }
     @Override

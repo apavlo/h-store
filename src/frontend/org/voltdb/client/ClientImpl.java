@@ -32,12 +32,13 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
 
 /**
  *  A client that connects to one or more nodes in a VoltCluster
@@ -176,10 +177,10 @@ final class ClientImpl implements Client {
         Integer site_id = null;
         if (m_catalog != null && procName.startsWith("@") == false) {
             try {
-                Integer partition = m_pEstimator.getBasePartition(invocation);
-                if (partition != null) {
-                    site_id = m_partitionSiteXref[partition.intValue()];
-                    invocation.setBasePartition(partition.intValue());
+                int partition = m_pEstimator.getBasePartition(invocation);
+                if (partition != HStoreConstants.NULL_PARTITION_ID) {
+                    site_id = m_partitionSiteXref[partition];
+                    invocation.setBasePartition(partition);
                 }
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
@@ -275,10 +276,10 @@ final class ClientImpl implements Client {
                 // what the base partition for this request will be
                 if (catalog_proc.getSystemproc() == false) {
             try {
-                        Integer partition = m_pEstimator.getBasePartition(invocation);
-                        if (partition != null) {
-                            site_id = m_partitionSiteXref[partition.intValue()];
-                            invocation.setBasePartition(partition.intValue());
+                        int partition = m_pEstimator.getBasePartition(invocation);
+                        if (partition != HStoreConstants.NULL_PARTITION_ID) {
+                            site_id = m_partitionSiteXref[partition];
+                            invocation.setBasePartition(partition);
                         }
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);

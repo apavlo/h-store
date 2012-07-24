@@ -29,6 +29,7 @@ import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -38,6 +39,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.Consumer;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.Producer;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
@@ -62,7 +64,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     private final int num_intervals;
     private final T cost_models[];
 
-    private Collection<Integer> all_partitions;
+    private PartitionSet all_partitions;
 
     /**
      * For testing
@@ -672,7 +674,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // multi-partition queries
                 } else {
                     assert (!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
-                    if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
+                    if (partitions.size() == 1 && txn_entry.getExecutionPartition() != HStoreConstants.NULL_PARTITION_ID) {
                         assert (CollectionUtil.first(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
                         exec_mismatch_ctrs[i] += txn_weight;
                         partitions_touched[i] += txn_weight;
@@ -766,14 +768,14 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+            args.updateCatalog(FixCatalog.cloneCatalog(args.catalog, cc), null);
         }
 
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
         if (pplan_path.exists()) {
             PartitionPlan pplan = new PartitionPlan();
-            pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+            pplan.load(pplan_path, args.catalog_db);
             if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
                 for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
                     pplan.setNullProcParameter(catalog_proc);
@@ -792,7 +794,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
                 if (output.equals("-"))
                     output = pplan_path.getAbsolutePath();
-                pplan.save(output);
+                pplan.save(new File(output));
                 System.out.println("Saved PartitionPlan to '" + output + "'");
             }
         } else {

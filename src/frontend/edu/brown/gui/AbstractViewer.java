@@ -59,8 +59,8 @@ public abstract class AbstractViewer extends JFrame {
     // ----------------------------------------------
     // WINDOW OPTIONS
     // ----------------------------------------------
-    public static final Integer DEFAULT_WINDOW_WIDTH  = 800;
-    public static final Integer DEFAULT_WINDOW_HEIGHT = 850;
+    public static final Integer DEFAULT_WINDOW_WIDTH  = 1200;
+    public static final Integer DEFAULT_WINDOW_HEIGHT = 800;
     
     // ----------------------------------------------
     // MENU OPTIONS
@@ -152,15 +152,16 @@ public abstract class AbstractViewer extends JFrame {
         return (ret);
     }
     
-    protected Pair<WorkloadStatistics, String> openWorkloadStats() {
+    protected Pair<WorkloadStatistics, File> openWorkloadStats() {
         IOFileFilter filter = new IOFileFilter("Workload Stats", "stats");
-        Pair<WorkloadStatistics, String> ret = null;
+        Pair<WorkloadStatistics, File> ret = null;
         try {
             String path = showLoadDialog("Open Workload Statistics File", ".", filter);
             if (path != null) {
                 WorkloadStatistics new_stats = new WorkloadStatistics(args.catalog_db);
-                new_stats.load(path, args.catalog_db);
-                ret = new Pair<WorkloadStatistics, String>(new_stats, path);
+                File f = new File(path);
+                new_stats.load(f, args.catalog_db);
+                ret = new Pair<WorkloadStatistics, File>(new_stats, f);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -172,10 +173,10 @@ public abstract class AbstractViewer extends JFrame {
     protected String saveWorkloadStats() {
         IOFileFilter filter = new IOFileFilter("Workload Stats", "stats");
         String path = null;
-        String dir = new File(args.stats_path).getParent();
+        String dir = args.stats_path.getParent();
         try {
             path = showSaveDialog("Save Workload Statistics File", dir, filter);
-            if (path != null) this.args.stats.save(path);
+            if (path != null) this.args.stats.save(new File(path));
         } catch (Exception ex) {
             ex.printStackTrace();
             showErrorDialog("Failed to save workload stats file", ex.getMessage());

@@ -4,9 +4,8 @@ import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
@@ -21,6 +20,7 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 
 public class TestVerticalPartitionPlanner extends BaseTestCase {
@@ -133,7 +133,8 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         // Double check that this is always a distributed query
         AbstractPlanNode orig = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(orig);
-        Set<Integer> orig_partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        PartitionSet orig_partitions = new PartitionSet();
+        p_estimator.getAllPartitions(orig_partitions, catalog_stmt, params, base_partition);
         assertNotNull(orig_partitions);
         assertEquals(NUM_PARTITIONS, orig_partitions.size());
         
@@ -141,7 +142,8 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         boolean ret = vp_planner.optimizeStatement(catalog_stmt);
         assert(ret);
         p_estimator.clear();
-        Set<Integer> new_partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        PartitionSet new_partitions = new PartitionSet();
+        p_estimator.getAllPartitions(new_partitions, catalog_stmt, params, base_partition);
         assertNotNull(new_partitions);
 //        System.err.println("NEW PARTITIONS: " + new_partitions);
         assertEquals(1, new_partitions.size());
@@ -173,7 +175,8 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         boolean ret = vp_planner.optimizeStatement(catalog_stmt);
         assert(ret);
         p_estimator.clear();
-        Set<Integer> new_partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        PartitionSet new_partitions = new PartitionSet();
+        p_estimator.getAllPartitions(new_partitions, catalog_stmt, params, base_partition);
         assertNotNull(new_partitions);
 //        System.err.println("NEW PARTITIONS: " + new_partitions);
         assertEquals(1, new_partitions.size());

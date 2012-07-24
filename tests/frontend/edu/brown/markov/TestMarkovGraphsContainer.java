@@ -32,12 +32,12 @@ public class TestMarkovGraphsContainer extends BaseTestCase {
         // Serialize them out to a file. This will also make a nice little index in the file
         File temp = FileUtil.getTempFile("markovs", false);
         assertNotNull(temp);
-        markovs.save(temp.getAbsolutePath());
+        markovs.save(temp);
         System.err.println("MARKOV FILE: " + temp);
     
         // Now read it back in make sure everything is there
         MarkovGraphsContainer clone = new MarkovGraphsContainer();
-        clone.load(temp.getAbsolutePath(), catalog_db);
+        clone.load(temp, catalog_db);
         assertNotNull(clone);
         assertEquals(markovs.size(), clone.size());
         assert(markovs.keySet().containsAll(clone.keySet()));

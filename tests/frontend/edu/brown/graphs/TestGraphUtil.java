@@ -87,7 +87,7 @@ public class TestGraphUtil extends BaseTestCase {
     private void writeFile() throws Exception {
         if (this.tempFile == null) {
             this.tempFile = File.createTempFile("graph-", null);
-            GraphUtil.save(graph, tempFile.getAbsolutePath());
+            GraphUtil.save(graph, tempFile);
         }
     }
     
@@ -149,7 +149,7 @@ public class TestGraphUtil extends BaseTestCase {
         AbstractDirectedGraph<DesignerVertex, DesignerEdge> clone = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(catalog_db) {
             private static final long serialVersionUID = 1L;
         };
-        GraphUtil.load(clone, catalog_db, this.tempFile.getAbsolutePath());
+        GraphUtil.load(clone, catalog_db, this.tempFile);
         this.checkGraph(EdgeType.DIRECTED, clone);
     }
     

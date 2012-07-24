@@ -25,23 +25,24 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.txns.TransactionProfile;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.PartitionExecutorProfiler;
+import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.TransactionProfiler;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -51,8 +52,8 @@ import edu.brown.utils.TableUtil;
  */
 public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -526,8 +527,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 txn_id = es.getLastCommittedTxnId();
                 m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
                 
+                PartitionExecutorProfiler profiler = es.getProfiler();
+                
                 // Execution Time
-                pm = es.getWorkExecTime();
+                pm = profiler.work_exec_time;
                 last = lastExecTxnTimes.get(es);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
                 this.lastExecTxnTimes.put(es, new ProfileMeasurement(pm));
@@ -536,24 +539,23 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 
                 // Idle Time
                 last = lastExecIdleTimes.get(es);
-                pm = es.getWorkIdleTime();
+                pm = profiler.work_idle_time;
                 m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
                 this.lastExecIdleTimes.put(es, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
                 // Network Time
                 last = lastExecNetworkTimes.get(es);
-                pm = es.getWorkNetworkTime();
+                pm = profiler.work_network_time;
                 m.put("Network Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecNetworkTimes.put(es, new ProfileMeasurement(pm));
                 totalExecNetworkTime.appendTime(pm);
                 
                 // Utility Time
                 last = lastExecUtilityTimes.get(es);
-                pm = es.getWorkUtilityTime();
+                pm = profiler.work_utility_time;
                 m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecUtilityTimes.put(es, new ProfileMeasurement(pm));
-                                                
             }
             
             String label = "    Partition[" + partitionLabel + "]";
@@ -836,9 +838,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private void initTxnProfileInfo(Database catalog_db) {
         // COLUMN DELIMITERS
         String last_prefix = null;
-        String col_delimiters[] = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        String col_delimiters[] = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
         int col_idx = 0;
-        for (Field f : TransactionProfile.PROFILE_FIELDS) {
+        for (Field f : TransactionProfiler.PROFILE_FIELDS) {
             String prefix = f.getName().split("_")[1];
             assert(prefix.isEmpty() == false);
             if (last_prefix != null && col_idx > 0 && prefix.equals(last_prefix) == false) {
@@ -851,11 +853,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         // TABLE HEADER
         int idx = 0;
-        this.txn_profiler_header = new String[TransactionProfile.PROFILE_FIELDS.length + 2];
+        this.txn_profiler_header = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
         this.txn_profiler_header[idx++] = "";
         this.txn_profiler_header[idx++] = "txns";
-        for (int i = 0; i < TransactionProfile.PROFILE_FIELDS.length; i++) {
-            String name = TransactionProfile.PROFILE_FIELDS[i].getName()
+        for (int i = 0; i < TransactionProfiler.PROFILE_FIELDS.length; i++) {
+            String name = TransactionProfiler.PROFILE_FIELDS[i].getName()
                                 .replace("pm_", "")
                                 .replace("_total", "");
             this.txn_profiler_header[idx++] = name;
@@ -866,7 +868,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (catalog_proc.getSystemproc()) continue;
             this.txn_profile_queues.put(catalog_proc, new LinkedBlockingDeque<long[]>());
             
-            long totals[] = new long[TransactionProfile.PROFILE_FIELDS.length + 1];
+            long totals[] = new long[TransactionProfiler.PROFILE_FIELDS.length + 1];
             for (int i = 0; i < totals.length; i++) {
                 totals[i] = 0;
             } // FOR
@@ -878,7 +880,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * 
      * @param tp
      */
-    public void addTxnProfile(Procedure catalog_proc, TransactionProfile tp) {
+    public void addTxnProfile(Procedure catalog_proc, TransactionProfiler tp) {
         assert(catalog_proc != null);
         assert(tp.isStopped());
         if (trace.get()) LOG.info("Calculating TransactionProfile information");

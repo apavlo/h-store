@@ -3,6 +3,7 @@
  */
 package edu.brown.designer.mappers;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -106,7 +107,7 @@ public class BruteForceMapper extends AbstractMapper {
         final int start_id = 1;
         List<Integer> partitions = new ArrayList<Integer>();
         for (int i = start_id; i <= num_warehouses; i++) {
-            String path = "histograms/" + i + ".hist";
+            File path = new File("histograms/" + i + ".hist");
             Histogram h = new Histogram();
             h.load(path, null);
             this.histograms.put(i, h);
@@ -152,7 +153,7 @@ public class BruteForceMapper extends AbstractMapper {
         System.out.println("--------------------------------\nWorst Solution:");
         System.out.println(this.worst_solution);
 
-        this.best_solution.toHasher().save("histograms/hasher.profile");
+        this.best_solution.toHasher().save(new File("histograms/hasher.profile"));
     }
 
     private List<Solution> createSolutions(int num_nodes, int cores_per_node, List<Integer> partitions) {

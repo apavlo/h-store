@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
@@ -122,13 +123,13 @@ public final class HStoreObjectPools {
         // ALL PARTITION POOLS
         // -------------------------------
         
-        int num_all_partitions = hstore_site.getAllPartitionIds().size();
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
         boolean has_mapreduce = (CatalogUtil.getMapReduceProcedures(hstore_site.getDatabase()).isEmpty() == false);
         
-        this.STATES_TXN_REMOTE = (TypedObjectPool<RemoteTransaction>[])new TypedObjectPool<?>[num_all_partitions];
-        this.STATES_TXN_MAPREDUCE = (TypedObjectPool<MapReduceTransaction>[])new TypedObjectPool<?>[num_all_partitions];
+        this.STATES_TXN_REMOTE = (TypedObjectPool<RemoteTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
+        this.STATES_TXN_MAPREDUCE = (TypedObjectPool<MapReduceTransaction>[])new TypedObjectPool<?>[catalogContext.numberOfPartitions];
         
-        for (int i = 0; i < num_all_partitions; i++) {
+        for (int i = 0; i < catalogContext.numberOfPartitions; i++) {
             
             // RemoteTransaction
             this.STATES_TXN_REMOTE[i] = TypedObjectPool.factory(RemoteTransaction.class,

@@ -92,12 +92,12 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -152,7 +152,7 @@ public abstract class BenchmarkComponent {
         return (globalCatalog);
     }
     
-    public static synchronized void applyPartitionPlan(Database catalog_db, String partitionPlanPath) {
+    public static synchronized void applyPartitionPlan(Database catalog_db, File partitionPlanPath) {
         if (globalPartitionPlan == null) {
             if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
             globalPartitionPlan = new PartitionPlan();
@@ -662,7 +662,7 @@ public abstract class BenchmarkComponent {
             boolean exists = FileUtil.exists(partitionPlanPath); 
             if (partitionPlanIgnoreMissing == false)
                 assert(exists) : "Invalid partition plan path '" + partitionPlanPath + "'";
-            if (exists) this.applyPartitionPlan(partitionPlanPath);
+            if (exists) this.applyPartitionPlan(new File(partitionPlanPath));
         }
         
         this.initializeConnection();
@@ -1084,7 +1084,7 @@ public abstract class BenchmarkComponent {
             assert(stats != null);
             
             if (m_tableStatsDir.exists() == false) m_tableStatsDir.mkdirs();
-            String path = m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats";
+            File path = new File(m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats");
             LOG.info("Writing table statistics data to '" + path + "'");
             try {
                 stats.save(path);
@@ -1287,7 +1287,7 @@ public abstract class BenchmarkComponent {
     public void setCatalog(Catalog catalog) {
         m_catalog = catalog;
     }
-    public void applyPartitionPlan(String partitionPlanPath) {
+    public void applyPartitionPlan(File partitionPlanPath) {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         BenchmarkComponent.applyPartitionPlan(catalog_db, partitionPlanPath);
     }

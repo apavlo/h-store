@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,7 +47,6 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
@@ -90,7 +90,7 @@ import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
-import org.voltdb.sysprocs.RecomputeMarkovs;
+import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
@@ -109,6 +109,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ConflictCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -412,17 +413,7 @@ public class VoltCompiler {
             return false;
         }
 
-        // Create Dtxn.Coordinator configuration for cluster
-//        byte[] dtxnConfBytes = null;
-//        try {
-//            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
-//        } catch (final Exception e1) {
-//            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
-//            return false;
-//        }
-        
         try {
-//            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
             m_jarBuilder.addEntry(CatalogUtil.CATALOG_FILENAME, catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
@@ -505,14 +496,19 @@ public class VoltCompiler {
         }
         assert(m_catalog != null);
 
-        try
-        {
+        try {
             ClusterCompiler.compile(m_catalog, clusterConfig);
-        }
-        catch (RuntimeException e)
-        {
+        } catch (RuntimeException e) {
             addErr(e.getMessage());
             return null;
+        }
+        
+        // Optimization: Calculate Procedure conflicts
+        try {
+            new ConflictCalculator(m_catalog).process();
+        } catch (Exception ex) {
+            LOG.warn("Unexpected error", ex);
+            addErr("Failed to calculate procedure conflicts");
         }
         
         // Optimization: Vertical Partitioning
@@ -926,7 +922,7 @@ public class VoltCompiler {
     }
 
     public static MaterializedViewInfo addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {
-        Table catalog_tbl = catalog_db.getTables().get(tableName);
+        Table catalog_tbl = catalog_db.getTables().getIgnoreCase(tableName);
         if (catalog_tbl == null) {
             throw new Exception("Invalid vertical partition table '" + tableName + "'");
         } else if (catalog_tbl.getIsreplicated()) {
@@ -934,7 +930,7 @@ public class VoltCompiler {
         }
         ArrayList<Column> catalog_cols = new ArrayList<Column>();
         for (String columnName : columnNames) {
-            Column catalog_col = catalog_tbl.getColumns().get(columnName);
+            Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(columnName);
             if (catalog_col == null) {
                 throw new Exception("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
             } else if (catalog_cols.contains(catalog_col)) {
@@ -954,7 +950,7 @@ public class VoltCompiler {
             LOG.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
         
         // Create a new virtual table
-        Table virtual_tbl = catalog_db.getTables().get(viewName);
+        Table virtual_tbl = catalog_db.getTables().getIgnoreCase(viewName);
         if (virtual_tbl == null) {
             virtual_tbl = catalog_db.getTables().add(viewName);
         }
@@ -1004,6 +1000,7 @@ public class VoltCompiler {
                     include = (((MultiColumn)partition_col).contains(catalog_col) == false);
                 }
                 else if (catalog_col.equals(partition_col)) {
+                    LOG.info(catalog_col.fullName() + " = " + partition_col.fullName());
                     include = false;
                 }
                 if (include) indexColumns.add(virtual_col);
@@ -1012,11 +1009,12 @@ public class VoltCompiler {
         
         if (createIndex) {
             if (indexColumns.isEmpty()) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
-                m.put("Partition Column", partition_col);
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("Partition Column", partition_col.fullName());
                 m.put("VP Table Columns", virtual_tbl.getColumns());
                 m.put("Passed-in Columns", CatalogUtil.debug(catalog_cols));
-                LOG.error("Failed to find index columns\n" + StringUtil.formatMaps(m));
+                LOG.error(String.format("Failed to find index columns for table '%s'\n%s",
+                                        catalog_tbl.getName(), StringUtil.formatMaps(m)));
                 throw new Exception(String.format("No columns selected for index on %s", viewName));
             }
             String idxName = "SYS_IDX_" + viewName;
@@ -1258,7 +1256,7 @@ public class VoltCompiler {
             // SysProcedure Class                   readonly    everysite
             {LoadMultipartitionTable.class,         false,      true},
             {DatabaseDump.class,                    true,       true},
-            {RecomputeMarkovs.class,                true,       true},
+            {MarkovUpdate.class,                true,       true},
             {Shutdown.class,                        false,      true},
             {NoOp.class,                            true,       false},
             {AdHoc.class,                           false,      false},
