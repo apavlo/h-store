@@ -27,8 +27,14 @@ public class SysProcFragmentId
     public static final int PF_updateLoggers = 3;
 
     // @Statistics
-    public static final int PF_tableData = 11;
-    public static final int PF_tableAggregator = 12;
+    public static final int PF_starvationData = 4;
+    public static final int PF_starvationDataAggregator = 5;
+    public static final int PF_tableData = 6;
+    public static final int PF_tableAggregator = 7;
+    public static final int PF_indexData = 8;
+    public static final int PF_indexAggregator = 9;
+    public static final int PF_nodeMemory = 10;
+    public static final int PF_nodeMemoryAggregator = 11;
     public static final int PF_procedureData = 13;
     public static final int PF_procedureAggregator = 14;
     public static final int PF_initiatorData = 15;
@@ -99,8 +105,8 @@ public class SysProcFragmentId
     public static final int PF_quiesce_processed_sites = 101;
     
     // @SnapshotStatus
-    public static final long PF_scanSnapshotRegistries = 110;
-    public static final long PF_scanSnapshotRegistriesResults = 111;
+    public static final int PF_scanSnapshotRegistries = 110;
+    public static final int PF_scanSnapshotRegistriesResults = 111;
 
     // @SnapshotScan
     public static final int PF_snapshotDigestScan = 124;
