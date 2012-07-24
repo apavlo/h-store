@@ -28,7 +28,6 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     }
     
     private final AbstractDispatcher<Object[]> initDispatcher;
-    private final PartitionSet partitions = new PartitionSet();
     
     public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> initDispatcher) {
         super(hstore_site, hstore_coord);
@@ -99,9 +98,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                      request.getPrefetchParamsList());
         }
         
-        this.partitions.clear();
-        this.partitions.addAll(request.getPartitionsList());
-        hstore_site.transactionInit(txn_id, this.partitions, wrapper);
+        PartitionSet partitions = new PartitionSet(request.getPartitionsList());
+        hstore_site.transactionInit(txn_id, partitions, wrapper);
         
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 

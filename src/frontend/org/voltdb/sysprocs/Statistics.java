@@ -278,9 +278,6 @@ public class Statistics extends VoltSystemProcedure {
         else if (selector.toUpperCase().equals(SysProcSelector.PROCEDURE.name())) {
             results = getProcedureData(interval, now);
         }
-        else if (selector.toUpperCase().equals(SysProcSelector.INITIATOR.name())) {
-            results = getInitiatorData(interval, now);
-        }
         else if (selector.toUpperCase().equals(SysProcSelector.PARTITIONCOUNT.name())) {
             results = getPartitionCountData();
         }
