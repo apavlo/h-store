@@ -65,7 +65,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         
         // Setup everything else
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.info = new DesignerInfo(catalog_db, workload);
+        this.info = new DesignerInfo(catalogContext, workload);
         
         this.agraph = new AccessGraph(catalog_db);
         this.generator = new AccessGraphGenerator(this.info, this.catalog_proc);
@@ -126,7 +126,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
 //        System.err.println("Dumping AccessGraph to " + FileUtil.writeStringToFile("/tmp/single_tpcc.dot", GraphvizExport.export(single_agraph, "tpcc")));
 
         // Make sure that it has all of our tables except CUSTOMER_NAME
-        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
+        for (Table catalog_tbl : catalogContext.getDataTables()) {
             if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME") ||
                 catalog_tbl.getName().equalsIgnoreCase("HISTORY")) continue;
             DesignerVertex v = single_agraph.getVertex(catalog_tbl);

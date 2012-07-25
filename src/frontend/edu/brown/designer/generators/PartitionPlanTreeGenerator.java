@@ -6,7 +6,7 @@ package edu.brown.designer.generators;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Table;
 
 import edu.brown.designer.DesignerEdge;
@@ -37,9 +37,9 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
      * @param catalog_db
      * @return
      */
-    public static PartitionTree generate(Database catalog_db, PartitionPlan pplan) {
-        PartitionTree ptree = new PartitionTree(catalog_db);
-        DesignerInfo info = new DesignerInfo(catalog_db, null, null);
+    public static PartitionTree generate(CatalogContext catalogContext, PartitionPlan pplan) {
+        PartitionTree ptree = new PartitionTree(catalogContext.database);
+        DesignerInfo info = new DesignerInfo(catalogContext, null, null);
         try {
             new PartitionPlanTreeGenerator(info, pplan).generate(ptree);
         } catch (Exception ex) {

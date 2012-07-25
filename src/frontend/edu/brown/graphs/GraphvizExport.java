@@ -412,7 +412,7 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG);
         
-        DependencyGraph dgraph = DependencyGraphGenerator.generate(args.catalog_db);
+        DependencyGraph dgraph = DependencyGraphGenerator.generate(args.catalogContext);
         GraphUtil.removeDuplicateEdges(dgraph);
         
         // Any optional parameters are tables we should igore
