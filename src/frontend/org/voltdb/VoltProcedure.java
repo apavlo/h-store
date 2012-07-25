@@ -503,7 +503,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         for (int i = 0; i < numBatchStmts; i++) {
             hashCode = 31*hashCode + (batchStmts[i] == null ? 0 : batchStmts[i].hashCode());
         } // FOR
-        return new Integer(hashCode);
+        return Integer.valueOf(hashCode);
     }
 
     protected synchronized void registerCallback(EventObserver<ClientResponse> observer) {

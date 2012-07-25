@@ -513,7 +513,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public Database getDatabase()               { return catalogContext.database; }
         public Cluster getCluster()                 { return catalogContext.cluster; }
         public Site getSite()                       { return site; }
-        public Host getHost()                       { return PartitionExecutor.this.getHost(); }
+        public Host getHost()                       { return site.getHost(); }
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
         public long getNextUndo()                   { return getNextUndoToken(); }
@@ -2108,7 +2108,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param plan
      * @return
      */
-    public VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
+    private VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
         long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
         
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
@@ -2240,7 +2240,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             ee.stashWorkUnitDependencies(input_deps);
         }
         
-        // Read-Write Sets for Tables
+        // Table Read-Write Sets
         boolean readonly = true;
         int tableIds[] = null;
         for (int i = 0; i < batchSize; i++) {
@@ -2359,11 +2359,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public VoltTable[] executeSQLStmtBatch(LocalTransaction ts,
-                                            int batchSize,
-                                            SQLStmt batchStmts[],
-                                            ParameterSet batchParams[],
-                                            boolean finalTask,
-                                            boolean forceSinglePartition) {
+                                           int batchSize,
+                                           SQLStmt batchStmts[],
+                                           ParameterSet batchParams[],
+                                           boolean finalTask,
+                                           boolean forceSinglePartition) {
         
         if (hstore_conf.site.exec_deferrable_queries) {
             // TODO: Loop through batchStmts and check whether their corresponding Statement
