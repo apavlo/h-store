@@ -67,6 +67,8 @@ public class CatalogContext {
     // PRIVATE
     private final String m_path;
     private final JarClassLoader m_catalogClassLoader;
+
+    private final Procedure proceduresArray[];
     
     private final Partition partitions[];
     private final PartitionSet partitionIdCollection = new PartitionSet();
@@ -118,7 +120,13 @@ public class CatalogContext {
         this.catalog = catalog;
         cluster = catalog.getClusters().get("cluster");
         database = cluster.getDatabases().get("database");
+        
         procedures = database.getProcedures();
+        this.proceduresArray = new Procedure[this.procedures.size()+1];
+        for (Procedure proc : this.procedures) {
+            this.proceduresArray[proc.getId()] = proc;
+        }
+        
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
         sites = cluster.getSites();
         siteTracker = null; // new SiteTracker(cluster.getSites());
@@ -291,6 +299,17 @@ public class CatalogContext {
      */
     public Collection<Table> getEvictableTables() {
         return (evictableTables);
+    }
+
+    // ------------------------------------------------------------
+    // PROCEDURES
+    // ------------------------------------------------------------
+    
+    public Procedure getProcedureById(int procId) {
+        if (procId >= 0 && procId < this.proceduresArray.length) {
+            return (this.proceduresArray[procId]);
+        }
+        return (null);
     }
     
     // ------------------------------------------------------------
