@@ -300,7 +300,7 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      */
     public static File getDatabaseDir(PartitionExecutor executor) {
         HStoreConf hstore_conf = executor.getHStoreConf();
-        Database catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
+        Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
         
         // First make sure that our base directory exists
         String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir + 
