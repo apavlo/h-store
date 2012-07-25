@@ -94,8 +94,9 @@ public class SpecExecScheduler {
     public StartTxnMessage next(AbstractTransaction dtxn) {
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         if (dtxnProc == null || this.hasConflicts.get(dtxn.getProcedureId()) == false) {
-            if (trace.get())
-                LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
+            if (debug.get())
+                LOG.debug(String.format("%s - Ignoring current distributed txn because no conflict information exists [%s]",
+                          dtxn, dtxnProc));
             return (null);
         }
         
@@ -103,9 +104,9 @@ public class SpecExecScheduler {
         // on the same site, then we won't bother with trying to pick something out
         // because there is going to be very small wait times.
         if (dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
-            if (trace.get())
-                LOG.trace("SKIP - Ignoring current distributed txn because all of the partitions that " +
-                		  "it is using are on the same HStoreSite");
+            if (debug.get())
+                LOG.debug(String.format("%s - Ignoring current distributed txn because all of the partitions that " +
+                		  "it is using are on the same HStoreSite [%s]", dtxn, dtxnProc));
             return (null);
         }
         
