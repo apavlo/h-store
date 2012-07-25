@@ -1225,9 +1225,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public CatalogContext getCatalogContext() {
         return (this.catalogContext);
     }
-    public Site getCatalogSite() {
-        return (this.site);
-    }
     public int getSiteId() {
         return (this.siteId);
     }

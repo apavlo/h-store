@@ -118,13 +118,23 @@ public class SpecExecScheduler {
                 boolean hasRWConflict = rwCon.get(procId);
                 boolean hasWWConflict = wwCon.get(procId);
                 
+                // If there is no conflict whatsoever, then we want to let
+                // this mofo out of the bag right away
                 if (hasWWConflict == false && hasRWConflict == false) {
-                    
-                    
-                    
-                    
+                    next = txn_msg;
                     ts.setSpeculative(true);
+                    break;
                 }
+                
+                // If there is no write-write conflict and a read-write conflict on
+                // a table that hasn't been written to yet by the current dtxn,
+                // then we can let this mofo drop
+                if (hasWWConflict == false) {
+                    // TODO: We need to know what the tables actually are that
+                    // make up the conflict information so that we can check whether
+                    // the current dtxn has written to it yet.
+                }
+                
                 
                 
                 // Only release it if it's single-partitioned and does not conflict
