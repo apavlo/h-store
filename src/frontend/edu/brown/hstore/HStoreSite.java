@@ -752,6 +752,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.site_name);
     }
     
+    public Host getHost() {
+        return (this.catalog_host);
+    }
+    public int getHostId() {
+        return (this.catalog_host.getId());
+    }
+    
     /**
      * Return the list of all the partition ids in this H-Store database cluster
      * TODO: Moved to CatalogContext

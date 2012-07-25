@@ -85,7 +85,7 @@ public class SnapshotSaveAPI
                     assert(SnapshotSiteProcessor.m_snapshotPermits.availablePermits() == 0);
                 }
                 assert(SnapshotSiteProcessor.ExecutionSitesCurrentlySnapshotting.get() > 0);
-                context.getExecutionSite().initiateSnapshots(m_taskList);
+                context.getPartitionExecutor().initiateSnapshots(m_taskList);
             }
         }
 
@@ -94,7 +94,7 @@ public class SnapshotSaveAPI
             String status = "SUCCESS";
             String err = "";
             try {
-                failures = context.getExecutionSite().completeSnapshotWork();
+                failures = context.getPartitionExecutor().completeSnapshotWork();
             } catch (InterruptedException e) {
                 status = "FAILURE";
                 err = e.toString();
@@ -155,7 +155,7 @@ public class SnapshotSaveAPI
                 final SnapshotRegistry.Snapshot snapshotRecord =
                     SnapshotRegistry.startSnapshot(
                             startTime,
-                            context.getExecutionSite().getHostId(),
+                            context.getHStoreSite().getHostId(),
                             file_path,
                             file_nonce,
                             tables.toArray(new Table[0]));

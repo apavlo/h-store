@@ -76,11 +76,11 @@ public class SnapshotDelete extends VoltSystemProcedure {
         {
             // Choose the lowest site ID on this host to do the deletion.
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 assert(params.toArray()[0] != null);
                 assert(params.toArray()[0] instanceof String[]);

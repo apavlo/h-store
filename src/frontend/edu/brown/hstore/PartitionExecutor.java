@@ -504,7 +504,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine();
         public long getLastCommittedTxnId();
         public long getNextUndo();
-        public PartitionExecutor getExecutionSite();
+        public PartitionExecutor getPartitionExecutor();
+        public HStoreSite getHStoreSite();
         public Long getCurrentTxnId();
     }
 
@@ -517,7 +518,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         public ExecutionEngine getExecutionEngine() { return ee; }
         public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
         public long getNextUndo()                   { return getNextUndoToken(); }
-        public PartitionExecutor getExecutionSite() { return PartitionExecutor.this; }
+        public PartitionExecutor getPartitionExecutor() { return PartitionExecutor.this; }
+        public HStoreSite getHStoreSite()           { return hstore_site; }
         public Long getCurrentTxnId()               { return PartitionExecutor.this.currentTxnId; }
     }
 
@@ -631,7 +633,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                 catalogContext.cluster.getRelativeIndex(),
                                                 this.getSiteId(),
                                                 this.getPartitionId(),
-                                                this.getHostId(),
+                                                this.site.getHost().getId(),
                                                 "localhost");
                 
                 // Initialize Anti-Cache
@@ -654,7 +656,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             else {
                 // set up the EE over IPC
-                eeTemp = new ExecutionEngineIPC(this, catalogContext.cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost", target);
+                eeTemp = new ExecutionEngineIPC(this,
+                                                catalogContext.cluster.getRelativeIndex(),
+                                                this.getSiteId(),
+                                                this.getPartitionId(),
+                                                this.site.getHost().getId(),
+                                                "localhost",
+                                                target);
                 eeTemp.loadCatalog(catalogContext.catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
@@ -1213,21 +1221,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
-    public HStoreCoordinator getHStoreCoordinator() {
-        return (this.hstore_coordinator);
-    }
 
     public CatalogContext getCatalogContext() {
         return (this.catalogContext);
     }
     public Site getCatalogSite() {
         return (this.site);
-    }
-    public int getHostId() {
-        return (this.site.getHost().getRelativeIndex());
-    }
-    public Host getHost() {
-        return (this.site.getHost());
     }
     public int getSiteId() {
         return (this.siteId);
