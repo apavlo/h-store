@@ -344,7 +344,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 assertEquals("[0] Try #" + tries, cost0, last_cost.doubleValue());
             }
             
-            DesignerInfo info = new DesignerInfo(clone_db, singlep_workload);
+            DesignerInfo info = new DesignerInfo(clone_catalogContext, singlep_workload);
             info.setStats(stats);
             info.setNumIntervals(NUM_INTERVALS);
             info.setPartitionerClass(BranchAndBoundPartitioner.class);

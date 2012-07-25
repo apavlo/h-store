@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -162,7 +163,8 @@ public abstract class TableEnv
      */
     public static Table[] sortTables() throws CycleInDagException
     {
-        DependencyGraph dgraph = DependencyGraphGenerator.generate(CatalogUtil.getDatabase(s_cat));
+        CatalogContext cc = new CatalogContext(s_cat.getCatalog());
+        DependencyGraph dgraph = DependencyGraphGenerator.generate(cc);
 
         int size = dgraph.getVertexCount();
 

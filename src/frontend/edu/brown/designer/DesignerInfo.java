@@ -186,10 +186,11 @@ public class DesignerInfo {
      * 
      * @param args
      */
-    public DesignerInfo(final Database _catalog_db, final Workload _workload, final WorkloadStatistics _stats) {
+    public DesignerInfo(final CatalogContext _catalogContext, final Workload _workload, final WorkloadStatistics _stats) {
         this(new ArgumentsParser() {
             {
-                this.catalog_db = _catalog_db;
+                this.catalogContext = _catalogContext;
+                this.catalog_db = _catalogContext.database;
                 this.workload = _workload;
                 this.stats = _stats;
             }
@@ -202,8 +203,8 @@ public class DesignerInfo {
      * @param catalog_db
      * @param workload
      */
-    public DesignerInfo(Database catalog_db, Workload workload) {
-        this(catalog_db, workload, new WorkloadStatistics(catalog_db));
+    public DesignerInfo(CatalogContext catalogContext, Workload workload) {
+        this(catalogContext, workload, new WorkloadStatistics(catalogContext.database));
     }
 
     public Workload getWorkload() {

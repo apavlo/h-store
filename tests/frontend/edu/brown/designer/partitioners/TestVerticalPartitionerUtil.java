@@ -97,9 +97,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
     public void testTimeIntervalCostModel() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
-        PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
         
-        info = this.generateInfo(clone_db);
+        info = this.generateInfo(clone_catalogContext);
         TimeIntervalCostModel<SingleSitedCostModel> costModel = new TimeIntervalCostModel<SingleSitedCostModel>(clone_catalogContext, SingleSitedCostModel.class, 10);
         costModel.setCachingEnabled(true);
         
@@ -137,9 +136,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
     public void testSingleSitedCostModel() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
-        PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
         
-        info = this.generateInfo(clone_db);
+        info = this.generateInfo(clone_catalogContext);
         SingleSitedCostModel costModel = new SingleSitedCostModel(clone_catalogContext);
         costModel.setCachingEnabled(true);
         
@@ -221,7 +219,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog()); 
         PartitionEstimator p_estimator = new PartitionEstimator(clone_catalogContext);
-        info = this.generateInfo(clone_db);
+        info = this.generateInfo(clone_catalogContext);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
@@ -272,7 +270,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testCatalogUpdates() throws Exception {
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-        info = this.generateInfo(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
+        info = this.generateInfo(clone_catalogContext);
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");

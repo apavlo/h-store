@@ -73,7 +73,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
         
         // Setup everything else
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-        this.info = new DesignerInfo(catalog_db, workload);
+        this.info = new DesignerInfo(catalogContext, workload);
         
         this.agraph = new AccessGraph(catalog_db);
         this.generator = new AccessGraphGenerator(this.info, this.catalog_proc);

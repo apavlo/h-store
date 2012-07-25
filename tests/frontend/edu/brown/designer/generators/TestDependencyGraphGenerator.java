@@ -26,7 +26,7 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
         this.applyCatalogCorrelations(ProjectType.TPCC);
         
         Workload workload = new Workload(catalog);
-        info = new DesignerInfo(catalog_db, workload);
+        info = new DesignerInfo(catalogContext, workload);
     }
 
     /**

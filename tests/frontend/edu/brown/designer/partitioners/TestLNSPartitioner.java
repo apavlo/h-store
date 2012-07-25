@@ -64,7 +64,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         System.err.println("catalog_db => " + catalog_db.hashCode());
         System.err.println("clone_db => " + clone_db.hashCode());
         int num_intervals = info.getNumIntervals();
-        info = this.generateInfo(clone_db);
+        info = this.generateInfo(clone_catalogContext);
         info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_catalogContext, SingleSitedCostModel.class, num_intervals));
         info.setPartitionerClass(LNSPartitioner.class);
         
@@ -80,7 +80,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         
         designer = new Designer(info, hints, info.getArgs());
         LNSPartitioner partitioner = (LNSPartitioner)designer.getPartitioner();
-        assertEquals(clone_db, partitioner.info.catalog_db);
+        assertEquals(clone_db, partitioner.info.catalogContext.database);
 
         // 2012-07-20: This is broken for some reason....
         // PartitionPlan pplan = partitioner.generate(hints);

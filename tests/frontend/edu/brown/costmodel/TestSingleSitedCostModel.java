@@ -397,6 +397,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Change the catalog so that the data from the tables are in different partitions
         Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         assertNotNull(clone_db);
+        CatalogContext clone_catalogContext = new CatalogContext(clone_db.getCatalog());
         Table catalog_tbl = clone_db.getTables().get(TM1Constants.TABLENAME_CALL_FORWARDING);
         assertNotNull(catalog_tbl);
         Column catalog_col = catalog_tbl.getColumns().get("START_TIME");
@@ -404,8 +405,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         catalog_tbl.setPartitioncolumn(catalog_col);
         
         // Throw the TransactionTrace at the costmodel and make sure that there is a TransactionCacheEntry
-        SingleSitedCostModel cost_model = new SingleSitedCostModel(catalogContext);
-        cost_model.estimateTransactionCost(catalogContext, xact_trace);
+        SingleSitedCostModel cost_model = new SingleSitedCostModel(clone_catalogContext);
+        cost_model.estimateTransactionCost(clone_catalogContext, xact_trace);
         cost_model.setCachingEnabled(true);
         TransactionCacheEntry entry = cost_model.getTransactionCacheEntry(xact_trace);
         assertNotNull(entry);
