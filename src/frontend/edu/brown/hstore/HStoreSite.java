@@ -2031,8 +2031,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        for (int p : partitions) {
-            if (this.isLocalPartition(p) == false) {
+        for (Integer p : partitions) {
+            if (this.isLocalPartition(p.intValue()) == false) {
                 if (t) LOG.trace(String.format("#%d - Skipping finish at partition %d", txn_id, p));
                 continue;
             }
@@ -2040,15 +2040,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not a commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.lockFinished(txn_id, status, p);
+            if (commit == false) this.txnQueueManager.lockFinished(txn_id, status, p.intValue());
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p)) {
+            if (ts != null && ts.isPredictSinglePartition() == false && ts.needsFinish(p.intValue())) {
                 if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 try {
-                    this.executors[p].queueFinish(ts, status);
+                    this.executors[p.intValue()].queueFinish(ts, status);
                 } catch (Throwable ex) {
                     LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                                             ts, ts.hashCode(), status, partitions));

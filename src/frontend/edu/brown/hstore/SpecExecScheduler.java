@@ -144,15 +144,18 @@ public class SpecExecScheduler {
         return (next);
     }
     
+    /**
+     * Calculate whether to two transaction handles are conflicting. 
+     * The dtxn is the current distributed transaction at our partition, while ts
+     * is a single-partition transaction from the work queue that we want to try to
+     * speculatively execute right now. 
+     * @param dtxn
+     * @param ts
+     * @return
+     */
     protected boolean isConflicting(AbstractTransaction dtxn, LocalTransaction ts) {
         final int dtxn_procId = dtxn.getProcedureId();
         final int ts_procId = ts.getProcedureId();
-        
-        final Procedure dtxn_proc = catalogContext.getProcedureById(dtxn_procId);
-        final Procedure ts_proc = ts.getProcedure();
-        
-        final ConflictSet dtxn_conflicts = dtxn_proc.getConflicts().get(ts_proc.getName());
-        final ConflictSet ts_conflicts = ts_proc.getConflicts().get(dtxn_proc.getName());
         
         // DTXN->TS
         boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
@@ -175,6 +178,11 @@ public class SpecExecScheduler {
                 LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
             return (false);
         }
+
+        final Procedure dtxn_proc = this.catalogContext.getProcedureById(dtxn_procId);
+        final Procedure ts_proc = ts.getProcedure();
+        final ConflictSet dtxn_conflicts = dtxn_proc.getConflicts().get(ts_proc.getName());
+        final ConflictSet ts_conflicts = ts_proc.getConflicts().get(dtxn_proc.getName());
         
         // If TS is going to write to something that DTXN will read or write, then 
         // we can let that slide as long as DTXN hasn't read from or written to those tables yet

@@ -92,7 +92,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             site_sent[dest_site_id] = true;
         } // FOR
         // Optimization: We'll invoke sendLocal() after we have sent out
-        // all of the mesages to remote sites
+        // all of the messages to remote sites
         if (send_local) this.sendLocal(ts.getTransactionId(), request, partitions, callback);
     }
     
