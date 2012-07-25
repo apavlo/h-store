@@ -14,7 +14,7 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 
 public class TestConflictCalculator extends BaseTestCase {
     
-    ConflictCalculator cc;
+    ConflictSetCalculator cc;
     
     private final AbstractProjectBuilder builder = new TPCCProjectBuilder() {
         {
@@ -33,7 +33,7 @@ public class TestConflictCalculator extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(builder);
-        this.cc = new ConflictCalculator(catalog);
+        this.cc = new ConflictSetCalculator(catalog);
     }
     
     /**

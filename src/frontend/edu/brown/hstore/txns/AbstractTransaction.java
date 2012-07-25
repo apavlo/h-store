@@ -254,7 +254,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         // If this transaction handle was keeping track of pre-fetched queries,
         // then go ahead and reset those state variables.
         if (this.prefetch != null) {
-            hstore_site.getObjectPools().STATES_PREFETCH.returnObject(this.prefetch);
+            hstore_site.getObjectPools().getPrefetchStatePool(this.base_partition).returnObject(this.prefetch);
             this.prefetch = null;
         }
         
@@ -714,7 +714,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public final void initializePrefetch() {
         if (this.prefetch == null) {
             try {
-                this.prefetch = hstore_site.getObjectPools().STATES_PREFETCH.borrowObject();
+                this.prefetch = hstore_site.getObjectPools().getPrefetchStatePool(base_partition).borrowObject();
             } catch (Exception ex) {
                 throw new RuntimeException("Unexpected error when trying to initialize PrefetchState for " + this, ex);
             }

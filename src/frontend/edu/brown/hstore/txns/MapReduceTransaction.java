@@ -429,7 +429,7 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return String.format("%s-%s #%d/%d", this.getProcedureName(), (this.getState().toString()), this.txn_id, this.base_partition);
+            return String.format("%s-%s #%d/%d", this.getProcedure().getName(), (this.getState().toString()), this.txn_id, this.base_partition);
         } else {
             return ("<Uninitialized>");
         }

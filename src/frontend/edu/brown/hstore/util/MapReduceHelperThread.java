@@ -186,7 +186,7 @@ public class MapReduceHelperThread extends AbstractProcessingThread<MapReduceTra
     public void reduce(final MapReduceTransaction mr_ts) {
         // Runtime
 
-        VoltMapReduceProcedure<?> volt_proc = (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getProcedureName());
+        VoltMapReduceProcedure<?> volt_proc = (VoltMapReduceProcedure<?>)this.executor.getVoltProcedure(mr_ts.getProcedure().getName());
         if (hstore_site.isLocalPartition(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_reduce_runed()) {
             if (debug.get())
                 LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts, volt_proc.getPartitionId()));

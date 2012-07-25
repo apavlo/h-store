@@ -829,12 +829,21 @@ public class HStoreCoordinator implements Shutdownable {
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]",
                                     partitions, ts, status));
         
-        TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
-                                                        .setTransactionId(ts.getTransactionId())
-                                                        .setStatus(status)
-                                                        .addAllPartitions(partitions)
-                                                        .build();
-        this.transactionFinish_handler.sendMessages(ts, request, callback, partitions);
+        // FAST PATH: If all of the partitions that this txn needs are on this
+        // HStoreSite, then we don't need to bother with making this request
+        if (ts.isPredictAllLocal()) {
+            hstore_site.transactionFinish(ts.getTransactionId(), status, partitions);
+        }
+        // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
+        // TransactionFinishHandler to route the request to proper sites.
+        else {
+            TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
+                                                            .setTransactionId(ts.getTransactionId())
+                                                            .setStatus(status)
+                                                            .addAllPartitions(partitions)
+                                                            .build();
+            this.transactionFinish_handler.sendMessages(ts, request, callback, partitions);
+        }
     }
     
     /**
