@@ -165,7 +165,7 @@ public class SnapshotRestore extends VoltSystemProcedure
                                   PF_restoreSendPartitionedTableResults,
                                   this);
         m_siteId = site.getSiteId();
-        m_hostId = site.getHostId();
+        m_hostId = site.getCatalogSite().getHost().getId();
     }
 
     @Override
@@ -184,11 +184,11 @@ public class SnapshotRestore extends VoltSystemProcedure
             VoltTable result = ClusterSaveFileState.constructEmptySaveFileStateVoltTable();
             // Choose the lowest site ID on this host to do the file scan
             // All other sites should just return empty results tables.
-            int host_id = context.getExecutionSite().getHostId();
+            int host_id = context.getHStoreSite().getHostId();
             Integer lowest_site_id =
                 VoltDB.instance().getCatalogContext().siteTracker.
                 getLowestLiveExecSiteIdForHost(host_id);
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 m_initializedTableSaveFiles.clear();
                 m_filePath = (String) params.toArray()[0];

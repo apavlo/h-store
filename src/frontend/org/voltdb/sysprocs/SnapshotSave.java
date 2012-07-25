@@ -174,7 +174,7 @@ public class SnapshotSave extends VoltSystemProcedure
             Host catalog_host = context.getHost();
             Site catalog_site = CollectionUtil.first(CatalogUtil.getSitesForHost(catalog_host));
             Integer lowest_site_id = catalog_site.getId();
-            if (context.getExecutionSite().getSiteId() == lowest_site_id)
+            if (context.getPartitionExecutor().getSiteId() == lowest_site_id)
             {
                 LOG.trace("Checking feasibility of save with path and nonce: "
                                 + file_path + ", " + file_nonce);
