@@ -42,6 +42,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.TableRef;
 import org.voltdb.compiler.JarBuilder;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.AbstractValueExpression;
@@ -465,10 +466,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
-        for (String procName : catalog_proc.getConflicts().keySet()) {
-            ConflictSet cs = catalog_proc.getConflicts().get(procName);
+        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
             if (cs.getReadwriteconflicts().isEmpty() == false) {
-                conflicts.add(catalog_db.getProcedures().get(procName));
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
             }
         } // FOR
         return (conflicts);
@@ -493,8 +493,28 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
+     * Get the Procedure handles that have any conflict with the given Procedure
+     * @param catalog_proc
+     * @return
+     */
+    public static Collection<Procedure> getAllConflicts(Procedure catalog_proc) {
+        List<Procedure> conflicts = new ArrayList<Procedure>();
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (ConflictSet cs : catalog_proc.getConflicts().values()) {
+            if (cs.getReadwriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
+            }
+            if (cs.getWritewriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(cs.getName()));
+            }
+        } // FOR
+        return (conflicts);
+    }
+    
+    /**
      * Return all of the internal system Procedures for the database
      */
+    @Deprecated
     public static Collection<Procedure> getSysProcedures(Database catalog_db) {
         List<Procedure> sysprocs = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -505,24 +525,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (sysprocs);
     }
-    
-    /**
-     * Returns true if the Procedure catalog object identified by the given id
-     * is a system procedure
-     * @param catalog_db
-     * @param proc_id
-     * @return
-     */
-    public static boolean isSysProcedure(Database catalog_db, int proc_id) {
-        // TODO: Optimize!
-        Procedure catalog_proc = catalog_db.getProcedures().get("id", proc_id);
-        assert (catalog_proc) != null : "Invalid Procedure Id " + proc_id;
-        return (catalog_proc.getSystemproc());
-    }
 
     /**
      * Return all of the MapReduce Procedures for the database
      */
+    @Deprecated
     public static Collection<Procedure> getMapReduceProcedures(Database catalog_db) {
         Set<Procedure> mrprocs = new ListOrderedSet<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -1034,6 +1041,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // TABLES + COLUMNS
     // ------------------------------------------------------------
 
+    /**
+     * Return the tables encoded in the given TableRefs
+     * @param tableRefs
+     * @return
+     */
+    public static Collection<Table> getTables(Collection<TableRef> tableRefs) {
+        List<Table> tables = new ArrayList<Table>();
+        for (TableRef ref : tableRefs) {
+            tables.add(ref.getTable());
+        } // FOR
+        return (tables);
+    }
+    
     /**
      * Return all of the internal system tables for the database
      */

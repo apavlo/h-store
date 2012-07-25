@@ -52,7 +52,6 @@ public class CatalogContext {
     // PUBLIC IMMUTABLE CACHED INFORMATION
     public final Cluster cluster;
     public final Database database;
-    public final CatalogMap<Procedure> procedures;
     public final CatalogMap<Site> sites;
     public final int numberOfPartitions;
     public final int numberOfExecSites;
@@ -68,11 +67,24 @@ public class CatalogContext {
     private final String m_path;
     private final JarClassLoader m_catalogClassLoader;
 
-    private final Procedure proceduresArray[];
+    // ------------------------------------------------------------
+    // PARTITIONS
+    // ------------------------------------------------------------
     
     private final Partition partitions[];
     private final PartitionSet partitionIdCollection = new PartitionSet();
     private final Integer partitionIdArray[];
+    
+    // ------------------------------------------------------------
+    // PROCEDURES
+    // ------------------------------------------------------------
+    
+    public final CatalogMap<Procedure> procedures;
+    
+    private final Collection<Procedure> regularProcedures = new ArrayList<Procedure>();
+    private final Collection<Procedure> sysProcedures = new ArrayList<Procedure>();
+    private final Collection<Procedure> mrProcedures = new ArrayList<Procedure>();
+    private final Procedure proceduresArray[];
     
     // ------------------------------------------------------------
     // TABLES
@@ -121,11 +133,23 @@ public class CatalogContext {
         cluster = catalog.getClusters().get("cluster");
         database = cluster.getDatabases().get("database");
         
-        procedures = database.getProcedures();
+        // ------------------------------------------------------------
+        // PROCEDURES
+        // ------------------------------------------------------------
+        this.procedures = database.getProcedures();
         this.proceduresArray = new Procedure[this.procedures.size()+1];
         for (Procedure proc : this.procedures) {
             this.proceduresArray[proc.getId()] = proc;
-        }
+            if (proc.getSystemproc()) {
+                this.sysProcedures.add(proc);
+            }
+            else if (proc.getMapreduce()) {
+                this.mrProcedures.add(proc);
+            }
+            else {
+                this.regularProcedures.add(proc);
+            }
+        } // FOR
         
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
         sites = cluster.getSites();
@@ -310,6 +334,27 @@ public class CatalogContext {
             return (this.proceduresArray[procId]);
         }
         return (null);
+    }
+    
+    /**
+     * Return all of the regular transactional Procedures in the catalog
+     */
+    public Collection<Procedure> getRegularProcedures() {
+        return (this.regularProcedures);
+    }
+    
+    /**
+     * Return all of the internal system Procedures in the catalog
+     */
+    public Collection<Procedure> getSysProcedures() {
+        return (this.sysProcedures);
+    }
+    
+    /**
+     * Return all of the MapReduce Procedures in the catalog
+     */
+    public Collection<Procedure> getMapReduceProcedures() {
+        return (this.mrProcedures);
     }
     
     // ------------------------------------------------------------

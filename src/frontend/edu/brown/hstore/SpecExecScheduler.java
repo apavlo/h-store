@@ -6,7 +6,9 @@ import java.util.Queue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.TableRef;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.internal.InternalMessage;
@@ -31,17 +33,21 @@ public class SpecExecScheduler {
     }
     
     private final CatalogContext catalogContext;
-    private final PartitionExecutor executor;
     private final int partitionId;
     private final Queue<InternalMessage> work_queue;
     private final BitSet rwConflicts[];
     private final BitSet wwConflicts[];
     
-    public SpecExecScheduler(PartitionExecutor executor) {
-        this.executor = executor;
-        this.partitionId = this.executor.getPartitionId();
-        this.work_queue = this.executor.getWorkQueue();
-        this.catalogContext = this.executor.getCatalogContext();
+    /**
+     * Constructor
+     * @param partitionId
+     * @param work_queue
+     * @param catalogContext
+     */
+    public SpecExecScheduler(int partitionId, Queue<InternalMessage> work_queue, CatalogContext catalogContext) {
+        this.partitionId = partitionId;
+        this.work_queue = work_queue;
+        this.catalogContext = catalogContext;
         
         int size = this.catalogContext.procedures.size()+1;
         this.rwConflicts = new BitSet[size];
@@ -49,14 +55,15 @@ public class SpecExecScheduler {
         
         for (Procedure catalog_proc : this.catalogContext.procedures) {
             if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
-            
-            int idx = catalog_proc.getId();
            
             // Precompute bitmaps for the conflicts
+            int idx = catalog_proc.getId();
+            
             this.rwConflicts[idx] = new BitSet(size);
             for (Procedure conflict : CatalogUtil.getReadWriteConflicts(catalog_proc)) {
                 this.rwConflicts[idx].set(conflict.getId());
             } // FOR
+            
             this.wwConflicts[idx] = new BitSet(size);
             for (Procedure conflict : CatalogUtil.getWriteWriteConflicts(catalog_proc)) {
                 this.wwConflicts[idx].set(conflict.getId());
@@ -80,16 +87,14 @@ public class SpecExecScheduler {
      * @return
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
-        Procedure catalog_proc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
+        Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         BitSet rwCon = this.rwConflicts[dtxn.getProcedureId()];
         BitSet wwCon = this.wwConflicts[dtxn.getProcedureId()];
-        if (catalog_proc == null || rwCon == null || wwCon == null) {
+        if (dtxnProc == null || rwCon == null || wwCon == null) {
             if (trace.get())
                 LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
             return (null);
         }
-        
-        boolean readOnly = dtxn.isExecReadOnly(this.partitionId);
         
         // Now peek in the queue looking for single-partition txns that do not
         // conflict with the current dtxn
@@ -112,48 +117,95 @@ public class SpecExecScheduler {
             else if (msg instanceof StartTxnMessage) {
                 StartTxnMessage txn_msg = (StartTxnMessage)msg;
                 LocalTransaction ts = txn_msg.getTransaction();
-                if (ts.isPredictSinglePartition() == false) continue;
+                if (debug.get())
+                    LOG.debug(String.format("Examining whether %s conflicts with current dtxn %s", ts, dtxn));
+                if (ts.isPredictSinglePartition() == false) {
+                    if (trace.get())
+                        LOG.trace(String.format("%s - Skipping %s because it is not single-partitioned", dtxn, ts));
+                    continue;
+                }
 
-                int procId = ts.getProcedureId();
-                boolean hasRWConflict = rwCon.get(procId);
-                boolean hasWWConflict = wwCon.get(procId);
-                
-                // If there is no conflict whatsoever, then we want to let
-                // this mofo out of the bag right away
-                if (hasWWConflict == false && hasRWConflict == false) {
+                if (this.isConflicting(dtxn, ts) == false) {
                     next = txn_msg;
-                    ts.setSpeculative(true);
                     break;
                 }
-                
-                // If there is no write-write conflict and a read-write conflict on
-                // a table that hasn't been written to yet by the current dtxn,
-                // then we can let this mofo drop
-                if (hasWWConflict == false) {
-                    // TODO: We need to know what the tables actually are that
-                    // make up the conflict information so that we can check whether
-                    // the current dtxn has written to it yet.
-                }
-                
-                
-                
-                // Only release it if it's single-partitioned and does not conflict
-                // with our current dtxn
-                // TODO: We need to be more clever about what we allow depending on
-                //       whether it's a read-write conflict or a write-write conflict
-//                if (ts.isPredictSinglePartition() && rwCon.get(procId) == false) {
-//                    next = txn_msg;
-//                    // Make sure that we remove it from our queue
-//                    it.remove();
-//                    break;
-//                }
             }
         } // WHILE
-        if (debug.get() && next != null) {
-            LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
+        
+        // We found somebody to execute right now!
+        // Make sure that we set the speculative flag to true!
+        if (next != null) {
+            LocalTransaction next_ts = next.getTransaction();
+            next_ts.setSpeculative(true);
+            if (debug.get()) 
+                LOG.debug(dtxn + " - Found next non-conflicting speculative txn " + next);
         }
         
         return (next);
+    }
+    
+    protected boolean isConflicting(AbstractTransaction dtxn, LocalTransaction ts) {
+        final int dtxn_procId = dtxn.getProcedureId();
+        final int ts_procId = ts.getProcedureId();
+        
+        final Procedure dtxn_proc = catalogContext.getProcedureById(dtxn_procId);
+        final Procedure ts_proc = ts.getProcedure();
+        
+        final ConflictSet dtxn_conflicts = dtxn_proc.getConflicts().get(ts_proc.getName());
+        final ConflictSet ts_conflicts = ts_proc.getConflicts().get(dtxn_proc.getName());
+        
+        // DTXN->TS
+        boolean dtxn_hasRWConflict = this.rwConflicts[dtxn_procId].get(ts_procId);
+        boolean dtxn_hasWWConflict = this.wwConflicts[dtxn_procId].get(ts_procId);
+        if (debug.get())
+            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", dtxn, ts, dtxn_hasRWConflict, dtxn_hasWWConflict));
+        
+        // TS->DTXN
+        boolean ts_hasRWConflict = this.rwConflicts[ts_procId].get(dtxn_procId);
+        boolean ts_hasWWConflict = this.wwConflicts[ts_procId].get(dtxn_procId);
+        if (debug.get())
+            LOG.debug(String.format("%s -> %s [R-W:%s / W-W:%s]", ts, dtxn, ts_hasRWConflict, ts_hasWWConflict));
+        
+        // Sanity Check
+        assert(dtxn_hasWWConflict == ts_hasWWConflict);
+        
+        // If there is no conflict whatsoever, then we want to let this mofo out of the bag right away
+        if ((dtxn_hasWWConflict || dtxn_hasRWConflict || ts_hasRWConflict || ts_hasWWConflict) == false) {
+            if (debug.get())
+                LOG.debug(String.format("No conflicts between %s<->%s", dtxn, ts));
+            return (false);
+        }
+        
+        // If TS is going to write to something that DTXN will read or write, then 
+        // we can let that slide as long as DTXN hasn't read from or written to those tables yet
+        if (dtxn_hasRWConflict || dtxn_hasWWConflict) {
+            for (TableRef ref : dtxn_conflicts.getReadwriteconflicts().values()) {
+                if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
+                    return (true);
+                }
+            } // FOR (R-W)
+            for (TableRef ref : dtxn_conflicts.getWritewriteconflicts().values()) {
+                if (dtxn.isTableReadOrWritten(this.partitionId, ref.getTable())) {
+                    return (true);
+                }
+            } // FOR (R-W)
+        }
+        
+        // Similarly, if the TS needs to read from (but not write to) a table that DTXN 
+        // writes to, then we can allow TS to execute if DTXN hasn't written anything to 
+        // those tables yet
+        if (ts_hasRWConflict && ts_hasWWConflict == false) {
+            if (debug.get())
+                LOG.debug(String.format("%s has R-W conflict with %s. Checking read/write sets", ts, dtxn));
+            for (TableRef ref : ts_conflicts.getReadwriteconflicts().values()) {
+                if (dtxn.isTableWritten(this.partitionId, ref.getTable())) {
+                    return (true);
+                }
+            } // FOR (R-W)
+        }
+        
+        // If we get to this point, then we know that these two txns do not conflict
+        return (false);
     }
     
 }
