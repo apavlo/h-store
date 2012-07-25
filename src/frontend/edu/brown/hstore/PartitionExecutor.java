@@ -627,7 +627,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             else if (target == BackendTarget.NATIVE_EE_JNI) {
                 org.voltdb.EELibraryLoader.loadExecutionEngineLibrary(true);
                 // set up the EE
-                eeTemp = new ExecutionEngineJNI(this, catalogContext.cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
+                eeTemp = new ExecutionEngineJNI(this,
+                                                catalogContext.cluster.getRelativeIndex(),
+                                                this.getSiteId(),
+                                                this.getPartitionId(),
+                                                this.getHostId(),
+                                                "localhost");
                 
                 // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
@@ -1212,6 +1217,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         return (this.hstore_coordinator);
     }
 
+    public CatalogContext getCatalogContext() {
+        return (this.catalogContext);
+    }
     public Site getCatalogSite() {
         return (this.site);
     }

@@ -819,16 +819,6 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Return the number of statements that have been queued up in the last batch
-     * @return
-     */
-    protected int getStatementCount() {
-        return (this.state.batch_size);
-    }
-    protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
-        return (this.state.dependencies); // [stmt_index]);
-    }
-    /**
      * 
      * @param d_id Output Dependency Id
      * @return
@@ -838,20 +828,6 @@ public class LocalTransaction extends AbstractTransaction {
         // return (this.state.dependencies[stmt_index].get(d_id));
     }
 
-    /**
-     * Set the flag that indicates whether this transaction was executed speculatively
-     */
-    public void setSpeculative(boolean speculative) {
-        this.exec_speculative = speculative;
-    }
-
-    /**
-     * Returns true if this transaction was executed speculatively
-     */
-    public boolean isSpeculative() {
-        return (this.exec_speculative);
-    }
-    
     @Override
     public boolean isExecReadOnly(int partition) {
         if (catalog_proc.getReadonly()) return (true);
@@ -881,6 +857,24 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public PartitionSet getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SPECULATIVE EXECUTION
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Set the flag that indicates whether this transaction was executed speculatively
+     */
+    public void setSpeculative(boolean speculative) {
+        this.exec_speculative = speculative;
+    }
+
+    /**
+     * Returns true if this transaction was executed speculatively
+     */
+    public boolean isSpeculative() {
+        return (this.exec_speculative);
     }
     
     // ----------------------------------------------------------------------------
