@@ -370,7 +370,7 @@ public abstract class CatalogCloner {
     public static void cloneConflicts(Database src_db, Database dest_db) {
         for (Procedure src_proc : src_db.getProcedures()) {
             Procedure dest_proc = dest_db.getProcedures().get(src_proc.getName());
-            if (dest_proc == null) continue; 
+            assert(dest_proc != null) : src_proc;
             
             for (ConflictSet src_conflicts : src_proc.getConflicts()) {
                 ConflictSet dest_conflicts = dest_proc.getConflicts().add(src_conflicts.getName());
