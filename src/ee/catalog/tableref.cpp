@@ -20,41 +20,41 @@
             ALL CHANGES MUST BE MADE IN THE CATALOG GENERATOR */
 
 #include <cassert>
-#include "procedureref.h"
+#include "tableref.h"
 #include "catalog.h"
-#include "procedure.h"
+#include "table.h"
 
 using namespace catalog;
 using namespace std;
 
-ProcedureRef::ProcedureRef(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
+TableRef::TableRef(Catalog *catalog, CatalogType *parent, const string &path, const string &name)
 : CatalogType(catalog, parent, path, name)
 {
     CatalogValue value;
-    m_fields["procedure"] = value;
+    m_fields["table"] = value;
 }
 
-ProcedureRef::~ProcedureRef() {
+TableRef::~TableRef() {
 }
 
-void ProcedureRef::update() {
-    m_procedure = m_fields["procedure"].typeValue;
+void TableRef::update() {
+    m_table = m_fields["table"].typeValue;
 }
 
-CatalogType * ProcedureRef::addChild(const std::string &collectionName, const std::string &childName) {
+CatalogType * TableRef::addChild(const std::string &collectionName, const std::string &childName) {
     return NULL;
 }
 
-CatalogType * ProcedureRef::getChild(const std::string &collectionName, const std::string &childName) const {
+CatalogType * TableRef::getChild(const std::string &collectionName, const std::string &childName) const {
     return NULL;
 }
 
-bool ProcedureRef::removeChild(const std::string &collectionName, const std::string &childName) {
+bool TableRef::removeChild(const std::string &collectionName, const std::string &childName) {
     assert (m_childCollections.find(collectionName) != m_childCollections.end());
     return false;
 }
 
-const Procedure * ProcedureRef::procedure() const {
-    return dynamic_cast<Procedure*>(m_procedure);
+const Table * TableRef::table() const {
+    return dynamic_cast<Table*>(m_table);
 }
 

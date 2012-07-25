@@ -14,6 +14,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -23,6 +24,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.TableRef;
 import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.BaseTestCase;
@@ -135,13 +137,13 @@ public class TestCatalogCloner extends BaseTestCase {
                     System.err.println(CatalogUtil.getDisplayName(ref0) + " <-> " + CatalogUtil.getDisplayName(ref1));
                 this.checkFields(Column.class, ref0.getConstraint(), ref1.getConstraint());
             }
-            // ProcedureRefs
-            else if (field_val0 instanceof ProcedureRef) {
-                ProcedureRef ref0 = (ProcedureRef) field_val0;
-                ProcedureRef ref1 = (ProcedureRef) field_val1;
+            // TableRefs
+            else if (field_val0 instanceof TableRef) {
+                TableRef ref0 = (TableRef) field_val0;
+                TableRef ref1 = (TableRef) field_val1;
                 if (debug)
                     System.err.println(CatalogUtil.getDisplayName(ref0) + " <-> " + CatalogUtil.getDisplayName(ref1));
-                this.checkFields(Procedure.class, ref0.getProcedure(), ref1.getProcedure());
+                this.checkFields(Table.class, ref0.getTable(), ref1.getTable());
             }
             // ColumnRefs
             else if (field_val0 instanceof ColumnRef) {
@@ -168,10 +170,10 @@ public class TestCatalogCloner extends BaseTestCase {
         } // FOR (field)
     }
     
-    private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ProcedureRef> conflicts0, CatalogMap<ProcedureRef> conflicts1) {
+    private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ConflictSet> conflicts0, CatalogMap<ConflictSet> conflicts1) {
         assertEquals(catalog_proc.toString(), conflicts0.size(), conflicts1.size());
-        for (ProcedureRef ref : conflicts0) {
-            assertNotNull(ref);
+        for (ConflictSet cs : conflicts0) {
+            assertNotNull(cs);
             assertNotNull(ref.getProcedure());
             ProcedureRef clone_ref = conflicts1.get(ref.getName());
             assertNotNull(clone_ref);

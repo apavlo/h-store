@@ -102,30 +102,31 @@ message WorkResult {
 
 // Initialization request for a new transaction
 message TransactionInitRequest {
+    // The last distributed transaction id seen at the sending base partition
+    optional int64 last_transaction_id = 1;
+
     // Globally unique transaction id
-    required int64 transaction_id = 1;
+    required int64 transaction_id = 2;
 
     // The base partition
-    required int32 base_partition = 2;
+    required int32 base_partition = 3;
 
     // Procedure Id
-    required int32 procedure_id = 3;
+    required int32 procedure_id = 4;
     
     // List of partitions at this site that are will be involved
     // with this transaction.
-    repeated int32 partitions = 4 [packed=true];
+    repeated int32 partitions = 5 [packed=true];
 
-    // -----------------------------------
     // PRE-FETCH QUERIES
-    // -----------------------------------
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated WorkFragment prefetch_fragments = 5;
+    repeated WorkFragment prefetch_fragments = 6;
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match WorkFragment.paramIndex
-    repeated bytes prefetch_params = 6;
+    repeated bytes prefetch_params = 7;
 }
 
 message TransactionInitResponse {
@@ -141,33 +142,36 @@ message TransactionInitResponse {
 // -----------------------------------
 
 message TransactionWorkRequest {
+    // The last distributed transaction id seen at the sending base partition
+    optional int64 last_transaction_id = 1;
+
     // Globally unique transaction id
-    required int64 transaction_id = 1;
+    required int64 transaction_id = 2;
     
     // Where this request came from!
-    required int32 source_partition = 2;
+    required int32 source_partition = 3;
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated WorkFragment fragments = 3;
+    repeated WorkFragment fragments = 4;
     
     // Procedure Id
-    required int32 procedure_id = 4;
+    required int32 procedure_id = 5;
     
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match WorkFragment.paramIndex
-    repeated bytes params = 5;
+    repeated bytes params = 6;
     
     // We can attach input dependencies to each message
     // Unique Dependency Identifers
-    repeated int32 attached_dep_id = 6 [packed=true];
+    repeated int32 attached_dep_id = 7 [packed=true];
     
     // Attached Serialized VoltTables
-    repeated bytes attached_data = 7;
+    repeated bytes attached_data = 8;
     
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
-    repeated int32 done_partition = 8 [packed=true];
+    repeated int32 done_partition = 9 [packed=true];
 }
 
 message TransactionWorkResponse {
@@ -186,25 +190,28 @@ message TransactionWorkResponse {
 // -----------------------------------
 
 message TransactionPrefetchResult {
+    // The last distributed transaction id seen at the sending base partition
+    optional int64 last_transaction_id = 1;
+
     // Globally unique transaction id
-    required int64 transaction_id = 1;
+    required int64 transaction_id = 2;
     
     // The partition id where this result came from
-    required int32 source_partition = 2;
+    required int32 source_partition = 3;
     
     // The results for the prefetched queries at this partition
-    required WorkResult result = 3;
+    required WorkResult result = 4;
     
     // The global status for this response
-    required Status status = 4;
+    required Status status = 5;
 
     // FragmentIds + ParameterSet hashes for the results
     // The offsets of these arrays will correspond with the
     // offsets in the WorkResult. I decided to put these separately
     // here because other parts of the system that use WorkResult do
     // not need this information
-    repeated int32 fragment_id = 5 [packed=true];
-    repeated int32 param_hash = 6 [packed=true];
+    repeated int32 fragment_id = 6 [packed=true];
+    repeated int32 param_hash = 7 [packed=true];
 }
 
 message TransactionPrefetchAcknowledgement {
@@ -220,20 +227,23 @@ message TransactionPrefetchAcknowledgement {
 // -----------------------------------
 
 message TransactionMapRequest {
+    // The last distributed transaction id seen at the sending base partition
+    optional int64 last_transaction_id = 1;
+
     // Globally unique transaction id
-    required int64 transaction_id = 1;
+    required int64 transaction_id = 2;
     
     // Client Handle
-    required int64 client_handle = 2;
+    required int64 client_handle = 3;
     
     // Base Partition
-    required int32 base_partition = 3;
+    required int32 base_partition = 4;
 
     // Procedure Id
-    required int32 procedure_id = 4;
+    required int32 procedure_id = 5;
 
     // Serialized Procedure ParameterSet
-    required bytes params = 5;
+    required bytes params = 6;
 }
 
 message TransactionMapResponse {
@@ -362,7 +372,6 @@ message InitializeResponse {
     required int32 sender_site = 1;
     required Status status = 2;
 }
-
 
 // -----------------------------------
 // CLUSTER SHUTDOWN MESSAGE

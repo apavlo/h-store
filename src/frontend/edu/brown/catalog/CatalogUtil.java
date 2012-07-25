@@ -27,6 +27,7 @@ import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConflictSet;
 import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
@@ -37,7 +38,6 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
@@ -464,12 +464,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Procedure> getReadWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
-        for (ProcedureRef ref : catalog_proc.getReadconflicts()) {
-            Procedure ref_proc = ref.getProcedure();
-            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
-            assert(ref_proc.equals(catalog_proc) == false) :
-                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getReadconflicts());
-            conflicts.add(ref_proc);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (String procName : catalog_proc.getConflicts().keySet()) {
+            ConflictSet cs = catalog_proc.getConflicts().get(procName);
+            if (cs.getReadwriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(procName));
+            }
         } // FOR
         return (conflicts);
     }
@@ -482,12 +482,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Procedure> getWriteWriteConflicts(Procedure catalog_proc) {
         List<Procedure> conflicts = new ArrayList<Procedure>();
-        for (ProcedureRef ref : catalog_proc.getWriteconflicts()) {
-            Procedure ref_proc = ref.getProcedure();
-            if (debug.get()) LOG.debug(catalog_proc + ": " + ref + " -> " + ref_proc);
-            assert(ref_proc.equals(catalog_proc) == false) :
-                catalog_proc + " Conflicts:\n" + CatalogUtil.debug(catalog_proc.getWriteconflicts());
-            conflicts.add(ref_proc);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_proc);
+        for (String procName : catalog_proc.getConflicts().keySet()) {
+            ConflictSet cs = catalog_proc.getConflicts().get(procName);
+            if (cs.getWritewriteconflicts().isEmpty() == false) {
+                conflicts.add(catalog_db.getProcedures().get(procName));
+            }
         } // FOR
         return (conflicts);
     }

@@ -21,31 +21,31 @@
 
 package org.voltdb.catalog;
 
-public class ProcedureRef extends CatalogType {
+public class TableRef extends CatalogType {
 
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
-        m_fields.put("procedure", null);
+        m_fields.put("table", null);
     }
 
     public void update() {
     }
 
-    public Procedure getProcedure() {
-        Object o = getField("procedure");
+    public Table getTable() {
+        Object o = getField("table");
         if (o instanceof UnresolvedInfo) {
             UnresolvedInfo ui = (UnresolvedInfo) o;
-            Procedure retval = (Procedure) m_catalog.getItemForRef(ui.path);
+            Table retval = (Table) m_catalog.getItemForRef(ui.path);
             assert(retval != null);
-            m_fields.put("procedure", retval);
+            m_fields.put("table", retval);
             return retval;
         }
-        return (Procedure) o;
+        return (Table) o;
     }
 
-    public void setProcedure(Procedure value) {
-        m_fields.put("procedure", value);
+    public void setTable(Table value) {
+        m_fields.put("table", value);
     }
 
 }
