@@ -35,6 +35,7 @@ public class SpecExecScheduler {
     private final CatalogContext catalogContext;
     private final int partitionId;
     private final Queue<InternalMessage> work_queue;
+    private final BitSet hasConflicts;
     private final BitSet rwConflicts[];
     private final BitSet wwConflicts[];
     
@@ -50,6 +51,7 @@ public class SpecExecScheduler {
         this.catalogContext = catalogContext;
         
         int size = this.catalogContext.procedures.size()+1;
+        this.hasConflicts = new BitSet(size);
         this.rwConflicts = new BitSet[size];
         this.wwConflicts = new BitSet[size];
         
@@ -62,17 +64,20 @@ public class SpecExecScheduler {
             this.rwConflicts[idx] = new BitSet(size);
             for (Procedure conflict : CatalogUtil.getReadWriteConflicts(catalog_proc)) {
                 this.rwConflicts[idx].set(conflict.getId());
+                this.hasConflicts.set(idx);
             } // FOR
             
             this.wwConflicts[idx] = new BitSet(size);
             for (Procedure conflict : CatalogUtil.getWriteWriteConflicts(catalog_proc)) {
                 this.wwConflicts[idx].set(conflict.getId());
+                this.hasConflicts.set(idx);
             } // FOR
             
             // XXX: Each procedure will conflict with itself if it's not read-only
             if (catalog_proc.getReadonly() == false) {
                 this.rwConflicts[idx].set(idx);
                 this.wwConflicts[idx].set(idx);
+                this.hasConflicts.set(idx);
             }
         } // FOR
     }
@@ -88,11 +93,19 @@ public class SpecExecScheduler {
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
         Procedure dtxnProc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
-        BitSet rwCon = this.rwConflicts[dtxn.getProcedureId()];
-        BitSet wwCon = this.wwConflicts[dtxn.getProcedureId()];
-        if (dtxnProc == null || rwCon == null || wwCon == null) {
+        if (dtxnProc == null || this.hasConflicts.get(dtxn.getProcedureId()) == false) {
             if (trace.get())
                 LOG.trace("SKIP - Ignoring current distributed txn because no conflict information exists");
+            return (null);
+        }
+        
+        // If this is a LocalTransaction and all of the remote partitions that it needs are
+        // on the same site, then we won't bother with trying to pick something out
+        // because there is going to be very small wait times.
+        if (dtxn instanceof LocalTransaction && ((LocalTransaction)dtxn).isPredictAllLocal()) {
+            if (trace.get())
+                LOG.trace("SKIP - Ignoring current distributed txn because all of the partitions that " +
+                		  "it is using are on the same HStoreSite");
             return (null);
         }
         

@@ -2492,15 +2492,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param logTxn
      */
     public void responseSend(ClientResponseImpl cresponse,
-                                   RpcCallback<ClientResponseImpl> clientCallback,
-                                   long initiateTime,
-                                   int restartCounter) {
+                             RpcCallback<ClientResponseImpl> clientCallback,
+                             long initiateTime,
+                             int restartCounter) {
         Status status = cresponse.getStatus();
  
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (d) LOG.debug(String.format("%d - Sending back ClientResponse [status=%s]",
+        if (d) LOG.debug(String.format("Txn #%d - Sending back ClientResponse [status=%s]",
                                        cresponse.getTransactionId(), status));
         
         long now = System.currentTimeMillis();

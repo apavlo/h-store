@@ -24,11 +24,11 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 
 /**
- * Procedure Conflict Calculator
+ * Procedure ConflictSet Calculator
  * @author pavlo
  */
-public class ConflictCalculator {
-    private static final Logger LOG = Logger.getLogger(ConflictCalculator.class);
+public class ConflictSetCalculator {
+    private static final Logger LOG = Logger.getLogger(ConflictSetCalculator.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -50,9 +50,9 @@ public class ConflictCalculator {
     }
     
     private final Database catalog_db;
-    private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ConflictCalculator.ProcedureInfo>(); 
+    private final LinkedHashMap<Procedure, ProcedureInfo> procedures = new LinkedHashMap<Procedure, ConflictSetCalculator.ProcedureInfo>(); 
     
-    public ConflictCalculator(Catalog catalog) {
+    public ConflictSetCalculator(Catalog catalog) {
         this.catalog_db = CatalogUtil.getDatabase(catalog);
 
         for (Procedure catalog_proc : catalog_db.getProcedures()) {

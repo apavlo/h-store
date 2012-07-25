@@ -398,6 +398,13 @@ public class CatalogTreeModel extends DefaultTreeModel {
                     } // FOR (output columns)
                 } // FOR (statements)
             }
+            
+            // Conflicts
+            if (catalog_proc.getConflicts().isEmpty() == false) {
+                DefaultMutableTreeNode conflictRootNode = new CatalogMapTreeNode("Conflicts", catalog_proc.getConflicts());
+                procNode.add(conflictRootNode);
+                
+            }
         } // FOR (procedures)
     }
 }

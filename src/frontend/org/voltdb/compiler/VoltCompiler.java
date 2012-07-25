@@ -110,7 +110,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ConflictCalculator;
+import edu.brown.catalog.ConflictSetCalculator;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -506,7 +506,7 @@ public class VoltCompiler {
         
         // Optimization: Calculate Procedure conflicts
         try {
-            new ConflictCalculator(m_catalog).process();
+            new ConflictSetCalculator(m_catalog).process();
         } catch (Exception ex) {
             LOG.warn("Unexpected error", ex);
             addErr("Failed to calculate procedure conflicts");

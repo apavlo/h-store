@@ -662,6 +662,41 @@ public class LocalTransaction extends AbstractTransaction {
 
     
     /**
+     * Return the underlying procedure catalog object
+     * The VoltProcedure must have already been set
+     * @return
+     */
+    public Procedure getProcedure() {
+        return (this.catalog_proc);
+    }
+    
+    /**
+     * Return the ParameterSet that contains the procedure input
+     * parameters for this transaction. These are the original parameters
+     * that were sent from the client for this txn.
+     */
+    public ParameterSet getProcedureParameters() {
+        return (this.parameters);
+    }
+    
+    public void removeProcedureParameters() {
+        this.parameters = null;
+    }
+
+    /**
+     * Returns true if all of the partitions that this txn is predicted
+     * to access are all on the same HStoreSite as its base partition
+     */
+    public boolean isPredictAllLocal() {
+        for (Integer p : this.predict_touchedPartitions) {
+            if (hstore_site.isLocalPartition(p.intValue()) == false) {
+                return (false);
+            }
+        } // FOR
+        return (true);
+    }
+    
+    /**
      * Returns true if the control code for this LocalTransaction was actually started
      * in the PartitionExecutor
      */
@@ -784,32 +819,7 @@ public class LocalTransaction extends AbstractTransaction {
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
-    
-    public String getProcedureName() {
-        return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
-    }
-    
-    /**
-     * Return the underlying procedure catalog object
-     * The VoltProcedure must have already been set
-     * @return
-     */
-    public Procedure getProcedure() {
-        return (this.catalog_proc);
-    }
-    
-    /**
-     * Return the ParameterSet that contains the procedure input
-     * parameters for this transaction. These are the original parameters
-     * that were sent from the client for this txn.
-     */
-    public ParameterSet getProcedureParameters() {
-    	return (this.parameters);
-    }
-    
-    public void removeProcedureParameters() {
-        this.parameters = null;
-    }
+
     
     public TransactionEstimator.State getEstimatorState() {
         return (this.predict_tState);
@@ -1071,8 +1081,8 @@ public class LocalTransaction extends AbstractTransaction {
             // the executor before it is allowed to start executing
             WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             if (input_dep_ids.getIdsCount() > 0) {
-                for (int dependency_id : input_dep_ids.getIdsList()) {
-                    if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                for (Integer dependency_id : input_dep_ids.getIdsList()) {
+                    if (dependency_id.intValue() != HStoreConstants.NULL_DEPENDENCY_ID) {
                         DependencyInfo dinfo = this.getOrCreateDependencyInfo(stmt_index, dependency_id);
                         dinfo.addBlockedWorkFragment(fragment);
                         dinfo.markInternal();
@@ -1325,7 +1335,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean calculateDonePartitions(EstimationThresholds thresholds) {
         final int ts_done_partitions_size = this.exec_donePartitions.size();
-        Set<Integer> new_done = null;
+        PartitionSet new_done = null;
 
         TransactionEstimator.State t_state = this.getEstimatorState();
         if (t_state == null) {
@@ -1352,7 +1362,7 @@ public class LocalTransaction extends AbstractTransaction {
             
             // Make sure that we only tell partitions that we actually touched, otherwise they will
             // be stuck waiting for a finish request that will never come!
-            Collection<Integer> ts_touched = this.getTouchedPartitions().values();
+            Collection<Integer> ts_touched = this.exec_touchedPartitions.values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
@@ -1373,7 +1383,7 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
+            return (String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition));
 //            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
         } else {
             return ("<Uninitialized>");
@@ -1387,7 +1397,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Basic Info
         m = super.getDebugMap();
-        m.put("Procedure", this.getProcedureName());
+        m.put("Procedure", (this.catalog_proc == null ? "???" : this.catalog_proc.getName()));
         
         maps.add(m);
         

@@ -330,7 +330,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * The last txn id that we committed
      */
-    private volatile long lastCommittedTxnId = -1;
+    private volatile Long lastCommittedTxnId = null;
     
     /**
      * The last undoToken that we handed out
@@ -1084,7 +1084,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Check whether there is something we can speculatively execute right now
         if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
             work = this.specExecScheduler.next(this.currentDtxn);
-            if (work != null) this.enableSpeculativeExecution(this.currentDtxn);
+            
+            // Because we don't have fine-grained undo support, we are just going
+            // keep all of our speculative execution txn results around
+            if (work != null) {
+                LOG.info(String.format("%s - Utility Work found speculative txn to execute [%s]",
+                                       this.currentDtxn, ((StartTxnMessage)work).getTransaction()));
+                this.setExecutionMode(((StartTxnMessage)work).getTransaction(), ExecutionMode.COMMIT_NONE);
+            }
         }
         // Check whether we have anything in our non-blocking queue
         if (work == null) {
@@ -1170,13 +1177,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Set the current ExecutionMode for this executor
+     * Set the current ExecutionMode for this executor. The transaction handle given as an input
+     * argument is the transaction that caused the mode to get changed. It is only used for debug
+     * purposes.
      * @param newMode
      * @param txn_id
      */
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
         if (d && this.currentExecMode != newMode) {
-//        if (this.currentExecMode != newMode) {
             LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
                                     this.partitionId, newMode, ts, this.currentDtxn, this.currentExecMode));
         }
@@ -1472,7 +1480,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public void queueFinish(AbstractTransaction ts, Status status) {
         assert(ts.isInitialized());
         FinishTxnMessage work = ts.getFinishTxnMessage(status);
-        this.work_queue.offer(work, true);
+        boolean success = this.work_queue.offer(work, true);
+        assert(success);
         if (d) LOG.debug(String.format("%s - Added distributed %s to front of partition %d work queue [size=%d]",
                                        ts, work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
@@ -1605,6 +1614,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param itask
      */
     private void executeTransaction(LocalTransaction ts) {
+        assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
         if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
         if (t) LOG.trace(String.format("%s - Attempting to begin processing transaction on partition %d",
                                        ts, this.partitionId));
@@ -1646,7 +1656,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     if (this.currentDtxn.isExecLocal(this.partitionId)) {
                         // It would be safe for us to speculative execute this DTXN right here
                         // if the currentDtxn has aborted... but we can never be in this state.
-                        assert(this.currentDtxn.isAborted() == false); // Sanity Check
+                        assert(this.currentDtxn.isAborted() == false) : // Sanity Check
+                            String.format("We want to execute %s on partition %d but aborted %s is still hanging around\n",
+                                          ts, this.partitionId, this.currentDtxn, this.work_queue);
                         
                         // So that means we know that it committed, which doesn't necessarily mean
                         // that it will still commit, but we'll be able to abort, rollback, and requeue
@@ -1710,7 +1722,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 
         ts.setExecutionState(execState);
-        VoltProcedure volt_proc = this.procedures.get(ts.getProcedureName());
+        VoltProcedure volt_proc = this.procedures.get(ts.getProcedure().getName());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (d) {
@@ -2375,17 +2387,25 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ts.setSubmittedEE(this.partitionId);
         ee.loadTable(table.getRelativeIndex(), data,
                      ts.getTransactionId(),
-                     lastCommittedTxnId,
+                     (this.lastCommittedTxnId == null ? -1 : lastCommittedTxnId.longValue()),
                      getNextUndoToken(),
                      allowELT != 0);
     }
-    
+
+    /**
+     * <B>NOTE:</B> This should only be used for testing
+     * @param txnId
+     * @param catalog_tbl
+     * @param data
+     * @param allowELT
+     * @throws VoltAbortException
+     */
     protected void loadTable(Long txnId, Table catalog_tbl, VoltTable data, boolean allowELT) throws VoltAbortException {
         ee.loadTable(catalog_tbl.getRelativeIndex(),
                      data,
                      txnId.longValue(),
-                     lastCommittedTxnId,
-                     getNextUndoToken(),
+                     (this.lastCommittedTxnId == null ? -1 : lastCommittedTxnId.longValue()),
+                     HStoreConstants.NULL_UNDO_LOGGING_TOKEN,
                      allowELT);
     }
 
@@ -3132,9 +3152,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("%s - Processing ClientResponse at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
-                                    ts, this.partitionId, cresponse.getClientHandle(), status,
-                                    ts.isPredictSinglePartition(), ts.isExecLocal(this.partitionId)));
+            LOG.debug(String.format("%s - Processing ClientResponse at partition %d [status=%s, singlePartition=%s, local=%s, clientHandle=%d]",
+                                    ts, this.partitionId, status, ts.isPredictSinglePartition(),
+                                    ts.isExecLocal(this.partitionId), cresponse.getClientHandle()));
             if (t) {
                 LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
                 LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
@@ -3235,6 +3255,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param commit
      */
     private void finishWork(AbstractTransaction ts, boolean commit) {
+        assert(ts != null) :
+            "Unexpected null transaction handle at partition " + this.partitionId;
         assert(ts.isFinishedEE(this.partitionId) == false) :
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
@@ -3248,14 +3270,20 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
         if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && undoToken != HStoreConstants.NULL_UNDO_LOGGING_TOKEN) {
+            // If the txn is completely read-only and they didn't use undo-logging, then
+            // there is nothing that we need to do, except to check to make sure we aren't
+            // trying to abort this txn
             if (ts.isExecReadOnly(this.partitionId) == false && undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+                // SANITY CHECK: Make sure that they're not trying to undo a transaction that
+                // modified the database but did not use undo logging
                 if (commit == false) {
                     String msg = "TRYING TO ABORT TRANSACTION ON PARTITION " + this.partitionId + " WITHOUT UNDO LOGGING";
                     LOG.fatal(msg + "\n" + ts.debug());
                     this.crash(new ServerFaultException(msg, ts.getTransactionId()));
                 }
                 if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
-            } else {
+            }
+            else {
                 boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition());
                 if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
                 if (commit) {
@@ -3307,8 +3335,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Check whether this is the response that the speculatively executed txns have been waiting for
         // We could have turned off speculative execution mode beforehand 
-        if (d) LOG.debug(String.format("Attempting to unmark %s as the current DTXN at partition %d and setting execution mode to %s",
-                                       this.currentDtxn, this.partitionId, ExecutionMode.COMMIT_ALL));
+        if (d) LOG.debug(String.format("%s - Attempting to unmark as the current DTXN at partition %d and setting execution mode to %s",
+                                       ts, this.partitionId, ExecutionMode.COMMIT_ALL));
         exec_lock.lock();
         try {
             // Resetting the current_dtxn variable has to come *before* we change the execution mode
