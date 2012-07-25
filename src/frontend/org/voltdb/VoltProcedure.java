@@ -60,7 +60,6 @@ import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -144,7 +143,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected TransactionEstimator t_estimator;
     protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
-    protected ParameterSetArrayCache param_cache;
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
@@ -253,7 +251,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.procedure_name = this.catalog_proc.getName();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
-        this.param_cache = this.executor.getProcedureParameterSetArrayCache();
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
         
@@ -713,7 +710,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } finally {
             this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
-            this.param_cache.reset();
             if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
         }
 
@@ -1118,7 +1114,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Create a list of clean parameters
-        final ParameterSet params[] = this.param_cache.getParameterSet(batchSize);
+        ParameterSet params[] = this.m_localTxnState.getExecutionState().
+                                     procParameterSets.getParameterSet(batchSize);
         assert(params != null);
         for (int i = 0; i < batchSize; i++) {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
@@ -1524,6 +1521,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 msgOut.toString(), e);
     }
     
+    @SuppressWarnings("unused")
     private String mispredictDebug(SQLStmt batchStmts[],
                                    ParameterSet params[],
                                    MarkovGraph markov,

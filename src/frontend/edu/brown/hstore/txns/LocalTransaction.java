@@ -40,7 +40,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
@@ -1376,15 +1375,17 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     // ----------------------------------------------------------------------------
-    // We can attach input dependencies used on non-local partitions
+    // DEBUG STUFF
     // ----------------------------------------------------------------------------
 
     
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition));
-//            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
+            String ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
+            // Include hashCode for debugging
+            ret += "/" + this.hashCode();
+            return (ret);
         } else {
             return ("<Uninitialized>");
         }
@@ -1402,7 +1403,7 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
         
         // Predictions
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
         m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
         m.put("Predict Read Only", this.isPredictReadOnly());
@@ -1415,7 +1416,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Estimator State", this.predict_tState);
         maps.add(m);
 
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         m.put("Exec Touched Partitions", this.exec_touchedPartitions);
         
@@ -1433,7 +1434,7 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
 
         // Additional Info
-        m = new ListOrderedMap<String, Object>();
+        m = new LinkedHashMap<String, Object>();
         m.put("Client Callback", this.client_callback);
         if (this.dtxnState != null) {
             m.put("Init Callback", this.dtxnState.init_callback);
