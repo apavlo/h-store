@@ -46,8 +46,7 @@ public class Procedure extends CatalogType {
     CatalogMap<AuthProgram> m_authPrograms;
     CatalogMap<Statement> m_statements;
     CatalogMap<ProcParameter> m_parameters;
-    CatalogMap<ProcedureRef> m_readConflicts;
-    CatalogMap<ProcedureRef> m_writeConflicts;
+    CatalogMap<ConflictSet> m_conflicts;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -78,10 +77,8 @@ public class Procedure extends CatalogType {
         m_childCollections.put("statements", m_statements);
         m_parameters = new CatalogMap<ProcParameter>(catalog, this, path + "/" + "parameters", ProcParameter.class);
         m_childCollections.put("parameters", m_parameters);
-        m_readConflicts = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "readConflicts", ProcedureRef.class);
-        m_childCollections.put("readConflicts", m_readConflicts);
-        m_writeConflicts = new CatalogMap<ProcedureRef>(catalog, this, path + "/" + "writeConflicts", ProcedureRef.class);
-        m_childCollections.put("writeConflicts", m_writeConflicts);
+        m_conflicts = new CatalogMap<ConflictSet>(catalog, this, path + "/" + "conflicts", ConflictSet.class);
+        m_childCollections.put("conflicts", m_conflicts);
     }
 
     public void update() {
@@ -228,14 +225,9 @@ public class Procedure extends CatalogType {
         return m_parameters;
     }
 
-    /** GETTER: Procedures whose Statements have a read-write conflict with this procedure */
-    public CatalogMap<ProcedureRef> getReadconflicts() {
-        return m_readConflicts;
-    }
-
-    /** GETTER: Procedures whose Statements have a write-write conflict with this procedure */
-    public CatalogMap<ProcedureRef> getWriteconflicts() {
-        return m_writeConflicts;
+    /** GETTER: The conflict sets that this stored procedure has with other procedures */
+    public CatalogMap<ConflictSet> getConflicts() {
+        return m_conflicts;
     }
 
     /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */

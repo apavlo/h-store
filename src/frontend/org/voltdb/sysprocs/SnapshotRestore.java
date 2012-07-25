@@ -165,7 +165,7 @@ public class SnapshotRestore extends VoltSystemProcedure
                                   PF_restoreSendPartitionedTableResults,
                                   this);
         m_siteId = site.getSiteId();
-        m_hostId = site.getCatalogSite().getHost().getId();
+        m_hostId = ((Site)site.getPartition().getParent()).getHost().getId();
     }
 
     @Override
