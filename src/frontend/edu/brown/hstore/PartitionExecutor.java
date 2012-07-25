@@ -359,19 +359,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     public final Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
     
-    /**
-     * Reusable cache of ParameterSet arrays
-     */
-    private final ParameterSetArrayCache procParameterSets;
-    
     // ----------------------------------------------------------------------------
-    // TEMPORARY DATA COLLECTIONS
+    // DISTRIBUTED TRANSACTION TEMPORARY DATA COLLECTIONS
     // ----------------------------------------------------------------------------
-    
-    /**
-     * 
-     */
-    private final List<WorkFragment> tmp_partitionFragments = new ArrayList<WorkFragment>(); 
     
     /**
      * WorkFragments that we need to send to a remote HStoreSite for execution
@@ -408,8 +398,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * Reusable ParameterSet array cache for WorkFragments
      */
-    private final ParameterSetArrayCache tmp_fragmentParams;
-    
+    private final ParameterSetArrayCache tmp_fragmentParams = new ParameterSetArrayCache(5);
     /**
      * Reusable long array for fragment ids
      */
@@ -546,8 +535,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.backend_target = BackendTarget.HSQLDB_BACKEND;
         this.siteId = 0;
         this.partitionId = 0;
-        this.procParameterSets = null;
-        this.tmp_fragmentParams = null;
         this.tmp_transactionRequestBuilders = null;
     }
 
@@ -677,10 +664,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.ee != null);
         assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
         
-        // ParameterSet Array Caches
-        this.procParameterSets = new ParameterSetArrayCache(10);
-        this.tmp_fragmentParams = new ParameterSetArrayCache(5);
-
         // Initialize temporary data structures
         int num_sites = this.catalogContext.numberOfExecSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
@@ -1242,10 +1225,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }
-
-    public ParameterSetArrayCache getProcedureParameterSetArrayCache() {
-        return (this.procParameterSets);
-    }
     
     /**
      * Returns the next undo token to use when hitting up the EE with work
@@ -1748,6 +1727,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         } finally {
             ts.resetExecutionState();
+            execState.finish();
             this.execStates.add(execState);
         }
         
@@ -2063,7 +2043,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      * @throws Exception
      */
-    private DependencySet executeWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet parameters[]) throws Exception {
+    private DependencySet executeWorkFragment(AbstractTransaction ts,
+                                              WorkFragment fragment,
+                                              ParameterSet parameters[]) throws Exception {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
         int fragmentCount = fragment.getFragmentIdCount();
@@ -2513,12 +2495,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // to our remote partitions using the HStoreCoordinator
         else {
             if (d) LOG.debug(ts + " - Using PartitionExecutor.dispatchWorkFragments() to execute distributed queries");
-            this.tmp_partitionFragments.clear();
-            plan.getWorkFragments(ts.getTransactionId(), this.tmp_partitionFragments);
-            if (t) LOG.trace("Got back a set of tasks for " + this.tmp_partitionFragments.size() + " partitions for " + ts);
+            ExecutionState execState = ts.getExecutionState();
+            execState.tmp_partitionFragments.clear();
+            plan.getWorkFragments(ts.getTransactionId(), execState.tmp_partitionFragments);
+            if (t) LOG.trace("Got back a set of tasks for " + execState.tmp_partitionFragments.size() + " partitions for " + ts);
 
             // Block until we get all of our responses.
-            results = this.dispatchWorkFragments(ts, batchSize, this.tmp_partitionFragments, batchParams);
+            results = this.dispatchWorkFragments(ts, batchSize, execState.tmp_partitionFragments, batchParams);
         }
         if (d && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
@@ -3323,8 +3306,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                    ts, this.partitionId, this.currentDtxn, ts.getLastUndoToken(partitionId)));
             return;
         }
-        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d",
-                                       ts, this.partitionId));
+        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d [commit=%s]",
+                                       ts, this.partitionId, commit));
 
         assert(this.currentDtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.currentDtxn;
         

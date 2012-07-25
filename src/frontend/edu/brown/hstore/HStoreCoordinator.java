@@ -807,11 +807,20 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
-        TransactionPrepareRequest request = TransactionPrepareRequest.newBuilder()
-                                                        .setTransactionId(ts.getTransactionId())
-                                                        .addAllPartitions(partitions)
-                                                        .build();
-        this.transactionPrepare_handler.sendMessages(ts, request, callback, partitions);
+        // FAST PATH: If all of the partitions that this txn needs are on this
+        // HStoreSite, then we don't need to bother with making this request
+        if (ts.isPredictAllLocal()) {
+            hstore_site.transactionPrepare(ts.getTransactionId(), partitions, null);
+        }
+        // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
+        // TransactionPrepareHandler to route the request to proper sites.
+        else {
+            TransactionPrepareRequest request = TransactionPrepareRequest.newBuilder()
+                                                            .setTransactionId(ts.getTransactionId())
+                                                            .addAllPartitions(partitions)
+                                                            .build();
+            this.transactionPrepare_handler.sendMessages(ts, request, callback, partitions);
+        }
     }
 
     /**

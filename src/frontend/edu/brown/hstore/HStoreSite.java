@@ -2324,8 +2324,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status == Status.ABORT_MISPREDICT && orig_error instanceof MispredictionException) {
             MispredictionException ex = (MispredictionException)orig_error;
             Collection<Integer> partitions = ex.getPartitions().values();
+            assert(partitions.isEmpty() == false) :
+                "Unexpected empty MispredictionException PartitionSet for " + orig_ts;
+
             if (predict_touchedPartitions.containsAll(partitions) == false) {
                 if (malloc == false) {
+                    // XXX: Since the MispredictionException isn't re-used, we can 
+                    //      probably reuse the PartitionSet 
                     predict_touchedPartitions = new PartitionSet(predict_touchedPartitions);
                     malloc = true;
                 }
