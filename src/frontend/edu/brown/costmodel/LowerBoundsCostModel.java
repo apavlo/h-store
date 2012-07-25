@@ -1,11 +1,10 @@
 package edu.brown.costmodel;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.filters.Filter;
@@ -16,9 +15,9 @@ public class LowerBoundsCostModel extends SingleSitedCostModel {
     private int txn_ctr = 0;
     private final int num_partitions;
 
-    public LowerBoundsCostModel(Database catalog_db, PartitionEstimator p_estimator) {
-        super(catalog_db, p_estimator);
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
+    public LowerBoundsCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super(catalogContext, p_estimator);
+        this.num_partitions = catalogContext.numberOfPartitions;
     }
 
     @Override
@@ -28,12 +27,12 @@ public class LowerBoundsCostModel extends SingleSitedCostModel {
     }
 
     @Override
-    public TransactionCacheEntry processTransaction(final Database catalog_db, final TransactionTrace txn_trace, final Filter filter) throws Exception {
+    public TransactionCacheEntry processTransaction(final CatalogContext catalogContext, final TransactionTrace txn_trace, final Filter filter) throws Exception {
         final boolean trace = LOG.isTraceEnabled();
 
         // Make all transactions single-partition. Use round-robin partition
         // selection.
-        Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+        Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
         String proc_key = CatalogKey.createKey(catalog_proc);
         int total_queries = txn_trace.getQueryCount();
         int base_partition = (this.txn_ctr++ % this.num_partitions);

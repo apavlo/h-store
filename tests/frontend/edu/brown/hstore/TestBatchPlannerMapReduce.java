@@ -43,7 +43,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.MAPREDUCE);
         this.addPartitions(NUM_PARTITIONS);
-        p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
         this.touched_partitions = new Histogram<Integer>();
     }
  

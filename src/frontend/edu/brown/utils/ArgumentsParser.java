@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.JarReader;
@@ -236,6 +237,7 @@ public class ArgumentsParser {
     /**
      * Catalog Attributes
      */
+    public CatalogContext catalogContext = null;
     public Catalog catalog = null;
     public Database catalog_db = null;
     public File catalog_path = null;
@@ -520,7 +522,7 @@ public class ArgumentsParser {
 
             // BASE PARTITIONS
             if (params.containsKey(PARAM_WORKLOAD_RANDOM_PARTITIONS) || params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
-                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(catalog_db));
+                BasePartitionTxnFilter filter = new BasePartitionTxnFilter(new PartitionEstimator(this.catalogContext));
 
                 // FIXED LIST
                 if (params.containsKey(PARAM_WORKLOAD_BASE_PARTITIONS)) {
@@ -702,6 +704,7 @@ public class ArgumentsParser {
 
     public void updateCatalog(Catalog catalog, File catalog_path) {
         this.catalog = catalog;
+        this.catalogContext = new CatalogContext(catalog, catalog_path);
         this.catalog_db = CatalogUtil.getDatabase(catalog);
         if (catalog_path != null)
             this.catalog_path = catalog_path;
@@ -837,7 +840,7 @@ public class ArgumentsParser {
                 LOG.debug("Loaded catalog from schema file '" + path + "'");
             this.updateCatalog(catalog, new File(path));
         }
-
+        
         // Catalog Type
         if (this.params.containsKey(PARAM_CATALOG_TYPE)) {
             String catalog_type = this.params.get(PARAM_CATALOG_TYPE);
@@ -922,9 +925,9 @@ public class ArgumentsParser {
 
                     // Special Case: TimeIntervalCostModel
                     if (target_name.endsWith(TimeIntervalCostModel.class.getSimpleName())) {
-                        this.costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(this.catalog_db, SingleSitedCostModel.class, this.num_intervals);
+                        this.costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(this.catalogContext, SingleSitedCostModel.class, this.num_intervals);
                     } else {
-                        this.costmodel = ClassUtil.newInstance(this.costmodel_class, new Object[] { this.catalog_db }, new Class[] { Database.class });
+                        this.costmodel = ClassUtil.newInstance(this.costmodel_class, new Object[] { this.catalogContext }, new Class[] { Database.class });
                     }
                 } else {
                     assert (false) : "Invalid key '" + key + "'";

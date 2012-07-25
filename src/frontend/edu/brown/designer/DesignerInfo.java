@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogUtil;
@@ -42,7 +43,9 @@ public class DesignerInfo {
      * The base database catalog object that the designer is creating a physical
      * plan for
      */
+    @Deprecated
     public final Database catalog_db;
+    public final CatalogContext catalogContext;
 
     /**
      * The DependencyGraph of the schema
@@ -113,6 +116,7 @@ public class DesignerInfo {
     public DesignerInfo(DesignerInfo src) {
         this.args = src.args;
         this.catalog_db = src.catalog_db;
+        this.catalogContext = src.catalogContext;
         this.workload = src.workload;
         this.stats = src.stats;
         this.partitioner_class = src.partitioner_class;
@@ -140,6 +144,7 @@ public class DesignerInfo {
     public DesignerInfo(ArgumentsParser args) {
         this.args = args;
         this.catalog_db = args.catalog_db;
+        this.catalogContext = args.catalogContext;
         this.workload = args.workload;
         this.stats = args.stats;
         this.partitioner_class = args.partitioner_class;

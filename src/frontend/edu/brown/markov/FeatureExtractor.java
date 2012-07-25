@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import weka.core.Instances;
@@ -36,7 +36,7 @@ public class FeatureExtractor {
     // HACK: What position is the TransactionId in all of our FeatureSets 
     public static final int TXNID_ATTRIBUTE_IDX = 0;
     
-    private final Database catalog_db;
+    private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final Map<Procedure, List<AbstractFeature>> proc_features = new HashMap<Procedure, List<AbstractFeature>>();
     
@@ -55,21 +55,21 @@ public class FeatureExtractor {
      * @param catalog_db
      * @param feature_classes
      */
-    public FeatureExtractor(Database catalog_db, PartitionEstimator p_estimator, Class<? extends AbstractFeature>...feature_classes) {
-        this.catalog_db = catalog_db;
+    public FeatureExtractor(CatalogContext catalogContext, PartitionEstimator p_estimator, Class<? extends AbstractFeature>...feature_classes) {
+        this.catalogContext = catalogContext;
         this.p_estimator = p_estimator;
         for (Class<? extends AbstractFeature> fclass : feature_classes) {
             this.addFeatureClass(fclass);
         } // FOR
     }
     
-    public FeatureExtractor(Database catalog_db, Class<? extends AbstractFeature>...feature_classes) {
-        this(catalog_db, new PartitionEstimator(catalog_db), feature_classes);
+    public FeatureExtractor(CatalogContext catalogContext, Class<? extends AbstractFeature>...feature_classes) {
+        this(catalogContext, new PartitionEstimator(catalogContext), feature_classes);
     }
     
     @SuppressWarnings("unchecked")
-    public FeatureExtractor(Database catalog_db, PartitionEstimator p_estimator) {
-        this(catalog_db, p_estimator, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
+    public FeatureExtractor(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        this(catalogContext, p_estimator, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
     }
     
     /**
@@ -77,8 +77,8 @@ public class FeatureExtractor {
      * @param catalog_db
      */
     @SuppressWarnings("unchecked")
-    public FeatureExtractor(Database catalog_db) {
-        this(catalog_db, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
+    public FeatureExtractor(CatalogContext catalogContext) {
+        this(catalogContext, (Class<? extends AbstractFeature>[])DEFAULT_FEATURE_CLASSES);
     }
     
     /**
@@ -89,7 +89,7 @@ public class FeatureExtractor {
         assert(feature_class != null);
         if (LOG.isDebugEnabled()) LOG.debug("Adding " + feature_class.getSimpleName());
 
-        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+        for (Procedure catalog_proc : catalogContext.database.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
             if (!this.proc_features.containsKey(catalog_proc)) {
                 this.proc_features.put(catalog_proc, new ArrayList<AbstractFeature>());
@@ -114,7 +114,7 @@ public class FeatureExtractor {
             final boolean trace = LOG.isTraceEnabled();
             if (trace) LOG.trace("Processing " + txn_trace);
             
-            Procedure catalog_proc = txn_trace.getCatalogItem(this.catalog_db);
+            Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
             assert(catalog_proc != null) : "Invalid procedure: " + txn_trace.getCatalogItemName();
             FeatureSet fset = fsets.get(catalog_proc);
             if (fset == null) {
@@ -140,7 +140,7 @@ public class FeatureExtractor {
             ArgumentsParser.PARAM_MAPPINGS
         );
         
-        FeatureExtractor extractor = new FeatureExtractor(args.catalog_db);
+        FeatureExtractor extractor = new FeatureExtractor(args.catalogContext);
         Map<Procedure, FeatureSet> fsets = extractor.calculate(args.workload);
         
 //        List<String> targets = args.getOptParams();

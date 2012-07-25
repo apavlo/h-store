@@ -685,7 +685,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         );
         
         // Word up
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
+        PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
         
         // Create MarkovGraphsContainer
         String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);

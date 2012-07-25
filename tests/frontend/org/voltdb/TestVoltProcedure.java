@@ -175,7 +175,7 @@ public class TestVoltProcedure extends TestCase {
 //        Procedure catalog_proc = site.database.getProcedures().get(LongProcedure.class.getName());
 //        Cluster catalog_clus = null;
 //        Database catalog_db = (Database)catalog_proc.getParent();
-//        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, 1));
+//        PartitionEstimator p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, 1));
 //        wrapper.init(site, catalog_proc, BackendTarget.NATIVE_EE_JNI, null, catalog_clus, p_estimator, 1);
 //        
 //        ParameterSet params = new ParameterSet();
@@ -221,7 +221,7 @@ public class TestVoltProcedure extends TestCase {
 //        Procedure catalog_proc = site.database.getProcedures().get(procedure.getName());
 //        Cluster catalog_clus = null;
 //        Database catalog_db = (Database)catalog_proc.getParent();
-//        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, 1));
+//        PartitionEstimator p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, 1));
 //        wrapper.init(site, catalog_proc, BackendTarget.NATIVE_EE_JNI, null, catalog_clus, p_estimator, 1);
 //        return wrapper.callAndBlock(1l, CLIENT_HANDLE++, (Object) null);
 //    }

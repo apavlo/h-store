@@ -1086,8 +1086,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Check whether there is something we can speculatively execute right now
         if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
-            work = null; // FIXME this.specExecScheduler.next(this.currentDtxn);
-            if (work != null) this.enableSpeculativeExecution(this.currentDtxn);
+            // FIXME work = this.specExecScheduler.next(this.currentDtxn);
+            // FIXME if (work != null) this.enableSpeculativeExecution(this.currentDtxn);
         }
         // Check whether we have anything in our non-blocking queue
         if (work == null) {
