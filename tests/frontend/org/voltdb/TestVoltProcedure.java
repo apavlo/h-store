@@ -56,6 +56,7 @@ import java.util.Date;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.catalog.*;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.PartitionEstimator;
@@ -125,7 +126,6 @@ public class TestVoltProcedure extends TestCase {
         }
     }
 
-    MockExecutionSite site;
     ParameterSet nullParam;
 
     public void testDummyTest() {
@@ -226,18 +226,4 @@ public class TestVoltProcedure extends TestCase {
 //        return wrapper.callAndBlock(1l, CLIENT_HANDLE++, (Object) null);
 //    }
 
-    private class MockExecutionSite extends PartitionExecutor {
-        public MockExecutionSite(int siteId, String serializedCatalog) {
-            this.siteId = siteId;
-
-            // get some catalog shortcuts ready
-            catalog = new Catalog();
-            catalog.execute(serializedCatalog);
-            cluster = catalog.getClusters().get("cluster");
-            this.site = cluster.getSites().get(Integer.toString(siteId));
-            //host = cluster.getHosts().get("host");
-            //site = host.getSites().get(String.valueOf(siteId));
-            database = cluster.getDatabases().get("database");
-        }
-    }
 }

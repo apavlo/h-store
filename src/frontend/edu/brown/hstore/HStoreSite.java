@@ -147,7 +147,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Site catalog_site;
     private final int site_id;
     private final String site_name;
-    private Procedure catalog_procs[];
     
     /**
      * This buffer pool is used to serialize ClientResponses to send back
@@ -427,14 +426,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        // Mapping from ProcIds to Procedures
-        // TODO: This should be moved in CatalogContext
-        this.catalog_procs = new Procedure[catalogContext.database.getProcedures().size()+1];
-        for (Procedure catalog_proc : catalogContext.database.getProcedures()) {
-            this.catalog_procs[catalog_proc.getId()] = catalog_proc;
-        } // FOR
-        
-        this.all_partitions = new PartitionSet(CatalogUtil.getAllPartitionIds(this.catalogContext.database));
+        this.all_partitions = catalogContext.getAllPartitionIdCollection();
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
@@ -1485,11 +1477,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                        client_handle, procId, base_partition));
         
         // Optimization: We can get the Procedure catalog handle from its procId
-        Procedure catalog_proc = null;
+        Procedure catalog_proc = catalogContext.getProcedureById(procId);
         String procName = null;
-        if (procId >= 0 && procId < this.catalog_procs.length) {
-            catalog_proc = this.catalog_procs[procId];
-        }
      
         // Otherwise, we have to get the procedure name and do a look up with that.
         if (catalog_proc == null) {
@@ -1721,7 +1710,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                            int base_partition,
                                                            int procId,
                                                            ByteBuffer paramsBuffer) {
-        Procedure catalog_proc = this.catalog_procs[procId];
+        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
         if (catalog_proc == null) {
             throw new RuntimeException("Unknown procedure id '" + procId + "'");
         }
@@ -1767,7 +1756,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, int proc_id) {
         RemoteTransaction ts = null;
-        Procedure catalog_proc = this.catalog_procs[proc_id];
+        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
         try {
             // Remote Transaction
             ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();

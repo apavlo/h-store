@@ -213,9 +213,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Catalog objects
      */
     protected final CatalogContext catalogContext;
-    protected Catalog catalog;
-    protected Cluster cluster;
-    protected Database database;
     protected Site site;
     protected int siteId;
     private Partition partition;
@@ -512,9 +509,9 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
 
     protected class SystemProcedureContext implements SystemProcedureExecutionContext {
-        public Catalog getCatalog()                 { return catalog; }
-        public Database getDatabase()               { return cluster.getDatabases().get("database"); }
-        public Cluster getCluster()                 { return cluster; }
+        public Catalog getCatalog()                 { return catalogContext.catalog; }
+        public Database getDatabase()               { return catalogContext.database; }
+        public Cluster getCluster()                 { return catalogContext.cluster; }
         public Site getSite()                       { return site; }
         public Host getHost()                       { return PartitionExecutor.this.getHost(); }
         public ExecutionEngine getExecutionEngine() { return ee; }
@@ -544,10 +541,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.t_estimator = null;
         this.m_snapshotter = null;
         this.thresholds = null;
-        this.catalog = null;
-        this.cluster = null;
         this.site = null;
-        this.database = null;
         this.backend_target = BackendTarget.HSQLDB_BACKEND;
         this.siteId = 0;
         this.partitionId = 0;
@@ -580,7 +574,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 hstore_conf.site.queue_incoming_increase_max
         );
         this.catalogContext = catalogContext;
-        this.catalog = catalogContext.catalog;
         this.partition = catalogContext.getPartitionById(partitionId);
         assert(this.partition != null) : "Invalid Partition #" + partitionId;
         this.partitionId = this.partition.getId();
@@ -592,8 +585,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.specExecScheduler = new SpecExecScheduler(this);
         
         this.backend_target = target;
-        this.cluster = catalogContext.cluster;
-        this.database = catalogContext.database;
 
         // The PartitionEstimator is what we use to figure our where our transactions are going to go
         this.p_estimator = p_estimator;
@@ -621,7 +612,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (d) LOG.debug("Creating EE wrapper with target type '" + target + "'");
             if (this.backend_target == BackendTarget.HSQLDB_BACKEND) {
                 hsqlTemp = new HsqlBackend(partitionId);
-                final String hexDDL = database.getSchema();
+                final String hexDDL = catalogContext.database.getSchema();
                 final String ddl = Encoder.hexDecodeToString(hexDDL);
                 final String[] commands = ddl.split(";");
                 for (String command : commands) {
@@ -636,7 +627,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             else if (target == BackendTarget.NATIVE_EE_JNI) {
                 org.voltdb.EELibraryLoader.loadExecutionEngineLibrary(true);
                 // set up the EE
-                eeTemp = new ExecutionEngineJNI(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
+                eeTemp = new ExecutionEngineJNI(this, catalogContext.cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost");
                 
                 // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
@@ -644,7 +635,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     eeTemp.antiCacheInitialize(acFile);
                 }
                 
-                eeTemp.loadCatalog(catalog.serialize());
+                eeTemp.loadCatalog(catalogContext.catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
                 
@@ -658,8 +649,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             else {
                 // set up the EE over IPC
-                eeTemp = new ExecutionEngineIPC(this, cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost", target);
-                eeTemp.loadCatalog(catalog.serialize());
+                eeTemp = new ExecutionEngineIPC(this, catalogContext.cluster.getRelativeIndex(), this.getSiteId(), this.getPartitionId(), this.getHostId(), "localhost", target);
+                eeTemp.loadCatalog(catalogContext.catalog.serialize());
                 lastTickTime = System.currentTimeMillis();
                 eeTemp.tick( lastTickTime, 0);
             }
@@ -679,7 +670,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.tmp_fragmentParams = new ParameterSetArrayCache(5);
 
         // Initialize temporary data structures
-        int num_sites = CatalogUtil.getNumberOfSites(this.catalog);
+        int num_sites = this.catalogContext.numberOfExecSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
         
         // Utility Work Queue
@@ -693,7 +684,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     @SuppressWarnings("unchecked")
     protected void initializeVoltProcedures() {
         // load up all the stored procedures
-        for (final Procedure catalog_proc : database.getProcedures()) {
+        for (final Procedure catalog_proc : catalogContext.database.getProcedures()) {
             VoltProcedure volt_proc = null;
             
             if (catalog_proc.getHasjava()) {
@@ -2335,13 +2326,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @throws VoltAbortException
      */
     public void loadTable(AbstractTransaction ts, String clusterName, String databaseName, String tableName, VoltTable data, int allowELT) throws VoltAbortException {
-        if (cluster == null) {
-            throw new VoltProcedure.VoltAbortException("cluster '" + clusterName + "' does not exist");
-        }
-        if (this.database.getName().equalsIgnoreCase(databaseName) == false) {
-            throw new VoltAbortException("database '" + databaseName + "' does not exist in cluster " + clusterName);
-        }
-        Table table = this.database.getTables().getIgnoreCase(tableName);
+        Table table = this.catalogContext.database.getTables().getIgnoreCase(tableName);
         if (table == null) {
             throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
@@ -2710,7 +2695,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     has_remote = true;
                 }
                 for (int frag_id : frag.getFragmentIdList()) {
-                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(database, frag_id);
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalogContext.database, frag_id);
                     Statement catalog_stmt = catalog_frag.getParent();
                     assert(catalog_stmt != null);
                     Procedure catalog_proc = catalog_stmt.getParent();
