@@ -651,7 +651,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.readTables[offset].get(tableId) || this.writeTables[offset].get(tableId));
     }
     
-    protected void clearReadWriteSets() {
+    /**
+     * Clear read/write table sets
+     * <B>NOTE:</B> This should only be used for testing
+     */
+    public final void clearReadWriteSets() {
         for (int i = 0; i < this.readTables.length; i++) {
             this.readTables[i].clear();
             this.writeTables[i].clear();

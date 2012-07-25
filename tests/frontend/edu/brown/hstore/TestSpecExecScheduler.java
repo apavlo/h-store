@@ -79,6 +79,63 @@ public class TestSpecExecScheduler extends BaseTestCase {
     }
     
     /**
+     * testWriteWriteConflicting
+     */
+    public void testWriteWriteConflicting() throws Exception {
+        // Make a single-partition txn for a procedure that has a write-write conflict with
+        // our dtxn and add it to our queue. It should only be allowed to be returned by next()
+        // if the current dtxn has not written to that table yet (but reads are allowed)
+        Procedure dtxnProc = dtxn.getProcedure();
+        Procedure proc = null;
+        for (Procedure p : catalogContext.getRegularProcedures()) {
+            Collection<Procedure> c = CatalogUtil.getWriteWriteConflicts(p);
+            if (c.contains(dtxnProc)) {
+                proc = p;
+                break;
+            }
+        } // FOR
+        assertNotNull(proc);
+        
+        ConflictSet cs = proc.getConflicts().get(dtxnProc.getName());
+        assertNotNull(cs);
+        Collection<Table> conflictTables = CatalogUtil.getTablesFromRefs(cs.getWritewriteconflicts());
+        assertFalse(conflictTables.isEmpty());
+        
+        // First time we should be able to get through
+        LocalTransaction ts = new LocalTransaction(this.hstore_site);
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        assertTrue(ts.isPredictSinglePartition());
+        this.work_queue.add(new StartTxnMessage(ts));
+        StartTxnMessage next = this.scheduler.next(this.dtxn);
+        assertNotNull(next);
+        assertEquals(ts, next.getTransaction());
+        assertTrue(ts.isSpeculative());
+        ts.finish();
+        
+        // Now have the dtxn "write" to one of the tables in our ConflictSet
+        dtxn.clearReadWriteSets();
+        dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        assertTrue(ts.isPredictSinglePartition());
+        this.work_queue.add(new StartTxnMessage(ts));
+        next = this.scheduler.next(this.dtxn);
+        assertNull(next);
+        assertFalse(ts.isSpeculative());
+        ts.finish();
+        
+        // Reads aren't allowed either
+        dtxn.clearReadWriteSets();
+        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        assertTrue(ts.isPredictSinglePartition());
+        this.work_queue.add(new StartTxnMessage(ts));
+        next = this.scheduler.next(this.dtxn);
+        assertNull(next);
+        assertFalse(ts.isSpeculative());
+        ts.finish();
+    }
+    
+    /**
      * testReadWriteConflicting
      */
     public void testReadWriteConflicting() throws Exception {
@@ -100,7 +157,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         
         ConflictSet cs = proc.getConflicts().get(dtxnProc.getName());
         assertNotNull(cs);
-        Collection<Table> conflictTables = CatalogUtil.getTables(cs.getReadwriteconflicts());
+        Collection<Table> conflictTables = CatalogUtil.getTablesFromRefs(cs.getReadwriteconflicts());
         assertFalse(conflictTables.isEmpty());
         
         LocalTransaction ts = new LocalTransaction(this.hstore_site);
@@ -113,7 +170,20 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isSpeculative());
         ts.finish();
         
-        // Now have the dtxn "write" to one of the tables in our ConflictSet
+        // Reads are allowed!
+        dtxn.clearReadWriteSets();
+        dtxn.markTableAsRead(BASE_PARTITION, CollectionUtil.first(conflictTables));
+        ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
+        assertTrue(ts.isPredictSinglePartition());
+        this.work_queue.add(new StartTxnMessage(ts));
+        next = this.scheduler.next(this.dtxn);
+        assertNotNull(next);
+        assertEquals(ts, next.getTransaction());
+        assertTrue(ts.isSpeculative());
+        ts.finish();
+        
+        // But writes are not!
+        dtxn.clearReadWriteSets();
         dtxn.markTableAsWritten(BASE_PARTITION, CollectionUtil.first(conflictTables));
         ts.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());

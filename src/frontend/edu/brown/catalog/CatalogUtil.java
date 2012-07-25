@@ -1046,7 +1046,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tableRefs
      * @return
      */
-    public static Collection<Table> getTables(Collection<TableRef> tableRefs) {
+    public static Collection<Table> getTablesFromRefs(Collection<TableRef> tableRefs) {
         List<Table> tables = new ArrayList<Table>();
         for (TableRef ref : tableRefs) {
             tables.add(ref.getTable());

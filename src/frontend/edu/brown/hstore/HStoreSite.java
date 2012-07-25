@@ -103,6 +103,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
@@ -389,16 +390,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final Histogram<Integer> network_incoming_partitions = new Histogram<Integer>();
     
-    /**
-     * How much time the VoltProcedureListener spent not processing
-     * new incoming requests from clients. 
-     */
-    private final ProfileMeasurement network_idle_time;
-    
-    /**
-     * How long it takes for the VoltProcedureListener to process each request
-     */
-    private final ProfileMeasurement network_processing_time;
+    private final HStoreSiteProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // CACHED STRINGS
@@ -509,7 +501,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.txnQueueManager = new TransactionQueueManager(this);
         
         // MapReduce Transaction helper thread
-        if (CatalogUtil.getMapReduceProcedures(this.catalogContext.database).isEmpty() == false) { 
+        if (catalogContext.getMapReduceProcedures().isEmpty() == false) { 
             this.mr_helper = new MapReduceHelperThread(this);
         } else {
             this.mr_helper = null;
@@ -676,15 +668,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Profiling
         if (hstore_conf.site.network_profiling) {
-            this.network_idle_time = new ProfileMeasurement("IDLE");
-            this.network_processing_time = new ProfileMeasurement("PROCESSING");
-            
+            this.profiler = new HStoreSiteProfiler();
             if (hstore_conf.site.status_show_executor_info) {
-                this.network_idle_time.resetOnEventObservable(this.startWorkload_observable);
+                this.profiler.network_idle_time.resetOnEventObservable(this.startWorkload_observable);
             }
         } else {
-            this.network_idle_time = null;
-            this.network_processing_time = null;
+            this.profiler = null;
         }
         
         LoggerUtil.refreshLogging(hstore_conf.global.log_refresh);
@@ -1228,7 +1217,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.shutdown_state = ShutdownState.STARTED;
         if (hstore_conf.site.network_profiling) {
-            this.network_idle_time.start();
+            this.profiler.network_idle_time.start();
         }
         this.ready = true;
         this.ready_observable.notifyObservers(this);
@@ -1269,11 +1258,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.network_incoming_partitions);
     }
     
-    public ProfileMeasurement getNetworkProcessorTime() {
-        return (this.network_processing_time);
-    }
-    public ProfileMeasurement getNetworkIdleTime() {
-        return (this.network_idle_time);
+    public HStoreSiteProfiler getProfiler() {
+        return (this.profiler);
     }
     
     // ----------------------------------------------------------------------------
@@ -1468,7 +1454,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.network_profiling || hstore_conf.site.txn_profiling) {
             long timestamp = ProfileMeasurement.getTime();
             if (hstore_conf.site.network_profiling) {
-                ProfileMeasurement.swap(timestamp, this.network_idle_time, this.network_processing_time);
+                ProfileMeasurement.swap(timestamp, this.profiler.network_idle_time, this.profiler.network_processing_time);
             }
             // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
         }
@@ -1615,7 +1601,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
         EstTimeUpdater.update(System.currentTimeMillis());
         if (hstore_conf.site.network_profiling) {
-            ProfileMeasurement.swap(this.network_processing_time, this.network_idle_time);
+            ProfileMeasurement.swap(this.profiler.network_processing_time, this.profiler.network_idle_time);
         }
     }
     

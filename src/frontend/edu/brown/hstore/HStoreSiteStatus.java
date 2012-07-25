@@ -36,6 +36,7 @@ import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.profilers.HStoreSiteProfiler;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
@@ -396,12 +397,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         
         if (hstore_conf.site.network_profiling) {
-            pm = this.hstore_site.getNetworkIdleTime();
+            HStoreSiteProfiler profiler = this.hstore_site.getProfiler();
+            pm = profiler.network_idle_time;
             value = this.formatProfileMeasurements(pm, this.lastNetworkIdle, true, true);
             siteInfo.put("Network Idle", value);
             this.lastNetworkIdle = new ProfileMeasurement(pm);
             
-            pm = this.hstore_site.getNetworkProcessorTime();
+            pm = profiler.network_processing_time;
             value = this.formatProfileMeasurements(pm, this.lastNetworkProcessing, true, true);
             siteInfo.put("Network Processing", value);
             this.lastNetworkProcessing = new ProfileMeasurement(pm);
