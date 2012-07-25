@@ -185,6 +185,18 @@ public class ExecutionState {
         return (this.output_order);
     }
     
+    /**
+     * Return the number of statements that have been queued up in the last batch
+     * @return
+     */
+    protected int getStatementCount() {
+        return (this.batch_size);
+    }
+    
+    protected Map<Integer, DependencyInfo> getStatementDependencies(int stmt_index) {
+        return (this.dependencies); // [stmt_index]);
+    }
+    
     // ----------------------------------------------------------------------------
     // EXECUTION ROUNDS
     // ----------------------------------------------------------------------------

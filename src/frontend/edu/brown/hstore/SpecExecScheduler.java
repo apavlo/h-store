@@ -5,7 +5,7 @@ import java.util.Iterator;
 import java.util.Queue;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Database;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
@@ -30,11 +30,10 @@ public class SpecExecScheduler {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final Database catalog_db;
+    private final CatalogContext catalogContext;
     private final PartitionExecutor executor;
     private final int partitionId;
     private final Queue<InternalMessage> work_queue;
-    private final Procedure catalog_procs[];
     private final BitSet rwConflicts[];
     private final BitSet wwConflicts[];
     
@@ -42,18 +41,16 @@ public class SpecExecScheduler {
         this.executor = executor;
         this.partitionId = this.executor.getPartitionId();
         this.work_queue = this.executor.getWorkQueue();
-        this.catalog_db = CatalogUtil.getDatabase(executor.getCatalogSite());
+        this.catalogContext = this.executor.getCatalogContext();
         
-        int size = this.catalog_db.getProcedures().size()+1;
+        int size = this.catalogContext.procedures.size()+1;
         this.rwConflicts = new BitSet[size];
         this.wwConflicts = new BitSet[size];
-        this.catalog_procs = new Procedure[size];
         
-        for (Procedure catalog_proc : this.catalog_db.getProcedures().values()) {
+        for (Procedure catalog_proc : this.catalogContext.procedures) {
             if (catalog_proc.getSystemproc() || catalog_proc.getMapreduce()) continue;
             
             int idx = catalog_proc.getId();
-            this.catalog_procs[idx] = catalog_proc;
            
             // Precompute bitmaps for the conflicts
             this.rwConflicts[idx] = new BitSet(size);
@@ -83,7 +80,7 @@ public class SpecExecScheduler {
      * @return
      */
     public StartTxnMessage next(AbstractTransaction dtxn) {
-        Procedure catalog_proc = this.catalog_procs[dtxn.getProcedureId()];
+        Procedure catalog_proc = this.catalogContext.getProcedureById(dtxn.getProcedureId());
         BitSet rwCon = this.rwConflicts[dtxn.getProcedureId()];
         BitSet wwCon = this.wwConflicts[dtxn.getProcedureId()];
         if (catalog_proc == null || rwCon == null || wwCon == null) {
@@ -115,7 +112,20 @@ public class SpecExecScheduler {
             else if (msg instanceof StartTxnMessage) {
                 StartTxnMessage txn_msg = (StartTxnMessage)msg;
                 LocalTransaction ts = txn_msg.getTransaction();
+                if (ts.isPredictSinglePartition() == false) continue;
+
                 int procId = ts.getProcedureId();
+                boolean hasRWConflict = rwCon.get(procId);
+                boolean hasWWConflict = wwCon.get(procId);
+                
+                if (hasWWConflict == false && hasRWConflict == false) {
+                    
+                    
+                    
+                    
+                    ts.setSpeculative(true);
+                }
+                
                 
                 // Only release it if it's single-partitioned and does not conflict
                 // with our current dtxn

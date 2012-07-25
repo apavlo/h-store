@@ -218,12 +218,12 @@ public class TestTransactionState extends BaseTestCase {
         this.addFragments();
         
         assertEquals(NUM_EXPECTED_DEPENDENCIES, this.execState.getDependencyCount());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getStatementCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.execState.getStatementCount());
         
         // For each Statement that we have queued, make sure that they have the proper
         // partitions setup for the dependencies that we expect to show up
         for (int i = 0; i < NUM_DUPLICATE_STATEMENTS; i++) {
-            Map<Integer, DependencyInfo> stmt_dinfos = this.ts.getStatementDependencies(i);
+            Map<Integer, DependencyInfo> stmt_dinfos = this.execState.getStatementDependencies(i);
             assertNotNull(stmt_dinfos);
             assertFalse(stmt_dinfos.isEmpty());
             
