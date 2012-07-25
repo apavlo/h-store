@@ -187,7 +187,7 @@ public class TestCatalogCloner extends BaseTestCase {
             
             assertEquals(cs0.getWritewriteconflicts().size(), cs1.getWritewriteconflicts().size());
             for (TableRef ref0 : cs0.getWritewriteconflicts()) {
-                TableRef ref1 = cs1.getReadwriteconflicts().get(ref0.getName());
+                TableRef ref1 = cs1.getWritewriteconflicts().get(ref0.getName());
                 assertNotNull(ref1);
                 assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
             } // FOR
