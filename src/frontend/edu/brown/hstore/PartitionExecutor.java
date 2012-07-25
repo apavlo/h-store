@@ -1600,7 +1600,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Execute a new transaction based on an InitiateTaskMessage
+     * Execute a new transaction. This will invoke the run() method define in the
+     * VoltProcedure for this txn and then process the ClientResponse
      * @param itask
      */
     private void executeTransaction(LocalTransaction ts) {
@@ -1720,7 +1721,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         ClientResponseImpl cresponse = null;
         try {
-            cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
+            cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
@@ -1747,6 +1748,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             return;
         }
         
+        // -------------------------------
+        // PROCESS RESPONSE AND FIGURE OUT NEXT STEP
+        // -------------------------------
+        
         Status status = cresponse.getStatus();
         if (d) LOG.debug(String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, before_mode, this.currentExecMode));
@@ -1766,12 +1771,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // Otherwise always queue our response, since we know that whatever thread is out there
                 // is waiting for us to finish before it drains the queued responses
                 else {
-                    // If the transaction aborted, then we can't execute any transaction that touch the tables that this guy touches
-                    // But since we can't just undo this transaction without undoing everything that came before it, we'll just
-                    // disable executing all transactions until the multi-partition transaction commits
-                    // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
-                    // that there already was a multi-partition transaction hanging around.
-                    if (status != Status.OK && ts.isExecReadOnlyAllPartitions() == false) {
+                    // If the transaction aborted, then we can't execute any transaction that touch the tables
+                    // that this guy touches. But since we can't just undo this transaction without undoing 
+                    // everything that came before it, we'll just disable executing all transactions until the 
+                    // multi-partition transaction commits
+                    // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either 
+                    // executed in non-spec mode, or that there already was a distributed transaction hanging around.
+                    if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.currentBlockedTxns);
                         if (t && blocked > 0)
@@ -1807,15 +1813,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Commit All
         if (this.currentExecMode == ExecutionMode.COMMIT_ALL) {
             return (true);
-            
+        }
         // Process successful txns based on the mode that it was executed under
-        } else if (status == Status.OK) {
+        else if (status == Status.OK) {
             switch (before_mode) {
                 case COMMIT_ALL:
                     return (true);
                 case COMMIT_READONLY:
+                    // Read-only speculative txns can be committed right now
                     return (ts.isExecReadOnly(this.partitionId));
                 case COMMIT_NONE: {
+                    // If this txn does not conflict with the current dtxn, then we should be able
+                    // to let it commit but we can't because of the way our undo tokens work
                     return (false);
                 }
                 default:
@@ -2473,7 +2482,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         VoltTable results[] = null;
-        if (plan.isReadOnly() == false) ts.markExecNotReadOnlyAllPartitions();
         
         // If the BatchPlan only has WorkFragments that are for this partition, then
         // we can use the fast-path executeLocalPlan() method

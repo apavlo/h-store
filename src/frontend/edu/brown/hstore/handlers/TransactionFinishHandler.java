@@ -47,13 +47,13 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
             RpcCallback<TransactionFinishResponse> callback) {
         if (finishDispatcher != null && request.getStatus() == Hstoreservice.Status.ABORT_RESTART) {
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("Queuing %s for txn #%d [status=%s]",
+                LOG.debug(String.format("Queuing %s for txn #%d [status=%s]",
                                         request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             Object o[] = { controller, request, callback };
             finishDispatcher.queue(o);
         } else {
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("Sending %s to remote handler for txn #%d [status=%s]",
+                LOG.debug(String.format("Sending %s to remote handler for txn #%d [status=%s]",
                                         request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             this.remoteHandler(controller, request, callback);
         }
@@ -64,7 +64,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [status=%s]",
+            LOG.debug(String.format("Got %s for txn #%d [status=%s]",
                                     request.getClass().getSimpleName(), txn_id, request.getStatus()));
         
         this.finishPartitions.clear();
@@ -78,7 +78,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
             if (hstore_site.isLocalPartition(p)) builder.addPartitions(p);
         } // FOR
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
+            LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                                     TransactionFinishResponse.class.getSimpleName(), txn_id,
                                     request.getStatus(), builder.getPartitionsList()));
         callback.run(builder.build());
