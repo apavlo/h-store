@@ -522,7 +522,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param paramList
      * @return
      */
-    public final ClientResponse call(LocalTransaction txnState, Object... paramList) {
+    public final ClientResponseImpl call(LocalTransaction txnState, Object... paramList) {
         ClientResponseImpl response = null;
         this.m_currentTxnState = txnState;
         this.m_localTxnState = txnState;
@@ -580,7 +580,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // a handle that we need to pass to the trace manager when we want to register a new query
         if (this.workloadTraceEnable) {
             this.workloadQueryHandles.clear();
-            this.workloadTxnHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
+            this.workloadTxnHandle = ProcedureProfiler.workloadTrace.startTransaction(
+                    this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
         }
 
         // Fix to make no-Java procedures work

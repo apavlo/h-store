@@ -141,12 +141,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     protected boolean predict_readOnly = false;
     
     // ----------------------------------------------------------------------------
-    // GLOBAL EXECUTION FLAGS
-    // ----------------------------------------------------------------------------
-    
-    private boolean exec_readOnlyAll = true;
-    
-    // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
     
@@ -253,7 +247,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.pending_error = null;
         this.status = null;
         this.sysproc = false;
-        this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
@@ -395,27 +388,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public void markExecNotReadOnly(int partition) {
         this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
-    /**
-     * Mark this transaction as having issued a SQLStmt batch that modifies data on
-     * some partition. This doesn't need to specify which partition that this txn modified
-     * data on, it's just to say that somewhere we are going to try to change something.
-     */
-    public void markExecNotReadOnlyAllPartitions() {
-        this.exec_readOnlyAll = false;
-    }
 
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
         return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
-    }
-    /**
-     * Returns true if this transaction has not executed any modifying work at all the
-     * partitions that it accessed
-     */
-    public boolean isExecReadOnlyAllPartitions() {
-        return (this.exec_readOnlyAll);
     }
     
     /**
