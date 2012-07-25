@@ -616,10 +616,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.readTables[offset].set(catalog_tbl.getRelativeIndex());
     }
     public void markTableIdsAsRead(int partition, int...tableIds) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        for (int id : tableIds) {
-            this.readTables[offset].set(id);
-        } // FOR
+        if (tableIds != null) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            for (int id : tableIds) {
+                this.readTables[offset].set(id);
+            } // FOR
+        }
     }
     public boolean isTableRead(int partition, Table catalog_tbl) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
@@ -631,14 +633,23 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.writeTables[offset].set(catalog_tbl.getRelativeIndex());
     }
     public void markTableIdsAsWritten(int partition, int...tableIds) {
-        int offset = hstore_site.getLocalPartitionOffset(partition);
-        for (int id : tableIds) {
-            this.writeTables[offset].set(id);
-        } // FOR
+        if (tableIds != null) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            for (int id : tableIds) {
+                this.writeTables[offset].set(id);
+            } // FOR
+        }
     }
     public boolean isTableWritten(int partition, Table catalog_tbl) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         return (this.writeTables[offset].get(catalog_tbl.getRelativeIndex()));
+    }
+    
+    protected void clearReadWriteSets() {
+        for (int i = 0; i < this.readTables.length; i++) {
+            this.readTables[i].clear();
+            this.writeTables[i].clear();
+        } // FOR
     }
     
     
