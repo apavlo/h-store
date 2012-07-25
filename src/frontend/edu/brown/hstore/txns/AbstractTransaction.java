@@ -645,6 +645,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         return (this.writeTables[offset].get(catalog_tbl.getRelativeIndex()));
     }
     
+    public boolean isTableReadOrWritten(int partition, Table catalog_tbl) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        int tableId = catalog_tbl.getRelativeIndex();
+        return (this.readTables[offset].get(tableId) || this.writeTables[offset].get(tableId));
+    }
+    
     protected void clearReadWriteSets() {
         for (int i = 0; i < this.readTables.length; i++) {
             this.readTables[i].clear();
