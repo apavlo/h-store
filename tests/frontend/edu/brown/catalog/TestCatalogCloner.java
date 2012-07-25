@@ -21,7 +21,6 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.ProcedureRef;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.catalog.TableRef;
@@ -172,13 +171,26 @@ public class TestCatalogCloner extends BaseTestCase {
     
     private void checkProcedureConflicts(Procedure catalog_proc, CatalogMap<ConflictSet> conflicts0, CatalogMap<ConflictSet> conflicts1) {
         assertEquals(catalog_proc.toString(), conflicts0.size(), conflicts1.size());
-        for (ConflictSet cs : conflicts0) {
-            assertNotNull(cs);
-            assertNotNull(ref.getProcedure());
-            ProcedureRef clone_ref = conflicts1.get(ref.getName());
-            assertNotNull(clone_ref);
-            assertNotNull(clone_ref.getProcedure());
-            assertEquals(ref.getName(), clone_ref.getName());
+        for (String procName : conflicts0.keySet()) {
+            assertNotNull(procName);
+            ConflictSet cs0 = conflicts0.get(procName);
+            assertNotNull(cs0);
+            ConflictSet cs1 = conflicts1.get(procName);
+            assertNotNull(cs1);
+            
+            assertEquals(cs0.getReadwriteconflicts().size(), cs1.getReadwriteconflicts().size());
+            for (TableRef ref0 : cs0.getReadwriteconflicts()) {
+                TableRef ref1 = cs1.getReadwriteconflicts().get(ref0.getName());
+                assertNotNull(ref1);
+                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            } // FOR
+            
+            assertEquals(cs0.getWritewriteconflicts().size(), cs1.getWritewriteconflicts().size());
+            for (TableRef ref0 : cs0.getWritewriteconflicts()) {
+                TableRef ref1 = cs1.getReadwriteconflicts().get(ref0.getName());
+                assertNotNull(ref1);
+                assertEquals(ref0.getTable().getName(), ref1.getTable().getName());
+            } // FOR
         } // FOR
     }
 
@@ -255,8 +267,8 @@ public class TestCatalogCloner extends BaseTestCase {
             assertEquals(clone_proc.getParameters().toString(), catalog_proc.getParameters().size(), clone_proc.getParameters().size());
 
             // Procedure Conflicts
-            this.checkProcedureConflicts(catalog_proc, catalog_proc.getReadconflicts(), clone_proc.getReadconflicts());
-            this.checkProcedureConflicts(catalog_proc, catalog_proc.getWriteconflicts(), clone_proc.getWriteconflicts());
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getConflicts(), clone_proc.getConflicts());
+            this.checkProcedureConflicts(catalog_proc, catalog_proc.getConflicts(), clone_proc.getConflicts());
             
             for (ProcParameter catalog_param : catalog_proc.getParameters()) {
                 ProcParameter clone_param = clone_proc.getParameters().get(catalog_param.getIndex());

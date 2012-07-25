@@ -373,7 +373,7 @@ public abstract class CatalogCloner {
             if (dest_proc == null) continue; 
             
             for (ConflictSet src_conflicts : src_proc.getConflicts()) {
-                ConflictSet dest_conflicts = dest_proc.getConflicts().get(src_conflicts.getName());
+                ConflictSet dest_conflicts = dest_proc.getConflicts().add(src_conflicts.getName());
                 
                 for (TableRef src_ref : src_conflicts.getReadwriteconflicts()) {
                     TableRef dest_ref = dest_conflicts.getReadwriteconflicts().add(src_ref.getName());
