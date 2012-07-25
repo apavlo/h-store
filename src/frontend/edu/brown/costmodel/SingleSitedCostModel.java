@@ -29,9 +29,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -405,29 +405,29 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * 
      * @param catalog_db
      */
-    public SingleSitedCostModel(Database catalog_db) {
-        this(catalog_db, new PartitionEstimator(catalog_db)); // FIXME
+    public SingleSitedCostModel(CatalogContext catalogContext) {
+        this(catalogContext, new PartitionEstimator(catalogContext)); // FIXME
     }
 
     /**
      * I forget why we need this...
      */
-    public SingleSitedCostModel(Database catalog_db, PartitionEstimator p_estimator) {
-        super(SingleSitedCostModel.class, catalog_db, p_estimator);
+    public SingleSitedCostModel(CatalogContext catalogContext, PartitionEstimator p_estimator) {
+        super(SingleSitedCostModel.class, catalogContext, p_estimator);
 
         // Initialize cache data structures
-        if (catalog_db != null) {
-            for (String table_key : CatalogKey.createKeys(catalog_db.getTables())) {
+        if (catalogContext != null) {
+            for (String table_key : CatalogKey.createKeys(catalogContext.database.getTables())) {
                 this.cache_tableXref.put(table_key, new HashSet<QueryCacheEntry>());
             } // FOR
-            for (String stmt_key : CatalogKey.createKeys(CatalogUtil.getAllStatements(catalog_db))) {
+            for (String stmt_key : CatalogKey.createKeys(CatalogUtil.getAllStatements(catalogContext.database))) {
                 this.cache_stmtXref.put(stmt_key, new HashSet<QueryCacheEntry>());
             } // FOR
 
             // List of tables touched by each partition
             if (trace.get())
                 LOG.trace("Building cached list of tables touched by each procedure");
-            for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            for (Procedure catalog_proc : catalogContext.database.getProcedures()) {
                 if (catalog_proc.getSystemproc())
                     continue;
                 String proc_key = CatalogKey.createKey(catalog_proc);
@@ -515,14 +515,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
     }
 
     @Override
-    public void prepareImpl(final Database catalog_db) {
+    public void prepareImpl(final CatalogContext catalogContext) {
         if (trace.get())
             LOG.trace("Prepare called!");
 
         // Recompute which tables have switched from Replicated to
         // Non-Replicated
         this.replicated_tables.clear();
-        for (Table catalog_tbl : catalog_db.getTables()) {
+        for (Table catalog_tbl : catalogContext.database.getTables()) {
             String table_key = CatalogKey.createKey(catalog_tbl);
             if (catalog_tbl.getIsreplicated()) {
                 this.replicated_tables.add(table_key);
@@ -835,7 +835,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
     private final PartitionSet temp_txnNewPartitions = new PartitionSet();
 
     @Override
-    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
+    public double estimateTransactionCost(CatalogContext catalogContext, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
         // Sanity Check: If we don't have any TransactionCacheEntries, then the
         // histograms should all be wiped out!
         if (this.txn_entries.size() == 0) {
@@ -843,7 +843,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             assert (this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
         }
 
-        TransactionCacheEntry txn_entry = this.processTransaction(catalog_db, txn_trace, filter);
+        TransactionCacheEntry txn_entry = this.processTransaction(catalogContext, txn_trace, filter);
         assert (txn_entry != null);
         if (debug.get())
             LOG.debug(txn_trace + ": " + (txn_entry.singlesited ? "Single" : "Multi") + "-Partition");
@@ -932,7 +932,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @return
      * @throws Exception
      */
-    protected TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
+    protected TransactionCacheEntry processTransaction(CatalogContext catalogContext, TransactionTrace txn_trace, Filter filter) throws Exception {
         final long txn_id = txn_trace.getTransactionId();
         final int txn_weight = (this.use_txn_weights ? txn_trace.getWeight() : 1);
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_id);
@@ -954,7 +954,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             }
         }
 
-        final Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+        final Procedure catalog_proc = txn_trace.getCatalogItem(catalogContext.database);
         assert (catalog_proc != null);
         final String proc_key = CatalogKey.createKey(catalog_proc);
 
@@ -995,7 +995,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         if (trace.get())
-            LOG.trace(String.format("%s [totalQueries=%d, examinedQueries=%d]\n%s", txn_entry, txn_entry.getTotalQueryCount(), txn_entry.getExaminedQueryCount(), txn_trace.debug(catalog_db)));
+            LOG.trace(String.format("%s [totalQueries=%d, examinedQueries=%d]\n%s", txn_entry, txn_entry.getTotalQueryCount(), txn_entry.getExaminedQueryCount(), txn_trace.debug(catalogContext.database)));
 
         // For each table, we need to keep track of the values that was used
         // when accessing their partition columns. This allows us to determine
@@ -1032,7 +1032,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             query_idx++;
             if (debug.get())
                 LOG.debug("Examining " + query_trace + " from " + txn_trace);
-            final Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
+            final Statement catalog_stmt = query_trace.getCatalogItem(catalogContext.database);
             assert (catalog_stmt != null);
 
             // If we have a filter and that filter doesn't want us to look at
@@ -1139,7 +1139,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     }
                 } // FOR (Entry<TableKey, Set<Partitions>>
                 if (trace.get())
-                    LOG.trace(sb.toString() + "\n" + query_trace.debug(catalog_db) + "\n" + StringUtil.SINGLE_LINE.trim());
+                    LOG.trace(sb.toString() + "\n" + query_trace.debug(catalogContext.database) + "\n" + StringUtil.SINGLE_LINE.trim());
 
                 // Lastly, update the various histogram that keep track of which
                 // partitions are accessed:
@@ -1205,7 +1205,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         } else {
             for (Entry<String, PartitionSet> e : temp_stmtPartitions.entrySet()) {
                 String table_key = e.getKey();
-                Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
+                Table catalog_tbl = CatalogKey.getFromKey(catalogContext.database, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
                     continue;
                 }
@@ -1306,7 +1306,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
         PartitionPlan pplan = new PartitionPlan();
-        pplan.load(pplan_path, args.catalog_db);
+        pplan.load(pplan_path, args.catalogContext.database);
         if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
             for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
                 pplan.setNullProcParameter(catalog_proc);
@@ -1317,7 +1317,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 pplan.setRandomProcParameter(catalog_proc);
             } // FOR
         }
-        pplan.apply(args.catalog_db);
+        pplan.apply(args.catalogContext.database);
 
         System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
         System.out.print(StringUtil.DOUBLE_LINE);
@@ -1343,8 +1343,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         long singlepartition = 0;
         long multipartition = 0;
         long total = 0;
-        SingleSitedCostModel costmodel = new SingleSitedCostModel(args.catalog_db);
-        Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
+        SingleSitedCostModel costmodel = new SingleSitedCostModel(args.catalogContext);
+        PartitionSet all_partitions = args.catalogContext.getAllPartitionIdCollection();
         // costmodel.setEntropyWeight(4.0);
         // costmodel.setJavaExecutionWeightEnabled(true);
         // costmodel.setJavaExecutionWeight(100);
@@ -1359,7 +1359,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 if (element instanceof TransactionTrace) {
                     total++;
                     TransactionTrace xact = (TransactionTrace) element;
-                    boolean is_singlesited = costmodel.processTransaction(args.catalog_db, xact, null).singlesited;
+                    boolean is_singlesited = costmodel.processTransaction(args.catalogContext, xact, null).singlesited;
                     if (is_singlesited) {
                         singlepartition++;
                         hist.put(xact.getCatalogItemName());

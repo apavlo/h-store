@@ -232,7 +232,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         catalog = catalogContext.catalog;
         catalog_db = catalogContext.database;
         
-        p_estimator = new PartitionEstimator(catalog_db);
+        p_estimator = new PartitionEstimator(catalogContext);
         assertNotNull(p_estimator);
         project_p_estimators.put(type, p_estimator);
     }

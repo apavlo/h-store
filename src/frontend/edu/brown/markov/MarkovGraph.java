@@ -749,7 +749,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             ArgumentsParser.PARAM_WORKLOAD,
             ArgumentsParser.PARAM_MARKOV_OUTPUT
         );
-        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
+        final PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext, args.hasher);
         Class<? extends MarkovGraphsContainer> containerClass = MarkovGraphsContainer.class;
         
         // Check whether we are generating the global graphs or the clustered versions

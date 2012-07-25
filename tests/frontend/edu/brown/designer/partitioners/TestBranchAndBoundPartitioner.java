@@ -32,7 +32,7 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
         super.setUp(ProjectType.TM1, true);
         
         // BasePartitionerTestCase will setup most of what we need
-        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, info.getNumIntervals()));
+        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalogContext, SingleSitedCostModel.class, info.getNumIntervals()));
         this.info.setPartitionerClass(BranchAndBoundPartitioner.class);
         assertNotNull(info.getStats());
         

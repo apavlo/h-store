@@ -450,7 +450,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
                                              new Object[]{ this.catalogContext.database, num_partitions },
                                              new Class<?>[]{ Database.class, int.class });
-        this.p_estimator = new PartitionEstimator(this.catalogContext.database, this.hasher);
+        this.p_estimator = new PartitionEstimator(this.catalogContext, this.hasher);
 
         // **IMPORTANT**
         // Always clear out the CatalogUtil and BatchPlanner before we start our new HStoreSite

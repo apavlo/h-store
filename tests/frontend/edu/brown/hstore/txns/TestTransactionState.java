@@ -84,9 +84,9 @@ public class TestTransactionState extends BaseTestCase {
         this.addPartitions(NUM_PARTITIONS);
         
         if (executor == null) {
-            PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+            PartitionEstimator p_estimator = new PartitionEstimator(catalogContext);
             executor = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
-            p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+            p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here
             Procedure catalog_proc = catalog_db.getProcedures().get(TARGET_PROCEDURE);

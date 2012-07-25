@@ -17,6 +17,7 @@
 
 package org.voltdb;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -92,7 +93,14 @@ public class CatalogContext {
     private final Map<Long, int[]> fragmentReadTables = new HashMap<Long, int[]>(); 
     private final Map<Long, int[]> fragmentWriteTables = new HashMap<Long, int[]>();
     
+    public CatalogContext(Catalog catalog) {
+        this(catalog, CatalogContext.NO_PATH);
+    }
 
+    public CatalogContext(Catalog catalog, File pathToCatalogJar) {
+        this(catalog, pathToCatalogJar.getAbsolutePath());
+    }
+    
     public CatalogContext(Catalog catalog, String pathToCatalogJar) {
         // check the heck out of the given params in this immutable class
         assert(catalog != null);

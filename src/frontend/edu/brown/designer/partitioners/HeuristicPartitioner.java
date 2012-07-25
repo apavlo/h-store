@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import java.util.Vector;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -121,7 +122,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
 
         // Initialize Cost Model
         assert (info.getNumIntervals() > 0);
-        this.cost_model = new TimeIntervalCostModel<SingleSitedCostModel>(info.catalog_db, SingleSitedCostModel.class, info.getNumIntervals());
+        this.cost_model = new TimeIntervalCostModel<SingleSitedCostModel>(info.catalogContext, SingleSitedCostModel.class, info.getNumIntervals());
     }
 
     // ----------------------------------------------------
@@ -137,7 +138,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         // ----------------------------------------------------
         final Vector<PartitionTree> partition_trees = new Vector<PartitionTree>();
         List<Thread> threads = new ArrayList<Thread>();
-        for (final Procedure catalog_proc : info.catalog_db.getProcedures()) {
+        for (final Procedure catalog_proc : info.catalogContext.database.getProcedures()) {
             final AccessGraph agraph = designer.getAccessGraph(catalog_proc);
             if (agraph == null)
                 continue;
@@ -217,13 +218,13 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 ex.printStackTrace();
                 System.exit(1);
             }
-            ptree = new PartitionTree(info.catalog_db);
+            ptree = new PartitionTree(info.catalogContext.database);
             ptree.setName("PartTree-Round" + round);
             //
             // Make sure we include the replicated tables
             //
             for (String table_name : proc_hints.force_replication) {
-                DesignerVertex vertex = agraph.getVertex(info.catalog_db.getTables().get(table_name));
+                DesignerVertex vertex = agraph.getVertex(info.catalogContext.database.getTables().get(table_name));
                 ptree.addVertex(vertex);
                 vertex.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.REPLICATION);
             } // FOR
@@ -395,10 +396,11 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 } // FOR
                 Database new_catalog_db = CatalogUtil.getDatabase(new_catalog);
                 CatalogCloner.cloneConstraints(info.catalog_db, new_catalog_db);
+                CatalogContext newCatalogContext = new CatalogContext(new_catalog);
 
                 double cost = 0d;
                 try {
-                    cost_model.estimateWorkloadCost(new_catalog_db, info.workload, filter, null);
+                    cost_model.estimateWorkloadCost(newCatalogContext, info.workload, filter, null);
                 } catch (Exception ex) {
                     LOG.fatal(ex.getLocalizedMessage());
                     ex.printStackTrace();

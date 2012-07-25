@@ -34,7 +34,7 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
         super.setUp(ProjectType.TM1, true);
         
         // BasePartitionerTestCase will setup most of what we need
-        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, info.getNumIntervals()));
+        this.info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(catalogContext, SingleSitedCostModel.class, info.getNumIntervals()));
         this.info.setPartitionerClass(MockPartitioner.class);
         assertNotNull(info.getStats());
         
@@ -92,7 +92,7 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
         assertNotNull(v);
         boolean ret = agraph.removeVertex(v); 
         assert(ret);
-        int expected = catalog_db.getTables().size()-CatalogUtil.getSysTables(catalog_db).size()-1; 
+        int expected = catalog_db.getTables().size()-catalogContext.getSysTables().size()-1; 
         assertEquals(expected, agraph.getVertexCount());
 //        System.err.println("GRAPH: " + FileUtil.writeStringToTempFile(GraphvizExport.export(agraph, "tm1"), "dot"));
         

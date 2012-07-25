@@ -67,7 +67,7 @@ public class TestBatchPlanner extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITIONS);
-        p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+        p_estimator = new PartitionEstimator(catalogContext, new DefaultHasher(catalog_db, NUM_PARTITIONS));
         this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         this.touched_partitions = new Histogram<Integer>();
         this.fragments = new ArrayList<WorkFragment>();

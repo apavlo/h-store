@@ -59,7 +59,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // we can use right now
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
-            p_estimator = new PartitionEstimator(catalog_db);
+            p_estimator = new PartitionEstimator(catalogContext);
             site = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);

@@ -129,7 +129,7 @@ public class TestMarkovCostModel extends BaseTestCase {
             t_estimator = new TransactionEstimator(p_estimator, correlations, markovs);
         }
         
-        this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
+        this.costmodel = new MarkovCostModel(catalogContext, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
         this.txn_trace = CollectionUtil.first(workload.getTransactions());

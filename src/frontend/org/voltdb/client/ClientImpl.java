@@ -23,10 +23,10 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
@@ -72,7 +72,7 @@ final class ClientImpl implements Client {
      * If we have a catalog, then we'll enable client-side hints
      */
     private Catalog m_catalog;
-    private Database m_catalogDb;
+    private CatalogContext m_catalogContext;
     private PartitionEstimator m_pEstimator;
     private int m_partitionSiteXref[];
     private final HStoreConf m_hstoreConf;
@@ -123,8 +123,8 @@ final class ClientImpl implements Client {
 
         if (catalog != null && m_hstoreConf.client.txn_hints) {
             m_catalog = catalog;
-            m_catalogDb = CatalogUtil.getDatabase(m_catalog);
-            m_pEstimator = new PartitionEstimator(m_catalogDb);
+            m_catalogContext = new CatalogContext(m_catalog);
+            m_pEstimator = new PartitionEstimator(m_catalogContext);
             m_partitionSiteXref = CatalogUtil.getPartitionSiteXrefArray(m_catalog);
     }
 
@@ -264,7 +264,7 @@ final class ClientImpl implements Client {
         Integer site_id = null;
         if (m_catalog != null) {
 
-            Procedure catalog_proc = m_catalogDb.getProcedures().getIgnoreCase(procName);
+            Procedure catalog_proc = m_catalogContext.database.getProcedures().getIgnoreCase(procName);
             
             if (catalog_proc != null) {
                 // OPTIMIZATION: If we have the the catalog, then we'll send just 
