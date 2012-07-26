@@ -272,7 +272,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
+        Map<String, Object> poolInfo = null;
+        try {
+            poolInfo = (show_poolinfo ? this.poolInfo() : null);
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
         
         String top = StringUtil.formatMaps(header,
                                            siteInfo,
@@ -969,6 +974,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     // OBJECT POOL PROFILING
     // ----------------------------------------------------------------------------
     private Map<String, Object> poolInfo() {
+        TypedObjectPool<?> pool = null;
+        TypedPoolableObjectFactory<?> factory = null;
         
         // HStoreObjectPools
         Map<String, TypedObjectPool<?>> pools = hstore_site.getObjectPools().getAllPools(); 
@@ -981,37 +988,65 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         final Map<String, Object> m_pool = new LinkedHashMap<String, Object>();
         for (String key : pools.keySet()) {
-            TypedObjectPool<?> pool = pools.get(key);
-            TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+            pool = pools.get(key);
+            factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR
 
-//        // Partition Specific
-//        String labels[] = new String[] {
-//            "LocalTxnState",
-//            "RemoteTxnState",
-//        };
-//        int total_active[] = new int[labels.length];
-//        int total_idle[] = new int[labels.length];
-//        int total_created[] = new int[labels.length];
-//        int total_passivated[] = new int[labels.length];
-//        int total_destroyed[] = new int[labels.length];
-//        for (int i = 0, cnt = labels.length; i < cnt; i++) {
-//            total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
-//            pool = (StackObjectPool)(i == 0 ? hstore_site.getObjectPools().STATES_TXN_LOCAL : hstore_site.getObjectPools().STATES_TXN_REMOTE);   
-//            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-//            
-//            total_active[i] += pool.getNumActive();
-//            total_idle[i] += pool.getNumIdle(); 
-//            total_created[i] += factory.getCreatedCount();
-//            total_passivated[i] += factory.getPassivatedCount();
-//            total_destroyed[i] += factory.getDestroyedCount();
-//            i += 1;
-//        } // FOR
-//        
-//        for (int i = 0, cnt = labels.length; i < cnt; i++) {
-//            m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
-//        } // FOR
+        // Partition Specific
+        String labels[] = new String[] {
+            "LocalTxnState",
+            "RemoteTxnState",
+            "MapReduceState",
+            "DistributedState",
+            "PrefetchState",
+        };
+        HStoreObjectPools objPool = hstore_site.getObjectPools();
+        for (int i = 0, cnt = labels.length; i < cnt; i++) {
+            int total_active = 0;
+            int total_idle = 0;
+            int total_created = 0;
+            int total_passivated = 0;
+            int total_destroyed = 0;
+            
+            boolean found = true;
+            for (int p : hstore_site.getLocalPartitionIds()) {
+                switch (i) {
+                    case 0:
+                        pool = objPool.getLocalTransactionPool(p);
+                        break;
+                    case 1:
+                        pool = objPool.getRemoteTransactionPool(p);
+                        break;
+                    case 2:
+                        pool = objPool.getMapReduceTransactionPool(p);
+                        break;
+                    case 3:
+                        pool = objPool.getDistributedStatePool(p);
+                        break;
+                    case 4:
+                        pool = objPool.getPrefetchStatePool(p);
+                        break;
+                } // SWITCH
+                if (pool == null) {
+                    found = false;
+                    break;
+                }
+                factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+            
+                total_active += pool.getNumActive();
+                total_idle += pool.getNumIdle(); 
+                total_created += factory.getCreatedCount();
+                total_passivated += factory.getPassivatedCount();
+                total_destroyed += factory.getDestroyedCount();
+            } // FOR (partitions)
+            if (found == false) continue;
+            m_pool.put(labels[i], String.format(POOL_FORMAT, total_active,
+                                                             total_idle,
+                                                             total_created,
+                                                             total_destroyed,
+                                                             total_passivated));
+        } // FOR
         
         return (m_pool);
     }

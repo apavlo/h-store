@@ -1915,7 +1915,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.transactionReject(ts, status);
             if (singlePartitioned) {
                 ts.markAsDeletable();
-                this.deleteTransaction(ts, status);
+                this.deleteTransaction(ts.getTransactionId(), status);
             }
         }        
     }
@@ -2522,7 +2522,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Perform final cleanup and book keeping for a completed txn
-     * If you call this, you can never access anything in this txn's AbstractTransaction again
+     * <B>Note:</B> If you call this, you can never access anything in this txn again.
      * @param txn_id
      */
     public void deleteTransaction(final Long txn_id, final Status status) {
@@ -2551,7 +2551,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        this.deleteTransaction((LocalTransaction)abstract_ts, status);
+        this.deleteLocalTransaction((LocalTransaction)abstract_ts, status);
     }
 
     /**
@@ -2560,7 +2560,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param status
      */
-    public void deleteTransaction(LocalTransaction ts, final Status status) {
+    private void deleteLocalTransaction(LocalTransaction ts, final Status status) {
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
@@ -2663,10 +2663,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            objectPools.PARAMETERSETS.returnObject(params);
 //        }
         
-        // HACK: Make sure the txn_id is removed from our internal map
-        // This is unnecessary for single-partition txns
-        this.inflight_txns.remove(ts.getTransactionId());
-        
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         if (ts.isMapReduce()) {
@@ -2734,7 +2730,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 // We can just delete the LocalTransaction handle directly
                 result.ts.markAsDeletable();
-                this.deleteTransaction(result.ts, Status.ABORT_UNEXPECTED);
+                this.deleteLocalTransaction(result.ts, Status.ABORT_UNEXPECTED);
             }
             // ----------------------------------
             // AdHocPlannedStmt
