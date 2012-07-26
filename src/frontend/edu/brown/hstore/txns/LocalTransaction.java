@@ -1381,14 +1381,15 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public String toString() {
+        String ret = null;
         if (this.isInitialized()) {
-            String ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
-            // Include hashCode for debugging
-            ret += "/" + this.hashCode();
-            return (ret);
+            ret = String.format("%s #%d/%d", this.catalog_proc.getName(), this.txn_id, this.base_partition);
         } else {
-            return ("<Uninitialized>");
+            ret = "<Uninitialized>";
         }
+        // Include hashCode for debugging
+//        ret += "/" + this.hashCode();
+        return (ret);
     }
     
     @Override

@@ -330,7 +330,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * The last txn id that we committed
      */
-    private volatile Long lastCommittedTxnId = null;
+    private volatile Long lastCommittedTxnId = Long.valueOf(-1l);
     
     /**
      * The last undoToken that we handed out
@@ -1800,7 +1800,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
-        if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
+        if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, before=%s, current=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.currentExecMode));
         // Commit All
         if (this.currentExecMode == ExecutionMode.COMMIT_ALL) {
@@ -2318,7 +2318,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             parameterSets,
                             batchSize,
                             txn_id.longValue(),
-                            this.lastCommittedTxnId,
+                            this.lastCommittedTxnId.longValue(),
                             undoToken);
             
         } catch (SerializableException ex) {
@@ -2369,7 +2369,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ts.setSubmittedEE(this.partitionId);
         ee.loadTable(table.getRelativeIndex(), data,
                      ts.getTransactionId(),
-                     (this.lastCommittedTxnId == null ? -1 : lastCommittedTxnId.longValue()),
+                     this.lastCommittedTxnId.longValue(),
                      getNextUndoToken(),
                      allowELT != 0);
     }
@@ -2386,7 +2386,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         ee.loadTable(catalog_tbl.getRelativeIndex(),
                      data,
                      txnId.longValue(),
-                     (this.lastCommittedTxnId == null ? -1 : lastCommittedTxnId.longValue()),
+                     this.lastCommittedTxnId.longValue(),
                      HStoreConstants.NULL_UNDO_LOGGING_TOKEN,
                      allowELT);
     }
