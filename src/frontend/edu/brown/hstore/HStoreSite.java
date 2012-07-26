@@ -1587,10 +1587,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
                                                status, base_partition, executor.getWorkQueueSize()));
                 this.responseError(client_handle,
-                                       status,
-                                       REJECTION_MESSAGE,
-                                       clientCallback,
-                                       EstTime.currentTimeMillis());
+                                   status,
+                                   REJECTION_MESSAGE,
+                                   clientCallback,
+                                   EstTime.currentTimeMillis());
             }
         }
 
@@ -1710,10 +1710,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Initialize the ParameterSet
         FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
-        ParameterSet procParams = null;
+        ParameterSet procParams = new ParameterSet();
         try {
-//            procParams = objectPools.PARAMETERSETS.borrowObject();
-            procParams = new ParameterSet();
             incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
             procParams.readExternal(incomingDeserializer);
         } catch (Exception ex) {
@@ -2534,8 +2532,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // for a remote transaction that told us that they were going to need one
         // of our partitions but then they never actually sent work to us
         if (abstract_ts == null) {
-            if (d) LOG.warn(String.format("Ignoring clean-up request for txn #%d because we don't have a handle [status=%s]",
-                                          txn_id, status));
+            if (d) LOG.warn(String.format("Ignoring clean-up request for txn #%d because " +
+            		                      "we don't have a handle [status=%s]", txn_id, status));
             return;
         }
         
@@ -2560,7 +2558,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param status
      */
-    private void deleteLocalTransaction(LocalTransaction ts, final Status status) {
+    public void deleteLocalTransaction(LocalTransaction ts, final Status status) {
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
@@ -2663,6 +2661,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            objectPools.PARAMETERSETS.returnObject(params);
 //        }
         
+        AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
+        assert(rm == null || rm == ts) : String.format("%s != %s", ts, rm);
+        if (t) LOG.trace(String.format("Deleted %s [inflightRemoval:%s]", ts, (rm != null)));
+        
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         if (ts.isMapReduce()) {
@@ -2670,6 +2672,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             objectPools.getLocalTransactionPool(base_partition).returnObject(ts);
         }
+                
     }
 
     // ----------------------------------------------------------------------------

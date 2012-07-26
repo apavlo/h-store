@@ -54,8 +54,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         }
     }
     @Override
-    public void remoteHandler(RpcController controller, TransactionInitRequest request,
-            RpcCallback<TransactionInitResponse> callback) {
+    public void remoteHandler(RpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
         assert(request.hasTransactionId()) : "Got " + request.getClass().getSimpleName() + " without a txn id!";
         Long txn_id = request.getTransactionId();
         if (debug.get())
@@ -98,6 +97,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                      request.getPrefetchParamsList());
         }
         
+        // FIXME: This allocation is unecessary if we're on the same site
         PartitionSet partitions = new PartitionSet(request.getPartitionsList());
         hstore_site.transactionInit(txn_id, partitions, wrapper);
         

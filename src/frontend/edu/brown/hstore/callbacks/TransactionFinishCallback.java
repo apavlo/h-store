@@ -36,6 +36,7 @@ public class TransactionFinishCallback extends AbstractTransactionCallback<Trans
     protected boolean unblockTransactionCallback() {
         // There is nothing that we need to do here.
         this.setFinishStatus(status);
+        this.ts.markAsDeletable(); // XXX: Is this ok here?
         return (true);
     }
     

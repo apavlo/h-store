@@ -144,8 +144,6 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
                 }
             }
         }
-        
-
     }
     
     /**
