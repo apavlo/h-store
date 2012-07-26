@@ -819,7 +819,8 @@ public class BatchPlanner implements Loggable {
                 }
             }
             if (d)
-                LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s", txn_id, stmt_index, is_singlepartition, stmt_all_partitions));
+                LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s",
+                          txn_id, stmt_index, is_singlepartition, stmt_all_partitions));
 
             // Get a sorted list of the PlanFragments that we need to execute
             // for this query
@@ -830,8 +831,8 @@ public class BatchPlanner implements Loggable {
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
 
                 // Only mark that we touched these partitions if the Statement
-                // is not on a replicated table
-                if (is_replicated_only == false) {
+                // is not on a replicated table or it's not read-only
+                if (is_replicated_only == false || is_read_only == false) {
                     touched_partitions.putAll(stmt_all_partitions);
                 }
 
@@ -872,7 +873,8 @@ public class BatchPlanner implements Loggable {
 
                     // Make sure that we don't count the local partition if it
                     // was reading a replicated table.
-                    if (this.stmt_is_replicatedonly[i] == false || (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
+                    if (this.stmt_is_replicatedonly[i] == false ||
+                         (this.stmt_is_replicatedonly[i] && this.stmt_is_readonly[i] == false)) {
                         if (t)
                             LOG.trace(String.format("%s touches non-replicated table. Including %d partitions in mispredict histogram for txn #%d", this.catalog_stmts[i].fullName(),
                                     plan.stmt_partitions[i].size(), txn_id));

@@ -2442,8 +2442,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    batchParams);
         
         assert(plan != null);
-        assert(ts.getTouchedPartitions().isEmpty() == false) :
-            String.format("Unexpected empty touched PartitionSet for %s after generating batch plan", ts); 
         if (t) LOG.trace("BatchPlan for " + ts + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) ts.profiler.stopExecPlanning();
         
