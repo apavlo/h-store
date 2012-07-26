@@ -32,12 +32,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
@@ -650,6 +650,7 @@ public class BatchPlanner implements Loggable {
                     LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s", txn_id, base_partition, Arrays.toString(this.catalog_stmts)));
                 if (this.enable_profiling)
                     time_plan.stop();
+                touched_partitions.put(base_partition, this.batchSize);
                 return (cache_singlePartitionPlans[base_partition.intValue()]);
             }
         }
@@ -661,7 +662,7 @@ public class BatchPlanner implements Loggable {
         // DEBUG DUMP
         // ----------------------
         if (t) {
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("Batch Size", this.batchSize);
             for (int i = 0; i < this.batchSize; i++) {
                 m.put(String.format("[%02d] %s", i, this.catalog_stmts[i].getName()), Arrays.toString(batchArgs[i].toArray()));
@@ -885,10 +886,13 @@ public class BatchPlanner implements Loggable {
             // DEBUG DUMP
             // ----------------------
             if (d) {
-                Map<?, ?> maps[] = new Map[fragments.size() + 1];
+                List<PlanFragment> _fragments = (is_singlepartition ?
+                        this.sorted_singlep_fragments[stmt_index] : this.sorted_multip_fragments[stmt_index]);
+                
+                Map<?, ?> maps[] = new Map[_fragments.size() + 1];
                 int ii = 0;
-                for (PlanFragment catalog_frag : fragments) {
-                    Map<String, Object> m = new ListOrderedMap<String, Object>();
+                for (PlanFragment catalog_frag : _fragments) {
+                    Map<String, Object> m = new LinkedHashMap<String, Object>();
                     PartitionSet p = plan.frag_partitions[stmt_index].get(catalog_frag);
                     boolean frag_local = (p.size() == 1 && p.contains(base_partition));
                     m.put(String.format("[%02d] Fragment", ii), catalog_frag.fullName());
@@ -898,7 +902,7 @@ public class BatchPlanner implements Loggable {
                     maps[ii] = m;
                 } // FOR
 
-                Map<String, Object> header = new ListOrderedMap<String, Object>();
+                Map<String, Object> header = new LinkedHashMap<String, Object>();
                 header.put("Batch Statement#", String.format("%02d / %02d", stmt_index, this.batchSize));
                 header.put("Catalog Statement", catalog_stmt.fullName());
                 header.put("Statement SQL", catalog_stmt.getSqltext());
@@ -908,7 +912,7 @@ public class BatchPlanner implements Loggable {
                 header.put("IsStmtLocal", is_local);
                 header.put("IsReplicatedOnly", is_replicated_only);
                 header.put("IsBatchLocal", plan.all_local);
-                header.put("Fragments", fragments.size());
+                header.put("Fragments", _fragments.size());
                 maps[0] = header;
 
                 LOG.debug("\n" + StringUtil.formatMapsBoxed(maps));

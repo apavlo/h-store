@@ -1121,12 +1121,22 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
         } // FOR
         
-        return (this.executor.executeSQLStmtBatch(m_localTxnState,
-                                                  batchSize,
-                                                  batchStmts,
-                                                  params,
-                                                  finalTask,
-                                                  forceSinglePartition));
+        VoltTable results[] = null;
+        try {
+            results = this.executor.executeSQLStmtBatch(m_localTxnState,
+                                                        batchSize,
+                                                        batchStmts,
+                                                        params,
+                                                        finalTask,
+                                                        forceSinglePartition);
+        } catch (ServerFaultException ex) {
+            throw ex;
+        } catch (SerializableException ex) {
+            throw ex;
+        } catch (Throwable ex) {
+            throw new ServerFaultException("Unexpected error", ex, m_localTxnState.getTransactionId());
+        }
+        return (results);
     }
     
     // ----------------------------------------------------------------------------
