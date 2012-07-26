@@ -34,7 +34,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        this.addPartitions(NUM_PARTITIONS);
+        this.initializeCluster(2, 2, NUM_PARTITIONS);
         
         Site catalog_site = this.getSite(0);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
