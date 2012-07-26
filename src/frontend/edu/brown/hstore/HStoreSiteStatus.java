@@ -185,19 +185,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     @Override
     public void run() {
         self = Thread.currentThread();
-        self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
-        this.hstore_site.getThreadManager().registerProcessingThread();
+        // self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
+        // this.hstore_site.getThreadManager().registerProcessingThread();
 
         if (debug.get()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
-        while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {
-//            try {
-//                Thread.sleep(this.interval);
-//            } catch (InterruptedException ex) {
-//                return;
-//            }
-//            if (this.hstore_site.isShuttingDown()) break;
-//            if (this.hstore_site.isRunning() == false) continue;
-
+        try {
             // Out we go!
             this.printStatus();
             
@@ -210,8 +202,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 this.hstore_site.getHStoreCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
-            break;
-        } // WHILE
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
     }
     
     private void printStatus() {
@@ -272,12 +265,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> poolInfo = null;
-        try {
-            poolInfo = (show_poolinfo ? this.poolInfo() : null);
-        } catch (Throwable ex) {
-            ex.printStackTrace();
-        }
+        Map<String, Object> poolInfo = (show_poolinfo ? this.poolInfo() : null);
         
         String top = StringUtil.formatMaps(header,
                                            siteInfo,
@@ -995,11 +983,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 
         // Partition Specific
         String labels[] = new String[] {
-            "LocalTxnState",
-            "RemoteTxnState",
-            "MapReduceState",
-            "DistributedState",
-            "PrefetchState",
+            "STATES_TXN_LOCAL",
+            "STATES_TXN_REMOTE",
+            "STATES_TXN_MAPREDUCE",
+            "STATES_DISTRIBUTED",
+            "STATES_PREFETCH",
         };
         HStoreObjectPools objPool = hstore_site.getObjectPools();
         for (int i = 0, cnt = labels.length; i < cnt; i++) {
@@ -1009,7 +997,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int total_passivated = 0;
             int total_destroyed = 0;
             
-            boolean found = true;
+            boolean found = false;
+            // FIXME: MapReduce & RemoteTransaction pools are for all partitions, not just local
             for (int p : hstore_site.getLocalPartitionIds()) {
                 switch (i) {
                     case 0:
@@ -1028,10 +1017,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                         pool = objPool.getPrefetchStatePool(p);
                         break;
                 } // SWITCH
-                if (pool == null) {
-                    found = false;
-                    break;
-                }
+                if (pool == null) continue;
+                found = true;
                 factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             
                 total_active += pool.getNumActive();

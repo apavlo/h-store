@@ -75,6 +75,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     
     @Override
     protected final void unblockCallback() {
+        assert(this.isUnblocked());
         assert(this.ts != null) :
             "Unexpected null transaction handle for txn #" + this.getTransactionId();
         assert(this.ts.isInitialized()) :
@@ -90,6 +91,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
     
     @Override
     protected final void abortCallback(Status status) {
+        assert(this.isAborted());
         this.finishStatus = status;
         
         // We can't abort if we've already invoked the regular callback
@@ -113,11 +115,19 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         this.abortFinished = true;
         this.deleteTransaction(status);
     }
-    
+
     /**
-     * 
+     * Transaction unblocking callback implementation
+     * If this returns true, then we will invoke deleteTransaction()
+     * @return
      */
     protected abstract boolean unblockTransactionCallback();
+    
+    /**
+     * Transaction abort callback implementation
+     * If this returns true, then we will invoke finishTransaction() 
+     * @return
+     */
     protected abstract boolean abortTransactionCallback(Status status);
     
     // ----------------------------------------------------------------------------
@@ -129,8 +139,11 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      * and have finished their processing
      */
     public final boolean allCallbacksFinished() {
-        return (this.getCounter() == 0 &&
-                ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished)));
+        if (this.isInitialized()) {
+            if (this.getCounter() != 0) return (false);
+            return ((this.isUnblocked() && this.unblockFinished) || (this.isAborted() && this.abortFinished));
+        }
+        return (true);
     }
     
     // ----------------------------------------------------------------------------
@@ -153,8 +166,8 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
                 LOG.debug(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             this.hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else if (debug.get()) {
-            LOG.debug(String.format("%s - Not deleting from %s [status=%s]\n%s",
+        } else { // if (debug.get()) {
+            LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
                                    this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
         }
     }

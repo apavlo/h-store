@@ -131,7 +131,9 @@ public class TransactionInitCallback extends AbstractTransactionCallback<Transac
                     }
                 } // SYNCH
             }
+            // this.decrementCounter(response.getPartitionsCount());
             this.abort(response.getStatus());
+            // return (0);
         }
         return (response.getPartitionsCount());
     }
