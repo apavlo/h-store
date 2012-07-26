@@ -463,7 +463,9 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
             CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
             
-            Catalog c = FixCatalog.cloneCatalog(catalog, "host%02d", num_hosts, num_sites, num_partitions);
+            // HACK
+            String hostFormat = (num_hosts == 1 ? "localhost" : "host%02d"); 
+            Catalog c = FixCatalog.cloneCatalog(catalog, hostFormat, num_hosts, num_sites, num_partitions);
             CatalogContext cc = new CatalogContext(c, CatalogContext.NO_PATH);
             this.init(this.last_type, cc);
         }
