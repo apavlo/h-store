@@ -76,6 +76,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertTrue(ts.isSpeculative());
+        assertFalse(this.work_queue.contains(next));
     }
     
     /**
@@ -110,6 +111,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertTrue(ts.isSpeculative());
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // Now have the dtxn "write" to one of the tables in our ConflictSet
@@ -168,6 +170,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertTrue(ts.isSpeculative());
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // Reads are allowed!
@@ -180,6 +183,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertTrue(ts.isSpeculative());
+        assertFalse(this.work_queue.contains(next));
         ts.finish();
         
         // But writes are not!
@@ -192,7 +196,5 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertNull(next);
         assertFalse(ts.isSpeculative());
     }
-    
-    
 
 }
