@@ -2392,7 +2392,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
 
     /**
-     * Execute a SQLStmt batch at this partition.
+     * Execute a SQLStmt batch at this partition. This is the main entry point from 
+     * VoltProcedure for where we will execute a SQLStmt batch from a txn.
      * @param ts The txn handle that is executing this query batch
      * @param batchSize The number of SQLStmts that the txn queued up using voltQueueSQL()
      * @param batchStmts The SQLStmts that the txn is trying to execute
@@ -2441,6 +2442,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    batchParams);
         
         assert(plan != null);
+        assert(ts.getTouchedPartitions().isEmpty() == false) :
+            String.format("Unexpected empty touched PartitionSet for %s after generating batch plan", ts); 
         if (t) LOG.trace("BatchPlan for " + ts + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) ts.profiler.stopExecPlanning();
         
@@ -3099,8 +3102,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * Queue a speculatively executed transaction to send its ClientResponseImpl message
      */
     private void queueClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (d) LOG.debug(String.format("Queuing ClientResponse for %s [handle=%s, status=%s]",
-                                       ts, ts.getClientHandle(), cresponse.getStatus()));
+        if (d) LOG.debug(String.format("%s - Queuing %s ClientResponse [partitions=%s]",
+                                       ts, cresponse.getStatus(), ts.getTouchedPartitions().values()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
                           ts, this.currentExecMode, cresponse.getStatus());
@@ -3407,8 +3410,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         int aborted = 0;
         
         while ((pair = (hstore_conf.site.exec_queued_response_ee_bypass ?
-                                this.queued_responses.pollLast() : this.queued_responses.pollFirst())
-                        ) != null) {
+                        this.queued_responses.pollLast() : this.queued_responses.pollFirst())) != null) {
         
             ts = pair.getFirst();
             cr = pair.getSecond();
@@ -3417,9 +3419,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // I am getting a random error.
             // FIXME if (hstore_conf.site.txn_profiling && ts.profiler.finish_time.isStopped()) ts.profiler.finish_time.start();
             
-            // If the multi-p txn aborted, then we need to abort everything in our queue
+            // If the distributed txn aborted, then we need to abort everything in our queue
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
+                // TODO: We compare the read/write sets for this txn and the aborting dtxn 
+                //       to see if we are be able to avoid cascading the abort if one of the
+                //       following conditions is true:
+                //  (1) If this txn didn't read any table that the dtxn wrote to.
+                //  (2) If this txn didn't write to any table that the dtxn to.
+                
                 // We're going to assume that any transaction that didn't mispredict
                 // was single-partitioned. We'll use their TouchedPartitions histogram
                 if (cr.getStatus() != Status.ABORT_MISPREDICT) {
