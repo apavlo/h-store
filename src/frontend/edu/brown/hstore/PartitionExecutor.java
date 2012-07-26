@@ -3178,7 +3178,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (hstore_conf.site.exec_profiling) this.profiler.work_network_time.stop();
                 
                 ts.markAsDeletable();
-                this.hstore_site.deleteTransaction(ts, status);
+                this.hstore_site.deleteTransaction(ts.getTransactionId(), status);
             }
         } 
         // -------------------------------

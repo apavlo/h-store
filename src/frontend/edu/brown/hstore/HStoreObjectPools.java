@@ -188,6 +188,7 @@ public final class HStoreObjectPools {
     }
     
     public TypedObjectPool<MapReduceTransaction> getMapReduceTransactionPool(int partition) {
+        if (this.STATES_TXN_MAPREDUCE == null) return (null);
         return this.STATES_TXN_MAPREDUCE[partition];
     }
     
@@ -197,6 +198,7 @@ public final class HStoreObjectPools {
     }
     
     public TypedObjectPool<PrefetchState> getPrefetchStatePool(int partition) {
+        if (this.STATES_PREFETCH == null) return (null);
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
         return this.STATES_PREFETCH[offset];
     }
