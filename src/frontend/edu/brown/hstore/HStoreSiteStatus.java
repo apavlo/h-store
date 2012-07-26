@@ -188,7 +188,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
         this.hstore_site.getThreadManager().registerProcessingThread();
 
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
+        if (debug.get()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {
 //            try {
 //                Thread.sleep(this.interval);
@@ -690,7 +690,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 LOG.debug("ROW[" + i + "]: " + Arrays.toString(rows[i]));
             }
         }
-        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, true, true, null);
+        TableUtil.Format f = new TableUtil.Format("  ", col_delimiters, row_delimiters, true, false, true, false, false, false, true, true, null);
         return (TableUtil.tableMap(f, header, rows));
     }
     
