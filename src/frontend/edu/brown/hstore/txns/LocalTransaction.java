@@ -1388,7 +1388,7 @@ public class LocalTransaction extends AbstractTransaction {
             ret = "<Uninitialized>";
         }
         // Include hashCode for debugging
-//        ret += "/" + this.hashCode();
+        ret += "/" + this.hashCode();
         return (ret);
     }
     
