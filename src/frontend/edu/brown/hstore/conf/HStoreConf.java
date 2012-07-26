@@ -401,6 +401,13 @@ public final class HStoreConf {
         )
         public boolean specexec_enable;
         
+        @ConfigProperty(
+            description="",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean specexec_idle;
+        
         // ----------------------------------------------------------------------------
         // Command Logging Options
         // ----------------------------------------------------------------------------

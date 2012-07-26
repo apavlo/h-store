@@ -1065,13 +1065,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         InternalMessage work = null;
         
         // Check whether there is something we can speculatively execute right now
-        if (hstore_conf.site.specexec_enable && this.currentDtxn != null) {
+        if (hstore_conf.site.specexec_enable && hstore_conf.site.specexec_idle && this.currentDtxn != null) {
             work = this.specExecScheduler.next(this.currentDtxn);
             
             // Because we don't have fine-grained undo support, we are just going
             // keep all of our speculative execution txn results around
             if (work != null) {
-                LOG.info(String.format("%s - Utility Work found speculative txn to execute [%s]",
+                if (d) LOG.debug(String.format("%s - Utility Work found speculative txn to execute [%s]",
                                        this.currentDtxn, ((StartTxnMessage)work).getTransaction()));
                 this.setExecutionMode(((StartTxnMessage)work).getTransaction(), ExecutionMode.COMMIT_NONE);
             }

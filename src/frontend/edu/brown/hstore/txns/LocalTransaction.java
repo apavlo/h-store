@@ -687,11 +687,13 @@ public class LocalTransaction extends AbstractTransaction {
      * to access are all on the same HStoreSite as its base partition
      */
     public boolean isPredictAllLocal() {
-        for (Integer p : this.predict_touchedPartitions) {
-            if (hstore_site.isLocalPartition(p.intValue()) == false) {
-                return (false);
-            }
-        } // FOR
+        if (this.dtxnState != null) {
+            for (Integer p : this.predict_touchedPartitions) {
+                if (hstore_site.isLocalPartition(p.intValue()) == false) {
+                    return (false);
+                }
+            } // FOR
+        }
         return (true);
     }
     
