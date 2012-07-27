@@ -1,6 +1,11 @@
 package edu.brown.hstore;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,8 +33,11 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestHStoreSite extends BaseTestCase {
@@ -40,8 +48,10 @@ public class TestHStoreSite extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     
     private HStoreSite hstore_site;
-    private HStoreSite.DebugContext debug;
+    private HStoreSite.Debug hstore_debug;
+    private HStoreObjectPools objectPools;
     private HStoreConf hstore_conf;
+    private TransactionQueueManager.Debug queue_debug;
     private Client client;
 
     private static final ParameterSet PARAMS = new ParameterSet(
@@ -64,7 +74,9 @@ public class TestHStoreSite extends BaseTestCase {
         this.hstore_conf.site.anticache_enable = false;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
-        this.debug = this.hstore_site.getDebugContext();
+        this.objectPools = this.hstore_site.getObjectPools();
+        this.hstore_debug = this.hstore_site.getDebugContext();
+        this.queue_debug = this.hstore_site.getTransactionQueueManager().getDebugContext();
         this.client = createClient();
     }
     
@@ -75,10 +87,10 @@ public class TestHStoreSite extends BaseTestCase {
     }
     
     /**
-     * testObjectPools
+     * testAbortReject
      */
     @Test
-    public void testObjectPools() throws Exception {
+    public void testAbortReject() throws Exception {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
@@ -87,11 +99,25 @@ public class TestHStoreSite extends BaseTestCase {
         hstore_conf.site.queue_incoming_increase = 0;
         hstore_conf.site.queue_incoming_increase_max = 0;
         hstore_site.updateConf(hstore_conf);
+
+        final Set<LocalTransaction> expectedHandles = new HashSet<LocalTransaction>(); 
+        final List<Long> expectedIds = new ArrayList<Long>();
+        
+        EventObserver<LocalTransaction> newTxnObserver = new EventObserver<LocalTransaction>() {
+            @Override
+            public void update(EventObservable<LocalTransaction> o, LocalTransaction ts) {
+                expectedHandles.add(ts);
+                assertFalse(ts.toString(), expectedIds.contains(ts.getTransactionId()));
+                expectedIds.add(ts.getTransactionId());
+            }
+        };
+        hstore_site.getTransactionInitializer().newTxnObservable.addObserver(newTxnObserver);
         
         // We need to get at least one ABORT_REJECT
-        final int num_txns = 1000;
+        final int num_txns = 500;
         final CountDownLatch latch = new CountDownLatch(num_txns);
         final AtomicInteger numAborts = new AtomicInteger(0);
+        final List<Long> actualIds = new ArrayList<Long>();
         
         ProcedureCallback callback = new ProcedureCallback() {
             @Override
@@ -99,6 +125,7 @@ public class TestHStoreSite extends BaseTestCase {
                 if (cr.getStatus() == Status.ABORT_REJECT) {
                     numAborts.incrementAndGet();
                 }
+                if (cr.getTransactionId() > 0) actualIds.add(cr.getTransactionId());
                 latch.countDown();
             }
         };
@@ -113,18 +140,44 @@ public class TestHStoreSite extends BaseTestCase {
         boolean result = latch.await(20, TimeUnit.SECONDS);
         assertTrue(result);
         assertNotSame(0, numAborts.get());
+        assertNotSame(0, expectedHandles.size());
+        assertNotSame(0, expectedIds.size());
+        assertNotSame(0, actualIds.size());
         
         // HACK: Wait a little to know that the periodic thread has attempted
         // to clean-up our deletable txn handles
-        ThreadUtil.sleep(1000);
-        System.err.println("InflightTxnCount: " + debug.getInflightTxnCount());
-        System.err.println("DeletableTxnCount: " + debug.getDeletableTxnCount());
-        assertEquals(0, debug.getInflightTxnCount());
-        assertEquals(0, debug.getDeletableTxnCount());
+        ThreadUtil.sleep(5000);
+        System.err.println("InflightTxnCount: " + hstore_debug.getInflightTxnCount());
+        System.err.println("DeletableTxnCount: " + hstore_debug.getDeletableTxnCount());
+        assertEquals(0, hstore_debug.getInflightTxnCount());
+        assertEquals(0, hstore_debug.getDeletableTxnCount());
+        
+        // Make sure that there is nothing sitting around in our queues
+        assertEquals("INIT", 0, queue_debug.getInitQueueSize());
+        assertEquals("BLOCKED", 0, queue_debug.getBlockedQueueSize());
+        assertEquals("RESTART", 0, queue_debug.getRestartQueueSize());
+        
+        // Check to make sure that all of our handles are not initialized
+        for (LocalTransaction ts : expectedHandles) {
+            assertNotNull(ts);
+            if (ts.isInitialized()) {
+                System.err.println(ts.debug());
+            }
+            assertFalse(ts.debug(), ts.isInitialized());
+        } // FOR
+        
+        System.err.println("--------------------------------------------");
+        System.err.println("EXPECTED IDS:");
+        System.err.println(StringUtil.join("\n", CollectionUtil.sort(expectedIds)));
+        System.err.println("--------------------------------------------");
+        System.err.println("ACTUAL IDS:");
+        System.err.println(StringUtil.join("\n", CollectionUtil.sort(actualIds)));
+        System.err.println("--------------------------------------------");
+        
         
         // Then check to make sure that there aren't any active objects in the
         // the various object pools
-        Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
+        Map<String, TypedObjectPool<?>[]> allPools = this.objectPools.getPartitionedPools(); 
         assertNotNull(allPools);
         assertFalse(allPools.isEmpty());
         for (String name : allPools.keySet()) {

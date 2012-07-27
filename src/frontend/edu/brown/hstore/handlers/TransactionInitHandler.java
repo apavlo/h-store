@@ -86,7 +86,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             // a remote site from the txn's base partition
             if (ts == null) {
                 int base_partition = request.getBasePartition();
-                ts = hstore_site.createRemoteTransaction(txn_id, base_partition, request.getProcedureId());
+                ts = hstore_site.getTransactionInitializer()
+                                .createRemoteTransaction(txn_id, base_partition, request.getProcedureId());
             }
             
             // Stick the prefetch information into the transaction

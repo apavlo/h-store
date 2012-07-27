@@ -29,14 +29,14 @@ public class FastObjectPool<T> extends BaseObjectPool {
     /**
      * The cap on the number of "sleeping" instances in the pool.
      */
-    protected static final int DEFAULT_MAX_SLEEPING  = 8;
+    private static final int DEFAULT_MAX_SLEEPING  = 8;
 
     /**
      * The default initial size of the pool
      * (this specifies the size of the container, it does not
      * cause the pool to be pre-populated.)
      */
-    protected static final int DEFAULT_INIT_SLEEPING_CAPACITY = 4;
+    private static final int DEFAULT_INIT_SLEEPING_CAPACITY = 4;
     
     /** 
      * My pool.
@@ -99,8 +99,8 @@ public class FastObjectPool<T> extends BaseObjectPool {
             if (!_factory.validateObject(obj)) {
                 throw new Exception("ValidateObject failed");
             }
-        } catch (Throwable t) {
-            PoolUtils.checkRethrow(t);
+        } catch (Throwable ex) {
+            PoolUtils.checkRethrow(ex);
             try {
                 _factory.destroyObject(obj);
             } catch (Throwable t2) {
@@ -112,14 +112,14 @@ public class FastObjectPool<T> extends BaseObjectPool {
             if (newlyCreated) {
                 throw new NoSuchElementException(
                     "Could not create a validated object, cause: " +
-                    t.getMessage());
+                    ex.getMessage());
             }
         }
         _numActive.incrementAndGet();
         
         if (debug.get())
             LOG.debug(String.format("Retrieved %s from ObjectPool [hashCode=%d]",
-                    obj.getClass().getSimpleName(), obj.hashCode()));
+                      obj.getClass().getSimpleName(), obj.hashCode()));
             
         return obj;
     }

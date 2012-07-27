@@ -723,12 +723,19 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Mark this transaction as needing to be restarted. This will prevent it from
      * being deleted immediately
-     * @param value
      */
-    public final void setNeedsRestart(boolean value) {
-        assert(value == false || this.needs_restart != value) :
-            "Trying to set " + this + " internal needs_restart flag to " + value + " twice";
-        this.needs_restart = value;
+    public final void markNeedsRestart() {
+        assert(this.needs_restart == false) :
+            "Trying to enable " + this + " internal needs_restart flag twice";
+        this.needs_restart = true;
+    }
+    
+    /**
+     * Unmark this transaction as needing to be restarted. This can be safely 
+     * invoked multiple times 
+     */
+    public final void unmarkNeedsRestart() {
+        this.needs_restart = false;
     }
     
     /**
@@ -1422,7 +1429,7 @@ public class LocalTransaction extends AbstractTransaction {
 
         m = new LinkedHashMap<String, Object>();
         m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
-        m.put("Exec Touched Partitions", this.exec_touchedPartitions);
+        m.put("Exec Touched Partitions", this.exec_touchedPartitions.toString(30));
         
         // Actual Execution
         if (this.state != null) {

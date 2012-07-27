@@ -64,7 +64,10 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // If this is the first time we've been here, then we need to create a RemoteTransaction handle
         RemoteTransaction ts = hstore_site.getTransaction(txn_id);
         if (ts == null) {
-            ts = hstore_site.createRemoteTransaction(txn_id, request.getSourcePartition(), request.getProcedureId());
+            ts = hstore_site.getTransactionInitializer()
+                            .createRemoteTransaction(txn_id,
+                                                     request.getSourcePartition(),
+                                                     request.getProcedureId());
             if (debug.get())
                 LOG.debug(String.format("Created new transaction handke %s", ts));
         }

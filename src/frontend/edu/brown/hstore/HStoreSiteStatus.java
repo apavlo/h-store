@@ -88,7 +88,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
     // ----------------------------------------------------------------------------
     
     private final HStoreSite hstore_site;
-    private final HStoreSite.DebugContext siteDebug;
+    private final HStoreSite.Debug siteDebug;
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
     private final TreeMap<Integer, PartitionExecutor> executors;
@@ -339,7 +339,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         // TransactionQueueManager
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
-        TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
+        TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
         
         int inflight_cur = siteDebug.getInflightTxnCount();
         int inflight_local = queueManagerDebug.getInitQueueSize();
@@ -437,7 +437,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         
         ProfileMeasurement pm = null;
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
-        TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
+        TransactionQueueManager.Debug queueManagerDebug = queueManager.getDebugContext();
         HStoreThreadManager thread_manager = hstore_site.getThreadManager();
         
         ProfileMeasurement totalExecTxnTime = new ProfileMeasurement();

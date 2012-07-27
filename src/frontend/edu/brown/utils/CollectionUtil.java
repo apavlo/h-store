@@ -30,6 +30,7 @@ package edu.brown.utils;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -50,6 +51,11 @@ public abstract class CollectionUtil {
 
     private static final Random RANDOM = new Random();
 
+    public static <T extends Comparable<T>> List<T> sort(List<T> list) {
+        Collections.sort(list);
+        return (list);
+    }
+    
     /**
      * Put all of the elements in items into the given array This assumes that
      * the array has been pre-allocated
