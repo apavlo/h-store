@@ -51,7 +51,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
         
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
-            this.applyCatalogCorrelations(ProjectType.TPCC);
+            this.applyParameterMappings(ProjectType.TPCC);
             
             File workload_file = this.getWorkloadFile(ProjectType.TPCC); 
             workload = new Workload(catalog);

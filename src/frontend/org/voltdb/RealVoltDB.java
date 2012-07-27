@@ -266,13 +266,13 @@ public class RealVoltDB implements VoltDBInterface
                 throw new RuntimeException(ex);
             }
             // ensure at least one host (catalog compiler should check this too
-            if (m_catalogContext.numberOfNodes <= 0) {
-                hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_InvalidHostCount.name(), new Object[] { m_catalogContext.numberOfNodes }, null);
+            if (m_catalogContext.numberOfHosts <= 0) {
+                hostLog.l7dlog( Level.FATAL, LogKeys.host_VoltDB_InvalidHostCount.name(), new Object[] { m_catalogContext.numberOfHosts }, null);
                 HStore.crashDB();
             }
 
-            hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_CreatingVoltDB.name(), new Object[] { m_catalogContext.numberOfNodes, leader }, null);
-            m_messenger = new HostMessenger(m_network, leader, m_catalogContext.numberOfNodes, catalogCRC, hostLog);
+            hostLog.l7dlog( Level.INFO, LogKeys.host_VoltDB_CreatingVoltDB.name(), new Object[] { m_catalogContext.numberOfHosts, leader }, null);
+            m_messenger = new HostMessenger(m_network, leader, m_catalogContext.numberOfHosts, catalogCRC, hostLog);
             m_instanceId = m_messenger.waitForGroupJoin();
 
             // Use the host messenger's hostId.

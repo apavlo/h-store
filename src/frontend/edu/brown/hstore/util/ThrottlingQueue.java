@@ -22,7 +22,7 @@ import edu.brown.profilers.ProfileMeasurement;
  * @param <E>
  */
 public class ThrottlingQueue<E> implements BlockingQueue<E> {
-    public static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);
+    private static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -37,8 +37,8 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     private int queue_max;
     private int queue_release;
     private double queue_release_factor;
-    private final int queue_increase;
-    private final int queue_increase_max;
+    private int queue_increase;
+    private int queue_increase_max;
     private final ProfileMeasurement throttle_time;
     private boolean allow_increase;
          
@@ -57,18 +57,36 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
                             int queue_increase_max) {
         this.queue = queue;
         this.throttled = false;
-        this.queue_max = queue_max;
-        this.queue_increase = queue_increase;
-        this.queue_increase_max = queue_increase_max;
-        this.queue_release_factor = queue_release;
-        this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
-        this.allow_increase = (this.queue_increase > 0);
+        
+        this.setQueueMax(queue_max);
+        this.setQueueIncrease(queue_increase);
+        this.setQueueIncreaseMax(queue_increase_max);
+        this.setQueueReleaseFactor(queue_release);
+        
         this.throttle_time = new ProfileMeasurement("throttling");
 //        if (hstore_site.getHStoreConf().site.status_show_executor_info) {
 //            this.throttle_time.resetOnEvent(hstore_site.getStartWorkloadObservable());
 //        }
     }
 
+    public void setQueueIncrease(int queue_increase) {
+        this.queue_increase = queue_increase;
+        this.allow_increase = (this.queue_increase > 0);
+    }
+    
+    public void setQueueIncreaseMax(int queue_increase_max) {
+        this.queue_increase_max = queue_increase_max;
+    }
+    
+    public void setQueueMax(int queue_max) {
+        this.queue_max = queue_max;
+    }
+    
+    public void setQueueReleaseFactor(double queue_release_factor) {
+        this.queue_release_factor = queue_release_factor;
+        this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+    }
+    
     public ProfileMeasurement getThrottleTime() {
         return (this.throttle_time);
     }

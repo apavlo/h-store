@@ -110,6 +110,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // CACHES
     // ------------------------------------------------------------
 
+    @Deprecated
     private static class Cache {
 
         /**
@@ -713,6 +714,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static Site getSiteFromId(CatalogType catalog_item, int site_id) {
         assert (site_id >= 0);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
@@ -729,6 +731,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfHosts(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getHosts().size();
@@ -742,6 +745,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfSites(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getSites().size();
@@ -755,6 +759,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
+    @Deprecated
     public static int getNumberOfPartitions(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
         int ret = catalog_clus.getNum_partitions();
@@ -776,37 +781,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Partition catalog_part = cache.PARTITION_XREF.get(id);
         return (catalog_part);
     }
-
-    /**
-     * Return the InetSocketAddress used by the Dtxn.Engine for the given
-     * PartitionId
-     * 
-     * @param catalog_item
-     * @param id
-     * @param engine
-     *            - Whether to use the direct engine port number
-     * @return
-     */
-    // public static InetSocketAddress getPartitionAddressById(CatalogType
-    // catalog_item, Integer id, boolean engine) {
-    // final CatalogUtil.Cache cache =
-    // CatalogUtil.getCatalogCache(catalog_item);
-    // if (cache.PARTITION_XREF.isEmpty())
-    // cache.buildPartitionCache(catalog_item);
-    // Partition catalog_part = cache.PARTITION_XREF.get(id);
-    // if (catalog_part == null) {
-    // LOG.warn(String.format("Invalid partition id '%d'", id));
-    // return (null);
-    // }
-    // Site catalog_site = catalog_part.getParent();
-    // assert(catalog_site != null) : "No site for " + catalog_part;
-    // Host catalog_host = catalog_site.getHost();
-    // assert(catalog_host != null) : "No host for " + catalog_site;
-    // int port = (engine ? catalog_part.getEngine_port() :
-    // catalog_part.getDtxn_port());
-    // return (new InetSocketAddress(catalog_host.getIpaddr(), port));
-    // }
-
+    
     /**
      * Return a Collection of all the Partition catalog objects
      * 
@@ -825,6 +800,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * 
      * @return
      */
+    @Deprecated
     public static PartitionSet getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty())

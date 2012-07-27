@@ -50,7 +50,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     // PAVLO
     private long txn_id;
-    private int requestCounter = -1;
     private boolean singlepartition = false;
     private int basePartition = -1;
     private int restartCounter = 0;
@@ -137,49 +136,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.restartCounter = 0;
     }
     
-    
-    // ----------------------------------------------------------------------------
-    // SPECIAL BYTEBUFFER MODIFIERS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Set the server timestamp marker without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setServerTimestamp(ByteBuffer b, int val) {
-        b.putInt(1, val); 
-    }
-    
-    /**
-     * Set the client handle without deserializing it first
-     * @param b
-     * @param handle
-     */
-    public static void setClientHandle(ByteBuffer b, long handle) {
-        b.putLong(13, handle); // 1 + 4 + 8 
-    }
-    
-    /**
-     * Set the base partition for the client response without deserializing it
-     * @param arr
-     * @param flag
-     */
-    public static void setBasePartition(ByteBuffer b, int basePartition) {
-        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 = 22 
-    }
-    
-    /**
-     * Set the status without deserializing it first
-     * @param arr
-     * @param flag
-     */
-    public static void setStatus(ByteBuffer b, Status status) {
-        b.put(26, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 4 = 26 
-    }
-    
-    // ----------------------------------------------------------------------------
-    
     private void setResults(Status status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {
@@ -201,17 +157,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     
     public void setStatus(Status status) {
         this.status = status;
-    }
-    
-    @Override
-    public int getRequestCounter() {
-        return this.requestCounter;
-    }
-    /**
-     * Set the internal request counter
-     */
-    public void setRequestCounter(int val) {
-        this.requestCounter = val;
     }
     
     @Override
@@ -273,7 +218,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte   // 1 byte
-        requestCounter = in.readInt();      // 4 bytes
+        restartCounter = in.readByte();     // 1 byte
         txn_id = in.readLong();             // 8 bytes
         clientHandle = in.readLong();       // 8 bytes
         singlepartition = in.readBoolean(); // 1 byte
@@ -306,7 +251,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     public void writeExternal(FastSerializer out) throws IOException {
         assert setProperly;
         out.writeByte(0);//version
-        out.writeInt(requestCounter);
+        out.writeByte(restartCounter);
         out.writeLong(txn_id);
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
@@ -384,7 +329,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m.put("Status", this.status +
                         (this.statusString == null || this.statusString.isEmpty() ? "" : " / " + this.statusString));
         m.put("Handle", this.clientHandle);
-        m.put("Request Counter", this.requestCounter);
         m.put("Restart Counter", this.restartCounter);
         m.put("Single-Partition", this.singlepartition);
         m.put("Base Partition", this.basePartition);
@@ -406,4 +350,45 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 
+    // ----------------------------------------------------------------------------
+    // SPECIAL BYTEBUFFER MODIFIERS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Set the txn restart counter without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setRestartCounter(ByteBuffer b, int val) {
+        b.put(1, (byte)val); 
+    }
+    
+    /**
+     * Set the client handle without deserializing it first
+     * @param b
+     * @param handle
+     */
+    public static void setClientHandle(ByteBuffer b, long handle) {
+        b.putLong(10, handle); // 1 + 1 + 8 = 10 
+    }
+    
+    /**
+     * Set the base partition for the client response without deserializing it
+     * @param arr
+     * @param flag
+     */
+    public static void setBasePartition(ByteBuffer b, int basePartition) {
+        b.putInt(19, basePartition); // 1 + 1 + 8 + 8 + 1 = 19 
+    }
+    
+    /**
+     * Set the status without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setStatus(ByteBuffer b, Status status) {
+        b.put(23, (byte)status.ordinal()); // 1 + 1 + 8 + 8 + 1 + 4 = 23 
+    }
+    
+    // ----------------------------------------------------------------------------
 }

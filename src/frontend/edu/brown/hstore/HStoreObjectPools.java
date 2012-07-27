@@ -171,7 +171,7 @@ public final class HStoreObjectPools {
         
         // Sanity Check: Make sure that we allocated an object pool for all of the 
         // fields that we have defined except for STATES_PREFETCH_STATE
-        for (Entry<String, TypedObjectPool<?>> e : this.getAllPools().entrySet()) {
+        for (Entry<String, TypedObjectPool<?>> e : this.getGlobalPools().entrySet()) {
             String poolName = e.getKey();
             if (poolName.equals("STATES_PREFETCH") || poolName.equals("STATES_TXN_MAPREDUCE")) continue;
             assert(e.getValue() != null) : poolName + " is null!";
@@ -203,7 +203,7 @@ public final class HStoreObjectPools {
         return this.STATES_PREFETCH[offset];
     }
     
-    public Map<String, TypedObjectPool<?>> getAllPools() {
+    public Map<String, TypedObjectPool<?>> getGlobalPools() {
         Map<String, TypedObjectPool<?>> m = new LinkedHashMap<String, TypedObjectPool<?>>();
         Object val = null;
         for (Field f : HStoreObjectPools.class.getFields()) {
@@ -215,8 +215,23 @@ public final class HStoreObjectPools {
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-        }
-        
+        } // FOR
+        return (m);
+    }
+    
+    public Map<String, TypedObjectPool<?>[]> getPartitionedPools() {
+        Map<String, TypedObjectPool<?>[]> m = new LinkedHashMap<String, TypedObjectPool<?>[]>();
+        Object val = null;
+        for (Field f : HStoreObjectPools.class.getFields()) {
+            try {
+                val = f.get(this);
+                if (val instanceof TypedObjectPool<?>[]) {
+                    m.put(f.getName(), (TypedObjectPool<?>[])val);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        } // FOR
         return (m);
     }
 }
