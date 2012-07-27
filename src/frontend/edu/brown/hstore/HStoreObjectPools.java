@@ -17,9 +17,11 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.PrefetchState;
 import edu.brown.hstore.txns.RemoteTransaction;
+import edu.brown.interfaces.Configurable;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.pools.TypedPoolableObjectFactory;
 
-public final class HStoreObjectPools {
+public final class HStoreObjectPools implements Configurable {
 
     // ----------------------------------------------------------------------------
     // CALLBACKS
@@ -178,6 +180,22 @@ public final class HStoreObjectPools {
         } // FOR
     }
 
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        for (TypedObjectPool<?> pool : this.getGlobalPools().values()) {
+            TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+            factory.setEnableCounting(hstore_conf.site.pool_profiling);
+        } // FOR
+        for (TypedObjectPool<?> pools[] : this.getPartitionedPools().values()) {
+            if (pools == null) continue;
+            for (TypedObjectPool<?> pool : pools) {
+                if (pool == null) continue;
+                TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
+                factory.setEnableCounting(hstore_conf.site.pool_profiling);
+            } // FOR
+        } // FOR
+    }
+    
     public TypedObjectPool<LocalTransaction> getLocalTransactionPool(int partition) {
         int offset = this.hstore_site.getLocalPartitionOffset(partition);
         return this.STATES_TXN_LOCAL[offset];
@@ -222,7 +240,7 @@ public final class HStoreObjectPools {
     public Map<String, TypedObjectPool<?>[]> getPartitionedPools() {
         Map<String, TypedObjectPool<?>[]> m = new LinkedHashMap<String, TypedObjectPool<?>[]>();
         Object val = null;
-        for (Field f : HStoreObjectPools.class.getFields()) {
+        for (Field f : HStoreObjectPools.class.getDeclaredFields()) {
             try {
                 val = f.get(this);
                 if (val instanceof TypedObjectPool<?>[]) {
