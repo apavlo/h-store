@@ -2566,8 +2566,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
 	private void processPeriodicWork() {
-	    if (t)
-		    LOG.trace("Checking for PeriodicWork...");
+	    if (t) LOG.trace("Checking for PeriodicWork...");
 
 	    if (this.clientInterface != null) {
 	        this.clientInterface.checkForDeadConnections(EstTime.currentTimeMillis());
@@ -2575,12 +2574,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	    
 	    // poll planner queue
 	    if (this.asyncCompilerWork_thread != null) {
-	        try {
-	            checkForFinishedCompilerWork();
-	        } catch (Throwable ex) {
-	            ex.printStackTrace();
-	            throw new RuntimeException(ex);
-	        }
+            checkForFinishedCompilerWork();
 	    }
 	    
 	    // Delete txn handles
@@ -2670,7 +2664,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
                 // initiate the transaction
                 int base_partition = result.ts.getBasePartition();
-                Long txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
+                Long txn_id = this.txnInitializer.registerTransaction(result.ts, base_partition);
                 result.ts.setTransactionId(txn_id);
                 
                 if (d) LOG.debug("Queuing AdHoc transaction: " + result.ts);

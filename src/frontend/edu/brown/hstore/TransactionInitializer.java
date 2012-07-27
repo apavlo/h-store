@@ -455,7 +455,7 @@ public class TransactionInitializer {
      * @param base_partition
      * @return
      */
-    private Long registerTransaction(LocalTransaction ts, int base_partition) {
+    protected Long registerTransaction(LocalTransaction ts, int base_partition) {
         TransactionIdManager idManager = hstore_site.getTransactionIdManager(base_partition); 
         Long txn_id = idManager.getNextUniqueTransactionId();
         
