@@ -65,6 +65,20 @@ public abstract class ClassUtil {
     private static final Map<Class<?>, Set<Class<?>>> CACHE_getInterfaceClasses = new HashMap<Class<?>, Set<Class<?>>>();
 
     /**
+     * Returns true if asserts are enabled. This assumes that
+     * we're always using the default system ClassLoader
+     */
+    public static boolean isAssertsEnabled() {
+        boolean ret = false;
+        try {
+            assert(false);
+        } catch (AssertionError ex) {
+            ret = true;
+        }
+        return (ret);
+    }
+    
+    /**
      * Convenience method to get the name of the method that invoked this method
      * @return
      */
