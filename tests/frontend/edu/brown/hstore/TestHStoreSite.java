@@ -1,14 +1,12 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
@@ -20,7 +18,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.BaseTestCase;
@@ -37,7 +34,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 public class TestHStoreSite extends BaseTestCase {
