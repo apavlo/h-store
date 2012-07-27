@@ -12,8 +12,9 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.utils.ExceptionHandlingRunnable;
 
-public abstract class AbstractProcessingThread<E> implements Runnable, Shutdownable {
+public abstract class AbstractProcessingThread<E> extends ExceptionHandlingRunnable implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(AbstractProcessingThread.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -54,7 +55,7 @@ public abstract class AbstractProcessingThread<E> implements Runnable, Shutdowna
     }
     
     @Override
-    public final void run() {
+    public final void runImpl() {
         this.self = Thread.currentThread();
         this.self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_ANTICACHE));
         this.hstore_site.getThreadManager().registerProcessingThread();

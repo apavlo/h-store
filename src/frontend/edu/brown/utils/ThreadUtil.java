@@ -75,9 +75,13 @@ public abstract class ThreadUtil {
      * futures.
      */
     public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
+        // HACK: ScheduledThreadPoolExecutor won't let use the handler so
+        // if we're using ExceptionHandlingRunnable then we'll be able to 
+        // pick up the exceptions
+        Thread.setDefaultUncaughtExceptionHandler(handler);
+        
         ThreadFactory factory = getThreadFactory(name, handler);
         ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(poolSize, factory);
-//         ExceptionHandlingExecuterService executor = new ExceptionHandlingExecuterService(poolSize, factory, handler);
         executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         return executor;
