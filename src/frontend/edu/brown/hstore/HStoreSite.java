@@ -2655,15 +2655,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
 
-        // Return the ParameterSet back to our pool
-//        ParameterSet params = ts.getProcedureParameters();
-//        if (params != null) {
-//            objectPools.PARAMETERSETS.returnObject(params);
-//        }
-        
         AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
         assert(rm == null || rm == ts) : String.format("%s != %s", ts, rm);
-        if (t) LOG.trace(String.format("Deleted %s [inflightRemoval:%s]", ts, (rm != null)));
+//        if (t) 
+            LOG.info(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
