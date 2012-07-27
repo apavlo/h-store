@@ -11,6 +11,7 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.catalog.CatalogInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.internal.InternalMessage;
@@ -35,6 +36,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.initializeCluster(2, 2, NUM_PARTITIONS);
+        if (isFirstSetup()) System.err.println(CatalogInfo.getInfo(catalog, null));
         
         Site catalog_site = this.getSite(0);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
@@ -48,6 +50,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
                            BASE_PARTITION,
                            catalogContext.getAllPartitionIdCollection(),
                            catalog_proc);
+        assertFalse(this.dtxn.isPredictAllLocal());
     }
     
     /**
@@ -73,6 +76,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.work_queue.add(new StartTxnMessage(ts));
         
         StartTxnMessage next = this.scheduler.next(this.dtxn);
+        System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next.getTransaction());
         assertTrue(ts.isSpeculative());
