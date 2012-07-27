@@ -69,6 +69,28 @@ public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
             throw new RuntimeException(ex);
         }
     }
+    
+    @Override
+    public String toString() {
+        @SuppressWarnings("unchecked")
+        TypedPoolableObjectFactory<T> factory = (TypedPoolableObjectFactory<T>)this.getFactory();
+        String ret = null;
+        if (factory.isCountingEnabled()) {
+            ret = String.format("%s [active:%d / idle:%d / created:%d / passivated:%d / destroyed:%d]",
+                                this.getClass().getSimpleName(),
+                                this.getNumActive(),
+                                this.getNumIdle(),
+                                factory.getCreatedCount(),
+                                factory.getPassivatedCount(),
+                                factory.getDestroyedCount());
+        } else {
+            ret = String.format("%s [active:%d / idle:%d]",
+                                this.getClass().getSimpleName(),
+                                this.getNumActive(),
+                                this.getNumIdle());
+        }
+        return (ret);
+    }
 
     /**
      * @param <X>
@@ -78,10 +100,10 @@ public class TypedObjectPool<T extends Poolable> extends FastObjectPool<T> {
      * @param args
      * @return
      */
-    public static <X extends Poolable> TypedObjectPool<X> factory(final Class<X> clazz,
-                                                                    final int idle,
-                                                                    final boolean enable_tracking,
-                                                                    final Object... args) {
+    public static <X extends Poolable> TypedObjectPool<X> factory(Class<X> clazz,
+                                                                  int idle,
+                                                                  boolean enable_tracking,
+                                                                  Object... args) {
         TypedPoolableObjectFactory<X> factory = TypedPoolableObjectFactory.makeFactory(clazz,
                                                                                        enable_tracking,
                                                                                        args);
