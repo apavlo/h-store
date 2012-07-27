@@ -70,16 +70,16 @@ public abstract class ThreadUtil {
         }
     }
     
-    /*
-    * Have shutdown actually means shutdown. Tasks that need to complete should use
-    * futures.
-    */
+    /**
+     * Have shutdown actually means shutdown. Tasks that need to complete should use
+     * futures.
+     */
     public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
         ThreadFactory factory = getThreadFactory(name, handler);
-        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, factory);
-        ses.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
-        ses.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-        return ses;
+        ExceptionHandlingExecuterService executor = new ExceptionHandlingExecuterService(poolSize, factory, handler);
+        executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        return executor;
     }
     
     public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler handler) {
