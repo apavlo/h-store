@@ -496,7 +496,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
                 Thread thread = arg.getFirst();
                 Throwable error = arg.getSecond();
-                LOG.fatal(String.format("Thread %s had a fatal error: %s", thread.getName(), (error != null ? error.getMessage() : null)));
+                String threadName = "<unknown>";
+                if (thread != null) threadName = thread.getName(); 
+                LOG.fatal(String.format("Thread %s had a fatal error: %s",
+                          threadName, (error != null ? error.getMessage() : null)));
                 hstore_coordinator.shutdownClusterBlocking(error);
             }
         };
