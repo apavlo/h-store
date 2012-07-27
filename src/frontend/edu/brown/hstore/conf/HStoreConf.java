@@ -119,6 +119,14 @@ public final class HStoreConf {
         public boolean log_backup;
         
         @ConfigProperty(
+            description="Execute each HStoreSite with JVM asserts enabled. " +
+            		    "This should be set to false when running benchmark experiments.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public String jvm_asserts;
+        
+        @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
             defaultInt=2048,
             experimental=false
@@ -1036,6 +1044,15 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean log_backup;
+        
+        @ConfigProperty(
+            description="Execute each HStoreSite with JVM asserts enabled. " +
+                        "The client asserts will not affect the runtime performance of the " +
+                        "database cluster, but it may increase the overhead of each client thread.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public String jvm_asserts;
         
         @ConfigProperty(
             description="Additional JVM arguments to include when launching each benchmark client process. " +
