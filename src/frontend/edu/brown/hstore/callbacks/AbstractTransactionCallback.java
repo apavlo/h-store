@@ -163,10 +163,10 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         if (this.ts.isDeletable()) {
             if (this.txn_profiling) ts.profiler.stopPostFinish();
             if (debug.get()) 
-                LOG.debug(String.format("%s - Deleting from %s [status=%s]",
+                LOG.info(String.format("%s - Deleting from %s [status=%s]",
                                                      this.ts, this.getClass().getSimpleName(), status));
             this.hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else { // if (debug.get()) {
+        } else if (debug.get()) {
             LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
                                    this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
         }

@@ -25,7 +25,6 @@ package org.voltdb.regressionsuites;
 
 import java.io.IOException;
 
-import org.jfree.util.Log;
 import org.voltdb.*;
 import org.voltdb.client.*;
 import org.voltdb.compiler.VoltProjectBuilder;
