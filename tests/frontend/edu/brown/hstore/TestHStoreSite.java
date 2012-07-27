@@ -138,7 +138,17 @@ public class TestHStoreSite extends BaseTestCase {
         } // FOR
         
         boolean result = latch.await(20, TimeUnit.SECONDS);
-        assertTrue(result);
+//        System.err.println("InflightTxnCount: " + hstore_debug.getInflightTxnCount());
+//        System.err.println("DeletableTxnCount: " + hstore_debug.getDeletableTxnCount());
+//        System.err.println("--------------------------------------------");
+//        System.err.println("EXPECTED IDS:");
+//        System.err.println(StringUtil.join("\n", CollectionUtil.sort(expectedIds)));
+//        System.err.println("--------------------------------------------");
+//        System.err.println("ACTUAL IDS:");
+//        System.err.println(StringUtil.join("\n", CollectionUtil.sort(actualIds)));
+//        System.err.println("--------------------------------------------");
+        
+        assertTrue("Timed out [latch="+latch.getCount() + "]", result);
         assertNotSame(0, numAborts.get());
         assertNotSame(0, expectedHandles.size());
         assertNotSame(0, expectedIds.size());
@@ -146,9 +156,8 @@ public class TestHStoreSite extends BaseTestCase {
         
         // HACK: Wait a little to know that the periodic thread has attempted
         // to clean-up our deletable txn handles
-        ThreadUtil.sleep(5000);
-        System.err.println("InflightTxnCount: " + hstore_debug.getInflightTxnCount());
-        System.err.println("DeletableTxnCount: " + hstore_debug.getDeletableTxnCount());
+        ThreadUtil.sleep(2500);
+
         assertEquals(0, hstore_debug.getInflightTxnCount());
         assertEquals(0, hstore_debug.getDeletableTxnCount());
         
@@ -165,15 +174,6 @@ public class TestHStoreSite extends BaseTestCase {
             }
             assertFalse(ts.debug(), ts.isInitialized());
         } // FOR
-        
-        System.err.println("--------------------------------------------");
-        System.err.println("EXPECTED IDS:");
-        System.err.println(StringUtil.join("\n", CollectionUtil.sort(expectedIds)));
-        System.err.println("--------------------------------------------");
-        System.err.println("ACTUAL IDS:");
-        System.err.println(StringUtil.join("\n", CollectionUtil.sort(actualIds)));
-        System.err.println("--------------------------------------------");
-        
         
         // Then check to make sure that there aren't any active objects in the
         // the various object pools
@@ -200,36 +200,36 @@ public class TestHStoreSite extends BaseTestCase {
     /**
      * testSendClientResponse
      */
-//    @Test
-//    public void testSendClientResponse() throws Exception {
-//        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-//        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
-//        boolean predict_readOnly = true;
-//        boolean predict_canAbort = true;
-//        
-//        MockClientCallback callback = new MockClientCallback();
-//        
-//        LocalTransaction ts = new LocalTransaction(hstore_site);
-//        ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
-//                predict_touchedPartitions, predict_readOnly, predict_canAbort,
-//                catalog_proc, PARAMS, callback);
-//        
-//        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
-//                                                              ts.getClientHandle(),
-//                                                              ts.getBasePartition(),
-//                                                              Status.OK,
-//                                                              HStoreConstants.EMPTY_RESULT,
-//                                                              "");
-//        hstore_site.responseSend(ts, cresponse);
-//        
-//        // Check to make sure our callback got the ClientResponse
-//        // And just make sure that they're the same
-//        assertEquals(callback, ts.getClientCallback());
-//        ClientResponseImpl clone = callback.getResponse();
-//        assertNotNull(clone);
-//        assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
-//        assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
-//    }
+    @Test
+    public void testSendClientResponse() throws Exception {
+        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        PartitionSet predict_touchedPartitions = new PartitionSet(BASE_PARTITION);
+        boolean predict_readOnly = true;
+        boolean predict_canAbort = true;
+        
+        MockClientCallback callback = new MockClientCallback();
+        
+        LocalTransaction ts = new LocalTransaction(hstore_site);
+        ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
+                predict_touchedPartitions, predict_readOnly, predict_canAbort,
+                catalog_proc, PARAMS, callback);
+        
+        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
+                                                              ts.getClientHandle(),
+                                                              ts.getBasePartition(),
+                                                              Status.OK,
+                                                              HStoreConstants.EMPTY_RESULT,
+                                                              "");
+        hstore_site.responseSend(ts, cresponse);
+        
+        // Check to make sure our callback got the ClientResponse
+        // And just make sure that they're the same
+        assertEquals(callback, ts.getClientCallback());
+        ClientResponseImpl clone = callback.getResponse();
+        assertNotNull(clone);
+        assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
+        assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
+    }
     
 //    @Test
 //    public void testHStoreSite_AdHoc(){

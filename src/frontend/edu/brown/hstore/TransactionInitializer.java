@@ -35,7 +35,6 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastDeserializer;
 
@@ -55,6 +54,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
@@ -374,30 +374,7 @@ public class TransactionInitializer {
         }
         
         // Initialize our LocalTransaction handle
-        TransactionIdManager idManager = hstore_site.getTransactionIdManager(base_partition); 
-        Long txn_id = idManager.getNextUniqueTransactionId();
-        
-        // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
-        // So we'll just double check to make sure that it's unique, and if not, we'll just ask for a new one
-        LocalTransaction dupe = (LocalTransaction)this.inflight_txns.put(txn_id, ts);
-        if (dupe != null) {
-            // HACK!
-            this.inflight_txns.put(txn_id, dupe);
-            Long new_txn_id = idManager.getNextUniqueTransactionId();
-            if (new_txn_id.equals(txn_id)) {
-                String msg = "Duplicate transaction id #" + txn_id;
-                LOG.fatal("ORIG TRANSACTION:\n" + dupe);
-                LOG.fatal("NEW TRANSACTION:\n" + ts);
-                Exception error = new Exception(msg);
-                this.hstore_site.getCoordinator().shutdownClusterBlocking(error);
-            }
-            LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
-            txn_id = new_txn_id;
-            this.inflight_txns.put(txn_id, ts);
-        }
-
         this.populateProperties(ts,
-                                txn_id,
                                 client_handle,
                                 base_partition,
                                 catalog_proc,
@@ -424,11 +401,89 @@ public class TransactionInitializer {
         return (ts);
     }
     
+    /**
+     * Create a new LocalTransaction handle from a restart txn
+     * @param orig_ts
+     * @param base_partition
+     * @param predict_touchedPartitions
+     * @param predict_readOnly
+     * @param predict_abortable
+     * @return
+     */
+    public LocalTransaction createLocalTransaction(LocalTransaction orig_ts,
+                                                   int base_partition,
+                                                   PartitionSet predict_touchedPartitions,
+                                                   boolean predict_readOnly,
+                                                   boolean predict_abortable) {
+        
+        LocalTransaction new_ts = null;
+        try {
+            new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
+        } catch (Exception ex) {
+            LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
+            throw new RuntimeException(ex);
+        }
+        if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+        
+        Long new_txn_id = this.registerTransaction(new_ts, base_partition);
+        new_ts.init(new_txn_id,
+                    orig_ts.getClientHandle(),
+                    base_partition,
+                    predict_touchedPartitions,
+                    predict_readOnly,
+                    predict_abortable,
+                    orig_ts.getProcedure(),
+                    orig_ts.getProcedureParameters(),
+                    orig_ts.getClientCallback()
+        );
+        
+        // Make sure that we remove the ParameterSet from the original LocalTransaction
+        // so that they don't get returned back to the object pool when it is deleted
+        orig_ts.removeProcedureParameters();
+        
+        // Increase the restart counter in the new transaction
+        new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
+        
+        return (new_ts);
+    }
+                                
+    
+    /**
+     * Register a new LocalTransaction handle with this HStoreSite
+     * We will return a txnId that is guaranteed to be globally unique
+     * @param ts
+     * @param base_partition
+     * @return
+     */
+    private Long registerTransaction(LocalTransaction ts, int base_partition) {
+        TransactionIdManager idManager = hstore_site.getTransactionIdManager(base_partition); 
+        Long txn_id = idManager.getNextUniqueTransactionId();
+        
+        // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
+        // So we'll just double check to make sure that it's unique, and if not, we'll just ask for a new one
+        LocalTransaction dupe = (LocalTransaction)this.inflight_txns.put(txn_id, ts);
+        if (dupe != null) {
+            // HACK!
+            this.inflight_txns.put(txn_id, dupe);
+            Long new_txn_id = idManager.getNextUniqueTransactionId();
+            if (new_txn_id.equals(txn_id)) {
+                String msg = "Duplicate transaction id #" + txn_id;
+                LOG.fatal("ORIG TRANSACTION:\n" + dupe);
+                LOG.fatal("NEW TRANSACTION:\n" + ts);
+                Exception error = new Exception(msg);
+                this.hstore_site.getCoordinator().shutdownClusterBlocking(error);
+            }
+            LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
+            txn_id = new_txn_id;
+            this.inflight_txns.put(txn_id, ts);
+        }
+        
+        return (txn_id);
+    }
 
     /**
      * Initialize the execution properties for a new tansaction
      * @param ts
-     * @param txn_id
      * @param client_handle
      * @param base_partition
      * @param catalog_proc
@@ -436,13 +491,13 @@ public class TransactionInitializer {
      * @param client_callback
      */
     protected void populateProperties(LocalTransaction ts,
-                                      Long txn_id,
                                       long client_handle,
                                       int base_partition,
                                       Procedure catalog_proc,
                                       ParameterSet params,
                                       RpcCallback<ClientResponseImpl> client_callback) {
         
+        Long txn_id = this.registerTransaction(ts, base_partition);
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
         PartitionSet predict_partitions = null;

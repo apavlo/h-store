@@ -116,7 +116,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ExceptionHandlingRunnable;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 
@@ -2187,15 +2186,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // LOCAL RE-EXECUTION
         // -------------------------------
-        Long new_txn_id = this.getTransactionIdManager(base_partition).getNextUniqueTransactionId();
-        LocalTransaction new_ts = null;
-        try {
-            new_ts = objectPools.getLocalTransactionPool(base_partition).borrowObject();
-        } catch (Exception ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
-            throw new RuntimeException(ex);
-        }
-        if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
         
         // Figure out what partitions they tried to touch so that we can make sure to lock
         // those when the txn is restarted
@@ -2257,23 +2247,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
-        new_ts.init(new_txn_id,
-                    orig_ts.getClientHandle(),
-                    base_partition,
-                    predict_touchedPartitions,
-                    predict_readOnly,
-                    predict_abortable,
-                    orig_ts.getProcedure(),
-                    orig_ts.getProcedureParameters(),
-                    orig_ts.getClientCallback()
-        );
-        // Make sure that we remove the ParameterSet from the original LocalTransaction
-        // so that they don't get returned back to the object pool when it is deleted
-        orig_ts.removeProcedureParameters();
         
-        // Increase the restart counter in the new transaction
-        new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
-        
+        LocalTransaction new_ts = this.txnInitializer.createLocalTransaction(
+                orig_ts,
+                base_partition,
+                predict_touchedPartitions,
+                predict_readOnly,
+                predict_abortable);
+        assert(new_ts != null);
+
         // -------------------------------
         // ANTI-CACHING REQUEUE
         // -------------------------------
@@ -2436,8 +2418,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void queueDeleteTransaction(Long txn_id, Status status) {
         assert(txn_id != null) : "Unexpected null transaction id";
-//        if (d) 
-            LOG.info("Queueing txn #" + txn_id + " for deletion");
+        if (t) LOG.trace(String.format("Queueing txn #%d for deletion [status=%s]", txn_id, status));
         this.deletable_txns.add(Pair.of(txn_id, status));
     }
     
@@ -2564,8 +2545,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
         assert(rm == null || rm == ts) : String.format("%s != %s", ts, rm);
-//        if (t) 
-            LOG.info(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
+        if (t) LOG.trace(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + ts.getTransactionId();
         if (d) LOG.debug(String.format("%s - Returning to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
@@ -2630,7 +2610,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            ts, status, ts.debug()));
                     break;
     	        }
-	        } else {
+	        } else if (d) {
 	            LOG.warn(String.format("Ignoring clean-up request for txn #%d because we don't " +
 	            		               "have a handle [status=%s]", p.getFirst(), p.getSecond()));
 	        }
