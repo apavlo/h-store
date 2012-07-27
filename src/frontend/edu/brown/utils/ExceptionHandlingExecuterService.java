@@ -65,12 +65,14 @@ public class ExceptionHandlingExecuterService extends ScheduledThreadPoolExecuto
         @Override
         protected void done() {
             // super.done(); // does nothing
+            System.err.println(Thread.currentThread() + " ???? " + this.task.isPeriodic());
             try {
                 get();
+                System.err.println(Thread.currentThread() + " !!!!");
 
             } catch (ExecutionException e) {
                 if (exceptionHandler != null) {
-                    exceptionHandler.uncaughtException(null, e.getCause());
+                    exceptionHandler.uncaughtException(Thread.currentThread(), e.getCause());
                 }
 
             } catch (Exception e) {
@@ -82,17 +84,14 @@ public class ExceptionHandlingExecuterService extends ScheduledThreadPoolExecuto
         public boolean isPeriodic() {
             return this.task.isPeriodic();
         }
-
         @Override
         public long getDelay(TimeUnit unit) {
             return task.getDelay(unit);
         }
-
         @Override
         public int compareTo(Delayed other) {
             return task.compareTo(other);
         }
-
     }
 
     /**
@@ -113,6 +112,7 @@ public class ExceptionHandlingExecuterService extends ScheduledThreadPoolExecuto
 
     @Override
     protected <V> RunnableScheduledFuture<V> decorateTask(Runnable runnable, RunnableScheduledFuture<V> task) {
-        return new ExceptionHandlingFutureTask<V>(runnable, task);
+        return task;
+        // return new ExceptionHandlingFutureTask<V>(runnable, task);
     }
 }

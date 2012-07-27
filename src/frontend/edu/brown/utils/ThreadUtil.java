@@ -76,7 +76,8 @@ public abstract class ThreadUtil {
      */
     public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
         ThreadFactory factory = getThreadFactory(name, handler);
-        ExceptionHandlingExecuterService executor = new ExceptionHandlingExecuterService(poolSize, factory, handler);
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(poolSize, factory);
+//         ExceptionHandlingExecuterService executor = new ExceptionHandlingExecuterService(poolSize, factory, handler);
         executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         return executor;
