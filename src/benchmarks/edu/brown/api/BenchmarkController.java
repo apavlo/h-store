@@ -547,8 +547,8 @@ public class BenchmarkController {
             }
             String opt = String.format("-D%s=%s", e.getKey(), value);
             siteBaseCommand.add(opt);
-            if (trace.get()) 
-                LOG.trace("  " + opt);
+//            if (trace.get()) 
+                LOG.info("  " + opt);
         } // FOR
 
         for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
@@ -565,7 +565,8 @@ public class BenchmarkController {
                 continue;
             }
             
-            LOG.info(String.format("Starting HStoreSite %s on %s", HStoreThreadManager.formatSiteName(site_id), host));
+            LOG.info(String.format("Starting HStoreSite %s on %s",
+                                    HStoreThreadManager.formatSiteName(site_id), host));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {

@@ -2434,9 +2434,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void deleteRemoteTransaction(RemoteTransaction ts, Status status) {
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool
-        if (d) LOG.debug(String.format("Returning %s to ObjectPool [%s]", ts, status));
         AbstractTransaction rm = this.inflight_txns.remove(ts.getTransactionId());
-        LOG.info(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
+        if (d) LOG.debug(String.format("Deleted %s [%s / inflightRemoval:%s]", ts, status, (rm != null)));
         
         this.objectPools.getRemoteTransactionPool(ts.getBasePartition())
                         .returnObject(ts);
@@ -2603,8 +2602,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 // We can't delete this yet, so we'll just stop checking
                 else {
-                    LOG.warn(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
-                                           ts, status, ts.debug()));
+                    if (d) LOG.warn(String.format("%s - Cannot delete txn at this point [status=%s]\n%s",
+                                                  ts, status, ts.debug()));
                     break;
     	        }
 	        } else if (d) {

@@ -215,7 +215,7 @@ public abstract class HStore {
         Thread t = Thread.currentThread();
         t.setName(HStoreThreadManager.getThreadName(site_id, null, "main"));
         
-        final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
+        final Site catalog_site = args.catalogContext.getSiteById(site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
@@ -241,7 +241,8 @@ public abstract class HStore {
         // ----------------------------------------------------------------------------
         // Bombs Away!
         // ----------------------------------------------------------------------------
-        LOG.info("Instantiating HStoreSite network connections...");
+        if (debug.get())
+            LOG.debug("Instantiating HStoreSite network connections for " + hstore_site.getSiteName());
         hstore_site.run();
     }
     
