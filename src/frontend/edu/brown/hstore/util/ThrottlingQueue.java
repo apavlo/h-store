@@ -270,7 +270,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     
     @Override
     public void clear() {
-        if (this.throttled) ProfileMeasurement.stop(false, this.throttle_time);
+        if (this.throttled) ProfileMeasurement.stop(true, this.throttle_time);
         this.throttled = false;
         this.size = 0;
         this.queue.clear();

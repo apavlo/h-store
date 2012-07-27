@@ -760,10 +760,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     @Override
     public void updateConf(HStoreConf hstore_conf) {
         // ThrottlingQueue
-        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_max_per_partition);
+        this.work_queue.setQueueMax(hstore_conf.site.queue_incoming_max_per_partition);
         this.work_queue.setQueueReleaseFactor(hstore_conf.site.queue_incoming_release_factor);
         this.work_queue.setQueueIncrease(hstore_conf.site.queue_incoming_increase);
         this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_increase_max);
+        this.work_queue.checkThrottling(false);
     }
     
     // ----------------------------------------------------------------------------

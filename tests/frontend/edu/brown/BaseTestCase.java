@@ -519,7 +519,8 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         
         // I added an extra little sleep just to be sure...
         ThreadUtil.sleep(3000);
-        
+
+        assertNotNull(hstore_site);
         return (hstore_site);
     }
     

@@ -11,6 +11,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcCallException;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -20,6 +21,7 @@ import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.pools.TypedObjectPool;
+import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
@@ -71,8 +73,8 @@ public class TestHStoreSite extends BaseTestCase {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
-        
-        hstore_conf.site.queue_incoming_max_per_partition = 0;
+        hstore_conf.site.pool_profiling = true;
+        hstore_conf.site.queue_incoming_max_per_partition = -1;
         hstore_conf.site.queue_incoming_release_factor = 0;
         hstore_conf.site.queue_incoming_increase = 0;
         hstore_conf.site.queue_incoming_increase_max = 0;
@@ -82,19 +84,30 @@ public class TestHStoreSite extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Object params[] = { 1234l, "XXXX" };
         for (int i = 0; i < 1000; i++) {
-            ClientResponse cr = this.client.callProcedure(catalog_proc.getName(), params);
+            ClientResponse cr = null;
+            try {
+                this.client.callProcedure(catalog_proc.getName(), params);
+            } catch (ProcCallException ex) {
+                cr = ex.getClientResponse();
+            }
             assertNotNull(cr);
             assertEquals(cr.toString(), Status.ABORT_REJECT, cr.getStatus());
         } // FOR
         
         Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
         assertNotNull(allPools);
+        assertFalse(allPools.isEmpty());
         for (String name : allPools.keySet()) {
             TypedObjectPool<?> pools[] = allPools.get(name);
+            TypedPoolableObjectFactory<?> factory = null;
             assertNotNull(name, pools);
+            assertNotSame(0, pools.length);
             for (int i = 0; i < pools.length; i++) {
                 if (pools[i] == null) continue;
-                assertEquals(name + "-" + i, pools[i].getNumActive());
+                factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
+                assertTrue(name + "-" + i, factory.isCountingEnabled());
+                assertEquals(name + "-" + i, 0, pools[i].getNumActive());
+                System.err.printf("%s-%d: %s\n", name, i, factory.toString());
             } // FOR
         } // FOR
     }
