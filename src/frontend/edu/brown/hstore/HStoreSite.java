@@ -91,12 +91,13 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
-import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
@@ -219,7 +220,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     private final StatsAgent statsAgent = new StatsAgent();
-    private final MemoryStats memoryStats = new MemoryStats();
+    private final MemoryStats memoryStats;
+    private final TransactionCounterStats txnStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -412,7 +414,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param p_estimator
      */
     protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
-    	
         assert(catalog_site != null);
         
         this.hstore_conf = hstore_conf;
@@ -560,7 +561,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // STATS SETUP
         // -------------------------------
+        
+        // MEMORY
+        this.memoryStats = new MemoryStats();
         this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
+        
+        // TXN COUNTERS
+        this.txnStats = new TransactionCounterStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TRANSACTION, 0, this.txnStats);
         
         // -------------------------------
         // NETWORK SETUP
@@ -1540,7 +1548,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         
         // Profiling Updates
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(procName);
+        if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procName);
         if (hstore_conf.site.network_profiling && base_partition != -1) {
             this.network_incoming_partitions.put(base_partition);
         }
@@ -1598,8 +1606,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
 
-        if (hstore_conf.site.status_show_txn_info) {
-            (success ? TxnCounter.EXECUTED : TxnCounter.REJECTED).inc(catalog_proc);
+        if (hstore_conf.site.txn_counters) {
+            (success ? TransactionCounter.EXECUTED : TransactionCounter.REJECTED).inc(catalog_proc);
         }
         
         if (d) LOG.debug(String.format("Finished initial processing of new txn. [success=%s]", success));
@@ -1750,8 +1758,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            TransactionIdManager.toString(last_txn_id),
                                            TransactionIdManager.toString(txn_id)));
                     }
-                    if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) {
-                        TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
+                    if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
+                        TransactionCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
                     }
                     this.txnQueueManager.blockTransaction(ts, partition.intValue(), last_txn_id);
                     return;
@@ -1799,10 +1807,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
         boolean success = executor.queueNewTransaction(ts);
-        if (hstore_conf.site.status_show_txn_info && success) {
+        if (hstore_conf.site.txn_counters && success) {
             assert(catalog_proc != null) :
                 String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
-            TxnCounter.EXECUTED.inc(catalog_proc);
+            TransactionCounter.EXECUTED.inc(catalog_proc);
         }
         
         if (success == false) {
@@ -2017,7 +2025,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.hstore_coordinator.transactionRedirect(copy.array(),
                                                     callback,
                                                     base_partition);
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
+        if (hstore_conf.site.txn_counters) TransactionCounter.REDIRECTED.inc(catalog_proc);
     }
     
     /**
@@ -2057,9 +2065,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                        ts.getPendingError());
         this.responseSend(ts, cresponse);
 
-        if (hstore_conf.site.status_show_txn_info) {
+        if (hstore_conf.site.txn_counters) {
             if (status == Status.ABORT_REJECT) {
-                TxnCounter.REJECTED.inc(ts.getProcedure());
+                TransactionCounter.REJECTED.inc(ts.getProcedure());
             } else {
                 assert(false) : "Unexpected rejection status for " + ts + ": " + status;
             }
@@ -2167,7 +2175,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                             callback,
                                                             redirect_partition);
                 out.clear();
-                if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
+                if (hstore_conf.site.txn_counters) TransactionCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return (Status.ABORT_RESTART);
                 
             // Allow local redirect
@@ -2481,16 +2489,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
-                    if (hstore_conf.site.status_show_txn_info || hstore_conf.site.status_kill_if_hung) 
-                        TxnCounter.COMPLETED.inc(catalog_proc);
+                    if (hstore_conf.site.txn_counters || hstore_conf.site.status_kill_if_hung) 
+                        TransactionCounter.COMPLETED.inc(catalog_proc);
                     break;
                 case ABORT_USER:
                     if (t_estimator != null) {
                         if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
                         t_estimator.abort(ts.getTransactionId());
                     }
-                    if (hstore_conf.site.status_show_txn_info)
-                        TxnCounter.ABORTED.inc(catalog_proc);
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.ABORTED.inc(catalog_proc);
                     break;
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
@@ -2499,17 +2507,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                         t_estimator.mispredict(ts.getTransactionId());
                     }
-                    if (hstore_conf.site.status_show_txn_info) {
+                    if (hstore_conf.site.txn_counters) {
                         if (status == Status.ABORT_EVICTEDACCESS) {
-                            TxnCounter.EVICTEDACCESS.inc(catalog_proc);
+                            TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
                         } else {
-                            (ts.isSpeculative() ? TxnCounter.RESTARTED : TxnCounter.MISPREDICTED).inc(catalog_proc);
+                            (ts.isSpeculative() ? TransactionCounter.RESTARTED : TransactionCounter.MISPREDICTED).inc(catalog_proc);
                         }
                     }
                     break;
                 case ABORT_REJECT:
-                    if (hstore_conf.site.status_show_txn_info)
-                        TxnCounter.REJECTED.inc(catalog_proc);
+                    if (hstore_conf.site.txn_counters)
+                        TransactionCounter.REJECTED.inc(catalog_proc);
                     break;
                 case ABORT_UNEXPECTED:
                 case ABORT_GRACEFUL:
@@ -2525,15 +2533,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Then update transaction profiling counters
-        if (hstore_conf.site.status_show_txn_info) {
-            if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
-            if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
+        if (hstore_conf.site.txn_counters) {
+            if (ts.isSpeculative()) TransactionCounter.SPECULATIVE.inc(catalog_proc);
+            if (ts.isExecNoUndoBuffer(base_partition)) TransactionCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
-                TxnCounter.SYSPROCS.inc(catalog_proc);
+                TransactionCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Status.ABORT_MISPREDICT &&
                        status != Status.ABORT_REJECT &&
                        status != Status.ABORT_EVICTEDACCESS) {
-                (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
+                (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }
         

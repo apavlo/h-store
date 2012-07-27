@@ -547,8 +547,8 @@ public class BenchmarkController {
             }
             String opt = String.format("-D%s=%s", e.getKey(), value);
             siteBaseCommand.add(opt);
-//            if (trace.get()) 
-                LOG.info("  " + opt);
+            if (trace.get()) 
+                LOG.trace("  " + opt);
         } // FOR
 
         for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {

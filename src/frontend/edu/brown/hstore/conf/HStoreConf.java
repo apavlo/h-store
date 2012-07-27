@@ -536,6 +536,15 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
+            description="Enable transaction execution mode counting. This will cause the HStoreSite to keep " +
+            		    "track of various properties about tranasctions, such as the number that were speculatively " +
+            		    "executed or had to be restarted.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean txn_counters;
+        
+        @ConfigProperty(
             description="The amount of time the TransactionQueueManager will wait before letting a " +
                         "distributed transaction id from aquiring a lock on a partition.",
             defaultInt=1,

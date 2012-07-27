@@ -1075,7 +1075,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * be interesting to have the system report on this before it shuts down.
      * @return true if there is more utility work that can be done
      */
-    protected boolean utilityWork() {
+    private boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.work_utility_time.start();
         if (t) LOG.trace("Entering utilityWork");
         
@@ -1105,7 +1105,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         return (work != null); //  && this.utility_queue.isEmpty() == false);
     }
 
-    public void tick() {
+    private void tick() {
         // invoke native ee tick if at least one second has passed
         final long time = EstTime.currentTimeMillis();
         if ((time - lastTickTime) >= 1000) {

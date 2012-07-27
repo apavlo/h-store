@@ -3,6 +3,7 @@
  */
 package edu.brown.hstore.util;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -11,7 +12,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
-public enum TxnCounter {
+public enum TransactionCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
     /** */
@@ -50,7 +51,7 @@ public enum TxnCounter {
     
     private final Histogram<String> h = new Histogram<String>();
     private final String name;
-    private TxnCounter() {
+    private TransactionCounter() {
         this.name = StringUtil.title(this.name().replace("_", "-"));
     }
     @Override
@@ -62,6 +63,9 @@ public enum TxnCounter {
     }
     public int get() {
         return ((int)this.h.getSampleCount());
+    }
+    public Long get(Procedure catalog_proc) {
+        return (this.h.get(catalog_proc.getName()));
     }
     public int inc(String procName) {
         this.h.put(procName);
@@ -75,9 +79,9 @@ public enum TxnCounter {
         this.h.remove(catalog_proc.getName());
         return (this.get());
     }
-    public static Set<String> getAllProcedures() {
+    public static Collection<String> getAllProcedures() {
         Set<String> ret = new TreeSet<String>();
-        for (TxnCounter tc : TxnCounter.values()) {
+        for (TransactionCounter tc : TransactionCounter.values()) {
             ret.addAll(tc.h.values());
         }
         return (ret);
