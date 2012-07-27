@@ -44,6 +44,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
@@ -51,7 +52,7 @@ import edu.brown.utils.TableUtil;
  * 
  * @author pavlo
  */
-public class HStoreSiteStatus implements Runnable, Shutdownable {
+public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(HStoreSiteStatus.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -185,7 +186,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     @Override
-    public void run() {
+    public void runImpl() {
         self = Thread.currentThread();
         // self.setName(HStoreThreadManager.getThreadName(hstore_site, HStoreConstants.THREAD_NAME_DEBUGSTATUS));
         // this.hstore_site.getThreadManager().registerProcessingThread();

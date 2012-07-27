@@ -32,6 +32,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
@@ -92,9 +93,9 @@ public class AntiCacheManager extends AbstractProcessingThread<AntiCacheManager.
      * Thread that is periodically executed to check whether the amount of
      * memory used by this HStoreSite is over the threshold
      */
-    private final Runnable memoryMonitor = new Runnable() {
+    private final ExceptionHandlingRunnable memoryMonitor = new ExceptionHandlingRunnable() {
         @Override
-        public void run() {
+        public void runImpl() {
             try {
                 if (hstore_conf.site.anticache_enable && checkEviction()) {
                     executeEviction();

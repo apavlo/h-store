@@ -113,6 +113,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
@@ -504,6 +505,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         };
         this.exceptionHandler.addObserver(observer);
+        Thread.setDefaultUncaughtExceptionHandler(this.exceptionHandler);
         
         // HStoreSite Thread Manager (this always get invoked first)
         this.threadManager = new HStoreThreadManager(this);
@@ -1155,9 +1157,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void schedulePeriodicWorks() {
         // Internal Updates
-        this.threadManager.schedulePeriodicWork(new Runnable() {
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
-            public void run() {
+            public void runImpl() {
                 try {
                     HStoreSite.this.processPeriodicWork();
                 } catch (Throwable ex) {
@@ -1189,9 +1191,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // small stats samples
-        this.threadManager.schedulePeriodicWork(new Runnable() {
+        this.threadManager.schedulePeriodicWork(new ExceptionHandlingRunnable() {
             @Override
-            public void run() {
+            public void runImpl() {
                 SystemStatsCollector.asyncSampleSystemNow(false, false);
             }
         }, 0, 5, TimeUnit.SECONDS);
