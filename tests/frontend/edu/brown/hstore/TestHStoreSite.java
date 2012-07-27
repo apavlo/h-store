@@ -1,6 +1,10 @@
 package edu.brown.hstore;
 
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -12,6 +16,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
+import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -25,6 +30,7 @@ import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 
 public class TestHStoreSite extends BaseTestCase {
     
@@ -34,6 +40,7 @@ public class TestHStoreSite extends BaseTestCase {
     private static final int BASE_PARTITION = 0;
     
     private HStoreSite hstore_site;
+    private HStoreSite.DebugContext debug;
     private HStoreConf hstore_conf;
     private Client client;
 
@@ -52,10 +59,12 @@ public class TestHStoreSite extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
+        this.hstore_conf.site.pool_profiling = true;
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = false;
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
+        this.debug = this.hstore_site.getDebugContext();
         this.client = createClient();
     }
     
@@ -73,27 +82,48 @@ public class TestHStoreSite extends BaseTestCase {
         // Check to make sure that we reject a bunch of txns that all of our
         // handles end up back in the object pool. To do this, we first need
         // to set the PartitionExecutor's to reject all incoming txns
-        hstore_conf.site.pool_profiling = true;
-        hstore_conf.site.queue_incoming_max_per_partition = -1;
+        hstore_conf.site.queue_incoming_max_per_partition = 1;
         hstore_conf.site.queue_incoming_release_factor = 0;
         hstore_conf.site.queue_incoming_increase = 0;
         hstore_conf.site.queue_incoming_increase_max = 0;
         hstore_site.updateConf(hstore_conf);
         
+        // We need to get at least one ABORT_REJECT
+        final int num_txns = 1000;
+        final CountDownLatch latch = new CountDownLatch(num_txns);
+        final AtomicInteger numAborts = new AtomicInteger(0);
+        
+        ProcedureCallback callback = new ProcedureCallback() {
+            @Override
+            public void clientCallback(ClientResponse cr) {
+                if (cr.getStatus() == Status.ABORT_REJECT) {
+                    numAborts.incrementAndGet();
+                }
+                latch.countDown();
+            }
+        };
+        
         // Then blast out a bunch of txns that should all come back as rejected
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Object params[] = { 1234l, "XXXX" };
-        for (int i = 0; i < 1000; i++) {
-            ClientResponse cr = null;
-            try {
-                this.client.callProcedure(catalog_proc.getName(), params);
-            } catch (ProcCallException ex) {
-                cr = ex.getClientResponse();
-            }
-            assertNotNull(cr);
-            assertEquals(cr.toString(), Status.ABORT_REJECT, cr.getStatus());
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(callback, catalog_proc.getName(), params);
         } // FOR
         
+        boolean result = latch.await(20, TimeUnit.SECONDS);
+        assertTrue(result);
+        assertNotSame(0, numAborts.get());
+        
+        // HACK: Wait a little to know that the periodic thread has attempted
+        // to clean-up our deletable txn handles
+        ThreadUtil.sleep(1000);
+        System.err.println("InflightTxnCount: " + debug.getInflightTxnCount());
+        System.err.println("DeletableTxnCount: " + debug.getDeletableTxnCount());
+        assertEquals(0, debug.getInflightTxnCount());
+        assertEquals(0, debug.getDeletableTxnCount());
+        
+        // Then check to make sure that there aren't any active objects in the
+        // the various object pools
         Map<String, TypedObjectPool<?>[]> allPools = hstore_site.getObjectPools().getPartitionedPools(); 
         assertNotNull(allPools);
         assertFalse(allPools.isEmpty());
@@ -104,10 +134,12 @@ public class TestHStoreSite extends BaseTestCase {
             assertNotSame(0, pools.length);
             for (int i = 0; i < pools.length; i++) {
                 if (pools[i] == null) continue;
+                String poolName = String.format("%s-%02d", name, i);  
                 factory = (TypedPoolableObjectFactory<?>)pools[i].getFactory();
-                assertTrue(name + "-" + i, factory.isCountingEnabled());
-                assertEquals(name + "-" + i, 0, pools[i].getNumActive());
-                System.err.printf("%s-%d: %s\n", name, i, factory.toString());
+                assertTrue(poolName, factory.isCountingEnabled());
+                
+                System.err.println(poolName + ": " + pools[i].toString());
+                assertEquals(poolName, 0, pools[i].getNumActive());
             } // FOR
         } // FOR
     }
