@@ -176,7 +176,7 @@ public class PartitionExecutorHelper implements Runnable {
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
                 Exception error = new Exception(String.format("Invalid %s MarkovGraph for after recomputing", m.getProcedure().getName()));
-                this.hstore_site.getHStoreCoordinator().shutdownCluster(error);
+                this.hstore_site.getCoordinator().shutdownCluster(error);
             }
         } // WHILE
     }

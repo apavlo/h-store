@@ -86,7 +86,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
             delete = this.unblockTransactionCallback();
         }
         this.unblockFinished = true;
-        if (delete) this.deleteTransaction(this.finishStatus);
+        if (delete) this.hstore_site.queueDeleteTransaction(this.txn_id, this.finishStatus);
     }
     
     @Override
@@ -113,7 +113,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
             this.finishTransaction(status);
         }
         this.abortFinished = true;
-        this.deleteTransaction(status);
+        this.hstore_site.queueDeleteTransaction(this.txn_id, status);
     }
 
     /**
@@ -159,18 +159,18 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      * This is thread-safe
      * @param status
      */
-    private final void deleteTransaction(Status status) {
-        if (this.ts.isDeletable()) {
-            if (this.txn_profiling) ts.profiler.stopPostFinish();
-//            if (debug.get()) 
-                LOG.info(String.format("%s - Deleting from %s [status=%s]",
-                                                     this.ts, this.getClass().getSimpleName(), status));
-            this.hstore_site.deleteTransaction(this.getTransactionId(), status);
-        } else { // if (debug.get()) {
-            LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
-                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
-        }
-    }
+//    private final void deleteTransaction(Status status) {
+//        if (this.ts.isDeletable()) {
+//            if (this.txn_profiling) ts.profiler.stopPostFinish();
+////            if (debug.get()) 
+//                LOG.info(String.format("%s - Deleting from %s [status=%s]",
+//                                                     this.ts, this.getClass().getSimpleName(), status));
+//            this.hstore_site.deleteTransaction(this.getTransactionId(), status);
+//        } else { // if (debug.get()) {
+//            LOG.warn(String.format("%s - Not deleting from %s [status=%s]\n%s",
+//                                   this.ts, this.getClass().getSimpleName(), status, this.ts.debug()));
+//        }
+//    }
     
     /**
      * Tell the HStoreCoordinator to invoke the TransactionFinish process
@@ -184,7 +184,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         
         // Let everybody know that the party is over!
         TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.hstore_site.getHStoreCoordinator().transactionFinish(this.ts, status, finish_callback);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
     
     @Deprecated

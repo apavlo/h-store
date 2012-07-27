@@ -38,7 +38,7 @@ public final class HStoreObjectPools {
     /**
      * ForwardTxnResponseCallback Pool
      */
-    public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECTRESPONSE;
+    public final TypedObjectPool<TransactionRedirectResponseCallback> CALLBACKS_TXN_REDIRECT_RESPONSE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STATE OBJECTS
@@ -90,7 +90,7 @@ public final class HStoreObjectPools {
         this.CALLBACKS_TXN_REDIRECT_REQUEST = TypedObjectPool.factory(TransactionRedirectCallback.class,
                 (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
-        this.CALLBACKS_TXN_REDIRECTRESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
+        this.CALLBACKS_TXN_REDIRECT_RESPONSE = TypedObjectPool.factory(TransactionRedirectResponseCallback.class,
                 (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
                 hstore_conf.site.pool_profiling, hstore_site);
 

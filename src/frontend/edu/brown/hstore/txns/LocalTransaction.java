@@ -610,12 +610,17 @@ public class LocalTransaction extends AbstractTransaction {
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
     
-    public TransactionInitCallback getTransactionInitCallback() {
+    public TransactionInitCallback initTransactionInitCallback() {
+        assert(this.dtxnState.init_callback.isInitialized() == false) :
+            String.format("Trying initialize the %s for %s more than once",
+                          this.dtxnState.init_callback.getClass().getSimpleName(), this);
+        this.dtxnState.init_callback.init(this);
         return (this.dtxnState.init_callback);
     }
     public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
         assert(this.dtxnState.prepare_callback.isInitialized() == false) :
-            "Trying initialize the TransactionPrepareCallback for " + this + " more than once";
+            String.format("Trying initialize the %s for %s more than once",
+                    this.dtxnState.prepare_callback.getClass().getSimpleName(), this);
         this.dtxnState.prepare_callback.init(this, cresponse);
         return (this.dtxnState.prepare_callback);
     }
@@ -633,7 +638,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
-            "Trying initialize the TransactionFinishCallback for " + this + " more than once";
+            String.format("Trying initialize the %s for %s more than once",
+                    this.dtxnState.finish_callback.getClass().getSimpleName(), this);
         // Don't initialize this until later, because we need to know 
         // what the final status of the txn
         this.dtxnState.finish_callback.init(this, status);
@@ -717,7 +723,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param value
      */
     public final void setNeedsRestart(boolean value) {
-        assert(this.needs_restart != value) :
+        assert(value == false || this.needs_restart != value) :
             "Trying to set " + this + " internal needs_restart flag to " + value + " twice";
         this.needs_restart = value;
     }
@@ -725,7 +731,8 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Returns true if we believe that this transaction can be deleted
      * Note that this will only return true once and only once for each transaction invocation.
-     * That ensures that only one thread is allowed to delete a transaction
+     * <B>Note:</B> This is not thread safe!
+     * @return
      */
     public boolean isDeletable() {
         if (this.isInitialized() == false) {
@@ -752,16 +759,9 @@ public class LocalTransaction extends AbstractTransaction {
             if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
-        synchronized (this) {
-            if (this.deletable) return (false);
-            this.deletable = true;
-        }
-        return (true);
-    }
-    public final void markAsDeletable() {
-        assert(this.deletable == false) :
-            "Trying to mark " + this + " as deletable more than once";
+        if (this.deletable) return (false);
         this.deletable = true;
+        return (true);
     }
     public final boolean checkDeletableFlag() {
         return (this.deletable);

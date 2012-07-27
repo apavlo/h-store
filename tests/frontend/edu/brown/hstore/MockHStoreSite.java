@@ -122,7 +122,7 @@ public class MockHStoreSite extends HStoreSite {
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().run(); // Blocks until all connections are established
-        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getHStoreCoordinator();
+        final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
         assert(hstore_coordinator.isStarted());
         
         final CountDownLatch latch = new CountDownLatch(1);

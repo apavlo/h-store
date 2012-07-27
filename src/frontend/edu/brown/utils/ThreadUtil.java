@@ -75,23 +75,20 @@ public abstract class ThreadUtil {
     * futures.
     */
     public static ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor(String name, UncaughtExceptionHandler handler, int poolSize, int stackSize) {
-        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, getThreadFactory(name, handler));
+        ThreadFactory factory = getThreadFactory(name, handler);
+        ScheduledThreadPoolExecutor ses = new ScheduledThreadPoolExecutor(poolSize, factory);
         ses.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         ses.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         return ses;
     }
     
-    public static ThreadFactory getThreadFactory(String name, UncaughtExceptionHandler handler) {
-        return getThreadFactory(name, handler, 1024 * 1024);
-    }
-
-    public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler hander, final int stackSize) {
+    public static ThreadFactory getThreadFactory(final String name, final UncaughtExceptionHandler handler) {
         return new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(null, r, name, stackSize);
+                Thread t = new Thread(null, r, name, 1024*1024);
                 t.setDaemon(true);
-                t.setUncaughtExceptionHandler(hander);
+                t.setUncaughtExceptionHandler(handler);
                 return t;
             }
         };
