@@ -162,6 +162,37 @@ public class Statistics extends VoltSystemProcedure {
             VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_nodeMemory));
             return new DependencySet(fragmentId, result);
         }
+        
+        // TRANSACTION COUNTER statistics
+        else if (fragmentId == SysProcFragmentId.PF_txnData) {
+            assert(params.toArray().length == 2);
+            final boolean interval =
+                ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+            final Long now = (Long)params.toArray()[1];
+            ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+            catalogIds.add(0);
+            VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
+                            SysProcSelector.TRANSACTION,
+                            catalogIds,
+                            interval,
+                            now);
+
+            // Choose the lowest site ID on this host to do the scan
+            // All other sites should just return empty results tables.
+            if (isFirstLocalPartition()) {
+                assert(result.getRowCount() == 1);
+            }
+            else {
+                // Hacky way to generate an empty table with the correct schema
+                result.clearRowData();
+                assert(result.getRowCount() == 0);
+            }
+            return new DependencySet(fragmentId, result);
+        }
+        else if (fragmentId == SysProcFragmentId.PF_txnDataAggregator) {
+            VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnDataAggregator));
+            return new DependencySet(fragmentId, result);
+        }
 
         //  PROCEDURE statistics
         else if (fragmentId == SysProcFragmentId.PF_procedureData) {
@@ -272,6 +303,9 @@ public class Statistics extends VoltSystemProcedure {
                 results = getMemoryData(interval, now);
                 assert(results.length == 1);
             }
+        else if (selector.toUpperCase().startsWith(SysProcSelector.TRANSACTION.name())) {
+            results = getTransactionData(interval, now);
+        }
         else if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
         }
@@ -286,6 +320,7 @@ public class Statistics extends VoltSystemProcedure {
         }
         else if (selector.toUpperCase().equals(SysProcSelector.MANAGEMENT.name())) {
             VoltTable[] memoryResults = getMemoryData(interval, now);
+            VoltTable[] txnResults = getTransactionData(interval, now);
             VoltTable[] tableResults = getTableData(interval, now);
             VoltTable[] procedureResults = getProcedureData(interval, now);
             VoltTable[] initiatorResults = getInitiatorData(interval, now);
@@ -293,6 +328,7 @@ public class Statistics extends VoltSystemProcedure {
             VoltTable[] starvationResults = getIOStatsData(interval, now);
             results = new VoltTable[] {
                     memoryResults[0],
+                    txnResults[0],
                     initiatorResults[0],
                     procedureResults[0],
                     ioResults[0],
@@ -385,6 +421,16 @@ public class Statistics extends VoltSystemProcedure {
         
         return this.executeOncePerSite(SysProcFragmentId.PF_nodeMemory,
                                        SysProcFragmentId.PF_nodeMemoryAggregator,
+                                       parameters);
+    }
+    
+    private VoltTable[] getTransactionData(long interval, final long now) {
+        // create a work fragment to gather transaction counter data
+        ParameterSet parameters = new ParameterSet();
+        parameters.setParameters((byte)interval, now);
+        
+        return this.executeOncePerSite(SysProcFragmentId.PF_txnData,
+                                       SysProcFragmentId.PF_txnDataAggregator,
                                        parameters);
     }
 

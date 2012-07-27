@@ -19,7 +19,7 @@ import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
-import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
@@ -621,8 +621,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (hstore_site.isLocalPartition(partition) == false) {
             this.markLastTransaction(partition, last_txn_id);
         }
-        if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) {
-            TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
+        if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
+            TransactionCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
             int id = (int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id.longValue());
             this.blockedQueueHistogram.put(id);
         }

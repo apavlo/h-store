@@ -164,7 +164,7 @@ public class PartitionExecutorHelper implements Runnable {
 //            } // WHILE
             if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.getPartitionId(), this.total_cleaned));
             // Only call tick here!
-            es.tick();
+//            es.tick();
         } // FOR
         
         // Recompute MarkovGraphs if we have them

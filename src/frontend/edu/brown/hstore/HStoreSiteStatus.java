@@ -28,7 +28,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ThrottlingQueue;
-import edu.brown.hstore.util.TxnCounter;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -70,17 +70,17 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
 //    private static final Pattern THREAD_REGEX = Pattern.compile("(edu\\.brown|edu\\.mit|org\\.voltdb)");
     
 
-    private static final Set<TxnCounter> TXNINFO_COL_DELIMITERS = new HashSet<TxnCounter>();
-    private static final Set<TxnCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TxnCounter>();
-    private static final Set<TxnCounter> TXNINFO_EXCLUDES = new HashSet<TxnCounter>();
+    private static final Set<TransactionCounter> TXNINFO_COL_DELIMITERS = new HashSet<TransactionCounter>();
+    private static final Set<TransactionCounter> TXNINFO_ALWAYS_SHOW = new HashSet<TransactionCounter>();
+    private static final Set<TransactionCounter> TXNINFO_EXCLUDES = new HashSet<TransactionCounter>();
     static {
-        CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TxnCounter.EXECUTED,
-                                                      TxnCounter.MULTI_PARTITION,
-                                                      TxnCounter.MISPREDICTED);
-        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW,    TxnCounter.MULTI_PARTITION,
-                                                      TxnCounter.SINGLE_PARTITION,
-                                                      TxnCounter.MISPREDICTED);
-        CollectionUtil.addAll(TXNINFO_EXCLUDES,       TxnCounter.SYSPROCS);
+        CollectionUtil.addAll(TXNINFO_COL_DELIMITERS, TransactionCounter.EXECUTED,
+                                                      TransactionCounter.MULTI_PARTITION,
+                                                      TransactionCounter.MISPREDICTED);
+        CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW,    TransactionCounter.MULTI_PARTITION,
+                                                      TransactionCounter.SINGLE_PARTITION,
+                                                      TransactionCounter.MISPREDICTED);
+        CollectionUtil.addAll(TXNINFO_EXCLUDES,       TransactionCounter.SYSPROCS);
     }
     
     // ----------------------------------------------------------------------------
@@ -197,7 +197,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             this.printStatus();
             
             // If we're not making progress, bring the whole thing down!
-            int completed = TxnCounter.COMPLETED.get();
+            int completed = TransactionCounter.COMPLETED.get();
             if (hstore_conf.site.status_kill_if_hung && this.last_completed != null &&
                 this.last_completed == completed && siteDebug.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
@@ -302,8 +302,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         String value = null;
         
         LinkedHashMap<String, Object> siteInfo = new LinkedHashMap<String, Object>();
-        if (TxnCounter.COMPLETED.get() > 0) {
-            siteInfo.put("Completed Txns", TxnCounter.COMPLETED.get());
+        if (TransactionCounter.COMPLETED.get() > 0) {
+            siteInfo.put("Completed Txns", TransactionCounter.COMPLETED.get());
         }
         
         // ClientInterface
@@ -634,10 +634,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      * @return
      */
     protected Map<String, String> txnExecInfo() {
-        Set<TxnCounter> cnts_to_include = new TreeSet<TxnCounter>();
-        Set<String> procs = TxnCounter.getAllProcedures();
+        Set<TransactionCounter> cnts_to_include = new TreeSet<TransactionCounter>();
+        Collection<String> procs = TransactionCounter.getAllProcedures();
         if (procs.isEmpty()) return (null);
-        for (TxnCounter tc : TxnCounter.values()) {
+        for (TransactionCounter tc : TransactionCounter.values()) {
             if (TXNINFO_ALWAYS_SHOW.contains(tc) || (tc.get() > 0 && TXNINFO_EXCLUDES.contains(tc) == false)) cnts_to_include.add(tc);
         } // FOR
         
@@ -654,7 +654,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             rows[++i] = new String[num_cols];
             rows[i][j++] = proc_name;
             if (first) header[0] = "";
-            for (TxnCounter tc : cnts_to_include) {
+            for (TransactionCounter tc : cnts_to_include) {
                 if (first) header[j] = tc.toString().replace("partition", "P");
                 Long cnt = tc.getHistogram().get(proc_name);
                 rows[i][j++] = (cnt != null ? cnt.toString() : "-");
@@ -668,10 +668,10 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         rows[i][j++] = "TOTAL";
         row_delimiters[i] = "-"; // "\u2015";
         
-        for (TxnCounter tc : cnts_to_include) {
+        for (TransactionCounter tc : cnts_to_include) {
             if (TXNINFO_COL_DELIMITERS.contains(tc)) col_delimiters[j] = " | ";
             
-            if (tc == TxnCounter.COMPLETED || tc == TxnCounter.RECEIVED) {
+            if (tc == TransactionCounter.COMPLETED || tc == TransactionCounter.RECEIVED) {
                 rows[i][j] = Integer.toString(tc.get());
                 rows[i+1][j] = "";
             } else {

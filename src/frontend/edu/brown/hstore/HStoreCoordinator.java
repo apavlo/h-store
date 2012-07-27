@@ -191,7 +191,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.hstore_conf = hstore_site.getHStoreConf();
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
-        this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
+        this.num_sites = hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
         
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
