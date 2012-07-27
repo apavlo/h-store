@@ -735,16 +735,27 @@ public class LocalTransaction extends AbstractTransaction {
         }
         if (this.dtxnState != null) {
             if (this.dtxnState.init_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.init_callback.getClass().getSimpleName()));
                 return (false);
             }
             if (this.dtxnState.prepare_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.prepare_callback.getClass().getSimpleName()));
                 return (false);
             }
             if (this.dtxnState.finish_callback.allCallbacksFinished() == false) {
+                if (t) LOG.warn(String.format("%s - %s is not finished", this,
+                                this.dtxnState.finish_callback.getClass().getSimpleName()));
                 return (false);
             }
         }
-        if (this.needs_restart || this.not_deletable) {
+        if (this.needs_restart) {
+            if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
+            return (false);
+        }
+        else if (this.not_deletable) {
+            if (t) LOG.warn(String.format("%s - Marked as not deletable, can't delete now", this));
             return (false);
         }
         synchronized (this) {
