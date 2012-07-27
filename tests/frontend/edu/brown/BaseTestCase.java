@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.TestCase;
 
@@ -39,6 +41,8 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.*;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientFactory;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.VoltTypeUtil;
 
@@ -57,10 +61,16 @@ import edu.brown.catalog.FixCatalog;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.mappings.ParametersUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -92,7 +102,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         ThreadUtil.setMaxGlobalThreads(2);
     }
 
-    protected ProjectType last_type;
+    private ProjectType last_type;
     
     /**
      * There is always a static catalog that gets created for each project type
@@ -288,7 +298,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * Useful for updating the catalog
      * @return
      */
-    public static Boolean isFirstSetup() {
+    protected final static Boolean isFirstSetup() {
         return (is_first);
     }
     
@@ -296,7 +306,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * Returns true if we have access to the Volt lib in our local system
      * @return
      */
-    public boolean hasVoltLib() throws Exception {
+    protected final boolean hasVoltLib() throws Exception {
         File obj_dir = FileUtil.findDirectory("obj");
         
         // Figure out whether we are on a machine that has the native lib
@@ -311,7 +321,7 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         return (false);
     }
     
-    protected void applyCatalogCorrelations(ProjectType type) throws Exception {
+    protected final void applyParameterMappings(ProjectType type) throws Exception {
         // We need the correlations file in order to make sure the parameters 
         // get mapped properly
         File correlations_path = this.getParameterMappingsFile(type);
@@ -332,57 +342,54 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
     }
     
     protected final Catalog getCatalog() {
-        assertNotNull(catalog);
-        return (catalog);
+        assertNotNull(catalogContext);
+        return (catalogContext.catalog);
     }
     
     protected final Database getDatabase() {
-        assertNotNull(catalog);
-        return (catalog_db);
+        assertNotNull(catalogContext);
+        return (catalogContext.database);
     }
     
-    protected Cluster getCluster() {
-        assertNotNull(catalog);
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
-        assert(catalog_clus != null) : "Failed to retriever cluster object from catalog";
-        return (catalog_clus);
+    protected final Cluster getCluster() {
+        assertNotNull(catalogContext);
+        return (catalogContext.cluster);
     }
     
-    protected Site getSite(int site_id) {
-        assertNotNull(catalog);
-        Cluster catalog_clus = this.getCluster();
-        Site catalog_site = catalog_clus.getSites().get("id", site_id);
+    protected final Site getSite(int site_id) {
+        assertNotNull(catalogContext);
+        Site catalog_site = catalogContext.getSiteById(site_id);
         assert(catalog_site != null) : "Failed to retrieve Site #" + site_id + " from catalog";
         return (catalog_site);
     }
     
-    protected Table getTable(Database catalog_db, String table_name) {
+    protected final Table getTable(Database catalog_db, String table_name) {
         assertNotNull(catalog_db);
         Table catalog_tbl = catalog_db.getTables().getIgnoreCase(table_name);
         assert(catalog_tbl != null) : "Failed to retrieve '" + table_name + "' table from catalog"; 
         return (catalog_tbl);
     }
-    protected Table getTable(String table_name) {
+    protected final Table getTable(String table_name) {
         return getTable(catalog_db, table_name);
     }
 
-    protected Column getColumn(Database catalog_db, Table catalog_tbl, String col_name) {
+    protected final Column getColumn(Database catalog_db, Table catalog_tbl, String col_name) {
         assertNotNull(catalog_db);
         assertNotNull(catalog_tbl);
         Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(col_name);
         assert(catalog_col != null) : "Failed to retrieve Column '" + col_name + "' from Table '" + catalog_tbl.getName() + "'";
         return (catalog_col);
     }
-    protected Column getColumn(Table catalog_tbl, String col_name) {
+    protected final Column getColumn(Table catalog_tbl, String col_name) {
         return (getColumn(catalog_db, catalog_tbl, col_name));
     }
-    protected Column getColumn(Database catalog_db, String table_name, String col_name) {
+    protected final Column getColumn(Database catalog_db, String table_name, String col_name) {
         return (getColumn(catalog_db, this.getTable(catalog_db, table_name), col_name));
     }
-    protected Column getColumn(String table_name, String col_name) {
+    protected final Column getColumn(String table_name, String col_name) {
         return (getColumn(catalog_db, this.getTable(table_name), col_name));
     }
-    protected Column getColumn(Table catalog_tbl, int col_idx) {
+    protected final Column getColumn(Table catalog_tbl, int col_idx) {
         int num_columns = catalog_tbl.getColumns().size();
         if (col_idx < 0) col_idx = num_columns + col_idx; // Python!
         assert(col_idx >= 0 && col_idx < num_columns) : "Invalid column index for " + catalog_tbl + ": " + col_idx;
@@ -391,23 +398,23 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         return (catalog_col);
     }
 
-    protected Procedure getProcedure(Database catalog_db, String proc_name) {
+    protected final Procedure getProcedure(Database catalog_db, String proc_name) {
         assertNotNull(catalog_db);
         Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null) : "Failed to retrieve '" + proc_name + "' Procedure from catalog"; 
         return (catalog_proc);
     }
-    protected Procedure getProcedure(String proc_name) {
+    protected final Procedure getProcedure(String proc_name) {
         return getProcedure(catalog_db, proc_name);
     }
-    protected Procedure getProcedure(Database catalog_db, Class<? extends VoltProcedure> proc_class) {
+    protected final Procedure getProcedure(Database catalog_db, Class<? extends VoltProcedure> proc_class) {
         return getProcedure(catalog_db, proc_class.getSimpleName());
     }
-    protected Procedure getProcedure(Class<? extends VoltProcedure> proc_class) {
+    protected final Procedure getProcedure(Class<? extends VoltProcedure> proc_class) {
         return getProcedure(catalog_db, proc_class.getSimpleName());
     }
     
-    protected ProcParameter getProcParameter(Database catalog_db, Procedure catalog_proc, int idx) {
+    protected final ProcParameter getProcParameter(Database catalog_db, Procedure catalog_proc, int idx) {
         assertNotNull(catalog_db);
         assert(idx >= 0) : "Invalid ProcParameter index for " + catalog_proc + ": " + idx;
         assert(idx < catalog_proc.getParameters().size()) : "Invalid ProcParameter index for " + catalog_proc + ": " + idx;
@@ -415,21 +422,21 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         assertNotNull("Null ProcParameter index for " + catalog_proc + ": " + idx, catalog_param);
         return (catalog_param);
     }
-    protected ProcParameter getProcParameter(Procedure catalog_proc, int idx) {
+    protected final ProcParameter getProcParameter(Procedure catalog_proc, int idx) {
         return getProcParameter(catalog_db, catalog_proc, idx);
     }
-    protected ProcParameter getProcParameter(Class<? extends VoltProcedure> proc_class, int idx) {
+    protected final ProcParameter getProcParameter(Class<? extends VoltProcedure> proc_class, int idx) {
         return getProcParameter(catalog_db, this.getProcedure(proc_class), idx);
     }
 
-    protected Statement getStatement(Database catalog_db, Procedure catalog_proc, String stmt_name) {
+    protected final Statement getStatement(Database catalog_db, Procedure catalog_proc, String stmt_name) {
         assertNotNull(catalog_db);
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get(stmt_name);
         assert(catalog_stmt != null) : "Failed to retrieve Statement '" + stmt_name + "' from Procedure '" + catalog_proc.getName() + "'";
         return (catalog_stmt);
     }
-    protected Statement getStatement(Procedure catalog_proc, String stmt_name) {
+    protected final Statement getStatement(Procedure catalog_proc, String stmt_name) {
         return getStatement(catalog_db, catalog_proc, stmt_name);
     }
     
@@ -438,10 +445,10 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
      * Assuming that there is one partition per site
      * @param num_partitions
      */
-    protected void addPartitions(int num_partitions) throws Exception {
+    protected final void addPartitions(int num_partitions) throws Exception {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
-        if (CatalogUtil.getNumberOfPartitions(catalog_db) != num_partitions) {
+        if (catalogContext.numberOfPartitions != num_partitions) {
             ClusterConfiguration cc = new ClusterConfiguration();
             for (Integer i = 0; i < num_partitions; i++) {
                 cc.addPartition("localhost", 0, i);
@@ -453,15 +460,22 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
         }
         Cluster cluster = CatalogUtil.getCluster(catalog_db);
         assertEquals(num_partitions, cluster.getNum_partitions());
-        assertEquals(num_partitions, CatalogUtil.getNumberOfPartitions(cluster));
+        assertEquals(num_partitions, catalogContext.numberOfPartitions);
     }
     
-    protected void initializeCluster(int num_hosts, int num_sites, int num_partitions) throws Exception {
+    /**
+     * Update the catalog to include new hosts/sites/partitions
+     * @param num_hosts
+     * @param num_sites
+     * @param num_partitions
+     * @throws Exception
+     */
+    protected final void initializeCatalog(int num_hosts, int num_sites, int num_partitions) throws Exception {
         // HACK! If we already have this many partitions in the catalog, then we won't recreate it
         // This fixes problems where we need to reference the same catalog objects in multiple test cases
-        if (CatalogUtil.getNumberOfHosts(catalog_db) != num_hosts ||
-            CatalogUtil.getNumberOfSites(catalog_db) != (num_hosts * num_sites) ||
-            CatalogUtil.getNumberOfPartitions(catalog_db) != (num_hosts * num_sites * num_partitions)) {
+        if (catalogContext.numberOfHosts != num_hosts ||
+            catalogContext.numberOfSites != (num_hosts * num_sites) ||
+            catalogContext.numberOfPartitions != (num_hosts * num_sites * num_partitions)) {
             
             // HACK
             String hostFormat = (num_hosts == 1 ? "localhost" : "host%02d"); 
@@ -470,10 +484,69 @@ public abstract class BaseTestCase extends TestCase implements UncaughtException
             this.init(this.last_type, cc);
         }
         Cluster cluster = catalogContext.cluster;
-        assertEquals(num_hosts, catalogContext.numberOfNodes);
-        assertEquals((num_hosts * num_sites), catalogContext.numberOfExecSites);
-        assertEquals((num_hosts * num_sites * num_partitions), CatalogUtil.getNumberOfPartitions(cluster));
+        assertEquals(num_hosts, catalogContext.numberOfHosts);
+        assertEquals((num_hosts * num_sites), catalogContext.numberOfSites);
+        assertEquals((num_hosts * num_sites * num_partitions), catalogContext.numberOfPartitions);
         assertEquals((num_hosts * num_sites * num_partitions), cluster.getNum_partitions());
+    }
+    
+    /**
+     * Convenience method for launching an HStoreSite for the given Site
+     * This will block until the HStoreSite has sucecssfully started
+     * @param catalog_site
+     * @param hstore_conf
+     * @return
+     * @throws InterruptedException
+     */
+    protected final HStoreSite createHStoreSite(Site catalog_site, HStoreConf hstore_conf) throws Exception {
+        assert(hasVoltLib()) : "Missing EE shared library";
+        
+        final CountDownLatch readyLock = new CountDownLatch(1);
+        final EventObserver<HStoreSite> ready = new EventObserver<HStoreSite>() {
+            @Override
+            public void update(EventObservable<HStoreSite> o, HStoreSite arg) {
+                readyLock.countDown();
+            }
+        };
+        HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
+        hstore_site.getReadyObservable().addObserver(ready);
+        Thread thread = new Thread(hstore_site);
+        thread.start();
+        
+        // Wait at least 15 seconds or until we know that our HStoreSite has started
+        boolean isReady = readyLock.await(15, TimeUnit.SECONDS);
+        assertTrue("Failed to start HStoreSite for " + catalog_site, isReady);
+        
+        // I added an extra little sleep just to be sure...
+        ThreadUtil.sleep(3000);
+        
+        return (hstore_site);
+    }
+    
+    /**
+     * Convenience method for creating a client connection to a random HStoreSite
+     * This assumes that the H-Store cluster is up and running properly
+     * @return
+     * @throws Exception
+     */
+    protected final Client createClient() throws Exception {
+        // Connect to random site and using a random port that it's listening on
+        Site catalog_site = CollectionUtil.random(catalogContext.sites);
+        assertNotNull(catalog_site);
+        
+        Host catalog_host = catalog_site.getHost();
+        assertNotNull(catalog_host);
+        
+        String hostName = catalog_host.getIpaddr();
+        int port = catalog_site.getProc_port();
+        
+        LOG.debug(String.format("Creating new client connection to HStoreSite %s at %s:%d",
+                                HStoreThreadManager.formatSiteName(catalog_site.getId()),
+                                hostName, port));
+        
+        Client client = ClientFactory.createClient(128, null, false, null);
+        client.createConnection(null, hostName, port, "user", "password");
+        return (client);
     }
     
     // --------------------------------------------------------------------------------------

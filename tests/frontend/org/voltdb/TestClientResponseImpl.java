@@ -28,19 +28,19 @@ public class TestClientResponseImpl extends TestCase {
     }
     
     /**
-     * testSetServerTimestamp
+     * testSetRestartCounter
      */
-    public void testSetServerTimestamp() throws Exception {
+    public void testSetRestartCounter() throws Exception {
         byte[] invocation_bytes = FastSerializer.serialize(cr);
         assertNotNull(invocation_bytes);
         
-        for (int i = -10; i < 99; i++) {
+        for (int i = 0; i < 99; i++) {
             ByteBuffer b = ByteBuffer.wrap(invocation_bytes);
-            ClientResponseImpl.setServerTimestamp(b, i);
+            ClientResponseImpl.setRestartCounter(b, i);
             FastDeserializer fds = new FastDeserializer(invocation_bytes);
             ClientResponseImpl clone = fds.readObject(ClientResponseImpl.class);
             assertNotNull(clone);
-            assertEquals(i, clone.getRequestCounter());
+            assertEquals(i, clone.getRestartCounter());
         } // FOR
     }
     

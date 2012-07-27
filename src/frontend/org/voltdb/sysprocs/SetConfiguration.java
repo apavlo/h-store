@@ -72,6 +72,10 @@ public class SetConfiguration extends VoltSystemProcedure {
             case DISTRIBUTE_ID: {
                 HStoreConf hstore_conf = executor.getHStoreConf();
                 assert(hstore_conf != null);
+                
+                // Put the conf name+value pairs into a map and shove that to
+                // the HStoreConf. It will know how to process them and convert
+                // the string values into the proper types
                 Map<String, String> m = new HashMap<String, String>();
                 for (int i = 0; i < confNames.length; i++) {
                     m.put(confNames[i], confValues[i]);
@@ -81,6 +85,10 @@ public class SetConfiguration extends VoltSystemProcedure {
                     LOG.debug(String.format("Updating %d conf parameters on %s",
                               m.size(), executor.getHStoreSite().getSiteName()));
                 
+                // Update our local HStoreSite
+                context.getHStoreSite().updateConf(hstore_conf);
+
+                // Create the result table
                 VoltTable vt = new VoltTable(nodeResultsColumns);
                 for (int i = 0; i < confNames.length; i++) {
                     Object row[] = {

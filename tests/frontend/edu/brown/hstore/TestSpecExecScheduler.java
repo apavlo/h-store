@@ -35,7 +35,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        this.initializeCluster(2, 2, NUM_PARTITIONS);
+        this.initializeCatalog(2, 2, NUM_PARTITIONS);
         if (isFirstSetup()) System.err.println(CatalogInfo.getInfo(catalog, null));
         
         Site catalog_site = this.getSite(0);

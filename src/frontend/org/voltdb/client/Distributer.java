@@ -285,7 +285,6 @@ class Distributer {
             
             final long clientHandle = response.getClientHandle();
             final Status status = response.getStatus();
-            final int timestamp = response.getRequestCounter();
             final int restart_counter = response.getRestartCounter();
             
             boolean abort = false;
@@ -307,7 +306,6 @@ class Distributer {
                         m0.put("Txn #", response.getTransactionId());
                         m0.put("Status", response.getStatus());
                         m0.put("ClientHandle", clientHandle);
-                        m0.put("Timestamp", timestamp);
                         m0.put("RestartCounter", restart_counter);
                         
                         Map<String, Object> m1 = new LinkedHashMap<String, Object>();

@@ -98,6 +98,7 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TxnCounter;
 import edu.brown.hstore.wal.CommandLogWriter;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -122,7 +123,7 @@ import edu.brown.utils.PartitionSet;
  * 
  * @author pavlo
  */
-public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable, Runnable {
+public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable, Configurable, Runnable {
     public static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -693,6 +694,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     // ----------------------------------------------------------------------------
+    // INTERFACE METHODS
+    // ----------------------------------------------------------------------------
+    
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        
+        // Push the updates to all of our PartitionExecutors
+        for (PartitionExecutor executor : this.executors) {
+            if (executor == null) continue;
+            executor.updateConf(hstore_conf);
+        } // FOR
+    }
+    
+    // ----------------------------------------------------------------------------
     // ADDITIONAL INITIALIZATION METHODS
     // ----------------------------------------------------------------------------
     
@@ -859,12 +880,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
 
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
-    }
-    
     @Override
     public long getInstanceId() {
         return (this.instanceId);

@@ -58,7 +58,7 @@ public class TestPrefetchQueryPlanner extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.SEATS);
-        this.initializeCluster(NUM_HOSTS, NUM_SITES, NUM_PARTITIONS);
+        this.initializeCatalog(NUM_HOSTS, NUM_SITES, NUM_PARTITIONS);
 
         Procedure catalog_proc = this.getProcedure(TARGET_PREFETCH_PROCEDURE);
         Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_PREFETCH_STATEMENT);

@@ -141,6 +141,7 @@ import edu.brown.hstore.util.ParameterSetArrayCache;
 import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
+import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -162,7 +163,7 @@ import edu.brown.utils.StringUtil;
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
-public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
+public class PartitionExecutor implements Runnable, Configurable, Shutdownable, Loggable {
     private static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -665,7 +666,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(!(this.ee == null && this.hsql == null)) : "Both execution engine objects are empty. This should never happen";
         
         // Initialize temporary data structures
-        int num_sites = this.catalogContext.numberOfExecSites;
+        int num_sites = this.catalogContext.numberOfSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
         
         // Utility Work Queue
@@ -748,6 +749,21 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             state.clear();
         }
         return (state);
+    }
+
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
+    }
+    
+    @Override
+    public void updateConf(HStoreConf hstore_conf) {
+        // ThrottlingQueue
+        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_max_per_partition);
+        this.work_queue.setQueueReleaseFactor(hstore_conf.site.queue_incoming_release_factor);
+        this.work_queue.setQueueIncrease(hstore_conf.site.queue_incoming_increase);
+        this.work_queue.setQueueIncreaseMax(hstore_conf.site.queue_incoming_increase_max);
     }
     
     // ----------------------------------------------------------------------------
@@ -1100,12 +1116,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // do other periodic work
         if (m_snapshotter != null) m_snapshotter.doSnapshotWork(ee);
-    }
-
-    @Override
-    public void updateLogging() {
-        d = debug.get();
-        t = trace.get();
     }
     
     // ----------------------------------------------------------------------------

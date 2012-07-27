@@ -29,6 +29,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
@@ -52,11 +53,16 @@ public class CatalogContext {
     // PUBLIC IMMUTABLE CACHED INFORMATION
     public final Cluster cluster;
     public final Database database;
+    public final CatalogMap<Host> hosts;
     public final CatalogMap<Site> sites;
+    
+    /** The total number of unique Hosts in the cluster */
+    public final int numberOfHosts;
+    /** The total number of unique Sites in the cluster */
+    public final int numberOfSites;
+    /** The total number of unique Partitions in the cluster */
     public final int numberOfPartitions;
-    public final int numberOfExecSites;
-    public final int numberOfNodes;
-
+    
     @Deprecated
     public final AuthSystem authSystem;
     
@@ -130,8 +136,10 @@ public class CatalogContext {
         else
             m_catalogClassLoader = null;
         this.catalog = catalog;
-        cluster = catalog.getClusters().get("cluster");
-        database = cluster.getDatabases().get("database");
+        this.cluster = CatalogUtil.getCluster(this.catalog);
+        this.database = CatalogUtil.getDatabase(this.catalog);
+        this.hosts = this.cluster.getHosts();
+        this.sites = cluster.getSites();
         
         // ------------------------------------------------------------
         // PROCEDURES
@@ -152,14 +160,14 @@ public class CatalogContext {
         } // FOR
         
         authSystem = new AuthSystem(database, cluster.getSecurityenabled());
-        sites = cluster.getSites();
+        
         siteTracker = null; // new SiteTracker(cluster.getSites());
 
         // count nodes
-        numberOfNodes = cluster.getHosts().size();
+        numberOfHosts = cluster.getHosts().size();
 
         // count exec sites
-        numberOfExecSites = cluster.getSites().size();
+        numberOfSites = cluster.getSites().size();
 
         // count partitions
         numberOfPartitions = cluster.getNum_partitions();
@@ -253,6 +261,26 @@ public class CatalogContext {
         // look in the catalog for the file
         return m_catalogClassLoader.loadClass(procedureClassName);
     }
+    
+    
+    // ------------------------------------------------------------
+    // SITES
+    // ------------------------------------------------------------
+    
+    /**
+     * Return the unique Site catalog object for the given id
+     * 
+     * @param catalog_item
+     * @return
+     */
+    public Site getSiteById(int site_id) {
+        assert(site_id >= 0);
+        return (this.sites.get("id", site_id));
+    }
+
+    // ------------------------------------------------------------
+    // PARTITIONS
+    // ------------------------------------------------------------
     
     /**
      * Return the Partition catalog object for the given PartitionId

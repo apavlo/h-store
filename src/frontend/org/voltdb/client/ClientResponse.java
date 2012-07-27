@@ -34,12 +34,6 @@ public interface ClientResponse extends Poolable {
     public long getClientHandle();
     
     /**
-     * Return the internal request counter of the node that this transaction
-     * executed on. This is used to determine when to unblocked throttled clients.
-     */
-    public int getRequestCounter();
-    
-    /**
      * Returns true if this transaction executed as a single-partition txn
      * @return
      */
