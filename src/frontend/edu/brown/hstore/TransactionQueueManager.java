@@ -15,6 +15,7 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -562,9 +563,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     
     private void checkInitQueue() {
         LocalTransaction ts = null;
-        HStoreCoordinator hstore_coordinator = hstore_site.getHStoreCoordinator();
+        HStoreCoordinator hstore_coordinator = hstore_site.getCoordinator();
         while ((ts = this.initQueue.poll()) != null) {
-            hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
+            TransactionInitCallback callback = ts.initTransactionInitCallback();
+            hstore_coordinator.transactionInit(ts, callback);
         } // WHILE
         
     }
@@ -659,9 +661,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.blockedQueueTransactions.remove(ts);
                 this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
                 ts.setNeedsRestart(false);
-                if (ts.isDeletable()) {
-                    this.hstore_site.deleteLocalTransaction(ts, Status.ABORT_REJECT);
-                }
+                this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             // For now we can break, but I think that we may need separate
             // queues for the different partitions...
             } else break;
@@ -684,9 +684,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // HACK: Store the status in the embedded ClientResponse
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
-            if (ts.isDeletable()) {
-                this.hstore_site.deleteLocalTransaction(ts, Status.ABORT_REJECT);
-            }
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
         }
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
@@ -698,9 +696,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
             this.hstore_site.transactionRestart(ts, status);
-            if (ts.isDeletable()) {
-                this.hstore_site.deleteLocalTransaction(ts, status);
-            }
+            ts.setNeedsRestart(false);
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
         } // WHILE
     }
     

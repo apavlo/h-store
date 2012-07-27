@@ -78,7 +78,6 @@ public class DistributedState implements Poolable {
     
     public void init(LocalTransaction ts) {
         this.ts = ts;
-        this.init_callback.init(ts);
     }
     
     @Override

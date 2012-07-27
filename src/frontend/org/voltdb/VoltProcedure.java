@@ -706,7 +706,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (d) LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
             status = Status.ABORT_UNEXPECTED;
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
-            hstore_site.getHStoreCoordinator().shutdownCluster(ex);
+            hstore_site.getCoordinator().shutdownCluster(ex);
         } finally {
             this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");

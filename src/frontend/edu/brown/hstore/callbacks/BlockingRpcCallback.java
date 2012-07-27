@@ -31,6 +31,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
     private final AtomicInteger counter = new AtomicInteger(0);
     private int orig_counter;
     private RpcCallback<T> orig_callback;
+    protected Long lastTxnId = null;
 
     /**
      * We'll flip this flag if one of our partitions replies with an
@@ -76,6 +77,7 @@ public abstract class BlockingRpcCallback<T, U> implements RpcCallback<U>, Poola
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
         this.txn_id = txn_id;
+        this.lastTxnId = txn_id;
     }
     
     @Override

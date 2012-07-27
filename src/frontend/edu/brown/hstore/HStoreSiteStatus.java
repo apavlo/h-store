@@ -87,6 +87,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     // ----------------------------------------------------------------------------
     
     private final HStoreSite hstore_site;
+    private final HStoreSite.DebugContext siteDebug;
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
     private final TreeMap<Integer, PartitionExecutor> executors;
@@ -146,6 +147,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      */
     public HStoreSiteStatus(HStoreSite hstore_site, HStoreConf hstore_conf) {
         this.hstore_site = hstore_site;
+        this.siteDebug = hstore_site.getDebugContext();
         this.hstore_conf = hstore_conf;
         this.interval = hstore_conf.site.status_interval;
         
@@ -196,10 +198,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             // If we're not making progress, bring the whole thing down!
             int completed = TxnCounter.COMPLETED.get();
             if (hstore_conf.site.status_kill_if_hung && this.last_completed != null &&
-                this.last_completed == completed && hstore_site.getInflightTxnCount() > 0) {
+                this.last_completed == completed && siteDebug.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
                 LOG.fatal(msg);
-                this.hstore_site.getHStoreCoordinator().shutdownCluster(new RuntimeException(msg));
+                this.hstore_site.getCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
         } catch (Throwable ex) {
@@ -338,7 +340,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         TransactionQueueManager queueManager = hstore_site.getTransactionQueueManager();
         TransactionQueueManager.DebugContext queueManagerDebug = queueManager.getDebugContext();
         
-        int inflight_cur = hstore_site.getInflightTxnCount();
+        int inflight_cur = siteDebug.getInflightTxnCount();
         int inflight_local = queueManagerDebug.getInitQueueSize();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
@@ -349,7 +351,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         int inflight_finished = 0;
         int inflight_zombies = 0;
         if (this.cur_finishedTxns != null) this.cur_finishedTxns.clear();
-        for (AbstractTransaction ts : hstore_site.getInflightTransactions()) {
+        for (AbstractTransaction ts : siteDebug.getInflightTransactions()) {
            if (ts instanceof LocalTransaction) {
 //               LocalTransaction local_ts = (LocalTransaction)ts;
 //               ClientResponse cr = local_ts.getClientResponse();
@@ -366,12 +368,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
            }
         } // FOR
         
-        siteInfo.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished [totalMin=%d, totalMax=%d]",
+        siteInfo.put("InFlight Txns", String.format("%d total / %d dtxn / %d finished / %d deletable [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_local,
                         inflight_finished,
-                        inflight_min,
-                        inflight_max
+                        this.siteDebug.getDeletableTxnCount(),
+                        this.inflight_min,
+                        this.inflight_max
         ));
         
         if (this.cur_finishedTxns != null) {
@@ -403,7 +406,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         
         if (hstore_conf.site.exec_postprocessing_threads) {
-            int processing_cur = hstore_site.getQueuedResponseCount();
+            int processing_cur = siteDebug.getQueuedResponseCount();
             if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
             if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
             
@@ -574,8 +577,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         
         // Incoming Partition Distribution
-        if (hstore_site.getIncomingPartitionHistogram().isEmpty() == false) {
-            Histogram<Integer> incoming = hstore_site.getIncomingPartitionHistogram();
+        if (siteDebug.getIncomingPartitionHistogram().isEmpty() == false) {
+            Histogram<Integer> incoming = siteDebug.getIncomingPartitionHistogram();
             incoming.setDebugLabels(partitionLabels);
             incoming.enablePercentages();
             m_exec.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
