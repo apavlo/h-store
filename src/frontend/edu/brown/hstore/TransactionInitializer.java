@@ -26,14 +26,18 @@
 package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
@@ -44,14 +48,18 @@ import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.txns.MapReduceTransaction;
+import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
+import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -81,12 +89,32 @@ public class TransactionInitializer {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
+    private final HStoreObjectPools objectPools;
     private final CatalogContext catalogContext;
     private final PartitionEstimator p_estimator;
     private final TransactionEstimator t_estimators[];
     private final AbstractEstimator fixed_estimator;
     private EstimationThresholds thresholds;
     
+    /**
+     * If we're using the TransactionEstimator, then we need to convert all 
+     * primitive array ProcParameters into object arrays...
+     */
+    private final Map<Procedure, ParameterMangler> manglers;
+    
+    /**
+     * HACK: This is the internal map used to keep track of TxnId->TxnHandles
+     * inside of the HStoreSite.
+     */
+    private final Map<Long, AbstractTransaction> inflight_txns;
+    
+    /**
+     * This is fired whenever we create a new txn handle is grabbed from the
+     * the object pools.
+     * It is only used for debugging+testing 
+     */
+    protected final EventObservable<LocalTransaction> newTxnObservable = 
+                    new EventObservable<LocalTransaction>(); 
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -95,27 +123,66 @@ public class TransactionInitializer {
     public TransactionInitializer(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_site.getHStoreConf();
+        this.objectPools = hstore_site.getObjectPools();
         this.catalogContext = hstore_site.getCatalogContext();
+        this.inflight_txns = hstore_site.getInflightTxns();
         
         this.thresholds = hstore_site.getThresholds();
         this.p_estimator = hstore_site.getPartitionEstimator();
         this.t_estimators = new TransactionEstimator[catalogContext.numberOfPartitions];
         
+        // Create all of our parameter manglers
+        this.manglers = new IdentityHashMap<Procedure, ParameterMangler>();
+        for (Procedure catalog_proc : this.catalogContext.database.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
+            this.manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+        } // FOR
+        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.manglers.size()));
+        
         // HACK
         if (hstore_conf.site.markov_fixed) {
-            Database catalog_db = hstore_site.getDatabase();
-            if (catalog_db.getProcedures().containsKey("neworder")) {
-                this.fixed_estimator = new TPCCEstimator(this.hstore_site);
-            } else if (catalog_db.getProcedures().containsKey("UpdateLocation")) {
-                this.fixed_estimator = new TM1Estimator(this.hstore_site);
-            } else if (catalog_db.getProcedures().containsKey("FindOpenSeats")) {
-                this.fixed_estimator = new SEATSEstimator(this.hstore_site);
-            } else {
-                this.fixed_estimator = null;
-            }
+            ProjectType ptype = ProjectType.get(this.catalogContext.database.getProject());
+            switch (ptype) {
+                case TPCC:
+                    this.fixed_estimator = new TPCCEstimator(
+                                this.catalogContext,
+                                this.manglers,
+                                hstore_site.getHasher());
+                    break;
+                case TM1:
+                    this.fixed_estimator = new TM1Estimator(
+                                this.catalogContext,
+                                this.manglers,
+                                hstore_site.getHasher());
+                    break;
+                case SEATS:
+                    this.fixed_estimator = new SEATSEstimator(
+                                this.catalogContext,
+                                this.manglers,
+                                hstore_site.getHasher());
+                    break;
+                default:
+                    this.fixed_estimator = null;
+            } // SWITCH
         } else {
             this.fixed_estimator = null;
         }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PARAMETER VALUE "MANGLERS"
+    // ----------------------------------------------------------------------------
+    
+    public Map<Procedure, ParameterMangler> getParameterManglers() {
+        return (this.manglers);
+    }
+    public ParameterMangler getParameterMangler(Procedure catalog_proc) {
+        return (this.manglers.get(catalog_proc));
+    }
+    public ParameterMangler getParameterMangler(String proc_name) {
+        Procedure catalog_proc = catalogContext.database.getProcedures().getIgnoreCase(proc_name);
+        assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
+        return (this.manglers.get(catalog_proc));
     }
 
     // ----------------------------------------------------------------------------
@@ -182,9 +249,89 @@ public class TransactionInitializer {
         return (base_partition);
     }
     
+    // ----------------------------------------------------------------------------
+    // TRANSACTION HANDLE CREATION METHODS
+    // ----------------------------------------------------------------------------
     
     /**
-     * 
+     * Create a MapReduceTransaction handle. This should only be invoked on a remote site.
+     * @param txn_id
+     * @param invocation
+     * @param base_partition
+     * @return
+     */
+    public MapReduceTransaction createMapReduceTransaction(Long txn_id,
+                                                           long client_handle,
+                                                           int base_partition,
+                                                           int procId,
+                                                           ByteBuffer paramsBuffer) {
+        Procedure catalog_proc = this.catalogContext.getProcedureById(procId);
+        if (catalog_proc == null) {
+            throw new RuntimeException("Unknown procedure id '" + procId + "'");
+        }
+        
+        // Initialize the ParameterSet
+        FastDeserializer incomingDeserializer = new FastDeserializer();
+        ParameterSet procParams = new ParameterSet();
+        try {
+            incomingDeserializer.setBuffer(StoredProcedureInvocation.getParameterSet(paramsBuffer));
+            procParams.readExternal(incomingDeserializer);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } 
+        assert(procParams != null) :
+            "The parameters object is null for new txn from client #" + client_handle;
+        
+        MapReduceTransaction ts = null;
+        try {
+            ts = objectPools.getMapReduceTransactionPool(base_partition).borrowObject();
+            assert(ts.isInitialized() == false);
+        } catch (Throwable ex) {
+            LOG.fatal(String.format("Failed to instantiate new MapReduceTransaction state for %s txn #%s",
+                                    catalog_proc.getName(), txn_id));
+            throw new RuntimeException(ex);
+        }
+        // We should never already have a transaction handle for this txnId
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+
+        ts.init(txn_id, client_handle, base_partition, catalog_proc, procParams);
+        if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
+                                       ts, base_partition));
+        return (ts);
+    }
+    
+    
+    /**
+     * Create a RemoteTransaction handle. This obviously only for a remote site.
+     * @param txn_id
+     * @param request
+     * @return
+     */
+    public RemoteTransaction createRemoteTransaction(Long txn_id, int base_partition, int proc_id) {
+        RemoteTransaction ts = null;
+        Procedure catalog_proc = this.catalogContext.getProcedureById(proc_id);
+        try {
+            // Remote Transaction
+            ts = objectPools.getRemoteTransactionPool(base_partition).borrowObject();
+            ts.init(txn_id, base_partition, catalog_proc, true);
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
+                                           ts, base_partition, false, ts.hashCode()));
+        } catch (Exception ex) {
+            LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
+            throw new RuntimeException(ex);
+        }
+        AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
+        assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
+        
+        if (t) LOG.trace(String.format("Stored new transaction state for %s", ts));
+        return (ts);
+    }
+    
+    
+    /**
+     * Create and initialize a LocalTransaction from a serialized StoredProcedureInvocation
+     * request sent in from the client.  
      * @param serializedRequest
      * @param client_handle
      * @param base_partition
@@ -193,12 +340,13 @@ public class TransactionInitializer {
      * @param clientCallback
      * @return
      */
-    public LocalTransaction initInvocation(ByteBuffer serializedRequest, 
-                                           long client_handle,
-                                           int base_partition,
-                                           Procedure catalog_proc,
-                                           ParameterSet procParams,
-                                           RpcCallback<ClientResponseImpl> clientCallback) {
+    public LocalTransaction createLocalTransaction(
+                                ByteBuffer serializedRequest, 
+                                long client_handle,
+                                int base_partition,
+                                Procedure catalog_proc,
+                                ParameterSet procParams,
+                                RpcCallback<ClientResponseImpl> clientCallback) {
         
         if (d) LOG.debug(String.format("Incoming %s transaction request " +
         		                       "[handle=%d, partition=%d]",
@@ -214,12 +362,10 @@ public class TransactionInitializer {
         LocalTransaction ts = null;
         try {
             if (catalog_proc.getMapreduce()) {
-                ts = hstore_site.getObjectPools()
-                                .getMapReduceTransactionPool(base_partition)
+                ts = this.objectPools.getMapReduceTransactionPool(base_partition)
                                 .borrowObject();
             } else {
-                ts = hstore_site.getObjectPools()
-                                .getLocalTransactionPool(base_partition)
+                ts = this.objectPools.getLocalTransactionPool(base_partition)
                                 .borrowObject();
             }
         } catch (Throwable ex) {
@@ -228,8 +374,27 @@ public class TransactionInitializer {
         }
         
         // Initialize our LocalTransaction handle
-        Long txn_id = hstore_site.getTransactionIdManager(base_partition)
-                                 .getNextUniqueTransactionId();
+        TransactionIdManager idManager = hstore_site.getTransactionIdManager(base_partition); 
+        Long txn_id = idManager.getNextUniqueTransactionId();
+        
+        // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
+        // So we'll just double check to make sure that it's unique, and if not, we'll just ask for a new one
+        LocalTransaction dupe = (LocalTransaction)this.inflight_txns.put(txn_id, ts);
+        if (dupe != null) {
+            // HACK!
+            this.inflight_txns.put(txn_id, dupe);
+            Long new_txn_id = idManager.getNextUniqueTransactionId();
+            if (new_txn_id.equals(txn_id)) {
+                String msg = "Duplicate transaction id #" + txn_id;
+                LOG.fatal("ORIG TRANSACTION:\n" + dupe);
+                LOG.fatal("NEW TRANSACTION:\n" + ts);
+                Exception error = new Exception(msg);
+                this.hstore_site.getCoordinator().shutdownClusterBlocking(error);
+            }
+            LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
+            txn_id = new_txn_id;
+            this.inflight_txns.put(txn_id, ts);
+        }
 
         this.populateProperties(ts,
                                 txn_id,
@@ -238,17 +403,21 @@ public class TransactionInitializer {
                                 catalog_proc,
                                 procParams,
                                 clientCallback);
-
         // Check whether this guy has already been restarted before
         int restartCounter = StoredProcedureInvocation.getRestartCounter(serializedRequest);
         if (restartCounter > 0) {
             ts.setRestartCounter(restartCounter);
         }
         
-        // Disable transaction profiling for sysprocs
-        if (hstore_conf.site.txn_profiling && ts.isSysProc()) {
-            ts.profiler.disableProfiling();
+        if (hstore_conf.site.txn_profiling) {
+            // Disable transaction profiling for sysprocs
+            if (ts.isSysProc()) {
+                ts.profiler.disableProfiling();
+            }
         }
+        // Notify anybody that cares about this new txn
+        this.newTxnObservable.notifyObservers(ts);
+        
         
         // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
 
@@ -267,12 +436,12 @@ public class TransactionInitializer {
      * @param client_callback
      */
     protected void populateProperties(LocalTransaction ts,
-                                     Long txn_id,
-                                     long client_handle,
-                                     int base_partition,
-                                     Procedure catalog_proc,
-                                     ParameterSet params,
-                                     RpcCallback<ClientResponseImpl> client_callback) {
+                                      Long txn_id,
+                                      long client_handle,
+                                      int base_partition,
+                                      Procedure catalog_proc,
+                                      ParameterSet params,
+                                      RpcCallback<ClientResponseImpl> client_callback) {
         
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
@@ -345,7 +514,7 @@ public class TransactionInitializer {
             
             try {
                 // HACK: Convert the array parameters to object arrays...
-                ParameterMangler mangler = this.hstore_site.getParameterMangler(catalog_proc); 
+                ParameterMangler mangler = this.manglers.get(catalog_proc); 
                 Object cast_args[] = mangler.convert(params.toArray());
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, mangler.toString(cast_args)));
                 

@@ -20,6 +20,7 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -607,7 +608,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
        
         // IMPORTANT: Mark this transaction as not being deletable.
         //            This will prevent it from getting deleted out from under us
-        ts.setNeedsRestart(true);
+        ts.markNeedsRestart();
         
         if (this.blockedQueueTransactions.putIfAbsent(ts, last_txn_id) != null) {
             Long other_txn_id = this.blockedQueueTransactions.get(ts);
@@ -660,7 +661,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 this.blockedQueue.remove();
                 this.blockedQueueTransactions.remove(ts);
                 this.hstore_site.transactionRestart(ts, Status.ABORT_RESTART);
-                ts.setNeedsRestart(false);
+                ts.unmarkNeedsRestart();
                 this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
             // For now we can break, but I think that we may need separate
             // queues for the different partitions...
@@ -680,12 +681,16 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      */
     public void restartTransaction(LocalTransaction ts, Status status) {
         if (d) LOG.debug(String.format("%s - Requeing transaction for execution [status=%s]", ts, status));
+        ts.markNeedsRestart();
         
-        // HACK: Store the status in the embedded ClientResponse
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
+            if (d) LOG.debug(String.format("%s - Unable to add txn to restart queue. Rejecting...", ts));
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
+            ts.unmarkNeedsRestart();
             this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), Status.ABORT_REJECT);
+            return;
         }
+        if (d) LOG.debug(String.format("%s - Successfully added txn to restart queue.", ts));
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
     }
@@ -695,9 +700,13 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while ((pair = this.restartQueue.poll()) != null) {
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
-            this.hstore_site.transactionRestart(ts, status);
-            ts.setNeedsRestart(false);
-            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
+            
+            if (d) LOG.debug(String.format("%s - Ready to restart transaction [status=%s]", ts, status));
+            Status ret = this.hstore_site.transactionRestart(ts, status);
+            if (d) LOG.debug(String.format("%s - Got return result %s after restarting", ts, ret));
+            
+            ts.unmarkNeedsRestart();
+            this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), ret);
         } // WHILE
     }
     
@@ -737,7 +746,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
 
-    public class DebugContext {
+    public class Debug implements DebugContext {
         public int getInitQueueSize() {
             int ctr = 0;
             for (int p : localPartitionsArray)
@@ -764,8 +773,8 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         }
     }
     
-    public TransactionQueueManager.DebugContext getDebugContext() {
-        return new TransactionQueueManager.DebugContext();
+    public TransactionQueueManager.Debug getDebugContext() {
+        return new TransactionQueueManager.Debug();
     }
     
     @Override

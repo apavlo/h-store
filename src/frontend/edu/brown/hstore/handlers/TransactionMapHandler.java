@@ -62,7 +62,8 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         // base partition for the original MRTransaction
         MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
         if (mr_ts == null) {
-            mr_ts = hstore_site.createMapReduceTransaction(txn_id,
+            mr_ts = hstore_site.getTransactionInitializer()
+                               .createMapReduceTransaction(txn_id,
                                                            request.getClientHandle(),
                                                            request.getBasePartition(),
                                                            request.getProcedureId(),

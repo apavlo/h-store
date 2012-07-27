@@ -5,11 +5,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Procedure;
 
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hashing.AbstractHasher;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionSet;
 
 public class TPCCEstimator extends AbstractEstimator {
@@ -29,8 +31,8 @@ public class TPCCEstimator extends AbstractEstimator {
      * Constructor
      * @param hstore_site
      */
-    public TPCCEstimator(HStoreSite hstore_site) {
-        super(hstore_site);
+    public TPCCEstimator(CatalogContext catalogContext, Map<Procedure, ParameterMangler> manglers, AbstractHasher hasher) {
+        super(catalogContext, manglers, hasher);
     }
     
     private Integer getPartition(Short w_id) {

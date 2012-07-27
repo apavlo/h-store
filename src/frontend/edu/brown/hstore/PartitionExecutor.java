@@ -956,7 +956,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         RpcCallback<ClientResponseImpl> clientCallback = work.getClientCallback(); 
         long client_handle = work.getClientHandle();
         
-        LocalTransaction ts = this.txnInitializer.initInvocation(
+        LocalTransaction ts = this.txnInitializer.createLocalTransaction(
                                                serializedRequest,
                                                client_handle,
                                                this.partitionId,
