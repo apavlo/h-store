@@ -684,8 +684,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         // HACK: Store the status in the embedded ClientResponse
         if (this.restartQueue.offer(Pair.of(ts, status)) == false) {
             this.hstore_site.transactionReject(ts, Status.ABORT_REJECT);
-            ts.markAsDeletable();
-            this.hstore_site.deleteLocalTransaction(ts, Status.ABORT_REJECT);
+            if (ts.isDeletable()) {
+                this.hstore_site.deleteLocalTransaction(ts, Status.ABORT_REJECT);
+            }
         }
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
@@ -696,12 +697,11 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         while ((pair = this.restartQueue.poll()) != null) {
             LocalTransaction ts = pair.getFirst();
             Status status = pair.getSecond();
-            ts.markAsNotDeletable();
             this.hstore_site.transactionRestart(ts, status);
-            ts.markAsDeletable();
-            this.hstore_site.deleteLocalTransaction(ts, status);
+            if (ts.isDeletable()) {
+                this.hstore_site.deleteLocalTransaction(ts, status);
+            }
         } // WHILE
-
     }
     
     // ----------------------------------------------------------------------------

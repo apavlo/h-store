@@ -120,7 +120,6 @@ public class LocalTransaction extends AbstractTransaction {
     
     private boolean needs_restart = false; // FIXME
     private boolean deletable = false; // FIXME
-    private boolean not_deletable = false; // FIXME
     
     /**
      * Is this transaction part of a large MapReduce transaction  
@@ -379,7 +378,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.log_enabled = false;
         this.needs_restart = false;
         this.deletable = false;
-        this.not_deletable = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -754,26 +752,16 @@ public class LocalTransaction extends AbstractTransaction {
             if (t) LOG.warn(String.format("%s - Needs restart, can't delete now", this));
             return (false);
         }
-        else if (this.not_deletable) {
-            if (t) LOG.warn(String.format("%s - Marked as not deletable, can't delete now", this));
-            return (false);
-        }
         synchronized (this) {
             if (this.deletable) return (false);
             this.deletable = true;
         }
         return (true);
     }
-    public final void markAsNotDeletable() {
-        assert(this.not_deletable == false) :
-            "Trying to mark " + this + " as not-deletable more than once";
-        this.not_deletable = true;
-    }
     public final void markAsDeletable() {
         assert(this.deletable == false) :
             "Trying to mark " + this + " as deletable more than once";
         this.deletable = true;
-        this.not_deletable = false;
     }
     public final boolean checkDeletableFlag() {
         return (this.deletable);
@@ -1424,7 +1412,6 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Restart Counter", this.restart_ctr);
         m.put("Deletable", this.deletable);
-        m.put("Not Deletable", this.not_deletable);
         m.put("Needs Restart", this.needs_restart);
         m.put("Needs CommandLog", this.log_enabled);
         m.put("Estimator State", this.predict_tState);
