@@ -300,6 +300,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
         boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
+        if (predict_singlePartition == false) {
+            this.dtxnState = new DistributedState(hstore_site).init(this);
+        }
         
         return (LocalTransaction)super.init(
                           txn_id,                       // TxnId

@@ -76,8 +76,9 @@ public class DistributedState implements Poolable {
         
     }
     
-    public void init(LocalTransaction ts) {
+    public DistributedState init(LocalTransaction ts) {
         this.ts = ts;
+        return (this);
     }
     
     @Override
