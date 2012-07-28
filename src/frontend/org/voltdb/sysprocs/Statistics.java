@@ -97,6 +97,8 @@ public class Statistics extends VoltSystemProcedure {
         registerPlanFragment(SysProcFragmentId.PF_partitionCount);
         registerPlanFragment(SysProcFragmentId.PF_ioData);
         registerPlanFragment(SysProcFragmentId.PF_ioDataAggregator);
+        registerPlanFragment(SysProcFragmentId.PF_txnData);
+        registerPlanFragment(SysProcFragmentId.PF_txnDataAggregator);
     }
 
     @Override
@@ -180,7 +182,7 @@ public class Statistics extends VoltSystemProcedure {
             // Choose the lowest site ID on this host to do the scan
             // All other sites should just return empty results tables.
             if (isFirstLocalPartition()) {
-                assert(result.getRowCount() == 1);
+                assert(result.getRowCount() > 0);
             }
             else {
                 // Hacky way to generate an empty table with the correct schema

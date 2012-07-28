@@ -2461,7 +2461,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
-        if (d) LOG.debug(ts + " - State before delete:\n" + ts.debug());
+        if (t) LOG.trace(ts + " - State before delete:\n" + ts.debug());
         assert(ts.checkDeletableFlag()) :
             String.format("Trying to delete %s before it was marked as ready!", ts);
         

@@ -84,7 +84,7 @@ public class TransactionRedirectCallback implements RpcCallback<TransactionRedir
             try {
                 this.orig_callback.run(cresponse);
             } catch (ClientConnectionLostException ex) {
-                LOG.warn("Lost connection to client for txn #" + cresponse.getTransactionId());
+                if (debug.get()) LOG.warn("Lost connection to client for txn #" + cresponse.getTransactionId());
             } catch (Throwable ex) {
                 LOG.fatal("Failed to forward ClientResponse data back!", ex);
                 throw new RuntimeException(ex);
