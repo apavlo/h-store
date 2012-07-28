@@ -13,12 +13,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ParameterSet;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltSystemProcedure;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
+import org.voltdb.sysprocs.Statistics;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -27,6 +31,7 @@ import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.MockClientCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
+import edu.brown.hstore.util.TransactionCounter;
 import edu.brown.pools.TypedObjectPool;
 import edu.brown.pools.TypedPoolableObjectFactory;
 import edu.brown.utils.CollectionUtil;
@@ -80,6 +85,53 @@ public class TestHStoreSite extends BaseTestCase {
     protected void tearDown() throws Exception {
         if (this.client != null) this.client.close();
         if (this.hstore_site != null) this.hstore_site.shutdown();
+    }
+    
+    /**
+     * testTransactionCounters
+     */
+    @Test
+    public void testTransactionCounters() throws Exception {
+        hstore_conf.site.txn_counters = true;
+        hstore_site.updateConf(hstore_conf);
+        
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        ClientResponse cr = null;
+        int num_txns = 500;
+        
+        Object params[] = { 1234l, "XXXX" };
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(catalog_proc.getName(), params);
+        } // FOR
+        ThreadUtil.sleep(1000);
+        assertEquals(num_txns, TransactionCounter.RECEIVED.get());
+        
+        // Now try invoking @Statistics to get back more information
+        params = new Object[]{ SysProcSelector.TRANSACTION.name(), 0 };
+        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+        System.err.println(cr);
+        assertNotNull(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        
+        VoltTable results[] = cr.getResults();
+        assertEquals(1, results.length);
+        boolean found = false;
+        while (results[0].advanceRow()) {
+            if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
+                for (int i = 4; i < results[0].getColumnCount(); i++) {
+                    String counterName = results[0].getColumnName(i);
+                    TransactionCounter tc = TransactionCounter.get(counterName);
+                    assertNotNull(counterName, tc);
+                    
+                    Long tcVal = tc.get(catalog_proc);
+                    if (tcVal == null) tcVal = 0l;
+                    assertEquals(counterName, tcVal.intValue(), (int)results[0].getLong(i));
+                } // FOR
+                found = true;
+                break;
+            }
+        } // WHILE
+        assertTrue(found);
     }
     
     /**

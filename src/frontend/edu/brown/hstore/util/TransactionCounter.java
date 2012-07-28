@@ -4,6 +4,9 @@
 package edu.brown.hstore.util;
 
 import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -122,5 +125,20 @@ public enum TransactionCounter {
                 assert(false) : "Unexpected TxnCounter: " + this;
         }
         return (total == 0 ? null : cnt / (double)total);
+    }
+    
+    protected static final Map<Integer, TransactionCounter> idx_lookup = new HashMap<Integer, TransactionCounter>();
+    protected static final Map<String, TransactionCounter> name_lookup = new HashMap<String, TransactionCounter>();
+    static {
+        for (TransactionCounter vt : EnumSet.allOf(TransactionCounter.class)) {
+            TransactionCounter.idx_lookup.put(vt.ordinal(), vt);
+            TransactionCounter.name_lookup.put(vt.name().toLowerCase(), vt);
+        }
+    }
+    public static TransactionCounter get(Integer idx) {
+        return TransactionCounter.idx_lookup.get(idx);
+    }
+    public static TransactionCounter get(String name) {
+        return TransactionCounter.name_lookup.get(name.toLowerCase());
     }
 }

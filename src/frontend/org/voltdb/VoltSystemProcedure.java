@@ -293,4 +293,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         
         return (this.executeSysProcPlanFragments(pfs, aggregateId));
     }
+    
+    public static final String getProcCallName(Class<? extends VoltSystemProcedure> procClass) {
+        return "@" + procClass.getSimpleName();
+    }
 }
