@@ -108,7 +108,9 @@ public class Statistics extends VoltSystemProcedure {
                                              ParameterSet params,
                                              SystemProcedureExecutionContext context)
     {
+        // ----------------------------------------------------------------------------
         //  TABLE statistics
+        // ----------------------------------------------------------------------------
         if (fragmentId == SysProcFragmentId.PF_tableData) {
             assert(params.toArray().length == 2);
             final boolean interval =
@@ -134,7 +136,9 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(DEP_tableAggregator, result);
         }
         
+        // ----------------------------------------------------------------------------
         // MEMORY statistics
+        // ----------------------------------------------------------------------------
         else if (fragmentId == SysProcFragmentId.PF_nodeMemory) {
             assert(params.toArray().length == 2);
             final boolean interval =
@@ -165,7 +169,9 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(fragmentId, result);
         }
         
+        // ----------------------------------------------------------------------------
         // TRANSACTION COUNTER statistics
+        // ----------------------------------------------------------------------------
         else if (fragmentId == SysProcFragmentId.PF_txnData) {
             assert(params.toArray().length == 2);
             final boolean interval =
@@ -178,6 +184,7 @@ public class Statistics extends VoltSystemProcedure {
                             catalogIds,
                             interval,
                             now);
+            HOST_LOG.info("TRANSACTION COUNTERS:\n" + result);
 
             // Choose the lowest site ID on this host to do the scan
             // All other sites should just return empty results tables.
@@ -186,17 +193,19 @@ public class Statistics extends VoltSystemProcedure {
             }
             else {
                 // Hacky way to generate an empty table with the correct schema
-                result.clearRowData();
+//                result.clearRowData();
                 assert(result.getRowCount() == 0);
             }
             return new DependencySet(fragmentId, result);
         }
         else if (fragmentId == SysProcFragmentId.PF_txnDataAggregator) {
-            VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnDataAggregator));
+            VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnData));
             return new DependencySet(fragmentId, result);
         }
 
+        // ----------------------------------------------------------------------------
         //  PROCEDURE statistics
+        // ----------------------------------------------------------------------------
         else if (fragmentId == SysProcFragmentId.PF_procedureData) {
             // procedure stats are registered to VoltDB's statsagent with the site's catalog id.
             // piece this information together and the stats agent returns a table. pretty sweet.
@@ -218,7 +227,9 @@ public class Statistics extends VoltSystemProcedure {
             return new DependencySet(DEP_procedureAggregator, result);
         }
         
+        // ----------------------------------------------------------------------------
         // IO statistics
+        // ----------------------------------------------------------------------------
         else if (fragmentId == SysProcFragmentId.PF_ioData) {
             final VoltTable result = new VoltTable(ioColumnInfo);
             // Choose the lowest site ID on this host to do the scan
