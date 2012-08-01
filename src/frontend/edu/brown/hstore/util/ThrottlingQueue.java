@@ -30,7 +30,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     }
     
     private final BlockingQueue<E> queue;
-    // private final AtomicInteger size = new AtomicInteger(0);
     private volatile int size;
     
     private boolean throttled;
@@ -162,7 +161,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
             ret = this.queue.offer(e);
         }
         if (ret) {
-            // this.size++;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
@@ -173,7 +171,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public void put(E e) throws InterruptedException {
         boolean ret = this.queue.offer(e);
         if (ret) {
-//            this.size++;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
@@ -184,7 +181,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
         boolean ret = this.queue.offer(e, timeout, unit);
         if (ret) {
-//            this.size++;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
@@ -195,7 +191,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public boolean remove(Object o) {
         boolean ret = this.queue.remove(o);
         if (ret) {
-//            this.size--;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
@@ -205,7 +200,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public E poll() {
         E e = this.queue.poll();
         if (e != null) {
-//            this.size--;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }
@@ -217,7 +211,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         E e = this.queue.poll(timeout, unit);
         if (e != null) {
             this.size = this.queue.size();
-//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -228,7 +221,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         E e = this.queue.remove();
         if (e != null) {
             this.size = this.queue.size();
-//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -239,7 +231,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         E e = this.queue.take();
         if (e != null) {
             this.size = this.queue.size();
-//            this.size--;
             this.checkThrottling(this.allow_increase);
         }
         return (e);
@@ -264,7 +255,6 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
     public int drainTo(Collection<? super E> c, int maxElements) {
         int ret = this.queue.drainTo(c, maxElements);
         if (ret > 0) {
-//            this.size -= ret;
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }

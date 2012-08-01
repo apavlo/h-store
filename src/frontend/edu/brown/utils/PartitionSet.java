@@ -6,8 +6,10 @@ package edu.brown.utils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Container class that represents a list of partitionIds
@@ -16,7 +18,8 @@ import java.util.List;
  */
 public class PartitionSet implements Collection<Integer> {
     
-    private final List<Integer> inner = new ArrayList<Integer>();
+//    private final List<Integer> inner = new ArrayList<Integer>();
+    private final Set<Integer> inner = new HashSet<Integer>();
     
     public PartitionSet() {
         // Nothing...
@@ -31,6 +34,23 @@ public class PartitionSet implements Collection<Integer> {
             this.inner.add(p);
     }
     
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Collection<?>) {
+            Collection<?> other = (Collection<?>)obj;
+            if (this.inner.size() != other.size()) return (false);
+            return (this.inner.containsAll(other));
+        }
+        return (false);
+    }
+    @Override
+    public int hashCode() {
+        return this.inner.hashCode();
+    }
+    @Override
+    public String toString() {
+        return this.inner.toString();
+    }
     @Override
     public int size() {
         return this.inner.size();
@@ -61,10 +81,11 @@ public class PartitionSet implements Collection<Integer> {
     }
     @Override
     public boolean add(Integer e) {
-        if (this.inner.contains(e) == false) {
-            return this.inner.add(e);
-        }
-        return (false);
+        return this.inner.add(e);
+//        if (this.inner.contains(e) == false) {
+//            return this.inner.add(e);
+//        }
+//        return (false);
     }
     @Override
     public boolean remove(Object o) {
@@ -76,11 +97,12 @@ public class PartitionSet implements Collection<Integer> {
     }
     @Override
     public boolean addAll(Collection<? extends Integer> c) {
-        boolean ret = true;
-        for (Integer i : c) {
-            ret = ret && this.add(i);
-        }
-        return ret;
+        return this.inner.addAll(c);
+//        boolean ret = true;
+//        for (Integer i : c) {
+//            ret = ret && this.add(i);
+//        }
+//        return ret;
     }
     @Override
     public boolean removeAll(Collection<?> c) {
@@ -88,7 +110,7 @@ public class PartitionSet implements Collection<Integer> {
     }
     @Override
     public boolean retainAll(Collection<?> c) {
-        return this.retainAll(c);
+        return this.inner.retainAll(c);
     }
     
     // ----------------------------------------------------------------------------
