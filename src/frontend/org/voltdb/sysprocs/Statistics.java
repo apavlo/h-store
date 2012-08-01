@@ -41,6 +41,8 @@ import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 
 /**
@@ -52,8 +54,12 @@ import edu.brown.utils.PartitionEstimator;
 )
 
 public class Statistics extends VoltSystemProcedure {
-
     private static final Logger HOST_LOG = Logger.getLogger(Statistics.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(HOST_LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(HOST_LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(HOST_LOG, debug, trace);
+    }
 
     static final int DEP_nodeMemory = (int)
             SysProcFragmentId.PF_nodeMemory | DtxnConstants.MULTIPARTITION_DEPENDENCY;
@@ -186,7 +192,7 @@ public class Statistics extends VoltSystemProcedure {
                             catalogIds,
                             interval,
                             now);
-            HOST_LOG.info("TRANSACTION COUNTERS:\n" + result);
+            if (debug.get()) HOST_LOG.debug("TRANSACTION COUNTERS:\n" + result);
 
             // Choose the lowest site ID on this host to do the scan
             // All other sites should just return empty results tables.
@@ -220,7 +226,7 @@ public class Statistics extends VoltSystemProcedure {
                             catalogIds,
                             interval,
                             now);
-            HOST_LOG.info("OBJECT POOL COUNTERS:\n" + result);
+            if (debug.get()) HOST_LOG.debug("OBJECT POOL COUNTERS:\n" + result);
 
             // Choose the lowest site ID on this host to do the scan
             // All other sites should just return empty results tables.
@@ -389,7 +395,7 @@ public class Statistics extends VoltSystemProcedure {
             };
             final long endTime = System.currentTimeMillis();
             final long delta = endTime - now;
-            HOST_LOG.debug("Statistics invocation of MANAGEMENT selector took " + delta + " milliseconds");
+            if (debug.get()) HOST_LOG.debug("Statistics invocation of MANAGEMENT selector took " + delta + " milliseconds");
         } else {
             throw new VoltAbortException(String.format("Invalid Statistics selector %s.", selector));
         }
