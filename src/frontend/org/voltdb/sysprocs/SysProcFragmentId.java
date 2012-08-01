@@ -44,6 +44,8 @@ public class SysProcFragmentId
     public static final int PF_ioDataAggregator = 19;
     public static final int PF_txnData = 20;
     public static final int PF_txnDataAggregator = 21;
+    public static final int PF_poolData = 22;
+    public static final int PF_poolDataAggregator = 23;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 25;

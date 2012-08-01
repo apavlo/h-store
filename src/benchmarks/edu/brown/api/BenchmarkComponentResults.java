@@ -14,7 +14,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public class TransactionCounter implements JSONSerializable {
+public class BenchmarkComponentResults implements JSONSerializable {
 
     public FastIntHistogram transactions;
     
@@ -24,22 +24,22 @@ public class TransactionCounter implements JSONSerializable {
     private boolean enableResponseStatuses = false;
     public Histogram<String> responseStatuses = new Histogram<String>(true);
 
-    public TransactionCounter() {
+    public BenchmarkComponentResults() {
         // Needed for deserialization
     }
     
-    public TransactionCounter(int numTxns) {
+    public BenchmarkComponentResults(int numTxns) {
         this.transactions = new FastIntHistogram(numTxns);
         this.transactions.setKeepZeroEntries(true);
     }
     
-    public TransactionCounter copy() {
-        TransactionCounter copy = null;
+    public BenchmarkComponentResults copy() {
+        BenchmarkComponentResults copy = null;
         if (this.transactions != null) {
-            copy = new TransactionCounter(this.transactions.fastSize());
+            copy = new BenchmarkComponentResults(this.transactions.fastSize());
             copy.transactions.putHistogram(this.transactions);
         } else {
-            copy = new TransactionCounter();
+            copy = new BenchmarkComponentResults();
         }
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.putHistogram(this.basePartitions);
@@ -96,10 +96,10 @@ public class TransactionCounter implements JSONSerializable {
             
         };
         Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
-        JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, fields);
+        JSONUtil.fieldsToJSON(stringer, this, BenchmarkComponentResults.class, fields);
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, JSONUtil.getSerializableFields(this.getClass()));
     }
 } // END CLASS
