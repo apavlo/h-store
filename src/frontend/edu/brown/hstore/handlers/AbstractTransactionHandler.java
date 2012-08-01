@@ -6,7 +6,6 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.HStoreThreadManager;
@@ -36,14 +35,18 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     protected final HStoreSite hstore_site;
     protected final HStoreCoordinator hstore_coord;
     protected final HStoreService handler;
+    
+    /** The total number of sites in the cluster */
     protected final int num_sites;
+    
+    /** The site id where this handler is running at */
     protected final int local_site_id;
     
     public AbstractTransactionHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         this.hstore_site = hstore_site;
         this.hstore_coord = hstore_coord;
         this.handler = this.hstore_coord.getHandler();
-        this.num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
+        this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.local_site_id = hstore_site.getSiteId();
     }
     

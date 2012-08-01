@@ -386,18 +386,18 @@ public class TransactionEstimator implements Loggable {
        this.enable_recomputes = true;
     }
     
+    public CatalogContext getCatalogContext() {
+        return this.catalogContext;
+    }
     public ParameterMappingsSet getParameterMappings() {
         return this.correlations;
     }
-
     public PartitionEstimator getPartitionEstimator() {
         return this.p_estimator;
     }
-
     public MarkovGraphsContainer getMarkovs() {
         return (this.markovs);
     }
-    
     public void addMarkovGraphs(MarkovGraphsContainer markovs) {
         this.markovs.copy(markovs);
     }

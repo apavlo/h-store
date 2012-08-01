@@ -2,6 +2,7 @@ package edu.brown.markov;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -172,7 +173,7 @@ public class TestMarkovGraph extends BaseTestCase {
         // probability set to 1.0 if they don't touch the partition. And if they have only one 
         // partition then it should be single-partitioned
         for (MarkovVertex v : markov.getPredecessors(commit)) {
-            Set<Integer> partitions = v.getPartitions();
+            Collection<Integer> partitions = v.getPartitions();
             assertFalse(v.toString(), partitions.isEmpty());
             
             // MULTI-PARTITION

@@ -1804,8 +1804,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Procedure catalog_proc = ts.getProcedure();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         
-        if (d) LOG.debug(String.format("Starting %s %s on partition %d",
-                        (singlePartitioned ? "single-partition" : "distributed"), ts, base_partition));
+        if (d) LOG.debug(String.format("Starting %s %s on partition %d [partitions=%s]",
+                        (singlePartitioned ? "single-partition" : "distributed"),
+                        ts, base_partition, ts.getPredictTouchedPartitions()));
+        if (ts.getPredictTouchedPartitions().isEmpty()) {
+            System.err.println("????");
+        }
+        assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
+            "No predicted partitions for " + ts + "\n" + ts.debug();
         
         PartitionExecutor executor = this.executors[base_partition];
         assert(executor != null) :

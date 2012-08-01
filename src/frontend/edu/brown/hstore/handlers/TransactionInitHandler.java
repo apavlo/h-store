@@ -98,8 +98,13 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
                                      request.getPrefetchParamsList());
         }
         
-        // FIXME: This allocation is unecessary if we're on the same site
-        PartitionSet partitions = new PartitionSet(request.getPartitionsList());
+        // This allocation is unnecessary if we're on the same site
+        PartitionSet partitions = null;
+        if (ts instanceof LocalTransaction) {
+            partitions = ((LocalTransaction)ts).getPredictTouchedPartitions();
+        } else {
+            partitions = new PartitionSet(request.getPartitionsList());
+        }
         hstore_site.transactionInit(txn_id, partitions, wrapper);
         
         // We don't need to send back a response right here.

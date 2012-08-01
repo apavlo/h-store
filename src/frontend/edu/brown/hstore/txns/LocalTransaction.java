@@ -256,7 +256,8 @@ public class LocalTransaction extends AbstractTransaction {
         this.mapreduce = catalog_proc.getMapreduce();
         
         // Initialize the predicted execution properties for this transaction
-        this.predict_touchedPartitions = predict_touchedPartitions;
+//        this.predict_touchedPartitions = PartitionSet.umodifiable(predict_touchedPartitions);
+         this.predict_touchedPartitions = predict_touchedPartitions;
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         

@@ -1246,8 +1246,7 @@ public class PartitionEstimator {
         }
 
         final PartitionSet table_partitions = this.partitionSetPool.borrowObject();
-        assert (table_partitions != null);
-        table_partitions.clear();
+        assert(table_partitions != null);
 
         // Go through each table referenced in this CacheEntry and look-up the parameters that the 
         // partitioning columns are referenced against to determine what partitions we need to go to

@@ -2126,8 +2126,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 String msg = "Unexpected error when executing system procedure";
                 throw new ServerFaultException(msg, ex, ts.getTransactionId());
             }
-            if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d\n%s",
-                                           ts, fragment_id, result));
+            if (d) LOG.debug(String.format("%s - Finished executing sysproc fragment %d%s",
+                                           ts, fragment_id, (t ? "\n" + result : "")));
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
