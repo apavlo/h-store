@@ -39,16 +39,15 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -105,7 +104,7 @@ public class BatchPlanner implements Loggable {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
 
-    protected final Catalog catalog;
+    protected final CatalogContext catalogContext;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
     private final boolean stmt_is_readonly[];
@@ -460,11 +459,11 @@ public class BatchPlanner implements Loggable {
 
         HStoreConf hstore_conf = HStoreConf.singleton();
 
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        this.catalog_proc = catalog_proc;
+        this.catalogContext = p_estimator.getCatalogContext();
+        this.num_partitions = this.catalogContext.numberOfPartitions;
         this.batchSize = batchSize;
         this.maxRoundSize = hstore_conf.site.planner_max_round_size;
-        this.catalog_proc = catalog_proc;
-        this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.hasher = p_estimator.getHasher();
         this.plan = new BatchPlan(this.maxRoundSize);

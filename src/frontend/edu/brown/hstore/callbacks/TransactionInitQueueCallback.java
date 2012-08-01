@@ -63,7 +63,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
         for (Integer p : this.hstore_site.getLocalPartitionIdArray()) { // One less iterator :-)
             if (partitions.contains(p)) counter++;
         } // FOR
-        assert(counter > 0);
+        assert(counter > 0) : String.format("InitPartitions:%s / LocalPartitions:%s", 
+                                            partitions, this.hstore_site.getLocalPartitionIds());
         this.partitions = partitions;
         this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id.longValue())

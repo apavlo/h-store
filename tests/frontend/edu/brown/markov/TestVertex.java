@@ -1,7 +1,11 @@
 package edu.brown.markov;
 
-import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.json.JSONObject;
@@ -14,11 +18,9 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractVertex;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.markov.MarkovVertex.Type;
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
+import edu.brown.utils.PartitionSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;
 
@@ -143,8 +145,8 @@ public class TestVertex extends BaseTestCase {
         // Test to make sure that Vertex.isEqual() works with and without the PAST_PARTITIONS flag
         for (int i = 0; i <= 1; i++) {
             Statement catalog_stmt = this.vertices[i].getCatalogItem();
-            Set<Integer> partitions = this.vertices[i].getPartitions();
-            Set<Integer> past_partitions = this.vertices[i].getPastPartitions();
+            PartitionSet partitions = this.vertices[i].getPartitions();
+            PartitionSet past_partitions = this.vertices[i].getPastPartitions();
             int query_index = this.vertices[i].getQueryInstanceIndex();
             
             assertNotNull(catalog_stmt);
