@@ -64,20 +64,38 @@ public class TPCCMarkovGraphsContainer extends MarkovGraphsContainer {
             return (this.processNeworder(txn_id, base_partition, params, catalog_proc, ++ctr));
         }
         
-        // ARRAYLENGTH[S_W_IDS]
-        int arr_len = ((Object[])params[5]).length;
+        // ARRAYLENGTH(S_W_IDS)
+        Object arr[] = (Object[])params[5];
+        int arr_len = arr.length;
         
+        // SAMEVALUE(S_W_IDS)
+        int arr_same = 1;
+        int last_hash = -1;
+        for (int i = 0; i < arr_len; i++) {
+            int hash = this.hasher.hash(arr[i]);
+            if (i > 0 && last_hash != hash) {
+                arr_same = 0;
+                break;
+            }
+            last_hash = hash;
+        } // FOR
+
         if (t) {
-            Object arr[] = (Object[])params[5];
             int hashes[] = new int[arr.length];
             for (int i = 0; i < hashes.length; i++) {
                 hashes[i] = this.hasher.hash(arr[i]);
             }
-            LOG.trace(String.format("NEWORDER Txn #%d\n  ARRAYLENGTH[S_W_IDS] = %d / %s\n  VALUE(D_ID) = %d ", txn_id, arr_len, Arrays.toString(hashes), d_id));
+            LOG.trace(String.format("NEWORDER Txn #%d\n" +
+                                    "  VALUE(D_ID) = %d\n" +                
+                                    "  ARRAYLENGTH(S_W_IDS) = %d / %s\n" +
+            		                "  SAME_VALUE(S_W_IDS) = %d",
+            		                txn_id,
+            		                d_id,
+            		                arr_len, Arrays.toString(hashes),
+            		                arr_same));
         }
         
-        // return (arr_len);
-        return (d_id | arr_len<<16);
+        return (d_id | arr_len<<8 | arr_same<<16);
     }
     
     public int processPayment(long txn_id, int base_partition, Object[] params, Procedure catalog_proc) {
