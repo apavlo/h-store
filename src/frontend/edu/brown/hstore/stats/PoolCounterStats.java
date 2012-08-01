@@ -86,15 +86,13 @@ public class PoolCounterStats extends StatsSource {
             } // FOR
         }
         
-        if (total_created > 0) {
-            rowValues[columnNameToIndex.get("POOL_NAME")] = poolName;
-            rowValues[columnNameToIndex.get("IS_GLOBAL")] = isGlobal;
-            rowValues[columnNameToIndex.get("ACTIVE")] = total_active;
-            rowValues[columnNameToIndex.get("IDLE")] = total_idle;
-            rowValues[columnNameToIndex.get("CREATED")] = total_created;
-            rowValues[columnNameToIndex.get("DESTROYED")] = total_destroyed;
-            rowValues[columnNameToIndex.get("PASSIVATED")] = total_passivated;
-            super.updateStatsRow(rowKey, rowValues);
-        }
+        rowValues[columnNameToIndex.get("POOL_NAME")] = poolName;
+        rowValues[columnNameToIndex.get("IS_GLOBAL")] = isGlobal;
+        rowValues[columnNameToIndex.get("ACTIVE")] = total_active;
+        rowValues[columnNameToIndex.get("IDLE")] = total_idle;
+        rowValues[columnNameToIndex.get("CREATED")] = total_created;
+        rowValues[columnNameToIndex.get("DESTROYED")] = total_destroyed;
+        rowValues[columnNameToIndex.get("PASSIVATED")] = total_passivated;
+        super.updateStatsRow(rowKey, rowValues);
     }
 }
