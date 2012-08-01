@@ -2,10 +2,12 @@ package edu.brown.hstore.stats;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.voltdb.CatalogContext;
@@ -16,14 +18,24 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.utils.CollectionUtil;
 
 public class TransactionCounterStats extends StatsSource {
+    
+    private static final Set<TransactionCounter> COUNTER_EXCLUDE = new HashSet<TransactionCounter>();
+    static {
+        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.SYSPROCS);
+        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_LOCAL);
+        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_REMOTE);
+    }
+    
     private static class ProcedureRow {
         final Map<TransactionCounter, Long> data = new LinkedHashMap<TransactionCounter, Long>();
         boolean has_values = false;
         
         public ProcedureRow(Procedure catalog_proc) {
             for (TransactionCounter tc : TransactionCounter.values()) {
+                if (COUNTER_EXCLUDE.contains(tc)) continue;
                 Long cnt = tc.get(catalog_proc);
                 if (cnt != null) {
                     this.data.put(tc, cnt);
@@ -68,6 +80,7 @@ public class TransactionCounterStats extends StatsSource {
         super.populateColumnSchema(columns);
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
         for (TransactionCounter tc : TransactionCounter.values()) {
+            if (COUNTER_EXCLUDE.contains(tc)) continue;
             columns.add(new VoltTable.ColumnInfo(tc.name().toUpperCase(), VoltType.INTEGER));
         } // FOR
     }
@@ -76,7 +89,7 @@ public class TransactionCounterStats extends StatsSource {
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
         // sum up all of the site statistics
         Procedure proc = (Procedure)rowKey;
-        ProcedureRow totals = new ProcedureRow(proc);
+        ProcedureRow totals = new TransactionCounterStats.ProcedureRow(proc);
         
         if (totals.has_values) {
             rowValues[columnNameToIndex.get("PROCEDURE")] = proc.getName();

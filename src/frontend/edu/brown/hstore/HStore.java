@@ -50,6 +50,7 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload;
 
 /**
@@ -142,6 +143,7 @@ public abstract class HStore {
                 LOG.info(String.format("Finished loading MarkovGraphsContainer '%s' in %.1f sec",
                                        path, (load_time / 1000d)));
             } else if (debug.get()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+            ThreadUtil.shutdownGlobalPool(); // HACK
         }
         
         // ----------------------------------------------------------------------------

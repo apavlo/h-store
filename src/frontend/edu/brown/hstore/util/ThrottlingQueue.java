@@ -155,7 +155,10 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
      */
     public boolean offer(E e, boolean force) {
         boolean ret = false;
-        if (force || this.throttled == false) {
+        if (force) {
+            this.queue.add(e);
+            ret = true;
+        } else if (this.throttled == false) {
             ret = this.queue.offer(e);
         }
         if (ret) {

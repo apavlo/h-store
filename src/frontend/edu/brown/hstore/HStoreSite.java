@@ -1575,7 +1575,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         PartitionExecutor executor = this.executors[base_partition];
-        boolean success = false;
+        boolean success = true;
         
         // If we are using the Markov models, then we have to initialize the transaction
         // right here.
@@ -1807,9 +1807,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Starting %s %s on partition %d [partitions=%s]",
                         (singlePartitioned ? "single-partition" : "distributed"),
                         ts, base_partition, ts.getPredictTouchedPartitions()));
-        if (ts.getPredictTouchedPartitions().isEmpty()) {
-            System.err.println("????");
-        }
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
         
@@ -2215,7 +2212,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         boolean malloc = false;
         PartitionSet predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART || status == Status.ABORT_EVICTEDACCESS) {
-            predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
+            predict_touchedPartitions = new PartitionSet(orig_ts.getPredictTouchedPartitions());
+            malloc = true;
         } else if (orig_ts.getRestartCounter() == 0) {
             // HACK: Ignore ConcurrentModificationException
             // This can occur if we are trying to requeue the transactions but there are still
@@ -2464,7 +2462,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * Clean-up all of the state information about a LocalTransaction that is finished
-     * <B>Note:</B> This should only be invoked for single-partition txns
      * @param ts
      * @param status
      */

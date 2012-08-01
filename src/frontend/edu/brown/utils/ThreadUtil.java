@@ -250,8 +250,14 @@ public abstract class ThreadUtil {
                 ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
         } // SYNCHRONIZED
-
         ThreadUtil.run(runnables, ThreadUtil.pool, false);
+    }
+    
+    public static synchronized void shutdownGlobalPool() {
+        if (ThreadUtil.pool != null) {
+            ThreadUtil.pool.shutdown();
+            ThreadUtil.pool = null;
+        }
     }
 
     /**
