@@ -43,10 +43,10 @@ public class SysProcFragmentId {
     public static final int PF_ioDataAggregator = 19;
     public static final int PF_txnCounterData = 20;
     public static final int PF_txnCounterDataAggregator = 21;
-    public static final int PF_poolData = 22;
-    public static final int PF_poolDataAggregator = 23;
-    public static final int PF_txnProfilerData = 24;
-    public static final int PF_txnProfilerDataAggregator = 25;
+    public static final int PF_txnProfilerData = 22;
+    public static final int PF_txnProfilerDataAggregator = 23;
+    public static final int PF_poolData = 24;
+    public static final int PF_poolDataAggregator = 25;
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

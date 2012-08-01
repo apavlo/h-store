@@ -106,7 +106,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         if (finish) {
-            if (this.txn_profiling) {
+            if (this.txn_profiling && this.ts.profiler != null) {
                 this.ts.profiler.stopPostPrepare();
                 this.ts.profiler.startPostFinish();
             }

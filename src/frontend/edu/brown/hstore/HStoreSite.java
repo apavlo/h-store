@@ -1780,7 +1780,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
-            if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitDtxn();
             this.txnQueueManager.initTransaction(ts);
         }
     }
@@ -1820,7 +1820,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(executor != null) :
             "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
-        if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
         boolean success = executor.queueNewTransaction(ts);
         if (hstore_conf.site.txn_counters && success) {
             assert(catalog_proc != null) :
@@ -2483,7 +2483,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?
-        if (hstore_conf.site.txn_profiling && 
+        if (hstore_conf.site.txn_profiling && ts.profiler != null &&
              ts.profiler.isDisabled() == false &&
              status != Status.ABORT_MISPREDICT) {
             ts.profiler.stopTransaction();
