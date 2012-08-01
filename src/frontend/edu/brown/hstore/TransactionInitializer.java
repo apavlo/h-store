@@ -55,6 +55,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.profilers.TransactionProfiler;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
@@ -503,6 +504,11 @@ public class TransactionInitializer {
         PartitionSet predict_partitions = null;
         TransactionEstimator.State t_state = null; 
         
+        // Setup TransactionProfiler
+        if (hstore_conf.site.txn_profiling) {
+            if (ts.getProfiler() == null) ts.setProfiler(new TransactionProfiler());
+        }
+        
         // -------------------------------
         // SYSTEM PROCEDURES
         // -------------------------------
@@ -640,7 +646,6 @@ public class TransactionInitializer {
                 predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
         }
-        
         assert(predict_partitions != null);
         assert(predict_partitions.isEmpty() == false);
         
@@ -658,6 +663,7 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
+        
         if (d) {
             LOG.debug(String.format("Initializing %s on partition %d " +
             		                "[clientHandle=%d, partitions=%s, singlePartitioned=%s, readOnly=%s, abortable=%s]",

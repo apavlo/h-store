@@ -93,6 +93,7 @@ import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
+import edu.brown.hstore.stats.TransactionProfilerStats;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.MapReduceTransaction;
@@ -222,7 +223,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     private final StatsAgent statsAgent = new StatsAgent();
     private final MemoryStats memoryStats;
-    private final TransactionCounterStats txnStats;
+    private final TransactionCounterStats txnCounterStats;
+    private final TransactionProfilerStats txnProfilerStats;
     private final PoolCounterStats poolStats;
     
     // ----------------------------------------------------------------------------
@@ -569,8 +571,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
         
         // TXN COUNTERS
-        this.txnStats = new TransactionCounterStats(this.catalogContext);
-        this.statsAgent.registerStatsSource(SysProcSelector.TRANSACTION, 0, this.txnStats);
+        this.txnCounterStats = new TransactionCounterStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, this.txnCounterStats);
+
+        // TXN PROFILERS
+        this.txnProfilerStats = new TransactionProfilerStats(this.catalogContext);
+        this.statsAgent.registerStatsSource(SysProcSelector.TXNPROFILER, 0, this.txnProfilerStats);
         
         // OBJECT POOL COUNTERS
         this.poolStats = new PoolCounterStats(this.objectPools);
@@ -2477,10 +2483,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?
-        if (hstore_conf.site.txn_profiling && this.status_monitor != null &&
-            ts.profiler.isDisabled() == false && status != Status.ABORT_MISPREDICT) {
+        if (hstore_conf.site.txn_profiling && 
+             ts.profiler.isDisabled() == false &&
+             status != Status.ABORT_MISPREDICT) {
             ts.profiler.stopTransaction();
-            this.status_monitor.addTxnProfile(catalog_proc, ts.profiler);
+            
+            if (this.txnProfilerStats != null) {
+                this.txnProfilerStats.addTxnProfile(catalog_proc, ts.profiler);
+            }
+            if (this.status_monitor != null) {
+                this.status_monitor.addTxnProfile(catalog_proc, ts.profiler);
+            }
         }
         
         // Clean-up any extra information that we may have for the txn

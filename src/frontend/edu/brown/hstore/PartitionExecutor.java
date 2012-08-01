@@ -425,7 +425,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // PROFILING OBJECTS
     // ----------------------------------------------------------------------------
     
-    private PartitionExecutorProfiler profiler;
+    private final PartitionExecutorProfiler profiler = new PartitionExecutorProfiler();
 
     
     // ----------------------------------------------------------------------------
@@ -671,10 +671,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // Utility Work Queue
         this.utility_queue = new ConcurrentLinkedQueue<InternalMessage>();
-        
-        if (hstore_conf.site.exec_profiling) {
-            this.profiler = new PartitionExecutorProfiler();
-        }
     }
     
     @SuppressWarnings("unchecked")
@@ -725,8 +721,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         if (hstore_conf.site.exec_profiling) {
             EventObservable<?> observable = this.hstore_site.getStartWorkloadObservable();
-            this.profiler.work_idle_time.resetOnEventObservable(observable);
-            this.profiler.work_exec_time.resetOnEventObservable(observable);
+            this.profiler.idle_time.resetOnEventObservable(observable);
+            this.profiler.exec_time.resetOnEventObservable(observable);
         }
         
         // Make sure that we call tick() every 1 sec
@@ -808,16 +804,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (work == null) continue;
                 if (t) LOG.trace("Next Work: " + work);
                 
-                if (hstore_conf.site.exec_profiling) this.profiler.work_exec_time.start();
-                this.processInternalMessage(work);
-
-                // Is there a better way to do this?
-                // this.work_queue.checkThrottling(false);
-                
-                if (hstore_conf.site.exec_profiling) {
-                    if (hstore_conf.site.exec_profiling) this.profiler.work_exec_time.stop();
-                    if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
+                if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
+                try {
+                    this.processInternalMessage(work);
+                } finally { 
+                    if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stop();
                 }
+                if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
             } // WHILE
         } catch (final Throwable ex) {
             if (d && this.isShuttingDown() == false) {
@@ -866,7 +859,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // until something shows up in our queue
         if (work == null) {
             if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
-            if (hstore_conf.site.exec_profiling) this.profiler.work_idle_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.idle_time.start();
             try {
                 work = this.work_queue.poll(WORK_QUEUE_POLL_TIME, TimeUnit.MILLISECONDS);
             } catch (InterruptedException ex) {
@@ -875,13 +868,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.stop = true;
                 return (null);
             } finally {
-                if (hstore_conf.site.exec_profiling) this.profiler.work_idle_time.stop();                    
+                if (hstore_conf.site.exec_profiling) this.profiler.idle_time.stop();                    
             }
         }
         return (work);
     }
     
-    private void processInternalMessage(InternalMessage work) {
+    /**
+     * Process an InternalMessage
+     * @param work
+     */
+    private final void processInternalMessage(InternalMessage work) {
         // -------------------------------
         // TRANSACTIONAL WORK
         // -------------------------------
@@ -945,7 +942,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
     
     /**
-     * 
+     * Process an InitializeTxnMessage
      * @param work
      */
     protected void processInitializeTxnMessage(InitializeTxnMessage work) {
@@ -980,7 +977,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     }
     
     /**
-     * 
+     * Process an InternalTxnMessage
      * @param work
      */
     protected void processInternalTxnMessage(InternalTxnMessage work) {
@@ -1076,7 +1073,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return true if there is more utility work that can be done
      */
     private boolean utilityWork() {
-        if (hstore_conf.site.exec_profiling) this.profiler.work_utility_time.start();
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
         if (t) LOG.trace("Entering utilityWork");
         
         InternalMessage work = null;
@@ -1101,7 +1098,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Smoke 'em if you got 'em
         if (work != null) this.processInternalMessage(work);
         
-        if (hstore_conf.site.exec_profiling) this.profiler.work_utility_time.stop();
+        if (hstore_conf.site.exec_profiling) this.profiler.util_time.stop();
         return (work != null); //  && this.utility_queue.isEmpty() == false);
     }
 
@@ -1296,7 +1293,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @return
      */
     public int getTransactionCounter() {
-        return (this.profiler.work_exec_time.getInvocations());
+        return (this.profiler.exec_time.getInvocations());
     }
     
     /**
@@ -3184,9 +3181,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 // from getting sent back to the client
                 if (hstore_conf.site.commandlog_enable) ts.markLogEnabled();
                 
-                if (hstore_conf.site.exec_profiling) this.profiler.work_network_time.start();
+                if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_site.responseSend(ts, cresponse);
-                if (hstore_conf.site.exec_profiling) this.profiler.work_network_time.stop();
+                if (hstore_conf.site.exec_profiling) this.profiler.network_time.stop();
                 
                 this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             }
