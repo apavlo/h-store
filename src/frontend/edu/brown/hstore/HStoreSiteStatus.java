@@ -529,7 +529,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 PartitionExecutorProfiler profiler = es.getProfiler();
                 
                 // Execution Time
-                pm = profiler.work_exec_time;
+                pm = profiler.exec_time;
                 last = lastExecTxnTimes.get(es);
                 m.put("Txn Execution", this.formatProfileMeasurements(pm, last, true, true)); 
                 this.lastExecTxnTimes.put(es, new ProfileMeasurement(pm));
@@ -538,21 +538,21 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 
                 // Idle Time
                 last = lastExecIdleTimes.get(es);
-                pm = profiler.work_idle_time;
+                pm = profiler.idle_time;
                 m.put("Idle Time", this.formatProfileMeasurements(pm, last, false, false)); 
                 this.lastExecIdleTimes.put(es, new ProfileMeasurement(pm));
                 totalExecIdleTime.appendTime(pm);
                 
                 // Network Time
                 last = lastExecNetworkTimes.get(es);
-                pm = profiler.work_network_time;
+                pm = profiler.network_time;
                 m.put("Network Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecNetworkTimes.put(es, new ProfileMeasurement(pm));
                 totalExecNetworkTime.appendTime(pm);
                 
                 // Utility Time
                 last = lastExecUtilityTimes.get(es);
-                pm = profiler.work_utility_time;
+                pm = profiler.util_time;
                 m.put("Utility Time", this.formatProfileMeasurements(pm, last, false, true)); 
                 this.lastExecUtilityTimes.put(es, new ProfileMeasurement(pm));
             }

@@ -107,7 +107,7 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals(num_txns, TransactionCounter.RECEIVED.get());
         
         // Now try invoking @Statistics to get back more information
-        params = new Object[]{ SysProcSelector.TRANSACTION.name(), 0 };
+        params = new Object[]{ SysProcSelector.TXNCOUNTER.name(), 0 };
         cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
         System.err.println(cr);
         assertNotNull(cr);

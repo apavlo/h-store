@@ -150,9 +150,9 @@ public class LocalTransaction extends AbstractTransaction {
     private Table anticache_table = null;
     
     /**
-     * 
+     * Special TransactionProfiler handle
      */
-    public final TransactionProfiler profiler;
+    public TransactionProfiler profiler;
     
     // ----------------------------------------------------------------------------
     // INITIAL PREDICTION DATA MEMBERS
@@ -215,10 +215,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public LocalTransaction(HStoreSite hstore_site) {
         super(hstore_site);
-        
-        HStoreConf hstore_conf = hstore_site.getHStoreConf(); 
-        this.profiler = (hstore_conf.site.txn_profiling ? new TransactionProfiler() : null);
-      
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
         this.exec_donePartitions = new BitSet(num_partitions);
 //        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
@@ -391,6 +387,10 @@ public class LocalTransaction extends AbstractTransaction {
     // SPECIAL SETTER METHODS
     // ----------------------------------------------------------------------------
     
+    /**
+     * <B>Note:</B> This should never be called by anything other than the TransactionInitializer
+     * @param txn_id
+     */
     public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
     }
@@ -838,6 +838,13 @@ public class LocalTransaction extends AbstractTransaction {
     }
     public void setEstimatorState(TransactionEstimator.State state) {
         this.predict_tState = state;
+    }
+    
+    public TransactionProfiler getProfiler() {
+        return (this.profiler);
+    }
+    public void setProfiler(TransactionProfiler profiler) {
+        this.profiler = profiler;
     }
     
     /**
