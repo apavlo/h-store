@@ -36,7 +36,10 @@ public class PartitionSet implements Collection<Integer> {
     
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof Collection<?>) {
+        if (obj instanceof PartitionSet) {
+            return this.inner.equals(((PartitionSet)obj).inner);
+        }
+        else if (obj instanceof Collection<?>) {
             Collection<?> other = (Collection<?>)obj;
             if (this.inner.size() != other.size()) return (false);
             return (this.inner.containsAll(other));
