@@ -642,6 +642,7 @@ public class TransactionInitializer {
         }
         
         assert(predict_partitions != null);
+        assert(predict_partitions.isEmpty() == false);
         
         // -------------------------------
         // SET EXECUTION PROPERTIES
