@@ -99,6 +99,8 @@ public class Statistics extends VoltSystemProcedure {
         registerPlanFragment(SysProcFragmentId.PF_ioDataAggregator);
         registerPlanFragment(SysProcFragmentId.PF_txnData);
         registerPlanFragment(SysProcFragmentId.PF_txnDataAggregator);
+        registerPlanFragment(SysProcFragmentId.PF_poolData);
+        registerPlanFragment(SysProcFragmentId.PF_poolDataAggregator);
     }
 
     @Override
@@ -200,6 +202,40 @@ public class Statistics extends VoltSystemProcedure {
         }
         else if (fragmentId == SysProcFragmentId.PF_txnDataAggregator) {
             VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnData));
+            return new DependencySet(fragmentId, result);
+        }
+        
+        // ----------------------------------------------------------------------------
+        // OBJECT POOL COUNTER statistics
+        // ----------------------------------------------------------------------------
+        else if (fragmentId == SysProcFragmentId.PF_poolData) {
+            assert(params.toArray().length == 2);
+            final boolean interval =
+                ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+            final Long now = (Long)params.toArray()[1];
+            ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+            catalogIds.add(0);
+            VoltTable result = executor.getHStoreSite().getStatsAgent().getStats(
+                            SysProcSelector.POOL,
+                            catalogIds,
+                            interval,
+                            now);
+            HOST_LOG.info("OBJECT POOL COUNTERS:\n" + result);
+
+            // Choose the lowest site ID on this host to do the scan
+            // All other sites should just return empty results tables.
+            if (isFirstLocalPartition()) {
+                assert(result.getRowCount() > 0);
+            }
+            else {
+                // Hacky way to generate an empty table with the correct schema
+//                result.clearRowData();
+                assert(result.getRowCount() == 0);
+            }
+            return new DependencySet(fragmentId, result);
+        }
+        else if (fragmentId == SysProcFragmentId.PF_poolDataAggregator) {
+            VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_poolData));
             return new DependencySet(fragmentId, result);
         }
 
@@ -318,6 +354,9 @@ public class Statistics extends VoltSystemProcedure {
             }
         else if (selector.toUpperCase().startsWith(SysProcSelector.TRANSACTION.name())) {
             results = getTransactionData(interval, now);
+        }
+        else if (selector.toUpperCase().startsWith(SysProcSelector.POOL.name())) {
+            results = getObjectPoolData(interval, now);
         }
         else if (selector.toUpperCase().equals(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
@@ -444,6 +483,16 @@ public class Statistics extends VoltSystemProcedure {
         
         return this.executeOncePerSite(SysProcFragmentId.PF_txnData,
                                        SysProcFragmentId.PF_txnDataAggregator,
+                                       parameters);
+    }
+    
+    private VoltTable[] getObjectPoolData(long interval, final long now) {
+        // create a work fragment to gather object pool counter data
+        ParameterSet parameters = new ParameterSet();
+        parameters.setParameters((byte)interval, now);
+        
+        return this.executeOncePerSite(SysProcFragmentId.PF_poolData,
+                                       SysProcFragmentId.PF_poolDataAggregator,
                                        parameters);
     }
 

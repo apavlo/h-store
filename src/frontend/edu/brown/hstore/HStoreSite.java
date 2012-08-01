@@ -91,6 +91,7 @@ import edu.brown.hstore.callbacks.TransactionInitQueueCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.stats.PoolCounterStats;
 import edu.brown.hstore.stats.TransactionCounterStats;
 import edu.brown.hstore.txns.AbstractTransaction;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -222,6 +223,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final StatsAgent statsAgent = new StatsAgent();
     private final MemoryStats memoryStats;
     private final TransactionCounterStats txnStats;
+    private final PoolCounterStats poolStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -569,6 +571,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TXN COUNTERS
         this.txnStats = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TRANSACTION, 0, this.txnStats);
+        
+        // OBJECT POOL COUNTERS
+        this.poolStats = new PoolCounterStats(this.objectPools);
+        this.statsAgent.registerStatsSource(SysProcSelector.POOL, 0, this.poolStats);
         
         // -------------------------------
         // NETWORK SETUP

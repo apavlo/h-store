@@ -36,7 +36,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.TransactionCounter;
+import edu.brown.api.BenchmarkComponentResults;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -448,7 +448,7 @@ public class BenchmarkResults {
     public BenchmarkResults addPollResponseInfo(String clientName,
                                                  int pollIndex,
                                                  long time,
-                                                 TransactionCounter tc,
+                                                 BenchmarkComponentResults tc,
                                                  String errMsg) {
         
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;

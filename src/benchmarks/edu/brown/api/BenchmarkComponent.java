@@ -292,7 +292,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
-    protected final TransactionCounter m_txnStats;
+    protected final BenchmarkComponentResults m_txnStats;
 
     private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
     
@@ -336,7 +336,7 @@ public abstract class BenchmarkComponent {
     }
 
     public void answerPoll() {
-        TransactionCounter copy = this.m_txnStats; // .copy();
+        BenchmarkComponentResults copy = this.m_txnStats; // .copy();
         this.printControlMessage(m_controlState, copy.toJSONString());
         m_txnStats.basePartitions.clear();
         m_txnStats.responseStatuses.clear();
@@ -678,7 +678,7 @@ public abstract class BenchmarkComponent {
 
         m_countDisplayNames = getTransactionDisplayNames();
         if (m_countDisplayNames != null) {
-            m_txnStats = new TransactionCounter(m_countDisplayNames.length);
+            m_txnStats = new BenchmarkComponentResults(m_countDisplayNames.length);
             Map<Integer, String> debugLabels = new TreeMap<Integer, String>();
             for (int i = 0; i < m_countDisplayNames.length; i++) {
                 m_txnStats.transactions.put(i, 0);

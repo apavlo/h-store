@@ -25,5 +25,6 @@ public enum SysProcSelector {
     MEMORY,           // info about node's memory usage
     MANAGEMENT, //Returns pretty much everything
     SNAPSHOTSTATUS,
-    TRANSACTION,           // info about how txns were executed
+    TRANSACTION,    // info about how txns were executed
+    POOL,           // info about how object pools
 }
