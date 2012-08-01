@@ -387,7 +387,7 @@ public class TransactionInitializer {
             ts.setRestartCounter(restartCounter);
         }
         
-        if (hstore_conf.site.txn_profiling) {
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) {
             // Disable transaction profiling for sysprocs
             if (ts.isSysProc()) {
                 ts.profiler.disableProfiling();
@@ -424,7 +424,9 @@ public class TransactionInitializer {
             LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
         }
-        if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+        if (hstore_conf.site.txn_profiling && new_ts.profiler != null) {
+            new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+        }
         
         Long new_txn_id = this.registerTransaction(new_ts, base_partition);
         new_ts.init(new_txn_id,

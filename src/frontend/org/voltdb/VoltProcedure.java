@@ -584,7 +584,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // Fix to make no-Java procedures work
         if (procMethodNoJava || procIsMapReduce) this.procParams = new Object[] { this.procParams } ;
         
-        if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
+        if (hstore_conf.site.txn_profiling && this.m_localTxnState.profiler != null) {
+            this.m_localTxnState.profiler.startExecJava();
+        }
         try {
             if (t) LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
                                            this.procMethod,
@@ -710,7 +712,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } finally {
             this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
-            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
+            if (hstore_conf.site.txn_profiling && this.m_localTxnState.profiler != null) this.m_localTxnState.profiler.startPost();
         }
 
         // Workload Trace - Stop the transaction trace record.
@@ -1108,7 +1110,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         assert(batchArgs.length > 0);
         if (batchSize == 0) return (HStoreConstants.EMPTY_RESULT);
         
-        if (hstore_conf.site.txn_profiling) {
+        if (hstore_conf.site.txn_profiling && this.m_localTxnState.profiler != null) {
             this.m_localTxnState.profiler.stopExecJava();
             this.m_localTxnState.profiler.startExecPlanning();
         }

@@ -1549,7 +1549,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                     result.getStatus(), result.getPartitionId(), ts));
 
             SerializableException error = null;
-            if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startDeserialization();
             try {
                 ByteBuffer buffer = result.getError().asReadOnlyByteBuffer();
                 error = SerializableException.deserializeFromBuffer(buffer);
@@ -1557,7 +1557,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
                                                              result.getPartitionId(), ts, result.getError().size()), ex);
             } finally {
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopDeserialization();
             }
             // At this point there is no need to even deserialize the rest of the message because 
             // we know that we're going to have to abort the transaction
@@ -1570,7 +1570,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             return;
         }
         
-        if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startDeserialization();
         for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
             if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
                                                     result.getPartitionId(), ts));
@@ -1602,7 +1602,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void executeTransaction(LocalTransaction ts) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
-        if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExec();
         if (t) LOG.trace(String.format("%s - Attempting to begin processing transaction on partition %d",
                                        ts, this.partitionId));
         
@@ -2311,8 +2311,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         DependencySet result = null;
-        boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
-        if (needs_profiling) ((LocalTransaction)ts).profiler.startExecEE();
+        boolean needs_profiling = false;
+        if (ts.isExecLocal(this.partitionId)) {
+            if (hstore_conf.site.txn_profiling && ((LocalTransaction)ts).profiler != null) {
+                needs_profiling = true;
+                ((LocalTransaction)ts).profiler.startExecEE();
+            }
+        }
         Throwable error = null;
         try {
             if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d",
@@ -2451,14 +2456,17 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         assert(plan != null);
         if (t) LOG.trace("BatchPlan for " + ts + ":\n" + plan.toString());
-        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecPlanning();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         TransactionEstimator.State t_state = ts.getEstimatorState();
         if (t_state != null) {
-            if (hstore_conf.site.txn_profiling) ts.profiler.startExecEstimation();
-            this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
-            if (hstore_conf.site.txn_profiling) ts.profiler.stopExecEstimation();
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecEstimation();
+            try {
+                this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
+            } finally {
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecEstimation();
+            }
         }
 
         // Check whether our plan was caused a mispredict
@@ -2515,7 +2523,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (d && results == null)
             LOG.warn("Got back a null results array for " + ts + "\n" + plan.toString());
 
-        if (hstore_conf.site.txn_profiling) ts.profiler.startExecJava();
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecJava();
         
         return (results);
     }
@@ -2823,7 +2831,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
-                if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecDtxnWork();
                 try {
                     while (fragments == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -2843,7 +2851,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     return (null);
                 } finally {
-                    if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                    if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecDtxnWork();
                 }
             }
             assert(fragments != null);
@@ -3212,7 +3220,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             this.setExecutionMode(ts, newMode);
             
-            if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
             TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
@@ -3234,7 +3242,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // Note that when we call transactionFinish() right here this thread will then go on 
             // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
             // have successfully aborted the txn at least at all of the local partitions at this site.
-            if (hstore_conf.site.txn_profiling) ts.profiler.startPostFinish();
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
             TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
         }
@@ -3275,8 +3283,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (d) LOG.debug(String.format("%s - undoToken == DISABLE_UNDO_LOGGING_TOKEN", ts));
             }
             else {
-                boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition());
-                if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
+                boolean needs_profiling = false;
+                if (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition()) {
+                    if (((LocalTransaction)ts).profiler != null) {
+                        needs_profiling = true;
+                        ((LocalTransaction)ts).profiler.startPostEE();
+                    }
+                }
                 if (commit) {
                     if (d) LOG.debug(String.format("%s - Committing on partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                    ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
