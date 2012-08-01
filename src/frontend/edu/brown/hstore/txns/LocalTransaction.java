@@ -246,7 +246,8 @@ public class LocalTransaction extends AbstractTransaction {
                                  Procedure catalog_proc,
                                  ParameterSet params,
                                  RpcCallback<ClientResponseImpl> client_callback) {
-        assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
+        assert(predict_touchedPartitions != null);
+        assert(predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
         this.initiateTime = EstTime.currentTimeMillis();

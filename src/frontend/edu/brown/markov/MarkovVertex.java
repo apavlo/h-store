@@ -721,7 +721,7 @@ public class MarkovVertex extends AbstractVertex implements MarkovHitTrackable, 
      * Add another instance time to the map. We use these times to figure out how long each
      * transaction takes to execute in the on-line model.
      */
-    public MarkovVertex addInstanceTime(long xact_id, long time){
+    public MarkovVertex addInstanceTime(Long xact_id, long time){
         this.instancetimes.put(xact_id, time);
         return (this);
     }
