@@ -131,17 +131,9 @@ ENV_DEFAULT = {
     "ec2.status_wait_time":        20,
     "ec2.cluster_group":           None,
 
-    ## Site Options
-    "site.partitions":             6,
-    "site.sites_per_host":         1,
-    "site.partitions_per_site":    7,
-    
     ## Client Options
     "client.count":                1,
-    "client.processesperclient":   500,
-    "client.txnrate":              1000,
-    "client.scalefactor":          0.1,
-    "client.blocking":             True,
+    "client.threads_per_host":     500,
     
     ## H-Store Options
     "hstore.basedir":               "workspace",
@@ -150,6 +142,9 @@ ENV_DEFAULT = {
     "hstore.git_options":           "",
     "hstore.clean":                 False,
     "hstore.exec_prefix":           "compile",
+    "hstore.partitions":            6,
+    "hstore.sites_per_host":        1,
+    "hstore.partitions_per_site":   7,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -616,30 +611,30 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     host_id = 0
     site_id = 0
     partition_id = 0
-    partitions_per_site = env["site.partitions_per_site"]
+    partitions_per_site = env["hstore.partitions_per_site"]
     
     ## HStore Sites
-    LOG.debug("Partitions Needed: %d" % env["site.partitions"])
-    LOG.debug("Partitions Per Site: %d" % env["site.partitions_per_site"])
+    LOG.debug("Partitions Needed: %d" % env["hstore.partitions"])
+    LOG.debug("Partitions Per Site: %d" % env["hstore.partitions_per_site"])
     site_hosts = set()
     
-    if "site.num_hosts_round_robin" in env and env["site.num_hosts_round_robin"] != None:
-        partitions_per_site = math.ceil(env["site.partitions"] / float(env["site.num_hosts_round_robin"]))
+    if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
+        partitions_per_site = math.ceil(env["hstore.partitions"] / float(env["hstore.num_hosts_round_robin"]))
     
     for inst in __getRunningSiteInstances__():
         site_hosts.add(inst.private_dns_name)
         for i in range(env["site.sites_per_host"]):
             firstPartition = partition_id
-            lastPartition = min(env["site.partitions"], firstPartition + partitions_per_site)-1
+            lastPartition = min(env["hstore.partitions"], firstPartition + partitions_per_site)-1
             host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
             if firstPartition != lastPartition:
                 host += "-%d" % lastPartition
             partition_id += partitions_per_site
             site_id += 1
             hosts.append(host)
-            if lastPartition+1 == env["site.partitions"]: break
+            if lastPartition+1 == env["hstore.partitions"]: break
         ## FOR (SITES)
-        if lastPartition+1 == env["site.partitions"]: break
+        if lastPartition+1 == env["hstore.partitions"]: break
     ## FOR
     assert len(hosts) > 0
     LOG.debug("Site Hosts: %s" % hosts)
@@ -666,7 +661,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     hstore_options = {
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
-        "client.processesperclient":    env["client.processesperclient"],
+        "client.threads_per_host":    env["client.threads_per_host"],
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
@@ -1024,14 +1019,14 @@ def __getInstance__(public_dns_name):
 ## ----------------------------------------------        
 def __getInstanceTypeCounts__():
     """Return a tuple of the number hosts/sites/partitions/clients that we need"""
-    partitionCount = env["site.partitions"]
+    partitionCount = env["hstore.partitions"]
     clientCount = env["client.count"] 
     
-    if "site.num_hosts_round_robin" in env and env["site.num_hosts_round_robin"] != None:
-        hostCount = int(env["site.num_hosts_round_robin"])
+    if "hstore.num_hosts_round_robin" in env and env["hstore.num_hosts_round_robin"] != None:
+        hostCount = int(env["hstore.num_hosts_round_robin"])
         siteCount = hostCount
     else:
-        siteCount = int(math.ceil(partitionCount / float(env["site.partitions_per_site"])))
+        siteCount = int(math.ceil(partitionCount / float(env["hstore.partitions_per_site"])))
         hostCount = int(math.ceil(siteCount / float(env["site.sites_per_host"])))
     
     return (hostCount, siteCount, partitionCount, clientCount)
