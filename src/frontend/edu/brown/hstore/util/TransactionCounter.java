@@ -82,6 +82,9 @@ public enum TransactionCounter {
         this.h.remove(catalog_proc.getName());
         return (this.get());
     }
+    public void clear() {
+        this.h.clear();
+    }
     public static Collection<String> getAllProcedures() {
         Set<String> ret = new TreeSet<String>();
         for (TransactionCounter tc : TransactionCounter.values()) {
