@@ -15,7 +15,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.PartitionExecutorProfiler;
 import edu.brown.profilers.ProfileMeasurement;
-import edu.brown.utils.CollectionUtil;
 
 public class PartitionExecutorProfilerStats extends StatsSource {
     private static final Logger LOG = Logger.getLogger(PartitionExecutorProfilerStats.class);
@@ -55,10 +54,8 @@ public class PartitionExecutorProfilerStats extends StatsSource {
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
         
-        // Grab the first PartitionExecutor so that we can examine its profiler
-        int p = CollectionUtil.first(hstore_site.getLocalPartitionIds());
-        PartitionExecutor.Debug dbg = hstore_site.getPartitionExecutor(p).getDebugContext();
-        PartitionExecutorProfiler profiler = dbg.getProfiler();
+        // Make a dummy profiler just so that we can get the fields from it
+        PartitionExecutorProfiler profiler = new PartitionExecutorProfiler();
         assert(profiler != null);
         
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
@@ -77,7 +74,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         
         int offset = columnNameToIndex.get("PARTITION");
         rowValues[offset++] = partition;
-        rowValues[offset++] = profiler.exec_time.getInvocations();
+        rowValues[offset++] = profiler.numTransactions;
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
         } // FOR
