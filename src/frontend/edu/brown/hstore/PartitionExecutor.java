@@ -1531,11 +1531,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ---------------------------------------------------------------
     
     /**
-     * Process a FragmentResponseMessage and update the TransactionState accordingly
+     * Process a WorkResult and update the internal state the LocalTransaction accordingly
      * @param ts
      * @param result
      */
     private void processWorkResult(LocalTransaction ts, WorkResult result) {
+        boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
                                        ts, this.partitionId, result.getPartitionId(), result.getDepDataCount()));
         
@@ -1548,7 +1549,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                     result.getStatus(), result.getPartitionId(), ts));
 
             SerializableException error = null;
-            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startDeserialization();
+            if (needs_profiling) ts.profiler.startDeserialization();
             try {
                 ByteBuffer buffer = result.getError().asReadOnlyByteBuffer();
                 error = SerializableException.deserializeFromBuffer(buffer);
@@ -1556,7 +1557,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 throw new ServerFaultException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
                                                              result.getPartitionId(), ts, result.getError().size()), ex);
             } finally {
-                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopDeserialization();
+                if (needs_profiling) ts.profiler.stopDeserialization();
             }
             // At this point there is no need to even deserialize the rest of the message because 
             // we know that we're going to have to abort the transaction
@@ -1569,7 +1570,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             return;
         }
         
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startDeserialization();
+        if (needs_profiling) ts.profiler.startDeserialization();
         for (int i = 0, cnt = result.getDepDataCount(); i < cnt; i++) {
             if (t) LOG.trace(String.format("Storing intermediate results from partition %d for %s",
                                                     result.getPartitionId(), ts));
@@ -1586,7 +1587,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             }
             ts.addResult(result.getPartitionId(), depId, vt);
         } // FOR (dependencies)
-        if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
+        if (needs_profiling) ts.profiler.stopDeserialization();
     }
     
     private void blockTransaction(LocalTransaction ts) {
@@ -1738,10 +1739,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             ts.resetExecutionState();
             execState.finish();
             this.execStates.add(execState);
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPost();
         }
         
         // If this is a MapReduce job, then we can just ignore the ClientResponse
-        // and return immediately
+        // and return immediately. The VoltMapReduceProcedure is responsible for storing
+        // the result at the proper location.
         if (ts.isMapReduce()) {
             return;
         } else if (cresponse == null) {
@@ -2731,6 +2734,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                              final ParameterSet parameters[]) {
         assert(fragments.isEmpty() == false) :
             "Unexpected empty WorkFragment list for " + ts;
+        final boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
         
         // *********************************** DEBUG ***********************************
         if (d) {
@@ -2838,7 +2842,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
-                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecDtxnWork();
+                if (needs_profiling) ts.profiler.startExecDtxnWork();
                 try {
                     while (fragments == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -2858,7 +2862,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     }
                     return (null);
                 } finally {
-                    if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecDtxnWork();
+                    if (needs_profiling) ts.profiler.stopExecDtxnWork();
                 }
             }
             assert(fragments != null);
@@ -2987,7 +2991,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (num_remote > 0) {
                     // We only need to serialize the ParameterSets once
                     if (serializedParams == false) {
-                        if (hstore_conf.site.txn_profiling) ts.profiler.startSerialization();
+                        if (needs_profiling) ts.profiler.startSerialization();
                         tmp_serializedParams.clear();
                         for (int i = 0; i < parameters.length; i++) {
                             if (parameters[i] == null) {
@@ -3004,7 +3008,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                 }
                             }
                         } // FOR
-                        if (hstore_conf.site.txn_profiling) ts.profiler.stopSerialization();
+                        if (needs_profiling) ts.profiler.stopSerialization();
                     }
                     if (d) LOG.debug(String.format("%s - Requesting %d FragmentTaskMessages to be executed on remote partitions", ts, num_remote));
                     this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
@@ -3059,7 +3063,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             long startTime = System.nanoTime();
             long waitTime = hstore_conf.site.exec_response_timeout*1000000;
             
-            if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
+            if (needs_profiling) ts.profiler.startExecDtxnWork();
             try {
                 while (latch.getCount() > 0) {
                     if (this.utilityWork() == false) {
@@ -3079,9 +3083,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             } catch (Throwable ex) {
                 throw new ServerFaultException(String.format("Fatal error for %s while waiting for results", ts), ex);
             } finally {
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+                if (needs_profiling) ts.profiler.stopExecDtxnWork();
             }
-            if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
             
             if (timeout && this.isShuttingDown() == false) {
                 LOG.warn(String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
