@@ -136,7 +136,7 @@ BASE_SETTINGS = {
     "site.exec_mispredict_crash":                       False,
     
     "site.sites_per_host":                              1,
-    "hstore.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
+    "hstore.partitions_per_site":                       OPT_BASE_PARTITIONS_PER_SITE,
     "site.num_hosts_round_robin":                       None,
     "site.memory":                                      65440,
     "site.queue_incoming_max_per_partition":            150,
@@ -200,13 +200,13 @@ if __name__ == '__main__':
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
     agroup.add_argument("--single-client", action='store_true')
-    agroup.add_argument("--no-execute", action='store_true')
-    agroup.add_argument("--no-compile", action='store_true')
-    agroup.add_argument("--no-update", action='store_true')
-    agroup.add_argument("--no-jar", action='store_true')
-    agroup.add_argument("--no-conf", action='store_true')
-    agroup.add_argument("--no-sync", action='store_true')
-    agroup.add_argument("--no-json", action='store_true')
+    agroup.add_argument("--no-execute", action='store_true', help='Do no execute any experimetns after starting cluster')
+    agroup.add_argument("--no-compile", action='store_true', help='Disable compiling before running benchmark')
+    agroup.add_argument("--no-update", action='store_true', help='Disable synching git repository')
+    agroup.add_argument("--no-jar", action='store_true', help='Disable constructing benchmark jar')
+    agroup.add_argument("--no-conf", action='store_true', help='Disable updating HStoreConf properties file')
+    agroup.add_argument("--no-sync", action='store_true', help='Disable synching time between nodes')
+    agroup.add_argument("--no-json", action='store_true', help='Disable JSON output results')
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
@@ -234,7 +234,6 @@ if __name__ == '__main__':
     agroup = aparser.add_argument_group('Boto Parameters')
     for key in sorted(hstore.fabfile.ENV_DEFAULT):
         keyPrefix = key.split(".")[0]
-        print key,"->",keyPrefix
         if key not in BASE_SETTINGS and keyPrefix in [ "ec2", "hstore" ]:
             metavar = key.split(".")[-1].upper()
             agroup.add_argument("--"+key, type=type(env[key]), metavar=metavar)
@@ -280,7 +279,7 @@ if __name__ == '__main__':
     
     if args['debug']:
         LOG.setLevel(logging.DEBUG)
-        fabfile.LOG.setLevel(logging.DEBUG)
+        hstore.fabfile.LOG.setLevel(logging.DEBUG)
     if args['debug_hstore']:
         for param in DEBUG_OPTIONS:
             BASE_SETTINGS[param] = True
@@ -330,7 +329,7 @@ if __name__ == '__main__':
     needClearLogs = (args['clear_logs'] == False)
     forceStop = False
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
-    for benchmark in OPT_BENCHMARKS:
+    for benchmark in [ args['benchmark'] ]: # XXX
         final_results = { }
         totalAttempts = args['exp_trials'] * args['exp_attempts']
         stop = False
@@ -346,22 +345,22 @@ if __name__ == '__main__':
                 
             if args['start_cluster']:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % args['no_execute'])
-                fabfile.start_cluster(updateSync=needSync)
-                if OPT_NO_EXECUTE: sys.exit(0)
+                hstore.fabfile.start_cluster(updateSync=needSync)
+                if args['no_execute']: sys.exit(0)
             ## IF
             
             ## Synchronize Instance Times
-            if needSync: fabfile.sync_time()
+            if needSync: hstore.fabfile.sync_time()
             needSync = False
                 
             ## Clear Log Files
-            if needClearLogs: fabfile.clear_logs()
+            if needClearLogs: hstore.fabfile.clear_logs()
             needClearLogs = False
                 
-            client_inst = fabfile.__getRunningClientInstances__()[0]
+            client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
-            updateJar = (OPT_NO_JAR == False)
+            updateJar = (args['no_jar'] == False)
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, args['exp_type'], exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -369,7 +368,7 @@ if __name__ == '__main__':
                 
                 results = [ ]
                 attempts = 0
-                updateConf = (OPT_NO_CONF == False)
+                updateConf = (args['no_conf'] == False)
                 while len(results) < args['exp_trials'] and attempts < totalAttempts and stop == False:
                     ## Only compile for the very first invocation
                     if needCompile:
@@ -390,7 +389,7 @@ if __name__ == '__main__':
                     ))
                     try:
                         with settings(host_string=client_inst.public_dns_name):
-                            output, workloads = fabfile.exec_benchmark(
+                            output, workloads = hstore.fabfile.exec_benchmark(
                                                     project=benchmarkType, \
                                                     removals=conf_remove, \
                                                     json=(args['no_json'] == False), \
@@ -428,7 +427,7 @@ if __name__ == '__main__':
                                         last_changed_rev = args["codespeed_revision"][0]
                                         last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
                                     else:
-                                        last_changed_rev, last_changed_date = fabfile.get_version()
+                                        last_changed_rev, last_changed_date = hstore.fabfile.get_version()
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
