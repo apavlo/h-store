@@ -263,6 +263,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void startExec() {
         if (this.disabled) return;
         assert(this.stack.size() > 0);
+        if (this.stack.peek() == this.pm_exec_total) {
+            System.err.println("!!!");
+        }
         assert(this.stack.peek() != this.pm_exec_total);
         ProfileMeasurement current = this.stack.pop();
         assert(current == this.pm_queue);
@@ -412,6 +415,12 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (debug.get()) LOG.debug("Disabling transaction profiling");
         this.disabled = true;
     }
+    
+    public void enableProfiling() {
+        if (debug.get()) LOG.debug("Enabling transaction profiling");
+        this.disabled = false;
+    }
+    
     
     public boolean isDisabled() {
         return (this.disabled);
