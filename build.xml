@@ -33,7 +33,6 @@
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.benchmarks.dir'        location='${build.dir}/benchmarks' />
 <property name='build.test.dir'              location='${build.dir}/test' />
-<property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
 <property name='build.preprocessor.dir'      location='${build.dir}/preprocessor' />
 <property name='dist.dir'                    location='${build.dir}/dist' />
 <property name='dist.examples.dir'           location='${dist.dir}/examples' />
@@ -46,7 +45,6 @@
 <property name='src.dir'                     location='src' />
 <property name='src.frontend.dir'            location='${src.dir}/frontend' />
 <property name='src.benchmarks.dir'          location='${src.dir}/benchmarks' />
-<property name='src.dtxn.dir'                location='${src.dir}/dtxn' />
 <property name='src.hsqldb.dir'              location='${src.dir}/hsqldb19b3' />
 <property name='src.protorpc.dir'            location='${src.dir}/protorpc' />
 <property name='src.test.dir'                location='tests/frontend' />
@@ -1892,7 +1890,6 @@ UTILITIES
         <arg value="catalog.type=${type}" />
         <arg value="catalog.cluster=${cluster}" />
         <arg value="catalog.output=${global.temp_dir}/fixcatalog/catalog.txt" />
-        <arg value="dtxn.conf.output=${global.temp_dir}/fixcatalog/dtxn.conf" />
         <arg value="mappings=${mappings}" />
         <arg value="catalog.hosts=${hosts}" />
         <arg value="catalog.hosts.cores=${cores}" />

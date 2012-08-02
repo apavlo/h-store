@@ -594,7 +594,7 @@ public class TransactionInitializer {
                 Object cast_args[] = mangler.convert(params.toArray());
                 if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, mangler.toString(cast_args)));
                 
-                if (hstore_conf.site.txn_profiling) ts.profiler.startInitEstimation();
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startInitEstimation();
                 t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
                 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
@@ -626,7 +626,8 @@ public class TransactionInitializer {
                             LOG.trace(String.format("%s MarkovEstimate:\n%s",
                                                     AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
-                        predict_partitions = m_estimate.getTouchedPartitions(this.thresholds);
+                        // predict_partitions = m_estimate.getTouchedPartitions(this.thresholds);
+                        predict_partitions = new PartitionSet(m_estimate.getTouchedPartitions(this.thresholds));
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
                         predict_abortable = (predict_partitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
 //                        LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
@@ -641,7 +642,7 @@ public class TransactionInitializer {
                 predict_readOnly = false;
                 predict_abortable = true;
             } finally {
-                if (hstore_conf.site.txn_profiling) ts.profiler.stopInitEstimation();
+                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopInitEstimation();
             }
         }
         

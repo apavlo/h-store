@@ -2483,9 +2483,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Update Transaction profiles
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?
-        if (hstore_conf.site.txn_profiling && ts.profiler != null &&
-             ts.profiler.isDisabled() == false &&
-             status != Status.ABORT_MISPREDICT) {
+        if (hstore_conf.site.txn_profiling && status != Status.ABORT_MISPREDICT &&
+             ts.profiler != null && ts.profiler.isDisabled() == false) {
             ts.profiler.stopTransaction();
             
             if (this.txnProfilerStats != null) {
