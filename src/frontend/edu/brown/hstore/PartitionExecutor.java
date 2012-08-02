@@ -805,7 +805,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
                 this.processInternalMessage(work);
-                if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stop();
+                if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) this.profiler.exec_time.stop();
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
             } // WHILE
         } catch (final Throwable ex) {
@@ -1699,6 +1699,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // If we reach this point, we know that we're about to execute our homeboy here...
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExec();
+        if (hstore_conf.site.exec_profiling) this.profiler.numTransactions++;
         
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 
@@ -3192,7 +3193,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_site.responseSend(ts, cresponse);
-                if (hstore_conf.site.exec_profiling) this.profiler.network_time.stop();
+                if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
                 
                 this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
             }
@@ -3225,7 +3226,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_coordinator.transactionPrepare(ts, callback, tmp_preparePartitions);
+            if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
         }
         // -------------------------------
         // ABORT: Distributed Transaction
@@ -3245,7 +3248,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // have successfully aborted the txn at least at all of the local partitions at this site.
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
             TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+            if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
+            if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) this.profiler.network_time.stop();
         }
     }
         
