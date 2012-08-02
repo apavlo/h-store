@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.voltdb.StatsSource;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
@@ -22,7 +23,7 @@ public class PoolCounterStats extends StatsSource {
     private final List<Object> allPoolNames = new ArrayList<Object>();
 
     public PoolCounterStats(HStoreObjectPools objectPools) {
-        super("POOLS", false);
+        super(SysProcSelector.POOL.name(), false);
         this.objectPools = objectPools;
         this.globalPools = this.objectPools.getGlobalPools();
         this.partitionPools = this.objectPools.getPartitionedPools();
