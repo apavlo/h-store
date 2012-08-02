@@ -805,15 +805,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 if (t) LOG.trace("Next Work: " + work);
                 
                 if (hstore_conf.site.exec_profiling) this.profiler.exec_time.start();
-                try {
-                    this.processInternalMessage(work);
-                } finally { 
-                    if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stop();
-                }
+                this.processInternalMessage(work);
+                if (hstore_conf.site.exec_profiling) this.profiler.exec_time.stop();
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
             } // WHILE
         } catch (final Throwable ex) {
-            if (d && this.isShuttingDown() == false) {
+            if (this.isShuttingDown() == false) {
                 ex.printStackTrace();
                 LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (this.currentTxn != null ? " - " + this.currentTxn : ""), ex), ex);
@@ -964,6 +961,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
         if (ts.isPredictSinglePartition() && ts.isMapReduce() == false && ts.isSysProc() == false) {
+            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
             this.currentTxn = ts;
             this.executeTransaction(ts);
         }

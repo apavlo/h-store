@@ -424,8 +424,15 @@ public class TransactionInitializer {
             LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
         }
-        if (hstore_conf.site.txn_profiling && new_ts.profiler != null) {
+        
+        if (hstore_conf.site.txn_profiling) {
+            if (new_ts.profiler == null) {
+                new_ts.setProfiler(new TransactionProfiler());
+            }
+            new_ts.profiler.enableProfiling();
             new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+        } else if (new_ts.profiler != null) {
+            new_ts.profiler.disableProfiling();
         }
         
         Long new_txn_id = this.registerTransaction(new_ts, base_partition);
@@ -508,7 +515,13 @@ public class TransactionInitializer {
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
-            if (ts.getProfiler() == null) ts.setProfiler(new TransactionProfiler());
+            if (ts.profiler == null) {
+                ts.setProfiler(new TransactionProfiler());
+            }
+            ts.profiler.enableProfiling();
+            ts.profiler.startTransaction(ProfileMeasurement.getTime());
+        } else if (ts.profiler != null) {
+            ts.profiler.disableProfiling();
         }
         
         // -------------------------------
