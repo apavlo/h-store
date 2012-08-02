@@ -61,16 +61,21 @@ public class TransactionProfilerStats extends StatsSource {
         
         long tuple[] = tp.getTuple();
         assert(tuple != null);
-        if (trace.get()) LOG.trace(String.format("Appending TransactionProfile: %s", tp, Arrays.toString(tuple)));
+        if (trace.get())
+            LOG.trace(String.format("Appending TransactionProfile: %s", Arrays.toString(tuple)));
         queue.offer(tuple);
     }
     
     private long[] calculateTxnProfileTotals(Procedure catalog_proc) {
-        long totals[] = this.profileTotals.get(catalog_proc);
-        
+        long totals[] = this.profileTotals.get(catalog_proc); 
         long tuple[] = null;
         Queue<long[]> queue = this.profileQueues.get(catalog_proc); 
         while ((tuple = queue.poll()) != null) {
+            if (totals == null) {
+                totals = new long[tuple.length+1];
+                Arrays.fill(totals, 0l);
+                this.profileTotals.put(catalog_proc, totals);
+            }
             totals[0]++;
             for (int i = 0, cnt = tuple.length; i < cnt; i++) {
                 totals[i+1] += tuple[i];
@@ -103,12 +108,12 @@ public class TransactionProfilerStats extends StatsSource {
     protected void populateColumnSchema(ArrayList<ColumnInfo> columns) {
         super.populateColumnSchema(columns);
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
-        columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.INTEGER));
+        columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
         for (int i = 0; i < TransactionProfiler.PROFILE_FIELDS.length; i++) {
             String name = TransactionProfiler.PROFILE_FIELDS[i].getName()
                                 .replace("pm_", "")
                                 .replace("_total", "");
-            columns.add(new VoltTable.ColumnInfo(name.toUpperCase(), VoltType.INTEGER));
+            columns.add(new VoltTable.ColumnInfo(name.toUpperCase(), VoltType.BIGINT));
         } // FOR
     }
 
@@ -119,7 +124,7 @@ public class TransactionProfilerStats extends StatsSource {
         long totals[] = this.calculateTxnProfileTotals(proc);
         int offset = columnNameToIndex.get("PROCEDURE");
         
-        rowValues[offset] = proc.getName();
+        rowValues[offset++] = proc.getName();
         for (int i = 0; i < totals.length; i++) {
             rowValues[offset + i] = totals[i];
         } // FOR

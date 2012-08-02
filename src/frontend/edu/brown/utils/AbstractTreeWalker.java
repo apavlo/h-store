@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.log4j.Logger;

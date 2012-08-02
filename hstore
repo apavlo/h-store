@@ -79,6 +79,8 @@ def getBenchmarks():
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='H-Store Terminal Client')
     aparser.add_argument('project', help='Benchmark name or Project Jar')
+    aparser.add_argument('--csv', action='store_true',
+                         help='Output all tables as CSV results')
     args = vars(aparser.parse_args())
     
     # Check whether we have a jar file
@@ -93,13 +95,17 @@ if __name__ == '__main__':
     if not os.path.exists(args['project']):
         logging.error("Project jar '%s' does not exist" % (args['project']))
         sys.exit(1)
+
+    # Enable CSV output
+    options = "terminal.csv=%s" % args['csv']
         
     # Invoke java directly
-    cmd = "java %s -classpath %s %s catalog.jar=%s" % (\
+    cmd = "java %s -classpath %s %s catalog.jar=%s %s" % (\
         " ".join(JVM_ARGS), \
         ":".join(JVM_CLASSPATH), \
         JVM_TARGET, \
-        args['project'])
+        args['project'],
+        options)
     logging.debug(cmd)
     try:
         p = subprocess.Popen(cmd, shell=True)
