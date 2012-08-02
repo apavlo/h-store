@@ -67,6 +67,10 @@ public class TestHStoreSite extends BaseTestCase {
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         initializeCatalog(1, 1, NUM_PARTITIONS);
+     
+        for (TransactionCounter tc : TransactionCounter.values()) {
+            tc.clear();
+        } // FOR
         
         Site catalog_site = CollectionUtil.first(catalogContext.sites);
         this.hstore_conf = HStoreConf.singleton();
@@ -109,7 +113,7 @@ public class TestHStoreSite extends BaseTestCase {
         // Now try invoking @Statistics to get back more information
         params = new Object[]{ SysProcSelector.TXNCOUNTER.name(), 0 };
         cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
-        System.err.println(cr);
+//        System.err.println(cr);
         assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());
         
@@ -126,6 +130,53 @@ public class TestHStoreSite extends BaseTestCase {
                     Long tcVal = tc.get(catalog_proc);
                     if (tcVal == null) tcVal = 0l;
                     assertEquals(counterName, tcVal.intValue(), (int)results[0].getLong(i));
+                } // FOR
+                found = true;
+                break;
+            }
+        } // WHILE
+        assertTrue(found);
+    }
+    
+    /**
+     * testTransactionProfilers
+     */
+    @Test
+    public void testTransactionProfilers() throws Exception {
+        hstore_conf.site.txn_profiling = true;
+        hstore_site.updateConf(hstore_conf);
+        
+        Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
+        ClientResponse cr = null;
+        int num_txns = 500;
+        
+        Object params[] = { 1234l, "XXXX" };
+        for (int i = 0; i < num_txns; i++) {
+            this.client.callProcedure(catalog_proc.getName(), params);
+        } // FOR
+        ThreadUtil.sleep(1000);
+        assertEquals(num_txns, TransactionCounter.RECEIVED.get());
+        
+        // Now try invoking @Statistics to get back more information
+        params = new Object[]{ SysProcSelector.TXNPROFILER.name(), 0 };
+        cr = this.client.callProcedure(VoltSystemProcedure.getProcCallName(Statistics.class), params);
+        System.err.println(cr);
+        assertNotNull(cr);
+        assertEquals(Status.OK, cr.getStatus());
+        
+        String fields[] = { "TOTAL", "INIT" };
+        
+        VoltTable results[] = cr.getResults();
+        assertEquals(1, results.length);
+        boolean found = false;
+        while (results[0].advanceRow()) {
+            if (results[0].getString(3).equalsIgnoreCase(catalog_proc.getName())) {
+                for (String f : fields) {
+                    int i = results[0].getColumnIndex(f);
+                    assertEquals(f, results[0].getColumnName(i));
+                    long val = results[0].getLong(i);
+                    assertFalse(f, results[0].wasNull());
+                    assertTrue(f, val > 0);
                 } // FOR
                 found = true;
                 break;
