@@ -3158,7 +3158,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
-        boolean is_singlepartitioned = ts.isPredictSinglePartition();
         Status status = cresponse.getStatus();
 
         if (d) {
@@ -3174,7 +3173,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // -------------------------------
         // ALL: Single-Partition Transactions
         // -------------------------------
-        if (is_singlepartitioned) {
+        if (ts.isPredictSinglePartition()) {
             // Commit or abort the transaction
             this.finishWork(ts, (status == Status.OK));
             
