@@ -43,6 +43,11 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
     public boolean unblockTransactionCallback() {
         assert(this.cresponse.isInitialized()) :
             "Trying to send back ClientResponse for " + ts + " before it was set!";
+        if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
+            if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
+            this.ts.profiler.stopPostPrepare();
+            this.ts.profiler.startPostFinish();
+        }
 
         // Everybody returned ok, so we'll tell them all commit right now
         this.finishTransaction(Status.OK);
@@ -58,6 +63,12 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
     
     @Override
     protected boolean abortTransactionCallback(Status status) {
+        if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
+            if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + status);
+            this.ts.profiler.stopPostPrepare();
+            this.ts.profiler.startPostFinish();
+        }
+        
         // As soon as we get an ABORT from any partition, fire off the final ABORT 
         // to all of the partitions
         this.finishTransaction(status);

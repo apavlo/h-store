@@ -25,7 +25,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    protected final boolean txn_profiling;
     protected LocalTransaction ts;
     private Status finishStatus;
     
@@ -50,7 +49,6 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
      */
     protected AbstractTransactionCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
-        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
     
     protected void init(LocalTransaction ts, int counter_val, RpcCallback<T> orig_callback) {
@@ -106,10 +104,7 @@ public abstract class AbstractTransactionCallback<T, U> extends BlockingRpcCallb
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
         if (finish) {
-            if (this.txn_profiling && this.ts.profiler != null) {
-                this.ts.profiler.stopPostPrepare();
-                this.ts.profiler.startPostFinish();
-            }
+            
             this.finishTransaction(status);
         }
         this.abortFinished = true;
