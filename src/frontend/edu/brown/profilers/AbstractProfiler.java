@@ -8,7 +8,7 @@ import java.util.List;
 public abstract class AbstractProfiler {
     
 
-    protected Collection<ProfileMeasurement> getProfileMeasurements() {
+    public Collection<ProfileMeasurement> getProfileMeasurements() {
         List<ProfileMeasurement> ret = new ArrayList<ProfileMeasurement>();
         for (Field f : this.getClass().getDeclaredFields()) {
             Object obj = null;

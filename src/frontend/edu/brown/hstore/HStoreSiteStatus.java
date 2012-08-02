@@ -453,7 +453,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             partitionLabels.put(partition, partitionLabel);
             
             PartitionExecutor es = e.getValue();
-            ThrottlingQueue<?> es_queue = es.getWorkQueue();
+            PartitionExecutor.Debug dbg = es.getDebugContext();
+            ThrottlingQueue<?> es_queue = dbg.getWorkQueue();
             ThrottlingQueue<?> dtxn_queue = queueManagerDebug.getInitQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
@@ -526,7 +527,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
                 txn_id = es.getLastCommittedTxnId();
                 m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
                 
-                PartitionExecutorProfiler profiler = es.getProfiler();
+                PartitionExecutorProfiler profiler = dbg.getProfiler();
                 
                 // Execution Time
                 pm = profiler.exec_time;
@@ -560,7 +561,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             String label = "    Partition[" + partitionLabel + "]";
             
             // Get additional partition info
-            Thread t = es.getExecutionThread();
+            Thread t = dbg.getExecutionThread();
             if (t != null && thread_manager.isRegistered(t)) {
                 for (Integer cpu : thread_manager.getCPUIds(t)) {
                     label += "\n       \u2192 CPU *" + cpu + "*";
