@@ -5,6 +5,7 @@ import java.util.Iterator;
 
 import org.apache.log4j.Logger;
 import org.voltdb.StatsSource;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
@@ -27,7 +28,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
     private final HStoreSite hstore_site;
 
     public PartitionExecutorProfilerStats(HStoreSite hstore_site) {
-        super("EXECPROFILER", false);
+        super(SysProcSelector.EXECPROFILER.name(), false);
         this.hstore_site = hstore_site;
     }
     

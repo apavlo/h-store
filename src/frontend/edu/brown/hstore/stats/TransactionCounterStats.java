@@ -12,6 +12,7 @@ import java.util.Map.Entry;
 
 import org.voltdb.CatalogContext;
 import org.voltdb.StatsSource;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
@@ -51,7 +52,7 @@ public class TransactionCounterStats extends StatsSource {
     private final List<Procedure> procedures;
 
     public TransactionCounterStats(CatalogContext catalogContext) {
-        super("TRANSACTIONS", false);
+        super(SysProcSelector.TXNCOUNTER.name(), false);
         this.catalogContext = catalogContext;
         
         // We'll put the sysprocs first

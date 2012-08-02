@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.StatsSource;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
@@ -36,7 +37,7 @@ public class TransactionProfilerStats extends StatsSource {
     private final Map<Procedure, long[]> profileTotals = Collections.synchronizedSortedMap(new TreeMap<Procedure, long[]>());
 
     public TransactionProfilerStats(CatalogContext catalogContext) {
-        super("TXNPROFILER", false);
+        super(SysProcSelector.TXNCOUNTER.name(), false);
     }
     
     /**
