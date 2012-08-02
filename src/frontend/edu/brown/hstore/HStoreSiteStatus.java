@@ -703,7 +703,8 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
         // First get all the BatchPlanners that we have
         Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
         for (PartitionExecutor es : this.executors.values()) {
-            bps.addAll(es.batchPlanners.values());
+            PartitionExecutor.Debug dbg = es.getDebugContext();
+            bps.addAll(dbg.getBatchPlanners());
         } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
         ProfileMeasurement final_totals[] = null;
