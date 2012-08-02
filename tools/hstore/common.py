@@ -32,6 +32,7 @@ import os
 import sys
 import glob
 import re
+import json
 
 # Figure out where we are relative to the root of the repository
 realpath = os.path.realpath(__file__)
@@ -42,6 +43,24 @@ if not os.path.exists(realpath):
     if os.path.exists(os.path.join(cwd, basename)):
         basedir = cwd
 REPO_ROOT_DIR = os.path.realpath(os.path.join(basedir, "../.."))
+        
+        
+## =============================================================================
+## parseJSONResults
+## =============================================================================
+def parseJSONResults(output):
+    # We always need to make sure that we clear out ant's [java] prefix
+    output = re.sub("[\s]+\[java\] ", "\n", output)
+    
+    # Find our <json> tag. The results will be inside of there
+    regex = re.compile("<json>(.*?)</json>", re.MULTILINE | re.IGNORECASE | re.DOTALL)
+    m = regex.search(output)
+    if not m: 
+        raise Exception("Invalid JSON results output")
+    
+    json_results = json.loads(m.group(1))
+    return (json_results)
+## DEF
         
 ## =============================================================================
 ## getAllParameters
