@@ -2,11 +2,13 @@ package edu.brown.profilers;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
 import edu.brown.logging.LoggerUtil;
@@ -50,7 +52,15 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     /**
      * 
      */
-    private final Stack<ProfileMeasurement> stack = new Stack<ProfileMeasurement>();
+    @SuppressWarnings("serial")
+    private final Stack<ProfileMeasurement> stack = new Stack<ProfileMeasurement>() {
+        public ProfileMeasurement push(ProfileMeasurement item) {
+            TransactionProfiler.this.history.add(item);
+            return super.push(item);
+        }
+    };
+    
+    private final List<ProfileMeasurement> history = new ArrayList<ProfileMeasurement>();
     
     private transient boolean disabled = false;
     
@@ -163,7 +173,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * The time spent setting up the transaction before it is queued in either
      * an ExecutionSite or with the Dtxn.Coordinator
      */
-    private final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT");
+    private final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT_TOTAL");
     /**
      * The amount of time spent estimating what the transaction will do in the initialization
      */
@@ -199,7 +209,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
     
     /**
-     * Time spent waiting in the ExecutionSite queue
+     * Time spent waiting in the PartitionExecutor queue
      */
     private final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
     
@@ -209,7 +219,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         assert(this.stack.peek() != this.pm_queue) : "Duplicate calls for " + this.pm_queue;
         long timestamp = ProfileMeasurement.getTime();
         
-        // We can either be put in an ExecutionSite queue directly in HStoreSite
+        // We can either be put in an PartitionExecutor queue directly in HStoreSite
         // or after we get a response from the coordinator
         ProfileMeasurement pm = null;
         while (this.stack.isEmpty() == false) {
@@ -234,7 +244,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * This starts when the transaction is removed from the ExecutionSite's queue
      * until it finishes
      */
-    private final ProfileMeasurement pm_exec_total = new ProfileMeasurement("EXEC");
+    private final ProfileMeasurement pm_exec_total = new ProfileMeasurement("EXEC_TOTAL");
     /**
      * The amount of time spent executing the Java-portion of the stored procedure
      */
@@ -263,12 +273,11 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void startExec() {
         if (this.disabled) return;
         assert(this.stack.size() > 0);
-        if (this.stack.peek() == this.pm_exec_total) {
-            System.err.println("!!!");
-        }
-        assert(this.stack.peek() != this.pm_exec_total);
         ProfileMeasurement current = this.stack.pop();
-        assert(current == this.pm_queue);
+        assert(current != this.pm_exec_total) :
+            "Trying to start txn execution twice!";
+        assert(current == this.pm_queue) :
+            "Trying to start execution before txn was queued (" + current + ")";
         ProfileMeasurement.swap(current, this.pm_exec_total);
         this.stack.push(this.pm_exec_total);
     }
@@ -324,7 +333,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     /**
      * Time spent getting the response back to the client
      */
-    private final ProfileMeasurement pm_post_total = new ProfileMeasurement("POST");
+    private final ProfileMeasurement pm_post_total = new ProfileMeasurement("POST_TOTAL");
     /**
      * 2PC-PREPARE
      */
@@ -405,6 +414,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
             }
         } // FOR
         this.stack.clear();
+        this.history.clear();
         this.disabled = false;
     }
 
@@ -415,12 +425,27 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (debug.get()) LOG.debug("Disabling transaction profiling");
         this.disabled = true;
     }
-    
+    /**
+     * Enable profiling for this transaction
+     * This should only be invoked before the txn starts
+     */
     public void enableProfiling() {
         if (debug.get()) LOG.debug("Enabling transaction profiling");
         this.disabled = false;
     }
     
+    /**
+     * Return the topmost ProfileMeasurement handle on this profiler's stack
+     */
+    public ProfileMeasurement current() {
+        return (this.stack.peek());
+    }
+    /**
+     * Returns the history of actions for this profiler
+     */
+    public Collection<ProfileMeasurement> history() {
+        return (Collections.unmodifiableCollection(this.history));
+    }
     
     public boolean isDisabled() {
         return (this.disabled);
@@ -452,16 +477,36 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
     
     public Map<String, Object> debugMap() {
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        
+        // HEADER
+        m.put(this.getClass().getSimpleName(), null);
+        
+        // FIELDS
         for (Field f : PROFILE_FIELDS) {
-            ProfileMeasurement val = null;
+            ProfileMeasurement pm = null;
             try {
-                val = (ProfileMeasurement)f.get(this);
+                pm = (ProfileMeasurement)f.get(this);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            m.put(StringUtil.title(f.getName().replace("_", " ")), val.debug(true)); 
+            String label = pm.getType();
+            String debug = pm.debug(true).replace(label, "");
+            m.put(label, debug);
         } // FOR
+        
+        // HISTORY
+        String history = "";
+        int i = 0; 
+        for (ProfileMeasurement pm : this.history) {
+            String label = pm.getType();
+            if (pm.isStarted()) {
+                label += " *ACTIVE*";
+            }
+            history += String.format("[%02d] %s\n", i++, label);
+        } // FOR
+        m.put("History", history);
+        
         return (m);
     }
 }

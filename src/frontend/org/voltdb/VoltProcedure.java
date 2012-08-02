@@ -1110,11 +1110,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         assert(batchArgs.length > 0);
         if (batchSize == 0) return (HStoreConstants.EMPTY_RESULT);
         
-        if (hstore_conf.site.txn_profiling && this.m_localTxnState.profiler != null) {
-            this.m_localTxnState.profiler.stopExecJava();
-            this.m_localTxnState.profiler.startExecPlanning();
-        }
-
         // Create a list of clean parameters
         ParameterSet params[] = this.m_localTxnState.getExecutionState().
                                      procParameterSets.getParameterSet(batchSize);

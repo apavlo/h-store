@@ -127,6 +127,7 @@ public class HStoreTerminal implements Runnable {
                     int retries = 3;
                     Command targetCmd = null;
                     boolean usage = false;
+                    boolean reconnect = false;
                     while (retries-- > 0 && stop == false) {
                         // Check whether they want to execute a special command
                         for (Command c : Command.values()) {
@@ -144,7 +145,7 @@ public class HStoreTerminal implements Runnable {
                                         if (tokens.length < 2) {
                                             usage = true;
                                         } else {
-                                            cresponse = this.execProcedure(client, tokens[1], query);
+                                            cresponse = this.execProcedure(client, tokens[1], query, reconnect);
                                         }
                                         break;
                                     case QUIT:
@@ -165,7 +166,8 @@ public class HStoreTerminal implements Runnable {
                             LOG.warn("Connection lost. Going to try to connect again...");
                             p = this.getClientConnection();
                             client = p.getFirst();
-                            catalog_site = p.getSecond(); 
+                            catalog_site = p.getSecond();
+                            reconnect = true;
                             continue;
                         }
                         break;
@@ -174,7 +176,7 @@ public class HStoreTerminal implements Runnable {
                     // Just print out the result
                     if (cresponse != null) {
                         if (cresponse.getStatus() == Status.OK) {
-                            System.out.println(formatResult(cresponse));    
+                            System.out.println(this.formatResult(cresponse));    
                         } else {
                             System.out.printf("Server Response: %s / %s\n",
                                               cresponse.getStatus(),
@@ -273,7 +275,7 @@ public class HStoreTerminal implements Runnable {
      * @return
      * @throws Exception
      */
-    private ClientResponse execProcedure(Client client, String procName, String query) throws Exception {
+    private ClientResponse execProcedure(Client client, String procName, String query, boolean reconnect) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(procName);
         if (catalog_proc == null) {
             throw new Exception("Invalid stored procedure name '" + procName + "'");
@@ -340,7 +342,7 @@ public class HStoreTerminal implements Runnable {
             } // FOR
         }
         
-        if (this.enable_csv == false) {
+        if (this.enable_csv == false && reconnect == false) {
             LOG.info(String.format("Executing transaction " + setBoldText + "%s(%s)" + setPlainText, 
                      catalog_proc.getName(), procParamsStr));
         }

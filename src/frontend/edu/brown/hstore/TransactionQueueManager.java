@@ -569,7 +569,6 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
             TransactionInitCallback callback = ts.initTransactionInitCallback();
             hstore_coordinator.transactionInit(ts, callback);
         } // WHILE
-        
     }
     
     // ----------------------------------------------------------------------------

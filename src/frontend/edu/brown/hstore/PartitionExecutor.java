@@ -142,6 +142,7 @@ import edu.brown.hstore.util.QueryCache;
 import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.hstore.util.TransactionWorkRequestBuilder;
 import edu.brown.interfaces.Configurable;
+import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Loggable;
 import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
@@ -358,7 +359,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    public final Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
+    private final Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
     
     // ----------------------------------------------------------------------------
     // DISTRIBUTED TRANSACTION TEMPORARY DATA COLLECTIONS
@@ -812,8 +813,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 ex.printStackTrace();
-                LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
-                                        this.partitionId, (this.currentTxn != null ? " - " + this.currentTxn : ""), ex), ex);
+                LOG.fatal(String.format("Unexpected error for PartitionExecutor partition #%d [%s]",
+                                        this.partitionId, this.currentTxn), ex);
                 if (this.currentTxn != null) LOG.fatal("TransactionState Dump:\n" + this.currentTxn.debug());
             }
             this.hstore_coordinator.shutdownCluster(ex);
@@ -1600,8 +1601,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void executeTransaction(LocalTransaction ts) {
         assert(ts.isInitialized()) : "Unexpected uninitialized transaction request: " + ts;
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExec();
-        if (t) LOG.trace(String.format("%s - Attempting to begin processing transaction on partition %d",
+        if (t) LOG.trace(String.format("%s - Attempting to execute transaction on partition %d",
                                        ts, this.partitionId));
         
         // If this is a MapReduceTransaction handle, we actually want to get the 
@@ -1703,6 +1703,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         } finally {
             exec_lock.unlock();
         } // SYNCH
+        
+        // If we reach this point, we know that we're about to execute our homeboy here...
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExec();
         
         // Grab a new ExecutionState for this txn
         ExecutionState execState = this.initExecutionState(); 
@@ -2420,6 +2423,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                            boolean finalTask,
                                            boolean forceSinglePartition) {
         
+        boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.profiler != null);
+        if (needs_profiling) {
+            ts.profiler.stopExecJava();
+            ts.profiler.startExecPlanning();
+        }
+        
         if (hstore_conf.site.exec_deferrable_queries) {
             // TODO: Loop through batchStmts and check whether their corresponding Statement
             // is marked as deferrable. If so, then remove them from batchStmts and batchParams
@@ -2454,16 +2463,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         assert(plan != null);
         if (t) LOG.trace("BatchPlan for " + ts + ":\n" + plan.toString());
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecPlanning();
+        if (needs_profiling) ts.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
         TransactionEstimator.State t_state = ts.getEstimatorState();
         if (t_state != null) {
-            if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startExecEstimation();
+            if (needs_profiling) ts.profiler.startExecEstimation();
             try {
                 this.t_estimator.executeQueries(t_state, planner.getStatements(), plan.getStatementPartitions(), true);
             } finally {
-                if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.stopExecEstimation();
+                if (needs_profiling) ts.profiler.stopExecEstimation();
             }
         }
 
@@ -3559,5 +3568,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 LOG.fatal("Unexpected error while shutting down", ex);
             }
         }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUG METHODS
+    // ----------------------------------------------------------------------------
+    
+    public class Debug implements DebugContext {
+        
+        public Collection<BatchPlanner> getBatchPlanners() {
+            return (PartitionExecutor.this.batchPlanners.values());
+        }
+    }
+    
+    public PartitionExecutor.Debug getDebugContext() {
+        return new PartitionExecutor.Debug();
     }
 }
