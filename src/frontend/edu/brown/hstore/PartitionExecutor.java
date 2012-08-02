@@ -247,12 +247,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // H-Store Transaction Stuff
     // ----------------------------------------------------------------------------
 
-    protected HStoreSite hstore_site;
-    protected HStoreCoordinator hstore_coordinator;
-    protected HStoreConf hstore_conf;
-    
+    private HStoreSite hstore_site;
+    private HStoreCoordinator hstore_coordinator;
+    private HStoreConf hstore_conf;
     private TransactionInitializer txnInitializer;
-    
     private final SpecExecScheduler specExecScheduler;
     
     // ----------------------------------------------------------------------------
@@ -1190,18 +1188,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public HsqlBackend getHsqlBackend() {
         return (this.hsql);
     }
-    protected Thread getExecutionThread() {
-        return (this.self);
-    }
+    
     public PartitionEstimator getPartitionEstimator() {
         return (this.p_estimator);
     }
     public TransactionEstimator getTransactionEstimator() {
         return (this.t_estimator);
     }
-    public ThrottlingQueue<InternalMessage> getWorkQueue() {
-        return (this.work_queue);
-    }
+    
     public final BackendTarget getBackendTarget() {
         return (this.backend_target);
     }
@@ -1284,9 +1278,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     public int getWorkQueueSize() {
         return (this.work_queue.size());
     }
-    public PartitionExecutorProfiler getProfiler() {
-        return (this.profiler);
-    }
+    
     /**
      * Returns the number of txns that have been invoked on this partition
      * @return
@@ -3580,6 +3572,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         public Collection<BatchPlanner> getBatchPlanners() {
             return (PartitionExecutor.this.batchPlanners.values());
+        }
+        public PartitionExecutorProfiler getProfiler() {
+            return (PartitionExecutor.this.profiler);
+        }
+        public Thread getExecutionThread() {
+            return (PartitionExecutor.this.self);
+        }
+        public ThrottlingQueue<InternalMessage> getWorkQueue() {
+            return (PartitionExecutor.this.work_queue);
         }
     }
     

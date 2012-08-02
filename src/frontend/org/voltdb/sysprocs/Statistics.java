@@ -90,14 +90,16 @@ public class Statistics extends VoltSystemProcedure {
      */
     private static final Map<Integer, Pair<SysProcSelector, Integer>> STATS_DATA = new HashMap<Integer, Pair<SysProcSelector,Integer>>();
     static {
-        STATS_DATA.put(SysProcFragmentId.PF_nodeMemory,     Pair.of(SysProcSelector.MEMORY,
-                                                                    SysProcFragmentId.PF_nodeMemoryAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_txnCounterData, Pair.of(SysProcSelector.TXNCOUNTER,
-                                                                    SysProcFragmentId.PF_txnCounterDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_txnProfilerData, Pair.of(SysProcSelector.TXNPROFILER,
-                                                                    SysProcFragmentId.PF_txnProfilerDataAggregator));
-        STATS_DATA.put(SysProcFragmentId.PF_poolData,       Pair.of(SysProcSelector.POOL,
-                                                                    SysProcFragmentId.PF_poolDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_nodeMemory,
+                       Pair.of(SysProcSelector.MEMORY, SysProcFragmentId.PF_nodeMemoryAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_txnCounterData,
+                       Pair.of(SysProcSelector.TXNCOUNTER, SysProcFragmentId.PF_txnCounterDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_txnProfilerData,
+                       Pair.of(SysProcSelector.TXNPROFILER, SysProcFragmentId.PF_txnProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_execProfilerData,
+                       Pair.of(SysProcSelector.EXECPROFILER, SysProcFragmentId.PF_execProfilerDataAggregator));
+        STATS_DATA.put(SysProcFragmentId.PF_poolData,
+                       Pair.of(SysProcSelector.POOL, SysProcFragmentId.PF_poolDataAggregator));
     } // STATIC
     
     @Override
@@ -138,6 +140,7 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_nodeMemory:
             case SysProcFragmentId.PF_txnCounterData:
             case SysProcFragmentId.PF_txnProfilerData:
+            case SysProcFragmentId.PF_execProfilerData:
             case SysProcFragmentId.PF_poolData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
@@ -176,6 +179,10 @@ public class Statistics extends VoltSystemProcedure {
                 VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnProfilerData));
                 return new DependencySet(fragmentId, result);
             }
+            case SysProcFragmentId.PF_execProfilerDataAggregator: {
+                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_execProfilerData));
+                return new DependencySet(fragmentId, result);
+            }
             case SysProcFragmentId.PF_poolDataAggregator: {
                 VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_poolData));
                 return new DependencySet(fragmentId, result);
@@ -208,8 +215,6 @@ public class Statistics extends VoltSystemProcedure {
                 VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_tableData));
                 return new DependencySet(DEP_tableAggregator, result);
             }
-        
-            
     
             // ----------------------------------------------------------------------------
             //  PROCEDURE statistics
@@ -373,7 +378,14 @@ public class Statistics extends VoltSystemProcedure {
         return results;
     }
 
-    
+    /**
+     * All-in-one method for getting the profile data we need
+     * The input dataFragmentId must be included in the STATS_DATA mapping
+     * @param dataFragmentId
+     * @param interval
+     * @param now
+     * @return
+     */
     private VoltTable[] getData(int dataFragmentId, long interval, final long now) {
         // create a work fragment to gather node memory data
         ParameterSet parameters = new ParameterSet();

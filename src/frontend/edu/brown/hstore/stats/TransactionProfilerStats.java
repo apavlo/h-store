@@ -22,7 +22,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.TransactionProfiler;
 
 public class TransactionProfilerStats extends StatsSource {
-    private static final Logger LOG = Logger.getLogger(TransactionProfiler.class);
+    private static final Logger LOG = Logger.getLogger(TransactionProfilerStats.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
