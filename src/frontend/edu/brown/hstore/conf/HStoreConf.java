@@ -1420,14 +1420,18 @@ public final class HStoreConf {
         public boolean output_csv;
         
         @ConfigProperty(
-            description="Defines the path where ",
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+            		    "PartitionExecutor profiling stats. Note that this will automatically enable " +
+            		    "${site.exec_profiling}, which will affect the runtime performance.",
             defaultNull=true,
             experimental=false
         )
         public String output_exec_profiling;
         
         @ConfigProperty(
-            description="",
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                    "transaction profiling stats. Note that this will automatically enable " +
+                    "${site.txn_profiling}, which will affect the runtime performance.",
             defaultNull=true,
             experimental=false
         )
