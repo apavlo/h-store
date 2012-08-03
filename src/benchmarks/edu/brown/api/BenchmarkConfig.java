@@ -225,8 +225,7 @@ public class BenchmarkConfig {
             String evictable[],
             String deferrable[],
             boolean dumpDatabase,
-            String dumpDatabaseDir,
-            boolean jsonOutput
+            String dumpDatabaseDir
         ) {
         
         this.projectBuilderClass = benchmarkClient;

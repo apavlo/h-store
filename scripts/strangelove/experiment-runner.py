@@ -161,6 +161,8 @@ BASE_SETTINGS = {
 
 EXPERIMENT_SETTINGS = {
     "motivation": {
+        "site.specexec_enable":                 False,
+        "site.specexec_idle_enable":            False,
         "client.output_exec_profiling":         "execprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
     },
@@ -249,35 +251,35 @@ def processResults(args, partitions, output, workloads, results):
             # FIXME
             last_changed_rev = args["codespeed_revision"][0]
             last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
-            else:
-                last_changed_rev, last_changed_date = hstore.fabfile.get_version()
-            print "last_changed_rev:", last_changed_rev
-            print "last_changed_date:", last_changed_date
-                
-            codespeedBenchmark = benchmark
-            if not args["codespeed_benchmark"] is None:
-                codespeedBenchmark = args["codespeed_benchmark"]
+        else:
+            last_changed_rev, last_changed_date = hstore.fabfile.get_version()
+        print "last_changed_rev:", last_changed_rev
+        print "last_changed_date:", last_changed_date
             
-            codespeedBranch = env["hstore.git_branch"]
-            if not args["codespeed_branch"] is None:
-                codespeedBranch = args["codespeed_branch"]
-                
-            LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
-            result = hstore.codespeed.Result(
-                commitid=last_changed_rev,
-                branch=codespeedBranch,
-                benchmark=codespeedBenchmark,
-                project="H-Store",
-                num_partitions=partitions,
-                environment="ec2",
-                result_value=txnrate,
-                revision_date=last_changed_date,
-                result_date=datetime.now(),
-                min_result=minTxnRate,
-                max_result=maxTxnRate,
-                std_dev=stddevTxnRate
-            )
-            result.upload(upload_url)
+        codespeedBenchmark = benchmark
+        if not args["codespeed_benchmark"] is None:
+            codespeedBenchmark = args["codespeed_benchmark"]
+        
+        codespeedBranch = env["hstore.git_branch"]
+        if not args["codespeed_branch"] is None:
+            codespeedBranch = args["codespeed_branch"]
+            
+        LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
+        result = hstore.codespeed.Result(
+            commitid=last_changed_rev,
+            branch=codespeedBranch,
+            benchmark=codespeedBenchmark,
+            project="H-Store",
+            num_partitions=partitions,
+            environment="ec2",
+            result_value=txnrate,
+            revision_date=last_changed_date,
+            result_date=datetime.now(),
+            min_result=minTxnRate,
+            max_result=maxTxnRate,
+            std_dev=stddevTxnRate
+        )
+        result.upload(upload_url)
     ## IF
     return
 ## DEF

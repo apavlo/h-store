@@ -1454,7 +1454,6 @@ public class BenchmarkController {
     }
 
     public static void main(final String[] vargs) throws Exception {
-        boolean jsonOutput = false;
         int hostCount = 1;
         int sitesPerHost = 2;
         int k_factor = 0;
@@ -1563,9 +1562,6 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
 
-            /* Whether to enable JSON output formatting of the final result */
-            } else if (parts[0].equalsIgnoreCase("JSONOUTPUT")) {
-                jsonOutput = Boolean.parseBoolean(parts[1]);
             /* Whether to kill the benchmark if we get consecutive intervals with zero results */
             } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
                 killOnZeroResults = Boolean.parseBoolean(parts[1]);
@@ -1895,8 +1891,7 @@ public class BenchmarkController {
                 evictable,
                 deferrable,
                 dumpDatabase,
-                dumpDatabaseDir,
-                jsonOutput
+                dumpDatabaseDir
         );
         
         // Always pass these parameters
