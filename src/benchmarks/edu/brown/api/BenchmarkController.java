@@ -537,6 +537,15 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         
+        // If they want to dump profiling information, then we need to make sure
+        // that these parameters are turned on 
+        if (hstore_conf.client.output_exec_profiling != null) {
+            m_config.siteParameters.put("site.exec_profiling", Boolean.TRUE.toString());
+        }
+        if (hstore_conf.client.output_txn_profiling != null) {
+            m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
+        }
+        
         List<String> siteBaseCommand = new ArrayList<String>();
         if (hstore_conf.global.sshprefix != null &&
             hstore_conf.global.sshprefix.isEmpty() == false) {
@@ -1174,7 +1183,7 @@ public class BenchmarkController {
         if (hstore_conf.client.output_exec_profiling != null) {
             m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
             if (local_client == null) local_client = this.getClientConnection();
-            this.writeStats(local_client, SysProcSelector.EXECPROFILER, hstore_conf.client.output_txn_profiling);
+            this.writeStats(local_client, SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling);
         }
         
         // Dump Txn Profiling Info
@@ -1260,8 +1269,7 @@ public class BenchmarkController {
         VoltTableUtil.csv(out, cresponse.getResults()[0], true);
         out.close();
         LOG.info(String.format("Write %s information to '%s'",
-                               SysProcSelector.TXNPROFILER,
-                               FileUtil.realpath(hstore_conf.client.output_txn_profiling)));
+                               sps, FileUtil.realpath(outputPath)));
         return;
     }
     
