@@ -161,10 +161,8 @@ BASE_SETTINGS = {
 
 EXPERIMENT_SETTINGS = {
     "motivation": {
-        "benchmark.neworder_skew_warehouse": False,
-        "benchmark.neworder_multip":         True,
-        "benchmark.warehouse_debug":         False,
-        "benchmark.noop":                    False,
+        "client.output_exec_profiling":         "execprofile.csv",
+        "client.output_txn_profiling":          "txnprofile.csv",
     },
 }
 
@@ -188,6 +186,100 @@ def updateEnv(env, benchmark, exp_type):
         # Nothing for now...
         pass
 
+## DEF
+
+## ==============================================
+## saveCSVResults
+## ==============================================
+def saveCSVResults(args, partitions, filename):
+    resultsDir = os.path.join(args['results_dir'], args['exp_type'])
+    if not os.path.exists(resultsDir):
+        LOG.info("Creating results directory '%s'" % resultsDir)
+        os.path.makedirs(resultsDir)
+    
+    contents = hstore.fabfile.get_file(filename)
+    if len(contents) > 0:
+        # Save it locally in our results dir.
+        # We'll prefix the name with the number of partitions
+        localName = "%02dp-%s" % (partitions, os.path.basename(filename))
+        localFile = os.path.join(resultsDir, localName)
+        with open(localFile, "w") as f:
+            f.write(contents)
+        LOG.info("Saved CSV results to '%s'" % os.path.realpath(localFile))
+    else:
+        LOG.warn("The CSV results file '%s' is empty" % filename)
+    return
+## DEF
+
+## ==============================================
+## processResults
+## ==============================================
+def processResults(args, partitions, output, workloads, results):
+    data = hstore.parseJSONResults(output)
+    for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
+        if key in data:
+            txnrate = float(data[key])
+            break
+    ## FOR
+    minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
+    maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+    stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
+    
+    if int(txnrate) == 0: return
+    LOG.info("Throughput: %.2f" % txnrate)
+    
+    results.append(txnrate)
+    if args['workload_trace'] and not workloads is None:
+        for f in workloads:
+            LOG.info("Workload File: %s" % f)
+        ## FOR
+    ## IF
+        
+    # CSV RESULT FILES
+    for key in ["client.output_txn_profiling", "client.output_exec_profiling"] :
+        if not args[key] is None:
+            saveCSVResults(args, partitions, args[key])
+    ## FOR
+        
+    # CODESPEED UPLOAD
+    if args["codespeed_url"] and txnrate > 0:
+        upload_url = args["codespeed_url"][0]
+        
+        if args["codespeed_revision"]:
+            # FIXME
+            last_changed_rev = args["codespeed_revision"][0]
+            last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
+            else:
+                last_changed_rev, last_changed_date = hstore.fabfile.get_version()
+            print "last_changed_rev:", last_changed_rev
+            print "last_changed_date:", last_changed_date
+                
+            codespeedBenchmark = benchmark
+            if not args["codespeed_benchmark"] is None:
+                codespeedBenchmark = args["codespeed_benchmark"]
+            
+            codespeedBranch = env["hstore.git_branch"]
+            if not args["codespeed_branch"] is None:
+                codespeedBranch = args["codespeed_branch"]
+                
+            LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
+            result = hstore.codespeed.Result(
+                commitid=last_changed_rev,
+                branch=codespeedBranch,
+                benchmark=codespeedBenchmark,
+                project="H-Store",
+                num_partitions=partitions,
+                environment="ec2",
+                result_value=txnrate,
+                revision_date=last_changed_date,
+                result_date=datetime.now(),
+                min_result=minTxnRate,
+                max_result=maxTxnRate,
+                std_dev=stddevTxnRate
+            )
+            result.upload(upload_url)
+    ## IF
+    return
 ## DEF
 
 ## ==============================================
@@ -229,6 +321,7 @@ if __name__ == '__main__':
     agroup.add_argument("--retry-on-zero", action='store_true', default=True)
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
+    agroup.add_argument("--results-dir", type=str, default='results', help='Directory where CSV results are stored')
     
     ## Codespeed Parameters
     agroup = aparser.add_argument_group('Codespeed Parameters')
@@ -413,61 +506,7 @@ if __name__ == '__main__':
                                                 updateLog4j=needUpdate, \
                                                 extraParams=controllerParams)
                         if args['no_json'] == False:
-                            data = hstore.parseJSONResults(output)
-                            for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
-                                if key in data:
-                                    txnrate = float(data[key])
-                                    break
-                            ## FOR
-                            minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
-                            maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
-                            stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
-                            
-                            if int(txnrate) == 0: pass
-                            results.append(txnrate)
-                            if args['workload_trace'] and workloads != None:
-                                for f in workloads:
-                                    LOG.info("Workload File: %s" % f)
-                                ## FOR
-                            ## IF
-                            LOG.info("Throughput: %.2f" % txnrate)
-                            
-                            if args["codespeed_url"] and txnrate > 0:
-                                upload_url = args["codespeed_url"][0]
-                                
-                                if args["codespeed_revision"]:
-                                    # FIXME
-                                    last_changed_rev = args["codespeed_revision"][0]
-                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
-                                else:
-                                    last_changed_rev, last_changed_date = hstore.fabfile.get_version()
-                                print "last_changed_rev:", last_changed_rev
-                                print "last_changed_date:", last_changed_date
-                                
-                                codespeedBenchmark = benchmark
-                                if not args["codespeed_benchmark"] is None:
-                                    codespeedBenchmark = args["codespeed_benchmark"]
-                                codespeedBranch = env["hstore.git_branch"]
-                                if not args["codespeed_branch"] is None:
-                                    codespeedBranch = args["codespeed_branch"]
-                                
-                                LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
-                                result = hstore.codespeed.Result(
-                                            commitid=last_changed_rev,
-                                            branch=codespeedBranch,
-                                            benchmark=codespeedBenchmark,
-                                            project="H-Store",
-                                            num_partitions=partitions,
-                                            environment="ec2",
-                                            result_value=txnrate,
-                                            revision_date=last_changed_date,
-                                            result_date=datetime.now(),
-                                            min_result=minTxnRate,
-                                            max_result=maxTxnRate,
-                                            std_dev=stddevTxnRate
-                                )
-                                result.upload(upload_url)
-                            ## IF
+                            processResults(args, partitions, output, workloads, results)
                         ## IF
                     ## WITH
                 except KeyboardInterrupt:
