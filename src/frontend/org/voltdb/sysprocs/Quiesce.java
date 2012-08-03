@@ -69,7 +69,7 @@ public class Quiesce extends VoltSystemProcedure {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
-                VoltTable vt = VoltTableUtil.combine(siteResults);
+                VoltTable vt = VoltTableUtil.union(siteResults);
                 result = new DependencySet(SysProcFragmentId.PF_quiesceAggregate, vt);
                 break;
             default:

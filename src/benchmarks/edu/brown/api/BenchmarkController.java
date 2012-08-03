@@ -57,6 +57,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -1283,7 +1285,34 @@ public class BenchmarkController {
             String.format("Failed to get %s stats\n%s", sps, cresponse); 
         assert(cresponse.getResults().length == 1) :
             String.format("Failed to get %s stats\n%s", sps, cresponse);
-        final VoltTable vt = cresponse.getResults()[0];
+        VoltTable vt = cresponse.getResults()[0];
+        
+        // Combine txn profiling results
+        if (sps == SysProcSelector.TXNPROFILER && hstore_conf.client.output_txn_profiling_combine) {
+            int offset = vt.getColumnIndex("PROCEDURE");
+            VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
+            Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
+            while (vt.advanceRow()) {
+                String name = vt.getString(offset);
+                Object row[] = totalRows.get(name);
+                if (row == null) {
+                    row = new Object[cols.length];
+                    row[0] = name;
+                    for (int i = 1; i < row.length; i++) {
+                        row[i] = new Long(0l);
+                    } // FOR
+                    totalRows.put(name, row);
+                }
+                for (int i = 1; i < row.length; i++) {
+                    row[i] = ((Long)row[i]) + vt.getLong(offset + i);
+                } // FOR
+            } // WHILE
+            
+            vt = new VoltTable(cols);
+            for (Object[] row : totalRows.values()) {
+                vt.addRow(row);
+            } // FOR
+        }
         
         // Write out CSV
         FileWriter out = new FileWriter(outputPath);
