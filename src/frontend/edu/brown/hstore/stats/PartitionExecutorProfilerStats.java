@@ -62,7 +62,12 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("PARTITION", VoltType.INTEGER));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-            columns.add(new VoltTable.ColumnInfo(pm.getType().toUpperCase(), VoltType.BIGINT));
+            String name = pm.getType().toUpperCase();
+            // We need two columns per ProfileMeasurement
+            //  (1) The total think time in nanoseconds
+            //  (2) The number of invocations
+            columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
+            columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR
     }
 
@@ -78,6 +83,7 @@ public class PartitionExecutorProfilerStats extends StatsSource {
         rowValues[offset++] = profiler.numTransactions;
         for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
             rowValues[offset++] = pm.getTotalThinkTime();
+            rowValues[offset++] = pm.getInvocations();
         } // FOR
         super.updateStatsRow(rowKey, rowValues);
     }
