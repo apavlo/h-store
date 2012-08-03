@@ -143,6 +143,7 @@ public class TestHStoreSite extends BaseTestCase {
      */
     @Test
     public void testTransactionProfilers() throws Exception {
+        hstore_conf.site.txn_counters = true;
         hstore_conf.site.txn_profiling = true;
         hstore_site.updateConf(hstore_conf);
         
@@ -164,7 +165,7 @@ public class TestHStoreSite extends BaseTestCase {
         assertNotNull(cr);
         assertEquals(Status.OK, cr.getStatus());
         
-        String fields[] = { "TOTAL", "INIT" };
+        String fields[] = { "TOTAL", "INIT_TOTAL" };
         
         VoltTable results[] = cr.getResults();
         assertEquals(1, results.length);
@@ -329,40 +330,6 @@ public class TestHStoreSite extends BaseTestCase {
         assertEquals(cresponse.getTransactionId(), clone.getTransactionId());
         assertEquals(cresponse.getClientHandle(), clone.getClientHandle());
     }
-    
-//    @Test
-//    public void testHStoreSite_AdHoc(){
-//    	this.hstore_site.run();
-//    	Client client = ClientFactory.createClient();
-//        try {
-//			client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "password");
-//		} catch (UnknownHostException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		} catch (IOException e1) {
-//			// TODO Auto-generated catch block
-//			e1.printStackTrace();
-//		}
-//        VoltTable result;
-//		try {
-//			result = client.callProcedure("@AdHoc", "SELECT * FROM NEW_ORDER;").getResults()[0];
-//			assertTrue(result.getRowCount() == 1);
-//	        System.out.println(result.toString());
-//		} catch (NoConnectionsException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ProcCallException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//        
-//    	
-//    }
-    
-  
     
 //    @Test
 //    public void testSinglePartitionPassThrough() {

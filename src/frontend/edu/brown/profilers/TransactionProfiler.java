@@ -1,10 +1,8 @@
 package edu.brown.profilers;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
@@ -23,27 +21,6 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    // ---------------------------------------------------------------
-    // DYNAMIC FIELD HANDLES
-    // ---------------------------------------------------------------
-
-    public static final Field PROFILE_FIELDS[];
-    static {
-        // Get all of the ProfileMeasurement fields
-        Class<TransactionProfiler> tsClass = TransactionProfiler.class;
-        List<Field> fields = new ArrayList<Field>();
-        for (Field f : tsClass.getDeclaredFields()) {
-            if (f.getType().equals(ProfileMeasurement.class)) {
-                fields.add(f);
-            }
-        } // FOR
-        assert(fields.isEmpty() == false);
-        PROFILE_FIELDS = new Field[fields.size()];
-        for (int i = 0; i < PROFILE_FIELDS.length; i++) {
-            PROFILE_FIELDS[i] = fields.get(i);
-        }
-    } // STATIC
     
     // ---------------------------------------------------------------
     // INTERNAL STATE
@@ -115,10 +92,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * This time starts from when the txn first arrives in HStoreSite.procedureInvocation()
      * until it is completely removed in HStoreSite.completeTranasction()
      */
-    private final ProfileMeasurement pm_total = new ProfileMeasurement("TOTAL");
+    protected final ProfileMeasurement pm_total = new ProfileMeasurement("TOTAL");
     
-    private final ProfileMeasurement pm_serialize = new ProfileMeasurement("SERIALIZE");
-    private final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
+    protected final ProfileMeasurement pm_serialize = new ProfileMeasurement("SERIALIZE");
+    protected final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
     
     
     public void startTransaction(long timestamp) {
@@ -175,15 +152,15 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * The time spent setting up the transaction before it is queued in either
      * an ExecutionSite or with the Dtxn.Coordinator
      */
-    private final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT_TOTAL");
+    protected final ProfileMeasurement pm_init_total = new ProfileMeasurement("INIT_TOTAL");
     /**
      * The amount of time spent estimating what the transaction will do in the initialization
      */
-    private final ProfileMeasurement pm_init_est = new ProfileMeasurement("INIT_EST");
+    protected final ProfileMeasurement pm_init_est = new ProfileMeasurement("INIT_EST");
     /**
      * Time spent waiting in the DTXN queue
      */
-    private final ProfileMeasurement pm_init_dtxn = new ProfileMeasurement("INIT_DTXN");
+    protected final ProfileMeasurement pm_init_dtxn = new ProfileMeasurement("INIT_DTXN");
     
     /**
      * 
@@ -213,7 +190,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     /**
      * Time spent waiting in the PartitionExecutor queue
      */
-    private final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
+    protected final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
     
     public void startQueue() {
         if (this.disabled) return;
@@ -246,27 +223,27 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * This starts when the transaction is removed from the ExecutionSite's queue
      * until it finishes
      */
-    private final ProfileMeasurement pm_exec_total = new ProfileMeasurement("EXEC_TOTAL");
+    protected final ProfileMeasurement pm_exec_total = new ProfileMeasurement("EXEC_TOTAL");
     /**
      * The amount of time spent executing the Java-portion of the stored procedure
      */
-    private final ProfileMeasurement pm_exec_java = new ProfileMeasurement("EXEC_JAVA");
+    protected final ProfileMeasurement pm_exec_java = new ProfileMeasurement("EXEC_JAVA");
     /**
      * Time spent blocked waiting for a TransactionWorkResponse to come back
      */
-    private final ProfileMeasurement pm_exec_dtxn_work = new ProfileMeasurement("EXEC_DTXN_WORK");
+    protected final ProfileMeasurement pm_exec_dtxn_work = new ProfileMeasurement("EXEC_DTXN_WORK");
     /**
      * The amount of time spent planning the transaction
      */
-    private final ProfileMeasurement pm_exec_planner = new ProfileMeasurement("EXEC_PLANNER");
+    protected final ProfileMeasurement pm_exec_planner = new ProfileMeasurement("EXEC_PLANNER");
     /**
      * The amount of time spent executing in the plan fragments
      */
-    private final ProfileMeasurement pm_exec_ee = new ProfileMeasurement("EXEC_EE");
+    protected final ProfileMeasurement pm_exec_ee = new ProfileMeasurement("EXEC_EE");
     /**
      * The amount of time spent estimating what the transaction will do
      */
-    private final ProfileMeasurement pm_exec_est = new ProfileMeasurement("EXEC_EST");
+    protected final ProfileMeasurement pm_exec_est = new ProfileMeasurement("EXEC_EST");
     
     /**
      * Invoked when the txn has been removed from the queue and is
@@ -335,19 +312,19 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     /**
      * Time spent getting the response back to the client
      */
-    private final ProfileMeasurement pm_post_total = new ProfileMeasurement("POST_TOTAL");
+    protected final ProfileMeasurement pm_post_total = new ProfileMeasurement("POST_TOTAL");
     /**
      * 2PC-PREPARE
      */
-    private final ProfileMeasurement pm_post_prepare = new ProfileMeasurement("POST_PREPARE");
+    protected final ProfileMeasurement pm_post_prepare = new ProfileMeasurement("POST_PREPARE");
     /**
      * 2PC-FINISH
      */
-    private final ProfileMeasurement pm_post_finish = new ProfileMeasurement("POST_FINISH");
+    protected final ProfileMeasurement pm_post_finish = new ProfileMeasurement("POST_FINISH");
     /**
      * The amount of time spent commiting or aborting a txn in the EE
      */
-    private final ProfileMeasurement pm_post_ee = new ProfileMeasurement("POST_EE");
+    protected final ProfileMeasurement pm_post_ee = new ProfileMeasurement("POST_EE");
 
     /**
      * Indicate that the txn is the post-processing stage. This should only
@@ -409,12 +386,8 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     
     @Override
     public void finish() {
-        for (Field f : PROFILE_FIELDS) {
-            try {
-                ((ProfileMeasurement)f.get(this)).clear();
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
+        for (ProfileMeasurement pm : this.getProfileMeasurements()) {
+            pm.clear();
         } // FOR
         this.stack.clear();
         this.history.clear();
@@ -463,40 +436,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         return true;
     }
     
-    public long[] getTuple() {
-        long tuple[] = new long[PROFILE_FIELDS.length];
-        for (int i = 0; i < tuple.length; i++) {
-            Field f = PROFILE_FIELDS[i];
-            ProfileMeasurement pm = null;
-            try {
-                pm = (ProfileMeasurement)f.get(this);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            tuple[i] = pm.getTotalThinkTime();
-            if (i == 0) assert(tuple[i] > 0) : "Missing data " + pm.debug(true); 
-        } // FOR
-        return (tuple);
-    }
-    
+    @Override
     public Map<String, Object> debugMap() {
-        Map<String, Object> m = new LinkedHashMap<String, Object>();
-        
-        // HEADER
-        m.put(this.getClass().getSimpleName(), null);
-        
-        // FIELDS
-        for (Field f : PROFILE_FIELDS) {
-            ProfileMeasurement pm = null;
-            try {
-                pm = (ProfileMeasurement)f.get(this);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            String label = pm.getType();
-            String debug = pm.debug(true).replace(label, "");
-            m.put(label, debug);
-        } // FOR
+        Map<String, Object> m = super.debugMap();
         
         // HISTORY
         String history = "";

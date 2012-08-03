@@ -837,31 +837,36 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
      * @param catalog_db
      */
     private void initTxnProfileInfo(Database catalog_db) {
+        TransactionProfiler profiler = new TransactionProfiler();
+        ProfileMeasurement fields[] = profiler.getProfileMeasurements();
+        
         // COLUMN DELIMITERS
         String last_prefix = null;
-        String col_delimiters[] = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
+        String col_delimiters[] = new String[fields.length*2 + 2];
         int col_idx = 0;
-        for (Field f : TransactionProfiler.PROFILE_FIELDS) {
-            String prefix = f.getName().split("_")[1];
+        for (ProfileMeasurement pm : fields) {
+            String prefix = pm.getType().split("_")[0];
             assert(prefix.isEmpty() == false);
             if (last_prefix != null && col_idx > 0 && prefix.equals(last_prefix) == false) {
                 col_delimiters[col_idx+1] = " | ";        
             }
-            col_idx++;
+            col_idx += 2;
             last_prefix = prefix;
         } // FOR
-        this.txn_profile_format = new TableUtil.Format("   ", col_delimiters, null, true, false, true, false, false, false, true, true, "-");
+        this.txn_profile_format = new TableUtil.Format("   ", col_delimiters, null,
+                                                       true, false, true,
+                                                       false, false, false,
+                                                       true, true, "-");
         
         // TABLE HEADER
         int idx = 0;
-        this.txn_profiler_header = new String[TransactionProfiler.PROFILE_FIELDS.length + 2];
+        this.txn_profiler_header = new String[fields.length*2 + 2];
         this.txn_profiler_header[idx++] = "";
         this.txn_profiler_header[idx++] = "txns";
-        for (int i = 0; i < TransactionProfiler.PROFILE_FIELDS.length; i++) {
-            String name = TransactionProfiler.PROFILE_FIELDS[i].getName()
-                                .replace("pm_", "")
-                                .replace("_total", "");
+        for (ProfileMeasurement pm : fields) {
+            String name = pm.getType();
             this.txn_profiler_header[idx++] = name;
+            this.txn_profiler_header[idx++] = name+"_inv";
         } // FOR
         
         // PROCEDURE TOTALS
@@ -869,7 +874,7 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             if (catalog_proc.getSystemproc()) continue;
             this.txn_profile_queues.put(catalog_proc, new LinkedBlockingDeque<long[]>());
             
-            long totals[] = new long[TransactionProfiler.PROFILE_FIELDS.length + 1];
+            long totals[] = new long[fields.length*2 + 1];
             for (int i = 0; i < totals.length; i++) {
                 totals[i] = 0;
             } // FOR
