@@ -761,15 +761,23 @@ def write_conf(project, removals=[ ], revertFirst=False):
 ## DEF
 
 ## ----------------------------------------------
+## get_file
+## ----------------------------------------------
+@task
+def get_file(filePath):
+    sio = StringIO()
+    if get(filePath, local_path=sio).failed:
+        raise Exception("Failed to retrieve remote file '%s'" % filePath)
+    return sio.getvalue()
+## DEF
+
+## ----------------------------------------------
 ## update_conf
 ## ----------------------------------------------
 @task
 def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
     LOG.info("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
-    sio = StringIO()
-    if get(conf_file, local_path=sio).failed:
-        raise Exception("Failed to retrieve conf file '%s'" % conf_file)
-    contents = sio.getvalue()
+    contents = get_file(conf_file)
     assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
     
     first = True
