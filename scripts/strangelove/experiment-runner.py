@@ -86,7 +86,9 @@ OPT_BASE_TXNRATE = 1000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
-OPT_BASE_PARTITIONS_PER_SITE = 7
+OPT_BASE_PARTITIONS_PER_SITE = 6
+OPT_PARTITION_PLAN_DIR = "files/designplans"
+
 DEFAULT_OPTIONS = {
     "hstore.git_branch": "strangelove"
 }
@@ -176,19 +178,19 @@ EXPERIMENT_SETTINGS = {
 def updateEnv(env, benchmark, exp_type):
     global OPT_BASE_TXNRATE_PER_PARTITION
   
-    env["client.scalefactor"] = float(BASE_SETTINGS["client.scalefactor"] * env["hstore.partitions"])
-    
     for k,v in BASE_SETTINGS.iteritems():
         env[k] = v
     ## FOR
   
+    env["client.scalefactor"] = float(BASE_SETTINGS["client.scalefactor"] * env["hstore.partitions"])
   
     ## ----------------------------------------------
     ## MOTIVATION
     ## ----------------------------------------------
     if exp_type == "motivation":
-        # Nothing for now...
-        pass
+        pplan = "%s.lns.pplan" % benchmark
+        env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"
 
 ## DEF
 

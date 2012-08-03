@@ -1002,7 +1002,8 @@ public class VoltCompiler {
                     include = (((MultiColumn)partition_col).contains(catalog_col) == false);
                 }
                 else if (catalog_col.equals(partition_col)) {
-                    LOG.info(catalog_col.fullName() + " = " + partition_col.fullName());
+                    if (debug.get())
+                        LOG.debug("VerticalParition -> " + catalog_col.fullName() + " = " + partition_col.fullName());
                     include = false;
                 }
                 if (include) indexColumns.add(virtual_col);

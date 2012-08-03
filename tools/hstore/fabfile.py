@@ -463,8 +463,9 @@ def setup_env():
         # Install the real H-Store directory in /home/
         if run("test -d %s" % env["hstore.basedir"]).failed:
             run("mkdir " + env["hstore.basedir"])
+        sudo("chown --quiet -R %s %s" % (env.user, env["hstore.basedir"]))
     ## WITH
-    sudo("chown -R %s %s" % (env.user, env["hstore.basedir"]))
+    
     
     return (first_setup)
 ## DEF
