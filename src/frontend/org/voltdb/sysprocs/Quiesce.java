@@ -33,8 +33,8 @@ public class Quiesce extends VoltSystemProcedure {
     
     @Override
     public void initImpl() {
-        executor.registerPlanFragment(SysProcFragmentId.PF_quiesce_sites, this);
-        executor.registerPlanFragment(SysProcFragmentId.PF_quiesce_processed_sites, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_quiesceDistribute, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_quiesceAggregate, this);
     }
 
     @Override
@@ -45,25 +45,25 @@ public class Quiesce extends VoltSystemProcedure {
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
         DependencySet result = null;
         switch (fragmentId) {
-            case SysProcFragmentId.PF_quiesce_sites: {
+            case SysProcFragmentId.PF_quiesceDistribute: {
                 LOG.debug("Clearing out work queue at partition " + executor.getPartitionId());
                 executor.haltProcessing();
                 VoltTable vt = new VoltTable(ResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
-                          Status.OK,
+                          Status.OK.name(),
                           new TimestampType());
-                result = new DependencySet(SysProcFragmentId.PF_quiesce_sites, vt);
+                result = new DependencySet(SysProcFragmentId.PF_quiesceDistribute, vt);
                 break;
             }
             // Aggregate Results
-            case SysProcFragmentId.PF_quiesce_processed_sites:
-                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_quiesce_sites);
+            case SysProcFragmentId.PF_quiesceAggregate:
+                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_quiesceDistribute);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
                 VoltTable vt = VoltTableUtil.combine(siteResults);
-                result = new DependencySet(SysProcFragmentId.PF_quiesce_processed_sites, vt);
+                result = new DependencySet(SysProcFragmentId.PF_quiesceAggregate, vt);
                 break;
             default:
                 String msg = "Unexpected sysproc fragmentId '" + fragmentId + "'";
@@ -74,8 +74,8 @@ public class Quiesce extends VoltSystemProcedure {
     }
     
     public VoltTable[] run() {
-        return this.executeOncePerPartition(SysProcFragmentId.PF_quiesce_sites,
-                                            SysProcFragmentId.PF_quiesce_processed_sites,
+        return this.executeOncePerPartition(SysProcFragmentId.PF_quiesceDistribute,
+                                            SysProcFragmentId.PF_quiesceAggregate,
                                             new ParameterSet());
     }
 }

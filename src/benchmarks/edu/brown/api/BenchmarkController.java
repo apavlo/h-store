@@ -92,6 +92,7 @@ import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.NoOp;
+import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.LogKeys;
@@ -1164,44 +1165,9 @@ public class BenchmarkController {
             nowTime = System.currentTimeMillis();
         } // WHILE
         
-        // Dump database
-        if (m_config.dumpDatabase && this.stop == false) {
-            assert(m_config.dumpDatabaseDir != null);
-            
-            // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            
-            if (local_client == null) local_client = this.getClientConnection();
-            try {
-                local_client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class), m_config.dumpDatabaseDir);
-            } catch (Exception ex) {
-                LOG.error("Failed to dump database contents", ex);
-            }
-        }
+        if (local_client == null) local_client = this.getClientConnection();
+        if (this.stop == false) this.postProcessBenchmark(local_client);
         
-        // Dump Exec Profiling Info
-        if (hstore_conf.client.output_exec_profiling != null) {
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            if (local_client == null) local_client = this.getClientConnection();
-            this.writeStats(local_client, SysProcSelector.EXECPROFILER, hstore_conf.client.output_exec_profiling);
-        }
-        
-        // Dump Txn Profiling Info
-        if (hstore_conf.client.output_txn_profiling != null) {
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            if (local_client == null) local_client = this.getClientConnection();
-            this.writeStats(local_client, SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling);
-        }
-        
-        // Recompute MarkovGraphs
-        if (m_config.markovRecomputeAfterEnd && this.stop == false) {
-            // We have to tell all our clients to pause first
-            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
-            
-            if (local_client == null) local_client = this.getClientConnection();
-            this.recomputeMarkovs(local_client);
-        }
-
         this.stop = true;
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
         
@@ -1250,6 +1216,57 @@ public class BenchmarkController {
             } // FOR
         } else if (debug.get()) {
             LOG.debug("Benchmark failed. Not displaying final results");
+        }
+    }
+    
+    /**
+     * Perform various post-processing tasks that we may need
+     * @param client
+     * @throws Exception
+     */
+    private void postProcessBenchmark(Client client) throws Exception {
+        // We have to tell all our clients to pause first
+        m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
+        
+        // Then tell the cluster to drain all txns
+        ClientResponse cresponse = null;
+        String procName = VoltSystemProcedure.getProcCallName(Quiesce.class);
+        try {
+            cresponse = client.callProcedure(procName);
+        } catch (Exception ex) {
+            throw new Exception("Failed to execute " + procName, ex);
+        }
+        assert(cresponse.getStatus() == Status.OK) :
+            String.format("Failed to quiesce cluster!\n%s", cresponse);
+        
+        // Dump database
+        if (m_config.dumpDatabase && this.stop == false) {
+            assert(m_config.dumpDatabaseDir != null);
+            try {
+                client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class),
+                                     m_config.dumpDatabaseDir);
+            } catch (Exception ex) {
+                throw new Exception("Failed to dump database contents", ex);
+            }
+        }
+        
+        // Dump Exec Profiling Info
+        if (hstore_conf.client.output_exec_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.EXECPROFILER,
+                            hstore_conf.client.output_exec_profiling);
+        }
+        
+        // Dump Txn Profiling Info
+        if (hstore_conf.client.output_txn_profiling != null) {
+            this.writeStats(client,
+                            SysProcSelector.TXNPROFILER,
+                            hstore_conf.client.output_txn_profiling);
+        }
+        
+        // Recompute MarkovGraphs
+        if (m_config.markovRecomputeAfterEnd && this.stop == false) {
+            this.recomputeMarkovs(client);
         }
     }
     

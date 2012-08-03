@@ -108,8 +108,8 @@ public class SysProcFragmentId {
     public static final int PF_systemInformation_aggregate = 111;
 
     // @Quiesce
-    public static final int PF_quiesce_sites = 120;
-    public static final int PF_quiesce_processed_sites = 121;
+    public static final int PF_quiesceDistribute = 120;
+    public static final int PF_quiesceAggregate = 121;
     
     // @SnapshotStatus
     public static final int PF_scanSnapshotRegistries = 130;
