@@ -160,7 +160,7 @@ public class ThrottlingQueue<E> implements BlockingQueue<E> {
         } else if (this.throttled == false) {
             ret = this.queue.offer(e);
         }
-        if (ret) {
+        if (ret && force == false) {
             this.size = this.queue.size();
             this.checkThrottling(this.allow_increase);
         }

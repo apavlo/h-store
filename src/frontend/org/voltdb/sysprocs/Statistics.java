@@ -24,9 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.SysProcSelector;
@@ -35,17 +33,14 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
 
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.PartitionEstimator;
 
 /**
  * Access the TABLE, PRCOEDURE, INITIATOR, IOSTATS, or PARTITIONCOUNT statistics.
@@ -103,10 +98,7 @@ public class Statistics extends VoltSystemProcedure {
     } // STATIC
     
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-    
+    public void initImpl() {
         registerPlanFragment(SysProcFragmentId.PF_tableData);
         registerPlanFragment(SysProcFragmentId.PF_tableAggregator);
         registerPlanFragment(SysProcFragmentId.PF_procedureData);

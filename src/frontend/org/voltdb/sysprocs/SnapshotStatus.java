@@ -35,6 +35,11 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 public class SnapshotStatus extends VoltSystemProcedure {
     
     @Override
+    public void initImpl() {
+        // Nothing
+    }
+    
+    @Override
     public DependencySet
     executePlanFragment(long txn_id,
                         Map<Integer, List<VoltTable>> dependencies,

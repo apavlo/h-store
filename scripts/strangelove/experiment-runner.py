@@ -318,7 +318,7 @@ if __name__ == '__main__':
     
     ## Benchmark Parameters
     agroup = aparser.add_argument_group('Benchmark Configuration Parameters')
-    agroup.add_argument("--multiply-scalefactor", action='store_true')
+    agroup.add_argument("--multiply-scalefactor", action='store_true', default=True)
     agroup.add_argument("--stop-on-error", action='store_true', default=True)
     agroup.add_argument("--retry-on-zero", action='store_true', default=True)
     agroup.add_argument("--clear-logs", action='store_true')

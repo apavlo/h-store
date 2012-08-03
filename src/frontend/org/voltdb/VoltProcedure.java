@@ -100,7 +100,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
-    public static class StmtProcedure extends VoltProcedure {}
+    public static class StmtProcedure extends VoltProcedure { }
 
     /**
      * VoltTable Schema used for scalar return values
@@ -236,7 +236,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param hsql
      * @param p_estimator
      */
-    public void globalInit(PartitionExecutor executor, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+    public void globalInit(PartitionExecutor executor,
+                            Procedure catalog_proc,
+                            BackendTarget eeType,
+                            HsqlBackend hsql,
+                            PartitionEstimator p_estimator) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {

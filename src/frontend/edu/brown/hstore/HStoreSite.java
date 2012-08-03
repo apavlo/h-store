@@ -2391,11 +2391,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param clientCallback
      * @param initiateTime
      */
-    private void responseError(long client_handle,
-                               Status status,
-                               String message,
-                               RpcCallback<ClientResponseImpl> clientCallback,
-                               long initiateTime) {
+    public void responseError(long client_handle,
+                              Status status,
+                              String message,
+                              RpcCallback<ClientResponseImpl> clientCallback,
+                              long initiateTime) {
         assert(status != Status.OK);
         ClientResponseImpl cresponse = new ClientResponseImpl(
                                             -1,

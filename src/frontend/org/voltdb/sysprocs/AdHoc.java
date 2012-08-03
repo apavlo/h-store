@@ -22,20 +22,16 @@ import java.util.Map;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.PartitionEstimator;
 
 /**
  * Execute a user-provided SQL statement. This code coordinates the execution of
@@ -49,11 +45,8 @@ public class AdHoc extends VoltSystemProcedure {
     final int COLLECT_DEPID = 2 | DtxnConstants.MULTIPARTITION_DEPENDENCY;
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator)
-    {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_runAdHocFragment, this);
+    public void initImpl() {
+        this.registerPlanFragment(SysProcFragmentId.PF_runAdHocFragment);
     }
 
     @Override
