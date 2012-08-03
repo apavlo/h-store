@@ -84,9 +84,12 @@ OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 1000
 OPT_BASE_TXNRATE = 1000
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_THREADS_PER_HOST = 500
+OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 7
+DEFAULT_OPTIONS = {
+    "hstore.git_branch": "strangelove"
+}
 
 DEBUG_OPTIONS = [
     "site.exec_profiling",
@@ -99,8 +102,8 @@ DEBUG_OPTIONS = [
 ]
 
 BASE_SETTINGS = {
+    "ec2.site_type":                    "m2.4xlarge",
     "ec2.client_type":                  "c1.xlarge",
-    "ec2.site_type":                  "c1.xlarge",
     #"ec2.site_type":                    "m2.4xlarge",
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
@@ -138,7 +141,7 @@ BASE_SETTINGS = {
     "site.sites_per_host":                              1,
     "hstore.partitions_per_site":                       OPT_BASE_PARTITIONS_PER_SITE,
     "site.num_hosts_round_robin":                       None,
-    "site.memory":                                      65440,
+    "site.memory":                                      61440,
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
     "site.queue_incoming_increase":                     10,
@@ -171,7 +174,12 @@ EXPERIMENT_SETTINGS = {
 def updateEnv(env, benchmark, exp_type):
     global OPT_BASE_TXNRATE_PER_PARTITION
   
-    env["client.scalefactor"] = float(OPT_BASE_SCALE_FACTOR * env["hstore.partitions"])
+    env["client.scalefactor"] = float(BASE_SETTINGS["client.scalefactor"] * env["hstore.partitions"])
+    
+    for k,v in BASE_SETTINGS.iteritems():
+        env[k] = v
+    ## FOR
+  
   
     ## ----------------------------------------------
     ## MOTIVATION
@@ -190,12 +198,12 @@ if __name__ == '__main__':
     
     aparser = argparse.ArgumentParser(description='H-Store Experiment Runner')
     
-    aparser.add_argument('--benchmark', choices=hstore.getBenchmarks(),
+    aparser.add_argument('--benchmark', choices=hstore.getBenchmarks(), nargs='+',
                          help='Target benchmarks')
     
     # Cluster Parameters
     agroup = aparser.add_argument_group('EC2 Cluster Control Parameters')
-    agroup.add_argument("--partitions", type=int, default=4, metavar='P')
+    agroup.add_argument("--partitions", type=int, default=4, metavar='P', nargs='+',)
     agroup.add_argument("--start-cluster", action='store_true')
     agroup.add_argument("--fast-start", action='store_true')
     agroup.add_argument("--force-reboot", action='store_true')
@@ -210,15 +218,15 @@ if __name__ == '__main__':
     
     ## Experiment Parameters
     agroup = aparser.add_argument_group('Experiment Parameters')
-    agroup.add_argument("--exp-type", type=str, choices=EXPERIMENT_SETTINGS.keys())
+    agroup.add_argument("--exp-type", type=str, choices=EXPERIMENT_SETTINGS.keys(), default=EXPERIMENT_SETTINGS.keys()[0])
     agroup.add_argument("--exp-trials", type=int, default=3, metavar='N')
     agroup.add_argument("--exp-attempts", type=int, default=3, metavar='N')
     
     ## Benchmark Parameters
     agroup = aparser.add_argument_group('Benchmark Configuration Parameters')
     agroup.add_argument("--multiply-scalefactor", action='store_true')
-    agroup.add_argument("--stop-on-error", action='store_true')
-    agroup.add_argument("--retry-on-zero", action='store_true')
+    agroup.add_argument("--stop-on-error", action='store_true', default=True)
+    agroup.add_argument("--retry-on-zero", action='store_true', default=True)
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
     
@@ -235,8 +243,14 @@ if __name__ == '__main__':
     for key in sorted(hstore.fabfile.ENV_DEFAULT):
         keyPrefix = key.split(".")[0]
         if key not in BASE_SETTINGS and keyPrefix in [ "ec2", "hstore" ]:
+            confType = type(hstore.fabfile.ENV_DEFAULT[key])
+            if key in DEFAULT_OPTIONS and not DEFAULT_OPTIONS[key] is None:
+                confDefault = DEFAULT_OPTIONS[key]
+            else:
+                confDefault = hstore.fabfile.ENV_DEFAULT[key]
+            
             metavar = key.split(".")[-1].upper()
-            agroup.add_argument("--"+key, type=type(env[key]), metavar=metavar)
+            agroup.add_argument("--"+key, type=confType, default=confDefault, metavar=metavar)
     ## FOR
     
     # Load in all of the possible parameters from our 'build-common.xml' file
@@ -252,6 +266,7 @@ if __name__ == '__main__':
         if key in BASE_SETTINGS and not BASE_SETTINGS[key] is None:
             confType = type(BASE_SETTINGS[key])
             confDefault = BASE_SETTINGS[key]
+            
         metavar = key.split(".")[-1].upper()
         hstoreConfGroups[keyPrefix].add_argument("--"+key, type=confType, default=confDefault, metavar=metavar)
     ## FOR
@@ -329,7 +344,7 @@ if __name__ == '__main__':
     needClearLogs = (args['clear_logs'] == False)
     forceStop = False
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
-    for benchmark in [ args['benchmark'] ]: # XXX
+    for benchmark in args['benchmark']: # XXX
         final_results = { }
         totalAttempts = args['exp_trials'] * args['exp_attempts']
         stop = False
@@ -361,131 +376,125 @@ if __name__ == '__main__':
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
             updateJar = (args['no_jar'] == False)
-            for exp_factor in exp_factors:
-                updateEnv(env, benchmark, args['exp_type'], exp_factor)
-                LOG.debug("Parameters:\n%s" % pformat(env))
-                conf_remove = conf_remove - set(env.keys())
-                
-                results = [ ]
-                attempts = 0
-                updateConf = (args['no_conf'] == False)
-                while len(results) < args['exp_trials'] and attempts < totalAttempts and stop == False:
-                    ## Only compile for the very first invocation
-                    if needCompile:
-                        if env["hstore.exec_prefix"].find("compile") == -1:
-                            env["hstore.exec_prefix"] += " compile"
-                    else:
-                        env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
-                        
-                    needCompile = False
-                    attempts += 1
-                    LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\
-                                benchmark.upper(),
-                                len(results),
-                                args['exp_trials'],
-                                exp_factor,
-                                attempts,
-                                totalAttempts
-                    ))
-                    try:
-                        with settings(host_string=client_inst.public_dns_name):
-                            output, workloads = hstore.fabfile.exec_benchmark(
-                                                    project=benchmarkType, \
-                                                    removals=conf_remove, \
-                                                    json=(args['no_json'] == False), \
-                                                    trace=args['workload_trace'], \
-                                                    updateJar=updateJar, \
-                                                    updateConf=updateConf, \
-                                                    updateRepo=needUpdate, \
-                                                    updateLog4j=needUpdate, \
-                                                    extraParams=controllerParams)
-                            if args['no_json'] == False:
-                                data = hstore.parseJSONResults(output)
-                                for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
-                                    if key in data:
-                                        txnrate = float(data[key])
-                                        break
+            updateEnv(env, benchmark, args['exp_type'])
+            LOG.debug("Parameters:\n%s" % pformat(env))
+            conf_remove = conf_remove - set(env.keys())
+            
+            results = [ ]
+            attempts = 0
+            updateConf = (args['no_conf'] == False)
+            while len(results) < args['exp_trials'] and attempts < totalAttempts and stop == False:
+                ## Only compile for the very first invocation
+                if needCompile:
+                    if env["hstore.exec_prefix"].find("compile") == -1:
+                        env["hstore.exec_prefix"] += " compile"
+                else:
+                    env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
+                    
+                needCompile = False
+                attempts += 1
+                LOG.info("Executing %s Trial #%d/%d [attempt=%d/%d]" % (\
+                            benchmark.upper(),
+                            len(results),
+                            args['exp_trials'],
+                            attempts,
+                            totalAttempts
+                ))
+                try:
+                    with settings(host_string=client_inst.public_dns_name):
+                        output, workloads = hstore.fabfile.exec_benchmark(
+                                                project=benchmark, \
+                                                removals=conf_remove, \
+                                                json=(args['no_json'] == False), \
+                                                trace=args['workload_trace'], \
+                                                updateJar=updateJar, \
+                                                updateConf=updateConf, \
+                                                updateRepo=needUpdate, \
+                                                updateLog4j=needUpdate, \
+                                                extraParams=controllerParams)
+                        if args['no_json'] == False:
+                            data = hstore.parseJSONResults(output)
+                            for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
+                                if key in data:
+                                    txnrate = float(data[key])
+                                    break
+                            ## FOR
+                            minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
+                            maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+                            stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
+                            
+                            if int(txnrate) == 0: pass
+                            results.append(txnrate)
+                            if args['workload_trace'] and workloads != None:
+                                for f in workloads:
+                                    LOG.info("Workload File: %s" % f)
                                 ## FOR
-                                minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
-                                maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
-                                stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
-                                
-                                if int(txnrate) == 0: pass
-                                results.append(txnrate)
-                                if args['workload_trace'] and workloads != None:
-                                    for f in workloads:
-                                        LOG.info("Workload File: %s" % f)
-                                    ## FOR
-                                ## IF
-                                LOG.info("Throughput: %.2f" % txnrate)
-                                
-                                if args["codespeed_url"] and txnrate > 0:
-                                    upload_url = args["codespeed_url"][0]
-                                    
-                                    if args["codespeed_revision"]:
-                                        # FIXME
-                                        last_changed_rev = args["codespeed_revision"][0]
-                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
-                                    else:
-                                        last_changed_rev, last_changed_date = hstore.fabfile.get_version()
-                                    print "last_changed_rev:", last_changed_rev
-                                    print "last_changed_date:", last_changed_date
-                                    
-                                    codespeedBenchmark = benchmark
-                                    if not args["codespeed_benchmark"] is None:
-                                        codespeedBenchmark = args["codespeed_benchmark"]
-                                    codespeedBranch = env["hstore.git_branch"]
-                                    if not args["codespeed_branch"] is None:
-                                        codespeedBranch = args["codespeed_branch"]
-                                    
-                                    LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
-                                    result = hstore.codespeed.Result(
-                                                commitid=last_changed_rev,
-                                                branch=codespeedBranch,
-                                                benchmark=codespeedBenchmark,
-                                                project="H-Store",
-                                                num_partitions=partitions,
-                                                environment="ec2",
-                                                result_value=txnrate,
-                                                revision_date=last_changed_date,
-                                                result_date=datetime.now(),
-                                                min_result=minTxnRate,
-                                                max_result=maxTxnRate,
-                                                std_dev=stddevTxnRate
-                                    )
-                                    result.upload(upload_url)
-                                ## IF
                             ## IF
-                        ## WITH
-                    except KeyboardInterrupt:
+                            LOG.info("Throughput: %.2f" % txnrate)
+                            
+                            if args["codespeed_url"] and txnrate > 0:
+                                upload_url = args["codespeed_url"][0]
+                                
+                                if args["codespeed_revision"]:
+                                    # FIXME
+                                    last_changed_rev = args["codespeed_revision"][0]
+                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
+                                else:
+                                    last_changed_rev, last_changed_date = hstore.fabfile.get_version()
+                                print "last_changed_rev:", last_changed_rev
+                                print "last_changed_date:", last_changed_date
+                                
+                                codespeedBenchmark = benchmark
+                                if not args["codespeed_benchmark"] is None:
+                                    codespeedBenchmark = args["codespeed_benchmark"]
+                                codespeedBranch = env["hstore.git_branch"]
+                                if not args["codespeed_branch"] is None:
+                                    codespeedBranch = args["codespeed_branch"]
+                                
+                                LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
+                                result = hstore.codespeed.Result(
+                                            commitid=last_changed_rev,
+                                            branch=codespeedBranch,
+                                            benchmark=codespeedBenchmark,
+                                            project="H-Store",
+                                            num_partitions=partitions,
+                                            environment="ec2",
+                                            result_value=txnrate,
+                                            revision_date=last_changed_date,
+                                            result_date=datetime.now(),
+                                            min_result=minTxnRate,
+                                            max_result=maxTxnRate,
+                                            std_dev=stddevTxnRate
+                                )
+                                result.upload(upload_url)
+                            ## IF
+                        ## IF
+                    ## WITH
+                except KeyboardInterrupt:
+                    stop = True
+                    forceStop = True
+                    break
+                except SystemExit:
+                    LOG.warn("Failed to complete trial succesfully")
+                    if args['stop_on_error']:
                         stop = True
                         forceStop = True
                         break
-                    except SystemExit:
-                        LOG.warn("Failed to complete trial succesfully")
-                        if args['stop_on_error']:
-                            stop = True
-                            forceStop = True
-                            break
-                        pass
-                    except:
-                        LOG.warn("Failed to complete trial succesfully")
-                        stop = True
-                        raise
-                        break
-                    finally:
-                        needUpdate = False
-                        updateJar = False
-                        updateConf = False
-                    ## TRY
-                    
-                ## FOR (TRIALS)
-                if results: all_results.append((benchmark, exp_factor, results, attempts))
-                stop = stop or (attempts == totalAttempts)
-                if stop or forceStop: break
-            ## FOR (EXP_FACTOR)
-            if len(all_results) > 0: final_results[partitions] = all_results
-            if forceStop: break
+                    pass
+                except:
+                    LOG.warn("Failed to complete trial succesfully")
+                    stop = True
+                    raise
+                    break
+                finally:
+                    needUpdate = False
+                    updateJar = False
+                    updateConf = False
+                ## TRY
+                
+            ## FOR (TRIALS)
+            if results: final_results[partitions] = (benchmark, results, attempts)
+            if stop or forceStop or (attempts == totalAttempts): break
             stop = False
         ## FOR (PARTITIONS)
         if forceStop: break
@@ -499,8 +508,8 @@ if __name__ == '__main__':
         for partitions in sorted(final_results.keys()):
             all_results = final_results[partitions]
             print "%s - Partitions %d" % (args['exp_type'].upper(), partitions)
-            for benchmark, exp_factor, results, attempts in all_results:
-                print "   %s EXP FACTOR %s [Attempts:%d/%d]" % (benchmark.upper(), exp_factor, attempts, totalAttempts)
+            for benchmark, results, attempts in all_results:
+                print "   %s [Attempts:%d/%d]" % (benchmark.upper(), attempts, totalAttempts)
                 for trial in range(len(results)):
                     print "      TRIAL #%d: %.4f" % (trial, results[trial])
                 ## FOR

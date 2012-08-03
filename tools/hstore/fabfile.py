@@ -661,11 +661,11 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     hstore_options = {
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
-        "client.threads_per_host":    env["client.threads_per_host"],
+        "client.threads_per_host":      env["client.threads_per_host"],
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
-    if json: hstore_options["jsonoutput"] = True
+    if json: hstore_options["client.output_json"] = True
     if trace:
         import time
         hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
@@ -840,8 +840,9 @@ def clear_logs():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         if TAG_NFSTYPE in inst.tags and inst.tags[TAG_NFSTYPE] == TAG_NFSTYPE_HEAD:
-            #### below 'and' changed from comma by ambell
-            with settings(host_string=inst.public_dns_name) and settings(warn_only=True):
+            print inst.public_dns_name
+            ## below 'and' changed from comma by ambell
+            with settings(host_string=inst.public_dns_name), settings(warn_only=True):
                 LOG.info("Clearning H-Store log files [%s]" % env["hstore.git_branch"])
                 log_dir = os.path.join(env["hstore.basedir"], "obj/release/logs")
                 run("rm -rf %s/*" % log_dir)
