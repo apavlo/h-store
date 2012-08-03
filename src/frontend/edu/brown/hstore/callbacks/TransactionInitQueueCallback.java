@@ -49,8 +49,8 @@ public class TransactionInitQueueCallback extends BlockingRpcCallback<Transactio
     }
     
     public void init(Long txn_id,
-                      Collection<Integer> partitions,
-                      RpcCallback<TransactionInitResponse> orig_callback) {
+                     Collection<Integer> partitions,
+                     RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :

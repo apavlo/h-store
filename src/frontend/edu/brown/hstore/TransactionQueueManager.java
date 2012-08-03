@@ -232,6 +232,46 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         } // WHILE
     }
     
+    /**
+     * Reject any and all transactions that are in our queues!
+     */
+    public synchronized void clearQueues() {
+        LocalTransaction ts = null;
+        Long txn_id = null;
+        
+        // LOCK QUEUES
+        for (int partition : this.localPartitionsArray) {
+            synchronized (this.lockQueues[partition]) {
+                while ((txn_id = this.lockQueues[partition].poll()) != null) {
+                    TransactionInitQueueCallback callback = this.lockQueuesCallbacks.get(txn_id);
+                    this.rejectTransaction(txn_id,
+                                           callback,
+                                           Status.ABORT_REJECT,
+                                           partition,
+                                           this.lockQueuesLastTxn[partition]);
+                } // WHILE
+            } // SYNCH
+        }
+        
+        // INIT QUEUE
+        while ((ts = this.initQueue.poll()) != null) {
+            TransactionInitCallback callback = ts.initTransactionInitCallback();
+            callback.abort(Status.ABORT_REJECT);
+        } // WHILE
+        
+        // BLOCKED QUEUE
+        while ((ts = this.blockedQueue.poll()) != null) {
+            this.blockedQueueTransactions.remove(ts);
+            hstore_site.transactionReject(ts, Status.ABORT_REJECT);
+        } // WHILE
+        
+        // RESTART QUEUE
+        Pair<LocalTransaction, Status> pair = null;
+        while ((pair = this.restartQueue.poll()) != null) {
+            hstore_site.transactionReject(pair.getFirst(), Status.ABORT_REJECT);
+        } // WHILE
+    }
+    
     // ----------------------------------------------------------------------------
     // INIT QUEUES
     // ----------------------------------------------------------------------------
@@ -325,9 +365,10 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
      * @param txn_id
      * @param partitions
      * @param callback
+     * @param sysproc TODO
      * @return
      */
-    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
+    public boolean lockInsert(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback, boolean sysproc) {
         if (d) LOG.debug(String.format("Adding new distributed txn #%d into initQueue [partitions=%s]",
                                        txn_id, partitions));
         
@@ -377,7 +418,7 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
                 break;
             }
             // Our queue is overloaded. We have to reject the txnId!
-            else if (queue.offer(txn_id, false) == false) {
+            else if (queue.offer(txn_id, sysproc) == false) {
                 if (d) LOG.debug(String.format("The initQueue for partition #%d is overloaded. Throttling txn #%d",
                                                partition, next_safe, txn_id));
                 this.rejectTransaction(txn_id,

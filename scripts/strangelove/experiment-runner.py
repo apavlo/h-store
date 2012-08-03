@@ -125,7 +125,9 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
+    "site.jvm_asserts":                                 False,
     "site.log_backup":                                  False,
+    "site.status_enable":                               False,
     "site.status_show_thread_info":                     False,
     "site.status_show_executor_info":                   False,
     "site.status_interval":                             20000,
@@ -194,14 +196,17 @@ def updateEnv(env, benchmark, exp_type):
 ## saveCSVResults
 ## ==============================================
 def saveCSVResults(args, partitions, filename):
+    # Create local results directory
     resultsDir = os.path.join(args['results_dir'], args['exp_type'])
     if not os.path.exists(resultsDir):
         LOG.info("Creating results directory '%s'" % resultsDir)
-        os.path.makedirs(resultsDir)
+        os.makedirs(resultsDir)
     
+    # Go out and grab the remote file and save it locally in our results dir.
+    filename = os.path.join(hstore.fabfile.HSTORE_DIR, filename)
+    LOG.info("Going to retrieve remote CSV file '%s'" % filename)
     contents = hstore.fabfile.get_file(filename)
     if len(contents) > 0:
-        # Save it locally in our results dir.
         # We'll prefix the name with the number of partitions
         localName = "%02dp-%s" % (partitions, os.path.basename(filename))
         localFile = os.path.join(resultsDir, localName)
@@ -236,12 +241,6 @@ def processResults(args, partitions, output, workloads, results):
             LOG.info("Workload File: %s" % f)
         ## FOR
     ## IF
-        
-    # CSV RESULT FILES
-    for key in ["client.output_txn_profiling", "client.output_exec_profiling"] :
-        if not args[key] is None:
-            saveCSVResults(args, partitions, args[key])
-    ## FOR
         
     # CODESPEED UPLOAD
     if args["codespeed_url"] and txnrate > 0:
@@ -319,8 +318,8 @@ if __name__ == '__main__':
     ## Benchmark Parameters
     agroup = aparser.add_argument_group('Benchmark Configuration Parameters')
     agroup.add_argument("--multiply-scalefactor", action='store_true', default=True)
-    agroup.add_argument("--stop-on-error", action='store_true', default=True)
-    agroup.add_argument("--retry-on-zero", action='store_true', default=True)
+    agroup.add_argument("--stop-on-error", action='store_true')
+    agroup.add_argument("--retry-on-zero", action='store_true')
     agroup.add_argument("--clear-logs", action='store_true')
     agroup.add_argument("--workload-trace", action='store_true')
     agroup.add_argument("--results-dir", type=str, default='results', help='Directory where CSV results are stored')
@@ -507,9 +506,19 @@ if __name__ == '__main__':
                                                 updateRepo=needUpdate, \
                                                 updateLog4j=needUpdate, \
                                                 extraParams=controllerParams)
+                                                
+                        # Process JSON Output
                         if args['no_json'] == False:
                             processResults(args, partitions, output, workloads, results)
                         ## IF
+                        
+                        # CSV RESULT FILES
+                        for key in ["client.output_txn_profiling", "client.output_exec_profiling"] :
+                            LOG.info("Checking whether '%s' is enabled" % (key))
+                            if key in env and not env[key] is None:
+                                saveCSVResults(args, partitions, env[key])
+                        ## FOR
+                        
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True
@@ -547,15 +556,16 @@ if __name__ == '__main__':
         disconnect_all()
     finally:
         for partitions in sorted(final_results.keys()):
-            all_results = final_results[partitions]
             print "%s - Partitions %d" % (args['exp_type'].upper(), partitions)
-            for benchmark, results, attempts in all_results:
-                print "   %s [Attempts:%d/%d]" % (benchmark.upper(), attempts, totalAttempts)
-                for trial in range(len(results)):
-                    print "      TRIAL #%d: %.4f" % (trial, results[trial])
-                ## FOR
-            ## FOR
-            print
+            pprint(final_results[partitions])
+            
+            #for benchmark, results, attempts in final_results[partitions]:
+                #print "   %s [Attempts:%s/%s]" % (benchmark.upper(), attempts, totalAttempts)
+                #for trial in xrange(len(results)):
+                    #print "      TRIAL #%d: %.4f" % (trial, results[trial])
+                ### FOR
+            ### FOR
+            #print
         ## FOR
     ## TRY
 ## MAIN
