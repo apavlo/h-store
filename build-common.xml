@@ -56,6 +56,8 @@
 <arg value="client.output_response_status=${client.output_response_status}" />
 <arg value="client.output_json=${client.output_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
+<arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
+<arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.profiling=${client.profiling}" />
 <arg value="client.anticache_enable=${client.anticache_enable}" />
 <arg value="client.anticache_evict_interval=${client.anticache_evict_interval}" />

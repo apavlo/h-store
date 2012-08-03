@@ -51,6 +51,7 @@ package edu.brown.api;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -74,6 +75,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -86,12 +88,15 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
+import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.GarbageCollection;
 import org.voltdb.sysprocs.MarkovUpdate;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.ResetProfiling;
+import org.voltdb.sysprocs.Statistics;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
@@ -566,7 +571,7 @@ public class BenchmarkController {
             }
             
             LOG.info(String.format("Starting HStoreSite %s on %s",
-                                    HStoreThreadManager.formatSiteName(site_id), host));
+                                   HStoreThreadManager.formatSiteName(site_id), host));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {
@@ -1159,10 +1164,24 @@ public class BenchmarkController {
             
             if (local_client == null) local_client = this.getClientConnection();
             try {
-                local_client.callProcedure("@DatabaseDump", m_config.dumpDatabaseDir);
+                local_client.callProcedure(VoltSystemProcedure.getProcCallName(DatabaseDump.class), m_config.dumpDatabaseDir);
             } catch (Exception ex) {
                 LOG.error("Failed to dump database contents", ex);
             }
+        }
+        
+        // Dump Exec Profiling Info
+        if (hstore_conf.client.output_exec_profiling != null) {
+            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
+            if (local_client == null) local_client = this.getClientConnection();
+            this.writeStats(local_client, SysProcSelector.EXECPROFILER, hstore_conf.client.output_txn_profiling);
+        }
+        
+        // Dump Txn Profiling Info
+        if (hstore_conf.client.output_txn_profiling != null) {
+            m_clientPSM.writeToAll(ControlCommand.PAUSE.name());
+            if (local_client == null) local_client = this.getClientConnection();
+            this.writeStats(local_client, SysProcSelector.TXNPROFILER, hstore_conf.client.output_txn_profiling);
         }
         
         // Recompute MarkovGraphs
@@ -1223,7 +1242,27 @@ public class BenchmarkController {
         } else if (debug.get()) {
             LOG.debug("Benchmark failed. Not displaying final results");
         }
-
+    }
+    
+    private void writeStats(Client client, SysProcSelector sps, String outputPath) throws Exception {
+        Object params[] = { sps.name(), 0 };
+        ClientResponse cresponse = null;
+        String procName = VoltSystemProcedure.getProcCallName(Statistics.class);
+        try {
+            cresponse = client.callProcedure(procName, params);
+        } catch (Exception ex) {
+            LOG.error("Failed to execute " + procName, ex);
+        }
+        assert(cresponse.getStatus() == Status.OK);
+        assert(cresponse.getResults().length == 1);
+        
+        FileWriter out = new FileWriter(outputPath);
+        VoltTableUtil.csv(out, cresponse.getResults()[0], true);
+        out.close();
+        LOG.info(String.format("Write %s information to '%s'",
+                               SysProcSelector.TXNPROFILER,
+                               FileUtil.realpath(hstore_conf.client.output_txn_profiling)));
+        return;
     }
     
     private void resetCluster(Client client) {

@@ -1420,6 +1420,20 @@ public final class HStoreConf {
         public boolean output_csv;
         
         @ConfigProperty(
+            description="Defines the path where ",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_exec_profiling;
+        
+        @ConfigProperty(
+            description="",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_txn_profiling;
+        
+        @ConfigProperty(
             description="", // TODO
             defaultBoolean=false,
             experimental=false
