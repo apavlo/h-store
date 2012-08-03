@@ -1438,6 +1438,14 @@ public final class HStoreConf {
         public String output_txn_profiling;
         
         @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_txn_profiling} will " +
+            		    "be aggregated based on the Procedure handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_txn_profiling_combine;
+        
+        @ConfigProperty(
             description="", // TODO
             defaultBoolean=false,
             experimental=false

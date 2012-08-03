@@ -97,7 +97,7 @@ public class ResetProfiling extends VoltSystemProcedure {
                     throw new ServerFaultException(msg, txn_id);
                 }
                 
-                VoltTable vt = VoltTableUtil.combine(siteResults);
+                VoltTable vt = VoltTableUtil.union(siteResults);
                 result = new DependencySet(SysProcFragmentId.PF_resetProfilingAggregate, vt);
                 break;
             default:

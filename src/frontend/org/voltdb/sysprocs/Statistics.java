@@ -160,23 +160,23 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_nodeMemoryAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_nodeMemory));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_nodeMemory));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_txnCounterDataAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnCounterData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_txnCounterData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_txnProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_txnProfilerData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_txnProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_execProfilerDataAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_execProfilerData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_execProfilerData));
                 return new DependencySet(fragmentId, result);
             }
             case SysProcFragmentId.PF_poolDataAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(SysProcFragmentId.PF_poolData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(SysProcFragmentId.PF_poolData));
                 return new DependencySet(fragmentId, result);
             }
             
@@ -204,7 +204,7 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(DEP_tableData, result);
             }
             case SysProcFragmentId.PF_tableAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_tableData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(DEP_tableData));
                 return new DependencySet(DEP_tableAggregator, result);
             }
     
@@ -228,7 +228,7 @@ public class Statistics extends VoltSystemProcedure {
                 return new DependencySet(DEP_procedureData, result);
             }
             case SysProcFragmentId.PF_procedureAggregator: {
-                VoltTable result = VoltTableUtil.combine(dependencies.get(DEP_procedureData));
+                VoltTable result = VoltTableUtil.union(dependencies.get(DEP_procedureData));
                 return new DependencySet(DEP_procedureAggregator, result);
             }
             
