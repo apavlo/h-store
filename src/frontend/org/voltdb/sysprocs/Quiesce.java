@@ -15,28 +15,26 @@ import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.VoltTableUtil;
 
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.profilers.ProfileMeasurement;
 
 /** 
- * Force the garbage collector run at each HStoreSite
+ * Flush out and reject all of the txns queued up at each PartitionExecutor
  */
 @ProcInfo(singlePartition = false)
-public class GarbageCollection extends VoltSystemProcedure {
-    private static final Logger LOG = Logger.getLogger(GarbageCollection.class);
+public class Quiesce extends VoltSystemProcedure {
+    private static final Logger LOG = Logger.getLogger(Quiesce.class);
 
-    public static final ColumnInfo nodeResultsColumns[] = {
-        new ColumnInfo("SITE", VoltType.STRING),
+    private static final ColumnInfo ResultsColumns[] = {
+        new ColumnInfo("PARTITION", VoltType.STRING),
         new ColumnInfo("STATUS", VoltType.STRING),
         new ColumnInfo("CREATED", VoltType.TIMESTAMP),
     };
     
-    private final ProfileMeasurement gcTime = new ProfileMeasurement(this.getClass().getSimpleName());
-
     @Override
     public void initImpl() {
-        executor.registerPlanFragment(SysProcFragmentId.PF_gcAggregate, this);
-        executor.registerPlanFragment(SysProcFragmentId.PF_gcDistribute, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_quiesce_sites, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_quiesce_processed_sites, this);
     }
 
     @Override
@@ -47,35 +45,25 @@ public class GarbageCollection extends VoltSystemProcedure {
                                              PartitionExecutor.SystemProcedureExecutionContext context) {
         DependencySet result = null;
         switch (fragmentId) {
-            // Perform Garbage Collection
-            case SysProcFragmentId.PF_gcDistribute: {
-                LOG.debug("Invoking garbage collector");
-                this.gcTime.clear();
-                this.gcTime.start();
-                System.gc();
-                this.gcTime.stop();
-                
-                if (LOG.isDebugEnabled())
-                    LOG.debug(String.format("Performed Garbage Collection at %s: %s",
-                              this.executor.getHStoreSite().getSiteName(),
-                              this.gcTime.debug(true)));
-                VoltTable vt = new VoltTable(nodeResultsColumns);
+            case SysProcFragmentId.PF_quiesce_sites: {
+                LOG.debug("Clearing out work queue at partition " + executor.getPartitionId());
+                executor.haltProcessing();
+                VoltTable vt = new VoltTable(ResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
-                          this.gcTime.getTotalThinkTimeMS() + " ms",
+                          Status.OK,
                           new TimestampType());
-                result = new DependencySet(SysProcFragmentId.PF_gcDistribute, vt);
+                result = new DependencySet(SysProcFragmentId.PF_quiesce_sites, vt);
                 break;
             }
             // Aggregate Results
-            case SysProcFragmentId.PF_gcAggregate:
-                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_gcDistribute);
+            case SysProcFragmentId.PF_quiesce_processed_sites:
+                List<VoltTable> siteResults = dependencies.get(SysProcFragmentId.PF_quiesce_sites);
                 if (siteResults == null || siteResults.isEmpty()) {
                     String msg = "Missing site results";
                     throw new ServerFaultException(msg, txn_id);
                 }
-                
                 VoltTable vt = VoltTableUtil.combine(siteResults);
-                result = new DependencySet(SysProcFragmentId.PF_gcAggregate, vt);
+                result = new DependencySet(SysProcFragmentId.PF_quiesce_processed_sites, vt);
                 break;
             default:
                 String msg = "Unexpected sysproc fragmentId '" + fragmentId + "'";
@@ -86,7 +74,8 @@ public class GarbageCollection extends VoltSystemProcedure {
     }
     
     public VoltTable[] run() {
-        return this.executeOncePerSite(SysProcFragmentId.PF_gcDistribute,
-                                   SysProcFragmentId.PF_gcAggregate);
+        return this.executeOncePerPartition(SysProcFragmentId.PF_quiesce_sites,
+                                            SysProcFragmentId.PF_quiesce_processed_sites,
+                                            new ParameterSet());
     }
 }

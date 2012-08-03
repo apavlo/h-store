@@ -283,9 +283,14 @@ public class CatalogContext {
     // ------------------------------------------------------------
     
     /**
+     * Return an array containing all the Partition handles in the cluster
+     */
+    public Partition[] getAllPartitions() {
+        return (this.partitions);
+    }
+    
+    /**
      * Return the Partition catalog object for the given PartitionId
-     * 
-     * @param catalog_item
      * @param id
      * @return
      */

@@ -1260,7 +1260,7 @@ public class BenchmarkController {
         try {
             cresponse = client.callProcedure(procName, params);
         } catch (Exception ex) {
-            LOG.error("Failed to execute " + procName, ex);
+            throw new Exception("Failed to execute " + procName, ex);
         }
         assert(cresponse.getStatus() == Status.OK) :
             String.format("Failed to get %s stats\n%s", sps, cresponse); 

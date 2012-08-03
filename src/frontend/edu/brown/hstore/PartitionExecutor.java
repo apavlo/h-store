@@ -186,7 +186,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * The current execution mode for this PartitionExecutor
      * This defines what level of speculative execution we have enabled.
      */
-    protected enum ExecutionMode {
+    public enum ExecutionMode {
         /** Disable processing all transactions until... **/
         DISABLED,
         /** No speculative execution. All transactions are committed immediately **/
@@ -1117,6 +1117,41 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    public void haltProcessing() {
+        this.setExecutionMode(this.currentTxn, ExecutionMode.DISABLED);
+        List<InternalMessage> toKeep = new ArrayList<InternalMessage>(); 
+        InternalMessage msg = null;
+        while ((msg = this.work_queue.poll()) != null) {
+            // -------------------------------
+            // InitializeTxnMessage
+            // -------------------------------
+            if (msg instanceof InitializeTxnMessage) {
+                InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
+                hstore_site.responseError(initMsg.getClientHandle(),
+                                          Status.ABORT_REJECT,
+                                          "Transaction was rejected by " + hstore_site.getSiteName(),
+                                          initMsg.getClientCallback(),
+                                          EstTime.currentTimeMillis());
+            }
+            // -------------------------------
+            // StartTxnMessage
+            // -------------------------------
+            else if (msg instanceof StartTxnMessage) {
+                StartTxnMessage startMsg = (StartTxnMessage)msg;
+                hstore_site.transactionReject((LocalTransaction)startMsg.getTransaction(),
+                                              Status.ABORT_REJECT);
+            }
+            // -------------------------------
+            // Things to keep
+            // -------------------------------
+            else {
+                toKeep.add(msg);
+            }
+        } // WHILE
+        assert(this.work_queue.isEmpty());
+        this.work_queue.addAll(toKeep);
+        
+    }
 
     /**
      * Enable speculative execution mode for this partition. The given transaction is 
@@ -1476,6 +1511,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        Procedure catalog_proc,
                                        ParameterSet procParams,
                                        RpcCallback<ClientResponseImpl> clientCallback) {
+        if (this.currentExecMode == ExecutionMode.DISABLED) return (false);
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
@@ -1496,6 +1532,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param callback
      */
     public boolean queueNewTransaction(LocalTransaction ts) {
+        if (this.currentExecMode == ExecutionMode.DISABLED) return (false);
         assert(ts != null) : "Unexpected null transaction handle!";
         boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean force = (singlePartitioned == false) || ts.isMapReduce() || ts.isSysProc();
@@ -3586,6 +3623,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         public ThrottlingQueue<InternalMessage> getWorkQueue() {
             return (PartitionExecutor.this.work_queue);
+        }
+        public void setExecutionMode(AbstractTransaction ts, ExecutionMode newMode) {
+            PartitionExecutor.this.setExecutionMode(ts, newMode);
         }
     }
     

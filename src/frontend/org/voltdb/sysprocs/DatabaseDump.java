@@ -7,21 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
-import edu.brown.utils.PartitionEstimator;
 
 @ProcInfo(singlePartition = false)
 public class DatabaseDump extends VoltSystemProcedure {
@@ -29,11 +24,9 @@ public class DatabaseDump extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(DatabaseDump.class);
 
     @Override
-    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
-        site.registerPlanFragment(SysProcFragmentId.PF_dumpDistribute, this);
-        site.registerPlanFragment(SysProcFragmentId.PF_dumpAggregate, this);
+    public void initImpl() {
+        executor.registerPlanFragment(SysProcFragmentId.PF_dumpDistribute, this);
+        executor.registerPlanFragment(SysProcFragmentId.PF_dumpAggregate, this);
     }
     
     @Override
@@ -61,7 +54,7 @@ public class DatabaseDump extends VoltSystemProcedure {
             // Only write column names if it's the first partition (hack)
             boolean write_header = (this.executor.getPartitionId() == 0);
             
-            for (Table catalog_tbl : this.database.getTables()) {
+            for (Table catalog_tbl : catalogContext.database.getTables().values()) {
                 File csv_file = new File(String.format("%s/%s.%02d.csv", directory, catalog_tbl.getName(), this.executor.getPartitionId()));
                 CSVWriter writer = null;
                 try {
@@ -127,7 +120,7 @@ public class DatabaseDump extends VoltSystemProcedure {
         
         // Generate a plan fragment for each site using the sub-tables
         final List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
-        for (int i = 0; i < this.num_partitions; i++) {
+        for (int i = 0; i < catalogContext.numberOfPartitions; i++) {
             int partition = i;
             SynthesizedPlanFragment pf = new SynthesizedPlanFragment();
             pf.fragmentId = SysProcFragmentId.PF_dumpDistribute;

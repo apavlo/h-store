@@ -18,6 +18,11 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 public class NoOp extends VoltSystemProcedure {
 
     @Override
+    public void initImpl() {
+        // Nothing
+    }
+    
+    @Override
     public DependencySet executePlanFragment(long txnId, Map<Integer, List<VoltTable>> dependencies, int fragmentId, ParameterSet params, SystemProcedureExecutionContext context) {
         // TODO Auto-generated method stub
         return null;

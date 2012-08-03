@@ -91,6 +91,7 @@ import org.voltdb.sysprocs.GetCatalog;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.MarkovUpdate;
+import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.sysprocs.Shutdown;
@@ -1271,13 +1272,12 @@ public class VoltCompiler {
             {SnapshotStatus.class,                  false,      true},
             {SnapshotScan.class,                    false,      true},
             {SnapshotDelete.class,                  false,      true},
-         
+            {Quiesce.class,                         true,       true},
             {Statistics.class,                      true,       false},
             
             // Anti-Cache Operations
             {EvictTuples.class,               false,      false},
          
-//       {"org.voltdb.sysprocs.Quiesce",                      false,    false},
 //         {"org.voltdb.sysprocs.StartSampler",                 false,    false},
 //         {"org.voltdb.sysprocs.SystemInformation",            true,     false},
 //         {"org.voltdb.sysprocs.UpdateApplicationCatalog",     false,    true},
