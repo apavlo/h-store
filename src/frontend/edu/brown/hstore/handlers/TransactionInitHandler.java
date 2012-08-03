@@ -105,7 +105,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         } else {
             partitions = new PartitionSet(request.getPartitionsList());
         }
-        hstore_site.transactionInit(txn_id, partitions, wrapper);
+        hstore_site.transactionInit(txn_id, request.getProcedureId(), partitions, wrapper);
         
         // We don't need to send back a response right here.
         // TransactionInitWrapperCallback will wait until it has results from all of the partitions 

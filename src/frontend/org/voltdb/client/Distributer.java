@@ -695,7 +695,12 @@ class Distributer {
             synchronized (this) {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
-                    cxn = m_connections.get(idx);
+                    try {
+                        cxn = m_connections.get(idx);
+                    } catch (IndexOutOfBoundsException ex) {
+                        String msg = String.format("Failed to get connection #%d / %d", idx, totalConnections);
+                        throw new RuntimeException(msg, ex);
+                    }
                     if (trace.get())
                         LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                     // queuedInvocations += cxn.m_callbacks.size();

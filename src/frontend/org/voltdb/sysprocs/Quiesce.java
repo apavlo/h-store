@@ -48,6 +48,13 @@ public class Quiesce extends VoltSystemProcedure {
             case SysProcFragmentId.PF_quiesceDistribute: {
                 LOG.debug("Clearing out work queue at partition " + executor.getPartitionId());
                 executor.haltProcessing();
+                
+                // Clear out the QueueManager too if this is the first partition
+                // at this site
+                if (this.isFirstLocalPartition()) {
+                    hstore_site.getTransactionQueueManager().clearQueues();
+                }
+                
                 VoltTable vt = new VoltTable(ResultsColumns);
                 vt.addRow(this.executor.getHStoreSite().getSiteName(),
                           Status.OK.name(),

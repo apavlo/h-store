@@ -1614,6 +1614,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                    clientCallback);
             if (success == false) {
                 Status status = Status.ABORT_REJECT;
+//                if (catalog_proc.getName().equalsIgnoreCase("@Quiesce"))
                 if (d) LOG.debug(String.format("Hit with a %s response from partition %d [queueSize=%d]",
                                                status, base_partition, executor.getWorkQueueSize()));
                 this.responseError(client_handle,
@@ -1661,6 +1662,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             Exception error = new Exception("Shutdown command received at " + this.getSiteName());
             this.hstore_coordinator.shutdownCluster(error);
             return (true);
+        }
+        
+        // -------------------------------
+        // QUIESCE
+        // -------------------------------
+        else if (catalog_proc.getName().equals("@Quiesce")) {
+            // Tell the queue manager ahead of time to wipe out everything!
+            this.txnQueueManager.clearQueues();
+            return (false);
         }
         
         // -------------------------------
@@ -1800,9 +1810,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions The list of partitions that this transaction needs to access
      * @param callback
      */
-    public void transactionInit(Long txn_id, PartitionSet partitions, TransactionInitQueueCallback callback) {
+    public void transactionInit(Long txn_id, int procedureId, PartitionSet partitions, TransactionInitQueueCallback callback) {
+        Procedure catalog_proc = catalogContext.getProcedureById(procedureId);
+        
         // We should always force a txn from a remote partition into the queue manager
-        this.txnQueueManager.lockInsert(txn_id, partitions, callback);
+        this.txnQueueManager.lockInsert(txn_id, partitions, callback, catalog_proc.getSystemproc());
     }
 
     /**
@@ -2073,7 +2085,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionReject(LocalTransaction ts, Status status) {
         assert(ts.isInitialized());
         if (d) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
-                                       ts, status, ts.getClientHandle()));
+                         ts, status, ts.getClientHandle()));
+//        if (ts.getProcedure().getName().equalsIgnoreCase("@Quiesce")) {
+//            try {
+//                throw new Exception("");
+//            } catch (Exception ex) {
+//                LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+//                                       ts, status, ts.getClientHandle()), ex);
+//            }
+//        }
         
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();

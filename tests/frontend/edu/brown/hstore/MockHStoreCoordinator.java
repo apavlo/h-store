@@ -105,7 +105,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
             
             TransactionInitQueueCallback wrapper = new TransactionInitQueueCallback(hstore_site);
             wrapper.init(request.getTransactionId(), request.getPartitionsList(), done);
-            txnQueueManager.lockInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), wrapper);
+            txnQueueManager.lockInsert(request.getTransactionId(), new PartitionSet(request.getPartitionsList()), wrapper, false);
         }
 
         @Override

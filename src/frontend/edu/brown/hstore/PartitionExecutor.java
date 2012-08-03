@@ -1515,7 +1515,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        Procedure catalog_proc,
                                        ParameterSet procParams,
                                        RpcCallback<ClientResponseImpl> clientCallback) {
-        if (this.currentExecMode == ExecutionMode.DISABLED) return (false);
+        boolean sysproc = catalog_proc.getSystemproc();
+        if (this.currentExecMode == ExecutionMode.DISABLED && sysproc == false) return (false);
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
@@ -1526,7 +1527,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);
-        return (this.work_queue.offer(work, catalog_proc.getSystemproc()));
+        return (this.work_queue.offer(work, sysproc));
     }
     
     /**
