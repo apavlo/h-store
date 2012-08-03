@@ -1118,6 +1118,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     public void haltProcessing() {
+        ExecutionMode origMode = this.currentExecMode;
         this.setExecutionMode(this.currentTxn, ExecutionMode.DISABLED);
         List<InternalMessage> toKeep = new ArrayList<InternalMessage>(); 
         InternalMessage msg = null;
@@ -1151,6 +1152,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         assert(this.work_queue.isEmpty());
         this.work_queue.addAll(toKeep);
         
+        // For now we'll set it back so that we can execute new stuff. Clearing out
+        // the queue should enough for now
+        this.setExecutionMode(this.currentTxn, origMode);
     }
 
     /**
