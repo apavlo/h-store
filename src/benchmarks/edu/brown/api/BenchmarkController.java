@@ -1262,11 +1262,15 @@ public class BenchmarkController {
         } catch (Exception ex) {
             LOG.error("Failed to execute " + procName, ex);
         }
-        assert(cresponse.getStatus() == Status.OK);
-        assert(cresponse.getResults().length == 1);
+        assert(cresponse.getStatus() == Status.OK) :
+            String.format("Failed to get %s stats\n%s", sps, cresponse); 
+        assert(cresponse.getResults().length == 1) :
+            String.format("Failed to get %s stats\n%s", sps, cresponse);
+        final VoltTable vt = cresponse.getResults()[0];
         
+        // Write out CSV
         FileWriter out = new FileWriter(outputPath);
-        VoltTableUtil.csv(out, cresponse.getResults()[0], true);
+        VoltTableUtil.csv(out, vt, true);
         out.close();
         LOG.info(String.format("Write %s information to '%s'",
                                sps, FileUtil.realpath(outputPath)));
@@ -1282,7 +1286,7 @@ public class BenchmarkController {
         
         ClientResponse cr = null;
         for (Class<VoltSystemProcedure> sysproc : sysprocs) {
-            String procName = "@"+sysproc.getSimpleName();
+            String procName = VoltSystemProcedure.getProcCallName(sysproc);
             try {
                 cr = client.callProcedure(procName);
             } catch (Exception ex) {

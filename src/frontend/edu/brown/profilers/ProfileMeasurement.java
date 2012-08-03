@@ -380,9 +380,14 @@ public class ProfileMeasurement implements JSONSerializable {
         to_start.start(timestamp);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // DEBUG METHODS
+    // --------------------------------------------------------------------------------------------
+    
     @Override
     public String toString() {
         return (this.debug(false));
+//        return (this.debug(false));
     }
 
     public String debug() {
@@ -390,10 +395,16 @@ public class ProfileMeasurement implements JSONSerializable {
     }
 
     public String debug(boolean verbose) {
+        String prefix = this.type + "/" + this.hashCode();
         if (verbose) {
-            return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]", this.type, this.total_time, this.think_marker, this.invocations, this.getAverageThinkTimeMS()));
+            return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",
+                                  prefix,
+                                  this.total_time,
+                                  this.think_marker,
+                                  this.invocations,
+                                  this.getAverageThinkTimeMS()));
         } else {
-            return (this.type);
+            return (prefix);
         }
     }
 

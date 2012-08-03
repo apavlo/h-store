@@ -30,6 +30,7 @@ package edu.brown.utils;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -64,6 +65,25 @@ public abstract class ClassUtil {
     private static final Map<Class<?>, List<Class<?>>> CACHE_getSuperClasses = new HashMap<Class<?>, List<Class<?>>>();
     private static final Map<Class<?>, Set<Class<?>>> CACHE_getInterfaceClasses = new HashMap<Class<?>, Set<Class<?>>>();
 
+    /**
+     * @param clazz
+     * @return
+     */
+    public static <T> Field[] getFieldsByType(Class<?> clazz, Class<? extends T> fieldType) {
+        List<Field> fields = new ArrayList<Field>();
+        for (Field f : clazz.getDeclaredFields()) {
+            int modifiers = f.getModifiers();
+            if (Modifier.isTransient(modifiers) == false &&
+                Modifier.isPublic(modifiers) == true &&
+                Modifier.isStatic(modifiers) == false &&
+                ClassUtil.getSuperClasses(f.getType()).contains(fieldType)) {
+                
+                fields.add(f);
+            }
+        } // FOR
+        return (fields.toArray(new Field[fields.size()]));
+    }
+    
     /**
      * Returns true if asserts are enabled. This assumes that
      * we're always using the default system ClassLoader

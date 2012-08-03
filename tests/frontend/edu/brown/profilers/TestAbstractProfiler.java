@@ -1,7 +1,5 @@
 package edu.brown.profilers;
 
-import java.util.Collection;
-
 import org.junit.Test;
 
 import junit.framework.TestCase;
@@ -15,8 +13,10 @@ public class TestAbstractProfiler extends TestCase {
     protected class MockProfiler extends AbstractProfiler {
         public final ProfileMeasurement pm0 = new ProfileMeasurement("PM0");
         public final ProfileMeasurement pm1 = new ProfileMeasurement("PM1");
-        public final ProfileMeasurement pm2 = new ProfileMeasurement("PM2");
-        public final ProfileMeasurement pm3 = new ProfileMeasurement("PM3");
+        
+        // Make some of these protected so that we can check getProfileMeasurements()
+        protected final ProfileMeasurement pm2 = new ProfileMeasurement("PM2");
+        protected final ProfileMeasurement pm3 = new ProfileMeasurement("PM3");
     }
     
     final MockProfiler profiler = new MockProfiler();
@@ -26,9 +26,12 @@ public class TestAbstractProfiler extends TestCase {
      */
     @Test
     public void testGetProfileMeasurements() throws Exception {
-        Collection<ProfileMeasurement> pms = profiler.getProfileMeasurements();
+        ProfileMeasurement pms[] = profiler.getProfileMeasurements();
         assertNotNull(pms);
-        assertEquals(4, pms.size());
+        assertEquals(4, pms.length);
+        for (int i = 0; i < pms.length; i++) {
+            assertNotNull(Integer.toString(i), pms[i]);
+        } // FOR
     }
     
     /**
@@ -36,7 +39,7 @@ public class TestAbstractProfiler extends TestCase {
      */
     @Test
     public void testReset() throws Exception {
-        ProfileMeasurement pms[] = profiler.getProfileMeasurements().toArray(new ProfileMeasurement[0]);
+        ProfileMeasurement pms[] = profiler.getProfileMeasurements();
         assertNotNull(pms);
         assertEquals(4, pms.length);
         

@@ -20,6 +20,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.profilers.TransactionProfiler;
 
 public class TransactionProfilerStats extends StatsSource {
@@ -110,11 +111,17 @@ public class TransactionProfilerStats extends StatsSource {
         super.populateColumnSchema(columns);
         columns.add(new VoltTable.ColumnInfo("PROCEDURE", VoltType.STRING));
         columns.add(new VoltTable.ColumnInfo("TRANSACTIONS", VoltType.BIGINT));
-        for (int i = 0; i < TransactionProfiler.PROFILE_FIELDS.length; i++) {
-            String name = TransactionProfiler.PROFILE_FIELDS[i].getName()
-                                .replace("pm_", "")
-                                .replace("_total", "");
-            columns.add(new VoltTable.ColumnInfo(name.toUpperCase(), VoltType.BIGINT));
+        
+        // Construct a dummy TransactionProfiler so that we can get the fields
+        TransactionProfiler profiler = new TransactionProfiler();
+        for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
+            String name = pm.getType().toUpperCase();
+            // We need two columns per ProfileMeasurement
+            //  (1) The total think time in nanoseconds
+            //  (2) The number of invocations
+            // See AbstractProfiler.getTuple()
+            columns.add(new VoltTable.ColumnInfo(name, VoltType.BIGINT));
+            columns.add(new VoltTable.ColumnInfo(name+"_CNT", VoltType.BIGINT));
         } // FOR
     }
 
