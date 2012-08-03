@@ -1697,7 +1697,6 @@ TEST CASES
 
         <!-- Execution Options -->
         <arg value="TRACE=${trace}" />
-        <arg value="JSONOUTPUT=${jsonoutput}" />
 
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
