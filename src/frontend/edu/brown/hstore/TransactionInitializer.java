@@ -394,9 +394,6 @@ public class TransactionInitializer {
         // Notify anybody that cares about this new txn
         this.newTxnObservable.notifyObservers(ts);
         
-        
-        // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
-
         return (ts);
     }
     
@@ -432,10 +429,11 @@ public class TransactionInitializer {
             
             // Since we're restarting the txn, we should probably include
             // the original profiler information the original txn.
-            if (orig_ts.profiler.isDisabled() == false) {
-                new_ts.profiler.copy(orig_ts.profiler);
-            }
-            new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+//            if (orig_ts.profiler.isDisabled() == false) {
+//                new_ts.profiler.copy(orig_ts.profiler);
+//            } else {
+                new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
+//            }
         } else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();
         }
