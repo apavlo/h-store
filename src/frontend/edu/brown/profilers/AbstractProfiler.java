@@ -45,6 +45,16 @@ public abstract class AbstractProfiler {
         }
         return (pm_cache);
     }
+    
+    public void copy(AbstractProfiler other) {
+        ProfileMeasurement pms0[] = this.getProfileMeasurements();
+        ProfileMeasurement pms1[] = other.getProfileMeasurements();
+        assert(pms0.length == pms1.length);
+        
+        for (int i = 0; i < pms0.length; i++) {
+            pms0[i].appendTime(pms1[i], true);
+        } // FOR
+    }
 
     /**
      * Reset all of the ProfileMeasurements within this profiler
