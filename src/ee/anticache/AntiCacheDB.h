@@ -27,7 +27,6 @@
 #define HSTOREANTICACHE_H
 
 #include <db_cxx.h>
-// #include "common/executorcontext.hpp"
 
 using namespace std;
 
@@ -96,7 +95,7 @@ class AntiCacheDB {
         
     private:
         ExecutorContext *m_executorContext;
-        std::string m_dbDir;
+        string m_dbDir;
         DbEnv* m_dbEnv;
         Db* m_db; 
         uint16_t m_nextBlockId;
