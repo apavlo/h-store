@@ -341,14 +341,12 @@ public class TransactionInitializer {
      * @param clientCallback
      * @return
      */
-    public LocalTransaction createLocalTransaction(
-                                ByteBuffer serializedRequest, 
-                                long client_handle,
-                                int base_partition,
-                                Procedure catalog_proc,
-                                ParameterSet procParams,
-                                RpcCallback<ClientResponseImpl> clientCallback) {
-        
+    public LocalTransaction createLocalTransaction(ByteBuffer serializedRequest, 
+                                                   long client_handle,
+                                                   int base_partition,
+                                                   Procedure catalog_proc,
+                                                   ParameterSet procParams,
+                                                   RpcCallback<ClientResponseImpl> clientCallback) {
         if (d) LOG.debug(String.format("Incoming %s transaction request " +
         		                       "[handle=%d, partition=%d]",
                                        catalog_proc.getName(), client_handle, base_partition));
@@ -425,11 +423,18 @@ public class TransactionInitializer {
             throw new RuntimeException(ex);
         }
         
+        // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
             if (new_ts.profiler == null) {
                 new_ts.setProfiler(new TransactionProfiler());
             }
             new_ts.profiler.enableProfiling();
+            
+            // Since we're restarting the txn, we should probably include
+            // the original profiler information the original txn.
+            if (orig_ts.profiler.isDisabled() == false) {
+                new_ts.profiler.copy(orig_ts.profiler);
+            }
             new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
         } else if (new_ts.profiler != null) {
             new_ts.profiler.disableProfiling();

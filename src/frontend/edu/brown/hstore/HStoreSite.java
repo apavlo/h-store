@@ -1392,7 +1392,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
     }
     
-    
     // ----------------------------------------------------------------------------
     // INCOMING INVOCATION HANDLER METHODS
     // ----------------------------------------------------------------------------
@@ -1455,7 +1454,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
         // extract out the data that we need in this request
-        FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
+        final FastDeserializer incomingDeserializer = this.getIncomingDeserializer();
+        incomingDeserializer.setBuffer(buffer);
         final long client_handle = StoredProcedureInvocation.getClientHandle(buffer);
         final int procId = StoredProcedureInvocation.getProcedureId(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
@@ -1468,7 +1468,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      
         // Otherwise, we have to get the procedure name and do a look up with that.
         if (catalog_proc == null) {
-            incomingDeserializer.setBuffer(buffer);
             procName = StoredProcedureInvocation.getProcedureName(incomingDeserializer);
             this.catalogContext.database.getProcedures().get(procName);
             if (catalog_proc == null) {
