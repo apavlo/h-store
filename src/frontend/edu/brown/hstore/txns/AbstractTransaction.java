@@ -663,13 +663,13 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             orig = this.prepared[offset];
             this.prepared[offset] = true;
         } // SYNCH
-        return (orig);
+        return (orig == false);
     }
     /**
      * Is this TransactionState marked as prepared
      * @return
      */
-    public boolean isPrepared(int partition) {
+    public boolean isMarkedPrepared(int partition) {
         return (this.prepared[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
@@ -686,7 +686,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isFinished(int partition) {
+    public boolean isMarkedFinished(int partition) {
         return (this.finished[hstore_site.getLocalPartitionOffset(partition)]);
     }
 

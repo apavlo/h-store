@@ -289,7 +289,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             pfs[i].nonExecSites = false;
             pfs[i].destPartitionId = catalog_part.getId();
             pfs[i].parameters = params;
-            pfs[i].last_task = (catalog_site.getId() == hstore_site.getSiteId());
+            pfs[i].last_task = (catalog_site.getId() != hstore_site.getSiteId());
             i += 1;
         } // FOR
 
@@ -329,7 +329,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             pfs[i].nonExecSites = false;
             pfs[i].destPartitionId = catalog_part.getId();
             pfs[i].parameters = params;
-            pfs[i].last_task = (catalog_part.getId() == this.partitionId);
+            pfs[i].last_task = (catalog_part.getId() != this.partitionId);
             i += 1;
         } // FOR
 
