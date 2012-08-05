@@ -1813,10 +1813,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                     // If the transaction aborted, then we can't execute any transaction that touch the tables
                     // that this guy touches. But since we can't just undo this transaction without undoing 
                     // everything that came before it, we'll just disable executing all transactions until the 
-                    // multi-partition transaction commits
-                    // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either 
-                    // executed in non-spec mode, or that there already was a distributed transaction hanging around.
-                    if (status != Status.OK && ts.isExecReadOnly(this.partitionId)) {
+                    // current distributed transaction commits
+                    if (status != Status.OK && ts.isExecReadOnly(this.partitionId) == false) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.currentBlockedTxns);
                         if (t && blocked > 0)
@@ -3189,7 +3187,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param ts
      * @param cresponse
      */
-    public void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    protected void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
