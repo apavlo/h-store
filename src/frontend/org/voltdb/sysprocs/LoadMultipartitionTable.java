@@ -209,7 +209,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pf.nonExecSites = false;
             pf.destPartitionId = partition; // partitionsToSites[i - 1];
             pf.parameters = params;
-            pf.last_task = true;
+            pf.last_task = false;
             pfs.add(pf);
             if (trace.get()) sb.append("\n  Partition #").append(partition).append(": ")
                          .append(partitionedTables[partition].getRowCount()).append(" tuples");
