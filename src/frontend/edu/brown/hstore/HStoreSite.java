@@ -1867,14 +1867,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionPrepareCallback callback = null;
         if (ts instanceof LocalTransaction) {
             callback = ((LocalTransaction)ts).getTransactionPrepareCallback();
+            if (callback.isInitialized() == false) callback = null;
         }
         
         int spec_cnt = 0;
         for (int p : partitions) {
-            if (this.local_partition_offsets[p] == -1) continue;
+            if (this.isLocalPartition(p) == false) continue;
             
             // Skip if we've already invoked prepared for this txn at this partition
             if (ts != null && ts.markPrepared(p) == false) {
+                // We have to make sure that we decrement the counter here
+                if (callback != null) callback.decrementCounter(1);
                 if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
                 continue;
             }

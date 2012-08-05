@@ -1897,8 +1897,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private void processWorkFragment(AbstractTransaction ts, WorkFragment fragment, ParameterSet parameters[]) {
         assert(this.partitionId == fragment.getPartitionId()) :
-            String.format("Tried to execute WorkFragment %s for %s on partition %d but it was suppose to be executed on partition %d",
+            String.format("Tried to execute WorkFragment %s for %s at partition %d but it was suppose " +
+            		      "to be executed on partition %d",
                           fragment.getFragmentIdList(), ts, this.partitionId, fragment.getPartitionId());
+        assert(ts.isMarkedPrepared(this.partitionId) == false) :
+            String.format("Tried to execute WorkFragment %s for %s at partition %d after it was marked 2PC:PREPARE",
+                          fragment.getFragmentIdList(), ts, this.partitionId);
+        
         
         // A txn is "local" if the Java is executing at the same partition as this one
         boolean is_local = ts.isExecLocal(this.partitionId);
@@ -1951,7 +1956,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // Success, but without any results???
             if (result == null && status == Status.OK) {
-                String msg = String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
+                String msg = String.format("The WorkFragment %s executed successfully on Partition %d but " +
+                		                   "result is null for %s",
                                            fragment.getFragmentIdList(), this.partitionId, ts);
                 Exception ex = new Exception(msg);
                 if (d) LOG.warn(ex);
@@ -2035,7 +2041,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             // If the transaction is local, store the result directly in the local TransactionState
             if (status == Status.OK) {
-                if (t) LOG.trace("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
+                if (t) LOG.trace(ts + " - Storing " + result.size() + " dependency results locally for successful work fragment");
                 assert(result.size() == fragment.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = fragment.getOutputDepId(i);
@@ -2058,11 +2064,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // REMOTE TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("Constructing WorkResult %s with %d bytes from partition %d to send back to initial partition %d [status=%s]",
-                                                    ts,
-                                                    (result != null ? result.size() : null),
-                                                    this.partitionId, ts.getBasePartition(),
-                                                    status));
+            if (d) LOG.debug(String.format("%s - Constructing WorkResult with %d bytes from partition %d to send " +
+            		                       "back to initial partition %d [status=%s]",
+                                           ts, (result != null ? result.size() : null),
+                                           this.partitionId, ts.getBasePartition(),
+                                           status));
             
             RpcCallback<WorkResult> callback = ((RemoteTransaction)ts).getWorkCallback();
             if (callback == null) {
@@ -2074,15 +2080,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             WorkResult response = this.buildWorkResult((RemoteTransaction)ts, result, status, error);
             assert(response != null);
             callback.run(response);
-            
-            // Check whether this is the last query that we're going to get
-            // from this transaction. If it is, then we can go ahead and prepare the txn
-            if (fragment.getLastFragment()) {
-                hstore_site.transactionPrepare(ts.getTransactionId(),
-                                               this.catalogContext.getPartitionSetSingleton(this.partitionId),
-                                               null);
-            }
-            
+        }
+        
+        // Check whether this is the last query that we're going to get
+        // from this transaction. If it is, then we can go ahead and prepare the txn
+        if (fragment.getLastFragment()) {
+            hstore_site.transactionPrepare(ts.getTransactionId(),
+                                           this.catalogContext.getPartitionSetSingleton(this.partitionId),
+                                           null);
         }
     }
     
@@ -3307,7 +3312,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void finishWork(AbstractTransaction ts, boolean commit) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
-        assert(ts.isFinished(this.partitionId) == false) :
+        assert(ts.isMarkedFinished(this.partitionId) == false) :
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
         // This can be null if they haven't submitted anything
