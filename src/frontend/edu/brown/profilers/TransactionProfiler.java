@@ -385,6 +385,24 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     // ---------------------------------------------------------------
     
     @Override
+    public void copy(AbstractProfiler other) {
+        assert(other instanceof TransactionProfiler);
+        super.copy(other);
+        
+        // Stop anything that is already started
+        long timestamp = -1;
+        for (ProfileMeasurement pm : this.getProfileMeasurements()) {
+            if (pm.isStarted() && pm != this.pm_total && pm != this.pm_exec_total) {
+                if (timestamp == -1) timestamp = ProfileMeasurement.getTime();
+                pm.stop(timestamp);
+            }
+        } // FOR
+        this.pm_total.reset();
+        this.pm_exec_total.reset();
+        this.startTransaction(((TransactionProfiler)other).pm_total.getMarker());
+    }
+    
+    @Override
     public void finish() {
         for (ProfileMeasurement pm : this.getProfileMeasurements()) {
             pm.clear();
