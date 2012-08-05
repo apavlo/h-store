@@ -33,7 +33,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     }
     
     protected final HStoreSite hstore_site;
-    protected final HStoreCoordinator hstore_coord;
+    protected final HStoreCoordinator coordinator;
     protected final HStoreService handler;
     
     /** The total number of sites in the cluster */
@@ -44,8 +44,8 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     
     public AbstractTransactionHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         this.hstore_site = hstore_site;
-        this.hstore_coord = hstore_coord;
-        this.handler = this.hstore_coord.getHandler();
+        this.coordinator = hstore_coord;
+        this.handler = this.coordinator.getHandler();
         this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.local_site_id = hstore_site.getSiteId();
     }
@@ -72,7 +72,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
                                     request.getClass().getSimpleName(),  partitions.size(), ts));
         
         for (Integer p : partitions) {
-            int dest_site_id = hstore_site.getSiteIdForPartitionId(p);
+            int dest_site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(p.intValue());
 
             // Skip this HStoreSite if we're already sent it a message 
             if (site_sent[dest_site_id]) continue;
@@ -84,9 +84,10 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
             // Local Partition
             if (this.local_site_id == dest_site_id) {
                 send_local = true;
+            }
             // Remote Partition
-            } else {
-                HStoreService channel = hstore_coord.getChannel(dest_site_id);
+            else {
+                HStoreService channel = coordinator.getChannel(dest_site_id);
                 assert(channel != null) : "Invalid partition id '" + p + "'";
                 ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
                 assert(controller != null) : "Invalid " + request.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;

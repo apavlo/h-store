@@ -8,7 +8,7 @@ import edu.brown.oltpgenerator.AbstractBenchmark.RandomGenerator.AbstractRandomG
  * @author zhe
  * 
  */
-public abstract class AbstractTransaction extends VoltProcedure
+public abstract class AbstractTransactionTemplate extends VoltProcedure
 {
     /**
      * @return Probability this procedure is executed

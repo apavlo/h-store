@@ -81,6 +81,12 @@ public class CatalogContext {
     private final PartitionSet partitionIdCollection = new PartitionSet();
     private final Integer partitionIdArray[];
     
+    /** PartitionId -> Singleton set of that PartitionId */
+    private final PartitionSet partitionSingletons[];
+    
+    /** PartitionId -> SiteId */
+    private final int partitionSiteXref[];
+    
     // ------------------------------------------------------------
     // PROCEDURES
     // ------------------------------------------------------------
@@ -169,19 +175,26 @@ public class CatalogContext {
         // count exec sites
         numberOfSites = cluster.getSites().size();
 
-        // count partitions
-        numberOfPartitions = cluster.getNum_partitions();
-        this.partitions = new Partition[numberOfPartitions];
-        for (Partition p : CatalogUtil.getAllPartitions(catalog)) {
-            this.partitions[p.getId()] = p;
-        }
-        this.partitionIdArray = new Integer[numberOfPartitions];
-        for (int i = 0; i < numberOfPartitions; i++) {
-            this.partitionIdArray[i] = Integer.valueOf(i);
-            this.partitionIdCollection.add(this.partitionIdArray[i]);
-        }
+        // ------------------------------------------------------------
+        // PARTITIONS
+        // ------------------------------------------------------------
+        this.numberOfPartitions = cluster.getNum_partitions();
+        this.partitions = new Partition[this.numberOfPartitions];
+        this.partitionIdArray = new Integer[this.numberOfPartitions];
+        this.partitionSingletons = new PartitionSet[this.numberOfPartitions];
+        this.partitionSiteXref = new int[this.numberOfPartitions];
+        for (Partition part : CatalogUtil.getAllPartitions(catalog)) {
+            int p = part.getId();
+            this.partitions[p] = part;
+            this.partitionIdArray[p] = Integer.valueOf(p);
+            this.partitionSingletons[p] = new PartitionSet(p);
+            this.partitionIdCollection.add(this.partitionIdArray[p]);
+            this.partitionSiteXref[part.getId()] = ((Site)part.getParent()).getId();
+        } // FOR
         
+        // ------------------------------------------------------------
         // TABLES
+        // ------------------------------------------------------------
         for (Table tbl : database.getTables()) {
             if (tbl.getSystable()) {
                 sysTables.add(tbl);
@@ -269,13 +282,21 @@ public class CatalogContext {
     
     /**
      * Return the unique Site catalog object for the given id
-     * 
      * @param catalog_item
      * @return
      */
     public Site getSiteById(int site_id) {
         assert(site_id >= 0);
         return (this.sites.get("id", site_id));
+    }
+    
+    /**
+     * Return the site id for the given partition
+     * @param partition_id
+     * @return
+     */
+    public int getSiteIdForPartitionId(int partition_id) {
+        return (this.partitionSiteXref[partition_id]);
     }
 
     // ------------------------------------------------------------
@@ -310,6 +331,14 @@ public class CatalogContext {
      */
     public Integer[] getAllPartitionIdArray() {
         return (this.partitionIdArray);
+    }
+    
+    /**
+     * Return a PartitionSet that only contains the given partition id
+     * @param partition
+     */
+    public PartitionSet getPartitionSetSingleton(int partition) {
+        return (this.partitionSingletons[partition]);
     }
     
     // ------------------------------------------------------------

@@ -900,7 +900,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             tmp_def_txn.init(def_work.getTxnId(), 
                        -1, // We don't really need the clientHandle
                        this.partitionId,
-                       hstore_site.getSingletonPartitionList(partitionId),
+                       catalogContext.getPartitionSetSingleton(this.partitionId),
                        false,
                        false,
                        tmp_def_stmt[0].getProcedure(),
@@ -2075,8 +2075,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             assert(response != null);
             callback.run(response);
             
-            // TODO: Check whether this is the last query that we're going to get
+            // Check whether this is the last query that we're going to get
             // from this transaction. If it is, then we can go ahead and prepare the txn
+            if (fragment.getLastFragment()) {
+                hstore_site.transactionPrepare(ts.getTransactionId(),
+                                               this.catalogContext.getPartitionSetSingleton(this.partitionId),
+                                               null);
+            }
             
         }
     }
@@ -2651,7 +2656,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             assert(!ts.isBlocked(ftask));
             
             int target_partition = ftask.getPartitionId();
-            int target_site = hstore_site.getSiteIdForPartitionId(target_partition);
+            int target_site = catalogContext.getSiteIdForPartitionId(target_partition);
             
             // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
@@ -3302,7 +3307,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private void finishWork(AbstractTransaction ts, boolean commit) {
         assert(ts != null) :
             "Unexpected null transaction handle at partition " + this.partitionId;
-        assert(ts.isFinishedEE(this.partitionId) == false) :
+        assert(ts.isFinished(this.partitionId) == false) :
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
         // This can be null if they haven't submitted anything
@@ -3357,7 +3362,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
-        ts.setFinishedEE(this.partitionId);
+        ts.markFinished(this.partitionId);
     }
     
     /**
