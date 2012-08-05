@@ -14,6 +14,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -101,6 +102,7 @@ public class HStoreCoordinator implements Shutdownable {
 
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
+    private final CatalogContext catalogContext;
     private final Site catalog_site;
     private final int num_sites;
     private final int local_site_id;
@@ -188,10 +190,11 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public HStoreCoordinator(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
-        this.hstore_conf = hstore_site.getHStoreConf();
-        this.catalog_site = hstore_site.getSite();
+        this.hstore_conf = this.hstore_site.getHStoreConf();
+        this.catalogContext = this.hstore_site.getCatalogContext();
+        this.catalog_site = this.hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
-        this.num_sites = hstore_site.getCatalogContext().numberOfSites;
+        this.num_sites = this.hstore_site.getCatalogContext().numberOfSites;
         this.channels = new HStoreService[this.num_sites];
         
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + hstore_site.getLocalPartitionIds());
@@ -786,7 +789,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                  ts.getBasePartition()));
         assert(request.hasResult()) :
             String.format("No WorkResults in %s for %s", request.getClass().getSimpleName(), ts);
-        int site_id = hstore_site.getSiteIdForPartitionId(ts.getBasePartition());
+        int site_id = catalogContext.getSiteIdForPartitionId(ts.getBasePartition());
         assert(site_id != this.local_site_id);
         
         ProtoRpcController controller = ts.getTransactionPrefetchController(request.getSourcePartition());
@@ -862,7 +865,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param partition
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
-        int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
+        int dest_site_id = catalogContext.getSiteIdForPartitionId(partition);
         if (debug.get()) {
             LOG.debug(String.format("Redirecting transaction request to partition #%d on %s",
                                     partition, HStoreThreadManager.formatSiteName(dest_site_id)));

@@ -31,7 +31,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -55,7 +54,6 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
@@ -369,16 +367,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final int local_partition_reverse[];
     
-    /**
-     * PartitionId -> SiteId
-     */
-    private final int partition_site_xref[];
-    
-    /**
-     * PartitionId -> Singleton set of that PartitionId
-     */
-    private final PartitionSet single_partition_sets[];
-    
     // ----------------------------------------------------------------------------
     // TRANSACTION ESTIMATION
     // ----------------------------------------------------------------------------
@@ -439,7 +427,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions_arr = new Integer[num_local_partitions];
         this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.single_partition_sets = new PartitionSet[num_partitions];
         
         // Get the hasher we will use for this HStoreSite
         this.hasher = ClassUtil.newInstance(hstore_conf.global.hasherClass,
@@ -479,12 +466,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.local_partition_offsets[partition] = offset;
             this.local_partition_reverse[offset] = partition; 
             this.local_partitions_arr[offset] = partition;
-            this.single_partition_sets[partition] = new PartitionSet(Collections.singleton(partition));
             offset++;
-        } // FOR
-        this.partition_site_xref = new int[num_partitions];
-        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_site)) {
-            this.partition_site_xref[catalog_part.getId()] = ((Site)catalog_part.getParent()).getId();
         } // FOR
         
         // Object Pools
@@ -831,25 +813,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public boolean isLocalPartition(int partition) {
         return (this.local_partition_offsets[partition] != -1);
-    }
-    
-    /**
-     * Return the site id for the given partition
-     * @param partition_id
-     * @return
-     * TODO: Moved to CatalogContext
-     */
-    public int getSiteIdForPartitionId(int partition_id) {
-        return (this.partition_site_xref[partition_id]);
-    }
-    
-    /**
-     * Return a Collection that only contains the given partition id
-     * @param partition
-     * TODO: Moved to CatalogContext
-     */
-    public PartitionSet getSingletonPartitionList(int partition) {
-        return (this.single_partition_sets[partition]);
     }
     
     // ----------------------------------------------------------------------------
@@ -1888,6 +1851,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * If speculative execution is enabled, then we'll notify each the PartitionExecutors
      * for the listed partitions that it is done. This will cause all the 
      * that are blocked on this transaction to be released immediately and queued 
+     * If the second PartitionSet in the arguments is not null, it will be updated with
+     * the partitionIds that we called PREPARE on for this transaction 
      * @param txn_id
      * @param partitions
      * @param updated
@@ -1905,12 +1870,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         int spec_cnt = 0;
-        for (Integer p : partitions) {
-            if (this.local_partition_offsets[p.intValue()] == -1) continue;
+        for (int p : partitions) {
+            if (this.local_partition_offsets[p] == -1) continue;
+            
+            // Skip if we've already invoked prepared for this txn at this partition
+            if (ts != null && ts.markPrepared(p) == false) {
+                if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
+                continue;
+            }
             
             // Always tell the queue stuff that the transaction is finished at this partition
-            if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
-            this.txnQueueManager.lockFinished(txn_id, Status.OK, p.intValue());
+            if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d",
+                                           txn_id, p));
+            this.txnQueueManager.lockFinished(txn_id, Status.OK, p);
             
             // TODO: If this txn is read-only, then we should invoke finish right here
             // Because this txn didn't change anything at this partition, we should
@@ -1922,12 +1894,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Berstein's book says that most systems don't actually do this because a txn may 
             // need to execute triggers... but since we don't have any triggers we can do it!
             // More Info: https://github.com/apavlo/h-store/issues/31
-            
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
             if (ts != null && hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("Telling partition %d to enable speculative execution because of txn #%d", p, txn_id));
-                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts);
+                if (d) LOG.debug(String.format("%s - Telling partition %d to enable speculative execution because of txn #%d",
+                                               ts, p));
+                boolean ret = this.executors[p].enableSpeculativeExecution(ts);
                 if (d && ret) {
                     spec_cnt++;
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
@@ -1935,10 +1907,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             if (updated != null) updated.add(p);
             if (callback != null) callback.decrementCounter(1);
-
         } // FOR
         if (d && spec_cnt > 0)
-            LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+            LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d",
+                                    spec_cnt, txn_id));
     }
     
     /**

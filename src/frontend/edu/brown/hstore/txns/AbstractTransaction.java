@@ -146,6 +146,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     // TODO(pavlo): Document what these arrays are and how the offsets are calculated
     
+    private final boolean prepared[];
     private final boolean finished[];
     private final long last_undo_token[];
     protected final RoundState round_state[];
@@ -175,6 +176,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.hstore_site = hstore_site;
         
         int numLocalPartitions = hstore_site.getLocalPartitionIdArray().length;
+        this.prepared = new boolean[numLocalPartitions];
         this.finished = new boolean[numLocalPartitions];
         this.last_undo_token = new long[numLocalPartitions];
         this.round_state = new RoundState[numLocalPartitions];
@@ -259,6 +261,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
+            this.prepared[i] = false;
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
@@ -646,9 +649,34 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
+     * Mark this txn as prepared and return the original value
+     * This is a thread-safe operation
+     * @param partition - The partition to mark this txn as "prepared"
+     */
+    public boolean markPrepared(int partition) {
+        if (d) LOG.debug(String.format("%s - Marking as prepared on partition %d %s [hashCode=%d, offset=%d]",
+                                       this, partition, Arrays.toString(this.prepared),
+                                       this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
+        boolean orig = false;
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        synchronized (this.prepared) {
+            orig = this.prepared[offset];
+            this.prepared[offset] = true;
+        } // SYNCH
+        return (orig);
+    }
+    /**
+     * Is this TransactionState marked as prepared
+     * @return
+     */
+    public boolean isPrepared(int partition) {
+        return (this.prepared[hstore_site.getLocalPartitionOffset(partition)]);
+    }
+    
+    /**
      * Mark this txn as finished (and thus ready for clean-up)
      */
-    public void setFinishedEE(int partition) {
+    public void markFinished(int partition) {
         if (d) LOG.debug(String.format("%s - Marking as finished on partition %d %s [hashCode=%d, offset=%d]",
                                        this, partition, Arrays.toString(this.finished),
                                        this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
@@ -658,7 +686,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isFinishedEE(int partition) {
+    public boolean isFinished(int partition) {
         return (this.finished[hstore_site.getLocalPartitionOffset(partition)]);
     }
 

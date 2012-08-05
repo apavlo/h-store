@@ -9,9 +9,9 @@ import edu.brown.oltpgenerator.AbstractBenchmark.RandomGenerator.AbstractRandomG
 
 public abstract class AbstractClient extends BenchmarkComponent
 {
-    private AbstractTransaction[] m_xacts;
+    private AbstractTransactionTemplate[] m_xacts;
 
-    private AbstractTransaction   m_xactToInvoke;
+    private AbstractTransactionTemplate   m_xactToInvoke;
 
     private ProcedureCallback     m_callBack    = new ProcedureCallback()
                                                 {
@@ -42,9 +42,9 @@ public abstract class AbstractClient extends BenchmarkComponent
         initIndicesTable(m_xacts);
     }
 
-    protected abstract AbstractTransaction[] getTransactions();
+    protected abstract AbstractTransactionTemplate[] getTransactions();
 
-    private void initIndicesTable(AbstractTransaction[] xacts)
+    private void initIndicesTable(AbstractTransactionTemplate[] xacts)
     {
         m_tblIndices = new int[100];
         int i = 0;
@@ -54,7 +54,7 @@ public abstract class AbstractClient extends BenchmarkComponent
         }
 
         i = 0;
-        for (AbstractTransaction xact : xacts)
+        for (AbstractTransactionTemplate xact : xacts)
         {
             for (int cnt = 0, idx = xact.getIndex(); cnt < xact.getProbability(); cnt++)
             {
@@ -93,7 +93,7 @@ public abstract class AbstractClient extends BenchmarkComponent
         }
     }
 
-    private AbstractTransaction pickTransaction()
+    private AbstractTransactionTemplate pickTransaction()
     {
         int idxXact;
         while (NO_TRASACTION == m_tblIndices[(idxXact = RandUtil.randInt(0, 99))])

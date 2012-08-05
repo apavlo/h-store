@@ -160,7 +160,7 @@ public class MapReduceTransaction extends LocalTransaction {
             this.local_txns[offset].init(this.txn_id,
                                          this.client_handle,
                                          partition,
-                                         hstore_site.getSingletonPartitionList(partition),
+                                         hstore_site.getCatalogContext().getPartitionSetSingleton(partition),
                                          this.predict_readOnly,
                                          this.predict_abortable,
                                          catalog_proc,
@@ -195,14 +195,14 @@ public class MapReduceTransaction extends LocalTransaction {
     }
 
     public MapReduceTransaction init(Long txn_id,
-                                      long client_handle,
-                                      int base_partition,
-                                      Procedure catalog_proc,
-                                      ParameterSet params) {
+                                     long client_handle,
+                                     int base_partition,
+                                     Procedure catalog_proc,
+                                     ParameterSet params) {
         this.init(txn_id,
                   client_handle,
                   base_partition,
-                  hstore_site.getAllPartitionIds(),
+                  hstore_site.getCatalogContext().getAllPartitionIdCollection(),
                   false,
                   true,
                   catalog_proc,

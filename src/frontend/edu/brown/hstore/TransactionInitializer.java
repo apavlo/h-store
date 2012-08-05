@@ -532,7 +532,7 @@ public class TransactionInitializer {
             // TODO: It would be nice if the client could pass us a hint when loading the tables
             // It would be just for the loading, and not regular transactions
             if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
-                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             } else {
                 predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
@@ -555,7 +555,7 @@ public class TransactionInitializer {
             if (d) LOG.debug(String.format("Using the catalog information to determine whether the %s transaction is single-partitioned [clientHandle=%d, singleP=%s]",
                                             catalog_proc.getName(), ts.getClientHandle(), catalog_proc.getSinglepartition()));
             if (catalog_proc.getSinglepartition()) {
-                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             } else {
                 predict_partitions = catalogContext.getAllPartitionIdCollection();
             }
@@ -569,7 +569,7 @@ public class TransactionInitializer {
             if (this.fixed_estimator != null)
                 predict_partitions = this.fixed_estimator.initializeTransaction(catalog_proc, params.toArray());
             if (predict_partitions == null)
-                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
         }    
         
         // -------------------------------
@@ -653,7 +653,7 @@ public class TransactionInitializer {
             if (hstore_conf.site.exec_force_singlepartitioned) {
                 if (d) LOG.debug(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                                                catalog_proc.getName(), base_partition, ts.getClientHandle()));
-                predict_partitions = this.hstore_site.getSingletonPartitionList(base_partition);
+                predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             }
             // -------------------------------
             // FORCE MULTI-PARTITIONED
