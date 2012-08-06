@@ -725,11 +725,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         // Make sure that we call tick() every 1 sec
-        Runnable tickRunnable = new Runnable() {
-            @Override
-            public void run() { PartitionExecutor.this.tick(); }
-        };
-        hstore_site.getThreadManager().schedulePeriodicWork(tickRunnable, 0, 1100, TimeUnit.MILLISECONDS);
+//        Runnable tickRunnable = new Runnable() {
+//            @Override
+//            public void run() { PartitionExecutor.this.tick(); }
+//        };
+//        hstore_site.getThreadManager().schedulePeriodicWork(tickRunnable, 0, 1002, TimeUnit.MILLISECONDS);
         
         // Initialize all of our VoltProcedures handles
         // We will need one per stored procedure at this partition
@@ -807,6 +807,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 this.processInternalMessage(work);
                 if (hstore_conf.site.exec_profiling && this.profiler.exec_time.isStarted()) this.profiler.exec_time.stop();
                 if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
+                this.tick();
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
@@ -1068,6 +1069,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     private boolean utilityWork() {
         if (hstore_conf.site.exec_profiling) this.profiler.util_time.start();
         if (t) LOG.trace("Entering utilityWork");
+        
+        this.tick();
         
         InternalMessage work = null;
         
