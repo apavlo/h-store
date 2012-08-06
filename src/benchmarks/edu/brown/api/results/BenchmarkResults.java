@@ -173,14 +173,37 @@ public class BenchmarkResults {
         return (responseStatuses);
     }
 
-    public Result[] getResultsForClientAndTransaction(String clientName, String transactionName) {
+    public List<Integer> getLatenciesForClient(String clientName) {
+        List<Integer> latencies = new ArrayList<Integer>();
+        SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
+        if (clientResults == null) return (latencies);
+        for (List<Result> results : clientResults.values()) {
+            for (Result r : results) {
+                latencies.addAll(r.latencies);
+            } // FOR
+        } // FOR
+        return (latencies);
+    }
+    
+    public List<Integer> getLatenciesForTransaction(String txnName) {
+        List<Integer> latencies = new ArrayList<Integer>();
+        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+            if (clientResults.containsKey(txnName) == false) continue;
+            for (Result r : clientResults.get(txnName)) {
+                latencies.addAll(r.latencies);
+            } // FOR
+        } // FOR
+        return (latencies);
+    }
+    
+    public Result[] getResultsForClientAndTransaction(String clientName, String txnName) {
         int intervals = getCompletedIntervalCount();
         
         Map<String, List<Result>> txnResults = m_data.get(clientName);
-        List<Result> results = txnResults.get(transactionName);
+        List<Result> results = txnResults.get(txnName);
         assert(results != null) :
             String.format("Null results for txn '%s' from client '%s'\n%s",
-                          transactionName, clientName, StringUtil.formatMaps(txnResults));
+                          txnName, clientName, StringUtil.formatMaps(txnResults));
         
         long txnsTillNow = 0;
         Result[] retval = new Result[intervals];
