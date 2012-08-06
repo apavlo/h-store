@@ -51,6 +51,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -305,6 +306,7 @@ public class LocalTransaction extends AbstractTransaction {
                                       Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
+        this.initiateTime = EstTime.currentTimeMillis();
         boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
         if (predict_singlePartition == false) {
             this.dtxnState = new DistributedState(hstore_site).init(this);
@@ -342,9 +344,9 @@ public class LocalTransaction extends AbstractTransaction {
             public void run(ClientResponseImpl parameter) {}
         };
         return this.testInit(txn_id,
-                              base_partition,
-                              predict_touchedPartitions,
-                              catalog_proc);
+                             base_partition,
+                             predict_touchedPartitions,
+                             catalog_proc);
     }
     
     @Override
