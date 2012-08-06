@@ -42,13 +42,21 @@ import edu.brown.utils.TableUtil;
  * @author pavlo
  */
 public class ResultsPrinter implements BenchmarkInterest {
-
+//
+//    private static final String COL_HEADERS[] = {
+//        "", // NAME
+//        "", // TOTAL
+//        "", // TOTAL %
+//        "THROUGHPUT",
+//        "LATENCY",
+//    };
+//    
     private static final String COL_FORMATS[] = {
         "%23s:",
-        "%10d total",
+        "%8d total",
         "(%5.1f%%)",
         "%8.2f txn/s",
-        "%.02f ms",
+        "%8.2f ms latency",
     };
     
     private static final String RESULT_FORMAT = "%.2f";
@@ -103,7 +111,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         m.put("Execution Time", String.format("%d ms", fr.getDuration()));
         m.put("Total Transactions", fr.getTotalTxnCount());
         m.put("Throughput", throughput.toString()); 
-        m.put("Mean Latency", latencies.toString());
+        m.put("Latency", latencies.toString());
         sb.append(StringUtil.formatMaps(m));
         sb.append("\n");
 
@@ -116,6 +124,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
+//        rows[row_idx++] = COL_HEADERS;
         for (String txnName : txnNames) {
             EntityResult er = fr.getTransactionResult(txnName);
             assert(er != null);
@@ -194,11 +203,14 @@ public class ResultsPrinter implements BenchmarkInterest {
         long totalTxnCount = p.getFirst();
         long txnDelta = p.getSecond();
         
-        double avgLatency = 0d;
+        double intervalLatency = 0d;
+        double totalLatency = 0d;
         if (this.output_latencies) {
-            Histogram<Integer> latencies = results.getAllLatencies();
-            Collection<Integer> allLatencies = latencies.weightedValues();
-            avgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+            Collection<Integer> latencies = results.getLastLatencies().weightedValues();
+            intervalLatency = MathUtil.sum(latencies) / (double)latencies.size();
+            
+            latencies = results.getAllLatencies().weightedValues();
+            totalLatency = MathUtil.sum(latencies) / (double)latencies.size();
         }
 
         int pollIndex = results.getCompletedIntervalCount();
@@ -217,7 +229,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",
                                 txnDelta, txnDelta / (double)(results.getIntervalDuration()) * 1000d));
         if (this.output_latencies) {
-            sb.append(String.format(" with avg latency of " + RESULT_FORMAT + " ms", avgLatency));
+            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));
         }
         
         sb.append("\n" + SPACER);
@@ -225,7 +237,10 @@ public class ResultsPrinter implements BenchmarkInterest {
         sb.append("\n" + SPACER + SPACER);
         sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",
                                 totalTxnCount, totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000d));
-
+        if (this.output_latencies) {
+            sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", totalLatency));
+        }
+        
         System.out.println(sb);
         System.out.flush();
     }

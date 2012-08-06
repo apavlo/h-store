@@ -185,6 +185,17 @@ public class BenchmarkResults {
         return (latencies);
     }
     
+    public Histogram<Integer> getLastLatencies() {
+        Histogram<Integer> latencies = new Histogram<Integer>();
+        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+            for (List<Result> txnResults : clientResults.values()) {
+                Result r = CollectionUtil.last(txnResults);
+                if (r != null) latencies.put(r.latencies);
+            } // FOR
+        } // FOR
+        return (latencies);
+    }
+    
     public Histogram<Integer> getLatenciesForClient(String clientName) {
         Histogram<Integer> latencies = new Histogram<Integer>();
         SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
@@ -260,10 +271,14 @@ public class BenchmarkResults {
                 
                 for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
                     for (List<Result> txnResults : clientResults.values()) {
-                        Result last = CollectionUtil.last(txnResults);
+                        // Get previous result
                         int num_results = txnResults.size();
-                        long delta = last.transactionCount - (num_results > 1 ? txnResults.get(num_results-2).transactionCount : 0);
-                        totalTxnCount += last.transactionCount;
+                        long prevTxnCount = (num_results > 1 ? txnResults.get(num_results-2).transactionCount : 0);
+                        
+                        // Get current result
+                        Result current = CollectionUtil.last(txnResults);
+                        long delta = current.transactionCount - prevTxnCount;
+                        totalTxnCount += current.transactionCount;
                         txnDelta += delta;
                     } // FOR
                 } // FOR
