@@ -1390,7 +1390,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Include latency measurements in output.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
         public boolean output_latencies;

@@ -660,7 +660,7 @@ public class MarkovCostModel extends AbstractCostModel {
 
                 // For each partition that we don't touch here, we want to
                 // increase their idle counter
-                this.idle_partition_ctrs.putAll(this.all_partitions);
+                this.idle_partition_ctrs.put(this.all_partitions);
             } // FOR
             last_est_idx = stop;
             touched_partitions.addAll(new_touched_partitions);
@@ -983,9 +983,9 @@ public class MarkovCostModel extends AbstractCostModel {
                                 penalty_groups.add(p.getGroup());
                                 penalties.add(p);
                             } // FOR
-                            proc_h.putAll(penalty_groups);
-                            optimizations_h.putAll(penalty_groups);
-                            penalties_h.putAll(penalties);
+                            proc_h.put(penalty_groups);
+                            optimizations_h.put(penalty_groups);
+                            penalties_h.put(penalties);
                             missed_h.put(catalog_proc);
                         } else {
                             accurate_h.put(catalog_proc);
@@ -1012,8 +1012,8 @@ public class MarkovCostModel extends AbstractCostModel {
         for (int i = 0; i < num_threads; i++) {
             for (int p = 0; p < num_partitions; p++) {
                 MarkovCostModel mc = thread_costmodels[i][p];
-                fastpath_h.putHistogram(mc.fast_path_counter);
-                fullpath_h.putHistogram(mc.full_path_counter);
+                fastpath_h.put(mc.fast_path_counter);
+                fullpath_h.put(mc.full_path_counter);
                 total_time.appendTime(profilers[i]);
             }
         } // FOR

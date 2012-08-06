@@ -67,6 +67,12 @@ public abstract class StringUtil {
     private static final String HEADER_MARKER = "-";
     private static final int HEADER_LENGTH = 80;
     
+    /** Unicode Up Arrow Character */
+    public static final String UNICODE_UP_ARROW = "\u25B2";
+    
+    /** Unicode Down Arrow Character */
+    public static final String UNICODE_DOWN_ARROW = "\u25BC";
+    
     
     /**
      * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5

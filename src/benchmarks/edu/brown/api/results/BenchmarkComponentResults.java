@@ -3,9 +3,7 @@ package edu.brown.api.results;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -19,12 +17,16 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
+/**
+ * Raw results collected for each BenchmarkComponent instance
+ * @author pavlo
+ */
 public class BenchmarkComponentResults implements JSONSerializable {
 
     public FastIntHistogram transactions;
     
     private boolean enableLatencies = false;
-    public Map<Integer, List<Integer>> latencies;
+    public final Map<Integer, Histogram<Integer>> latencies = new HashMap<Integer, Histogram<Integer>>();
     
     private boolean enableBasePartitions = false;
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
@@ -42,22 +44,21 @@ public class BenchmarkComponentResults implements JSONSerializable {
     }
     
     public BenchmarkComponentResults copy() {
-        BenchmarkComponentResults copy = null;
-        if (this.transactions != null) {
-            copy = new BenchmarkComponentResults(this.transactions.fastSize());
-            copy.transactions.putHistogram(this.transactions);
-        } else {
-            copy = new BenchmarkComponentResults();
-        }
+        final BenchmarkComponentResults copy = new BenchmarkComponentResults(this.transactions.fastSize());
+        copy.transactions.setDebugLabels(this.transactions.getDebugLabels());
+        copy.transactions.put(this.transactions);
         copy.enableLatencies = this.enableLatencies;
-        copy.latencies = new HashMap<Integer, List<Integer>>();
-        for (Entry<Integer, List<Integer>> e : this.latencies.entrySet()) {
-            copy.latencies.put(e.getKey(), new ArrayList<Integer>(e.getValue()));
+        copy.latencies.clear();
+        for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
+            copy.latencies.put(e.getKey(), new Histogram<Integer>(e.getValue()));
         } // FOR
         
         copy.enableBasePartitions = this.enableBasePartitions;
-        copy.basePartitions.putHistogram(this.basePartitions);
+        copy.basePartitions.put(this.basePartitions);
+        
         copy.enableResponseStatuses = this.enableResponseStatuses;
+        copy.responseStatuses.put(this.responseStatuses);
+        
         return (copy);
     }
     
@@ -65,9 +66,6 @@ public class BenchmarkComponentResults implements JSONSerializable {
         return (this.enableLatencies);
     }
     public void setEnableLatencies(boolean val) {
-        if (val && this.latencies == null) {
-            this.latencies = new HashMap<Integer, List<Integer>>();
-        }
         this.enableLatencies = val;
     }
     
@@ -85,16 +83,13 @@ public class BenchmarkComponentResults implements JSONSerializable {
         this.enableResponseStatuses = val;
     }
     
-    public void clear() {
-        if (this.transactions != null) {
+    public void clear(boolean includeTxns) {
+        if (includeTxns && this.transactions != null) {
             this.transactions.clearValues();
         }
-        if (this.enableBasePartitions) {
-            this.basePartitions.clearValues();
-        }
-        if (this.enableResponseStatuses) {
-            this.responseStatuses.clearValues();
-        }
+        this.latencies.clear();
+        this.basePartitions.clearValues();
+        this.responseStatuses.clearValues();
     }
     
     // ----------------------------------------------------------------------------
@@ -124,7 +119,9 @@ public class BenchmarkComponentResults implements JSONSerializable {
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        this.latencies.clear();
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
                 JSONUtil.getSerializableFields(this.getClass()));
+        assert(this.transactions != null);
     }
 } // END CLASS

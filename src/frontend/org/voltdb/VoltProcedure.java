@@ -651,7 +651,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             } else if (ex_class.equals(MispredictionException.class)) {
                 if (d) LOG.warn("Caught MispredictionException for " + this.m_currentTxnState);
                 this.status = Status.ABORT_MISPREDICT;
-                this.m_localTxnState.getTouchedPartitions().putHistogram((((MispredictionException)ex).getPartitions()));
+                this.m_localTxnState.getTouchedPartitions().put((((MispredictionException)ex).getPartitions()));
                 
             // -------------------------------
             // EvictedTupleAccessException

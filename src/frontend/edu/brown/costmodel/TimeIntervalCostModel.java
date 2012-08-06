@@ -406,7 +406,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 if (trace.get())
                     LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
                 for (long ii = num_txns; ii < total_txns_in_interval; ii++) {
-                    missing_txn_histogram[i].putAll(all_partitions);
+                    missing_txn_histogram[i].put(all_partitions);
                 } // WHILE
             }
 
@@ -459,7 +459,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         for (int i = 0; i < this.num_intervals; i++) {
             Histogram<Integer> histogram_txn = this.cost_models[i].getTxnPartitionAccessHistogram();
             Histogram<Integer> histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
-            this.histogram_query_partitions.putHistogram(histogram_query);
+            this.histogram_query_partitions.put(histogram_query);
             long num_queries = this.cost_models[i].query_ctr.get();
             this.query_ctr.addAndGet(num_queries);
 
@@ -470,7 +470,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 LOG.error("Transaction Entries: " + inner_costModel.getTransactionCacheEntries().size());
                 Histogram<Integer> check = new Histogram<Integer>();
                 for (TransactionCacheEntry tce : inner_costModel.getTransactionCacheEntries()) {
-                    check.putAll(tce.getTouchedPartitions());
+                    check.put(tce.getTouchedPartitions());
                     // LOG.error(tce.debug() + "\n");
                 }
                 LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", values=" + check.getValueCount());
@@ -491,8 +491,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     + "(histogram_txn[%d] + exec_mismatch_ctrs[%d])", i, partitions_touched[i], singlepartition_with_partitions_ctrs[i], this.cost_models[i].getTxnPartitionAccessHistogram()
                     .getSampleCount(), exec_mismatch_ctrs[i]);
 
-            this.histogram_java_partitions.putHistogram(this.cost_models[i].getJavaExecutionHistogram());
-            this.histogram_txn_partitions.putHistogram(histogram_txn);
+            this.histogram_java_partitions.put(this.cost_models[i].getJavaExecutionHistogram());
+            this.histogram_txn_partitions.put(histogram_txn);
             long num_txns = this.cost_models[i].txn_ctr.get();
             assert (num_txns >= 0) : "The transaction counter at interval #" + i + " is " + num_txns;
             this.txn_ctr.addAndGet(num_txns);
@@ -504,7 +504,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             //      I guess the cost just needs to be zero?
             // XXX: What histogram do we want to use?
             target_histogram.clear();
-            target_histogram.putHistogram(histogram_txn);
+            target_histogram.put(histogram_txn);
 
             // For each txn that we haven't gotten an estimate for at this interval, 
             // we're going mark it as being broadcast to all partitions. That way the access
@@ -520,9 +520,9 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
             // Merge the values from incomplete histogram into the target
             // histogram
-            target_histogram.putHistogram(incomplete_txn_histogram[i]);
-            target_histogram.putHistogram(missing_txn_histogram[i]);
-            exec_histogram[i].putHistogram(missing_txn_histogram[i]);
+            target_histogram.put(incomplete_txn_histogram[i]);
+            target_histogram.put(missing_txn_histogram[i]);
+            exec_histogram[i].put(missing_txn_histogram[i]);
 
             long num_elements = target_histogram.getSampleCount();
 
@@ -690,7 +690,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 if (base_partition != null) {
                     exec_histogram[i].put(base_partition, txn_weight);
                 } else {
-                    exec_histogram[i].putAll(all_partitions, txn_weight);
+                    exec_histogram[i].put(all_partitions, txn_weight);
                 }
                 if (debug.get()) { // &&
                                    // txn_trace.getCatalogItemName().equalsIgnoreCase("DeleteCallForwarding"))
@@ -724,7 +724,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // Update the histogram for this interval to keep track of
                     // how many times we need to
                     // increase the partition access histogram
-                    incomplete_txn_histogram[i].putAll(tmp_missingPartitions, txn_weight);
+                    incomplete_txn_histogram[i].put(tmp_missingPartitions, txn_weight);
                     if (trace.get()) {
                         Map<String, Object> m = new LinkedHashMap<String, Object>();
                         m.put(String.format("Marking %s as incomplete in interval #%d", txn_trace, i), null);

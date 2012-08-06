@@ -65,7 +65,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     public void initImpl() {
         executor.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
         executor.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);
-        this.allPartitionsHistogram.putAll(catalogContext.getAllPartitionIdCollection());
+        this.allPartitionsHistogram.put(catalogContext.getAllPartitionIdCollection());
     }
     
     @Override

@@ -2218,7 +2218,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (d) LOG.debug(String.format("Mispredicted %s has already been aborted once before. " +
                                                "Restarting as all-partition txn [restartCtr=%d, redirectPartition=%d]\n%s",
                                                orig_ts, orig_ts.getRestartCounter(), redirect_partition, touched));
-                touched.putAll(this.local_partitions);
+                touched.put(this.local_partitions);
             }
         }
 

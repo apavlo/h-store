@@ -157,7 +157,7 @@ public class ClientStatusThread extends Thread {
                     // System.out.println("Got running message: " + Arrays.toString(parts));
                     if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
                     
-                    tc.clear();
+                    tc.clear(true);
                     int offset = 1;
                     for (int i = 0; i < 3; i++) {
                         offset += parts[i].length() + 1;
