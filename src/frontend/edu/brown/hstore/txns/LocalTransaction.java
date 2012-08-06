@@ -641,12 +641,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.dtxnState.init_callback.init(this);
         return (this.dtxnState.init_callback);
     }
-    public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
-        assert(this.dtxnState.prepare_callback.isInitialized() == false) :
-            String.format("Trying initialize the %s for %s more than once",
-                          this.dtxnState.prepare_callback.getClass().getSimpleName(), this);
-        this.dtxnState.prepare_callback.init(this);
-        
+    public TransactionPrepareCallback getOrInitTransactionPrepareCallback() {
+        if (this.dtxnState.prepare_callback.isInitialized() == false) {
+            this.dtxnState.prepare_callback.init(this);
+        }
         return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {

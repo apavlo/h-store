@@ -809,10 +809,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Returns true if the given partition id is managed by this HStoreSite
      * @param partition
      * @return
-     * TODO: Moved to CatalogContext
      */
     public boolean isLocalPartition(int partition) {
         return (this.local_partition_offsets[partition] != -1);
+    }
+    /**
+     * Returns true if the given PartitoinSet contains partitions that are all
+     * is managed by this HStoreSite
+     * @param partitions
+     * @return
+     */
+    public boolean isLocalPartitions(PartitionSet partitions) {
+        for (Integer p : partitions) {
+            if (this.local_partition_offsets[p.intValue()] == -1) {
+                return (false);
+            }
+        } // FOR
+        return (true);
     }
     
     // ----------------------------------------------------------------------------

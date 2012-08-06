@@ -2239,7 +2239,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition() == false) {
             PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
             if (new_done != null && new_done.isEmpty() == false) {
-                hstore_coordinator.transactionNotifyDonePartitions(ts, new_done);
+                hstore_coordinator.transactionPrepare(ts, ts.getOrInitTransactionPrepareCallback(), new_done);
             }
         }
 
@@ -3275,7 +3275,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
             ts.setClientResponse(cresponse);
-            TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
+            TransactionPrepareCallback callback = ts.getOrInitTransactionPrepareCallback();
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
