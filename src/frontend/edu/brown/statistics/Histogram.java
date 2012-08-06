@@ -80,15 +80,13 @@ public class Histogram<X> implements JSONSerializable {
         HISTOGRAM,
         NUM_SAMPLES,
         KEEP_ZERO_ENTRIES,
-        MIN_VALUE,
-        MAX_VALUE,
     }
     
     protected VoltType value_type = VoltType.INVALID;
     protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
     protected int num_samples = 0;
-    
     private transient boolean dirty = false;
+    
     protected transient Map<Object, String> debug_names;
     protected transient boolean debug_percentages = false;
     
@@ -96,17 +94,17 @@ public class Histogram<X> implements JSONSerializable {
      * The Min/Max values are the smallest/greatest values we have seen based
      * on some natural ordering
      */
-    protected Comparable<X> min_value;
-    protected Comparable<X> max_value;
+    protected transient Comparable<X> min_value;
+    protected transient Comparable<X> max_value;
     
     /**
      * The Min/Max counts are the values that have the smallest/greatest number of
      * occurrences in the histogram
      */
-    protected long min_count = 0;
-    protected List<X> min_count_values;
-    protected long max_count = 0;
-    protected List<X> max_count_values;
+    protected transient long min_count = 0;
+    protected transient List<X> min_count_values;
+    protected transient long max_count = 0;
+    protected transient List<X> max_count_values;
     
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
@@ -129,7 +127,8 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
-     * Copy Constructor
+     * Copy Constructor.
+     * This is the same as calling putHistogram()
      * @param other
      */
     public Histogram(Histogram<X> other) {
@@ -378,6 +377,22 @@ public class Histogram<X> implements JSONSerializable {
      */
     public Collection<X> values() {
         return (Collections.unmodifiableCollection(this.histogram.keySet()));
+    }
+    
+    /**
+     * Return all the instances of the values stored in the histogram.
+     * This means that if there is a value that has a count of three in the histogram, t
+     * then it will appear three times in the returned collection
+     */
+    public Collection<X> weightedValues() {
+        List<X> all = new ArrayList<X>();
+        for (X x : this.histogram.keySet()) {
+            long cnt = this.get(x, 0l);
+            for (int i = 0; i < cnt; i++) {
+                all.add(x);
+            } // FOR
+        } // FOR
+        return (all);
     }
     
     /**
@@ -843,9 +858,15 @@ public class Histogram<X> implements JSONSerializable {
                         break;
                     }
                     case KEEP_ZERO_ENTRIES: {
-                        if (this.keep_zero_entries)
+                        if (this.keep_zero_entries) {
                             stringer.key(element.name())
                                     .value(this.keep_zero_entries);
+                        }
+                        break;
+                    }
+                    case VALUE_TYPE: {
+                        VoltType vtype = (VoltType)field.get(this); 
+                        stringer.key(element.name()).value(vtype.name());
                         break;
                     }
                     default:
@@ -853,13 +874,11 @@ public class Histogram<X> implements JSONSerializable {
                                 .value(field.get(this));
                 } // SWITCH
             } catch (Exception ex) {
-                ex.printStackTrace();
-                System.exit(1);
+                throw new RuntimeException("Failed to serialize '" + element + "'", ex);
             }
         } // FOR
     }
     
-    @SuppressWarnings("unchecked")
     @Override
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         this.value_type = VoltType.typeFromString(object.get(Members.VALUE_TYPE.name()).toString());
@@ -884,9 +903,12 @@ public class Histogram<X> implements JSONSerializable {
                     for (String key_name : CollectionUtil.iterable(jsonObject.keys())) {
                         Object key_value = VoltTypeUtil.getObjectFromString(this.value_type, key_name);
                         Long count = Long.valueOf(jsonObject.getLong(key_name));
-                        this.histogram.put((X) key_value, count);
+                        @SuppressWarnings("unchecked")
+                        X x = (X)key_value;
+                        this.histogram.put(x, count);
                     } // WHILE
                 } else if (field_name.endsWith("_count_value")) {
+                    @SuppressWarnings("unchecked")
                     Set<Object> set = (Set<Object>) field.get(this);
                     JSONArray arr = object.getJSONArray(element.name());
                     for (int i = 0, cnt = arr.length(); i < cnt; i++) {
