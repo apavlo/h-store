@@ -262,6 +262,7 @@ public class TransactionInitializer {
      * @return
      */
     public MapReduceTransaction createMapReduceTransaction(Long txn_id,
+                                                           long initiateTime,
                                                            long client_handle,
                                                            int base_partition,
                                                            int procId,
@@ -296,7 +297,7 @@ public class TransactionInitializer {
         AbstractTransaction dupe = this.inflight_txns.put(txn_id, ts);
         assert(dupe == null) : "Trying to create multiple transaction handles for " + dupe;
 
-        ts.init(txn_id, client_handle, base_partition, catalog_proc, procParams);
+        ts.init(txn_id, initiateTime, client_handle, base_partition, catalog_proc, procParams);
         if (d) LOG.debug(String.format("Created new MapReduceTransaction state %s from remote partition %d",
                                        ts, base_partition));
         return (ts);
@@ -341,7 +342,8 @@ public class TransactionInitializer {
      * @param clientCallback
      * @return
      */
-    public LocalTransaction createLocalTransaction(ByteBuffer serializedRequest, 
+    public LocalTransaction createLocalTransaction(ByteBuffer serializedRequest,
+                                                   long initiateTime,
                                                    long client_handle,
                                                    int base_partition,
                                                    Procedure catalog_proc,
@@ -374,6 +376,7 @@ public class TransactionInitializer {
         
         // Initialize our LocalTransaction handle
         this.populateProperties(ts,
+                                initiateTime,
                                 client_handle,
                                 base_partition,
                                 catalog_proc,
@@ -440,6 +443,7 @@ public class TransactionInitializer {
         
         Long new_txn_id = this.registerTransaction(new_ts, base_partition);
         new_ts.init(new_txn_id,
+                    orig_ts.getInitiateTime(),
                     orig_ts.getClientHandle(),
                     base_partition,
                     predict_touchedPartitions,
@@ -504,6 +508,7 @@ public class TransactionInitializer {
      * @param client_callback
      */
     protected void populateProperties(LocalTransaction ts,
+                                      long initiateTime,
                                       long client_handle,
                                       int base_partition,
                                       Procedure catalog_proc,
@@ -537,10 +542,9 @@ public class TransactionInitializer {
             if (catalog_proc.getSinglepartition() && catalog_proc.getEverysite() == false) {
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             } else {
-                predict_partitions = catalogContext.getAllPartitionIdCollection();
+                predict_partitions = catalogContext.getAllPartitionIds();
             }
         }
-        
         // -------------------------------
         // MAPREDUCE TRANSACTIONS
         // -------------------------------
@@ -548,9 +552,8 @@ public class TransactionInitializer {
             // MapReduceTransactions always need all partitions
             if (d) LOG.debug(String.format("New request is for MapReduce %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            catalog_proc.getName(), ts.getClientHandle()));
-            predict_partitions = catalogContext.getAllPartitionIdCollection();
+            predict_partitions = catalogContext.getAllPartitionIds();
         }
-        
         // -------------------------------
         // VOLTDB @PROCINFO
         // -------------------------------
@@ -560,10 +563,9 @@ public class TransactionInitializer {
             if (catalog_proc.getSinglepartition()) {
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
             } else {
-                predict_partitions = catalogContext.getAllPartitionIdCollection();
+                predict_partitions = catalogContext.getAllPartitionIds();
             }
         }
-        
         // -------------------------------
         // FIXED ESTIMATORS
         // -------------------------------
@@ -574,7 +576,6 @@ public class TransactionInitializer {
             if (predict_partitions == null)
                 predict_partitions = catalogContext.getPartitionSetSingleton(base_partition);
         }    
-        
         // -------------------------------
         // MARKOV ESTIMATORS
         // -------------------------------
@@ -641,7 +642,7 @@ public class TransactionInitializer {
                     LOG.warn("WROTE MARKOVGRAPH: " + t_state.dumpMarkovGraph());
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_partitions = catalogContext.getAllPartitionIdCollection();
+                predict_partitions = catalogContext.getAllPartitionIds();
                 predict_readOnly = false;
                 predict_abortable = true;
             } finally {
@@ -662,7 +663,7 @@ public class TransactionInitializer {
             // FORCE MULTI-PARTITIONED
             // -------------------------------
             else {
-                predict_partitions = catalogContext.getAllPartitionIdCollection();
+                predict_partitions = catalogContext.getAllPartitionIds();
             }
         }
         assert(predict_partitions != null);
@@ -673,6 +674,7 @@ public class TransactionInitializer {
         // -------------------------------
         
         ts.init(txn_id,
+                initiateTime,
                 client_handle,
                 base_partition,
                 predict_partitions,

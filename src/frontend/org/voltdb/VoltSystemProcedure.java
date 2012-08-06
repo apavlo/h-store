@@ -168,7 +168,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             int partitions[] = null;
             if (pf.destPartitionId < 0) {
                 if (pf.multipartition) {
-                    partitions = CollectionUtil.toIntArray(catalogContext.getAllPartitionIdCollection());
+                    partitions = CollectionUtil.toIntArray(catalogContext.getAllPartitionIds());
                 }
                 // If it's not multipartitioned and they still don't have a destPartitionId,
                 // then we'll make it just go to this PartitionExecutor's local partition

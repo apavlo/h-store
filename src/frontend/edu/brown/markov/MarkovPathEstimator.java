@@ -165,7 +165,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         super(markov);
         this.num_partitions = t_estimator.getCatalogContext().numberOfPartitions;
         this.estimate = new MarkovEstimate(this.num_partitions);
-        this.all_partitions = t_estimator.getCatalogContext().getAllPartitionIdCollection();
+        this.all_partitions = t_estimator.getCatalogContext().getAllPartitionIds();
 
         this.init(markov, t_estimator, base_partition, args);
     }

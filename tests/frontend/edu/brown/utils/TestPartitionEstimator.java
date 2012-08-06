@@ -390,7 +390,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         
         partitions.clear();
         p_estimator.getAllPartitions(partitions, catalog_stmt, params, BASE_PARTITION);
-        PartitionSet all_partitions = new_catalogContext.getAllPartitionIdCollection();
+        PartitionSet all_partitions = new_catalogContext.getAllPartitionIds();
         assertNotNull(partitions);
         assertEquals(all_partitions.size(), partitions.size());
     }

@@ -51,7 +51,6 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.utils.EstTime;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -243,6 +242,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction init(Long txn_id,
+                                 long initiateTime,
                                  long clientHandle,
                                  int base_partition,
                                  PartitionSet predict_touchedPartitions,
@@ -255,15 +255,14 @@ public class LocalTransaction extends AbstractTransaction {
         assert(predict_touchedPartitions.isEmpty() == false);
         assert(catalog_proc != null) : "Unexpected null Procedure catalog handle";
         
-        this.initiateTime = EstTime.currentTimeMillis();
+        this.initiateTime = initiateTime;
         this.catalog_proc = catalog_proc;
         this.client_callback = client_callback;
         this.parameters = params;
         this.mapreduce = catalog_proc.getMapreduce();
         
         // Initialize the predicted execution properties for this transaction
-//        this.predict_touchedPartitions = PartitionSet.umodifiable(predict_touchedPartitions);
-         this.predict_touchedPartitions = predict_touchedPartitions;
+        this.predict_touchedPartitions = predict_touchedPartitions;
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         

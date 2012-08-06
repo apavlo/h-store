@@ -197,6 +197,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * All of the partitions in the cluster
      */
+    @Deprecated
     private final PartitionSet all_partitions;
 
     /**
@@ -417,7 +418,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.site_id = this.catalog_site.getId();
         this.site_name = HStoreThreadManager.getThreadName(this.site_id, null);
         
-        this.all_partitions = catalogContext.getAllPartitionIdCollection();
+        this.all_partitions = catalogContext.getAllPartitionIds();
         final int num_partitions = this.all_partitions.size();
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         int num_local_partitions = this.local_partitions.size();
@@ -1463,6 +1464,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // TODO: Write profiling timestamp into StoredProcedureInvocation bytes
         }
+        long timestamp = EstTime.currentTimeMillis();
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         // We don't need to create a StoredProcedureInvocation anymore in order to
@@ -1491,10 +1493,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (catalog_proc == null) {
                 String msg = "Unknown procedure '" + procName + "'";
                 this.responseError(client_handle,
-                                       Status.ABORT_UNEXPECTED,
-                                       msg,
-                                       clientCallback,
-                                       EstTime.currentTimeMillis());
+                                   Status.ABORT_UNEXPECTED,
+                                   msg,
+                                   clientCallback,
+                                   timestamp);
                 return;
             }
         } else {
@@ -1570,12 +1572,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // the models) or whether it is faster to queue things up in the PartitionExecutor
         // and let it be responsible for sorting things out
         if (hstore_conf.site.markov_enable) {
-            LocalTransaction ts = this.txnInitializer.createLocalTransaction(buffer,
-                                                                     client_handle,
-                                                                     base_partition,
-                                                                     catalog_proc,
-                                                                     procParams,
-                                                                     clientCallback);
+            LocalTransaction ts = this.txnInitializer.createLocalTransaction(
+                                            buffer,
+                                            timestamp,
+                                            client_handle,
+                                            base_partition,
+                                            catalog_proc,
+                                            procParams,
+                                            clientCallback);
             this.transactionQueue(ts);
         }
         // We should queue the txn at the proper partition
@@ -1584,6 +1588,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // about this txn...
         else {
             success = executor.queueNewTransaction(buffer,
+                                                   timestamp,
                                                    catalog_proc,
                                                    procParams,
                                                    clientCallback);
@@ -1596,7 +1601,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                    status,
                                    REJECTION_MESSAGE,
                                    clientCallback,
-                                   EstTime.currentTimeMillis());
+                                   timestamp);
             }
         }
 
@@ -1690,8 +1695,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                         catalog_proc.getName()));
                 throw new RuntimeException(ex);
             }
-            ts.init(-1l, client_handle, base_partition,
-                    this.all_partitions, false, true,
+            ts.init(-1l, EstTime.currentTimeMillis(), client_handle, base_partition,
+                    catalogContext.getAllPartitionIds(), false, true,
                     catalog_proc, params, done);
             
             String sql = (String)params.toArray()[0];
@@ -2612,6 +2617,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 	private void processPeriodicWork() {
 	    if (t) LOG.trace("Checking for PeriodicWork...");
 
+	    EstTimeUpdater.update(System.currentTimeMillis());
+	    
 	    if (this.clientInterface != null) {
 	        this.clientInterface.checkForDeadConnections(EstTime.currentTimeMillis());
 	    }

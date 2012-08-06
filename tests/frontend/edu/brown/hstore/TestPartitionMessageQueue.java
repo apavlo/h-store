@@ -57,13 +57,13 @@ public class TestPartitionMessageQueue extends BaseTestCase {
         this.catalog_proc = this.getProcedure(UpdateLocation.class);
         
         this.ts0 = new LocalTransaction(this.hstore_site);
-        this.ts0.testInit(NEXT_TXN_ID++, BASE_PARTITION, catalogContext.getAllPartitionIdCollection(), catalog_proc);
+        this.ts0.testInit(NEXT_TXN_ID++, BASE_PARTITION, catalogContext.getAllPartitionIds(), catalog_proc);
         
         this.ts1 = new LocalTransaction(this.hstore_site);
         this.ts1.testInit(NEXT_TXN_ID++, BASE_PARTITION, new PartitionSet(BASE_PARTITION), catalog_proc);
         
         // Initialize some messages that we can use
-        this.initMsg = new InitializeTxnMessage(mockSerialized, catalog_proc, mockParams, mockCallback);
+        this.initMsg = new InitializeTxnMessage(mockSerialized, System.currentTimeMillis(), catalog_proc, mockParams, mockCallback);
         this.startMsg = new StartTxnMessage(ts1);
         this.workMsg = new WorkFragmentMessage(ts1, mockFragment);
     }

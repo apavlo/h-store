@@ -63,7 +63,7 @@ public class TestBatchPlannerUtil extends BaseTestCase {
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            all_partitions = catalogContext.getAllPartitionIdCollection();
+            all_partitions = catalogContext.getAllPartitionIds();
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);

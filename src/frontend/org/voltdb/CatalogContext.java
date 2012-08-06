@@ -322,7 +322,7 @@ public class CatalogContext {
     /**
      * Return  of all the partition ids in this H-Store database cluster
      */
-    public PartitionSet getAllPartitionIdCollection() {
+    public PartitionSet getAllPartitionIds() {
         return (this.partitionIdCollection);
     }
     

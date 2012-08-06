@@ -227,7 +227,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         
         // Then add all of our partitions to the actual read partitions
         PartitionSet a_read_partitions = costmodel.getLastActualReadPartitions();
-        a_read_partitions.addAll(catalogContext.getAllPartitionIdCollection());
+        a_read_partitions.addAll(catalogContext.getAllPartitionIds());
         
         double cost = costmodel.comparePathsFull(this.txn_state);
         

@@ -211,7 +211,7 @@ public class MarkovCostModel extends AbstractCostModel {
         super(MarkovCostModel.class, catalogContext, p_estimator);
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
-        this.all_partitions = catalogContext.getAllPartitionIdCollection();
+        this.all_partitions = catalogContext.getAllPartitionIds();
 
         assert (this.t_estimator != null) : "Missing TransactionEstimator";
     }
