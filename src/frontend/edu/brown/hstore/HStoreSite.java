@@ -1895,6 +1895,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts != null && ts.markPrepared(p) == false) {
                 // We have to make sure that we decrement the counter here
                 if (callback != null) callback.decrementCounter(1);
+                if (updated != null) updated.add(p);
                 if (d) LOG.debug(String.format("%s - Already marked 2PC:PREPARE at partition %d", ts, p));
                 continue;
             }
