@@ -3,7 +3,6 @@ package edu.brown.api.results;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import edu.brown.api.results.BenchmarkResults.FinalResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONUtil;
