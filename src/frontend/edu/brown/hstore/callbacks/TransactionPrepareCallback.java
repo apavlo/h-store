@@ -22,8 +22,6 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private ClientResponseImpl cresponse;
-    
     /**
      * Constructor
      * @param hstore_site
@@ -32,17 +30,13 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         super(hstore_site);
     }
     
-    public void init(LocalTransaction ts, ClientResponseImpl cresponse) {
-        super.init(ts,
-                   ts.getPredictTouchedPartitions().size(),
-                   ts.getClientCallback());
-        this.cresponse = cresponse;
+    public void init(LocalTransaction ts) {
+        int num_partitions = ts.getPredictTouchedPartitions().size();
+        super.init(ts, num_partitions, ts.getClientCallback());
     }
     
     @Override
     public boolean unblockTransactionCallback() {
-        assert(this.cresponse.isInitialized()) :
-            "Trying to send back ClientResponse for " + ts + " before it was set!";
         if (hstore_conf.site.txn_profiling && this.ts.profiler != null) {
             if (debug.get()) LOG.debug(ts + " - TransactionProfiler.stopPostPrepare() / " + Status.OK);
             this.ts.profiler.stopPostPrepare();
@@ -57,7 +51,10 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         // send the 2PC COMMIT message to all of our friends.
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
-        this.hstore_site.responseSend(this.ts, this.cresponse);
+        ClientResponseImpl cresponse = this.ts.getClientResponse();
+        assert(cresponse.isInitialized()) :
+            "Trying to send back ClientResponse for " + ts + " before it was set!";
+        this.hstore_site.responseSend(this.ts, cresponse);
         return (false);
     }
     
@@ -74,8 +71,9 @@ public class TransactionPrepareCallback extends AbstractTransactionCallback<Clie
         this.finishTransaction(status);
         
         // Change the response's status and send back the result to the client
-        this.cresponse.setStatus(status);
-        this.hstore_site.responseSend(this.ts, this.cresponse);
+        ClientResponseImpl cresponse = this.ts.getClientResponse();
+        cresponse.setStatus(status);
+        this.hstore_site.responseSend(this.ts, cresponse);
         
         return (false);
     }

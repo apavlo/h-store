@@ -2234,27 +2234,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Mark that we touched the local partition once for each query in the batch
         // ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
         
-        // Only notify other partitions that we're done with them if we're not a single-partition transaction
+        // Only notify other partitions that we're done with them if we're not
+        // a single-partition transaction
         if (hstore_conf.site.specexec_enable && ts.isPredictSinglePartition() == false) {
-            // TODO: We need to notify the remote HStoreSites that we are done with their partitions
-            ts.calculateDonePartitions(this.thresholds);
+            PartitionSet new_done = ts.calculateDonePartitions(this.thresholds);
+            if (new_done != null && new_done.isEmpty() == false) {
+                hstore_coordinator.transactionNotifyDonePartitions(ts, new_done);
+            }
         }
 
-        if (t) {
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("Parameters:");
-//            for (int i = 0; i < parameterSets.length; i++) {
-//                sb.append(String.format("\n [%02d] %s", i, parameterSets[i].toString()));
-//            }
-//            LOG.trace(sb.toString());
-            LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
-                     "  fragmentIds:   %s\n" + 
-                     "  fragmentCount: %s\n" +
-                     "  output_depIds: %s\n" +
-                     "  input_depIds:  %s",
-                     ts.getTransactionId(),
-                     Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
-        }
+        if (t) LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
+                                       "  fragmentIds:   %s\n" + 
+                                       "  fragmentCount: %s\n" +
+                                       "  output_depIds: %s\n" +
+                                       "  input_depIds:  %s",
+                                       ts.getTransactionId(),
+                                       Arrays.toString(plan.getFragmentIds()),
+                                       plan.getFragmentCount(),
+                                       Arrays.toString(plan.getOutputDependencyIds()),
+                                       Arrays.toString(plan.getInputDependencyIds())));
         
         // NOTE: There are no dependencies that we need to pass in because the entire batch is single-partitioned
         DependencySet result = this.executePlanFragments(ts,
@@ -2649,9 +2647,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         BitSet done_partitions = ts.getDonePartitions();
         
-        boolean new_done = false;
+        boolean hasNewDone = false;
+        PartitionSet newDone = null;
         if (hstore_conf.site.specexec_enable) {
-            new_done = ts.calculateDonePartitions(this.thresholds);
+            newDone = ts.calculateDonePartitions(this.thresholds); 
+            hasNewDone = (newDone != null && newDone.isEmpty() == false);
         }
         
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
@@ -2756,7 +2756,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
         // TODO: We need to check whether we need to notify other HStoreSites that we didn't send
         // a new FragmentTaskMessage to that we are done with their partitions
-        if (new_done) {
+        if (hasNewDone) {
             
         }
     }
@@ -3266,13 +3266,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             // because the LocalTransaction handle might get cleaned up immediately
             ExecutionMode newMode = null;
             if (hstore_conf.site.specexec_enable) {
-                newMode = (ts.isExecReadOnly(this.partitionId) ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
+                newMode = (ts.isExecReadOnly(this.partitionId) ? ExecutionMode.COMMIT_READONLY :
+                                                                 ExecutionMode.COMMIT_NONE);
             } else {
                 newMode = ExecutionMode.DISABLED;
             }
             this.setExecutionMode(ts, newMode);
             
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
+            ts.setClientResponse(cresponse);
             TransactionPrepareCallback callback = ts.initTransactionPrepareCallback(cresponse);
             assert(callback != null) : 
                 "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
