@@ -230,11 +230,17 @@ public class TransactionInitializer {
         // PartitionEstimator
         // -------------------------------
         else if (hstore_conf.site.exec_force_localexecution == false) {
-            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", catalog_proc.getName()));
-            try {
-                base_partition = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
+            // HACK: If they don't have enough parameters, we'll just throw them to 
+            // a random local partition and then let VoltProcedure give them back the proper error
+            if (procParams.size() < catalog_proc.getParameters().size()) {
+                if (d) LOG.warn(String.format("Not enough parameters for %s. Not calculating base partition", catalog_proc.getName()));
+            } else {
+                if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", catalog_proc.getName()));
+                try {
+                    base_partition = this.p_estimator.getBasePartition(catalog_proc, procParams.toArray(), false);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
         // If we don't have a partition to send this transaction to, then we will just pick

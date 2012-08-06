@@ -507,7 +507,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         return Integer.valueOf(hashCode);
     }
 
-    protected synchronized void registerCallback(EventObserver<ClientResponse> observer) {
+    protected void registerCallback(EventObserver<ClientResponse> observer) {
         if (this.observable == null) {
             this.observable = new EventObservable<ClientResponse>();
         }
@@ -532,6 +532,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.status = Status.OK;
         this.error = null;
         this.status_msg = "";
+        this.m_statusCode = Byte.MIN_VALUE;
+        this.m_statusString = null;
+        
         
         // in case someone queues sql but never calls execute, clear the queue here.
         this.batchQueryStmtIndex = 0;
@@ -614,7 +617,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             } catch (RuntimeException e) {
                 throw new InvocationTargetException(e);
             }
-            if (d) LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
+//            if (d) 
+                LOG.info(this.m_currentTxnState + " is finished on partition " + this.partitionId);
             
         // -------------------------------
         // Exceptions that we can process+handle
@@ -629,9 +633,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                     this.m_localTxnState.setPendingError(new SerializableException(ex), false);
                 }    
                 this.error = (SerializableException)ex;
-            // Otherwise shoot it up the stack like a punk bitch...
-            } else if (ex instanceof AssertionError) {
-                throw (AssertionError)ex;
             }
             
             // -------------------------------
@@ -697,7 +698,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                         msg += String.format("  [%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
                     }
                 }
-                if (executor.isShuttingDown() == false) {
+                if (d && executor.isShuttingDown() == false) {
                     LOG.warn(String.format("%s Unexpected Abort: %s", this.m_currentTxnState, msg), ex);
                 }
                 status = Status.ABORT_UNEXPECTED;
@@ -712,7 +713,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (d) LOG.error("Unpexpected error when executing " + this.m_currentTxnState, ex);
             status = Status.ABORT_UNEXPECTED;
             status_msg = "UNEXPECTED ERROR IN " + this.m_localTxnState;
-            // hstore_site.getCoordinator().shutdownCluster(ex);
         } finally {
             this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
@@ -748,9 +748,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                       this.m_currentTxnState.getClientHandle(),
                       this.partitionId,
                       this.status,
+                      this.m_statusCode,
+                      this.m_statusString,
                       this.results,
                       this.status_msg,
-                      this.error);
+                      this.error
+        );
+                      
         if (this.observable != null) this.observable.notifyObservers(response);
         if (t) LOG.trace(response);
         return (response);
