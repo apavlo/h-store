@@ -532,7 +532,7 @@ public class Histogram<X> implements JSONSerializable {
      * @param other
      */
     public synchronized void put(Histogram<X> other) {
-        if (other == this) return;
+        if (other == this || other == null) return;
         for (Entry<X, Long> e : other.histogram.entrySet()) {
             if (e.getValue().longValue() > 0)
                 this._put(e.getKey(), e.getValue());
@@ -551,7 +551,6 @@ public class Histogram<X> implements JSONSerializable {
     public synchronized void dec(X value, long count) {
         assert(this.histogram.containsKey(value));
         this._put(value, count * -1);
-//        this.calculateInternalValues();
     }
     
     /**
@@ -560,7 +559,6 @@ public class Histogram<X> implements JSONSerializable {
      */
     public synchronized void dec(X value) {
         this._put(value, -1);
-        this.calculateInternalValues();
     }
     
     /**
