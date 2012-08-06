@@ -36,7 +36,6 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
-import edu.brown.api.BenchmarkComponentResults;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -72,6 +71,7 @@ public class BenchmarkResults {
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        public List<Integer> latencies;
         
         @Override
         public String toString() {
@@ -282,11 +282,13 @@ public class BenchmarkResults {
     private final long m_pollIntervalInMillis;
     private final int m_clientCount;
     
+    private boolean enableLatencies = false;
+    
     private boolean enableBasePartitions = false;
-    private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
+    private final Histogram<Integer> basePartitions = new Histogram<Integer>();
     
     private boolean enableResponseStatuses = false;
-    private final Histogram<String> m_responseStatuses = new Histogram<String>();
+    private final Histogram<String> responseStatuses = new Histogram<String>();
     
     private int completedIntervals = 0;
     private final Histogram<String> clientResultCount = new Histogram<String>();
@@ -305,10 +307,12 @@ public class BenchmarkResults {
         m_clientCount = clientCount;
     }
     
+    public void setEnableLatencies(boolean val) {
+        this.enableLatencies = val;
+    }
     public void setEnableBasePartitions(boolean val) {
         this.enableBasePartitions = val;
     }
-    
     public void setEnableResponsesStatuses(boolean val) {
         this.enableResponseStatuses = val;
     }
@@ -365,10 +369,10 @@ public class BenchmarkResults {
         return retval;
     }
     public Histogram<Integer> getBasePartitions() {
-        return (m_basePartitions);
+        return (basePartitions);
     }
     public Histogram<String> getResponseStatuses() {
-        return (m_responseStatuses);
+        return (responseStatuses);
     }
 
     public Result[] getResultsForClientAndTransaction(String clientName, String transactionName) {
@@ -441,15 +445,15 @@ public class BenchmarkResults {
      * @param clientName
      * @param pollIndex
      * @param time
-     * @param tc
+     * @param cmpResults
      * @param errMsg
      * @return
      */
     public BenchmarkResults addPollResponseInfo(String clientName,
-                                                 int pollIndex,
-                                                 long time,
-                                                 BenchmarkComponentResults tc,
-                                                 String errMsg) {
+                                                int pollIndex,
+                                                long time,
+                                                BenchmarkComponentResults cmpResults,
+                                                String errMsg) {
         
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
@@ -462,22 +466,22 @@ public class BenchmarkResults {
         
         if (debug.get())
             LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
-                                    clientName, pollIndex, tc.transactions));
+                                    clientName, pollIndex, cmpResults.transactions));
         
         // Update Touched Histograms
         // This doesn't need to be synchronized
         if (this.enableBasePartitions) {
-            this.m_basePartitions.putHistogram(tc.basePartitions);
+            this.basePartitions.putHistogram(cmpResults.basePartitions);
         }
         if (this.enableResponseStatuses) {
-            this.m_responseStatuses.putHistogram(tc.responseStatuses);
+            this.responseStatuses.putHistogram(cmpResults.responseStatuses);
         }
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
             // put the transactions names:
             if (m_transactionNames.isEmpty()) {
-                for (Entry<Object, String> e : tc.transactions.getDebugLabels().entrySet()) {
+                for (Entry<Object, String> e : cmpResults.transactions.getDebugLabels().entrySet()) {
                     Integer offset = (Integer)e.getKey();
                     m_transactionNames.put(e.getValue(), offset);
                 }
@@ -499,7 +503,13 @@ public class BenchmarkResults {
                 assert(results != null);
                 
                 Integer offset = m_transactionNames.get(txnName);
-                Result r = new Result(offsetTime, tc.transactions.fastGet(offset.intValue()));
+                Result r = new Result(offsetTime, cmpResults.transactions.fastGet(offset.intValue()));
+                if (this.enableLatencies) {
+                    if (r.latencies == null) {
+                        r.latencies = new ArrayList<Integer>();
+                    }
+                    r.latencies.addAll(cmpResults.latencies.get(offset));
+                }
                 results.add(r);
             } // FOR
             this.clientResultCount.put(clientName);
@@ -519,10 +529,10 @@ public class BenchmarkResults {
         BenchmarkResults clone = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
         if (this.enableBasePartitions) {
-            clone.m_basePartitions.putHistogram(m_basePartitions);
+            clone.basePartitions.putHistogram(basePartitions);
         }
         if (this.enableResponseStatuses) {
-            clone.m_responseStatuses.putHistogram(m_responseStatuses);
+            clone.responseStatuses.putHistogram(responseStatuses);
         }
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.putAll(m_transactionNames);
@@ -551,10 +561,10 @@ public class BenchmarkResults {
         m.put("Transaction Data", m_data);
         
         if (this.enableBasePartitions) {
-            m.put("Base Partitions", m_basePartitions);
+            m.put("Base Partitions", basePartitions);
         }
         if (this.enableResponseStatuses) {
-            m.put("Responses Statuses", m_basePartitions);
+            m.put("Responses Statuses", basePartitions);
         }
         
         return "BenchmarkResults\n" + StringUtil.formatMaps(m);

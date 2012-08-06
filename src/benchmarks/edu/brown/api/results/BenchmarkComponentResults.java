@@ -1,8 +1,13 @@
-package edu.brown.api;
+package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,6 +22,9 @@ import edu.brown.utils.JSONUtil;
 public class BenchmarkComponentResults implements JSONSerializable {
 
     public FastIntHistogram transactions;
+    
+    private boolean enableLatencies = false;
+    public Map<Integer, List<Integer>> latencies;
     
     private boolean enableBasePartitions = false;
     public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
@@ -41,10 +49,26 @@ public class BenchmarkComponentResults implements JSONSerializable {
         } else {
             copy = new BenchmarkComponentResults();
         }
+        copy.enableLatencies = this.enableLatencies;
+        copy.latencies = new HashMap<Integer, List<Integer>>();
+        for (Entry<Integer, List<Integer>> e : this.latencies.entrySet()) {
+            copy.latencies.put(e.getKey(), new ArrayList<Integer>(e.getValue()));
+        } // FOR
+        
         copy.enableBasePartitions = this.enableBasePartitions;
         copy.basePartitions.putHistogram(this.basePartitions);
         copy.enableResponseStatuses = this.enableResponseStatuses;
         return (copy);
+    }
+    
+    public boolean isLatenciesEnabled() {
+        return (this.enableLatencies);
+    }
+    public void setEnableLatencies(boolean val) {
+        if (val && this.latencies == null) {
+            this.latencies = new HashMap<Integer, List<Integer>>();
+        }
+        this.enableLatencies = val;
     }
     
     public boolean isBasePartitionsEnabled() {
@@ -91,15 +115,16 @@ public class BenchmarkComponentResults implements JSONSerializable {
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
         String exclude[] = {
+            (this.enableLatencies == false ? "latencies" : ""),
             (this.enableBasePartitions == false ? "basePartitions" : ""),
             (this.enableResponseStatuses == false ? "responseStatuses" : ""),
-            
         };
         Field fields[] = JSONUtil.getSerializableFields(this.getClass(), exclude);
         JSONUtil.fieldsToJSON(stringer, this, BenchmarkComponentResults.class, fields);
     }
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, BenchmarkComponentResults.class, true,
+                JSONUtil.getSerializableFields(this.getClass()));
     }
 } // END CLASS

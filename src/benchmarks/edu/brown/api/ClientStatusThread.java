@@ -12,6 +12,7 @@ import org.json.JSONObject;
 import org.voltdb.catalog.Database;
 import org.voltdb.processtools.ProcessSetManager;
 
+import edu.brown.api.results.BenchmarkComponentResults;
 import edu.brown.api.results.BenchmarkResults;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;

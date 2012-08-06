@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -84,6 +85,7 @@ import org.voltdb.client.StatsUploaderSettings;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
+import edu.brown.api.results.BenchmarkComponentResults;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hstore.HStoreConstants;
@@ -338,6 +340,7 @@ public abstract class BenchmarkComponent {
     public void answerPoll() {
         BenchmarkComponentResults copy = this.m_txnStats; // .copy();
         this.printControlMessage(m_controlState, copy.toJSONString());
+        m_txnStats.latencies.clear();
         m_txnStats.basePartitions.clear();
         m_txnStats.responseStatuses.clear();
     }
@@ -374,12 +377,27 @@ public abstract class BenchmarkComponent {
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
             m_txnStats.transactions.fastPut(txn_idx);
-            
-            if (m_txnStats.isBasePartitionsEnabled())
+
+            if (m_txnStats.isLatenciesEnabled()) {
+                List<Integer> latencies = m_txnStats.latencies.get(txn_idx);
+                if (latencies == null) {
+                    synchronized (m_txnStats.latencies) {
+                        latencies = m_txnStats.latencies.get(txn_idx);
+                        if (latencies == null) {
+                            latencies = new ArrayList<Integer>();
+                            m_txnStats.latencies.put(txn_idx, latencies);
+                        }
+                    } // SYNCH
+                }
+                latencies.add(cresponse.getClusterRoundtrip());
+            }
+            if (m_txnStats.isBasePartitionsEnabled()) {
                 m_txnStats.basePartitions.put(cresponse.getBasePartition());
+            }
         }
-        if (m_txnStats.isResponsesStatusesEnabled())
+        if (m_txnStats.isResponsesStatusesEnabled()) {
             m_txnStats.responseStatuses.put(status.name());
+        }
     }
 
     public BenchmarkComponent(final Client client) {
