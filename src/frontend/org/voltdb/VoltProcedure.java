@@ -617,8 +617,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             } catch (RuntimeException e) {
                 throw new InvocationTargetException(e);
             }
-//            if (d) 
-                LOG.info(this.m_currentTxnState + " is finished on partition " + this.partitionId);
+            if (d) LOG.debug(this.m_currentTxnState + " is finished on partition " + this.partitionId);
             
         // -------------------------------
         // Exceptions that we can process+handle
