@@ -762,6 +762,26 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     /**
+     * Send TransactionPrepareRequests to a subset of the partitions that are being
+     * used by this transaction. Note that this is only to be use for the early 2PC:PREPARE
+     * optimization, and not while the transaction is still running.
+     * @param ts
+     * @param partitions
+     */
+    public void transactionNotifyDonePartitions(LocalTransaction ts, PartitionSet partitions) {
+        
+        // So this is kind of tricky, because we need to use the TransactionPrepareCallback
+        // so that we can get the acknowledgments from the remote partitions, but
+        // we don't want to reset it.
+        
+        
+        for (Integer p : partitions) {
+            
+        }
+        
+    }
+    
+    /**
      * Send the TransactionWorkRequest to the target remote site
      * @param builders
      * @param callback

@@ -113,9 +113,19 @@ public class LocalTransaction extends AbstractTransaction {
     private RpcCallback<ClientResponseImpl> client_callback;
     
     /**
+     * The final ClientResponse for this txn that needs to get sent
+     * back to the client.
+     */
+    private ClientResponseImpl cresponse;
+    
+    /**
      * The number of times that this transaction has been restarted 
      */
     private int restart_ctr = 0;
+    
+    // ----------------------------------------------------------------------------
+    // INTERNAL STATE
+    // ----------------------------------------------------------------------------
     
     private boolean needs_restart = false; // FIXME
     private boolean deletable = false; // FIXME
@@ -366,6 +376,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.client_callback = null;
         this.initiateTime = 0;
+        this.cresponse = null;
         
         this.exec_controlCode = false;
         this.exec_speculative = false;
@@ -385,6 +396,15 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // SPECIAL SETTER METHODS
     // ----------------------------------------------------------------------------
+    
+    public final void setClientResponse(ClientResponseImpl cresponse) {
+        assert(this.cresponse == null);
+        this.cresponse = cresponse;
+    }
+    public final ClientResponseImpl getClientResponse() {
+        return (this.cresponse);
+    }
+    
     
     /**
      * <B>Note:</B> This should never be called by anything other than the TransactionInitializer
@@ -624,8 +644,9 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionPrepareCallback initTransactionPrepareCallback(ClientResponseImpl cresponse) {
         assert(this.dtxnState.prepare_callback.isInitialized() == false) :
             String.format("Trying initialize the %s for %s more than once",
-                    this.dtxnState.prepare_callback.getClass().getSimpleName(), this);
-        this.dtxnState.prepare_callback.init(this, cresponse);
+                          this.dtxnState.prepare_callback.getClass().getSimpleName(), this);
+        this.dtxnState.prepare_callback.init(this);
+        
         return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
@@ -666,7 +687,6 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
-
     
     /**
      * Return the underlying procedure catalog object
@@ -824,9 +844,16 @@ public class LocalTransaction extends AbstractTransaction {
     public boolean hasDonePartitions() {
         return (this.exec_donePartitions.cardinality() > 0);
     }
+    
+    /**
+     * Get all of the partitions that have been marked done for this txn
+     * @return
+     */
     public BitSet getDonePartitions() {
         return (this.exec_donePartitions);
     }
+    
+    
     public Histogram<Integer> getTouchedPartitions() {
         return (this.exec_touchedPartitions);
     }
@@ -1349,15 +1376,16 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Figure out what partitions this transaction is done with and notify those partitions
      * that they are done
+     * Returns true if the done partitions has changed for this transaction
      * @param ts
      */
-    public boolean calculateDonePartitions(EstimationThresholds thresholds) {
+    public PartitionSet calculateDonePartitions(EstimationThresholds thresholds) {
         final int ts_done_partitions_size = this.exec_donePartitions.size();
         PartitionSet new_done = null;
 
         TransactionEstimator.State t_state = this.getEstimatorState();
         if (t_state == null) {
-            return (false);
+            return (null);
         }
         
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
@@ -1366,7 +1394,7 @@ public class LocalTransaction extends AbstractTransaction {
         MarkovEstimate estimate = t_state.getLastEstimate();
         assert(estimate != null) : "Got back null MarkovEstimate for " + this;
         if (estimate.isValid()) {
-            return (false);
+            return (null);
         }
         
         new_done = estimate.getFinishedPartitions(thresholds);
@@ -1390,7 +1418,7 @@ public class LocalTransaction extends AbstractTransaction {
                 }
             } // FOR
         }
-        return (this.exec_donePartitions.cardinality() != ts_done_partitions_size);
+        return (this.exec_donePartitions.cardinality() != ts_done_partitions_size ? new_done : null);
     }
     
     // ----------------------------------------------------------------------------
