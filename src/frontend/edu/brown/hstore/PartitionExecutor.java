@@ -899,6 +899,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
             tmp_def_params[0] = def_work.getParams();
             tmp_def_txn.init(def_work.getTxnId(), 
                        -1, // We don't really need the clientHandle
+                       EstTime.currentTimeMillis(),
                        this.partitionId,
                        catalogContext.getPartitionSetSingleton(this.partitionId),
                        false,
@@ -943,19 +944,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     protected void processInitializeTxnMessage(InitializeTxnMessage work) {
 
-        ByteBuffer serializedRequest = work.getSerializedRequest(); 
-        Procedure catalog_proc = work.getProcedure();
-        ParameterSet procParams = work.getProcParams();
-        RpcCallback<ClientResponseImpl> clientCallback = work.getClientCallback(); 
-        long client_handle = work.getClientHandle();
-        
         LocalTransaction ts = this.txnInitializer.createLocalTransaction(
-                                               serializedRequest,
-                                               client_handle,
-                                               this.partitionId,
-                                               catalog_proc,
-                                               procParams,
-                                               clientCallback);
+                                       work.getSerializedRequest(),
+                                       work.getInitiateTime(),
+                                       work.getClientHandle(),
+                                       this.partitionId,
+                                       work.getProcedure(),
+                                       work.getProcParams(),
+                                       work.getClientCallback());
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
@@ -1511,7 +1507,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param clientCallback
      * @return
      */
-    public boolean queueNewTransaction(ByteBuffer serializedRequest, 
+    public boolean queueNewTransaction(ByteBuffer serializedRequest,
+                                       long initiateTime,
                                        Procedure catalog_proc,
                                        ParameterSet procParams,
                                        RpcCallback<ClientResponseImpl> clientCallback) {
@@ -1524,6 +1521,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        this.currentDtxn, this.currentExecMode));
         
         InitializeTxnMessage work = new InitializeTxnMessage(serializedRequest,
+                                                             initiateTime,
                                                              catalog_proc,
                                                              procParams,
                                                              clientCallback);

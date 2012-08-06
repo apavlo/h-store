@@ -65,7 +65,7 @@ public class SEATSEstimator extends AbstractEstimator {
             ret = this.singlePartitionSets.get(hasher.hash(c_id));    
         }
         else {
-            ret = this.catalogContext.getAllPartitionIdCollection();
+            ret = this.catalogContext.getAllPartitionIds();
         }
 
         return (ret);

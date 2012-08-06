@@ -48,7 +48,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         this.dtxn = new LocalTransaction(this.hstore_site);
         this.dtxn.testInit(NEXT_TXN_ID++,
                            BASE_PARTITION,
-                           catalogContext.getAllPartitionIdCollection(),
+                           catalogContext.getAllPartitionIds(),
                            catalog_proc);
         assertFalse(this.dtxn.isPredictAllLocal());
     }

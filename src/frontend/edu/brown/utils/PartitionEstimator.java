@@ -398,7 +398,7 @@ public class PartitionEstimator {
         // Generate a list of all the partition ids, so that we can quickly
         // add them to the output when estimating later on
         if (this.all_partitions.size() != this.hasher.getNumPartitions()) {
-            this.all_partitions = this.catalogContext.getAllPartitionIdCollection();
+            this.all_partitions = this.catalogContext.getAllPartitionIds();
             this.num_partitions = this.all_partitions.size();
             assert (this.hasher.getNumPartitions() == this.num_partitions);
             if (debug.get())

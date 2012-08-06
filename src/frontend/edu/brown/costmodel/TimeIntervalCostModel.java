@@ -251,7 +251,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 
     @Override
     public void prepareImpl(final CatalogContext catalogContext) {
-        this.all_partitions = catalogContext.getAllPartitionIdCollection();
+        this.all_partitions = catalogContext.getAllPartitionIds();
         assert (this.all_partitions.isEmpty() == false) : "No partitions???";
 
         for (int i = 0; i < num_intervals; i++) {

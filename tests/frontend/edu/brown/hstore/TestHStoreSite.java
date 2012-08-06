@@ -23,6 +23,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.sysprocs.Statistics;
+import org.voltdb.utils.EstTime;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
@@ -310,7 +311,7 @@ public class TestHStoreSite extends BaseTestCase {
         MockClientCallback callback = new MockClientCallback();
         
         LocalTransaction ts = new LocalTransaction(hstore_site);
-        ts.init(1000l, CLIENT_HANDLE, BASE_PARTITION,
+        ts.init(1000l, EstTime.currentTimeMillis(), CLIENT_HANDLE, BASE_PARTITION,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
                 catalog_proc, PARAMS, callback);
         

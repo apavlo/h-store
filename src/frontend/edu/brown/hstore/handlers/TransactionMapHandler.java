@@ -1,6 +1,7 @@
 package edu.brown.hstore.handlers;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.EstTime;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
@@ -64,6 +65,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         if (mr_ts == null) {
             mr_ts = hstore_site.getTransactionInitializer()
                                .createMapReduceTransaction(txn_id,
+                                                           EstTime.currentTimeMillis(),
                                                            request.getClientHandle(),
                                                            request.getBasePartition(),
                                                            request.getProcedureId(),

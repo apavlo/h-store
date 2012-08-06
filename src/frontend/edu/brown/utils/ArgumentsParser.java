@@ -509,7 +509,7 @@ public class ArgumentsParser {
                     // RANDOM
                 } else {
                     double factor = this.getDoubleParam(PARAM_WORKLOAD_RANDOM_PARTITIONS);
-                    List<Integer> all_partitions = new ArrayList<Integer>(catalogContext.getAllPartitionIdCollection());
+                    List<Integer> all_partitions = new ArrayList<Integer>(catalogContext.getAllPartitionIds());
                     Collections.shuffle(all_partitions, new Random());
                     workload_base_partitions.addAll(all_partitions.subList(0, (int) (all_partitions.size() * factor)));
                 }
