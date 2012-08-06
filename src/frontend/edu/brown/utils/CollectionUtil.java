@@ -86,12 +86,22 @@ public abstract class CollectionUtil {
         return;
     }
 
-    public static int[] toIntArray(Collection<Integer> items) {
+    public static int[] toIntArray(Collection<? extends Number> items) {
         int ret[] = new int[items.size()];
         int idx = 0;
-        for (Integer i : items) {
-            assert (i != null);
-            ret[idx++] = i.intValue();
+        for (Number n : items) {
+            assert (n != null);
+            ret[idx++] = n.intValue();
+        } // FOR
+        return (ret);
+    }
+    
+    public static double[] toDoubleArray(Collection<? extends Number> items) {
+        double ret[] = new double[items.size()];
+        int idx = 0;
+        for (Number n : items) {
+            assert (n != null);
+            ret[idx++] = n.doubleValue();
         } // FOR
         return (ret);
     }

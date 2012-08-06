@@ -104,7 +104,7 @@ public class ResultsPrinter implements BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getAvgLatency());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnAvgLatency());
             row_idx++;
         } // FOR
 

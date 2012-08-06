@@ -179,11 +179,10 @@ public abstract class MathUtil {
     /**
      * Compute standard deviation Derived from
      * http://nscraps.com/Java/720-java-calculate-standard-deviation.htm
-     * 
      * @param data
      * @return
      */
-    public static double stdev(double... data) {
+    public static double stdev(double...data) {
         final int n = data.length;
         if (n < 2) {
             return Double.NaN;
@@ -206,6 +205,11 @@ public abstract class MathUtil {
     }
     /** Compute the sum of the given array */
     public static int sum(int...values) {
+        int total = 0;
+        for (int v : values) total += v;
+        return (total);
+    }
+    public static int sum(Iterable<Integer> values) {
         int total = 0;
         for (int v : values) total += v;
         return (total);
