@@ -31,8 +31,6 @@ import java.util.Map;
 import org.voltdb.utils.Pair;
 
 import edu.brown.api.BenchmarkInterest;
-import edu.brown.api.results.BenchmarkResults.EntityResult;
-import edu.brown.api.results.BenchmarkResults.FinalResult;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
@@ -45,7 +43,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         "%10d total",
         "(%5.1f%%)",
         "%8.2f txn/s",
-        "%10.2f txn/m",
+        "%.02f ms",
     };
     
     private static final String RESULT_FORMAT = "%.2f";
@@ -106,7 +104,7 @@ public class ResultsPrinter implements BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getAvgLatency());
             row_idx++;
         } // FOR
 
