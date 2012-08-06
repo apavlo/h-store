@@ -21,10 +21,10 @@ public class EntityResult implements JSONSerializable {
     public double txnPerMilli;
     public double txnPerSecond;
     
-    public double txnAvgLatency;
-    public double txnStdDevLatency;
-    public double txnMinLatency;
-    public double txnMaxLatency;
+    public double txnAvgLatency = 0d;
+    public double txnStdDevLatency = 0d;
+    public double txnMinLatency = 0d;
+    public double txnMaxLatency = 0d;
     
     public EntityResult(long totalTxnCount, long duration, long txnCount, Histogram<Integer> latencies) {
         this.txnCount = txnCount;
@@ -41,11 +41,15 @@ public class EntityResult implements JSONSerializable {
             this.txnPerMilli = txnCount / (double)duration * 1000.0;
             this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
             
+            if (latencies.getMinValue() != null)
+                this.txnMinLatency = latencies.getMinValue().doubleValue();
+            if (latencies.getMaxValue() != null)
+                this.txnMaxLatency = latencies.getMaxValue().doubleValue();
             Collection<Integer> allLatencies = latencies.weightedValues();
-            this.txnMinLatency = latencies.getMinValue().doubleValue();
-            this.txnMaxLatency = latencies.getMaxValue().doubleValue();
-            this.txnAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
-            this.txnStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+            if (allLatencies.size() > 0) {
+                this.txnAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+                this.txnStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
+            }
         }
     }
     
