@@ -762,26 +762,6 @@ public class HStoreCoordinator implements Shutdownable {
     }
     
     /**
-     * Send TransactionPrepareRequests to a subset of the partitions that are being
-     * used by this transaction. Note that this is only to be use for the early 2PC:PREPARE
-     * optimization, and not while the transaction is still running.
-     * @param ts
-     * @param partitions
-     */
-    public void transactionNotifyDonePartitions(LocalTransaction ts, PartitionSet partitions) {
-        
-        // So this is kind of tricky, because we need to use the TransactionPrepareCallback
-        // so that we can get the acknowledgments from the remote partitions, but
-        // we don't want to reset it.
-        
-        
-        for (Integer p : partitions) {
-            
-        }
-        
-    }
-    
-    /**
      * Send the TransactionWorkRequest to the target remote site
      * @param builders
      * @param callback
@@ -818,10 +798,9 @@ public class HStoreCoordinator implements Shutdownable {
                                                    this.transactionPrefetch_callback);
     }
     
-    
     /**
      * Notify the given partitions that this transaction is finished with them
-     * This can also be used for the "early prepare" optimization.
+     * <B>Note:</B> This can also be used for the "early prepare" optimization.
      * @param ts
      * @param callback
      * @param partitions
@@ -832,7 +811,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         // FAST PATH: If all of the partitions that this txn needs are on this
         // HStoreSite, then we don't need to bother with making this request
-        if (ts.isPredictAllLocal()) {
+        if (hstore_site.isLocalPartitions(partitions)) {
             hstore_site.transactionPrepare(ts.getTransactionId(), partitions, null);
         }
         // SLOW PATH: Since we have to go over the network, we have to use our trusty ol'
