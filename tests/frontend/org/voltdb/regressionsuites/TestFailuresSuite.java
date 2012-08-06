@@ -34,6 +34,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.exceptions.ConstraintFailureException;
+import org.voltdb.regressionsuites.failureprocs.AssertFail;
 import org.voltdb.regressionsuites.failureprocs.CleanupFail;
 import org.voltdb.regressionsuites.failureprocs.DivideByZero;
 import org.voltdb.regressionsuites.failureprocs.FetchTooMuch;
@@ -49,9 +50,16 @@ public class TestFailuresSuite extends RegressionSuite {
 
     // procedures used by these tests
     static final Class<?>[] PROCEDURES = {
-        ViolateUniqueness.class, ViolateUniquenessAndCatchException.class,
-        DivideByZero.class, WorkWithBigString.class, InsertBigString.class,
-        InsertLotsOfData.class, FetchTooMuch.class, CleanupFail.class, TooFewParams.class,
+        AssertFail.class,
+        ViolateUniqueness.class,
+        ViolateUniquenessAndCatchException.class,
+        DivideByZero.class,
+        WorkWithBigString.class,
+        InsertBigString.class,
+        InsertLotsOfData.class,
+        FetchTooMuch.class,
+        CleanupFail.class,
+        TooFewParams.class,
         ReturnAppStatus.class
     };
 
@@ -61,6 +69,27 @@ public class TestFailuresSuite extends RegressionSuite {
      */
     public TestFailuresSuite(String name) {
         super(name);
+    }
+    
+    public void testAssertError() throws IOException {
+        Client client = getClient();
+        boolean had_error = false;
+        try {
+            client.callProcedure(AssertFail.class.getSimpleName(), 0L, 0L, 1L);
+            System.out.println("FAIL(1) testAssertError");
+        } catch (ProcCallException e) {
+            e.printStackTrace();
+            assertTrue(e.getMessage(), e.getMessage().contains(AssertFail.ERROR_MSG));
+            System.out.println("PASSED testAssertError");
+            had_error = true;
+        } catch (IOException e) {
+            // Wrong kind of error!
+            System.out.println("FAIL(2) testAssertError");
+            fail(e.toString());
+            return;
+        }
+        assertTrue("PASSED testAssertError", had_error);
+        return;
     }
 
     public void testVoilateUniqueness() throws IOException {
@@ -238,45 +267,45 @@ public class TestFailuresSuite extends RegressionSuite {
 //        fail();
 //    }
 
-    public void testPerPlanFragmentMemoryOverload() throws IOException, ProcCallException {
-        if (isHSQL() || isValgrind()) return;
-
-        System.out.println("STARTING testPerPlanFragmentMemoryOverload");
-        Client client = getClient();
-
-        VoltTable[] results = null;
-
-        int nextId = 0;
-
-        for (int mb = 0; mb < 75; mb += 5) {
-            results = client.callProcedure("InsertLotsOfData", 0, nextId).getResults();
-            assertEquals(1, results.length);
-            assertTrue(nextId < results[0].asScalarLong());
-            nextId = (int) results[0].asScalarLong();
-            System.err.println("Inserted " + (mb + 5) + "mb");
-        }
-
-        results = client.callProcedure("FetchTooMuch", 0).getResults();
-        assertEquals(1, results.length);
-        assertTrue(1 < results[0].asScalarLong());
-        System.out.println("Fetched the 75 megabytes");
-
-        for (int mb = 0; mb < 75; mb += 5) {
-            results = client.callProcedure("InsertLotsOfData", 0, nextId).getResults();
-            assertEquals(1, results.length);
-            assertTrue(nextId < results[0].asScalarLong());
-            nextId = (int) results[0].asScalarLong();
-            System.err.println("Inserted " + (mb + 80) + "mb");
-        }
-
-        try {
-            results = client.callProcedure("FetchTooMuch", 0).getResults();
-        } catch (ProcCallException e) {
-            e.printStackTrace();
-            return;
-        }
-        fail("Should gracefully fail from using too much temp table memory, but didn't.");
-    }
+//    public void testPerPlanFragmentMemoryOverload() throws IOException, ProcCallException {
+//        if (isHSQL() || isValgrind()) return;
+//
+//        System.out.println("STARTING testPerPlanFragmentMemoryOverload");
+//        Client client = getClient();
+//
+//        VoltTable[] results = null;
+//
+//        int nextId = 0;
+//
+//        for (int mb = 0; mb < 75; mb += 5) {
+//            results = client.callProcedure("InsertLotsOfData", 0, nextId).getResults();
+//            assertEquals(1, results.length);
+//            assertTrue(nextId < results[0].asScalarLong());
+//            nextId = (int) results[0].asScalarLong();
+//            System.err.println("Inserted " + (mb + 5) + "mb");
+//        }
+//
+//        results = client.callProcedure("FetchTooMuch", 0).getResults();
+//        assertEquals(1, results.length);
+//        assertTrue(1 < results[0].asScalarLong());
+//        System.out.println("Fetched the 75 megabytes");
+//
+//        for (int mb = 0; mb < 75; mb += 5) {
+//            results = client.callProcedure("InsertLotsOfData", 0, nextId).getResults();
+//            assertEquals(1, results.length);
+//            assertTrue(nextId < results[0].asScalarLong());
+//            nextId = (int) results[0].asScalarLong();
+//            System.err.println("Inserted " + (mb + 80) + "mb");
+//        }
+//
+//        try {
+//            results = client.callProcedure("FetchTooMuch", 0).getResults();
+//        } catch (ProcCallException e) {
+//            e.printStackTrace();
+//            return;
+//        }
+//        fail("Should gracefully fail from using too much temp table memory, but didn't.");
+//    }
 
     public void testQueueCleanupFailure() throws IOException, ProcCallException {
         System.out.println("STARTING testQueueCleanupFailure");
@@ -301,14 +330,14 @@ public class TestFailuresSuite extends RegressionSuite {
             client.callProcedure("TooFewParams", 1);
             fail();
         } catch (ProcCallException e) {
-            assertTrue(e.getMessage().startsWith("Error sending"));
+            assertTrue(e.getMessage(), e.getMessage().contains("EXPECTS"));
         }
 
         try {
             client.callProcedure("TooFewParams");
             fail();
         } catch (ProcCallException e) {
-            assertTrue(e.getMessage().startsWith("Error sending"));
+            assertTrue(e.getMessage(), e.getMessage().contains("EXPECTS"));
         }
     }
 
@@ -367,17 +396,17 @@ public class TestFailuresSuite extends RegressionSuite {
         assertEquals(response.getResults()[0].getStatusCode(), Byte.MIN_VALUE);
 
         response = client.callProcedure( "ReturnAppStatus", 1, "statusstring", (byte)1);
-        assertTrue("statusstring".equals(response.getAppStatusString()));
+        assertTrue(response.getAppStatusString(), "statusstring".equals(response.getAppStatusString()));
         assertEquals(response.getAppStatus(), 1);
         assertEquals(response.getResults()[0].getStatusCode(), 1);
 
         response = client.callProcedure( "ReturnAppStatus", 2, "statusstring", (byte)2);
-        assertNull(response.getAppStatusString());
+        assertNull(response.getAppStatusString(), response.getAppStatusString());
         assertEquals(response.getAppStatus(), 2);
         assertEquals(response.getResults()[0].getStatusCode(), 2);
 
         response = client.callProcedure( "ReturnAppStatus", 3, "statusstring", (byte)3);
-        assertTrue("statusstring".equals(response.getAppStatusString()));
+        assertTrue(response.getAppStatusString(), "statusstring".equals(response.getAppStatusString()));
         assertEquals(response.getAppStatus(), Byte.MIN_VALUE);
         assertEquals(response.getResults()[0].getStatusCode(), 3);
 
@@ -446,13 +475,13 @@ public class TestFailuresSuite extends RegressionSuite {
         /////////////////////////////////////////////////////////////
 
         // get a server config that similar, but doesn't use the same backend
-        config = new LocalSingleProcessServer("failures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
-
-        // build the jarfile (note the reuse of the TPCC project)
-        config.compile(project);
-
-        // add this config to the set of tests to run
-        builder.addServerConfig(config);
+//        config = new LocalSingleProcessServer("failures-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
+//
+//        // build the jarfile (note the reuse of the TPCC project)
+//        config.compile(project);
+//
+//        // add this config to the set of tests to run
+//        builder.addServerConfig(config);
 
         // CLUSTER?
         config = new LocalCluster("failures-cluster.jar", 2, 2,
