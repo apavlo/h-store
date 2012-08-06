@@ -289,6 +289,9 @@ public class TestHistogram extends BaseTestCase {
      * testToJSONString
      */
     public void testToJSONString() throws Exception {
+        Set<Histogram.Members> ignore = new HashSet<Histogram.Members>();
+        ignore.add(Histogram.Members.KEEP_ZERO_ENTRIES);
+        
         String json = h.toJSONString();
         assertNotNull(json);
         for (Histogram.Members element : Histogram.Members.values()) {
