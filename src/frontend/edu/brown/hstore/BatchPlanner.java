@@ -832,7 +832,7 @@ public class BatchPlanner implements Loggable {
                 // Only mark that we touched these partitions if the Statement
                 // is not on a replicated table or it's not read-only
                 if (is_replicated_only == false || is_read_only == false) {
-                    touched_partitions.putAll(stmt_all_partitions);
+                    touched_partitions.put(stmt_all_partitions);
                 }
 
             } else {
@@ -842,7 +842,7 @@ public class BatchPlanner implements Loggable {
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
 
                 // Always mark that we are touching these partitions
-                touched_partitions.putAll(stmt_all_partitions);
+                touched_partitions.put(stmt_all_partitions);
             }
 
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
@@ -877,7 +877,7 @@ public class BatchPlanner implements Loggable {
                         if (t)
                             LOG.trace(String.format("%s touches non-replicated table. Including %d partitions in mispredict histogram for txn #%d", this.catalog_stmts[i].fullName(),
                                     plan.stmt_partitions[i].size(), txn_id));
-                        mispredict_h.putAll(plan.stmt_partitions[i]);
+                        mispredict_h.put(plan.stmt_partitions[i]);
                     }
                 } // FOR
                 continue;

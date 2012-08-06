@@ -117,7 +117,7 @@ public class ControlPipe implements Runnable {
                     break;
                 }
                 case CLEAR: {
-                    cmp.m_txnStats.clear();
+                    cmp.m_txnStats.clear(true);
                     cmp.invokeClearCallback();
                     cmp.answerOk();
                     break;

@@ -215,6 +215,45 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return (this.txn_id);
     }
     
+    
+    @Override
+    public int getClusterRoundtrip() {
+        return clusterRoundTripTime;
+    }
+
+    public void setClusterRoundtrip(int time) {
+        clusterRoundTripTime = time;
+    }
+
+    @Override
+    public int getClientRoundtrip() {
+        return clientRoundTripTime;
+    }
+
+    public void setClientRoundtrip(int time) {
+        clientRoundTripTime = time;
+    }
+
+    @Override
+    public byte getAppStatus() {
+        return appStatus;
+    }
+
+    @Override
+    public String getAppStatusString() {
+        return appStatusString;
+    }
+    
+    @Override
+    public int getRestartCounter() {
+        return restartCounter;
+    }
+    
+    public void setRestartCounter(int restarts) {
+        restartCounter = restarts;
+    }
+    
+    
     @Override
     public void readExternal(FastDeserializer in) throws IOException {
         in.readByte();//Skip version byte   // 1 byte
@@ -286,43 +325,6 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeArray(results);
     }
     
-    @Override
-    public int getClusterRoundtrip() {
-        return clusterRoundTripTime;
-    }
-
-    public void setClusterRoundtrip(int time) {
-        clusterRoundTripTime = time;
-    }
-
-    @Override
-    public int getClientRoundtrip() {
-        return clientRoundTripTime;
-    }
-
-    public void setClientRoundtrip(int time) {
-        clientRoundTripTime = time;
-    }
-
-    @Override
-    public byte getAppStatus() {
-        return appStatus;
-    }
-
-    @Override
-    public String getAppStatusString() {
-        return appStatusString;
-    }
-    
-    @Override
-    public int getRestartCounter() {
-        return restartCounter;
-    }
-    
-    public void setRestartCounter(int restarts) {
-        restartCounter = restarts;
-    }
-
     @Override
     public String toString() {
         Map<String, Object> m = new LinkedHashMap<String, Object>();

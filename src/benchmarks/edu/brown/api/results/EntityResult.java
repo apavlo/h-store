@@ -2,14 +2,14 @@ package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -21,12 +21,12 @@ public class EntityResult implements JSONSerializable {
     public double txnPerMilli;
     public double txnPerSecond;
     
-    private final double txnAvgLatency;
-    private final double txnStdDevLatency;
-    private final double txnMinLatency;
-    private final double txnMaxLatency;
+    public double txnAvgLatency;
+    public double txnStdDevLatency;
+    public double txnMinLatency;
+    public double txnMaxLatency;
     
-    public EntityResult(long totalTxnCount, long duration, long txnCount, List<Integer> latencies) {
+    public EntityResult(long totalTxnCount, long duration, long txnCount, Histogram<Integer> latencies) {
         this.txnCount = txnCount;
         if (totalTxnCount == 0) {
             this.txnPercentage = 0;
@@ -40,10 +40,12 @@ public class EntityResult implements JSONSerializable {
             this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
             this.txnPerMilli = txnCount / (double)duration * 1000.0;
             this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
-            this.txnMinLatency = Collections.min(latencies).doubleValue();
-            this.txnMaxLatency = Collections.max(latencies).doubleValue();
-            this.txnAvgLatency = MathUtil.sum(latencies) / (double)latencies.size();
-            this.txnStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(latencies));
+            
+            Collection<Integer> allLatencies = latencies.weightedValues();
+            this.txnMinLatency = latencies.getMinValue().doubleValue();
+            this.txnMaxLatency = latencies.getMaxValue().doubleValue();
+            this.txnAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+            this.txnStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
         }
     }
     

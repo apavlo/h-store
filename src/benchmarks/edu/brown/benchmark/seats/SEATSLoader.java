@@ -280,7 +280,7 @@ public class SEATSLoader extends Loader {
         Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         
         // Setup the # of flights per airline
-        this.flights_per_airline.putAll(profile.getAirlineCodes(), 0);
+        this.flights_per_airline.put(profile.getAirlineCodes(), 0);
 
         // IMPORTANT: FLIGHT must come before FREQUENT_FLYER so that we 
         // can use the flights_per_airline histogram when selecting an airline to 
@@ -988,7 +988,7 @@ public class SEATSLoader extends Loader {
             // Flights per Airline
             Collection<String> all_airlines = profile.getAirlineCodes();
             Histogram<String> histogram = new Histogram<String>();
-            histogram.putAll(all_airlines);
+            histogram.put(all_airlines);
             
             // Embed a Gaussian distribution
             Gaussian gauss_rng = new Gaussian(rng, 0, all_airlines.size());

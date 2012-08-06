@@ -62,7 +62,7 @@ public class BenchmarkResults {
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
-        public List<Integer> latencies;
+        public final Histogram<Integer> latencies = new Histogram<Integer>();
         
         @Override
         public String toString() {
@@ -173,24 +173,36 @@ public class BenchmarkResults {
         return (responseStatuses);
     }
 
-    public List<Integer> getLatenciesForClient(String clientName) {
-        List<Integer> latencies = new ArrayList<Integer>();
-        SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
-        if (clientResults == null) return (latencies);
-        for (List<Result> results : clientResults.values()) {
-            for (Result r : results) {
-                latencies.addAll(r.latencies);
+    public Histogram<Integer> getAllLatencies() {
+        Histogram<Integer> latencies = new Histogram<Integer>();
+        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+            for (List<Result> txnResults : clientResults.values()) {
+                for (Result r : txnResults) {
+                    latencies.put(r.latencies);
+                } // FOR
             } // FOR
         } // FOR
         return (latencies);
     }
     
-    public List<Integer> getLatenciesForTransaction(String txnName) {
-        List<Integer> latencies = new ArrayList<Integer>();
+    public Histogram<Integer> getLatenciesForClient(String clientName) {
+        Histogram<Integer> latencies = new Histogram<Integer>();
+        SortedMap<String, List<Result>> clientResults = m_data.get(clientName);
+        if (clientResults == null) return (latencies);
+        for (List<Result> results : clientResults.values()) {
+            for (Result r : results) {
+                latencies.put(r.latencies);
+            } // FOR
+        } // FOR
+        return (latencies);
+    }
+    
+    public Histogram<Integer> getLatenciesForTransaction(String txnName) {
+        Histogram<Integer> latencies = new Histogram<Integer>();
         for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
             if (clientResults.containsKey(txnName) == false) continue;
             for (Result r : clientResults.get(txnName)) {
-                latencies.addAll(r.latencies);
+                latencies.put(r.latencies);
             } // FOR
         } // FOR
         return (latencies);
@@ -292,16 +304,17 @@ public class BenchmarkResults {
         // Update Touched Histograms
         // This doesn't need to be synchronized
         if (this.enableBasePartitions) {
-            this.basePartitions.putHistogram(cmpResults.basePartitions);
+            this.basePartitions.put(cmpResults.basePartitions);
         }
         if (this.enableResponseStatuses) {
-            this.responseStatuses.putHistogram(cmpResults.responseStatuses);
+            this.responseStatuses.put(cmpResults.responseStatuses);
         }
         
         BenchmarkResults finishedIntervalClone = null;
         synchronized (this) {
             // put the transactions names:
             if (m_transactionNames.isEmpty()) {
+                assert(cmpResults.transactions.getDebugLabels() != null);
                 for (Entry<Object, String> e : cmpResults.transactions.getDebugLabels().entrySet()) {
                     Integer offset = (Integer)e.getKey();
                     m_transactionNames.put(e.getValue(), offset);
@@ -325,11 +338,8 @@ public class BenchmarkResults {
                 
                 Integer offset = m_transactionNames.get(txnName);
                 Result r = new Result(offsetTime, cmpResults.transactions.fastGet(offset.intValue()));
-                if (this.enableLatencies) {
-                    if (r.latencies == null) {
-                        r.latencies = new ArrayList<Integer>();
-                    }
-                    r.latencies.addAll(cmpResults.latencies.get(offset));
+                if (this.enableLatencies && cmpResults.latencies != null) {
+                    r.latencies.put(cmpResults.latencies.get(offset));
                 }
                 results.add(r);
             } // FOR
@@ -350,15 +360,15 @@ public class BenchmarkResults {
         BenchmarkResults clone = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
         if (this.enableBasePartitions) {
-            clone.basePartitions.putHistogram(basePartitions);
+            clone.basePartitions.put(basePartitions);
         }
         if (this.enableResponseStatuses) {
-            clone.responseStatuses.putHistogram(responseStatuses);
+            clone.responseStatuses.put(responseStatuses);
         }
         clone.m_errors.addAll(m_errors);
         clone.m_transactionNames.putAll(m_transactionNames);
         clone.completedIntervals = this.completedIntervals;
-        clone.clientResultCount.putHistogram(this.clientResultCount);
+        clone.clientResultCount.put(this.clientResultCount);
 
         for (Entry<String, SortedMap<String, List<Result>>> entry : m_data.entrySet()) {
             SortedMap<String, List<Result>> txnsForClient = new TreeMap<String, List<Result>>();

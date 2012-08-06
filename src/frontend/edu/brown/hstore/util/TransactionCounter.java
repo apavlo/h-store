@@ -79,7 +79,7 @@ public enum TransactionCounter {
         return (this.get());
     }
     public int dec(Procedure catalog_proc) {
-        this.h.remove(catalog_proc.getName());
+        this.h.dec(catalog_proc.getName());
         return (this.get());
     }
     public void clear() {

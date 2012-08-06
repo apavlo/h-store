@@ -134,7 +134,7 @@ public class TestUserId extends TestCase {
             if (rand.nextBoolean()) {
                 UserId user_id = orig.get(i);
                 assertNotNull(user_id);
-                h.removeAll(user_id);
+                h.remove(user_id);
                 deleted.add(user_id);
             }
         } // FOR

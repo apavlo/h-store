@@ -29,7 +29,7 @@ public class MispredictionException extends SerializableException {
      */
     public MispredictionException(long txn_id, Histogram<Integer> partitions) {
         this.txn_id = txn_id;
-        if (partitions != null) this.partitions.putHistogram(partitions);
+        if (partitions != null) this.partitions.put(partitions);
     }
     
     /**

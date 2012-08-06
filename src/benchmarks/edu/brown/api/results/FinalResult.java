@@ -2,12 +2,9 @@ package edu.brown.api.results;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -105,28 +102,26 @@ public class FinalResult implements JSONSerializable {
         this.txnMinPerSecond = this.txnMinCount / interval;
         this.txnMaxPerSecond = this.txnMaxCount / interval;
         
-        List<Integer> latencies = new ArrayList<Integer>();
-        
         // TRANSACTION RESULTS
+        Histogram<Integer> latencies = new Histogram<Integer>();
         for (String txnName : txnCounts.values()) {
-            List<Integer> l = results.getLatenciesForTransaction(txnName);
+            Histogram<Integer> l = results.getLatenciesForTransaction(txnName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, txnCounts.get(txnName), l);
             this.txnResults.put(txnName, er);
-            latencies.addAll(l);
+            latencies.put(l);
         } // FOR
+        Collection<Integer> allLatencies = latencies.weightedValues();
+        this.totalMinLatency = latencies.getMinValue().doubleValue();
+        this.totalMaxLatency = latencies.getMaxValue().doubleValue();
+        this.totalAvgLatency = MathUtil.sum(allLatencies) / (double)allLatencies.size();
+        this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(allLatencies));
         
         // CLIENTS RESULTS
         for (String clientName : results.getClientNames()) {
-            List<Integer> l = results.getLatenciesForClient(clientName);
+            Histogram<Integer> l = results.getLatenciesForClient(clientName);
             EntityResult er = new EntityResult(this.txnTotalCount, this.duration, clientCounts.get(clientName), l);
             this.clientResults.put(clientName.replace("client-", ""), er);
         } // FOR
-        
-        // LATENCY TOTALS
-        this.totalMinLatency = Collections.min(latencies).doubleValue();
-        this.totalMaxLatency = Collections.max(latencies).doubleValue();
-        this.totalAvgLatency = MathUtil.sum(latencies) / (double)latencies.size();
-        this.totalStdDevLatency = MathUtil.stdev(CollectionUtil.toDoubleArray(latencies));
     }
     
     public long getDuration() {

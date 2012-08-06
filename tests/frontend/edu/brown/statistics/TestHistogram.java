@@ -265,7 +265,7 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < NUM_PARTITIONS; i++)
             partitions.add(i);
         
-        hist.putAll(partitions);
+        hist.put(partitions);
         assertEquals(partitions.size(), hist.getValueCount());
         assertTrue(hist.values().containsAll(partitions));
         

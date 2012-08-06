@@ -616,9 +616,9 @@ public class HStoreSiteStatus extends ExceptionHandlingRunnable implements Shutd
             String deltaTime = StringUtil.formatTime("%.2f", delta);
             String deltaArrow = " ";
             if (delta > 0) {
-                deltaArrow = "\u25B2";
+                deltaArrow = StringUtil.UNICODE_UP_ARROW;
             } else if (delta < 0) {
-                deltaArrow = "\u25BC";
+                deltaArrow = StringUtil.UNICODE_DOWN_ARROW;
             }
             value += String.format("  [%s%s%s]", deltaPrefix, deltaArrow, deltaTime);
         }

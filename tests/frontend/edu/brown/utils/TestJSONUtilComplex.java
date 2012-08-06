@@ -173,12 +173,11 @@ public class TestJSONUtilComplex extends BaseTestCase {
         return (clone);
     }
     
-    @SuppressWarnings("unchecked")
     private void compareInnerObjects(TestObject.Members e, Object o0, Object o1) throws Exception {
         // MAP
         if (e.name().endsWith("MAP")) {
-            Map inner0 = (Map)o0;
-            Map inner1 = (Map)o1;
+            Map<?,?> inner0 = (Map<?,?>)o0;
+            Map<?,?> inner1 = (Map<?,?>)o1;
             assertEquals(inner0.keySet(), inner1.keySet());
             
             for (Object inner_key : inner0.keySet()) {
@@ -189,8 +188,8 @@ public class TestJSONUtilComplex extends BaseTestCase {
             
         // LIST + SET
         } else {
-            Collection inner0 = (Collection)o0;
-            Collection inner1 = (Collection)o1;
+            Collection<?> inner0 = (Collection<?>)o0;
+            Collection<?> inner1 = (Collection<?>)o1;
             assertEquals(inner0.size(), inner1.size());
             assert(inner0.containsAll(inner1));
             assert(inner1.containsAll(inner0));
@@ -205,7 +204,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testListFieldsToJSON
      */
-    @SuppressWarnings("unchecked")
     public void testListFieldsToJSON() throws Exception {
         JSONObject json_object = this.toJSONObject(obj, TestObject.LISTS);
         
@@ -215,18 +213,18 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Collection collection = (Collection)field.get(obj);
+            Collection<?> collection = (Collection<?>)field.get(obj);
             List<String> collection_strings = new ArrayList<String>();
             for (Object outer : collection) {
                 if (outer instanceof Map) {
-                    Map m = (Map)outer;
+                    Map<?,?> m = (Map<?,?>)outer;
                     for (Object temp : m.entrySet()) {
                         Entry<?, ?> entry = (Entry<?, ?>)temp;
                         collection_strings.add(entry.getKey().toString());
                         collection_strings.add(entry.getValue().toString());
                     } // FOR
                 } else {
-                    for (Object o : (Collection)outer) {
+                    for (Object o : (Collection<?>)outer) {
                         collection_strings.add(o.toString());    
                     } // FOR
                 }
@@ -266,7 +264,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testListFieldsFromJSON
      */
-    @SuppressWarnings("unchecked")
     public void testListFieldsFromJSON() throws Exception {
         TestObject clone = this.clone(obj, TestObject.LISTS);
         for (TestObject.Members e : TestObject.LISTS) {
@@ -274,8 +271,8 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            List collection0 = (List)field.get(obj);
-            List collection1 = (List)field.get(clone);
+            List<?> collection0 = (List<?>)field.get(obj);
+            List<?> collection1 = (List<?>)field.get(clone);
             assertEquals(collection0.size(), collection1.size());
             for (int i = 0, cnt = collection0.size(); i < cnt; i++) {
                 compareInnerObjects(e, collection0.get(i), collection1.get(i));
@@ -286,7 +283,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testSetFieldsToJSON
      */
-    @SuppressWarnings("unchecked")
     public void testSetFieldsToJSON() throws Exception {
         JSONObject json_object = this.toJSONObject(obj, TestObject.SETS);
         
@@ -296,18 +292,18 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Collection collection = (Collection)field.get(obj);
+            Collection<?> collection = (Collection<?>)field.get(obj);
             List<String> collection_strings = new ArrayList<String>();
             for (Object outer : collection) {
                 if (outer instanceof Map) {
-                    Map m = (Map)outer;
+                    Map<?,?> m = (Map<?,?>)outer;
                     for (Object temp : m.entrySet()) {
                         Entry<?, ?> entry = (Entry<?, ?>)temp;
                         collection_strings.add(entry.getKey().toString());
                         collection_strings.add(entry.getValue().toString());
                     } // FOR
                 } else {
-                    for (Object o : (Collection)outer) {
+                    for (Object o : (Collection<?>)outer) {
                         collection_strings.add(o.toString());    
                     } // FOR
                 }
@@ -347,7 +343,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testSetFieldsFromJSON
      */
-    @SuppressWarnings("unchecked")
     public void testSetFieldsFromJSON() throws Exception {
         TestObject clone = this.clone(obj, TestObject.SETS);
         for (TestObject.Members e : TestObject.SETS) {
@@ -355,8 +350,8 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Set collection0 = (Set)field.get(obj);
-            Set collection1 = (Set)field.get(clone);
+            Set<?> collection0 = (Set<?>)field.get(obj);
+            Set<?> collection1 = (Set<?>)field.get(clone);
             assertEquals(collection0.size(), collection1.size());
             for (int i = 0, cnt = collection0.size(); i < cnt; i++) {
                 compareInnerObjects(e, CollectionUtil.get(collection0, i), CollectionUtil.get(collection1, i));
@@ -367,7 +362,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testMapFieldsToJSON
      */
-    @SuppressWarnings("unchecked")
     public void testMapFieldsToJSON() throws Exception {
         JSONObject json_object = this.toJSONObject(obj, TestObject.MAPS);
         for (TestObject.Members e : TestObject.MAPS) {
@@ -376,7 +370,7 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Map map = (Map)field.get(obj);
+            Map<?,?> map = (Map<?,?>)field.get(obj);
             List<String> key_strings = new ArrayList<String>();
             List<String> val_strings = new ArrayList<String>();
             for (Object key : map.keySet()) {
@@ -384,14 +378,14 @@ public class TestJSONUtilComplex extends BaseTestCase {
 
                 Object val = map.get(key);
                 if (val instanceof Map) {
-                    Map m = (Map)val;
+                    Map<?,?> m = (Map<?,?>)val;
                     for (Object temp : m.entrySet()) {
                         Entry<?, ?> entry = (Entry<?, ?>)temp;
                         key_strings.add(entry.getKey().toString());
                         val_strings.add(entry.getValue().toString());
                     } // FOR
                 } else {
-                    for (Object o : (Collection)val) {
+                    for (Object o : (Collection<?>)val) {
                         val_strings.add(o.toString());    
                     } // FOR
                 }
@@ -429,7 +423,6 @@ public class TestJSONUtilComplex extends BaseTestCase {
     /**
      * testMapFieldsFromJSON
      */
-    @SuppressWarnings("unchecked")
     public void testMapFieldsFromJSON() throws Exception {
         TestObject clone = this.clone(obj, TestObject.MAPS);
         for (TestObject.Members e : TestObject.MAPS) {
@@ -437,9 +430,9 @@ public class TestJSONUtilComplex extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Map map0 = (Map)field.get(obj);
+            Map<?,?> map0 = (Map<?,?>)field.get(obj);
             assertNotNull(map0);
-            Map map1 = (Map)field.get(clone);
+            Map<?,?> map1 = (Map<?,?>)field.get(clone);
             assertNotNull(map1);
             assertEquals(map0.size(), map1.size());
             assertEquals(map0.keySet(), map1.keySet());
