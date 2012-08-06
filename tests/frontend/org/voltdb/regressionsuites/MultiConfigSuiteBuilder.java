@@ -26,9 +26,14 @@ package org.voltdb.regressionsuites;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
+
+import edu.brown.hstore.conf.HStoreConf;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -89,6 +94,13 @@ public class MultiConfigSuiteBuilder extends TestSuite {
      */
     public boolean addServerConfig(VoltServerConfig config) {
 
+        // Add global config parameters
+        for (Entry<String, Object> e : this.confParams.entrySet()) {
+            if (config.confParams.containsKey(e.getKey()) == false) {
+                config.setConfParameter(e.getKey(), e.getValue());
+            }
+        } // FOR
+        
         final String enabled_configs = System.getenv().get("VOLT_REGRESSIONS");
         LOG.debug("VOLT REGRESSIONS ENABLED: " + enabled_configs);
 
@@ -161,5 +173,27 @@ public class MultiConfigSuiteBuilder extends TestSuite {
     public void addTestSuite(Class<? extends TestCase> testClass) {
         // don't let users do this
         throw new RuntimeException("Unsupported Usage");
+    }
+    
+    // ---------------------------------------------------------------------------
+    
+    protected final Map<String, Object> confParams = new HashMap<String, Object>(); 
+    {
+        this.setGlobalConfParameter("site.coordinator_sync_time", false);
+        this.setGlobalConfParameter("site.preload", false);
+        this.setGlobalConfParameter("site.status_enable", false);
+    }
+    
+    /**
+     * Set an global HStoreConf parameter to use when deploying the HStoreSites in the
+     * regression tests.
+     * @param name
+     * @param value
+     */
+    public final void setGlobalConfParameter(String name, Object value) {
+        assert(HStoreConf.isConfParameter(name)) :
+            "Invalid HStoreConf parameter '" + name + "'";
+        this.confParams.put(name, value);
+        HStoreConf.singleton(true).set(name, value);
     }
 }
