@@ -64,6 +64,7 @@
 #ifndef __USE_GNU
 #define  __USE_GNU
 #endif
+#include <cerrno>
 #include <sched.h>
 #endif
 #ifdef MACOSX
@@ -1217,7 +1218,11 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffi
     }
 
     if ( sched_setaffinity( 0, sizeof(mask), &mask) == -1) {
-        VOLT_ERROR("Couldn't set CPU affinity");
+        if (errno == EPERM) {
+            VOLT_ERROR("Failed to set CPU affinity because we do not have permission");
+        } else {
+            VOLT_ERROR("Failed to set CPU affinity for an unknown reason");
+        }
         assert(false);
     }
 }
