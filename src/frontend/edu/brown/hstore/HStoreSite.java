@@ -1883,7 +1883,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         TransactionPrepareCallback callback = null;
         if (ts instanceof LocalTransaction) {
-            callback = ((LocalTransaction)ts).getTransactionPrepareCallback();
+            callback = ((LocalTransaction)ts).getOrInitTransactionPrepareCallback();
             if (callback.isInitialized() == false) callback = null;
         }
         

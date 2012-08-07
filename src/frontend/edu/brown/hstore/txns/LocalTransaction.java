@@ -652,12 +652,7 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return (this.dtxnState.prepare_callback);
     }
-    public TransactionPrepareCallback getTransactionPrepareCallback() {
-        assert(this.dtxnState != null) :
-            "Trying to access DistributedState for non distributed txn " + this;
-        return (this.dtxnState.prepare_callback);
-    }
-    
+
     /**
      * Initialize the TransactionFinishCallback for this transaction using the
      * given status indicator. You should always use this callback and not allocate
