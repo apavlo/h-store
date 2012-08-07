@@ -104,7 +104,8 @@ DEBUG_OPTIONS = [
 ]
 DEBUG_LOGGING = [
     "edu.brown.hstore.HStoreSite",
-    "edu.brown.hstore.PartitionExecutor"
+    "edu.brown.hstore.PartitionExecutor",
+    "edu.brown.hstore.TransactionQueueManager"
 ]
 
 BASE_SETTINGS = {

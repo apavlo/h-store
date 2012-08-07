@@ -27,6 +27,8 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -921,6 +923,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected final Map<Long, AbstractTransaction> getInflightTxns() {
         return (this.inflight_txns);
     }
+    protected final String getRejectionMessage() {
+        return (this.REJECTION_MESSAGE);
+    }
     
     /**
      * Convenience method to dump out status of this HStoreSite
@@ -1599,7 +1604,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                status, base_partition, executor.getWorkQueueSize()));
                 this.responseError(client_handle,
                                    status,
-                                   REJECTION_MESSAGE,
+                                   REJECTION_MESSAGE + " - [1]",
                                    clientCallback,
                                    timestamp);
             }
@@ -1814,12 +1819,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.getPredictTouchedPartitions().isEmpty() == false) :
             "No predicted partitions for " + ts + "\n" + ts.debug();
         
-        PartitionExecutor executor = this.executors[base_partition];
-        assert(executor != null) :
+        assert(this.executors[base_partition] != null) :
             "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startQueue();
-        boolean success = executor.queueNewTransaction(ts);
+        final boolean success = this.executors[base_partition].queueNewTransaction(ts);
+        
         if (hstore_conf.site.txn_counters && success) {
             assert(catalog_proc != null) :
                 String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
@@ -1834,8 +1839,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // that it will just try immediately
             Status status = Status.ABORT_REJECT;
             if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [queueSize=%d]",
-                                           ts, status, base_partition,
-                                           executor.getWorkQueueSize()));
+                                          ts, status, base_partition,
+                                          this.executors[base_partition].getWorkQueueSize()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
@@ -2079,14 +2084,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.isInitialized());
         if (d) LOG.debug(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
                          ts, status, ts.getClientHandle()));
-//        if (ts.getProcedure().getName().equalsIgnoreCase("@Quiesce")) {
-//            try {
-//                throw new Exception("");
-//            } catch (Exception ex) {
-//                LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
-//                                       ts, status, ts.getClientHandle()), ex);
-//            }
-//        }
+        
+        String msg = this.REJECTION_MESSAGE + " - [0]";
+        if (ts.getProcedure().getSystemproc()) {
+            try {
+                throw new Exception("");
+            } catch (Exception ex) {
+                StringWriter writer = new StringWriter();
+                ex.printStackTrace(new PrintWriter(writer));
+                msg += "\n" + writer.toString();
+                LOG.warn(String.format("%s - Rejecting transaction with status %s [clientHandle=%d]",
+                                       ts, status, ts.getClientHandle()), ex);
+            }
+        }
         
         ts.setStatus(status);
         ClientResponseImpl cresponse = new ClientResponseImpl();
@@ -2095,7 +2105,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                        ts.getBasePartition(),
                        status,
                        HStoreConstants.EMPTY_RESULT,
-                       this.REJECTION_MESSAGE,
+                       msg,
                        ts.getPendingError());
         this.responseSend(ts, cresponse);
 
