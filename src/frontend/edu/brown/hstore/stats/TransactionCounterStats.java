@@ -26,8 +26,8 @@ public class TransactionCounterStats extends StatsSource {
     private static final Set<TransactionCounter> COUNTER_EXCLUDE = new HashSet<TransactionCounter>();
     static {
         CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.SYSPROCS);
-        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_LOCAL);
-        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_REMOTE);
+//        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_LOCAL);
+//        CollectionUtil.addAll(COUNTER_EXCLUDE, TransactionCounter.BLOCKED_REMOTE);
     }
     
     private static class ProcedureRow {

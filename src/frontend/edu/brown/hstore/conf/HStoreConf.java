@@ -1453,6 +1453,26 @@ public final class HStoreConf {
         public boolean output_txn_profiling_combine;
         
         @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "transaction counter stats. This will contain information about how the " +
+                        "transactions were executed (i.e., whether they were single-partitioned or not," +
+                        "whether they were speculatively executed). " +
+                        "Note that this will automatically enable ${site.txn_counters}, which will " +
+                        "affect the runtime performance.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_txn_counters;
+        
+        @ConfigProperty(
+            description="If set to true, then the data generated for ${client.output_txn_counters} will " +
+                        "be aggregated based on the Procedure handle.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean output_txn_counters_combine;
+        
+        @ConfigProperty(
             description="", // TODO
             defaultBoolean=false,
             experimental=false

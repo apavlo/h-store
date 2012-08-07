@@ -548,6 +548,9 @@ public class BenchmarkController {
         if (hstore_conf.client.output_txn_profiling != null) {
             m_config.siteParameters.put("site.txn_profiling", Boolean.TRUE.toString());
         }
+        if (hstore_conf.client.output_txn_counters != null) {
+            m_config.siteParameters.put("site.txn_counters", Boolean.TRUE.toString());
+        }
         
         List<String> siteBaseCommand = new ArrayList<String>();
         if (hstore_conf.global.sshprefix != null &&
@@ -1266,6 +1269,12 @@ public class BenchmarkController {
                             SysProcSelector.TXNPROFILER,
                             hstore_conf.client.output_txn_profiling);
         }
+        // Dump Txn Counters Info
+        if (hstore_conf.client.output_txn_counters != null) {
+            this.writeStats(client,
+                            SysProcSelector.TXNCOUNTER,
+                            hstore_conf.client.output_txn_counters);
+        }
         
         // Recompute MarkovGraphs
         if (m_config.markovRecomputeAfterEnd && this.stop == false) {
@@ -1288,8 +1297,11 @@ public class BenchmarkController {
             String.format("Failed to get %s stats\n%s", sps, cresponse);
         VoltTable vt = cresponse.getResults()[0];
         
-        // Combine txn profiling results
-        if (sps == SysProcSelector.TXNPROFILER && hstore_conf.client.output_txn_profiling_combine) {
+        // Combine results (optional)
+        boolean needCombine = false;
+        if (sps == SysProcSelector.TXNPROFILER) needCombine = hstore_conf.client.output_txn_profiling_combine;
+        if (sps == SysProcSelector.TXNCOUNTER) needCombine = hstore_conf.client.output_txn_counters_combine;
+        if (needCombine) {
             int offset = vt.getColumnIndex("PROCEDURE");
             VoltTable.ColumnInfo cols[] = Arrays.copyOfRange(VoltTableUtil.extractColumnInfo(vt), offset, vt.getColumnCount());
             Map<String, Object[]> totalRows = new TreeMap<String, Object[]>();
