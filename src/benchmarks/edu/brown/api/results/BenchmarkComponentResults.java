@@ -50,7 +50,9 @@ public class BenchmarkComponentResults implements JSONSerializable {
         copy.enableLatencies = this.enableLatencies;
         copy.latencies.clear();
         for (Entry<Integer, Histogram<Integer>> e : this.latencies.entrySet()) {
-            copy.latencies.put(e.getKey(), new Histogram<Integer>(e.getValue()));
+            synchronized (e.getValue()) {
+                copy.latencies.put(e.getKey(), new Histogram<Integer>(e.getValue()));
+            } // SYNCH
         } // FOR
         
         copy.enableBasePartitions = this.enableBasePartitions;
