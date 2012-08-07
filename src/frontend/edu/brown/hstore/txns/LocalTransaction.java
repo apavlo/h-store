@@ -637,7 +637,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     public TransactionInitCallback initTransactionInitCallback() {
         assert(this.dtxnState != null) :
-            "Trying to access DistributedState for non distributed txn " + this;
+            "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
         assert(this.dtxnState.init_callback.isInitialized() == false) :
             String.format("Trying initialize the %s for %s more than once",
                           this.dtxnState.init_callback.getClass().getSimpleName(), this);
@@ -646,7 +646,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     public TransactionPrepareCallback getOrInitTransactionPrepareCallback() {
         assert(this.dtxnState != null) :
-            "Trying to access DistributedState for non distributed txn " + this;
+            "Trying to access DistributedState for non distributed txn " + this + "\n" + this.debug();
         if (this.dtxnState.prepare_callback.isInitialized() == false) {
             this.dtxnState.prepare_callback.init(this);
         }
