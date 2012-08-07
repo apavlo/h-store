@@ -978,11 +978,8 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-
-                <exclude name='edu/brown/hstore/TestAntiCacheManager*'/>
                 
                 <!-- Busted tests because of hacking -->
-                <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
                 <exclude name='edu/brown/markov/TestMarkovGraph*' />
@@ -1072,7 +1069,6 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
                 
-                <exclude name='edu/brown/hstore/TestAntiCache*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 

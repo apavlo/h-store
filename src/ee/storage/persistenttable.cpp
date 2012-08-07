@@ -686,6 +686,11 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
 
     // The tempTuple is forever!
     assert(&target != &m_tempTuple);
+    
+#ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    eviction_manager->removeTuple(this, &target); 
+#endif
 
     // Just like insert, we want to remove this tuple from all of our indexes
     deleteFromAllIndexes(&target);
