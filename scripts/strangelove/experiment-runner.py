@@ -102,6 +102,10 @@ DEBUG_OPTIONS = [
     "site.status_show_executor_info",
     #"client.output_basepartitions",
 ]
+DEBUG_LOGGING = [
+    "edu.brown.hstore.HStoreSite",
+    "edu.brown.hstore.PartitionExecutor"
+]
 
 BASE_SETTINGS = {
     "ec2.site_type":                    "m2.4xlarge",
@@ -109,9 +113,12 @@ BASE_SETTINGS = {
     #"ec2.site_type":                    "m2.4xlarge",
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
-    
     "ec2.change_type":                  True,
     
+    "hstore.sites_per_host":            1,
+    "hstore.partitions_per_site":       OPT_BASE_PARTITIONS_PER_SITE,
+    "hstore.num_hosts_round_robin":     None,
+
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
     "client.txnrate":                   OPT_BASE_TXNRATE,
@@ -138,13 +145,7 @@ BASE_SETTINGS = {
     "site.coordinator_finish_thread":                   False,
     "site.txn_restart_limit":                           5,
     "site.txn_restart_limit_sysproc":                   100,
-    
     "site.exec_force_singlepartitioned":                True,
-    "site.exec_mispredict_crash":                       False,
-    
-    "site.sites_per_host":                              1,
-    "hstore.partitions_per_site":                       OPT_BASE_PARTITIONS_PER_SITE,
-    "site.num_hosts_round_robin":                       None,
     "site.memory":                                      61440,
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
@@ -154,10 +155,6 @@ BASE_SETTINGS = {
     "site.queue_dtxn_release_factor":                   0.90,
     "site.queue_dtxn_increase":                         0,
     "site.queue_dtxn_throttle":                         False,
-    
-    "site.exec_postprocessing_thread":                  False,
-    "site.pool_localtxnstate_idle":                     20000,
-    "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
     "site.cpu_affinity_one_partition_per_core":         True,
@@ -169,6 +166,8 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_idle_enable":            False,
         "client.output_exec_profiling":         "execprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
+        "benchmark.neworder_only":              True,
+        "benchmark.neworder_abort":             False,
     },
 }
 
@@ -181,8 +180,6 @@ def updateEnv(env, benchmark, exp_type):
     for k,v in BASE_SETTINGS.iteritems():
         env[k] = v
     ## FOR
-  
-    env["client.scalefactor"] = float(BASE_SETTINGS["client.scalefactor"] * env["hstore.partitions"])
   
     ## ----------------------------------------------
     ## MOTIVATION
@@ -378,6 +375,9 @@ if __name__ == '__main__':
     ## ARGUMENT PROCESSING 
     ## ----------------------------------------------
     
+    if not args['benchmark']:
+        raise Exception("Did not specify benchmarks to execute")
+    
     for key in env.keys():
         if key in args and not args[key] is None:
             env[key] = args[key]
@@ -435,12 +435,14 @@ if __name__ == '__main__':
     controllerParams = { }
     
     needUpdate = (args['no_update'] == False)
+    needUpdateLog4j = args['debug_hstore']
+    needResetLog4j = not (args['no_update'] or args['debug_hstore'])
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == False)
     forceStop = False
     origScaleFactor = BASE_SETTINGS['client.scalefactor']
-    for benchmark in args['benchmark']: # XXX
+    for benchmark in args['benchmark']:
         final_results = { }
         totalAttempts = args['exp_trials'] * args['exp_attempts']
         stop = False
@@ -452,13 +454,16 @@ if __name__ == '__main__':
                 
             # Increase the client.scalefactor based on the number of partitions
             if args['multiply_scalefactor']:
-                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor * partitions/2)
+                BASE_SETTINGS["client.scalefactor"] = float(BASE_SETTINGS["client.scalefactor"] * partitions)
                 
             if args['start_cluster']:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % args['no_execute'])
                 hstore.fabfile.start_cluster(updateSync=needSync)
                 if args['no_execute']: sys.exit(0)
             ## IF
+            
+            client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
+            LOG.debug("Client Instance: " + client_inst.public_dns_name)
             
             ## Synchronize Instance Times
             if needSync: hstore.fabfile.sync_time()
@@ -467,9 +472,14 @@ if __name__ == '__main__':
             ## Clear Log Files
             if needClearLogs: hstore.fabfile.clear_logs()
             needClearLogs = False
-                
-            client_inst = hstore.fabfile.__getRunningClientInstances__()[0]
-            LOG.debug("Client Instance: " + client_inst.public_dns_name)
+            
+            ## Update Log4j
+            if needUpdateLog4j:
+                LOG.info("Updating log4j.properties")
+                with settings(host_string=client_inst.public_dns_name):
+                    hstore.fabfile.enable_debugging(debug=DEBUG_LOGGING)
+                ## WITH
+                needUpdateLog4j = False
                 
             updateJar = (args['no_jar'] == False)
             updateEnv(env, benchmark, args['exp_type'])
@@ -506,7 +516,7 @@ if __name__ == '__main__':
                                                 updateJar=updateJar, \
                                                 updateConf=updateConf, \
                                                 updateRepo=needUpdate, \
-                                                updateLog4j=needUpdate, \
+                                                resetLog4j=needResetLog4j, \
                                                 extraParams=controllerParams)
                                                 
                         # Process JSON Output

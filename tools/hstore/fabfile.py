@@ -130,6 +130,7 @@ ENV_DEFAULT = {
     "ec2.reboot_wait_time":        20,
     "ec2.status_wait_time":        20,
     "ec2.cluster_group":           None,
+    "ec2.pkg_autoremove":          True,
 
     ## Client Options
     "client.count":                1,
@@ -422,6 +423,10 @@ def setup_env():
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     __syncTime__()
     
+    # Clean up packages
+    if env["ec2.pkg_autoremove"]:
+        sudo("apt-get --yes autoremove")
+    
     first_setup = False
     with settings(warn_only=True):
         basename = os.path.basename(env.key_filename)
@@ -434,7 +439,7 @@ def setup_env():
                 first_setup = True
     ## WITH
     
-    ## We may be running a large cluster, in which case we will have a lot of connections
+    # We may be running a large cluster, in which case we will have a lot of connections
     handlesAllowed = 24000
     for key in [ "soft", "hard" ]:
         update_line = "* %s nofile %d" % (key, handlesAllowed)
@@ -443,7 +448,6 @@ def setup_env():
     ## FOR
     
     # Bash Aliases
-    
     log_dir = env.get("site.log_dir", os.path.join(HSTORE_DIR, "obj/logs/sites"))
     aliases = {
         # H-Store Home
@@ -459,13 +463,30 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
+    # Git Config
+    gitConfig = """
+        [color]
+        diff = auto
+        status = auto
+        branch = auto
+
+        [color "status"]
+        added = yellow
+        changed = green
+        untracked = cyan
+    """
+    with settings(warn_only=True):
+        if run("test -f " + ".gitconfig").failed:
+            for line in map(string.strip, gitConfig.split("\n")):
+                append(".gitconfig", line, use_sudo=False)
+    ## WITH
+    
     with settings(warn_only=True):
         # Install the real H-Store directory in /home/
         if run("test -d %s" % env["hstore.basedir"]).failed:
             run("mkdir " + env["hstore.basedir"])
         sudo("chown --quiet -R %s %s" % (env.user, env["hstore.basedir"]))
     ## WITH
-    
     
     return (first_setup)
 ## DEF
@@ -598,7 +619,7 @@ def get_version():
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, updateLog4j=False, extraParams={ }):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, resetLog4j=False, extraParams={ }):
     __getInstances__()
     
     ## Make sure we have enough instances
@@ -624,7 +645,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     
     for inst in __getRunningSiteInstances__():
         site_hosts.add(inst.private_dns_name)
-        for i in range(env["site.sites_per_host"]):
+        for i in range(env["hstore.sites_per_host"]):
             firstPartition = partition_id
             lastPartition = min(env["hstore.partitions"], firstPartition + partitions_per_site)-1
             host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
@@ -683,15 +704,16 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
     with cd(HSTORE_DIR):
         prefix = env["hstore.exec_prefix"]
+        
+        if resetLog4j:
+            LOG.info("Reverting log4j.properties")
+            run("git checkout %s -- %s" % (env["hstore.git_options"], "log4j.properties"))
+        
         if updateJar:
             LOG.info("Updating H-Store %s project jar file" % (project.upper()))
             prefix += " hstore-prepare"
         cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
         output = run(cmd)
-        
-        if updateLog4j:
-            LOG.info("Reverting log4j.properties")
-            run("git checkout %s -- %s" % (env["hstore.git_options"], "log4j.properties"))
         
         ## If they wanted a trace file, then we have to ship it back to ourselves
         if trace:
@@ -808,6 +830,43 @@ def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
             contents = re.sub(regex, "", contents)
             LOG.debug("Removed '%s' in %s" % (key, conf_file))
         ## FOR
+    ## FOR
+    
+    sio = StringIO()
+    sio.write(contents)
+    put(local_path=sio, remote_path=conf_file)
+## DEF
+
+## ----------------------------------------------
+## enable_debugging
+## ----------------------------------------------
+@task
+def enable_debugging(debug=[], trace=[]):
+    conf_file = os.path.join(HSTORE_DIR, "log4j.properties")
+    targetLevels = {
+        "DEBUG": debug,
+        "TRACE": trace,
+    }
+    
+    LOG.info("Updating log4j properties - DEBUG[%d] / TRACE[%d]", len(debug), len(trace))
+    contents = get_file(conf_file)
+    assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
+    
+    # Go through the file and update anything that is already there
+    baseRegex = r"(log4j\.logger\.(?:%s))[\s]*=[\s]*(?:INFO|DEBUG|TRACE)(|,[\s]+[\w]+)"
+    for level, clazzes in targetLevels.iteritems():
+        contents = re.sub(baseRegex % "|".join(map(string.strip, clazzes)),
+                          r"\1="+level+r"\2",
+                          contents, flags=re.IGNORECASE)
+    
+    # Then add in anybody that is missing
+    first = True
+    for level, clazzes in targetLevels.iteritems():
+        for clazz in clazzes:
+            if contents.find(clazz) == -1:
+                if first: contents += "\n"
+                contents += "\nlog4j.logger.%s=%s" % (clazz, level)
+                first = False
     ## FOR
     
     sio = StringIO()
@@ -1037,14 +1096,14 @@ def __getInstanceTypeCounts__():
         siteCount = hostCount
     else:
         siteCount = int(math.ceil(partitionCount / float(env["hstore.partitions_per_site"])))
-        hostCount = int(math.ceil(siteCount / float(env["site.sites_per_host"])))
+        hostCount = int(math.ceil(siteCount / float(env["hstore.sites_per_host"])))
     
     return (hostCount, siteCount, partitionCount, clientCount)
 ## DEF
 
 ## ----------------------------------------------
 ## __getInstanceName__
-## ----------------------------------------------        
+## ----------------------------------------------
 def __getInstanceName__(inst):
     assert inst
     return (inst.tags['Name'] if 'Name' in inst.tags else '???')
