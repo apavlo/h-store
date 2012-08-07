@@ -849,7 +849,9 @@ public abstract class BenchmarkComponent {
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
         Status status = cresponse.getStatus();
         if (status == Status.OK || status == Status.ABORT_USER) {
-            m_txnStats.transactions.fastPut(txn_idx);
+            synchronized (m_txnStats.transactions) {
+                m_txnStats.transactions.fastPut(txn_idx);
+            } // SYNCH
 
             if (m_txnStats.isLatenciesEnabled()) {
                 Histogram<Integer> latencies = m_txnStats.latencies.get(txn_idx);
@@ -867,11 +869,15 @@ public abstract class BenchmarkComponent {
                 } // SYNCH
             }
             if (m_txnStats.isBasePartitionsEnabled()) {
-                m_txnStats.basePartitions.put(cresponse.getBasePartition());
+                synchronized (m_txnStats.basePartitions) {
+                    m_txnStats.basePartitions.put(cresponse.getBasePartition());
+                } // SYNCH
             }
         }
         if (m_txnStats.isResponsesStatusesEnabled()) {
-            m_txnStats.responseStatuses.put(status.name());
+            synchronized (m_txnStats.responseStatuses) {
+                m_txnStats.responseStatuses.put(status.name());    
+            } // SYNCH
         }
     }
     

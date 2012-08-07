@@ -88,6 +88,7 @@ OPT_BASE_CLIENT_THREADS_PER_HOST = 100
 OPT_BASE_SCALE_FACTOR = float(1.0)
 OPT_BASE_PARTITIONS_PER_SITE = 6
 OPT_PARTITION_PLAN_DIR = "files/designplans"
+OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 
 DEFAULT_OPTIONS = {
     "hstore.git_branch": "strangelove"
@@ -166,13 +167,14 @@ EXPERIMENT_SETTINGS = {
         "site.specexec_enable":                 False,
         "site.specexec_idle_enable":            False,
         "client.output_response_status":        True,
-        "client.output_exec_profiling":         "execprofile.csv",
-        "client.output_txn_profiling":          "txnprofile.csv",
-        "client.output_txn_profiling_combine":  True,
+        #"client.output_exec_profiling":         "execprofile.csv",
+        #"client.output_txn_profiling":          "txnprofile.csv",
+        #"client.output_txn_profiling_combine":  True,
         "client.output_txn_counters":           "txncounters.csv",
         "client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
+        "benchmark.neworder_multip_mix":        100,
     },
 }
 
@@ -190,6 +192,13 @@ def updateEnv(env, benchmark, exp_type):
     ## MOTIVATION
     ## ----------------------------------------------
     if exp_type == "motivation":
+        if benchmark == "tpcc":
+            markov = "%s-%dp.markov.gz" % (benchmark, partitions)
+        else:
+            markov = "%s.markov.gz" % (benchmark)
+        env["hstore.exec_prefix"] += " -Dsite.markov_enable=true"
+        env["hstore.exec_prefix"] += " -Dmarkov=%s" % os.path.join(OPT_MARKOV_DIR, markov)
+        
         pplan = "%s.lns.pplan" % benchmark
         env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         env["hstore.exec_prefix"] += " -Dpartitionplan.ignore_missing=True"

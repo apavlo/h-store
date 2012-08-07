@@ -70,19 +70,19 @@ public enum TransactionCounter {
     public Long get(Procedure catalog_proc) {
         return (this.h.get(catalog_proc.getName()));
     }
-    public int inc(String procName) {
+    public synchronized int inc(String procName) {
         this.h.put(procName);
         return (this.get());
     }
-    public int inc(Procedure catalog_proc) {
+    public synchronized int inc(Procedure catalog_proc) {
         this.h.put(catalog_proc.getName());
         return (this.get());
     }
-    public int dec(Procedure catalog_proc) {
+    public synchronized int dec(Procedure catalog_proc) {
         this.h.dec(catalog_proc.getName());
         return (this.get());
     }
-    public void clear() {
+    public synchronized void clear() {
         this.h.clear();
     }
     public static Collection<String> getAllProcedures() {
