@@ -636,6 +636,8 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     public TransactionInitCallback initTransactionInitCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.init_callback.isInitialized() == false) :
             String.format("Trying initialize the %s for %s more than once",
                           this.dtxnState.init_callback.getClass().getSimpleName(), this);
@@ -643,13 +645,16 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.dtxnState.init_callback);
     }
     public TransactionPrepareCallback getOrInitTransactionPrepareCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         if (this.dtxnState.prepare_callback.isInitialized() == false) {
             this.dtxnState.prepare_callback.init(this);
         }
         return (this.dtxnState.prepare_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
-        assert(this.dtxnState != null);
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         return (this.dtxnState.prepare_callback);
     }
     
@@ -661,6 +666,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized() == false) :
             String.format("Trying initialize the %s for %s more than once",
                     this.dtxnState.finish_callback.getClass().getSimpleName(), this);
@@ -670,6 +677,8 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.dtxnState.finish_callback);
     }
     public TransactionFinishCallback getTransactionFinishCallback() {
+        assert(this.dtxnState != null) :
+            "Trying to access DistributedState for non distributed txn " + this;
         assert(this.dtxnState.finish_callback.isInitialized()) :
             "Trying to use TransactionFinishCallback for " + this + " before it is intialized";
         return (this.dtxnState.finish_callback);
