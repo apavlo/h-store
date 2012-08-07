@@ -354,7 +354,13 @@ public class BenchmarkResults {
                 Integer offset = m_transactionNames.get(txnName);
                 Result r = new Result(offsetTime, cmpResults.transactions.fastGet(offset.intValue()));
                 if (this.enableLatencies && cmpResults.latencies != null) {
-                    r.latencies.put(cmpResults.latencies.get(offset));
+                    Histogram<Integer> latencies = cmpResults.latencies.get(offset);
+                    if (latencies != null) {
+                        synchronized (latencies) {
+                            r.latencies.put(latencies);
+                        } // SYNCH
+                    }
+                    
                 }
                 results.add(r);
             } // FOR

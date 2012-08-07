@@ -862,7 +862,9 @@ public abstract class BenchmarkComponent {
                         }
                     } // SYNCH
                 }
-                latencies.put(cresponse.getClusterRoundtrip());
+                synchronized (latencies) {
+                    latencies.put(cresponse.getClusterRoundtrip());
+                } // SYNCH
             }
             if (m_txnStats.isBasePartitionsEnabled()) {
                 m_txnStats.basePartitions.put(cresponse.getBasePartition());

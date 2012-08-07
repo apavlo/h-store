@@ -41,9 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.SortedSet;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
@@ -83,7 +81,7 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     protected VoltType value_type = VoltType.INVALID;
-    protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
+    protected final Map<X, Long> histogram = new HashMap<X, Long>();
     protected int num_samples = 0;
     private transient boolean dirty = false;
     
@@ -693,7 +691,7 @@ public class Histogram<X> implements JSONSerializable {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public <T> SortedMap<T, Double> normalize() {
+    public <T> Map<T, Double> normalize() {
         final boolean trace = LOG.isTraceEnabled();
 
         double delta = 2.0d / (double) (this.getValueCount() - 1);
@@ -703,9 +701,8 @@ public class Histogram<X> implements JSONSerializable {
         }
 
         // We only want to round the values that we put into the map. If you
-        // round
-        // the current counter than we will always be off at the end
-        SortedMap<T, Double> normalized = new TreeMap<T, Double>();
+        // round the current counter than we will always be off at the end
+        Map<T, Double> normalized = new HashMap<T, Double>();
         int precision = 10;
         double current = -1.0d;
         for (T k : (Set<T>) this.histogram.keySet()) {
@@ -715,7 +712,6 @@ public class Histogram<X> implements JSONSerializable {
             current += delta;
         } // FOR
         assert (this.histogram.size() == normalized.size());
-
         return (normalized);
     }
 

@@ -439,7 +439,7 @@ public class CommandLogWriter implements Shutdownable {
             }
         } // FOR
         if (txnCounter == 0) {
-            if (debug.get()) LOG.debug("No transactions are in the current buffers. Not writing anything to disk"); 
+            if (debug.get()) LOG.debug("No transactions are in the current buffers. Not writing anything to disk");  
             return;
         }
         
