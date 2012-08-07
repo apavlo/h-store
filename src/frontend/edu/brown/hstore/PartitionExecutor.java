@@ -187,15 +187,30 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * This defines what level of speculative execution we have enabled.
      */
     public enum ExecutionMode {
-        /** Disable processing all transactions until... **/
+        /**
+         * Disable processing all transactions until told otherwise.
+         * We will still accept new ones
+         */
         DISABLED,
-        /** No speculative execution. All transactions are committed immediately **/
+        /**
+         * Reject any transaction that tries to get added
+         */
+        DISABLED_REJECT,
+        /**
+         * No speculative execution. All transactions are committed immediately
+         */
         COMMIT_ALL,
-        /** Allow read-only txns to return results. **/
+        /**
+         * Allow read-only txns to return results.
+         */
         COMMIT_READONLY,
-        /** Allow non-conflicting txns to return results. **/
+        /**
+         * Allow non-conflicting txns to return results.
+         */
         COMMIT_NONCONFLICTING,
-        /** All txn responses must wait until the current distributed txn is committed **/ 
+        /**
+         * All txn responses must wait until the current distributed txn is committed
+         */ 
         COMMIT_NONE,
     };
     
@@ -1118,7 +1133,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
     
     public void haltProcessing() {
         ExecutionMode origMode = this.currentExecMode;
-        this.setExecutionMode(this.currentTxn, ExecutionMode.DISABLED);
+        this.setExecutionMode(this.currentTxn, ExecutionMode.DISABLED_REJECT);
         List<InternalMessage> toKeep = new ArrayList<InternalMessage>(); 
         InternalMessage msg = null;
         while ((msg = this.work_queue.poll()) != null) {
@@ -1129,7 +1144,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                 InitializeTxnMessage initMsg = (InitializeTxnMessage)msg;
                 hstore_site.responseError(initMsg.getClientHandle(),
                                           Status.ABORT_REJECT,
-                                          "Transaction was rejected by " + hstore_site.getSiteName(),
+                                          hstore_site.getRejectionMessage() + " - [2]",
                                           initMsg.getClientCallback(),
                                           EstTime.currentTimeMillis());
             }
@@ -1516,7 +1531,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
                                        ParameterSet procParams,
                                        RpcCallback<ClientResponseImpl> clientCallback) {
         boolean sysproc = catalog_proc.getSystemproc();
-        if (this.currentExecMode == ExecutionMode.DISABLED && sysproc == false) return (false);
+        if (this.currentExecMode == ExecutionMode.DISABLED_REJECT && sysproc == false) return (false);
         
         if (d) LOG.debug(String.format("Queuing new %s transaction execution request on partition %d " +
                                        "[currentDtxn=%s, mode=%s]",
@@ -1538,15 +1553,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      * @param callback
      */
     public boolean queueNewTransaction(LocalTransaction ts) {
-        if (this.currentExecMode == ExecutionMode.DISABLED) return (false);
         assert(ts != null) : "Unexpected null transaction handle!";
         boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean force = (singlePartitioned == false) || ts.isMapReduce() || ts.isSysProc();
-        
-        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
-        		                       "[currentDtxn=%s, mode=%s, force=%s]",
-                                       ts, this.partitionId,
-                                       this.currentDtxn, this.currentExecMode, force));
         
         // UPDATED 2012-07-12
         // We used to have a bunch of checks to determine whether we needed
@@ -1555,10 +1564,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // the request into the work_queue. Now we'll just throw it right in
         // the queue (checking for throttling of course) and let the main
         // thread sort out the mess of whether the txn should get blocked or not
-        if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]",
-                                       ts, this.partitionId, this.work_queue.size()));
+        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d " +
+                                       "[curDtxn=%s, mode=%s, force=%s, queueSize=%d]",
+                                       ts, this.partitionId,
+                                       this.currentDtxn, this.currentExecMode, force, this.work_queue.size()));
+        if (this.currentExecMode == ExecutionMode.DISABLED_REJECT) {
+            if (d) LOG.warn(String.format("%s - Not queuing txn at partition %d because current mode is %s",
+                                          ts, this.partitionId, this.currentExecMode));
+            return (false);
+        }
+        
         StartTxnMessage work = new StartTxnMessage(ts);
-        return (this.work_queue.offer(work, force));
+        boolean success = this.work_queue.offer(work, force);
+        if (d && force && success == false) {
+            throw new ServerFaultException("Failed to add " + ts + " even though force flag was true!", ts.getTransactionId());
+        }
+        return (success);
     }
 
     // ---------------------------------------------------------------
