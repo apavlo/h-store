@@ -62,7 +62,6 @@ public interface VoltDBInterface
     public Object[] getInstanceId();
     public Messenger getMessenger();
     public HostMessenger getHostMessenger();
-    public List<ClientInterface> getClientInterfaces();
     public Map<Integer, PartitionExecutor> getLocalSites();
     public VoltNetwork getNetwork();
     public StatsAgent getStatsAgent();

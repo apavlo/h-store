@@ -266,7 +266,7 @@ public class CommandLogWriter implements Shutdownable {
         this.numWritingLocks = num_partitions;
         
         // hack, set arbitrarily high to avoid contention for log buffer
-        this.group_commit_size = 100000; 
+        this.group_commit_size = 10000; 
         
         LOG.debug("group_commit_size: " + this.group_commit_size); 
         LOG.debug("group_commit_timeout: " + hstore_conf.site.commandlog_timeout); 
@@ -422,17 +422,19 @@ public class CommandLogWriter implements Shutdownable {
             CircularLogEntryBuffer buffer = eb[i];
             try {
                 assert(this.singletonSerializer != null);
-                int start = buffer.getStart();
-                for (int j = 0, size = buffer.getSize(); j < size; j++) {
-                    WriterLogEntry entry = buffer.buffer[(start + j) % buffer.buffer.length];
+                int size = buffer.buffer.length;
+                int position = buffer.startPos;
+                while (position != buffer.nextPos) {
+                    WriterLogEntry entry = buffer.buffer[position++];
                     this.singletonSerializer.writeObject(entry);
                     txnCounter++;
                     
                     if (debug.get())
                         LOG.debug(String.format("Prepared txn #%d for group commit batch #%d",
                                                 entry.txnId, this.commitBatchCounter));
-                } // FOR
-                
+                    
+                    if (position >= size) position = 0;
+                } // WHILE
             } catch (Exception e) {
                 String message = "Failed to serialize buffer during group commit";
                 throw new ServerFaultException(message, e);

@@ -486,9 +486,6 @@ public class RealVoltDB implements VoltDBInterface
             m_adminListener.shutdown(true);
 
             // shut down the client interface
-            for (ClientInterface ci : m_clientInterfaces) {
-                ci.shutdown();
-            }
 
             // shut down ELT and its connectors.
             ELTManager.instance().shutdown();
@@ -642,10 +639,6 @@ public class RealVoltDB implements VoltDBInterface
         return m_messenger;
     }
 
-    public ArrayList<ClientInterface> getClientInterfaces() {
-        return m_clientInterfaces;
-    }
-
     public Hashtable<Integer, PartitionExecutor> getLocalSites() {
         return m_localSites;
     }
@@ -690,9 +683,6 @@ public class RealVoltDB implements VoltDBInterface
         out.print("Content-type: multipart/mixed; boundary=\"reportsection\"");
 
         out.print("\n\n--reportsection\nContent-Type: text/plain\n\nClientInterface Report\n");
-        for (ClientInterface ci : getClientInterfaces()) {
-          out.print(ci.toString() + "\n");
-        }
 
         out.print("\n\n--reportsection\nContent-Type: text/plain\n\nLocalSite Report\n");
         for(PartitionExecutor es : getLocalSites().values()) {
