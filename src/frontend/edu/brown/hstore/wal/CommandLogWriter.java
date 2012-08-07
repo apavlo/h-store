@@ -30,6 +30,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -53,6 +55,7 @@ import edu.brown.interfaces.Shutdownable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
 
 /**
  * Transaction Command Log Writer
@@ -136,6 +139,11 @@ public class CommandLogWriter implements Shutdownable {
         }
         public int getSize() {
             return ((nextPos + this.buffer.length) - startPos) % this.buffer.length;
+        }
+        @Override
+        public String toString() {
+            return String.format("%s[start=%d / next=%s]@%d", this.getClass().getSimpleName(),
+                                 this.startPos, this.nextPos, this.hashCode());
         }
     } // CLASS
     
@@ -258,9 +266,9 @@ public class CommandLogWriter implements Shutdownable {
         this.numWritingLocks = num_partitions;
         
         // hack, set arbitrarily high to avoid contention for log buffer
-        this.group_commit_size = num_partitions; 
+        this.group_commit_size = 10000; 
         
-        LOG.debug("group_commit_size: " + group_commit_size); 
+        LOG.debug("group_commit_size: " + this.group_commit_size); 
         LOG.debug("group_commit_timeout: " + hstore_conf.site.commandlog_timeout); 
         
         // Configure group commit parameters
@@ -274,8 +282,8 @@ public class CommandLogWriter implements Shutdownable {
             for (int partition = 0; partition < num_partitions; partition++) {
                 FastSerializer fs0 = new FastSerializer(hstore_site.getBufferPool());
                 FastSerializer fs1 = new FastSerializer(hstore_site.getBufferPool());
-                this.entries[partition] = new CircularLogEntryBuffer(group_commit_size, fs0);
-                this.entriesFlushing[partition] = new CircularLogEntryBuffer(group_commit_size, fs1);
+                this.entries[partition] = new CircularLogEntryBuffer(this.group_commit_size, fs0);
+                this.entriesFlushing[partition] = new CircularLogEntryBuffer(this.group_commit_size, fs1);
             } // FOR
             this.flushThread = new WriterThread();
             this.singletonLogEntry = null;
@@ -325,13 +333,11 @@ public class CommandLogWriter implements Shutdownable {
      * to disk right now. Multiple invocations of this will not be queued 
      */
     protected void flush() throws InterruptedException {
-//        // Wait until it starts running
-//        while (this.flushInProgress.get() == false) {
-//            this.flushThread.interrupt();
-//            Thread.yield();
-//        } // WHILE
-        
-        // this.entries = this.bufferExchange.exchange(entries);
+        // Wait until it starts running
+        while (this.flushInProgress.get() == false) {
+            // this.flushThread.interrupt();
+            Thread.yield();
+        } // WHILE
         
         // Then wait until it's done running
         while (this.flushInProgress.get()) {
@@ -341,13 +347,16 @@ public class CommandLogWriter implements Shutdownable {
     
     @Override
     public void shutdown() {
-        while (this.flushInProgress.get() == false) {
-//            this.flushThread.interrupt();
+        while (this.flushInProgress.get()) {
             Thread.yield();
         } // WHILE
         
-        if (debug.get()) 
-            LOG.debug("Closing WAL file");
+        if (debug.get()) {
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            m.put("Current Buffer", StringUtil.join("\n", this.entries));
+            m.put("Flushing Buffer", StringUtil.join("\n", this.entriesFlushing));
+            LOG.debug("Closing WAL file\n" + StringUtil.formatMaps(m).trim());
+        }
         try {
 //            this.flushThread.interrupt();
             this.fstream.close();
@@ -510,6 +519,9 @@ public class CommandLogWriter implements Shutdownable {
                 // only one thread per partition
                 LogEntry entry = buffer.next(ts, cresponse);
                 assert(entry != null);
+                if (trace.get()) LOG.trace(String.format("New %s %s from %s for partition %d",
+                                                        entry.getClass().getSimpleName(),
+                                                        entry, buffer, basePartition));
 
                 this.writingEntry.release();
             } catch (InterruptedException e) {

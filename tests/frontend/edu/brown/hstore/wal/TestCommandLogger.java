@@ -103,7 +103,7 @@ public class TestCommandLogger extends BaseTestCase {
     @Test
     public void testWithGroupCommit() throws Exception {
         // Write out a new txn invocation to the log
-        int num_txns = 100;
+        int num_txns = 1000;
         long txnId[] = new long[num_txns];
         for (int i = 0; i < num_txns; i++) {
             LocalTransaction ts = new LocalTransaction(hstore_site);
