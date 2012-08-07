@@ -55,7 +55,7 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         Client client = this.getClient();
         this.initializeDatabase(client);
         
-        final int num_txns = 10;
+        final int num_txns = 1000;
         final CountDownLatch latch = new CountDownLatch(num_txns);
         final AtomicInteger numCompleted = new AtomicInteger(0);
         
@@ -66,8 +66,6 @@ public class TestCommandLoggerSuite extends RegressionSuite {
                     cr.getResults()[0].asScalarLong() == VoterConstants.VOTE_SUCCESSFUL) { 
                     numCompleted.incrementAndGet();
                 }
-//                System.err.println(cr);
-//                System.err.flush();
                 latch.countDown();
             }
         };
@@ -89,11 +87,15 @@ public class TestCommandLoggerSuite extends RegressionSuite {
         // Make sure that our vote is actually in the real table and materialized views
         String query = "SELECT COUNT(*) FROM votes";
         ClientResponse cresponse = client.callProcedure("@AdHoc", query);
+        System.err.println(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
         VoltTable results[] = cresponse.getResults();
         assertEquals(1, results.length);
         assertEquals(numCompleted.get(), results[0].asScalarLong());
         
+        
+        // TODO: We should go through the log and make sure that all of our
+        // transactions are still in there...
     }
 
     public static Test suite() {

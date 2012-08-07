@@ -176,8 +176,8 @@ public class CommandLogWriter implements Shutdownable {
                 // thread from appending to the buffer that we're about to swap
                 int free_permits = numWritingLocks - writingEntry.drainPermits();
                 if (free_permits > 0) {
-                    if (debug.get())
-                        LOG.debug("Acquiring " + free_permits + " writeEntry permits");
+                    if (trace.get())
+                        LOG.trace("Acquiring " + free_permits + " writeEntry permits");
                     do {
                         try {
                             writingEntry.acquire(free_permits);
@@ -202,7 +202,7 @@ public class CommandLogWriter implements Shutdownable {
                 
                 // Release our entry permits so that other threads can 
                 // start filling up their Entry buffers
-                if (debug.get()) LOG.debug("Releasing writingEntry permits");
+                if (trace.get()) LOG.trace("Releasing writingEntry permits");
                 writingEntry.release(group_commit_size);
 
                 // Write the entries out to disk
@@ -451,8 +451,8 @@ public class CommandLogWriter implements Shutdownable {
             throw new RuntimeException("Failed to compress WAL buffer");
         }
         
-        LOG.info(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
-                               compressed.limit(), txnCounter, this.commitBatchCounter)); 
+        if (debug.get()) LOG.debug(String.format("Writing out %d bytes for %d txns [batchCtr=%d]",
+                                   compressed.limit(), txnCounter, this.commitBatchCounter)); 
         try {
             this.fstream.write(compressed);
             this.fstream.force(true);
@@ -499,8 +499,8 @@ public class CommandLogWriter implements Shutdownable {
         // QUEUE FOR GROUP COMMIT
         // -------------------------------
         if (this.useGroupCommit) {
-            if (debug.get())
-                LOG.debug(ts + " - Attempting to queue txn to write out to command log using group commit");
+            if (trace.get())
+                LOG.trace(ts + " - Attempting to queue txn to write out to command log using group commit");
             
             int basePartition = ts.getBasePartition();
             assert(this.hstore_site.isLocalPartition(basePartition));
@@ -530,8 +530,8 @@ public class CommandLogWriter implements Shutdownable {
                 if (hstore_conf.site.commandlog_profiling) this.blockedTime.stop();
             }
 
-            if (debug.get())
-                LOG.debug(ts + " - Finished queuing txn to write out to command log");
+            if (trace.get())
+                LOG.trace(ts + " - Finished queuing txn to write out to command log");
             
             // We always want to set this to false because our flush thread will
             // be the one that actually sends out the network messages
