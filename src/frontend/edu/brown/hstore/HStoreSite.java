@@ -1550,7 +1550,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Profiling Updates
         if (hstore_conf.site.txn_counters) TransactionCounter.RECEIVED.inc(procName);
         if (hstore_conf.site.network_profiling && base_partition != -1) {
-            this.network_incoming_partitions.put(base_partition);
+            synchronized (this.network_incoming_partitions) {
+                this.network_incoming_partitions.put(base_partition);
+            } // SYNCH
         }
         
         base_partition = this.txnInitializer.calculateBasePartition(client_handle,

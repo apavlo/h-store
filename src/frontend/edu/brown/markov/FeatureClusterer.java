@@ -1123,7 +1123,12 @@ public class FeatureClusterer {
         
         FeatureClusterer fclusterer = null;
         if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_RANDOM_PARTITIONS)) {
-            Histogram<Integer> h = new PartitionEstimator(args.catalogContext).buildBasePartitionHistogram(args.workload);
+            PartitionEstimator p_estimator = new PartitionEstimator(args.catalogContext);
+            final Histogram<Integer> h = new Histogram<Integer>();
+            for (TransactionTrace txn_trace : args.workload.getTransactions()) {
+                int base_partition = p_estimator.getBasePartition(txn_trace);
+                h.put(base_partition);
+            } // FOR
 //            System.err.println("# OF PARTITIONS: " + h.getValueCount());
 //            h.setKeepZeroEntries(true);
 //            for (Integer p : CatalogUtil.getAllPartitionIds(args.catalog_db)) {

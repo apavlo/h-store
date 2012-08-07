@@ -664,7 +664,9 @@ public class TransactionQueueManager implements Runnable, Loggable, Shutdownable
         if (hstore_conf.site.txn_counters && ts.getRestartCounter() == 1) {
             TransactionCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
             int id = (int)TransactionIdManager.getInitiatorIdFromTransactionId(last_txn_id.longValue());
-            this.blockedQueueHistogram.put(id);
+            synchronized (this.blockedQueueHistogram) {
+                this.blockedQueueHistogram.put(id);
+            } // SYNCH
         }
         if (this.checkFlag.availablePermits() == 0)
             this.checkFlag.release();
