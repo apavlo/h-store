@@ -165,8 +165,12 @@ EXPERIMENT_SETTINGS = {
     "motivation": {
         "site.specexec_enable":                 False,
         "site.specexec_idle_enable":            False,
+        "client.output_response_status":        True,
         "client.output_exec_profiling":         "execprofile.csv",
         "client.output_txn_profiling":          "txnprofile.csv",
+        "client.output_txn_profiling_combine":  True,
+        "client.output_txn_counters":           "txncounters.csv",
+        "client.output_txn_counters_combine":   True,
         "benchmark.neworder_only":              True,
         "benchmark.neworder_abort":             False,
     },
@@ -223,11 +227,14 @@ def saveCSVResults(args, partitions, filename):
 ## ==============================================
 def processResults(args, partitions, output, workloads, results):
     data = hstore.parseJSONResults(output)
-    for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
+    for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND', 'TXNTOTALCOUNT' ]:
         if key in data:
             txnrate = float(data[key])
             break
     ## FOR
+    assert not txnrate is None, \
+        "Failed to extract throughput rate from output\n" + pformat(data)
+    
     minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
     maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
     stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
@@ -369,6 +376,7 @@ if __name__ == '__main__':
     agroup = aparser.add_argument_group('Debug Parameters')
     agroup.add_argument("--debug", action='store_true')
     agroup.add_argument("--debug-hstore", action='store_true')
+    agroup.add_argument("--debug-log4j", action='store_true')
 
     args = vars(aparser.parse_args())
     
@@ -436,8 +444,8 @@ if __name__ == '__main__':
     controllerParams = { }
     
     needUpdate = (args['no_update'] == False)
-    needUpdateLog4j = args['debug_hstore']
-    needResetLog4j = not (args['no_update'] or args['debug_hstore'])
+    needUpdateLog4j = args['debug_log4j']
+    needResetLog4j = not (args['no_update'] or args['debug_log4j'])
     needSync = (args['no_sync'] == False)
     needCompile = (args['no_compile'] == False)
     needClearLogs = (args['clear_logs'] == False)
@@ -526,7 +534,8 @@ if __name__ == '__main__':
                         ## IF
                         
                         # CSV RESULT FILES
-                        for key in ["client.output_txn_profiling", "client.output_exec_profiling"] :
+                        for key in ["output_txn_profiling", "output_exec_profiling", "output_txn_counters"]:
+                            key = "client.%s" % key
                             LOG.info("Checking whether '%s' is enabled" % (key))
                             if key in env and not env[key] is None:
                                 saveCSVResults(args, partitions, env[key])

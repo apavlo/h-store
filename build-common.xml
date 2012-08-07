@@ -60,6 +60,8 @@
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
+<arg value="client.output_txn_counters=${client.output_txn_counters}" />
+<arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />
 <arg value="client.profiling=${client.profiling}" />
 <arg value="client.anticache_enable=${client.anticache_enable}" />
 <arg value="client.anticache_evict_interval=${client.anticache_evict_interval}" />
