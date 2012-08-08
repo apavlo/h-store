@@ -551,6 +551,11 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
  */
 bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool updatesIndexes) {
     size_t elMark = 0;
+    
+#ifdef ANTICACHE
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    eviction_manager->updateTuple(this, &source, false); 
+#endif
 
     /*
      * Create and register an undo action and then use the copy of
