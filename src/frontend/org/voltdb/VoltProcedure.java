@@ -167,7 +167,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      */
     private boolean workloadTraceEnable = false;
     private Object workloadTxnHandle = null;
-    private Integer workloadBatchId = null;
     private List<Object> workloadQueryHandles;
 
     // ----------------------------------------------------------------------------
@@ -176,6 +175,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     private AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
+    private int batchId = 0;
     private SQLStmt batchQueryStmts[];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
@@ -537,6 +537,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         
         // in case someone queues sql but never calls execute, clear the queue here.
+        this.batchId = 0;
         this.batchQueryStmtIndex = 0;
         this.batchQueryArgsIndex = 0;
         this.last_batchQueryStmtIndex = -1;
@@ -642,8 +643,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 this.status = Status.ABORT_USER;
                 this.status_msg = "USER ABORT: " + ex.getMessage();
                 
-                if (this.workloadTraceEnable && workloadTxnHandle != null) {
-                    ProcedureProfiler.workloadTrace.abortTransaction(workloadTxnHandle);
+                if (this.workloadTraceEnable && this.workloadTxnHandle != null) {
+                    ProcedureProfiler.workloadTrace.abortTransaction(this.workloadTxnHandle);
                 }
             // -------------------------------
             // MispredictionException
@@ -715,14 +716,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } finally {
             this.m_localTxnState.markAsExecuted();
             if (d) LOG.debug(this.m_currentTxnState + " - Finished transaction [" + status + "]");
-        }
 
-        // Workload Trace - Stop the transaction trace record.
-        if (this.workloadTraceEnable && workloadTxnHandle != null && this.status == Status.OK) {
-            if (hstore_conf.site.trace_txn_output) {
-                ProcedureProfiler.workloadTrace.stopTransaction(workloadTxnHandle, this.results);
-            } else {
-                ProcedureProfiler.workloadTrace.stopTransaction(workloadTxnHandle);
+            // Workload Trace - Stop the transaction trace record.
+            if (this.workloadTraceEnable && workloadTxnHandle != null && this.status == Status.OK) {
+                if (hstore_conf.site.trace_txn_output) {
+                    ProcedureProfiler.workloadTrace.stopTransaction(this.workloadTxnHandle, this.results);
+                } else {
+                    ProcedureProfiler.workloadTrace.stopTransaction(this.workloadTxnHandle);
+                }
             }
         }
 
@@ -1030,13 +1031,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         
         // Workload Trace - Start Query
         if (this.workloadTraceEnable && workloadTxnHandle != null) {
-            workloadBatchId = ProcedureProfiler.workloadTrace.getNextBatchId(workloadTxnHandle);
             workloadQueryHandles.clear();
             for (int i = 0; i < batchQueryStmtIndex; i++) {
                 Object queryHandle = ProcedureProfiler.workloadTrace.startQuery(workloadTxnHandle,
                                                                                 batchQueryStmts[i].catStmt,
                                                                                 batchQueryArgs[i],
-                                                                                workloadBatchId);
+                                                                                this.batchId);
                 
                 assert(queryHandle != null);
                 
@@ -1139,6 +1139,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         } catch (Throwable ex) {
             throw new ServerFaultException("Unexpected error", ex, m_localTxnState.getTransactionId());
         }
+        this.batchId++;
         return (results);
     }
     
