@@ -19,6 +19,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
+import org.voltdb.CatalogContext;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Catalog;
@@ -290,6 +291,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // COMPARATOR
     // ------------------------------------------------------------
 
+    /**
+     * Loads a serialized catalog specification from a jar file and creates a
+     * new CatalogContext object from it
+     * @param jar_path
+     */
+    public static CatalogContext loadCatalogContextFromJar(File jar_path) {
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(jar_path.getAbsolutePath());
+        return new CatalogContext(catalog, jar_path);
+    }
+    
     /**
      * Loads a serialized catalog specification from a jar file and creates a
      * new Catalog object from it

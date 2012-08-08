@@ -56,7 +56,6 @@ sys.path.append(os.path.realpath(os.path.join(basedir, "../../third_party/python
 
 import hstore
 import hstore.codespeed
-# This has all the functions we can use to invoke experiments on EC2
 import hstore.fabfile
 
 import argparse
