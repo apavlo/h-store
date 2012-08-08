@@ -98,7 +98,6 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
 
     // The following data structures are specific to Transactions
     private final transient ListOrderedMap<Long, TransactionTrace> xact_trace = new ListOrderedMap<Long, TransactionTrace>();
-    private final transient Map<TransactionTrace, Integer> trace_bach_id = new HashMap<TransactionTrace, Integer>();
 
     // Reverse mapping from QueryTraces to TxnIds
     private final transient Map<QueryTrace, Long> query_txn_xref = new ConcurrentHashMap<QueryTrace, Long>();
@@ -458,26 +457,6 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     public void addBulkLoadProcedure(String name) {
         this.bulkload_procedures.add(name.toUpperCase());
     }
-
-    /**
-     * For the given transaction handle, get the next query batch id (starting at zero)
-     * 
-     * @param xact_handle - the transaction handle created by startTransaction()
-     * @return the next query batch id for a transaction
-     */
-    @Override
-    public int getNextBatchId(Object xact_handle) {
-        if (xact_handle instanceof TransactionTrace) {
-            TransactionTrace xact = (TransactionTrace)xact_handle;
-            int batch_id = -1;
-            if (this.trace_bach_id.containsKey(xact)) {
-                batch_id = this.trace_bach_id.get(xact);
-            }
-            this.trace_bach_id.put(xact, ++batch_id);
-            return (batch_id);
-        }
-        return -1;
-    }
     
     /**
      * Returns the number of transactions loaded into this Workload object
@@ -600,7 +579,6 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
     protected void removeTransaction(TransactionTrace txn_trace) {
         this.xact_trace.remove(txn_trace.getTransactionId());
         this.xact_open_queries.remove(txn_trace.getTransactionId());
-        this.trace_bach_id.remove(txn_trace);
     }
     
     /**
