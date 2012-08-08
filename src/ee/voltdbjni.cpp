@@ -1217,9 +1217,11 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffi
         }
     }
 
-    if ( sched_setaffinity( 0, sizeof(mask), &mask) == -1) {
-        if (errno == EPERM) {
-            VOLT_ERROR("Failed to set CPU affinity because we do not have permission");
+    int result = sched_setaffinity( 0, sizeof(mask), &mask);
+    if (result == -1) {
+        char buff[256];
+        if (strerror_r(result, buff, 256) == 0) {
+            VOLT_ERROR("Failed to set CPU -  %s",  buff);
         } else {
             VOLT_ERROR("Failed to set CPU affinity for an unknown reason");
         }

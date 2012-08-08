@@ -87,6 +87,9 @@ public abstract class VoltTableUtil {
                 assert(adv);
                 for (int j = 0; j < header.length; j++) {
                     rows[i][j] = vt.get(j);
+                    if (vt.wasNull()) {
+                        rows[i][j] = null;    
+                    }
                 } // FOR (cols)
                 
             } // FOR (rows)

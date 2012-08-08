@@ -1908,7 +1908,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             // Always tell the queue stuff that the transaction is finished at this partition
-            if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d",
+            if (t) LOG.trace(String.format("Telling queue manager that txn #%d is finished at partition %d",
                                            txn_id, p));
             this.txnQueueManager.lockFinished(txn_id, Status.OK, p);
             
@@ -2171,8 +2171,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // XXX: We should probably decrement the base partition by one 
             //      so that we only consider where they actually executed queries
-            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
-                                           orig_ts, touched));
+            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s%s",
+                                           orig_ts, (t ? "\n"+touched : " " + touched.values())));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
@@ -2207,7 +2207,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 try {
                     out.writeObject(spi);
                 } catch (IOException ex) {
-                    throw new RuntimeException("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts, ex);
+                    String msg = "Failed to serialize StoredProcedureInvocation to redirect txn";
+                    throw new ServerFaultException(msg, ex, orig_ts.getTransactionId());
                 }
                 
                 TransactionRedirectCallback callback;
@@ -2215,7 +2216,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     callback = (TransactionRedirectCallback)objectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
                     callback.init(orig_ts.getClientCallback());
                 } catch (Exception ex) {
-                    throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
+                    String msg = "Failed to get TransactionRedirectCallback";
+                    throw new ServerFaultException(msg, ex, orig_ts.getTransactionId());   
                 }
                 this.hstore_coordinator.transactionRedirect(out.getBytes(),
                                                             callback,
@@ -2228,12 +2230,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else if (orig_ts.getRestartCounter() <= 1) {
                 if (redirect_partition.intValue() != base_partition &&
                     this.isLocalPartition(redirect_partition.intValue())) {
-                    if (d) LOG.debug(String.format("Redirecting %s to local partition %d. restartCtr=%d]\n%s",
-                                                    orig_ts, redirect_partition, orig_ts.getRestartCounter(), touched));
+                    if (d) LOG.debug(String.format("%s - Redirecting to local partition %d [restartCtr=%d]%s",
+                                                    orig_ts, redirect_partition, orig_ts.getRestartCounter(),
+                                                    (t ? "\n"+touched : "")));
                     base_partition = redirect_partition.intValue();
                 }
             } else {
-                if (d) LOG.debug(String.format("Mispredicted %s has already been aborted once before. " +
+                if (d) LOG.debug(String.format("%s - Mispredicted txn has already been aborted once before. " +
                                                "Restarting as all-partition txn [restartCtr=%d, redirectPartition=%d]\n%s",
                                                orig_ts, orig_ts.getRestartCounter(), redirect_partition, touched));
                 touched.put(this.local_partitions);
