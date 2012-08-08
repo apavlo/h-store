@@ -2107,6 +2107,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         // Check whether this is the last query that we're going to get
         // from this transaction. If it is, then we can go ahead and prepare the txn
         if (is_local == false && fragment.getLastFragment()) {
+            if (d) LOG.debug(String.format("%s - Invoking early 2PC:PREPARE", ts));
             hstore_site.transactionPrepare(ts.getTransactionId(),
                                            this.catalogContext.getPartitionSetSingleton(this.partitionId),
                                            null);

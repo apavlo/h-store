@@ -1018,19 +1018,27 @@ public class BenchmarkController {
     public void runBenchmark() throws Exception {
         if (this.stop) return;
         LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
-        LOG.info(String.format("Starting %s execution with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
+        
+        int threadsPerHost = hstore_conf.client.threads_per_host;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            threadsPerHost *= CatalogUtil.getNumberOfPartitions(catalog); 
+        }
+                
+        String debugOpts = String.format("[hosts=%d, perhost=%d, txnrate=%s", m_config.clients.length,
+                                                                              threadsPerHost,
+                                                                              hstore_conf.client.txnrate);
+        if (hstore_conf.client.blocking) {
+            debugOpts += ", blockingConcurrent%d" + hstore_conf.client.blocking_concurrent; 
+        }
+        debugOpts += "]";
+        LOG.info(String.format("Starting %s execution with %d clients %s",
                                 m_projectBuilder.getProjectName().toUpperCase(),
-                                m_clientThreads.size(),
-                                m_config.clients.length,
-                                hstore_conf.client.threads_per_host * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
-                                hstore_conf.client.txnrate,
-                                hstore_conf.client.blocking,
-                                (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
-                                
-        ));
+                                m_clientThreads.size(), debugOpts));
         if (m_config.statsDatabaseURL != null) {
             LOG.info("Client Stats Database: " + m_config.statsDatabaseURL);
         }
+        
+        // ---------------------------------------------------------------------------------
         
         // HACK
         int gdb_sleep = 0;

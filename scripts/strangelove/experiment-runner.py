@@ -93,16 +93,14 @@ OPT_MARKOV_DIR = "files/markovs/vldb-august2012"
 DEFAULT_OPTIONS = {
     "hstore.git_branch": "strangelove"
 }
-
-DEBUG_OPTIONS = [
-    "site.exec_profiling",
-    #"site.txn_profiling",
-    "site.pool_profiling",
-    #"site.planner_profiling",
-    "site.status_show_txn_info",
-    "site.status_show_executor_info",
-    #"client.output_basepartitions",
-]
+DEBUG_OPTIONS = {
+    "site.status_enable":             True,
+    "site.status_interval":           20000,
+    #"site.status_show_txn_info":      True,
+    "site.status_show_executor_info": True,
+    "site.exec_profiling":            True,
+    #"site.txn_profiling":             True,    
+}
 DEBUG_LOGGING = [
     "edu.brown.hstore.HStoreSite",
     "edu.brown.hstore.PartitionExecutor",
@@ -141,7 +139,6 @@ BASE_SETTINGS = {
     "site.status_enable":                               False,
     "site.status_show_thread_info":                     False,
     "site.status_show_executor_info":                   False,
-    "site.status_interval":                             20000,
     "site.txn_incoming_delay":                          1,
     "site.coordinator_init_thread":                     False,
     "site.coordinator_finish_thread":                   False,
@@ -236,7 +233,7 @@ def saveCSVResults(args, partitions, filename):
 ## ==============================================
 def processResults(args, partitions, output, workloads, results):
     data = hstore.parseJSONResults(output)
-    for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND', 'TXNTOTALCOUNT' ]:
+    for key in [ 'TXNTOTALPERSECOND' ]:
         if key in data:
             txnrate = float(data[key])
             break
@@ -410,8 +407,8 @@ if __name__ == '__main__':
         LOG.setLevel(logging.DEBUG)
         hstore.fabfile.LOG.setLevel(logging.DEBUG)
     if args['debug_hstore']:
-        for param in DEBUG_OPTIONS:
-            BASE_SETTINGS[param] = True
+        for k,v in DEBUG_OPTIONS.iteritems():
+            BASE_SETTINGS[k] = v
     if args['fast_start']:
         LOG.info("Enabling fast startup")
         for key in ['compile', 'update', 'conf', 'jar', 'sync']:
