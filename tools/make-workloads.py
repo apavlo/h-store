@@ -69,8 +69,8 @@ HSTORE_OPTS = {
     "client.scalefactor":           2.0,
     "killonzero":                   True,
     
-    "site.status_show_executor_info": True,
-    "site.status_show_thread_info":   True,
+    # "site.status_show_executor_info": True,
+    # "site.status_show_thread_info":   True,
 }
 
 ## ==============================================
