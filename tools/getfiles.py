@@ -31,19 +31,28 @@ LOG.setLevel(logging.INFO)
 GIT_REPO = "git://github.com/apavlo/h-store-files.git"
 GIT_BRANCH = "master"
 
+SVN_REPO = "https://database.cs.brown.edu/svn/hstore-files/"
+SVN_OPTS = "--non-interactive --trust-server-cert"
+
 ## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Install H-Store Research Files')
     aparser.add_argument('path', help='Installation path')
+    aparser.add_argument('--svn-repo', default=SVN_REPO, help='SVN repository')
+    aparser.add_argument('--svn-options', default=SVN_OPTS, help='SVN checkout options')
+    aparser.add_argument('--git', action='store_true', help='Use git instead of svn')
     aparser.add_argument('--git-repo', default=GIT_REPO, help='Git repository')
     aparser.add_argument('--git-branch', default=GIT_BRANCH, help='Git branch')
     aparser.add_argument('--overwrite', action='store_true', help='Overwrite existing directory')
     aparser.add_argument('--copy', default=None, help='Copy from existing local copy')
     args = vars(aparser.parse_args())
 
-    cmd = "git clone --branch %(git_branch)s %(git_repo)s %(path)s" % args
+    if args['git']:
+        cmd = "git clone --branch %(git_branch)s %(git_repo)s %(path)s" % args
+    else:
+        cmd = "svn %(svn_options)s checkout %(svn_repo)s %(path)s" % args
     
     if os.path.exists(args['path']):
         if not args['overwrite']:
