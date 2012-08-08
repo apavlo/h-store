@@ -1925,7 +1925,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
             if (ts != null && hstore_conf.site.specexec_enable) {
-                if (d) LOG.debug(String.format("%s - Telling partition %d to enable speculative execution because of txn #%d",
+                if (d) LOG.debug(String.format("%s - Telling partition %d to enable speculative execution",
                                                ts, p));
                 boolean ret = this.executors[p].enableSpeculativeExecution(ts);
                 if (d && ret) {

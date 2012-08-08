@@ -3237,23 +3237,27 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
         }
         
         // -------------------------------
+        // ALL: Mispredicted Transactions
+        // -------------------------------
+        if (status == Status.ABORT_MISPREDICT) {
+            // If the txn was mispredicted, then we will pass the information over to the
+            // HStoreSite so that it can re-execute the transaction. We want to do this 
+            // first so that the txn gets re-executed as soon as possible...
+            if (d) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
+
+            // We don't want to delete the transaction here because whoever is going to requeue it for
+            // us will need to know what partitions that the transaction touched when it executed before
+            this.hstore_site.transactionRequeue(ts, status);
+        }
+        // -------------------------------
         // ALL: Single-Partition Transactions
         // -------------------------------
-        if (ts.isPredictSinglePartition()) {
+        else if (ts.isPredictSinglePartition()) {
             // Commit or abort the transaction
             this.finishWork(ts, (status == Status.OK));
             
-            // If the txn was mispredicted, then we will pass the information over to the HStoreSite
-            // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
-            // as soon as possible...
-            if (status == Status.ABORT_MISPREDICT) {
-                if (d) LOG.debug(String.format("%s - Restarting because transaction is mispredicted", ts));
-                // We don't want to delete the transaction here because whoever is going to requeue it for
-                // us will need to know what partitions that the transaction touched when it executed before
-                this.hstore_site.transactionRequeue(ts, status);
-            }
             // Use the separate post-processor thread to send back the result
-            else if (hstore_conf.site.exec_postprocessing_threads) {
+            if (hstore_conf.site.exec_postprocessing_threads) {
                 if (t) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
                                                ts, cresponse.getStatus()));
                 this.hstore_site.responseQueue(ts, cresponse);
