@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2011 by H-Store Project                                 *
+ *   Copyright (C) 2012 by H-Store Project                                 *
  *   Brown University                                                      *
  *   Massachusetts Institute of Technology                                 *
  *   Yale University                                                       *
@@ -77,12 +77,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.voltdb.CatalogContext;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
@@ -139,13 +139,6 @@ public class BenchmarkController {
     // ============================================================================
     // STATIC CONFIGURATION
     // ============================================================================
-    
-    /**
-     * HStoreConf parameters to not forward to sites 
-     */
-    private static final String EXCLUDED_SITE_PARAMS[] = {
-        
-    };
     
     /**
      * HStoreConf parameters to not forward to clients 
@@ -207,7 +200,7 @@ public class BenchmarkController {
      */
     Map<Integer, Set<Pair<String, Integer>>> m_launchHosts;
     
-    private Catalog catalog;
+    private CatalogContext catalogContext;
     
     /**
      * Keeps track of any files to send to clients
@@ -239,11 +232,11 @@ public class BenchmarkController {
     };
     
     @SuppressWarnings("unchecked")
-    public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
-        m_config = config;
-        self = Thread.currentThread();
-        hstore_conf = HStoreConf.singleton();
-        if (catalog != null) this.initializeCatalog(catalog);
+    public BenchmarkController(BenchmarkConfig config, CatalogContext catalogContext) {
+        this.m_config = config;
+        this.self = Thread.currentThread();
+        this.hstore_conf = HStoreConf.singleton();
+        if (catalogContext != null) this.initializeCatalog(catalogContext);
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir,
@@ -329,12 +322,24 @@ public class BenchmarkController {
                 2, 1024 * 128);
     }
     
+    private void initializeCatalog(CatalogContext catalogContext) {
+        assert(catalogContext != null);
+        this.catalogContext = catalogContext;
+        int total_num_clients = m_config.clients.length * hstore_conf.client.threads_per_host;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= catalogContext.numberOfPartitions;
+        }
+        this.totalNumClients = total_num_clients;
+        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
+    }
+    
+    
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
     }
     
     public Catalog getCatalog() {
-        return (this.catalog);
+        return (this.catalogContext.catalog);
     }
     
     protected BenchmarkResults getBenchmarkResults() {
@@ -362,17 +367,7 @@ public class BenchmarkController {
         }
     }
     
-    private void initializeCatalog(Catalog catalog) {
-        assert(catalog != null);
-        this.catalog = catalog;
-        int total_num_clients = m_config.clients.length * hstore_conf.client.threads_per_host;
-        if (hstore_conf.client.processesperclient_per_partition) {
-            total_num_clients *= CatalogUtil.getNumberOfPartitions(catalog);
-        }
-        this.totalNumClients = total_num_clients;
-        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
-    }
-    
+
 
     /**
      * COMPILE BENCHMARK JAR
@@ -422,12 +417,10 @@ public class BenchmarkController {
     public void setupBenchmark() {
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName.getAbsolutePath()));
+        this.initializeCatalog(CatalogUtil.loadCatalogContextFromJar(m_jarFileName));
         
         // Clear out any HStoreConf parameters that we're not suppose to
         // forward to the sites and clients
-        for (String key : EXCLUDED_SITE_PARAMS)
-            m_config.siteParameters.remove(key);
         for (String key : EXCLUDED_CLIENT_PARAMS)
             m_config.clientParameters.remove(key);
         
@@ -449,7 +442,7 @@ public class BenchmarkController {
             } // FOR
         } else {
             if (debug.get()) LOG.debug("Retrieving host information from catalog");
-            m_launchHosts = CatalogUtil.getExecutionSites(catalog);
+            m_launchHosts = CatalogUtil.getExecutionSites(this.catalogContext.catalog);
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
                 assert(p != null);
@@ -502,7 +495,7 @@ public class BenchmarkController {
             
             // START THE SERVERS
             if (m_config.noSites == false) {
-                this.startSites(catalog);
+                this.startSites();
             }
             
         } else {
@@ -535,7 +528,7 @@ public class BenchmarkController {
     /**
      * Deploy the HStoreSites on the remote nodes
      */
-    public void startSites(final Catalog catalog) {
+    public void startSites() {
         LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
@@ -613,7 +606,7 @@ public class BenchmarkController {
         int waiting = hosts_started;
         if (waiting > 0) {
             LOG.info(String.format("Waiting for %d HStoreSites with %d partitions to finish initialization",
-                                   waiting, CatalogUtil.getNumberOfPartitions(catalog)));
+                                   waiting, catalogContext.numberOfPartitions));
             do {
                 ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                 if (line == null) break;
@@ -810,7 +803,7 @@ public class BenchmarkController {
         
         int threads_per_client = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
-            threads_per_client *= CatalogUtil.getNumberOfPartitions(catalog);
+            threads_per_client *= catalogContext.numberOfPartitions;
         }
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
@@ -925,18 +918,15 @@ public class BenchmarkController {
         // RESULT PRINTING SETUP
         // ----------------------------------------------------------------------------
         
-        Database catalog_db = CatalogUtil.getDatabase(this.catalog); 
-        if (hstore_conf.client.anticache_enable &&
-            CatalogUtil.getEvictableTables(catalog_db).isEmpty() == false) {
-            this.evictorThread = new PeriodicEvictionThread(
-                                        catalog_db, getClientConnection(),
-                                        hstore_conf.client.anticache_evict_size, m_interested);
+        if (hstore_conf.client.anticache_enable &&  catalogContext.getEvictableTables().isEmpty() == false) {
+            this.evictorThread = new PeriodicEvictionThread(catalogContext, getClientConnection(),
+                                                            hstore_conf.client.anticache_evict_size, m_interested);
         }
         
     }
     
     private void addHostConnections(Collection<String> params) {
-        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+        for (Site catalog_site : catalogContext.sites) {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
@@ -1021,14 +1011,14 @@ public class BenchmarkController {
         
         int threadsPerHost = hstore_conf.client.threads_per_host;
         if (hstore_conf.client.processesperclient_per_partition) {
-            threadsPerHost *= CatalogUtil.getNumberOfPartitions(catalog); 
+            threadsPerHost *= catalogContext.numberOfPartitions; 
         }
                 
         String debugOpts = String.format("[hosts=%d, perhost=%d, txnrate=%s", m_config.clients.length,
                                                                               threadsPerHost,
                                                                               hstore_conf.client.txnrate);
         if (hstore_conf.client.blocking) {
-            debugOpts += ", blockingConcurrent%d" + hstore_conf.client.blocking_concurrent; 
+            debugOpts += ", blockingConcurrent=" + hstore_conf.client.blocking_concurrent; 
         }
         debugOpts += "]";
         LOG.info(String.format("Starting %s execution with %d clients %s",
@@ -1367,8 +1357,6 @@ public class BenchmarkController {
     private void recomputeMarkovs(Client client) {
         String output_directory = hstore_conf.global.temp_dir + "/markovs/" + m_projectBuilder.getProjectName();
         FileUtil.makeDirIfNotExists(output_directory);
-        Database catalog_db = CatalogUtil.getDatabase(catalog);
-
         ThreadUtil.sleep(60000);
         LOG.info("Requesting HStoreSites to recalculate Markov models");
         ClientResponse cr = null;
@@ -1406,7 +1394,7 @@ public class BenchmarkController {
         
         String new_output = output_directory + "/" + m_projectBuilder.getProjectName() + "-new.markovs";
         if (debug.get()) LOG.debug(String.format("Writing %d updated MarkovGraphsContainers to '%s'", markovs.size(),  new_output));
-        MarkovGraphContainersUtil.combine(markovs, new_output, catalog_db);
+        MarkovGraphContainersUtil.combine(markovs, new_output, catalogContext.database);
         
         // Clean up the remote files
         for (Pair<String, File> p : files_to_remove) {
@@ -1566,7 +1554,7 @@ public class BenchmarkController {
         
         boolean killOnZeroResults = false; 
         
-        Catalog catalog = null;
+        CatalogContext catalogContext = null;
         
         // HStoreConf Path
         String hstore_conf_path = null;
@@ -1732,9 +1720,9 @@ public class BenchmarkController {
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
-                catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
-                assert(catalog != null);
-                num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
+                catalogContext = CatalogUtil.loadCatalogContextFromJar(catalogPath);
+                assert(catalogContext != null);
+                num_partitions = catalogContext.numberOfPartitions;
                 
             } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
@@ -1982,7 +1970,7 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Benchmark Configuration\n" + config.toString());
         
         // ACTUALLY RUN THE BENCHMARK
-        BenchmarkController controller = new BenchmarkController(config, catalog);
+        BenchmarkController controller = new BenchmarkController(config, catalogContext);
         boolean failed = false;
         
         // Check CodeSpeed Parameters
