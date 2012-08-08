@@ -1951,7 +1951,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      */
     public void transactionFinish(Long txn_id, Status status, PartitionSet partitions) {
-        if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
+        if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [status=%s, partitions=%s]",
                                        txn_id, status, partitions));
         boolean commit = (status == Status.OK);
         
@@ -2462,6 +2462,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         try {
             clientCallback.run(cresponse);
         } catch (ClientConnectionLostException ex) {
+            // There is nothing else we can really do here. We'll clean up
+            // the transaction just as normal and report the error
+            // in our logs if they have debugging turned on
             if (d) LOG.debug("Failed to send back ClientResponse for txn #" + cresponse.getTransactionId(), ex);
         }
     }

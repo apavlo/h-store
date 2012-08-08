@@ -62,7 +62,8 @@ public class HStoreThreadManager {
         this.num_partitions = this.hstore_site.getLocalPartitionIds().size();
         
         // Periodic Work Thread
-        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(HStoreConstants.THREAD_NAME_PERIODIC,
+        String threadName = getThreadName(hstore_site, HStoreConstants.THREAD_NAME_PERIODIC);
+        this.m_periodicWorkThread = ThreadUtil.getScheduledThreadPoolExecutor(threadName,
                                                                               hstore_site.getExceptionHandler(),
                                                                               1,
                                                                               1024 * 128);
