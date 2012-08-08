@@ -82,6 +82,7 @@ import boto
 ## List of packages needed on each instance
 ALL_PACKAGES = [
     'git-core',
+    'subversion',
     'gcc',
     'g++',
     'openjdk-6-jdk',
@@ -571,8 +572,8 @@ def deploy_hstore(build=True, update=True):
             with cd(env["hstore.basedir"]):
                 LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
                 run("git clone --branch %s %s %s" % (env["hstore.git_branch"], \
-                                                        env["hstore.git_options"], \
-                                                        env["hstore.git"]))
+                                                     env["hstore.git_options"], \
+                                                     env["hstore.git"]))
                 update = True
                 need_files = True
     ## WITH
