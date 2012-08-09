@@ -74,7 +74,7 @@ public class TestLocalTransaction extends BaseTestCase {
                 
                 // Generate random input parameters for the Statement but make sure that
                 // the W_IDs always point to our BASE_PARTITION
-                Object params[] = this.makeRandomStatementParameters(catalog_stmts[j]);
+                Object params[] = this.randomStatementParameters(catalog_stmts[j]);
                 for (int k = 0; k < TARGET_STMTS_W_IDS[j].length; k++) {
                     int idx = TARGET_STMTS_W_IDS[j][k];
                     params[idx] = BASE_PARTITION;
