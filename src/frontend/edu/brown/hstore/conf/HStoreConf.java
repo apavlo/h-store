@@ -124,7 +124,7 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public String jvm_asserts;
+        public boolean jvm_asserts;
         
         @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
@@ -1061,7 +1061,7 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public String jvm_asserts;
+        public boolean jvm_asserts;
         
         @ConfigProperty(
             description="Additional JVM arguments to include when launching each benchmark client process. " +
@@ -1537,7 +1537,7 @@ public final class HStoreConf {
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
                 }
-//                System.err.println(String.format("%-20s = %s", f.getName(), value));
+                if (trace.get()) LOG.trace(String.format("%-20s = %s", f.getName(), value));
             } // FOR   
         }
         
@@ -1871,7 +1871,7 @@ public final class HStoreConf {
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
-                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
             ConfigProperty cp = handle.getConfigProperties().get(f);
@@ -1962,22 +1962,23 @@ public final class HStoreConf {
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
-            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type", v, k));
+            if (debug.get()) LOG.debug(String.format("Casting value '%s' for key '%s' to proper type [class=%s]", v, k, f_class));
             
-            if (f_class.equals(int.class)) {
+            if (f_class.equals(int.class) || f_class.equals(Integer.class)) {
                 value = Integer.parseInt(v);
-            } else if (f_class.equals(long.class)) {
+            } else if (f_class.equals(long.class) || f_class.equals(Long.class)) {
                 value = Long.parseLong(v);
-            } else if (f_class.equals(double.class)) {
+            } else if (f_class.equals(double.class) || f_class.equals(Double.class)) {
                 value = Double.parseDouble(v);
-            } else if (f_class.equals(boolean.class)) {
-                value = Boolean.parseBoolean(v);
+            } else if (f_class.equals(boolean.class) || f_class.equals(Boolean.class)) {
+                value = Boolean.parseBoolean(v.toLowerCase());
             } else if (f_class.equals(String.class)) {
                 value = v;
             } else {
                 LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
                 continue;
             }
+            if (debug.get()) LOG.debug(String.format("CAST %s => %s", k, value));
            
             this.set(handle, f, value);
             this.markAsExternal(handle, f_name);
@@ -1989,7 +1990,11 @@ public final class HStoreConf {
         for (Conf confHandle : this.externalParams.keySet()) {
             for (String f_name : this.externalParams.get(confHandle)) {
                 Object val = confHandle.getValue(f_name);
-                if (val != null) m.put(String.format("%s.%s", confHandle.prefix, f_name), val.toString());
+                if (val != null) {
+                    String key = String.format("%s.%s", confHandle.prefix, f_name);
+                    if (trace.get()) LOG.trace(String.format("LOADED %s => %s", key, val.toString()));
+                    m.put(key, val.toString());
+                }
             } // FOR
         } // FOR
         return (m);
