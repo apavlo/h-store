@@ -51,7 +51,7 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.StringUtil;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload;
 
@@ -215,9 +215,8 @@ public abstract class HStore {
             		     "H-Store is executing with JVM asserts enabled. This will degrade runtime performance.\n" +
             		     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
             		     "See the online documentation for more information:\n   " + url;
-            LOG.warn("\n" + StringUtil.box(msg));
+            LOG.warn("\n" + StringBoxUtil.heavyBox(msg));
         }
-            
         
         ArgumentsParser args = ArgumentsParser.load(vargs,
                     ArgumentsParser.PARAM_CATALOG,

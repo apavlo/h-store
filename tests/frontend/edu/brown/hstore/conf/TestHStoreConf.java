@@ -10,7 +10,6 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.conf.HStoreConf.Conf;
-import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
 
 public class TestHStoreConf extends BaseTestCase {

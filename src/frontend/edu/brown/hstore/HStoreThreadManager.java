@@ -200,16 +200,16 @@ public class HStoreThreadManager {
         if (this.disable) {
             LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
             return (false);
-        } else {
-            this.registerThread(affinity);
-            
-            final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
-            for (int ii = 0; ii < endingAffinity.length; ii++) {
-                if (trace.get() && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
-                affinity[ii] = false;
-            } // FOR
-            LOG.info("Successfully set CPU affinity for thread '" + t.getName());
         }
+        this.registerThread(affinity);
+        
+        final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+        for (int ii = 0; ii < endingAffinity.length; ii++) {
+            if (trace.get() && endingAffinity[ii]) LOG.trace(String.format("NEW AFFINITY %s -> CPU[%d]", partition, ii));
+            affinity[ii] = false;
+        } // FOR
+        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                                   t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
     
@@ -244,9 +244,10 @@ public class HStoreThreadManager {
             LOG.warn("Unable to set CPU affinity for thread '" + t.getName() + "'. Disabling feature");
             return (false);
         }
-        
-        LOG.info("Successfully set CPU affinity for thread '" + t.getName());
         this.registerThread(this.defaultAffinity);
+        
+        if (debug.get()) LOG.debug(String.format("Successfully set affinity for thread '%s' on CPUs %s",
+                                   t.getName(), this.getCPUIds(affinity)));
         return (true);
     }
     

@@ -44,6 +44,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.filters.Filter;
 
@@ -1095,11 +1096,11 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     assert (upper_bounds_vertex.cost > state.cost) : "Upper=" + upper_bounds_vertex.cost + ", Current=" + state.cost;
 
                     if (debug.get()) {
-                        LOG.debug("Old Solution:\n" + StringUtil.box(best_vertex.toString()));
+                        LOG.debug("Old Solution:\n" + StringBoxUtil.box(best_vertex.toString()));
                     }
                     BranchAndBoundPartitioner.this.best_vertex = state;
                     if (debug.get()) {
-                        LOG.debug("New Best Solution:\n" + StringUtil.box(best_vertex.toString()));
+                        LOG.debug("New Best Solution:\n" + StringBoxUtil.box(best_vertex.toString()));
                         if (this.cost_model.hasDebugMessages())
                             LOG.debug("Last Cost Model Info:\n " + this.cost_model.getLastDebugMessage());
                     }
