@@ -188,7 +188,9 @@ public class BatchPlanner implements Loggable {
         /**
          * The number of dispatch rounds that we have in this plan
          */
-        private int num_rounds;
+        private int num_rounds = 0;
+        
+        private PlanVertex sorted_vertices[];
 
         /**
          * Single-Partition
@@ -951,16 +953,17 @@ public class BatchPlanner implements Loggable {
      * @param graph
      * @param tasks
      */
-    protected void buildWorkFragments(final Long txn_id, final BatchPlanner.BatchPlan plan, final PlanGraph graph,
-            final List<WorkFragment> tasks) {
+    protected void buildWorkFragments(final Long txn_id,
+                                      final BatchPlanner.BatchPlan plan,
+                                      final PlanGraph graph,
+                                      final List<WorkFragment> tasks) {
 
         if (hstore_conf.site.planner_profiling && profiler != null)
             profiler.time_partitionFragments.start();
-        if (d)
-            LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
-                    txn_id, plan.base_partition));
+        if (d) LOG.debug(String.format("Constructing list of WorkFragments to execute [txn_id=#%d, base_partition=%d]",
+                         txn_id, plan.base_partition));
 
-        for (PlanVertex v : graph.getVertices()) {
+        for (PlanVertex v : graph.sorted_vertices) {
             int stmt_index = v.stmt_index;
             for (Integer partition : plan.frag_partitions[stmt_index].get(v.catalog_frag)) {
                 plan.rounds[v.round][partition.intValue()].add(v);
@@ -969,15 +972,12 @@ public class BatchPlanner implements Loggable {
 
         // The main idea of what we're trying to do here is to group together
         // all of the PlanFragments with the same input dependency ids into a single WorkFragment
-        if (t)
-            LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
+        if (t) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #" + txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
-            if (t)
-                LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
+            if (t) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round));
             for (int partition = 0; partition < this.num_partitions; partition++) {
                 Collection<PlanVertex> vertices = plan.rounds[round][partition];
-                if (vertices.isEmpty())
-                    continue;
+                if (vertices.isEmpty()) continue;
 
                 this.round_builders.clear();
                 for (PlanVertex v : vertices) { // Does this order matter?
@@ -995,8 +995,8 @@ public class BatchPlanner implements Loggable {
                     // could be the NULL_DEPENDENCY_ID
                     partitionBuilder.addInputDepId(WorkFragment.InputDependency.newBuilder()
                             .addIds(v.input_dependency_id).build());
-                    partitionBuilder.setNeedsInput(partitionBuilder.getNeedsInput()
-                            || (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID));
+                    partitionBuilder.setNeedsInput(partitionBuilder.getNeedsInput() ||
+                                                   (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID));
 
                     // All fragments will produce some output
                     partitionBuilder.addOutputDepId(v.output_dependency_id);
@@ -1014,10 +1014,12 @@ public class BatchPlanner implements Loggable {
                     if (this.prefetch)
                         partitionBuilder.setPrefetch(true);
 
-                    if (t)
-                        LOG.trace("Fragment Grouping " + partitionBuilder.getFragmentIdCount() + " => [" + "txn_id=#"
-                                + txn_id + ", " + "frag_id=" + v.frag_id + ", " + "input=" + v.input_dependency_id
-                                + ", " + "output=" + v.output_dependency_id + ", " + "stmt_index=" + v.stmt_index + "]");
+                    if (t) LOG.trace(String.format("Fragment Grouping %d => " +
+                    		         "[txnId=#%d, partition=%d, fragDd=%d, input=%d, output=%d, stmtIndex=%d]",
+                    		         partitionBuilder.getFragmentIdCount(),
+                    		         txn_id, partition, v.frag_id,
+                    		         v.input_dependency_id, v.output_dependency_id, v.stmt_index));
+                    
                 } // FOR (frag_idx)
 
                 for (WorkFragment.Builder partitionBuilder : this.round_builders.values()) {
@@ -1063,7 +1065,6 @@ public class BatchPlanner implements Loggable {
             ProfileMeasurement.swap(profiler.time_plan, profiler.time_planGraph);
         PlanGraph graph = new PlanGraph();
 
-        graph.num_rounds = 0;
         this.sorted_vertices.clear();
         this.output_dependency_xref_clear.clear();
 
@@ -1082,15 +1083,19 @@ public class BatchPlanner implements Loggable {
             for (int round = 0, cnt = num_fragments; round < cnt; round++) {
                 PlanFragment catalog_frag = fragments.get(round);
                 PartitionSet f_partitions = frag_partitions.get(catalog_frag);
-                assert (f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round,
-                        catalog_frag.fullName(), stmt_index);
+                assert (f_partitions != null) :
+                    String.format("No PartitionIds for [%02d] %s in Statement #%d", round,
+                                  catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                final Integer output_id = Integer.valueOf(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID
-                        .getAndIncrement() : last_id++);
+                final Integer output_id = Integer.valueOf(this.enable_unique_ids ?
+                            BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : last_id++);
 
-                PlanVertex v = new PlanVertex(catalog_frag, stmt_index, round, last_output_id, output_id.intValue(),
-                        f_local);
-
+                PlanVertex v = new PlanVertex(catalog_frag,
+                                              stmt_index,
+                                              round,
+                                              last_output_id,
+                                              output_id.intValue(),
+                                              f_local);
                 Set<PlanVertex> dependencies = output_dependency_xref.get(output_id);
                 if (dependencies == null) {
                     dependencies = new HashSet<PlanVertex>();
@@ -1132,6 +1137,7 @@ public class BatchPlanner implements Loggable {
             graph.input_ids[i] = v.input_dependency_id;
             i += 1;
         } // FOR
+        graph.sorted_vertices = this.sorted_vertices.toArray(new PlanVertex[0]);
 
         if (hstore_conf.site.planner_profiling && profiler != null)
             ProfileMeasurement.swap(profiler.time_planGraph, profiler.time_plan);

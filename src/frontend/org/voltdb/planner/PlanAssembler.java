@@ -380,11 +380,9 @@ public class PlanAssembler {
     }
 
     private void addColumns(CompiledPlan plan, ParsedSelectStmt stmt) {
-        int index = 0;
         for (ParsedSelectStmt.ParsedColInfo col : stmt.displayColumns) {
             PlanColumn outcol = m_context.getPlanColumn(col.expression, col.alias);
             plan.columns.add(outcol.guid());
-            index++;
         }
     }
 
@@ -632,11 +630,9 @@ public class PlanAssembler {
         Set<String> affectedColumns = getIndexedColumnSetForTable(targetTable);
 
         // add the output columns we need
-        int index = 1;
         for (Entry<Column, AbstractExpression> col : m_parsedUpdate.columns.entrySet()) {
             colInfo = m_context.getPlanColumn(col.getValue(), col.getKey().getTypeName());
             projectionNode.appendOutputColumn(colInfo);
-            index++;
 
             // check if this column is an indexed column
             if (affectedColumns.contains(colInfo.getDisplayName()))
