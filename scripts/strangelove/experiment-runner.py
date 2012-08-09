@@ -129,7 +129,6 @@ BASE_SETTINGS = {
     "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
-    "client.throttle_backoff":          50,
     "client.memory":                    6000,
     "client.output_basepartitions":     False,
     
@@ -148,11 +147,9 @@ BASE_SETTINGS = {
     "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
     "site.queue_incoming_increase":                     10,
-    "site.queue_incoming_throttle":                     False,
     "site.queue_dtxn_max_per_partition":                1000,
     "site.queue_dtxn_release_factor":                   0.90,
     "site.queue_dtxn_increase":                         0,
-    "site.queue_dtxn_throttle":                         False,
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
     "site.cpu_affinity_one_partition_per_core":         True,
@@ -161,7 +158,7 @@ BASE_SETTINGS = {
 EXPERIMENT_SETTINGS = {
     "motivation": {
         "site.specexec_enable":                 False,
-        "site.specexec_idle_enable":            False,
+        "site.specexec_idle":                   False,
         "client.output_response_status":        True,
         #"client.output_exec_profiling":         "execprofile.csv",
         #"client.output_txn_profiling":          "txnprofile.csv",
