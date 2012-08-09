@@ -49,7 +49,9 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload;
 
@@ -207,6 +209,17 @@ public abstract class HStore {
      * @throws Exception
      */
     public static void main(String[] vargs) throws Exception {
+        if (ClassUtil.isAssertsEnabled()) {
+            String url = HStoreConstants.HSTORE_WEBSITE + "/documentation/deployment/client-configuration";
+            String msg = "!!! WARNING !!!\n" +
+            		     "H-Store is executing with JVM asserts enabled.\n" +
+            		     "This will degrade runtime performance.\n" +
+            		     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
+            		     "See " + url + " for more information.";
+            LOG.warn(StringUtil.box(msg));
+        }
+            
+        
         ArgumentsParser args = ArgumentsParser.load(vargs,
                     ArgumentsParser.PARAM_CATALOG,
                     ArgumentsParser.PARAM_SITE_ID,
