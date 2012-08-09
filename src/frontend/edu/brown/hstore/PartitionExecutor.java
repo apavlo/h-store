@@ -1868,7 +1868,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Status status, ExecutionMode before_mode) {
         if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, before=%s, current=%s]",
-                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.currentExecMode));
+                                       ts, status, ts.isPredictSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.currentExecMode));
         // Commit All
         if (this.currentExecMode == ExecutionMode.COMMIT_ALL) {
             return (true);
@@ -3248,17 +3248,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable, 
 
             // We don't want to delete the transaction here because whoever is going to requeue it for
             // us will need to know what partitions that the transaction touched when it executed before
-            this.hstore_site.transactionRequeue(ts, status);
-            
+            if (ts.isPredictSinglePartition()) {
+                this.hstore_site.transactionRequeue(ts, status);
+                this.finishWork(ts, false);
+            }
             // Send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the
             // results back because we'll start working on new txns right away.
             // Note that when we call transactionFinish() right here this thread will then go on 
             // to invoke HStoreSite.transactionFinish() for us. That means when it returns we will
             // have successfully aborted the txn at least at all of the local partitions at this site.
-            if (ts.isPredictSinglePartition() == false) {
+            else {
                 if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostFinish();
                 TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
+                finish_callback.markForRequeue();
                 if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
                 this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
                 if (hstore_conf.site.exec_profiling && this.profiler.network_time.isStarted()) 
