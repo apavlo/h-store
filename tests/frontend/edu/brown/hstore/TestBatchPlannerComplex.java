@@ -1,17 +1,14 @@
 package edu.brown.hstore;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
-import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -26,10 +23,6 @@ import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.conf.HStoreConf;
 
 public class TestBatchPlannerComplex extends BaseTestCase {
 
@@ -93,65 +86,64 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         return (plan);
     }
 
-//    /**
-//     * testGetPlanGraph
-//     */
-//    public void testGetPlanGraph() throws Exception {
-//        BatchPlanner.PlanGraph graph = getPlan().getPlanGraph();
-//        assertNotNull(graph);
-//        
-//        // Make sure that only PlanVertexs with input dependencies have a child in the graph
-//        for (BatchPlanner.PlanVertex v : graph.getVertices()) {
-//            assertNotNull(v);
-//            if (v.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) {
-//                assertEquals(0, graph.getSuccessorCount(v));
-//            } else {
-//                assertEquals(1, graph.getSuccessorCount(v));
-//            }
-//        } // FOR
-//        
-////        GraphVisualizationPanel.createFrame(graph, GraphVisualizationPanel.makeVertexObserver(graph)).setVisible(true);
-////        ThreadUtil.sleep(1000000);
-//    }
-//    
-//    /**
-//     * testFragmentIds
-//     */
-//    public void testFragmentIds() throws Exception {
-//        catalog_proc = this.getProcedure(DeleteReservation.class);
-//        
-//        // Make sure that PlanFragment ids in each WorkFragment only
-//        // belong to the Procedure
-//        for (Statement catalog_stmt : catalog_proc.getStatements()) {
-//            batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
-//            args = new ParameterSet[] {
-//                    new ParameterSet(this.makeRandomStatementParameters(catalog_stmt))
-//            };
-//            this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
-//            this.touched_partitions.clear();
-//            BatchPlan plan = this.getPlan();
-//        
-//            List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-//            plan.getWorkFragments(TXN_ID, fragments);
-//            assertFalse(fragments.isEmpty());
-//        
-//            for (WorkFragment pf : fragments) {
-//                assertNotNull(pf);
-//                for (int frag_id : pf.getFragmentIdList()) {
-//                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
-//                    assertNotNull(catalog_frag);
-//                    assertEquals(catalog_frag.fullName(), catalog_stmt, catalog_frag.getParent());
-//                } // FOR
-//    //            System.err.println(pf);
-//            } // FOR
-//        } // FOR
-//    }
+    /**
+     * testGetPlanGraph
+     */
+    public void testGetPlanGraph() throws Exception {
+        BatchPlanner.PlanGraph graph = getPlan().getPlanGraph();
+        assertNotNull(graph);
+        
+        // Make sure that only PlanVertexs with input dependencies have a child in the graph
+        for (BatchPlanner.PlanVertex v : graph.getVertices()) {
+            assertNotNull(v);
+            if (v.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) {
+                assertEquals(0, graph.getSuccessorCount(v));
+            } else {
+                assertEquals(1, graph.getSuccessorCount(v));
+            }
+        } // FOR
+        
+//        GraphVisualizationPanel.createFrame(graph, GraphVisualizationPanel.makeVertexObserver(graph)).setVisible(true);
+//        ThreadUtil.sleep(1000000);
+    }
+    
+    /**
+     * testFragmentIds
+     */
+    public void testFragmentIds() throws Exception {
+        catalog_proc = this.getProcedure(DeleteReservation.class);
+        
+        // Make sure that PlanFragment ids in each WorkFragment only
+        // belong to the Procedure
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
+            args = new ParameterSet[] {
+                    new ParameterSet(this.randomStatementParameters(catalog_stmt))
+            };
+            this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
+            this.touched_partitions.clear();
+            BatchPlan plan = this.getPlan();
+        
+            List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+            plan.getWorkFragments(TXN_ID, fragments);
+            assertFalse(fragments.isEmpty());
+        
+            for (WorkFragment pf : fragments) {
+                assertNotNull(pf);
+                for (int frag_id : pf.getFragmentIdList()) {
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                    assertNotNull(catalog_frag);
+                    assertEquals(catalog_frag.fullName(), catalog_stmt, catalog_frag.getParent());
+                } // FOR
+    //            System.err.println(pf);
+            } // FOR
+        } // FOR
+    }
     
     /**
      * testFragmentOrder
      */
     public void testFragmentOrder() throws Exception {
-        System.err.println(CatalogUtil.debug(catalogContext.procedures));
         Procedure catalog_proc = this.getProcedure(BatchPlannerConflictProc.class);
         
         // Create a big batch and make sure that the fragments are in the correct order
@@ -196,46 +188,46 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 }
                 last = current;
                 
-                // Make sure that the select doesn't appear before we execute the
+                // Make sure that the select doesn't appear before we execute the inserts
                 if (first) assertNotSame(stmts[1], current);
+                first = false;
             } // FOR
-            first = false;
         } // FOR
     }
     
-//    /**
-//     * testBuildWorkFragments
-//     */
-//    public void testBuildWorkFragments() throws Exception {
-//        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-//        BatchPlan plan = this.getPlan();
-//        plan.getWorkFragments(TXN_ID, fragments);
-//        assertFalse(fragments.isEmpty());
-//        
-//        for (WorkFragment pf : fragments) {
-//            assertNotNull(pf);
-////            System.err.println(pf);
-//            
-//            // If this WorkFragment is not for the base partition, then
-//            // we should make sure that it only has distributed queries...
-//            if (pf.getPartitionId() != BASE_PARTITION) {
-//                for (int frag_id : pf.getFragmentIdList()) {
-//                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog, frag_id);
-//                    assertNotNull(catalog_frag);
-//                    Statement catalog_stmt = catalog_frag.getParent();
-//                    assertNotNull(catalog_stmt);
-//                    assert(catalog_stmt.getMs_fragments().contains(catalog_frag));
-//                } // FOR
-//            }
-//            
-//            // The InputDepId for all WorkFragments should always be the same
-//            Set<Integer> all_ids = new HashSet<Integer>();
-//            for (WorkFragment.InputDependency input_dep_ids : pf.getInputDepIdList()) {
-//                all_ids.addAll(input_dep_ids.getIdsList());
-//            } // FOR
-//            assertEquals(pf.toString(), 1, all_ids.size());
-//            
-////            System.err.println(StringUtil.SINGLE_LINE);
-//        } // FOR
-//    } // FOR
+    /**
+     * testBuildWorkFragments
+     */
+    public void testBuildWorkFragments() throws Exception {
+        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        BatchPlan plan = this.getPlan();
+        plan.getWorkFragments(TXN_ID, fragments);
+        assertFalse(fragments.isEmpty());
+        
+        for (WorkFragment pf : fragments) {
+            assertNotNull(pf);
+//            System.err.println(pf);
+            
+            // If this WorkFragment is not for the base partition, then
+            // we should make sure that it only has distributed queries...
+            if (pf.getPartitionId() != BASE_PARTITION) {
+                for (int frag_id : pf.getFragmentIdList()) {
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog, frag_id);
+                    assertNotNull(catalog_frag);
+                    Statement catalog_stmt = catalog_frag.getParent();
+                    assertNotNull(catalog_stmt);
+                    assert(catalog_stmt.getMs_fragments().contains(catalog_frag));
+                } // FOR
+            }
+            
+            // The InputDepId for all WorkFragments should always be the same
+            Set<Integer> all_ids = new HashSet<Integer>();
+            for (WorkFragment.InputDependency input_dep_ids : pf.getInputDepIdList()) {
+                all_ids.addAll(input_dep_ids.getIdsList());
+            } // FOR
+            assertEquals(pf.toString(), 1, all_ids.size());
+            
+//            System.err.println(StringUtil.SINGLE_LINE);
+        } // FOR
+    } // FOR
 }
