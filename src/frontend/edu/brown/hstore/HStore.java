@@ -212,11 +212,10 @@ public abstract class HStore {
         if (ClassUtil.isAssertsEnabled()) {
             String url = HStoreConstants.HSTORE_WEBSITE + "/documentation/deployment/client-configuration";
             String msg = "!!! WARNING !!!\n" +
-            		     "H-Store is executing with JVM asserts enabled.\n" +
-            		     "This will degrade runtime performance.\n" +
+            		     "H-Store is executing with JVM asserts enabled. This will degrade runtime performance.\n" +
             		     "You can disable them by setting the config option 'site.jvm_asserts' to FALSE\n" +
-            		     "See " + url + " for more information.";
-            LOG.warn(StringUtil.box(msg));
+            		     "See the online documentation for more information:\n   " + url;
+            LOG.warn("\n" + StringUtil.box(msg));
         }
             
         

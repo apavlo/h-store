@@ -1193,16 +1193,17 @@ SHAREDLIB_JNIEXPORT jbooleanArray JNICALL Java_org_voltdb_utils_ThreadUtils_getT
  * Method:    setThreadAffinity
  * Signature: ([Z)V
  */
-SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffinity
+SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffinity
   (JNIEnv *env, jclass clazz, jbooleanArray coresArray) {
+    
     jsize numCores = env->GetArrayLength(coresArray);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
-        return;
+        return (false);
     }
     jboolean *cores = env->GetBooleanArrayElements(coresArray, NULL);
     if (cores == NULL) {
-        return;
+        return (false);
     }
 
     //Also get the total number of processors
@@ -1217,16 +1218,17 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffi
         }
     }
 
-    int result = sched_setaffinity( 0, sizeof(mask), &mask);
+    int result = sched_setaffinity(0, sizeof(mask), &mask);
     if (result == -1) {
         char buff[256];
-        if (strerror_r(result, buff, 256) == 0) {
+        if (strerror_r(errno, buff, 256) == 0) {
             VOLT_ERROR("Failed to set CPU -  %s",  buff);
         } else {
-            VOLT_ERROR("Failed to set CPU affinity for an unknown reason");
+            VOLT_ERROR("Failed to set CPU affinity for an unknown reason [errno=%d]", errno);
         }
-        assert(false);
+        return (false);
     }
+    return (true);
 }
 
 /*

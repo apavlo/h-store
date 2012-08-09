@@ -1960,7 +1960,7 @@ public class BenchmarkController {
             }
             if (config.compileOnly) {
                 if (success) {
-                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName + "]");
+                    LOG.info("Compilation Complete. Exiting [" + controller.m_jarFileName.getAbsolutePath() + "]");
                 } else {
                     LOG.info("Compilation Failed");
                 }

@@ -32,6 +32,9 @@ public class BenchmarkCompiler {
      * COMPILE BENCHMARK JAR
      */
     public boolean compileBenchmark(File m_jarFileName) {
+        LOG.info(String.format("Compiling %s benchmark project jar",
+                 this.m_projectBuilder.getProjectName().toUpperCase()));
+        
         if (m_config.hosts.length == 0) {
             m_config.hosts = new String[] { hstore_conf.global.defaulthost };
         }
